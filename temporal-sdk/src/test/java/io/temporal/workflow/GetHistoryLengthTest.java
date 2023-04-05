@@ -53,7 +53,7 @@ public class GetHistoryLengthTest {
     assertEquals("done", workflowStub.execute());
 
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    testWorkflowRule.regenerateHistoryForReplay(execution, "testGetHistoryLength");
+    testWorkflowRule.regenerateHistoryForReplay(execution.getWorkflowId(), "testGetHistoryLength");
   }
 
   @Test

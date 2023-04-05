@@ -29,11 +29,11 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.docker.RegisterTestNamespace;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -87,10 +87,11 @@ public class TestWorkflowRule implements TestRule {
 
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
-  private final WorkflowImplementationOptions workflowImplementationOptions;
-  private final WorkerFactoryOptions workerFactoryOptions;
-  private final WorkerOptions workerOptions;
+  private final WorkflowServiceStubsOptions serviceStubsOptions;
   private final WorkflowClientOptions clientOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
+  private final WorkflowImplementationOptions workflowImplementationOptions;
+  private final WorkerOptions workerOptions;
   private final String target;
   private final boolean useTimeskipping;
   private final Scope metricsScope;
@@ -115,27 +116,31 @@ public class TestWorkflowRule implements TestRule {
     this.workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     this.activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
+    this.serviceStubsOptions =
+        (builder.workflowServiceStubsOptions == null)
+            ? WorkflowServiceStubsOptions.newBuilder().build()
+            : builder.workflowServiceStubsOptions;
+    this.clientOptions =
+        (builder.workflowClientOptions == null)
+            ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
+            : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
     this.workerOptions =
         (builder.workerOptions == null)
-            ? WorkerOptions.getDefaultInstance()
+            ? WorkerOptions.newBuilder().build()
             : builder.workerOptions;
     this.workerFactoryOptions =
         (builder.workerFactoryOptions == null)
-            ? WorkerFactoryOptions.getDefaultInstance()
+            ? WorkerFactoryOptions.newBuilder().build()
             : builder.workerFactoryOptions;
     this.workflowImplementationOptions =
         (builder.workflowImplementationOptions == null)
-            ? WorkflowImplementationOptions.getDefaultInstance()
+            ? WorkflowImplementationOptions.newBuilder().build()
             : builder.workflowImplementationOptions;
     this.globalTimeout =
         !DebugModeUtils.isTemporalDebugModeOn() && builder.testTimeoutSeconds != 0
             ? Timeout.seconds(builder.testTimeoutSeconds)
             : null;
 
-    this.clientOptions =
-        (builder.workflowClientOptions == null)
-            ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
-            : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
     this.target = builder.target;
     this.useTimeskipping = builder.useTimeskipping;
     this.metricsScope = builder.metricsScope;
@@ -147,6 +152,7 @@ public class TestWorkflowRule implements TestRule {
 
   protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
     return TestEnvironmentOptions.newBuilder()
+        .setWorkflowServiceStubsOptions(serviceStubsOptions)
         .setWorkflowClientOptions(clientOptions)
         .setWorkerFactoryOptions(workerFactoryOptions)
         .setUseExternalService(useExternalService)
@@ -175,9 +181,10 @@ public class TestWorkflowRule implements TestRule {
 
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
-    private WorkflowImplementationOptions workflowImplementationOptions;
+    private WorkflowServiceStubsOptions workflowServiceStubsOptions;
     private WorkflowClientOptions workflowClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
+    private WorkflowImplementationOptions workflowImplementationOptions;
     private WorkerOptions workerOptions;
     private long testTimeoutSeconds;
     @Nonnull private final Map<String, IndexedValueType> searchAttributes = new HashMap<>();
@@ -190,9 +197,9 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
-    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
-      this.workerFactoryOptions = options;
-      return this;
+    public void setWorkflowServiceStubsOptions(
+        WorkflowServiceStubsOptions workflowServiceStubsOptions) {
+      this.workflowServiceStubsOptions = workflowServiceStubsOptions;
     }
 
     /**
@@ -201,6 +208,11 @@ public class TestWorkflowRule implements TestRule {
      */
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       this.workflowClientOptions = workflowClientOptions;
+      return this;
+    }
+
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      this.workerFactoryOptions = options;
       return this;
     }
 
@@ -441,15 +453,18 @@ public class TestWorkflowRule implements TestRule {
 
   /**
    * @return workflow execution history
+   * @deprecated use {@link WorkflowClient#fetchHistory(String, String)}. To obtain a WorkflowClient
+   *     use {@link #getWorkflowClient()}
    */
+  @Deprecated
   public History getHistory(@Nonnull WorkflowExecution execution) {
     return testEnvironment.getWorkflowExecutionHistory(execution).getHistory();
   }
 
   /**
    * @return name of the task queue that test worker is polling.
-   * @deprecated use {@link #getHistory}, this method will be reworked to return {@link
-   *     WorkflowExecutionHistory} in the upcoming releases
+   * @deprecated use {@link WorkflowClient#fetchHistory(String, String)}. To obtain a WorkflowClient
+   *     use {@link #getWorkflowClient()}
    */
   @Deprecated
   public History getWorkflowExecutionHistory(WorkflowExecution execution) {

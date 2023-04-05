@@ -207,14 +207,24 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         @Nonnull ExecuteLocalActivityParameters params,
         @Nonnull Functions.Proc1<LocalActivityResult> resultCallback,
         @Nullable Deadline acceptanceDeadline) {
-      if (!isStarted()) {
-        if (isShutdown()) {
-          throw new IllegalStateException("Local Activity Worker is shutdown");
-        } else {
+      WorkerLifecycleState lifecycleState = getLifecycleState();
+      switch (lifecycleState) {
+        case NOT_STARTED:
           throw new IllegalStateException(
               "Local Activity Worker is not started, no activities were registered");
-        }
+        case SHUTDOWN:
+          throw new IllegalStateException("Local Activity Worker is shutdown");
+        case TERMINATED:
+          throw new IllegalStateException("Local Activity Worker is terminated");
+        case SUSPENDED:
+          throw new IllegalStateException(
+              "[BUG] Local Activity Worker is suspended. Suspension is not supported for Local Activity Worker");
       }
+
+      Preconditions.checkArgument(
+          handler.isTypeSupported(params.getActivityType().getName()),
+          "Activity type %s is not supported by the local activity worker",
+          params.getActivityType().getName());
 
       long passedFromOriginalSchedulingMs =
           System.currentTimeMillis() - params.getOriginalScheduledTimestamp();
@@ -645,12 +655,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     }
   }
 
-  public boolean isAnyTypeSupported() {
-    return handler.isAnyTypeSupported();
-  }
-
   @Override
-  public void start() {
+  public boolean start() {
     if (handler.isAnyTypeSupported()) {
       this.scheduledExecutor =
           Executors.newSingleThreadScheduledExecutor(
@@ -674,27 +680,15 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               false);
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      return true;
+    } else {
+      return false;
     }
   }
 
   @Override
-  public boolean isStarted() {
-    return scheduledExecutor != null && !scheduledExecutor.isShutdown();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return scheduledExecutor != null && scheduledExecutor.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return scheduledExecutor != null && scheduledExecutor.isTerminated();
-  }
-
-  @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    if (isStarted()) {
+    if (activityAttemptTaskExecutor != null && !activityAttemptTaskExecutor.isShutdown()) {
       return activityAttemptTaskExecutor
           .shutdown(shutdownManager, interruptTasks)
           .thenCompose(
@@ -715,6 +709,34 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   public void awaitTermination(long timeout, TimeUnit unit) {
     long timeoutMillis = unit.toMillis(timeout);
     ShutdownManager.awaitTermination(scheduledExecutor, timeoutMillis);
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return activityAttemptTaskExecutor != null && activityAttemptTaskExecutor.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return activityAttemptTaskExecutor != null
+        && activityAttemptTaskExecutor.isTerminated()
+        && scheduledExecutor.isTerminated();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    if (activityAttemptTaskExecutor == null) {
+      return WorkerLifecycleState.NOT_STARTED;
+    }
+    if (activityAttemptTaskExecutor.isShutdown()) {
+      // return TERMINATED only if both pollExecutor and taskExecutor are terminated
+      if (activityAttemptTaskExecutor.isTerminated() && scheduledExecutor.isTerminated()) {
+        return WorkerLifecycleState.TERMINATED;
+      } else {
+        return WorkerLifecycleState.SHUTDOWN;
+      }
+    }
+    return WorkerLifecycleState.ACTIVE;
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {

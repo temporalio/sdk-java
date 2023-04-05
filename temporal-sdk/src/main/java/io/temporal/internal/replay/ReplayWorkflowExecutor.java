@@ -71,7 +71,8 @@ final class ReplayWorkflowExecutor {
     } catch (CanceledFailure e) {
       if (!context.isCancelRequested()) {
         failure =
-            new WorkflowExecutionException(workflow.getWorkflowContext().mapExceptionToFailure(e));
+            new WorkflowExecutionException(
+                workflow.getWorkflowContext().mapWorkflowExceptionToFailure(e));
       }
       completed = true;
     }

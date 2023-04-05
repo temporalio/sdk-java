@@ -72,17 +72,47 @@ Follow the pattern to explicitly configure the workers:
 spring.temporal:
   workers:
     - task-queue: your-task-queue-name
+      name: your-worker-name # unique name of the Worker. If not specified, Task Queue is used as the Worker name.
       workflow-classes:
         - your.package.YouWorkflowImpl
       activity-beans:
         - activity-bean-name1
-  # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
 ```
+
+<details>
+  <summary>Extended Workers configuration example</summary>
+
+  ```yml
+  spring.temporal:
+    workers:
+      - task-queue: your-task-queue-name
+        # name: your-worker-name # unique name of the Worker. If not specified, Task Queue is used as the Worker name.
+        workflow-classes:
+          - your.package.YouWorkflowImpl
+        activity-beans:
+          - activity-bean-name1
+        # capacity:
+          # max-concurrent-workflow-task-executors: 200
+          # max-concurrent-activity-executors: 200
+          # max-concurrent-local-activity-executors: 200
+          # max-concurrent-workflow-task-pollers: 5
+          # max-concurrent-activity-task-pollers: 5
+        # rate-limits:
+          # max-worker-activities-per-second: 5.0
+          # max-task-queue-activities-per-second: 5.0
+    # workflow-cache:
+      # max-instances: 600
+      # max-threads: 600
+    # start-workers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
+```
+</details>
 
 ## Auto-discovery
 
-Allows to skip specifying workflow and activity classes explicitly in the config 
-by providing worker task queue names on Workflow and Activity implementations.
+Allows to skip specifying Workflow classes and Activity beans explicitly in the config
+by referencing Worker Task Queue names or Worker Names on Workflow and Activity implementations.
+Auto-discovery is applied after and on top of an explicit configuration.
+
 Add the following to your `application.yml` to auto-discover workflows and activities from your classpath.
 
 ```yml
@@ -90,19 +120,43 @@ spring.temporal:
   workers-auto-discovery:
     packages:
       - your.package # enumerate all the packages that contain your workflow and activity implementations
-  # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
 ```
 
 What is auto-discovered:
 - Workflows implementation classes annotated with `io.temporal.spring.boot.WorkflowImpl`
-- Activity beans registered in Spring context which implementation classes are annotated with `io.temporal.spring.boot.ActivityImpl`
+- Activity beans present Spring context whose implementations are annotated with `io.temporal.spring.boot.ActivityImpl`
+- Workers if a Task Queue is referenced by the annotations but not explicitly configured. Default configuration will be used.
 
-Auto-discovered workflow implementation classes and activity beans will be registered with workers configured explicitly 
-or workers will be created for them if no explicit configuration is provided for a worker.
+Auto-discovered workflow implementation classes and activity beans will be registered with the configured workers if not already registered.
 
-## Note on mixing configuration styles
+### Referencing Worker names vs Task Queues
 
-The behavior when both auto-discovery and explicit configuration is mixed is undefined and to be decided later.
+Application that incorporates
+[Task Queue based Versioning strategy](https://community.temporal.io/t/workflow-versioning-strategies/6911)
+may choose to use explicit Worker names to reference because it adds a level of indirection.
+This way Task Queue name is specified only once in the config and can be easily changed when needed,
+while all the auto-discovery annotations reference the Worker by its static name.
+
+An application whose lifecycle doesn't involve changing task queue names may prefer to reference
+Task Queue names directly for simplicity.
+
+Note: Worker whose name is not explicitly specified is named after it's Task Queue.
+
+## Customization of `*Options`
+
+To provide freedom in customization of `*Options` instances that are created by this module,
+beans that implement `io.temporal.spring.boot.TemporalOptionsCustomizer<OptionsBuilderType>`
+interface may be added to the Spring context.
+
+Where `OptionsType` may be one of:
+- `WorkflowServiceStubsOptions.Builder`
+- `WorkflowClientOption.Builder`
+- `WorkerFactoryOptions.Builder`
+- `WorkerOptions.Builder`
+- `TestEnvironmentOptions.Builder`
+
+`io.temporal.spring.boot.WorkerOptionsCustomizer` may be used instead of `TemporalOptionsCustomizer<WorkerOptions.Builder>`
+if `WorkerOptions` needs to be modified differently depending on the Task Queue or Worker name.
 
 # Integrations
 
@@ -143,8 +197,14 @@ This allows to wire `TestWorkflowEnvironment` bean in your unit tests:
 @SpringBootTest(classes = Test.Configuration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class Test {
+  @Autowired ConfigurableApplicationContext applicationContext;
   @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
   @Autowired WorkflowClient workflowClient;
+
+  @BeforeEach
+  void setUp() {
+    applicationContext.start();
+  }
 
   @Test
   @Timeout(value = 10)

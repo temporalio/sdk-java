@@ -1,0 +1,38 @@
+[
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.KeyDeserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.ValueInstantiators;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.ser.Serializers;"
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7HandlersImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.internal.activity.ActivityInfoInternal", "com.uber.m3.tally.Scope"] }]
+},
+{
+  "name":"io.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header", "java.util.Optional"] }]
+},
+{
+  "name":"io.temporal.internal.sync.DynamicSyncWorkflowDefinition",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header", "java.util.Optional"] }]
+}
+]

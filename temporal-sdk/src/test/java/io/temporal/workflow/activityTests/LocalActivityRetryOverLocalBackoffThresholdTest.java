@@ -72,7 +72,7 @@ public class LocalActivityRetryOverLocalBackoffThresholdTest {
 
     List<HistoryEvent> historyEvents =
         testWorkflowRule.getHistoryEvents(
-            WorkflowStub.fromTyped(workflowStub).getExecution(),
+            WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId(),
             EventType.EVENT_TYPE_TIMER_STARTED);
     // attempt retry periods will be
     assertEquals(
@@ -104,7 +104,7 @@ public class LocalActivityRetryOverLocalBackoffThresholdTest {
     WorkflowStub untypedStub = WorkflowStub.fromTyped(workflowStub);
     WorkflowExecution execution = untypedStub.start(testWorkflowRule.getTaskQueue());
 
-    testWorkflowRule.waitForTheEndOfWFT(execution);
+    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     testWorkflowRule.invalidateWorkflowCache();
 
     WorkflowException e =

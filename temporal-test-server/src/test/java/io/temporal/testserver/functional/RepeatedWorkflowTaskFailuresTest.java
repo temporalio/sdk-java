@@ -65,7 +65,7 @@ public class RepeatedWorkflowTaskFailuresTest {
         "Out of three failed retries only the first one should be FAILED, other 2 should be dropped, allowed to time out and not being recorded at all",
         1,
         testWorkflowRule
-            .getHistoryEvents(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
+            .getHistoryEvents(execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
             .size());
   }
 

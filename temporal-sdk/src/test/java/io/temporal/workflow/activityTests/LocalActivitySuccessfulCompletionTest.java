@@ -50,7 +50,8 @@ public class LocalActivitySuccessfulCompletionTest {
     Assert.assertEquals("input1", result);
     Assert.assertEquals(activitiesImpl.toString(), 1, activitiesImpl.invocations.size());
     testWorkflowRule.regenerateHistoryForReplay(
-        WorkflowStub.fromTyped(workflowStub).getExecution(), "laSuccessfulCompletion_1_xx");
+        WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId(),
+        "laSuccessfulCompletion_1_xx");
   }
 
   /** History from 1.17 before we changed LA marker structure in 1.18 */

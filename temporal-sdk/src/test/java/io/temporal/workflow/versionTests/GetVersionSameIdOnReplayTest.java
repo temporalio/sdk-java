@@ -59,7 +59,8 @@ public class GetVersionSameIdOnReplayTest {
     workflowStub.execute();
     assertTrue(hasReplayed);
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    testWorkflowRule.assertNoHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
+    testWorkflowRule.assertNoHistoryEvent(
+        execution.getWorkflowId(), EventType.EVENT_TYPE_MARKER_RECORDED);
   }
 
   public static class TestGetVersionSameIdOnReplay implements NoArgsWorkflow {

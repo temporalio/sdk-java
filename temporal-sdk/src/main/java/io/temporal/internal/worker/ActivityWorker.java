@@ -51,7 +51,7 @@ import org.slf4j.MDC;
 final class ActivityWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
-  private SuspendableWorker poller = new NoopSuspendableWorker();
+  private SuspendableWorker poller = new NoopWorker();
   private PollTaskExecutor<ActivityTask> pollTaskExecutor;
 
   private final ActivityTaskHandler handler;
@@ -64,7 +64,8 @@ final class ActivityWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
-  private final Semaphore pollSemaphore;
+  private final int executorSlots;
+  private final Semaphore executorSlotsSemaphore;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -86,11 +87,12 @@ final class ActivityWorker implements SuspendableWorker {
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
-    this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
+    this.executorSlots = options.getTaskExecutorThreadPoolSize();
+    this.executorSlotsSemaphore = new Semaphore(executorSlots);
   }
 
   @Override
-  public void start() {
+  public boolean start() {
     if (handler.isAnyTypeSupported()) {
       this.pollTaskExecutor =
           new PollTaskExecutor<>(
@@ -111,39 +113,48 @@ final class ActivityWorker implements SuspendableWorker {
                   taskQueue,
                   options.getIdentity(),
                   taskQueueActivitiesPerSecond,
-                  pollSemaphore,
+                  executorSlotsSemaphore,
                   workerMetricsScope),
               this.pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      return true;
+    } else {
+      return false;
     }
   }
 
   @Override
-  public boolean isStarted() {
-    return poller.isStarted();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return poller.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return poller.isTerminated();
-  }
-
-  @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    return poller.shutdown(shutdownManager, interruptTasks);
+    String semaphoreName = this + "#executorSlotsSemaphore";
+    return poller
+        .shutdown(shutdownManager, interruptTasks)
+        .thenCompose(
+            ignore ->
+                !interruptTasks
+                    ? shutdownManager.waitForSemaphorePermitsReleaseUntimed(
+                        executorSlotsSemaphore, executorSlots, semaphoreName)
+                    : CompletableFuture.completedFuture(null))
+        .thenCompose(
+            ignore ->
+                pollTaskExecutor != null
+                    ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
+                    : CompletableFuture.completedFuture(null))
+        .exceptionally(
+            e -> {
+              log.error("Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    poller.awaitTermination(timeout, unit);
+    long timeoutMillis = ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
+    // relies on the fact that the pollTaskExecutor is the last one to be shutdown, no need to
+    // wait separately for intermediate steps
+    ShutdownManager.awaitTermination(pollTaskExecutor, timeoutMillis);
   }
 
   @Override
@@ -157,8 +168,23 @@ final class ActivityWorker implements SuspendableWorker {
   }
 
   @Override
+  public boolean isShutdown() {
+    return poller.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return poller.isTerminated() && (pollTaskExecutor == null || pollTaskExecutor.isTerminated());
+  }
+
+  @Override
   public boolean isSuspended() {
     return poller.isSuspended();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return poller.getLifecycleState();
   }
 
   public EagerActivityDispatcher getEagerActivityDispatcher() {
@@ -175,6 +201,13 @@ final class ActivityWorker implements SuspendableWorker {
               .build();
     }
     return pollerOptions;
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "ActivityWorker{identity=%s, namespace=%s, taskQueue=%s}",
+        options.getIdentity(), namespace, taskQueue);
   }
 
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<ActivityTask> {
@@ -379,21 +412,21 @@ final class ActivityWorker implements SuspendableWorker {
     @Override
     public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
-      return ActivityWorker.this.isStarted()
+      return WorkerLifecycleState.ACTIVE.equals(ActivityWorker.this.getLifecycleState())
           && Objects.equals(
               commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
-          && ActivityWorker.this.pollSemaphore.tryAcquire();
+          && ActivityWorker.this.executorSlotsSemaphore.tryAcquire();
     }
 
     @Override
     public void releaseActivitySlotReservations(int slotCounts) {
-      ActivityWorker.this.pollSemaphore.release(slotCounts);
+      ActivityWorker.this.executorSlotsSemaphore.release(slotCounts);
     }
 
     @Override
     public void dispatchActivity(PollActivityTaskQueueResponse activity) {
       ActivityWorker.this.pollTaskExecutor.process(
-          new ActivityTask(activity, ActivityWorker.this.pollSemaphore::release));
+          new ActivityTask(activity, ActivityWorker.this.executorSlotsSemaphore::release));
     }
   }
 }

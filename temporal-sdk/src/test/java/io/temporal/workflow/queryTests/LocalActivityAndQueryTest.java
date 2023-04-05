@@ -90,7 +90,8 @@ public class LocalActivityAndQueryTest {
     activitiesImpl.assertInvocations(
         "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
     HistoryEvent marker =
-        testWorkflowRule.getHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
+        testWorkflowRule.getHistoryEvent(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_MARKER_RECORDED);
     Optional<Payloads> input =
         Optional.of(marker.getMarkerRecordedEventAttributes().getDetailsMap().get("input"));
     long arg0 =

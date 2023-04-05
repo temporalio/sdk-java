@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -59,11 +60,15 @@ class SyncWorkflow implements ReplayWorkflow {
   private final WorkflowMethodThreadNameStrategy workflowMethodThreadNameStrategy =
       ExecutionInfoStrategy.INSTANCE;
   private final SyncWorkflowContext workflowContext;
-  private WorkflowExecuteRunnable workflowProc;
+  private WorkflowExecutionHandler workflowProc;
   private DeterministicRunner runner;
 
   public SyncWorkflow(
+      String namespace,
+      WorkflowExecution workflowExecution,
       SyncWorkflowDefinition workflow,
+      SignalDispatcher signalDispatcher,
+      QueryDispatcher queryDispatcher,
       @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       WorkflowThreadExecutor workflowThreadExecutor,
@@ -79,7 +84,14 @@ class SyncWorkflow implements ReplayWorkflow {
     this.cache = cache;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.workflowContext =
-        new SyncWorkflowContext(workflowImplementationOptions, dataConverter, contextPropagators);
+        new SyncWorkflowContext(
+            namespace,
+            workflowExecution,
+            signalDispatcher,
+            queryDispatcher,
+            workflowImplementationOptions,
+            dataConverter,
+            contextPropagators);
   }
 
   @Override
@@ -100,7 +112,7 @@ class SyncWorkflow implements ReplayWorkflow {
     this.workflowContext.setReplayContext(context);
 
     workflowProc =
-        new WorkflowExecuteRunnable(
+        new WorkflowExecutionHandler(
             workflowContext, workflow, startEvent, workflowImplementationOptions);
     // The following order is ensured by this code and DeterministicRunner implementation:
     // 1. workflow.initialize
@@ -113,7 +125,7 @@ class SyncWorkflow implements ReplayWorkflow {
             () -> {
               workflow.initialize();
               WorkflowInternal.newWorkflowMethodThread(
-                      () -> workflowProc.run(),
+                      () -> workflowProc.runWorkflowMethod(),
                       workflowMethodThreadNameStrategy.createThreadName(
                           context.getWorkflowExecution()))
                   .start();

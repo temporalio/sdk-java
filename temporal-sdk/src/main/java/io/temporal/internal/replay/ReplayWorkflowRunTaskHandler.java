@@ -48,13 +48,11 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -75,6 +73,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       new LinkedBlockingDeque<>();
 
   private final LocalActivityDispatcher localActivityDispatcher;
+
+  private final LocalActivityMeteringHelper localActivityMeteringHelper;
 
   private final ReplayWorkflow workflow;
 
@@ -122,6 +122,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.replayWorkflowExecutor =
         new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
     this.localActivityCompletionSink = localActivityCompletionQueue::add;
+    this.localActivityMeteringHelper = new LocalActivityMeteringHelper();
   }
 
   @Override
@@ -130,6 +131,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       throws Throwable {
     lock.lock();
     try {
+      localActivityMeteringHelper.newWFTStarting();
+
       Deadline wftHearbeatDeadline =
           Deadline.after(
               (long)
@@ -167,6 +170,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           .setQueryResults(queryResults)
           .setFinalCommand(context.isWorkflowMethodCompleted())
           .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
+          .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
           .build();
     } finally {
       lock.unlock();
@@ -227,7 +231,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           for (Class<? extends Throwable> failType : failTypes) {
             if (failType.isAssignableFrom(e.getClass())) {
               throw new WorkflowExecutionException(
-                  workflow.getWorkflowContext().mapExceptionToFailure(e));
+                  workflow.getWorkflowContext().mapWorkflowExceptionToFailure(e));
             }
           }
           throw wrap(e);
@@ -299,6 +303,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             accepted,
             "Unable to schedule local activity for execution, "
                 + "no more slots available and local activity task queue is full");
+
+        localActivityMeteringHelper.addNewLocalActivity(laRequest);
       }
 
       if (localActivityTaskCount == 0) {
@@ -315,6 +321,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       }
 
       localActivityTaskCount--;
+      localActivityMeteringHelper.markLocalActivityComplete(laCompletion.getActivityId());
 
       if (laCompletion.getProcessingError() != null) {
         throw laCompletion.getProcessingError().getThrowable();
@@ -361,6 +368,43 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     @Override
     public void cancel(HistoryEvent cancelEvent) {
       replayWorkflowExecutor.handleWorkflowExecutionCancelRequested(cancelEvent);
+    }
+  }
+
+  private static class LocalActivityMeteringHelper {
+    private final Map<String, AtomicInteger> firstWftActivities = new HashMap<>();
+    private final Map<String, AtomicInteger> nonFirstWftActivities = new HashMap<>();
+    private final Set<String> completed = new HashSet<>();
+
+    private void newWFTStarting() {
+      for (String activityId : firstWftActivities.keySet()) {
+        AtomicInteger removed = firstWftActivities.remove(activityId);
+        removed.set(0);
+        nonFirstWftActivities.put(activityId, removed);
+      }
+    }
+
+    private void addNewLocalActivity(ExecuteLocalActivityParameters params) {
+      AtomicInteger attemptsDuringWFTCounter = new AtomicInteger(0);
+      params.setOnNewAttemptCallback(attemptsDuringWFTCounter::incrementAndGet);
+      firstWftActivities.put(params.getActivityId(), attemptsDuringWFTCounter);
+    }
+
+    private void markLocalActivityComplete(String activityId) {
+      completed.add(activityId);
+    }
+
+    private int getNonfirstAttempts() {
+      int result =
+          nonFirstWftActivities.values().stream()
+              .map(ai -> ai.getAndSet(0))
+              .reduce(0, Integer::sum);
+      for (String activityId : completed) {
+        firstWftActivities.remove(activityId);
+        nonFirstWftActivities.remove(activityId);
+      }
+      completed.clear();
+      return result;
     }
   }
 }

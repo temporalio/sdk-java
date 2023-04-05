@@ -7,21 +7,19 @@ apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 description = '''Temporal Workflow Java SDK'''
 
 dependencies {
-    api(platform("io.grpc:grpc-bom:$grpcVersion"))
+    api platform("io.grpc:grpc-bom:$grpcVersion")
 
-    api "io.grpc:grpc-api" //Classes like io.grpc.Metadata are used as a part of our API
+    api ("io.grpc:grpc-api") //Classes like io.grpc.Metadata are used as a part of our API
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
     api "io.grpc:grpc-services" //Standard gRPC HealthCheck Response class
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API
     if (JavaVersion.current().isJava9Compatible()) {
         //needed for the generated grpc stubs and is not a part of JDK since java 9
-        implementation "javax.annotation:javax.annotation-api:$annotationApiVersion"
+        compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
     }
 
-    api "com.uber.m3:tally-core:$tallyVersion"
-
-    implementation "io.grpc:grpc-core"
+    api ("com.uber.m3:tally-core:$tallyVersion")
 
     api "org.slf4j:slf4j-api:$slf4jVersion"
 
@@ -43,10 +41,8 @@ task updateSubmodules(type: Exec) {
     commandLine 'git', 'submodule', 'update'
 }
 
-//TODO(maxim): For some reason the following doesn't exclude proto files from the lib jar.
-// But it should according to https://github.com/google/protobuf-gradle-plugin/issues/390
 jar {
-    exclude '**.proto'
+    exclude '**/*.proto'
     includeEmptyDirs false
 }
 
@@ -63,29 +59,21 @@ protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
     // with the oldest supported versions of protoc and grpc artifacts.
-    // For aarch64 (M1) using oldest version with binary available for this platform
-    if (System.getProperty("os.arch") == 'aarch64') {
-        protoc {
-            artifact = 'com.google.protobuf:protoc:3.21.12'
-        }
-        plugins {
-            grpc {
-                artifact = 'io.grpc:protoc-gen-grpc-java:1.48.2'
-            }
-        }
-    } else {
-        protoc {
-            artifact = 'com.google.protobuf:protoc:3.10.1'
-        }
-        plugins {
-            grpc {
-                artifact = 'io.grpc:protoc-gen-grpc-java:1.34.1'
-            }
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.10.1' + (System.getProperty("os.arch") == 'aarch64' ? ':osx-x86_64' : '')
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.34.1' + (System.getProperty("os.arch") == 'aarch64' ? ':osx-x86_64' : '')
         }
     }
-
     generateProtoTasks {
         all().each { task -> task.dependsOn updateSubmodules }
+        all()*.builtins {
+            java {
+                option 'annotate_code'
+            }
+        }
         all()*.plugins {
             grpc {
                 outputSubDir = 'java'

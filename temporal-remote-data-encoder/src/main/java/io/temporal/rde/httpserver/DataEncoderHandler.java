@@ -35,6 +35,10 @@ import java.util.List;
 import javax.servlet.http.HttpServletResponse;
 
 class DataEncoderHandler implements HttpHandler {
+  public static final String ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers";
+  public static final String ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";
+  public static final String ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
+
   private final PayloadCodec codec;
 
   public DataEncoderHandler(List<PayloadCodec> codecs) {
@@ -43,11 +47,28 @@ class DataEncoderHandler implements HttpHandler {
 
   @Override
   public void handle(HttpExchange exchange) throws IOException {
-    if (!exchange.getRequestMethod().equals("POST")) {
-      exchange.sendResponseHeaders(HttpServletResponse.SC_METHOD_NOT_ALLOWED, -1);
-      return;
+    switch (exchange.getRequestMethod()) {
+      case "POST":
+        handlePost(exchange);
+        break;
+      case "OPTIONS":
+        handleOptions(exchange);
+        break;
+      default:
+        exchange.sendResponseHeaders(HttpServletResponse.SC_METHOD_NOT_ALLOWED, -1);
     }
+    // not in try-catch to let the server form an error response if exception occurs
+    exchange.close();
+  }
 
+  private void handleOptions(HttpExchange exchange) throws IOException {
+    exchange.getResponseHeaders().add(ACCESS_CONTROL_ALLOW_METHODS, "POST, OPTIONS");
+    exchange.getResponseHeaders().add(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+    exchange.getResponseHeaders().add(ACCESS_CONTROL_ALLOW_HEADERS, "*");
+    exchange.sendResponseHeaders(204, -1);
+  }
+
+  private void handlePost(HttpExchange exchange) throws IOException {
     String contentType = exchange.getRequestHeaders().getFirst(HttpHeaders.CONTENT_TYPE);
     if (contentType == null
         || !contentType.startsWith(AbstractRemoteDataEncoderCodec.CONTENT_TYPE_APPLICATION_JSON)) {
@@ -82,11 +103,12 @@ class DataEncoderHandler implements HttpHandler {
         .getResponseHeaders()
         .add(
             HttpHeaders.CONTENT_TYPE, AbstractRemoteDataEncoderCodec.CONTENT_TYPE_APPLICATION_JSON);
+    exchange.getResponseHeaders().add(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
     exchange.sendResponseHeaders(HttpServletResponse.SC_OK, 0);
+
     try (OutputStreamWriter out = new OutputStreamWriter(exchange.getResponseBody())) {
       AbstractRemoteDataEncoderCodec.JSON_PRINTER.appendTo(
           Payloads.newBuilder().addAllPayloads(outgoingPayloadsList).build(), out);
     }
-    exchange.close();
   }
 }

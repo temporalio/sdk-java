@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.LongSupplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class RequestContext {
 
@@ -117,8 +119,10 @@ final class RequestContext {
 
   private final List<HistoryEvent> events = new ArrayList<>();
   private final List<CommitCallback> commitCallbacks = new ArrayList<>();
-  // contains a workflow task created by the updater that needs to be persisted on a commit
-  private WorkflowTask workflowTask;
+  // Contains a workflow task created by the updater that needs to be persisted into a task queue on
+  // a commit.
+  // If an eager dispatch was performed, it should be reset to null
+  private WorkflowTask workflowTaskForMatching;
   private final List<ActivityTask> activityTasks = new ArrayList<>();
   private final List<Timer> timers = new ArrayList<>();
   private long workflowCompletedAtEventId = -1;
@@ -229,8 +233,19 @@ final class RequestContext {
     return needWorkflowTask;
   }
 
-  void setWorkflowTask(WorkflowTask workflowTask) {
-    this.workflowTask = Objects.requireNonNull(workflowTask);
+  void setWorkflowTaskForMatching(@Nonnull WorkflowTask workflowTaskForMatching) {
+    this.workflowTaskForMatching = Objects.requireNonNull(workflowTaskForMatching);
+  }
+
+  @Nullable
+  WorkflowTask resetWorkflowTaskForMatching() {
+    WorkflowTask existingTask = this.workflowTaskForMatching;
+    this.workflowTaskForMatching = null;
+    return existingTask;
+  }
+
+  WorkflowTask getWorkflowTaskForMatching() {
+    return workflowTaskForMatching;
   }
 
   void addActivityTask(ActivityTask activityTask) {
@@ -252,10 +267,6 @@ final class RequestContext {
 
   List<ActivityTask> getActivityTasks() {
     return activityTasks;
-  }
-
-  WorkflowTask getWorkflowTask() {
-    return workflowTask;
   }
 
   List<HistoryEvent> getEvents() {

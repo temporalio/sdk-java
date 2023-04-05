@@ -205,7 +205,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     // Push tasks to the queues out of locks
-    WorkflowTask workflowTask = ctx.getWorkflowTask();
+    WorkflowTask workflowTask = ctx.getWorkflowTaskForMatching();
 
     if (workflowTask != null) {
       StickyExecutionAttributes attributes =

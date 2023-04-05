@@ -106,7 +106,8 @@ public class WorkflowClosedRunningActivityTest {
 
     assertTrue(activityCancelled.waitForSignal(1, TimeUnit.SECONDS));
 
-    WorkflowExecutionHistory history = testWorkflowRule.getExecutionHistory(execution);
+    WorkflowExecutionHistory history =
+        testWorkflowRule.getWorkflowClient().fetchHistory(execution.getWorkflowId());
     assertEquals(eventType, history.getLastEvent().getEventType());
   }
 

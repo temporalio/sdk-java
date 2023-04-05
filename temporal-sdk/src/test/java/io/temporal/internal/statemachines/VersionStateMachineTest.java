@@ -35,7 +35,6 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.Functions;
@@ -243,7 +242,7 @@ public class VersionStateMachineTest {
                   assertNotNull(v.getT2());
                   secondVersionCallException.set(v.getT2());
                   stateMachines.completeWorkflow(
-                      converter.toPayloads(FailureConverter.exceptionToFailure(v.getT2())));
+                      converter.toPayloads(converter.exceptionToFailure(v.getT2())));
                 });
       }
     }

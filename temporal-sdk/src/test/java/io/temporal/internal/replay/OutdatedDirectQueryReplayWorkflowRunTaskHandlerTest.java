@@ -38,8 +38,8 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.Issue;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
@@ -60,6 +60,7 @@ import org.mockito.Mockito;
 @Issue("https://github.com/temporalio/sdk-java/issues/1371")
 public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
   private static final String QUERY_RESULT = "queryIsDone";
+  private static final DataConverter dataConverter = DefaultDataConverter.STANDARD_INSTANCE;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -80,7 +81,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
     WorkflowExecution workflowExecution = WorkflowStub.fromTyped(noArgsWorkflow).getExecution();
 
     WorkflowExecutionHistory workflowExecutionHistory =
-        testWorkflowRule.getExecutionHistory(workflowExecution);
+        testWorkflowRule.getWorkflowClient().fetchHistory(workflowExecution.getWorkflowId());
 
     PollWorkflowTaskQueueResponseOrBuilder wft =
         PollWorkflowTaskQueueResponse.newBuilder()
@@ -109,7 +110,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
             wft, new FullHistoryIterator(workflowExecutionHistory.getEvents()));
     assertEquals(
         QUERY_RESULT,
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
+        dataConverter.fromPayloads(
             0, queryResult.getResponsePayloads(), String.class, String.class));
   }
 
@@ -163,16 +164,14 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
         .when(workflowMock)
         .eventLoop();
 
-    Mockito.doReturn(DefaultDataConverter.STANDARD_INSTANCE.toPayloads(QUERY_RESULT))
-        .when(workflowMock)
-        .query(any());
+    Mockito.doReturn(dataConverter.toPayloads(QUERY_RESULT)).when(workflowMock).query(any());
 
     // This is needed just to the exception path inside ReplayWorkflowRunTaskHandler to work
     WorkflowContext context = mock(WorkflowContext.class);
     when(context.getWorkflowImplementationOptions())
         .thenReturn(WorkflowImplementationOptions.getDefaultInstance());
-    when(context.mapExceptionToFailure(any(Exception.class)))
-        .then(invocation -> FailureConverter.exceptionToFailure(invocation.getArgument(0)));
+    when(context.mapWorkflowExceptionToFailure(any(Exception.class)))
+        .then(invocation -> dataConverter.exceptionToFailure(invocation.getArgument(0)));
     when(workflowMock.getWorkflowContext()).thenReturn(context);
 
     return workflowMock;

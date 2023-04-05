@@ -30,6 +30,7 @@ import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -37,6 +38,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,20 +68,19 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final ActivityTaskHandlerImpl laTaskHandler;
 
   public SyncWorkflowWorker(
-      WorkflowServiceStubs service,
-      String namespace,
-      String taskQueue,
-      SingleWorkerOptions singleWorkerOptions,
-      SingleWorkerOptions localActivityOptions,
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull SingleWorkerOptions singleWorkerOptions,
+      @Nonnull SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowRunLockManager runLocks,
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      WorkflowThreadExecutor workflowThreadExecutor,
+      @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
-
     this.dataConverter = singleWorkerOptions.getDataConverter();
 
     factory =
@@ -87,13 +88,15 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             Objects.requireNonNull(workflowThreadExecutor),
             singleWorkerOptions.getWorkerInterceptors(),
-            cache);
+            cache,
+            namespace);
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
         new LocalActivityExecutionContextFactoryImpl();
     laTaskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
+            taskQueue,
             localActivityOptions.getDataConverter(),
             laActivityExecutionContextFactory,
             localActivityOptions.getWorkerInterceptors(),
@@ -154,27 +157,13 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   }
 
   @Override
-  public void start() {
-    workflowWorker.start();
+  public boolean start() {
+    boolean started = workflowWorker.start();
     // It doesn't start if no types are registered with it.
-    if (workflowWorker.isStarted()) {
+    if (started) {
       laWorker.start();
     }
-  }
-
-  @Override
-  public boolean isStarted() {
-    return workflowWorker.isStarted() && (laWorker.isStarted() || !laWorker.isAnyTypeSupported());
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return workflowWorker.isShutdown() || laWorker.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return workflowWorker.isTerminated() && laWorker.isTerminated();
+    return started;
   }
 
   @Override
@@ -205,11 +194,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     workflowWorker.resumePolling();
   }
 
-  @Override
-  public boolean isSuspended() {
-    return workflowWorker.isSuspended();
-  }
-
   @SuppressWarnings("deprecation")
   public <R> R queryWorkflowExecution(
       io.temporal.internal.common.WorkflowExecutionHistory history,
@@ -225,9 +209,34 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   }
 
   @Override
+  public boolean isSuspended() {
+    return workflowWorker.isSuspended();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return workflowWorker.isShutdown() || laWorker.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return workflowWorker.isTerminated() && laWorker.isTerminated();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return null;
+  }
+
+  @Override
   public String toString() {
     return String.format(
         "SyncWorkflowWorker{namespace=%s, taskQueue=%s, identity=%s}",
         namespace, taskQueue, identity);
+  }
+
+  @Nullable
+  public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
+    return workflowWorker.reserveWorkflowExecutor();
   }
 }

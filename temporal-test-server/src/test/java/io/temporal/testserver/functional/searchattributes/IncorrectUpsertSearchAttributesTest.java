@@ -25,7 +25,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableMap;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.History;
@@ -79,9 +78,7 @@ public class IncorrectUpsertSearchAttributesTest {
             .newWorkflowStub(TestWorkflows.PrimitiveWorkflow.class, options);
     stubF.execute();
 
-    History history =
-        testWorkflowRule.getHistory(
-            WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).build());
+    History history = testWorkflowRule.getExecutionHistory(WORKFLOW_ID).getHistory();
     Optional<HistoryEvent> wftFailedEvent =
         history.getEventsList().stream()
             .filter(event -> event.getEventType().equals(EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED))
@@ -115,9 +112,7 @@ public class IncorrectUpsertSearchAttributesTest {
             .newWorkflowStub(TestWorkflows.PrimitiveWorkflow.class, options);
     stubF.execute();
 
-    History history =
-        testWorkflowRule.getHistory(
-            WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).build());
+    History history = testWorkflowRule.getExecutionHistory(WORKFLOW_ID).getHistory();
     Optional<HistoryEvent> wftFailedEvent =
         history.getEventsList().stream()
             .filter(event -> event.getEventType().equals(EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED))

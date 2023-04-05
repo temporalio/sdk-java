@@ -1,4 +1,7 @@
+root = true
+
 [*.{kt,kts}]
 indent_size = 2
-# reenable filename rule after https://github.com/pinterest/ktlint/issues/1521
-ktlint_disabled_rules = filename
+
+ij_kotlin_allow_trailing_comma = false
+ij_kotlin_allow_trailing_comma_on_call_site = false

@@ -50,6 +50,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -469,6 +470,11 @@ public final class Worker {
 
   public boolean isSuspended() {
     return workflowWorker.isSuspended() && (activityWorker == null || activityWorker.isSuspended());
+  }
+
+  @Nullable
+  public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
+    return workflowWorker.reserveWorkflowExecutor();
   }
 
   private static String getStickyTaskQueueName(String workerIdentity) {

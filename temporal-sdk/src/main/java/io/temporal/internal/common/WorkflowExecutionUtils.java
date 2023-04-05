@@ -38,7 +38,6 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
 import java.util.ArrayList;
@@ -64,7 +63,7 @@ public class WorkflowExecutionUtils {
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       HistoryEvent closeEvent,
-      DataConverter converter) {
+      DataConverter dataConverter) {
     if (closeEvent == null) {
       throw new IllegalStateException("Workflow is still running");
     }
@@ -87,7 +86,8 @@ public class WorkflowExecutionUtils {
             closeEvent.getEventType(),
             -1,
             RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
-            new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null));
+            new CanceledFailure(
+                "Workflow canceled", new EncodedValues(details, dataConverter), null));
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
@@ -97,7 +97,7 @@ public class WorkflowExecutionUtils {
             closeEvent.getEventType(),
             failed.getWorkflowTaskCompletedEventId(),
             failed.getRetryState(),
-            FailureConverter.failureToException(failed.getFailure(), converter));
+            dataConverter.failureToException(failed.getFailure()));
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();

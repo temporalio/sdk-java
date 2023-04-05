@@ -15,7 +15,9 @@ subprojects {
     publishing {
         publications {
             mavenJava(MavenPublication) {
-                from components.java
+                afterEvaluate {
+                    from components.java
+                }
             }
         }
         // to test local publishing use ./gradlew publish and comment nexusPublishing

@@ -110,8 +110,18 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public String getFirstExecutionRunId() {
+    return basicWorkflowContext.getFirstExecutionRunId();
+  }
+
+  @Override
   public Optional<String> getContinuedExecutionRunId() {
     return basicWorkflowContext.getContinuedExecutionRunId();
+  }
+
+  @Override
+  public Optional<String> getOriginalExecutionRunId() {
+    return basicWorkflowContext.getOriginalExecutionRunId();
   }
 
   @Override
@@ -176,7 +186,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public Functions.Proc1<Exception> scheduleActivityTask(
+  public ScheduleActivityTaskOutput scheduleActivityTask(
       ExecuteActivityParameters parameters, Functions.Proc2<Optional<Payloads>, Failure> callback) {
     ScheduleActivityTaskCommandAttributes.Builder attributes = parameters.getAttributes();
     if (attributes.getActivityId().isEmpty()) {
@@ -184,7 +194,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     }
     Functions.Proc cancellationHandler =
         workflowStateMachines.scheduleActivityTask(parameters, callback);
-    return (exception) -> cancellationHandler.apply();
+    return new ScheduleActivityTaskOutput(
+        attributes.getActivityId(), (exception) -> cancellationHandler.apply());
   }
 
   @Override

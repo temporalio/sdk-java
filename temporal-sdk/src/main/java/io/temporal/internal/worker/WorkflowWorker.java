@@ -22,12 +22,14 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -36,9 +38,11 @@ import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
+import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -63,10 +67,14 @@ final class WorkflowWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
-
-  @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
+  private final int executorSlots;
+  private final Semaphore executorSlotsSemaphore;
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
+
+  // TODO this ideally should be volatile or final (and NoopWorker should go away)
+  //  Currently the implementation looks safe without volatile, but it's brittle.
+  @Nonnull private SuspendableWorker poller = new NoopWorker();
 
   public WorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -91,10 +99,12 @@ final class WorkflowWorker implements SuspendableWorker {
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.eagerActivityDispatcher = eagerActivityDispatcher;
+    this.executorSlots = options.getTaskExecutorThreadPoolSize();
+    this.executorSlotsSemaphore = new Semaphore(executorSlots);
   }
 
   @Override
-  public void start() {
+  public boolean start() {
     if (handler.isAnyTypeSupported()) {
       pollTaskExecutor =
           new PollTaskExecutor<>(
@@ -106,8 +116,6 @@ final class WorkflowWorker implements SuspendableWorker {
               options.getTaskExecutorThreadPoolSize(),
               workerMetricsScope,
               true);
-      Semaphore workflowTaskExecutorSemaphore =
-          new Semaphore(options.getTaskExecutorThreadPoolSize());
       StickyQueueBalancer stickyQueueBalancer =
           new StickyQueueBalancer(
               options.getPollerOptions().getPollThreadCount(), stickyTaskQueueName != null);
@@ -122,7 +130,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   stickyTaskQueueName,
                   options.getIdentity(),
                   options.getBinaryChecksum(),
-                  workflowTaskExecutorSemaphore,
+                  executorSlotsSemaphore,
                   stickyQueueBalancer,
                   workerMetricsScope),
               pollTaskExecutor,
@@ -131,32 +139,42 @@ final class WorkflowWorker implements SuspendableWorker {
       poller.start();
 
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+
+      return true;
+    } else {
+      return false;
     }
   }
 
   @Override
-  public boolean isStarted() {
-    return poller.isStarted();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return poller.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return poller.isTerminated();
-  }
-
-  @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    return poller.shutdown(shutdownManager, interruptTasks);
+    String semaphoreName = this + "#executorSlotsSemaphore";
+    return poller
+        .shutdown(shutdownManager, interruptTasks)
+        .thenCompose(
+            ignore ->
+                !interruptTasks
+                    ? shutdownManager.waitForSemaphorePermitsReleaseUntimed(
+                        executorSlotsSemaphore, executorSlots, semaphoreName)
+                    : CompletableFuture.completedFuture(null))
+        .thenCompose(
+            ignore ->
+                pollTaskExecutor != null
+                    ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
+                    : CompletableFuture.completedFuture(null))
+        .exceptionally(
+            e -> {
+              log.error("Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
+    long timeoutMillis = ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
+    // relies on the fact that the pollTaskExecutor is the last one to be shutdown, no need to
+    // wait separately for intermediate steps
+    ShutdownManager.awaitTermination(pollTaskExecutor, timeoutMillis);
   }
 
   @Override
@@ -174,6 +192,21 @@ final class WorkflowWorker implements SuspendableWorker {
     return poller.isSuspended();
   }
 
+  @Override
+  public boolean isShutdown() {
+    return poller.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return poller.isTerminated() && (pollTaskExecutor == null || pollTaskExecutor.isTerminated());
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return poller.getLifecycleState();
+  }
+
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
     PollerOptions pollerOptions = options.getPollerOptions();
     if (pollerOptions.getPollThreadNamePrefix() == null) {
@@ -184,6 +217,43 @@ final class WorkflowWorker implements SuspendableWorker {
               .build();
     }
     return pollerOptions;
+  }
+
+  @Nullable
+  public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
+    // to avoid pollTaskExecutor to become null inside the lambda, we are caching it here
+    final PollTaskExecutor<WorkflowTask> executor = pollTaskExecutor;
+    return executor != null && !isSuspended() && executorSlotsSemaphore.tryAcquire()
+        ? new WorkflowTaskDispatchHandle(
+            workflowTask -> {
+              String queueName =
+                  workflowTask.getResponse().getWorkflowExecutionTaskQueue().getName();
+              TaskQueueKind queueKind =
+                  workflowTask.getResponse().getWorkflowExecutionTaskQueue().getKind();
+              Preconditions.checkArgument(
+                  this.taskQueue.equals(queueName)
+                      || TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(queueKind)
+                          && this.stickyTaskQueueName.equals(queueName),
+                  "Got a WFT for a wrong queue %s, expected %s or %s",
+                  queueName,
+                  this.taskQueue,
+                  this.stickyTaskQueueName);
+              try {
+                pollTaskExecutor.process(workflowTask);
+                return true;
+              } catch (RejectedExecutionException e) {
+                return false;
+              }
+            },
+            executorSlotsSemaphore)
+        : null;
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "WorkflowWorker{identity=%s, namespace=%s, taskQueue=%s}",
+        options.getIdentity(), namespace, taskQueue);
   }
 
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {

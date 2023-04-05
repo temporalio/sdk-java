@@ -21,18 +21,18 @@
 package io.temporal.internal.client.external;
 
 import io.grpc.Deadline;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 public interface GenericWorkflowClient {
 
-  WorkflowExecution start(StartWorkflowExecutionRequest request);
+  StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request);
 
   void signal(SignalWorkflowExecutionRequest request);
 
-  WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionRequest request);
+  SignalWithStartWorkflowExecutionResponse signalWithStart(
+      SignalWithStartWorkflowExecutionRequest request);
 
   void requestCancel(RequestCancelWorkflowExecutionRequest parameters);
 
@@ -45,6 +45,12 @@ public interface GenericWorkflowClient {
 
   CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline);
+
+  GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
+      @Nonnull GetWorkflowExecutionHistoryRequest request);
+
+  CompletableFuture<GetWorkflowExecutionHistoryResponse> getWorkflowExecutionHistoryAsync(
+      @Nonnull GetWorkflowExecutionHistoryRequest request);
 
   ListWorkflowExecutionsResponse listWorkflowExecutions(ListWorkflowExecutionsRequest listRequest);
 

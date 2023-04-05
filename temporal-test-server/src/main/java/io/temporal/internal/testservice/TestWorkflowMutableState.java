@@ -53,6 +53,7 @@ import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 interface TestWorkflowMutableState {
 
@@ -89,8 +90,11 @@ interface TestWorkflowMutableState {
 
   void childWorkflowCanceled(String workflowId, ChildWorkflowExecutionCanceledEventAttributes a);
 
-  void startWorkflow(
-      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal);
+  @Nullable
+  PollWorkflowTaskQueueResponse startWorkflow(
+      boolean continuedAsNew,
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
+      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest);
 
   void startActivityTask(
       PollActivityTaskQueueResponseOrBuilder task, PollActivityTaskQueueRequest pollRequest);

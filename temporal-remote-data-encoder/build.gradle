@@ -6,8 +6,9 @@ ext {
 }
 
 dependencies {
-    api project(':temporal-serviceclient')
-    api project(':temporal-sdk')
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
 
     compileOnly "javax.servlet:javax.servlet-api:${servletVersion}"
     compileOnly "com.squareup.okhttp3:okhttp:${okhttpVersion}"
@@ -20,7 +21,7 @@ dependencies {
 
     // Jetty 10+ brings a non-production ready slf4j that doesn't work with released logback.
     // It also require Java 11+. That's why we stay on Jetty 9. It's for tests only anyway.
-    testImplementation(platform("org.eclipse.jetty:jetty-bom:9.4.50.v20221201"))
+    testImplementation(platform("org.eclipse.jetty:jetty-bom:9.4.51.v20230217"))
     testImplementation ("org.eclipse.jetty:jetty-server")
     testImplementation ("org.eclipse.jetty:jetty-servlet")
 }

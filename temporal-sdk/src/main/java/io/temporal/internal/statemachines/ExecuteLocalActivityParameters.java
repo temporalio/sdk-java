@@ -25,6 +25,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Objects;
@@ -49,6 +50,7 @@ public class ExecuteLocalActivityParameters {
   private final @Nonnull Duration localRetryThreshold;
   private final boolean doNotIncludeArgumentsIntoMarker;
   private final @Nullable Duration scheduleToStartTimeout;
+  private @Nullable Functions.Proc onNewAttemptCallback;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -63,6 +65,7 @@ public class ExecuteLocalActivityParameters {
     this.previousLocalExecutionFailure = previousLocalExecutionFailure;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
     this.localRetryThreshold = localRetryThreshold;
+    this.onNewAttemptCallback = null;
   }
 
   public String getActivityId() {
@@ -120,5 +123,17 @@ public class ExecuteLocalActivityParameters {
   @Nullable
   public Duration getScheduleToStartTimeout() {
     return scheduleToStartTimeout;
+  }
+
+  @Nonnull
+  public Functions.Proc getOnNewAttemptCallback() {
+    if (onNewAttemptCallback == null) {
+      return () -> {};
+    }
+    return onNewAttemptCallback;
+  }
+
+  public void setOnNewAttemptCallback(@Nonnull Functions.Proc onNewAttemptCallback) {
+    this.onNewAttemptCallback = onNewAttemptCallback;
   }
 }

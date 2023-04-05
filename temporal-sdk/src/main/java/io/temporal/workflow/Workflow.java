@@ -663,7 +663,7 @@ public final class Workflow {
    *
    * <p>This method always returns false if called from a non workflow thread.
    *
-   * @deprecated use {{@link WorkflowUnsafe#isReplaying()}}
+   * @deprecated use {@link WorkflowUnsafe#isReplaying()}
    */
   @Deprecated
   public static boolean isReplaying() {

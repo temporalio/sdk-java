@@ -20,23 +20,19 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
-import io.temporal.opentracing.OpenTracingOptions;
-import io.temporal.opentracing.OpenTracingWorkerInterceptor;
 import io.temporal.spring.boot.ActivityImpl;
+import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
-import io.temporal.worker.TypeAlreadyRegisteredException;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.*;
 import java.util.*;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -59,13 +55,15 @@ public class WorkersTemplate implements BeanFactoryAware {
 
   private final @Nonnull TemporalProperties properties;
   private final @Nonnull NamespaceProperties namespaceProperties;
-
+  private final ClientTemplate clientTemplate;
   private final @Nullable Tracer tracer;
-
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
-  private final ClientTemplate clientTemplate;
+  private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
+      workerFactoryCustomizer;
+
+  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
 
   private ConfigurableListableBeanFactory beanFactory;
 
@@ -77,12 +75,17 @@ public class WorkersTemplate implements BeanFactoryAware {
       @Nonnull NamespaceProperties namespaceProperties,
       @Nullable ClientTemplate clientTemplate,
       @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
     this.clientTemplate = clientTemplate;
+
+    this.workerFactoryCustomizer = workerFactoryCustomizer;
+    this.workerCustomizer = workerCustomizer;
   }
 
   public WorkerFactory getWorkerFactory() {
@@ -103,102 +106,134 @@ public class WorkersTemplate implements BeanFactoryAware {
     if (testWorkflowEnvironment != null) {
       return testWorkflowEnvironment.getWorkerFactory();
     } else {
-      WorkerFactoryOptions.Builder options = WorkerFactoryOptions.newBuilder();
-      if (tracer != null) {
-        OpenTracingWorkerInterceptor openTracingClientInterceptor =
-            new OpenTracingWorkerInterceptor(
-                OpenTracingOptions.newBuilder().setTracer(tracer).build());
-        options.setWorkerInterceptors(openTracingClientInterceptor);
-      }
-      return WorkerFactory.newInstance(workflowClient, options.validateAndBuildWithDefaults());
+      WorkerFactoryOptions workerFactoryOptions =
+          new WorkerFactoryOptionsTemplate(namespaceProperties, tracer, workerFactoryCustomizer)
+              .createWorkerFactoryOptions();
+      return WorkerFactory.newInstance(workflowClient, workerFactoryOptions);
     }
   }
 
   private Collection<Worker> createWorkers(WorkerFactory workerFactory) {
+    Workers workers = new Workers();
+
     // explicitly configured workflow implementations
-    Set<Worker> workers =
-        properties.getWorkers() != null
-            ? properties.getWorkers().stream()
-                .map(
-                    workerProperties ->
-                        createWorkerFromAnExplicitConfig(workerFactory, workerProperties))
-                .collect(Collectors.toSet())
-            : new HashSet<>();
+    if (properties.getWorkers() != null) {
+      properties
+          .getWorkers()
+          .forEach(
+              workerProperties ->
+                  createWorkerFromAnExplicitConfig(workerFactory, workerProperties, workers));
+    }
 
     if (properties.getWorkersAutoDiscovery() != null
         && properties.getWorkersAutoDiscovery().getPackages() != null) {
       Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses =
           autoDiscoverWorkflowImplementations();
-      for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
-        WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
-        for (String taskQueue : annotation.taskQueues()) {
-          Worker worker = workerFactory.tryGetWorker(taskQueue);
-          if (worker == null) {
-            log.info(
-                "Creating a worker with default settings for a task queue '{}' "
-                    + "caused by an auto-discovered workflow class {}",
-                taskQueue,
-                clazz);
-            worker = workerFactory.newWorker(taskQueue);
-            workers.add(worker);
-          }
-
-          try {
-            configureWorkflowImplementation(worker, clazz);
-            log.info(
-                "Registering auto-discovered workflow class {} on a task queue '{}'",
-                clazz,
-                taskQueue);
-          } catch (TypeAlreadyRegisteredException registeredEx) {
-            log.info(
-                "Skip registering of auto-discovered workflow class {} for task queue '{}' "
-                    + "as workflow type '{}' is already registered on the worker",
-                clazz,
-                taskQueue,
-                registeredEx.getRegisteredTypeName());
-          }
-        }
-      }
-
       Map<String, Object> autoDiscoveredActivityBeans = autoDiscoverActivityBeans();
-      autoDiscoveredActivityBeans.forEach(
-          (beanName, bean) -> {
-            Class<?> targetClass = AopUtils.getTargetClass(bean);
-            ActivityImpl activityAnnotation =
-                AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
-            if (activityAnnotation != null) {
-              for (String taskQueue : activityAnnotation.taskQueues()) {
-                Worker worker = workerFactory.tryGetWorker(taskQueue);
-                if (worker == null) {
-                  log.info(
-                      "Creating a worker with default settings for a task queue '{}' "
-                          + "caused by an auto-discovered activity class {}",
-                      taskQueue,
-                      targetClass);
-                  worker = workerFactory.newWorker(taskQueue);
-                  workers.add(worker);
-                }
 
-                try {
-                  worker.registerActivitiesImplementations(bean);
-                  log.info(
-                      "Registering auto-discovered activity bean '{}' of class {} on task queue '{}'",
-                      beanName,
-                      targetClass,
-                      taskQueue);
-                } catch (TypeAlreadyRegisteredException registeredEx) {
-                  log.info(
-                      "Skipping auto-discovered activity bean '{}' for task queue '{}' "
-                          + "as activity type '{}' is already registered on the worker",
-                      beanName,
-                      taskQueue,
-                      registeredEx.getRegisteredTypeName());
-                }
-              }
-            }
-          });
+      configureWorkflowImplementationsByTaskQueue(
+          workerFactory, workers, autoDiscoveredWorkflowImplementationClasses);
+      configureActivityBeansByTaskQueue(workerFactory, workers, autoDiscoveredActivityBeans);
+      configureWorkflowImplementationsByWorkerName(
+          workers, autoDiscoveredWorkflowImplementationClasses);
+      configureActivityBeansByWorkerName(workers, autoDiscoveredActivityBeans);
     }
-    return workers;
+
+    return workers.getWorkers();
+  }
+
+  private void configureWorkflowImplementationsByTaskQueue(
+      WorkerFactory workerFactory,
+      Workers workers,
+      Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
+    for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
+      WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
+      for (String taskQueue : annotation.taskQueues()) {
+        Worker worker = workerFactory.tryGetWorker(taskQueue);
+        if (worker == null) {
+          log.info(
+              "Creating a worker with default settings for a task queue '{}' "
+                  + "caused by an auto-discovered workflow class {}",
+              taskQueue,
+              clazz);
+
+          worker = createNewWorker(taskQueue, null, workers);
+        }
+
+        configureWorkflowImplementationAutoDiscovery(worker, clazz, null);
+      }
+    }
+  }
+
+  private void configureActivityBeansByTaskQueue(
+      WorkerFactory workerFactory,
+      Workers workers,
+      Map<String, Object> autoDiscoveredActivityBeans) {
+    autoDiscoveredActivityBeans.forEach(
+        (beanName, bean) -> {
+          Class<?> targetClass = AopUtils.getTargetClass(bean);
+          ActivityImpl annotation = AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
+          if (annotation != null) {
+            for (String taskQueue : annotation.taskQueues()) {
+              Worker worker = workerFactory.tryGetWorker(taskQueue);
+              if (worker == null) {
+                log.info(
+                    "Creating a worker with default settings for a task queue '{}' "
+                        + "caused by an auto-discovered activity class {}",
+                    taskQueue,
+                    targetClass);
+                worker = createNewWorker(taskQueue, null, workers);
+              }
+
+              configureActivityImplementationAutoDiscovery(
+                  worker, bean, beanName, targetClass, null);
+            }
+          }
+        });
+  }
+
+  private void configureWorkflowImplementationsByWorkerName(
+      Workers workers, Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
+    for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
+      WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
+
+      for (String workerName : annotation.workers()) {
+        Worker worker = workers.getByName(workerName);
+        if (worker == null) {
+          throw new BeanDefinitionValidationException(
+              "Worker with name "
+                  + workerName
+                  + " is not found in the config, but is referenced by auto-discovered workflow implementation class "
+                  + clazz);
+        }
+
+        configureWorkflowImplementationAutoDiscovery(worker, clazz, workerName);
+      }
+    }
+  }
+
+  private void configureActivityBeansByWorkerName(
+      Workers workers, Map<String, Object> autoDiscoveredActivityBeans) {
+    autoDiscoveredActivityBeans.forEach(
+        (beanName, bean) -> {
+          Class<?> targetClass = AopUtils.getTargetClass(bean);
+          ActivityImpl annotation = AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
+          if (annotation != null) {
+            for (String workerName : annotation.workers()) {
+              Worker worker = workers.getByName(workerName);
+              if (worker == null) {
+                throw new BeanDefinitionValidationException(
+                    "Worker with name "
+                        + workerName
+                        + " is not found in the config, but is referenced by auto-discovered activity bean "
+                        + beanName);
+              }
+
+              configureActivityImplementationAutoDiscovery(
+                  worker, bean, beanName, targetClass, workerName);
+            }
+          }
+        });
   }
 
   private Collection<Class<?>> autoDiscoverWorkflowImplementations() {
@@ -224,8 +259,8 @@ public class WorkersTemplate implements BeanFactoryAware {
     return beanFactory.getBeansWithAnnotation(ActivityImpl.class);
   }
 
-  private Worker createWorkerFromAnExplicitConfig(
-      WorkerFactory workerFactory, WorkerProperties workerProperties) {
+  private void createWorkerFromAnExplicitConfig(
+      WorkerFactory workerFactory, WorkerProperties workerProperties, Workers workers) {
     String taskQueue = workerProperties.getTaskQueue();
     if (workerFactory.tryGetWorker(taskQueue) != null) {
       throw new BeanDefinitionValidationException(
@@ -234,7 +269,7 @@ public class WorkersTemplate implements BeanFactoryAware {
               + " already exists. Duplicate workers in the config?");
     }
     log.info("Creating configured worker for a task queue {}", taskQueue);
-    Worker worker = workerFactory.newWorker(taskQueue);
+    Worker worker = createNewWorker(taskQueue, workerProperties, workers);
 
     Collection<Class<?>> workflowClasses = workerProperties.getWorkflowClasses();
     if (workflowClasses != null) {
@@ -259,8 +294,56 @@ public class WorkersTemplate implements BeanFactoryAware {
             worker.registerActivitiesImplementations(bean);
           });
     }
+  }
 
-    return worker;
+  private void configureActivityImplementationAutoDiscovery(
+      Worker worker, Object bean, String beanName, Class<?> targetClass, String byWorkerName) {
+    try {
+      worker.registerActivitiesImplementations(bean);
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Registering auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'",
+            beanName,
+            targetClass,
+            byWorkerName != null ? "'" + byWorkerName + "' " : "",
+            worker.getTaskQueue());
+      }
+    } catch (TypeAlreadyRegisteredException registeredEx) {
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Skipping auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'"
+                + " as activity type '{}' is already registered on the worker",
+            beanName,
+            targetClass,
+            byWorkerName != null ? "'" + byWorkerName + "' " : "",
+            worker.getTaskQueue(),
+            registeredEx.getRegisteredTypeName());
+      }
+    }
+  }
+
+  private void configureWorkflowImplementationAutoDiscovery(
+      Worker worker, Class<?> clazz, String byWorkerName) {
+    try {
+      configureWorkflowImplementation(worker, clazz);
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Registering auto-discovered workflow class {} on a worker {}with a task queue '{}'",
+            clazz,
+            byWorkerName != null ? "'" + byWorkerName + "' " : "",
+            worker.getTaskQueue());
+      }
+    } catch (TypeAlreadyRegisteredException registeredEx) {
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Skip registering of auto-discovered workflow class {} on a worker {}with a task queue '{}' "
+                + "as workflow type '{}' is already registered on the worker",
+            clazz,
+            byWorkerName != null ? "'" + byWorkerName + "' " : "",
+            worker.getTaskQueue(),
+            registeredEx.getRegisteredTypeName());
+      }
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -286,5 +369,64 @@ public class WorkersTemplate implements BeanFactoryAware {
   public void setBeanFactory(@Nonnull BeanFactory beanFactory) throws BeansException {
     Assert.isInstanceOf(ConfigurableListableBeanFactory.class, beanFactory);
     this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
+  }
+
+  private Worker createNewWorker(
+      @Nonnull String taskQueue, @Nullable WorkerProperties properties, @Nonnull Workers workers) {
+    Preconditions.checkState(
+        workerFactory.tryGetWorker(taskQueue) == null,
+        "[BUG] This method should never be called twice for the same Task Queue='%s'",
+        taskQueue);
+
+    String workerName =
+        properties != null && properties.getName() != null ? properties.getName() : taskQueue;
+
+    WorkerOptions workerOptions =
+        new WorkerOptionsTemplate(workerName, taskQueue, properties, workerCustomizer)
+            .createWorkerOptions();
+    Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
+    workers.addWorker(workerName, worker);
+    return worker;
+  }
+
+  private static class Workers {
+    private final Map<String, Worker> workersByName = new HashMap<>();
+    private final Map<String, Worker> workersByTaskQueue = new HashMap<>();
+    private final List<Worker> workers = new ArrayList<>();
+
+    public void addWorker(@Nonnull String workerName, Worker newWorker) {
+      Worker existingWorker = workersByTaskQueue.get(newWorker.getTaskQueue());
+      // Caller of this method should make sure that it doesn't try to register a worker for a
+      // task queue that already has a worker.
+      Preconditions.checkState(
+          existingWorker == null,
+          "[BUG] Worker with Task Queue='%s' already exists.",
+          newWorker.getTaskQueue());
+
+      existingWorker = workersByName.get(workerName);
+      if (existingWorker != null) {
+        throw new BeanDefinitionValidationException(
+            "Worker name "
+                + workerName
+                + " is shared between Workers on different Task Queues '"
+                + existingWorker.getTaskQueue()
+                + "' and '"
+                + newWorker.getTaskQueue()
+                + "'. Worker names should be unique.");
+      }
+
+      workers.add(newWorker);
+      workersByTaskQueue.put(newWorker.getTaskQueue(), newWorker);
+      workersByName.put(workerName, newWorker);
+    }
+
+    public List<Worker> getWorkers() {
+      return workers;
+    }
+
+    @Nullable
+    public Worker getByName(String workerName) {
+      return workersByName.get(workerName);
+    }
   }
 }

@@ -38,8 +38,9 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
-import io.temporal.failure.FailureConverter;
+import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
+import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -396,14 +397,6 @@ public final class WorkflowInternal {
     return result.get();
   }
 
-  private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
-    return getRootWorkflowContext().getWorkflowOutboundInterceptor();
-  }
-
-  static SyncWorkflowContext getRootWorkflowContext() {
-    return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
-  }
-
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     getWorkflowOutboundInterceptor().await(reason, unblockCondition);
@@ -465,17 +458,10 @@ public final class WorkflowInternal {
     return CheckedExceptionWrapper.unwrap(e);
   }
 
-  /** Prohibit instantiation */
-  private WorkflowInternal() {}
-
   /** Returns false if not under workflow code. */
   public static boolean isReplaying() {
     Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
     return thread.isPresent() && getRootWorkflowContext().isReplaying();
-  }
-
-  public static WorkflowInfo getWorkflowInfo() {
-    return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
   public static <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
@@ -519,6 +505,24 @@ public final class WorkflowInternal {
 
   public static void sleep(Duration duration) {
     getWorkflowOutboundInterceptor().sleep(duration);
+  }
+
+  public static boolean isWorkflowThread() {
+    return WorkflowThreadMarker.isWorkflowThread();
+  }
+
+  public static <T> T deadlockDetectorOff(Functions.Func<T> func) {
+    if (isWorkflowThread()) {
+      try (NonIdempotentHandle ignored = getWorkflowThread().lockDeadlockDetector()) {
+        return func.apply();
+      }
+    } else {
+      return func.apply();
+    }
+  }
+
+  public static WorkflowInfo getWorkflowInfo() {
+    return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
   public static Scope getMetricsScope() {
@@ -613,6 +617,21 @@ public final class WorkflowInternal {
     return Optional.ofNullable(getRootWorkflowContext().getReplayContext().getPreviousRunFailure())
         // Temporal Failure Values are additional user payload and serialized using user data
         // converter
-        .map(f -> FailureConverter.failureToException(f, getDataConverter()));
+        .map(f -> getDataConverter().failureToException(f));
   }
+
+  private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
+    return getRootWorkflowContext().getWorkflowOutboundInterceptor();
+  }
+
+  static SyncWorkflowContext getRootWorkflowContext() {
+    return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
+  }
+
+  private static WorkflowThread getWorkflowThread() {
+    return DeterministicRunnerImpl.currentThreadInternal();
+  }
+
+  /** Prohibit instantiation */
+  private WorkflowInternal() {}
 }

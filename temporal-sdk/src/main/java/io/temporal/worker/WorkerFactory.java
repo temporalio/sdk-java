@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.WorkflowExecutorCache;
@@ -40,6 +41,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,7 +190,8 @@ public final class WorkerFactory {
    * @return a worker created previously through {@link #newWorker(String)} for the given task queue
    *     or null.
    */
-  public synchronized Worker tryGetWorker(String taskQueue) {
+  @Nullable
+  public synchronized Worker tryGetWorker(@Nonnull String taskQueue) {
     return workers.get(taskQueue);
   }
 
@@ -214,6 +217,7 @@ public final class WorkerFactory {
     }
 
     state = State.Started;
+    ((WorkflowClientInternal) workflowClient.getInternal()).registerWorkerFactory(this);
   }
 
   /** Was {@link #start()} called. */
@@ -283,6 +287,7 @@ public final class WorkerFactory {
 
   private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
+    ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
     CompletableFuture.allOf(
             workers.values().stream()

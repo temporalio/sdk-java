@@ -98,7 +98,7 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
-import io.temporal.failure.FailureConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ServerFailure;
 import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -128,11 +128,13 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -594,7 +596,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setCause(failedCause)
             .setIdentity(request.getIdentity());
     if (eventAttributesFailure != null) {
-      failedRequestBuilder.setFailure(FailureConverter.exceptionToFailure(eventAttributesFailure));
+      failedRequestBuilder.setFailure(
+          DefaultDataConverter.STANDARD_INSTANCE.exceptionToFailure(eventAttributesFailure));
     }
 
     processFailWorkflowTask(
@@ -1514,20 +1517,25 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void startWorkflow(
-      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
+  @Nullable
+  public PollWorkflowTaskQueueResponse startWorkflow(
+      boolean continuedAsNew,
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
+      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest) {
+    AtomicReference<TestWorkflowStore.WorkflowTask> eagerWorkflowTask = new AtomicReference<>();
     try {
       update(
           ctx -> {
             visibilityStore.upsertSearchAttributesForExecution(
                 ctx.getExecutionId(), startRequest.getSearchAttributes());
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
-            signalWithStartSignal.ifPresent(
-                signalWorkflowExecutionRequest ->
-                    addExecutionSignaledEvent(ctx, signalWorkflowExecutionRequest));
+            if (signalWithStartSignal != null) {
+              addExecutionSignaledEvent(ctx, signalWithStartSignal);
+            }
             Duration backoffStartInterval =
                 ProtobufTimeUtils.toJavaDuration(workflow.getData().backoffStartInterval);
             if (backoffStartInterval.compareTo(Duration.ZERO) > 0) {
+              // no eager dispatch if backoff is set
               ctx.addTimer(
                   backoffStartInterval,
                   () -> {
@@ -1545,6 +1553,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   "delayedFirstWorkflowTask");
             } else {
               scheduleWorkflowTask(ctx);
+              if (eagerWorkflowTaskDispatchPollRequest != null) {
+                // we don't want this workflow task to escape and to be put on a matching task
+                // queue,
+                // we have the poll request already waiting for it
+                eagerWorkflowTask.set(ctx.resetWorkflowTaskForMatching());
+              }
             }
 
             Duration runTimeout =
@@ -1561,6 +1575,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
       throw e;
     }
+
     if (!continuedAsNew && parent.isPresent()) {
       ChildWorkflowExecutionStartedEventAttributes a =
           ChildWorkflowExecutionStartedEventAttributes.newBuilder()
@@ -1583,6 +1598,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       } catch (Exception e) {
         log.error("Failure trying to add task for an delayed workflow retry", e);
       }
+    }
+
+    if (eagerWorkflowTask.get() != null) {
+      PollWorkflowTaskQueueResponse.Builder task = eagerWorkflowTask.get().getTask();
+      startWorkflowTask(task, eagerWorkflowTaskDispatchPollRequest);
+      return task.build();
+    } else {
+      return null;
     }
   }
 

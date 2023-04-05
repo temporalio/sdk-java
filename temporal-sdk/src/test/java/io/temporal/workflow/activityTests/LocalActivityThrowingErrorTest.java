@@ -59,9 +59,10 @@ public class LocalActivityThrowingErrorTest {
     WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
     workflowStub.start();
     WorkflowExecution execution = workflowStub.getExecution();
-    testWorkflowRule.waitForTheEndOfWFT(execution);
+    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     List<HistoryEvent> historyEvents =
-        testWorkflowRule.getHistoryEvents(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+        testWorkflowRule.getHistoryEvents(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
     assertTrue(historyEvents.size() > 0);
   }
 

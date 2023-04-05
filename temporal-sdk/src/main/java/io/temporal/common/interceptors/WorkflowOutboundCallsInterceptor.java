@@ -108,10 +108,16 @@ public interface WorkflowOutboundCallsInterceptor {
   }
 
   final class ActivityOutput<R> {
+    private final String activityId;
     private final Promise<R> result;
 
-    public ActivityOutput(Promise<R> result) {
+    public ActivityOutput(String activityId, Promise<R> result) {
+      this.activityId = activityId;
       this.result = result;
+    }
+
+    public String getActivityId() {
+      return activityId;
     }
 
     public Promise<R> getResult() {

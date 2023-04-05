@@ -51,6 +51,25 @@ import javax.annotation.Nullable;
  */
 public interface ReplayWorkflowContext extends ReplayAware {
 
+  class ScheduleActivityTaskOutput {
+    private final String activityId;
+    private final Functions.Proc1<Exception> cancellationHandle;
+
+    public ScheduleActivityTaskOutput(
+        String activityId, Functions.Proc1<Exception> cancllationHandle) {
+      this.activityId = activityId;
+      this.cancellationHandle = cancllationHandle;
+    }
+
+    public String getActivityId() {
+      return activityId;
+    }
+
+    public Functions.Proc1<Exception> getCancellationHandle() {
+      return cancellationHandle;
+    }
+  }
+
   WorkflowExecution getWorkflowExecution();
 
   WorkflowExecution getParentWorkflowExecution();
@@ -58,10 +77,38 @@ public interface ReplayWorkflowContext extends ReplayAware {
   WorkflowType getWorkflowType();
 
   /**
-   * RunId of the first run in the continue-as-new chain. Empty if this workflow never called
-   * continue as new.
+   * Note: RunId is unique identifier of one workflow code execution. Reset changes RunId.
+   *
+   * @return Workflow Run ID that is handled by the current workflow code execution.
+   * @see #getOriginalExecutionRunId() for RunId variation that is resistant to Resets
+   * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
+   *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
+   */
+  String getRunId();
+
+  /**
+   * @return The very first original RunId of the current Workflow Execution preserved along the
+   *     chain of ContinueAsNew, Retry, Cron and Reset. Identifies the whole Runs chain of Workflow
+   *     Execution.
+   */
+  String getFirstExecutionRunId();
+
+  /**
+   * @return Run ID of the previous Workflow Run which continued-as-new or retried or cron-scheduled
+   *     into the current Workflow Run.
    */
   Optional<String> getContinuedExecutionRunId();
+
+  /**
+   * Note: This value is NOT preserved by continue-as-new, retries or cron Runs. They are separate
+   * Runs of one Workflow Execution Chain.
+   *
+   * @return original RunId of the current Workflow Run. This value is preserved during Reset which
+   *     changes RunID.
+   * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
+   *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
+   */
+  Optional<String> getOriginalExecutionRunId();
 
   /** Workflow task queue name. */
   String getTaskQueue();
@@ -71,10 +118,16 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   String getWorkflowId();
 
-  String getRunId();
-
+  /**
+   * @return Timeout for a Workflow Run specified during Workflow start in {@link
+   *     io.temporal.client.WorkflowOptions.Builder#setWorkflowRunTimeout(Duration)}
+   */
   Duration getWorkflowRunTimeout();
 
+  /**
+   * @return Timeout for the Workflow Execution specified during Workflow start in {@link
+   *     io.temporal.client.WorkflowOptions.Builder#setWorkflowExecutionTimeout(Duration)}
+   */
   Duration getWorkflowExecutionTimeout();
 
   long getRunStartedTimestampMillis();
@@ -93,7 +146,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
    *     to cancel activity task.
    */
-  Functions.Proc1<Exception> scheduleActivityTask(
+  ScheduleActivityTaskOutput scheduleActivityTask(
       ExecuteActivityParameters parameters, Functions.Proc2<Optional<Payloads>, Failure> callback);
 
   Functions.Proc scheduleLocalActivityTask(
@@ -239,7 +292,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   UUID randomUUID();
 
   /**
-   * @return workflow retry attempt. default is 1
+   * @return workflow retry attempt. Starts on "1".
    */
   int getAttempt();
 

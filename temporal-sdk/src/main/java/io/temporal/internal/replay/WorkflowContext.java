@@ -43,7 +43,7 @@ public interface WorkflowContext {
    * @param exception throwable to convert
    * @return Serialized failure
    */
-  Failure mapExceptionToFailure(Throwable exception);
+  Failure mapWorkflowExceptionToFailure(Throwable exception);
 
   @Nonnull
   WorkflowImplementationOptions getWorkflowImplementationOptions();

@@ -87,7 +87,7 @@ final class Poller<T> implements SuspendableWorker {
   }
 
   @Override
-  public void start() {
+  public boolean start() {
     log.info("start: {}", this);
 
     if (pollerOptions.getMaximumPollRatePerSecond() > 0.0) {
@@ -116,37 +116,24 @@ final class Poller<T> implements SuspendableWorker {
       pollExecutor.execute(new PollLoopTask(new PollExecutionTask()));
       workerMetricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
     }
-  }
 
-  @Override
-  public boolean isStarted() {
-    return pollExecutor != null;
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return pollExecutor.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return pollExecutor.isTerminated() && taskExecutor.isTerminated();
+    return true;
   }
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     log.info("shutdown: {}", this);
-    if (!isStarted()) {
-      return CompletableFuture.completedFuture(null);
+    WorkerLifecycleState lifecycleState = getLifecycleState();
+    switch (lifecycleState) {
+      case NOT_STARTED:
+      case TERMINATED:
+        return CompletableFuture.completedFuture(null);
     }
+
     return shutdownManager
         // it's ok to forcefully shutdown pollers, especially because they stuck in a long poll call
         // we don't lose any progress doing that
         .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
-        // TODO Poller shouldn't shutdown taskExecutor, because it gets it already created
-        // externally.
-        //  Creator of taskExecutor should be responsible for it's shutdown
-        .thenCompose(ignore -> taskExecutor.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {
               log.error("Unexpected exception during shutdown", e);
@@ -156,12 +143,15 @@ final class Poller<T> implements SuspendableWorker {
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    if (!isStarted()) {
-      return;
+    WorkerLifecycleState lifecycleState = getLifecycleState();
+    switch (lifecycleState) {
+      case NOT_STARTED:
+      case TERMINATED:
+        return;
     }
+
     long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = ShutdownManager.awaitTermination(pollExecutor, timeoutMillis);
-    ShutdownManager.awaitTermination(taskExecutor, timeoutMillis);
+    ShutdownManager.awaitTermination(pollExecutor, timeoutMillis);
   }
 
   @Override
@@ -185,6 +175,35 @@ final class Poller<T> implements SuspendableWorker {
   @Override
   public boolean isSuspended() {
     return suspendLatch.get() != null;
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return pollExecutor.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return pollExecutor.isTerminated() && taskExecutor.isTerminated();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    if (pollExecutor == null) {
+      return WorkerLifecycleState.NOT_STARTED;
+    }
+    if (suspendLatch.get() != null) {
+      return WorkerLifecycleState.SUSPENDED;
+    }
+    if (pollExecutor.isShutdown()) {
+      // return TERMINATED only if both pollExecutor and taskExecutor are terminated
+      if (pollExecutor.isTerminated() && taskExecutor.isTerminated()) {
+        return WorkerLifecycleState.TERMINATED;
+      } else {
+        return WorkerLifecycleState.SHUTDOWN;
+      }
+    }
+    return WorkerLifecycleState.ACTIVE;
   }
 
   @Override

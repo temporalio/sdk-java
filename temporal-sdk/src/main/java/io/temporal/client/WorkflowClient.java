@@ -23,6 +23,8 @@ package io.temporal.client;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -38,6 +40,8 @@ import io.temporal.workflow.WorkflowMethod;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Client to the Temporal service used to start and query workflows by external processes. Also, it
@@ -117,7 +121,8 @@ public interface WorkflowClient {
    * @param service client to the Temporal Service endpoint.
    */
   static WorkflowClient newInstance(WorkflowServiceStubs service) {
-    return WorkflowClientInternal.newInstance(service, WorkflowClientOptions.getDefaultInstance());
+    return WorkflowClientInternalImpl.newInstance(
+        service, WorkflowClientOptions.getDefaultInstance());
   }
 
   /**
@@ -128,7 +133,7 @@ public interface WorkflowClient {
    *     configuring client.
    */
   static WorkflowClient newInstance(WorkflowServiceStubs service, WorkflowClientOptions options) {
-    return WorkflowClientInternal.newInstance(service, options);
+    return WorkflowClientInternalImpl.newInstance(service, options);
   }
 
   WorkflowClientOptions getOptions();
@@ -243,26 +248,58 @@ public interface WorkflowClient {
   /**
    * A wrapper around {WorkflowServiceStub#listWorkflowExecutions(ListWorkflowExecutionsRequest)}
    *
-   * <p>Note: This method uses 1000 as the underlying page size. To customize the page size, use
-   * {@link #listExecutions(String, int)}
-   *
    * @param query Temporal Visibility Query, for syntax see <a
    *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
    * @return sequential stream that performs remote pagination under the hood
    */
-  default Stream<WorkflowExecutionMetadata> listExecutions(String query) {
-    return listExecutions(query, 1000);
-  }
+  Stream<WorkflowExecutionMetadata> listExecutions(@Nullable String query);
 
   /**
-   * A wrapper around {WorkflowServiceStub#listWorkflowExecutions(ListWorkflowExecutionsRequest)}
+   * Streams history events for a workflow execution for the provided {@code workflowId}.
    *
-   * @param query Temporal Visibility Query, for syntax see <a
-   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
-   * @param pageSize a page size to use for the underlying remote pagination
-   * @return sequential stream that performs remote pagination under the hood
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @return stream of history events of the workflow with the specified Workflow Id.
+   * @see #streamHistory(String, String) to get a history of a specific run.
+   * @see #fetchHistory(String) for a user-friendly eager version of this method
    */
-  Stream<WorkflowExecutionMetadata> listExecutions(String query, int pageSize);
+  Stream<HistoryEvent> streamHistory(@Nonnull String workflowId);
+
+  /**
+   * Streams history events for a workflow execution for the provided {@code workflowId} and {@code
+   * runId}.
+   *
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @param runId Fixed Run Id of the workflow to export the history for. If not provided, the
+   *     latest run will be used. Optional, can be null.
+   * @return stream of history events of the specified run of the workflow execution.
+   * @see #streamHistory(String) to get a history of workflow excution by workflowId without
+   *     providing a specific run.
+   * @see #fetchHistory(String, String) for a user-friendly eagert version of this method
+   */
+  Stream<HistoryEvent> streamHistory(@Nonnull String workflowId, @Nullable String runId);
+
+  /**
+   * Downloads workflow execution history for the provided {@code workflowId}.
+   *
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @return execution history of the workflow with the specified Workflow Id.
+   * @see #fetchHistory(String, String) to get a history of a specific run.
+   * @see #streamHistory(String) for a lazy memory-efficient version of this method
+   */
+  WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId);
+
+  /**
+   * Downloads workflow execution history for the provided {@code workflowId} and {@code runId}.
+   *
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @param runId Fixed Run Id of the workflow to export the history for. If not provided, the
+   *     latest run will be used. Optional, can be null.
+   * @return execution history of the specified run of the workflow execution.
+   * @see #fetchHistory(String) to get a history of workflow excution by workflowId without
+   *     providing a specific run.
+   * @see #streamHistory(String, String) for a lazy memory-efficient version of this method
+   */
+  WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId, @Nullable String runId);
 
   /**
    * Executes zero argument workflow with void return type
@@ -272,7 +309,7 @@ public interface WorkflowClient {
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static WorkflowExecution start(Functions.Proc workflow) {
-    return WorkflowClientInternal.start(workflow);
+    return WorkflowClientInternalImpl.start(workflow);
   }
 
   /**
@@ -284,7 +321,7 @@ public interface WorkflowClient {
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1> WorkflowExecution start(Functions.Proc1<A1> workflow, A1 arg1) {
-    return WorkflowClientInternal.start(workflow, arg1);
+    return WorkflowClientInternalImpl.start(workflow, arg1);
   }
 
   /**
@@ -297,7 +334,7 @@ public interface WorkflowClient {
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2> WorkflowExecution start(Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2);
   }
 
   /**
@@ -312,7 +349,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3> WorkflowExecution start(
       Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3);
   }
 
   /**
@@ -328,7 +365,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, A4> WorkflowExecution start(
       Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3, arg4);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3, arg4);
   }
 
   /**
@@ -345,7 +382,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, A4, A5> WorkflowExecution start(
       Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3, arg4, arg5);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3, arg4, arg5);
   }
 
   /**
@@ -369,7 +406,7 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       A6 arg6) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
   }
 
   /**
@@ -380,7 +417,7 @@ public interface WorkflowClient {
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <R> WorkflowExecution start(Functions.Func<R> workflow) {
-    return WorkflowClientInternal.start(workflow);
+    return WorkflowClientInternalImpl.start(workflow);
   }
 
   /**
@@ -392,7 +429,7 @@ public interface WorkflowClient {
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, R> WorkflowExecution start(Functions.Func1<A1, R> workflow, A1 arg1) {
-    return WorkflowClientInternal.start(workflow, arg1);
+    return WorkflowClientInternalImpl.start(workflow, arg1);
   }
 
   /**
@@ -406,7 +443,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, R> WorkflowExecution start(
       Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2);
   }
 
   /**
@@ -421,7 +458,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, R> WorkflowExecution start(
       Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3);
   }
 
   /**
@@ -437,7 +474,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, A4, R> WorkflowExecution start(
       Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3, arg4);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3, arg4);
   }
 
   /**
@@ -459,7 +496,7 @@ public interface WorkflowClient {
       A3 arg3,
       A4 arg4,
       A5 arg5) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3, arg4, arg5);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3, arg4, arg5);
   }
 
   /**
@@ -483,7 +520,7 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       A6 arg6) {
-    return WorkflowClientInternal.start(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
+    return WorkflowClientInternalImpl.start(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
   }
 
   /**
@@ -494,7 +531,7 @@ public interface WorkflowClient {
    * @return future becomes ready upon workflow completion with null value or failure
    */
   static CompletableFuture<Void> execute(Proc workflow) {
-    return WorkflowClientInternal.execute(workflow);
+    return WorkflowClientInternalImpl.execute(workflow);
   }
 
   /**
@@ -506,7 +543,7 @@ public interface WorkflowClient {
    * @return future becomes ready upon workflow completion with null value or failure
    */
   static <A1> CompletableFuture<Void> execute(Proc1<A1> workflow, A1 arg1) {
-    return WorkflowClientInternal.execute(workflow, arg1);
+    return WorkflowClientInternalImpl.execute(workflow, arg1);
   }
 
   /**
@@ -519,7 +556,7 @@ public interface WorkflowClient {
    * @return future becomes ready upon workflow completion with null value or failure
    */
   static <A1, A2> CompletableFuture<Void> execute(Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2);
   }
 
   /**
@@ -534,7 +571,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3> CompletableFuture<Void> execute(
       Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3);
   }
 
   /**
@@ -550,7 +587,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, A4> CompletableFuture<Void> execute(
       Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3, arg4);
   }
 
   /**
@@ -567,7 +604,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, A4, A5> CompletableFuture<Void> execute(
       Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4, arg5);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3, arg4, arg5);
   }
 
   /**
@@ -591,7 +628,7 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       A6 arg6) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
   }
 
   /**
@@ -602,7 +639,7 @@ public interface WorkflowClient {
    * @return future that contains workflow result or failure
    */
   static <R> CompletableFuture<R> execute(Func<R> workflow) {
-    return WorkflowClientInternal.execute(workflow);
+    return WorkflowClientInternalImpl.execute(workflow);
   }
 
   /**
@@ -614,7 +651,7 @@ public interface WorkflowClient {
    * @return future that contains workflow result or failure
    */
   static <A1, R> CompletableFuture<R> execute(Func1<A1, R> workflow, A1 arg1) {
-    return WorkflowClientInternal.execute(workflow, arg1);
+    return WorkflowClientInternalImpl.execute(workflow, arg1);
   }
 
   /**
@@ -628,7 +665,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, R> CompletableFuture<R> execute(
       Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2);
   }
 
   /**
@@ -643,7 +680,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, R> CompletableFuture<R> execute(
       Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3);
   }
 
   /**
@@ -659,7 +696,7 @@ public interface WorkflowClient {
    */
   static <A1, A2, A3, A4, R> CompletableFuture<R> execute(
       Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3, arg4);
   }
 
   /**
@@ -681,7 +718,7 @@ public interface WorkflowClient {
       A3 arg3,
       A4 arg4,
       A5 arg5) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4, arg5);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3, arg4, arg5);
   }
 
   /**
@@ -705,6 +742,13 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       A6 arg6) {
-    return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
+    return WorkflowClientInternalImpl.execute(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
   }
+
+  /**
+   * For SDK Internal usage only. This method should <b>not</b> be used by users. If implementing a
+   * proxy or an adapter over a {@link WorkflowClient} provided by the SDK, users should pass an
+   * object returned by this method as-is.
+   */
+  Object getInternal();
 }

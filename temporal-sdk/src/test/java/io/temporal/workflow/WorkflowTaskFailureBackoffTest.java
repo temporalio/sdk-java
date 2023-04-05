@@ -78,7 +78,7 @@ public class WorkflowTaskFailureBackoffTest {
     Assert.assertEquals(
         1,
         testWorkflowRule
-            .getHistoryEvents(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
+            .getHistoryEvents(execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
             .size());
     Map<String, String> tags =
         ImmutableMap.<String, String>builder()

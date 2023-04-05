@@ -20,7 +20,7 @@
 
 package io.temporal.internal.worker;
 
-public interface Suspendable {
+public interface Suspendable extends WorkerWithLifecycle {
 
   /**
    * Do not make new poll requests. Outstanding long polls still can return tasks after this method

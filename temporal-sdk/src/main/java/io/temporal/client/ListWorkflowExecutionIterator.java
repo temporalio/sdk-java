@@ -25,109 +25,56 @@ import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.ListWorkflowExecutionsRequest;
 import io.temporal.api.workflowservice.v1.ListWorkflowExecutionsResponse;
 import io.temporal.internal.client.external.GenericWorkflowClient;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.annotation.Nullable;
 
-class ListWorkflowExecutionIterator implements Iterator<WorkflowExecutionInfo> {
-  private static final Logger log = LoggerFactory.getLogger(ListWorkflowExecutionIterator.class);
-
-  private final @Nonnull String query;
+class ListWorkflowExecutionIterator
+    extends EagerPaginator<ListWorkflowExecutionsResponse, WorkflowExecutionInfo> {
+  private final @Nullable String query;
   private final @Nonnull String namespace;
-  private final int pageSize;
+  private final @Nullable Integer pageSize;
   private final @Nonnull GenericWorkflowClient genericClient;
-  private ListWorkflowExecutionsResponse activeResponse;
-  private int nextActiveResponseIndex;
-  private CompletableFuture<ListWorkflowExecutionsResponse> nextResponse;
 
   ListWorkflowExecutionIterator(
-      @Nonnull String query,
+      @Nullable String query,
       @Nonnull String namespace,
-      int pageSize,
+      @Nullable Integer pageSize,
       @Nonnull GenericWorkflowClient genericClient) {
-    this.query = Objects.requireNonNull(query, "query");
+    this.query = query;
     this.namespace = Objects.requireNonNull(namespace, "namespace");
     this.pageSize = pageSize;
     this.genericClient = Objects.requireNonNull(genericClient, "genericClient");
   }
 
   @Override
-  public boolean hasNext() {
-    if (nextActiveResponseIndex < activeResponse.getExecutionsCount()) {
-      return true;
+  CompletableFuture<ListWorkflowExecutionsResponse> performRequest(
+      @Nonnull ByteString nextPageToken) {
+    ListWorkflowExecutionsRequest.Builder request =
+        ListWorkflowExecutionsRequest.newBuilder()
+            .setNamespace(namespace)
+            .setNextPageToken(nextPageToken);
+
+    if (query != null) {
+      request.setQuery(query);
     }
-    fetch();
-    return nextActiveResponseIndex < activeResponse.getExecutionsCount();
+
+    if (pageSize != null) {
+      request.setPageSize(pageSize);
+    }
+
+    return genericClient.listWorkflowExecutionsAsync(request.build());
   }
 
   @Override
-  public WorkflowExecutionInfo next() {
-    if (hasNext()) {
-      return activeResponse.getExecutions(nextActiveResponseIndex++);
-    } else {
-      throw new NoSuchElementException();
-    }
+  ByteString getNextPageToken(ListWorkflowExecutionsResponse response) {
+    return response.getNextPageToken();
   }
 
-  void fetch() {
-    if (nextResponse == null) {
-      // if nextResponse is null, it's the end of the iteration through the pages
-      return;
-    }
-
-    ListWorkflowExecutionsResponse response;
-    try {
-      response = this.nextResponse.get();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e.getCause());
-    }
-
-    ByteString nextPageToken = response.getNextPageToken();
-    if (!nextPageToken.isEmpty()) {
-      ListWorkflowExecutionsRequest request =
-          ListWorkflowExecutionsRequest.newBuilder()
-              .setNamespace(namespace)
-              .setQuery(query)
-              .setPageSize(pageSize)
-              .setNextPageToken(nextPageToken)
-              .build();
-      this.nextResponse = genericClient.listWorkflowExecutionsAsync(request);
-    } else {
-      this.nextResponse = null;
-    }
-
-    if (response.getExecutionsCount() == 0 && nextResponse != null) {
-      log.warn(
-          "[BUG] listWorkflowExecutions received an empty collection with a non-empty nextPageToken");
-      // shouldn't be happening, but we want to tolerate it if it does, so we just effectively
-      // skip the empty response and wait for the next one in a blocking manner.
-      // If this actually ever happens as a normal scenario, this skipping should be reworked to
-      // be done asynchronously on a completion of nextResponse future.
-      fetch();
-      return;
-    }
-
-    activeResponse = response;
-    nextActiveResponseIndex = 0;
-  }
-
-  public void init() {
-    ListWorkflowExecutionsRequest request =
-        ListWorkflowExecutionsRequest.newBuilder()
-            .setNamespace(namespace)
-            .setQuery(query)
-            .setPageSize(pageSize)
-            .build();
-    nextResponse = new CompletableFuture<>();
-    nextResponse.complete(genericClient.listWorkflowExecutions(request));
-    fetch();
+  @Override
+  List<WorkflowExecutionInfo> toElements(ListWorkflowExecutionsResponse response) {
+    return response.getExecutionsList();
   }
 }

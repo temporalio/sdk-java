@@ -21,10 +21,14 @@
 package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -36,6 +40,11 @@ public class NamespaceTemplate {
   private final @Nullable Tracer tracer;
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
+  private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
+      workerFactoryCustomizer;
+  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
+  private final @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer;
+
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
 
@@ -45,24 +54,32 @@ public class NamespaceTemplate {
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
       @Nullable DataConverter dataConverter,
       @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
+      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
+
+    this.workerFactoryCustomizer = workerFactoryCustomizer;
+    this.workerCustomizer = workerCustomizer;
+    this.clientCustomizer = clientCustomizer;
   }
 
   public ClientTemplate getClientTemplate() {
     if (clientTemplate == null) {
       this.clientTemplate =
           new ClientTemplate(
-              namespaceProperties,
-              workflowServiceStubs,
+              namespaceProperties.getNamespace(),
               dataConverter,
               tracer,
-              testWorkflowEnvironment);
+              workflowServiceStubs,
+              testWorkflowEnvironment,
+              clientCustomizer);
     }
     return clientTemplate;
   }
@@ -75,7 +92,9 @@ public class NamespaceTemplate {
               namespaceProperties,
               getClientTemplate(),
               tracer,
-              testWorkflowEnvironment);
+              testWorkflowEnvironment,
+              workerFactoryCustomizer,
+              workerCustomizer);
     }
     return this.workersTemplate;
   }

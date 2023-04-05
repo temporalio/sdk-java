@@ -1,5 +1,6 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-io.temporal.spring.boot.autoconfigure.TestServerAutoConfiguration,\
+io.temporal.spring.boot.autoconfigure.MetricsScopeAutoConfiguration,\
 io.temporal.spring.boot.autoconfigure.OpenTracingAutoConfiguration,\
+io.temporal.spring.boot.autoconfigure.TestServerAutoConfiguration,\
 io.temporal.spring.boot.autoconfigure.ServiceStubsAutoConfiguration,\
 io.temporal.spring.boot.autoconfigure.RootNamespaceAutoConfiguration

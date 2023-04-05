@@ -28,6 +28,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.MeteringMetadata;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.CommandType;
@@ -38,7 +39,6 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.worker.*;
@@ -211,6 +211,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
             .addAllCommands(result.getCommands())
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewWorkflowTask(result.isForceWorkflowTask())
+            .setMeteringMetadata(
+                MeteringMetadata.newBuilder()
+                    .setNonfirstLocalActivityExecutionAttempts(
+                        result.getNonfirstLocalActivityAttempts())
+                    .build())
             .setReturnNewWorkflowTask(result.isForceWorkflowTask());
 
     if (stickyTaskQueueName != null
@@ -274,7 +279,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       throw (Exception) e;
     }
 
-    Failure failure = FailureConverter.exceptionToFailure(e);
+    Failure failure = options.getDataConverter().exceptionToFailure(e);
     RespondWorkflowTaskFailedRequest.Builder failedRequest =
         RespondWorkflowTaskFailedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
@@ -345,6 +350,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private WorkflowRunTaskHandler createStatefulHandler(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
+    WorkflowExecution workflowExecution = workflowTask.getWorkflowExecution();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
     // Sticky workflow task with partial history.
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
@@ -362,7 +368,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           .setHistory(getHistoryResponse.getHistory())
           .setNextPageToken(getHistoryResponse.getNextPageToken());
     }
-    ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
+    ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType, workflowExecution);
     return new ReplayWorkflowRunTaskHandler(
         namespace, workflow, workflowTask, options, metricsScope, localActivityDispatcher);
   }

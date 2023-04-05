@@ -58,6 +58,7 @@ class LocalActivityAttemptTask {
   }
 
   public void markAsTakenFromQueue() {
+    executionContext.newAttempt();
     if (takenFromQueueCallback != null) {
       takenFromQueueCallback.apply();
     }
