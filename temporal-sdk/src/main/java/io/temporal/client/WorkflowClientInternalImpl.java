@@ -145,14 +145,13 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private static <T> void checkAnnotation(
       Class<T> workflowInterface, Class<? extends Annotation>... annotationClasses) {
     TypeToken<?>.TypeSet interfaces = TypeToken.of(workflowInterface).getTypes().interfaces();
-    if (interfaces.isEmpty()) {
-      throw new IllegalArgumentException("Workflow must implement at least one interface");
-    }
+    Preconditions.checkArgument(
+        !interfaces.isEmpty(), "Workflow must implement at least one interface");
     for (TypeToken<?> i : interfaces) {
       for (Method method : i.getRawType().getMethods()) {
         for (Class<? extends Annotation> annotationClass : annotationClasses) {
-          Object workflowMethod = method.getAnnotation(annotationClass);
-          if (workflowMethod != null) {
+          Annotation methodAnnotation = method.getAnnotation(annotationClass);
+          if (methodAnnotation != null) {
             return;
           }
         }
@@ -174,9 +173,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
     checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class, SignalMethod.class);
-    if (Strings.isNullOrEmpty(workflowId)) {
-      throw new IllegalArgumentException("workflowId is null or empty");
-    }
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(workflowId), "workflowId is null or empty");
     WorkflowExecution execution =
         WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.orElse("")).build();
 
