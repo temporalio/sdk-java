@@ -45,7 +45,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -59,7 +58,6 @@ import org.springframework.context.event.ContextStartedEvent;
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
 @AutoConfigureAfter({ServiceStubsAutoConfiguration.class, OpenTracingAutoConfiguration.class})
-@ConditionalOnBean(ServiceStubsAutoConfiguration.class)
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class RootNamespaceAutoConfiguration {
