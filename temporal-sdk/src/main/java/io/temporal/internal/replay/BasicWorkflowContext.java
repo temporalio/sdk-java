@@ -72,7 +72,8 @@ final class BasicWorkflowContext {
     return startedAttributes.getWorkflowType();
   }
 
-  public String getFirstExecutionRunId() {
+  @Nonnull
+  String getFirstExecutionRunId() {
     return startedAttributes.getFirstExecutionRunId();
   }
 
@@ -81,9 +82,9 @@ final class BasicWorkflowContext {
     return runId.isEmpty() ? Optional.empty() : Optional.of(runId);
   }
 
-  Optional<String> getOriginalExecutionRunId() {
-    String runId = startedAttributes.getOriginalExecutionRunId();
-    return runId.isEmpty() ? Optional.empty() : Optional.of(runId);
+  @Nonnull
+  String getOriginalExecutionRunId() {
+    return startedAttributes.getOriginalExecutionRunId();
   }
 
   WorkflowExecution getParentWorkflowExecution() {

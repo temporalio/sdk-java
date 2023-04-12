@@ -84,6 +84,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
    *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
    */
+  @Nonnull
   String getRunId();
 
   /**
@@ -91,6 +92,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     chain of ContinueAsNew, Retry, Cron and Reset. Identifies the whole Runs chain of Workflow
    *     Execution.
    */
+  @Nonnull
   String getFirstExecutionRunId();
 
   /**
@@ -108,7 +110,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
    *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
    */
-  Optional<String> getOriginalExecutionRunId();
+  @Nonnull
+  String getOriginalExecutionRunId();
 
   /** Workflow task queue name. */
   String getTaskQueue();

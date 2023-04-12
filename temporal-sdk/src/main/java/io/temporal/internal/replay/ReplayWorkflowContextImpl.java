@@ -120,7 +120,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public Optional<String> getOriginalExecutionRunId() {
+  public String getOriginalExecutionRunId() {
     return basicWorkflowContext.getOriginalExecutionRunId();
   }
 
@@ -150,6 +150,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     return basicWorkflowContext.getWorkflowExecution().getWorkflowId();
   }
 
+  @Nonnull
   @Override
   public String getRunId() {
     String result = basicWorkflowContext.getWorkflowExecution().getRunId();
