@@ -126,14 +126,16 @@ public class DummySyncWorkflowContext {
       return "dummy-workflow-id";
     }
 
+    @Nonnull
     @Override
     public String getRunId() {
       return "dummy-run-id";
     }
 
+    @Nonnull
     @Override
     public String getFirstExecutionRunId() {
-      return null;
+      throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -141,9 +143,10 @@ public class DummySyncWorkflowContext {
       throw new UnsupportedOperationException("not implemented");
     }
 
+    @Nonnull
     @Override
-    public Optional<String> getOriginalExecutionRunId() {
-      return Optional.empty();
+    public String getOriginalExecutionRunId() {
+      throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
