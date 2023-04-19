@@ -473,6 +473,10 @@ public final class Workflow {
     return WorkflowInternal.newTimer(delay);
   }
 
+  /**
+   * @deprecated use {@link #newWorkflowQueue(int)} instead. An implementation returned by this
+   *     method has a bug.
+   */
   @Deprecated
   public static <E> WorkflowQueue<E> newQueue(int capacity) {
     return WorkflowInternal.newQueue(capacity);
