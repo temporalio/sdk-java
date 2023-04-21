@@ -248,4 +248,21 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         ForkJoinPool.commonPool());
     return result;
   }
+
+  @Override
+  public UpdateWorkflowExecutionResponse update(UpdateWorkflowExecutionRequest updateParameters) {
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(1)
+            .put(MetricsTag.UPDATE_NAME, updateParameters.getRequest().getInput().getName())
+            .build();
+    Scope scope = metricsScope.tagged(tags);
+
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                .updateWorkflowExecution(updateParameters),
+        grpcRetryerOptions);
+  }
 }

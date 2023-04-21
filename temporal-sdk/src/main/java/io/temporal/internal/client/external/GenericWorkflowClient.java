@@ -38,6 +38,8 @@ public interface GenericWorkflowClient {
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryParameters);
 
+  UpdateWorkflowExecutionResponse update(UpdateWorkflowExecutionRequest updateParameters);
+
   void terminate(TerminateWorkflowExecutionRequest request);
 
   GetWorkflowExecutionHistoryResponse longPollHistory(

@@ -768,6 +768,18 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
+  public void updateWorkflowExecution(
+      UpdateWorkflowExecutionRequest request,
+      StreamObserver<UpdateWorkflowExecutionResponse> responseObserver) {
+    // TODO(https://github.com/temporalio/sdk-java/issues/1742) Add support for update to the test
+    // server
+    responseObserver.onError(
+        Status.UNIMPLEMENTED
+            .withDescription("Test server does not implement update")
+            .asRuntimeException());
+  }
+
+  @Override
   public void signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionRequest r,
       StreamObserver<SignalWithStartWorkflowExecutionResponse> responseObserver) {
