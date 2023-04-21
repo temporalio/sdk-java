@@ -200,11 +200,8 @@ final class ActivityTaskExecutors {
 
     @Override
     Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
-      return DataConverter.arrayFromPayloads(
-          dataConverterWithActivityContext,
-          input,
-          method.getParameterTypes(),
-          method.getGenericParameterTypes());
+      return dataConverterWithActivityContext.fromPayloads(
+          input, method.getParameterTypes(), method.getGenericParameterTypes());
     }
 
     @Override
