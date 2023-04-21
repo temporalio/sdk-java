@@ -18,20 +18,26 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.statemachines;
+package io.temporal.workflow;
 
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.internal.common.UpdateMessage;
+import io.temporal.common.converter.EncodedValues;
 
-public interface StatesMachinesCallback {
+/**
+ * Use DynamicUpdateHandler to process any update dynamically. This is useful for a library level
+ * code and implementation of DSLs.
+ *
+ * <p>Use {@link Workflow#registerListener(Object)} to register an implementation of the
+ * DynamicUpdateListener. Only one such listener can be registered per workflow execution.
+ *
+ * <p>When registered any signals which don't have a specific handler will be delivered to it.
+ *
+ * @see DynamicQueryHandler
+ * @see DynamicSignalHandler
+ * @see DynamicWorkflow
+ */
+public interface DynamicUpdateHandler {
 
-  void start(HistoryEvent startWorkflowEvent);
+  default void handleValidate(String updateName, EncodedValues args) {}
 
-  void signal(HistoryEvent signalEvent);
-
-  void update(UpdateMessage message);
-
-  void cancel(HistoryEvent cancelEvent);
-
-  void eventLoop();
+  EncodedValues handleExecute(String updateName, EncodedValues args);
 }

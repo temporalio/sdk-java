@@ -25,6 +25,7 @@ import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.serviceclient.RpcRetryOptions;
+import io.temporal.workflow.Functions;
 
 /**
  * Interface of workflow task handlers.
@@ -40,6 +41,7 @@ public interface WorkflowTaskHandler {
     private final RespondQueryTaskCompletedRequest queryCompleted;
     private final RpcRetryOptions requestRetryOptions;
     private final boolean completionCommand;
+    private final Functions.Proc1<Long> eventIdSetHandle;
 
     public Result(
         String workflowType,
@@ -47,13 +49,15 @@ public interface WorkflowTaskHandler {
         RespondWorkflowTaskFailedRequest taskFailed,
         RespondQueryTaskCompletedRequest queryCompleted,
         RpcRetryOptions requestRetryOptions,
-        boolean completionCommand) {
+        boolean completionCommand,
+        Functions.Proc1<Long> eventIdSetHandle) {
       this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
       this.requestRetryOptions = requestRetryOptions;
       this.completionCommand = completionCommand;
+      this.eventIdSetHandle = eventIdSetHandle;
     }
 
     public RespondWorkflowTaskCompletedRequest getTaskCompleted() {
@@ -74,6 +78,13 @@ public interface WorkflowTaskHandler {
 
     public boolean isCompletionCommand() {
       return completionCommand;
+    }
+
+    public Functions.Proc1<Long> getEventIdSetHandle() {
+      if (eventIdSetHandle != null) {
+        return eventIdSetHandle;
+      }
+      return (arg) -> {};
     }
 
     @Override

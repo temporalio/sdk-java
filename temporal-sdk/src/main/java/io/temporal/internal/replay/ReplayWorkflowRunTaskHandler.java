@@ -36,10 +36,12 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.Config;
+import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
@@ -156,6 +158,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       handleWorkflowTaskImpl(workflowTask, historyIterator);
       processLocalActivityRequests(wftHearbeatDeadline);
       List<Command> commands = workflowStateMachines.takeCommands();
+      List<Message> messages = workflowStateMachines.takeMessages();
       if (context.isWorkflowMethodCompleted()) {
         // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation
@@ -167,6 +170,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       Map<String, WorkflowQueryResult> queryResults = executeQueries(workflowTask.getQueriesMap());
       return WorkflowTaskResult.newBuilder()
           .setCommands(commands)
+          .setMessages(messages)
           .setQueryResults(queryResults)
           .setFinalCommand(context.isWorkflowMethodCompleted())
           .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
@@ -200,11 +204,17 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
+  @Override
+  public void setCurrentStartedEvenId(Long eventId) {
+    workflowStateMachines.setCurrentStartedEventId(eventId);
+  }
+
   private void handleWorkflowTaskImpl(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       WorkflowHistoryIterator historyIterator) {
     workflowStateMachines.setWorklfowStartedEventId(workflowTask.getStartedEventId());
     workflowStateMachines.setReplaying(workflowTask.getPreviousStartedEventId() > 0);
+    workflowStateMachines.setMessages(workflowTask.getMessagesList());
     applyServerHistory(historyIterator);
   }
 
@@ -221,6 +231,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         HistoryEvent event = historyIterator.next();
         boolean hasNext = historyIterator.hasNext();
         try {
+          // quinn
           workflowStateMachines.handleEvent(event, hasNext);
         } catch (Throwable e) {
           // Fail workflow if exception is of the specified type
@@ -363,6 +374,11 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     @Override
     public void signal(HistoryEvent signalEvent) {
       replayWorkflowExecutor.handleWorkflowExecutionSignaled(signalEvent);
+    }
+
+    @Override
+    public void update(UpdateMessage message) {
+      replayWorkflowExecutor.handleWorkflowExecutionUpdated(message);
     }
 
     @Override

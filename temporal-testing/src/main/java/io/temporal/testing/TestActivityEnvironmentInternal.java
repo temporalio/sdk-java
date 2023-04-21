@@ -515,6 +515,16 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       }
       return Defaults.defaultValue(resultClass);
     }
+
+    @Override
+    public void registerUpdateHandlers(RegisterUpdateHandlersInput input) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input) {
+      throw new UnsupportedOperationException("not implemented");
+    }
   }
 
   private static class ClassConsumerPair<T> {

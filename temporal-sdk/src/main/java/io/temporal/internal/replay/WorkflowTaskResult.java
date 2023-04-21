@@ -21,6 +21,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.command.v1.Command;
+import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +35,7 @@ public final class WorkflowTaskResult {
 
   public static final class Builder {
     private List<Command> commands;
+    private List<Message> messages;
     private boolean finalCommand;
     private Map<String, WorkflowQueryResult> queryResults;
     private boolean forceWorkflowTask;
@@ -41,6 +43,11 @@ public final class WorkflowTaskResult {
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
+      return this;
+    }
+
+    public Builder setMessages(List<Message> messages) {
+      this.messages = messages;
       return this;
     }
 
@@ -67,6 +74,7 @@ public final class WorkflowTaskResult {
     public WorkflowTaskResult build() {
       return new WorkflowTaskResult(
           commands == null ? Collections.emptyList() : commands,
+          messages == null ? Collections.emptyList() : messages,
           queryResults == null ? Collections.emptyMap() : queryResults,
           finalCommand,
           forceWorkflowTask,
@@ -75,6 +83,7 @@ public final class WorkflowTaskResult {
   }
 
   private final List<Command> commands;
+  private final List<Message> messages;
   private final boolean finalCommand;
   private final Map<String, WorkflowQueryResult> queryResults;
   private final boolean forceWorkflowTask;
@@ -82,11 +91,13 @@ public final class WorkflowTaskResult {
 
   private WorkflowTaskResult(
       List<Command> commands,
+      List<Message> messages,
       Map<String, WorkflowQueryResult> queryResults,
       boolean finalCommand,
       boolean forceWorkflowTask,
       int nonfirstLocalActivityAttempts) {
     this.commands = commands;
+    this.messages = messages;
     this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
     if (forceWorkflowTask && finalCommand) {
       throw new IllegalArgumentException("both forceWorkflowTask and finalCommand are true");
@@ -98,6 +109,10 @@ public final class WorkflowTaskResult {
 
   public List<Command> getCommands() {
     return commands;
+  }
+
+  public List<Message> getMessages() {
+    return messages;
   }
 
   public Map<String, WorkflowQueryResult> getQueryResults() {

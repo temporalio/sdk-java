@@ -24,5 +24,7 @@ public enum WorkflowMethodType {
   NONE,
   WORKFLOW,
   SIGNAL,
-  QUERY
+  QUERY,
+  UPDATE,
+  UPDATE_VALIDATOR
 }

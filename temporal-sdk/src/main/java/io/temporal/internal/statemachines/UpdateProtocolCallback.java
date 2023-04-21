@@ -20,18 +20,16 @@
 
 package io.temporal.internal.statemachines;
 
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.internal.common.UpdateMessage;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
+import java.util.Optional;
 
-public interface StatesMachinesCallback {
+public interface UpdateProtocolCallback {
+  void accept();
 
-  void start(HistoryEvent startWorkflowEvent);
+  void reject(Failure failure);
 
-  void signal(HistoryEvent signalEvent);
+  void complete(Optional<Payloads> result, Failure failure);
 
-  void update(UpdateMessage message);
-
-  void cancel(HistoryEvent cancelEvent);
-
-  void eventLoop();
+  boolean isReplaying();
 }

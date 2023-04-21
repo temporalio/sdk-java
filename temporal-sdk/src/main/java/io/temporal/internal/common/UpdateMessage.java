@@ -18,20 +18,25 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.statemachines;
+package io.temporal.internal.common;
 
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.internal.common.UpdateMessage;
+import io.temporal.api.protocol.v1.Message;
+import io.temporal.internal.statemachines.UpdateProtocolCallback;
 
-public interface StatesMachinesCallback {
+public class UpdateMessage {
+  private final Message message;
+  private final UpdateProtocolCallback callbacks;
 
-  void start(HistoryEvent startWorkflowEvent);
+  public UpdateMessage(Message message, UpdateProtocolCallback callbacks) {
+    this.message = message;
+    this.callbacks = callbacks;
+  }
 
-  void signal(HistoryEvent signalEvent);
+  public Message getMessage() {
+    return message;
+  }
 
-  void update(UpdateMessage message);
-
-  void cancel(HistoryEvent cancelEvent);
-
-  void eventLoop();
+  public UpdateProtocolCallback getCallbacks() {
+    return this.callbacks;
+  }
 }

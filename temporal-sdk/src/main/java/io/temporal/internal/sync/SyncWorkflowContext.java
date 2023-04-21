@@ -105,6 +105,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private final List<ContextPropagator> contextPropagators;
   private final SignalDispatcher signalDispatcher;
   private final QueryDispatcher queryDispatcher;
+  private final UpdateDispatcher updateDispatcher;
 
   // initialized later when these entities are created
   private ReplayWorkflowContext replayContext;
@@ -123,6 +124,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       @Nonnull WorkflowExecution workflowExecution,
       SignalDispatcher signalDispatcher,
       QueryDispatcher queryDispatcher,
+      UpdateDispatcher updateDispatcher,
       @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       List<ContextPropagator> contextPropagators) {
@@ -135,6 +137,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     this.contextPropagators = contextPropagators;
     this.signalDispatcher = signalDispatcher;
     this.queryDispatcher = queryDispatcher;
+    this.updateDispatcher = updateDispatcher;
     if (workflowImplementationOptions != null) {
       this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
       this.activityOptionsMap = new HashMap<>(workflowImplementationOptions.getActivityOptions());
@@ -188,6 +191,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     headInboundInterceptor = head;
     signalDispatcher.setInboundCallsInterceptor(head);
     queryDispatcher.setInboundCallsInterceptor(head);
+    updateDispatcher.setInboundCallsInterceptor(head);
   }
 
   public ActivityOptions getDefaultActivityOptions() {
@@ -308,6 +312,24 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
     signalDispatcher.handleSignal(signalName, input, eventId);
+  }
+
+  public void handleValidateUpdate(String updateName, Optional<Payloads> input, long eventId) {
+    updateDispatcher.handleValidateUpdate(updateName, input, eventId);
+  }
+
+  public Optional<Payloads> handleExecuteUpdate(
+      String updateName, Optional<Payloads> input, long eventId) {
+    return updateDispatcher.handleExecuteUpdate(updateName, input, eventId);
+  }
+
+  public void handleInterceptedValidateUpdate(WorkflowInboundCallsInterceptor.UpdateInput input) {
+    updateDispatcher.handleInterceptedValidateUpdate(input);
+  }
+
+  public WorkflowInboundCallsInterceptor.UpdateOutput handleInterceptedExecuteUpdate(
+      WorkflowInboundCallsInterceptor.UpdateInput input) {
+    return updateDispatcher.handleInterceptedExecuteUpdate(input);
   }
 
   public WorkflowInboundCallsInterceptor.QueryOutput handleInterceptedQuery(
@@ -896,6 +918,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   @Override
+  public void registerUpdateHandlers(RegisterUpdateHandlersInput input) {
+    updateDispatcher.registerUpdateHandlers(input);
+  }
+
+  @Override
   public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
     signalDispatcher.registerDynamicSignalHandler(input);
   }
@@ -903,6 +930,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
     queryDispatcher.registerDynamicQueryHandler(input);
+  }
+
+  @Override
+  public void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input) {
+    updateDispatcher.registerDynamicUpdateHandler(input);
   }
 
   @Override

@@ -37,7 +37,7 @@ public final class POJOWorkflowMethodMetadata {
       throw new IllegalArgumentException(
           "Method \""
               + methodMetadata.getMethod().getName()
-              + "\" is not annotated with @WorkflowMethod, @SignalMethod or @QueryMethod");
+              + "\" is not annotated with @WorkflowMethod, @SignalMethod @QueryMethod, @UpdateMethod, or @UpdateValidatorMethod");
     }
 
     this.workflowInterface = Objects.requireNonNull(workflowInterface);

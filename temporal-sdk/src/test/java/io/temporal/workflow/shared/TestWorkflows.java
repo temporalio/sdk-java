@@ -131,6 +131,16 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestUpdatedWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @UpdateMethod(name = "testUpdate")
+    void update(String arg);
+  }
+
+  @WorkflowInterface
   public interface ReceiveSignalObjectWorkflow {
 
     @WorkflowMethod
@@ -162,6 +172,47 @@ public class TestWorkflows {
 
     @SignalMethod(name = "testSignal")
     void mySignal(String value);
+  }
+
+  @WorkflowInterface
+  public interface WorkflowWithUpdate {
+
+    @WorkflowMethod
+    String execute();
+
+    @QueryMethod
+    String getState();
+
+    @UpdateMethod(name = "update")
+    String update(Integer index, String value);
+
+    @UpdateValidateMethod(updateName = "update")
+    void updateValidator(Integer index, String value);
+
+    @UpdateMethod
+    void complete();
+
+    @UpdateValidateMethod(updateName = "complete")
+    void completeValidator();
+  }
+
+  @WorkflowInterface
+  public interface WorkflowWithUpdateAndSignal {
+
+    @WorkflowMethod
+    List<String> execute();
+
+    @QueryMethod
+    String getState();
+
+    @SignalMethod
+    void signal(String value);
+
+    @UpdateMethod()
+    String update(String value);
+
+    @UpdateMethod
+    void complete();
   }
 
   @WorkflowInterface

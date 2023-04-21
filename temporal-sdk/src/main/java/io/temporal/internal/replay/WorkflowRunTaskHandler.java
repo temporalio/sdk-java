@@ -56,5 +56,12 @@ public interface WorkflowRunTaskHandler {
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
       throws Throwable;
 
+  /**
+   * Reset the workflow event Id.
+   *
+   * @param eventId the event Id to reset the cached state to.
+   */
+  void setCurrentStartedEvenId(Long eventId);
+
   void close();
 }

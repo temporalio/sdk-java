@@ -21,6 +21,7 @@
 package io.temporal.internal.statemachines;
 
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.internal.common.UpdateMessage;
 import io.temporal.workflow.Functions;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -42,6 +43,13 @@ abstract class TestEntityManagerListenerBase implements StatesMachinesCallback {
   }
 
   protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {}
+
+  @Override
+  public void update(UpdateMessage message) {
+    update(message, AsyncWorkflowBuilder.newScheduler(callbacks, null));
+  }
+
+  protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {}
 
   @Override
   public void cancel(HistoryEvent cancelEvent) {}
