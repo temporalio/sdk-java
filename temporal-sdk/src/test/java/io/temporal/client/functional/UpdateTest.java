@@ -28,7 +28,6 @@ import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.concurrent.ExecutionException;
-
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,8 +44,8 @@ public class UpdateTest {
   @Before
   public void checkExternalService() {
     Assume.assumeTrue(
-            "skipping because test server does not support update",
-            testWorkflowRule.isUseExternalService());
+        "skipping because test server does not support update",
+        testWorkflowRule.isUseExternalService());
   }
 
   @Test
