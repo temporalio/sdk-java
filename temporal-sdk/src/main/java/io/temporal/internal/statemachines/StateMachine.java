@@ -22,6 +22,7 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.internal.common.ProtocolType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -103,7 +104,17 @@ final class StateMachine<State, ExplicitEvent, Data> {
   }
 
   /**
-   * Applies command for handling.
+   * Applies a message for handling.
+   *
+   * @param messageType type of the message to handle.
+   * @param data data which is passed as an argument to resulting action.
+   */
+  public void handleMessage(ProtocolType messageType, Data data) {
+    executeTransition(new TransitionEvent<>(messageType), data);
+  }
+
+  /**
+   * Applies a command for handling.
    *
    * @param commandType type of the command to handle.
    * @param data data which is passed as an argument to resulting action.

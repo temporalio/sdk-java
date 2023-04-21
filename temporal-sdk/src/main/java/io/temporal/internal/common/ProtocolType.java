@@ -18,21 +18,27 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.statemachines;
+package io.temporal.internal.common;
 
-import io.temporal.api.enums.v1.CommandType;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.protocol.v1.Message;
+import java.util.Arrays;
+import java.util.Optional;
 
-interface EntityStateMachine {
+public enum ProtocolType {
+  UPDATE_V1("temporal.api.update.v1");
 
-  void handleCommand(CommandType commandType);
+  private String type;
 
-  void handleMessage(Message message);
+  ProtocolType(String type) {
+    this.type = type;
+  }
 
-  WorkflowStateMachines.HandleEventStatus handleEvent(HistoryEvent event, boolean hasNextEvent);
+  public String getType() {
+    return type;
+  }
 
-  void handleWorkflowTaskStarted();
-
-  boolean isFinalState();
+  public static Optional<ProtocolType> get(String type) {
+    return Arrays.stream(ProtocolType.values())
+        .filter(proto -> proto.type.equals(type))
+        .findFirst();
+  }
 }

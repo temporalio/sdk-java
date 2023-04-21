@@ -18,21 +18,23 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.statemachines;
+package io.temporal.internal.common;
 
-import io.temporal.api.enums.v1.CommandType;
-import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.protocol.v1.Message;
 
-interface EntityStateMachine {
-
-  void handleCommand(CommandType commandType);
-
-  void handleMessage(Message message);
-
-  WorkflowStateMachines.HandleEventStatus handleEvent(HistoryEvent event, boolean hasNextEvent);
-
-  void handleWorkflowTaskStarted();
-
-  boolean isFinalState();
+public class ProtocolUtils {
+  public static String getProtocol(Message message) {
+    String typeUrl = message.getBody().getTypeUrl();
+    int slashIndex = typeUrl.lastIndexOf("/");
+    if (slashIndex == -1) {
+      throw new IllegalArgumentException("Message body type URL invalid");
+    }
+    String typeName = typeUrl.substring(slashIndex + 1, typeUrl.length());
+    String protocolName = typeName;
+    int dotIndex = typeName.lastIndexOf(".");
+    if (dotIndex != -1) {
+      protocolName = protocolName.substring(0, dotIndex);
+    }
+    return protocolName;
+  }
 }

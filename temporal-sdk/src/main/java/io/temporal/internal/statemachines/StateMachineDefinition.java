@@ -22,6 +22,7 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.internal.common.ProtocolType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -255,6 +256,63 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
     checkFinalState(from);
     add(
         new Transition<>(from, new TransitionEvent<>(explicitEvent)),
+        new DynamicTransitionAction<>(toStates, action));
+    return this;
+  }
+
+  /**
+   * Registers a transition between states.
+   *
+   * @param from initial state that transition applies to
+   * @param messageType message that caused the transition. Delivered through {@link
+   *     StateMachine#handleMessage(ProtocolType, Object)}.
+   * @param to destination state of a transition.
+   * @param action action to invoke upon transition.
+   * @return the current StateMachine instance for the fluid pattern.
+   */
+  StateMachineDefinition<State, ExplicitEvent, Data> add(
+      State from, ProtocolType messageType, State to, Functions.Proc1<Data> action) {
+    checkFinalState(from);
+    add(
+        new Transition<>(from, new TransitionEvent<>(messageType)),
+        new FixedTransitionAction<>(to, action));
+    return this;
+  }
+
+  /**
+   * Registers a transition between states.
+   *
+   * @param from initial state that transition applies to
+   * @param messageType message that caused the transition. Delivered through {@link
+   *     StateMachine#handleMessage(ProtocolType, Object)}.
+   * @param to destination state of a transition.
+   * @return the current StateMachine instance for the fluid pattern.
+   */
+  StateMachineDefinition<State, ExplicitEvent, Data> add(
+      State from, ProtocolType messageType, State to) {
+    checkFinalState(from);
+    add(
+        new Transition<>(from, new TransitionEvent<>(messageType)),
+        new FixedTransitionAction<>(to, (data -> {})));
+    return this;
+  }
+
+  /**
+   * Registers a dynamic transition between states. Used when the same explicitEvent can transition
+   * to more than one state depending on data.
+   *
+   * @param from initial state that transition applies to
+   * @param messageType message that caused the transition. Delivered through {@link
+   *     StateMachine#handleMessage(ProtocolType, Object)}.
+   * @param toStates allowed destination states of a transition.
+   * @param action action to invoke upon transition
+   * @return the current StateMachine instance for the fluid pattern.
+   */
+  StateMachineDefinition<State, ExplicitEvent, Data> add(
+      State from, ProtocolType messageType, State[] toStates, DynamicCallback<State, Data> action) {
+    checkFinalState(from);
+    add(
+        new Transition<>(from, new TransitionEvent<>(messageType)),
         new DynamicTransitionAction<>(toStates, action));
     return this;
   }
