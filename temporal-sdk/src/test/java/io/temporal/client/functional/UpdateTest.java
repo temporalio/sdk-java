@@ -28,6 +28,9 @@ import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.concurrent.ExecutionException;
+
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -37,9 +40,14 @@ public class UpdateTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(UpdateTest.QuickWorkflowWithUpdateImpl.class)
-          .setUseExternalService(true)
-          .setTarget("127.0.0.1:7233")
           .build();
+
+  @Before
+  public void checkExternalService() {
+    Assume.assumeTrue(
+            "skipping because test server does not support update",
+            testWorkflowRule.isUseExternalService());
+  }
 
   @Test
   public void updateNonExistentWorkflow() {
