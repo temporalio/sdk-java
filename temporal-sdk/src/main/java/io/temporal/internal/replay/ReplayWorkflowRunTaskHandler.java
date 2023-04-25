@@ -231,7 +231,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         HistoryEvent event = historyIterator.next();
         boolean hasNext = historyIterator.hasNext();
         try {
-          // quinn
           workflowStateMachines.handleEvent(event, hasNext);
         } catch (Throwable e) {
           // Fail workflow if exception is of the specified type

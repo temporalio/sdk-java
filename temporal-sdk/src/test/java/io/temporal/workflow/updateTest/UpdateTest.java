@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -61,9 +62,9 @@ public class UpdateTest {
 
   @Test
   public void testUpdate() {
-    //    Assume.assumeTrue(
-    //        "skipping for test server because test server does not support update",
-    //        testWorkflowRule.isUseExternalService());
+    Assume.assumeTrue(
+        "skipping for test server because test server does not support update",
+        testWorkflowRule.isUseExternalService());
 
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
@@ -106,9 +107,9 @@ public class UpdateTest {
 
   @Test
   public void testUpdateUntyped() throws ExecutionException, InterruptedException {
-    //    Assume.assumeTrue(
-    //        "skipping for test server because test server does not support update",
-    //        testWorkflowRule.isUseExternalService());
+    Assume.assumeTrue(
+        "skipping for test server because test server does not support update",
+        testWorkflowRule.isUseExternalService());
 
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();

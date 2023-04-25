@@ -155,7 +155,7 @@ final class ReplayWorkflowExecutor {
       Message protocolMessage = updateMessage.getMessage();
       Request update = protocolMessage.getBody().unpack(Request.class);
       Input input = update.getInput();
-      Optional<Payloads> args = input.hasArgs() ? Optional.of(input.getArgs()) : Optional.empty();
+      Optional<Payloads> args = Optional.ofNullable(input.getArgs());
       this.workflow.handleUpdate(
           input.getName(), args, protocolMessage.getEventId(), updateMessage.getCallbacks());
     } catch (InvalidProtocolBufferException e) {
