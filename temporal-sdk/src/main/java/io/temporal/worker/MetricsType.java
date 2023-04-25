@@ -26,6 +26,13 @@ public final class MetricsType {
   public static final String TEMPORAL_METRICS_PREFIX = "temporal_";
 
   //
+  // Labels
+  //
+  public static final String TEMPORAL_METRICS_LABEL_EXCEPTION = "exception";
+  public static final String TEMPORAL_METRICS_LABEL_EXCEPTION_MESSAGE = "exception_message";
+  public static final String TEMPORAL_METRICS_LABEL_REASON = "reason";
+
+  //
   // Workflow
   //
   public static final String WORKFLOW_COMPLETED_COUNTER =

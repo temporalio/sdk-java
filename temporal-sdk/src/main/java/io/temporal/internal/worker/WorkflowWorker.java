@@ -21,6 +21,7 @@
 package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.worker.MetricsType.*;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -39,12 +40,17 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
+import java.util.AbstractMap;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -351,7 +357,7 @@ final class WorkflowWorker implements SuspendableWorker {
             }
           } catch (Exception e) {
             logExceptionDuringResultReporting(e, currentTask, result);
-            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
+            workflowTypeScope.tagged(metricsMapFromException(e)).counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
             // if we failed to report the workflow task completion back to the server,
             // our cached version of the workflow may be more advanced than the server is aware of.
             // We should discard this execution and perform a clean replay based on what server
@@ -366,7 +372,14 @@ final class WorkflowWorker implements SuspendableWorker {
           if (result.getTaskFailed() != null) {
             // we don't trigger the counter in case of the legacy query
             // (which never has taskFailed set)
-            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
+            workflowTypeScope
+                .tagged(
+                    metricsMap(
+                        new AbstractMap.SimpleEntry<>(
+                            TEMPORAL_METRICS_LABEL_REASON,
+                            result.getTaskFailed().getCause().name())))
+                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+                .inc(1);
           }
           if (nextWFTResponse.isPresent()) {
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
@@ -384,6 +397,25 @@ final class WorkflowWorker implements SuspendableWorker {
           runLocks.unlock(runId);
         }
       }
+    }
+
+    private java.util.Map<String, String> metricsMap(
+        AbstractMap.SimpleEntry<String, String>... values) {
+      return Arrays.stream(values)
+          .collect(
+              Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+    }
+
+    private java.util.Map<String, String> metricsMapFromException(Throwable e) {
+      return Stream.of(
+              new String[][] {
+                {TEMPORAL_METRICS_LABEL_EXCEPTION, e.getClass().getName()},
+                {TEMPORAL_METRICS_LABEL_EXCEPTION_MESSAGE, e.getMessage()},
+              })
+          .collect(
+              Collectors.collectingAndThen(
+                  Collectors.toMap(data -> data[0], data -> data[1]),
+                  Collections::<String, String>unmodifiableMap));
     }
 
     @Override
@@ -408,6 +440,7 @@ final class WorkflowWorker implements SuspendableWorker {
       } catch (Throwable e) {
         // more detailed logging that we can do here is already done inside `handler`
         workflowTypeMetricsScope
+            .tagged(metricsMapFromException(e))
             .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
             .inc(1);
         workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
