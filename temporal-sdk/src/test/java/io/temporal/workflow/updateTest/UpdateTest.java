@@ -54,10 +54,8 @@ public class UpdateTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setUseExternalService(true)
           .setWorkflowTypes(TestUpdateWorkflowImpl.class)
           .setActivityImplementations(new ActivityImpl())
-          .setTestTimeoutSeconds(60)
           .build();
 
   @Test
