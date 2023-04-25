@@ -22,25 +22,33 @@ package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Experimental;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Exception used to communicate failure of an update workflow execution request to an external
- * workflow.
+ * UpdateHandle is a handle to an update workflow execution request that can be used to get the
+ * status of that update request.
  */
 @Experimental
-public final class WorkflowUpdateExecutionFailedException extends WorkflowException {
+public interface UpdateHandle<T> {
+  /**
+   * Gets the workflow execution this update request was sent to.
+   *
+   * @return the workflow execution this update was sent to.
+   */
+  WorkflowExecution getExecution();
 
-  private final String updateId;
-  private final String updateName;
+  /**
+   * Gets the unique ID of this update.
+   *
+   * @return the updates ID.
+   */
+  String getId();
 
-  public WorkflowUpdateExecutionFailedException(
-      WorkflowExecution execution,
-      String workflowType,
-      String updateId,
-      String updateName,
-      Throwable cause) {
-    super(execution, workflowType, cause);
-    this.updateName = updateName;
-    this.updateId = updateId;
-  }
+  /**
+   * Returns a {@link CompletableFuture} with the update workflow execution request result
+   * potentially waiting for the update to complete.
+   *
+   * @return future completed with the result of the update or an exception
+   */
+  CompletableFuture<T> getResultAsync();
 }

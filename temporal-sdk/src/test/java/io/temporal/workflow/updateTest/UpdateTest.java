@@ -25,6 +25,7 @@ import static org.junit.Assert.*;
 import io.temporal.activity.*;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -39,7 +40,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -53,6 +53,7 @@ public class UpdateTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
+          .setUseExternalService(true)
           .setWorkflowTypes(TestUpdateWorkflowImpl.class)
           .setActivityImplementations(new ActivityImpl())
           .setTestTimeoutSeconds(60)
@@ -60,9 +61,9 @@ public class UpdateTest {
 
   @Test
   public void testUpdate() {
-    Assume.assumeTrue(
-        "skipping because test server does not support update",
-        testWorkflowRule.isUseExternalService());
+    //    Assume.assumeTrue(
+    //        "skipping for test server because test server does not support update",
+    //        testWorkflowRule.isUseExternalService());
 
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
@@ -81,19 +82,17 @@ public class UpdateTest {
     assertEquals(workflowId, execution.getWorkflowId());
 
     assertEquals("Execute-Hello Update", workflow.update(0, "Hello Update"));
-    assertThrows(
-        WorkflowUpdateExecutionFailedException.class, () -> workflow.update(-2, "Bad update"));
+    assertThrows(WorkflowUpdateException.class, () -> workflow.update(-2, "Bad update"));
 
     testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     testWorkflowRule.invalidateWorkflowCache();
 
     // send an update that will fail in the update handler
-    assertThrows(WorkflowUpdateExecutionFailedException.class, () -> workflow.complete());
-    assertThrows(WorkflowUpdateExecutionFailedException.class, () -> workflow.update(1, ""));
+    assertThrows(WorkflowUpdateException.class, () -> workflow.complete());
+    assertThrows(WorkflowUpdateException.class, () -> workflow.update(1, ""));
 
     assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
-    assertThrows(
-        WorkflowUpdateExecutionFailedException.class, () -> workflow.update(0, "Bad update"));
+    assertThrows(WorkflowUpdateException.class, () -> workflow.update(0, "Bad update"));
 
     workflow.complete();
 
@@ -107,9 +106,9 @@ public class UpdateTest {
 
   @Test
   public void testUpdateUntyped() throws ExecutionException, InterruptedException {
-    Assume.assumeTrue(
-        "skipping because test server does not support update",
-        testWorkflowRule.isUseExternalService());
+    //    Assume.assumeTrue(
+    //        "skipping for test server because test server does not support update",
+    //        testWorkflowRule.isUseExternalService());
 
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
@@ -126,21 +125,20 @@ public class UpdateTest {
     // send an update through the sync path
     assertEquals("Execute-Hello", workflowStub.update("update", String.class, 0, "Hello"));
     // send an update through the async path
-    UpdateReference updateRef = workflowStub.updateAsync("update", String.class, 0, "World");
+    UpdateHandle updateRef = workflowStub.startUpdate("update", String.class, 0, "World");
     assertEquals("Execute-World", updateRef.getResultAsync().get());
     // send a bad update that will be rejected through the sync path
     assertThrows(
-        WorkflowUpdateExecutionFailedException.class,
+        WorkflowUpdateException.class,
         () -> workflowStub.update("update", String.class, 0, "Bad Update"));
 
     // send an update request to a bad name
     assertThrows(
-        WorkflowUpdateExecutionFailedException.class,
+        WorkflowUpdateException.class,
         () -> workflowStub.update("bad_update_name", String.class, 0, "Bad Update"));
 
     // send a bad update that will be rejected through the async path
-    UpdateReference badUpdateRef =
-        workflowStub.updateAsync("update", String.class, 0, "Bad Update");
+    UpdateHandle badUpdateRef = workflowStub.startUpdate("update", String.class, 0, "Bad Update");
     // send a bad update that will be rejected through the sync path
     assertThrows(ExecutionException.class, () -> badUpdateRef.getResultAsync().get());
 
@@ -173,7 +171,7 @@ public class UpdateTest {
     public String update(Integer index, String value) {
       if (value.isEmpty()) {
         // test returning an exception from the update handler
-        throw new IllegalArgumentException("Value cannot be an empty string");
+        throw ApplicationFailure.newFailure("Value cannot be an empty string", "NonRetryable");
       }
       String result = activity.execute(value);
       updates.add(result);

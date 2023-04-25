@@ -22,33 +22,29 @@ package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Experimental;
-import java.util.concurrent.CompletableFuture;
 
+/**
+ * Exception used to communicate failure of an update workflow execution request to an external
+ * workflow.
+ */
 @Experimental
-public class UpdateReferenceImpl<T> implements UpdateReference<T> {
+public final class WorkflowUpdateException extends WorkflowException {
 
-  private final String id;
-  private final WorkflowExecution execution;
-  private final CompletableFuture<T> future;
+  private final String updateId;
+  private final String updateName;
 
-  UpdateReferenceImpl(String id, WorkflowExecution execution, CompletableFuture<T> future) {
-    this.id = id;
-    this.execution = execution;
-    this.future = future;
+  public WorkflowUpdateException(
+      WorkflowExecution execution, String updateId, String updateName, Throwable cause) {
+    super(execution, null, cause);
+    this.updateName = updateName;
+    this.updateId = updateId;
   }
 
-  @Override
-  public WorkflowExecution getExecution() {
-    return execution;
+  public String GetUpdateId() {
+    return updateId;
   }
 
-  @Override
-  public String getId() {
-    return id;
-  }
-
-  @Override
-  public CompletableFuture<T> getResultAsync() {
-    return future;
+  public String GetUpdateName() {
+    return updateName;
   }
 }

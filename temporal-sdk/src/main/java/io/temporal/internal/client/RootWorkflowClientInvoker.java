@@ -32,7 +32,7 @@ import io.temporal.api.update.v1.Request;
 import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowUpdateExecutionFailedException;
+import io.temporal.client.WorkflowUpdateException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -333,17 +333,20 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     UpdateWorkflowExecutionResponse result;
     result = genericClient.update(updateRequest);
 
-    Optional<Payloads> updateResult = Optional.empty();
-
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {
         case SUCCESS:
-          updateResult = Optional.of(result.getOutcome().getSuccess());
-          break;
+          Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
+          R resultValue =
+              convertResultPayloads(
+                  updateResult,
+                  input.getResultClass(),
+                  input.getResultType(),
+                  dataConverterWithWorkflowContext);
+          return new UpdateOutput<>(resultValue);
         case FAILURE:
-          throw new WorkflowUpdateExecutionFailedException(
+          throw new WorkflowUpdateException(
               input.getWorkflowExecution(),
-              null,
               input.getUpdateId(),
               input.getUpdateName(),
               dataConverterWithWorkflowContext.failureToException(
@@ -354,14 +357,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   + result.getOutcome().getValueCase());
       }
     }
-
-    R resultValue =
-        convertResultPayloads(
-            updateResult,
-            input.getResultClass(),
-            input.getResultType(),
-            dataConverterWithWorkflowContext);
-    return new UpdateOutput<>(resultValue);
+    throw new RuntimeException("Received no outcome from server");
   }
 
   @Override

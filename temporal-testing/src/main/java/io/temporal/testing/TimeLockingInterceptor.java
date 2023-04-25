@@ -21,7 +21,7 @@
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.UpdateReference;
+import io.temporal.client.UpdateHandle;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
@@ -249,20 +249,20 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public <R> UpdateReference<R> updateAsync(
+    public <R> UpdateHandle<R> startUpdate(
         String updateName, Class<R> resultClass, Object... args) {
-      return next.updateAsync(updateName, resultClass, args);
+      return next.startUpdate(updateName, resultClass, args);
     }
 
     @Override
-    public <R> UpdateReference<R> updateAsync(
+    public <R> UpdateHandle<R> startUpdate(
         String updateName,
         String updateId,
         String firstExecutionRunId,
         Class<R> resultClass,
         Type resultType,
         Object... args) {
-      return next.updateAsync(
+      return next.startUpdate(
           updateName, updateId, firstExecutionRunId, resultClass, resultType, args);
     }
   }

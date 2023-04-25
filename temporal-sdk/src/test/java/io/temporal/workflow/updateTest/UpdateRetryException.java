@@ -22,36 +22,40 @@ package io.temporal.workflow.updateTest;
 
 import static org.junit.Assert.*;
 
+import io.temporal.activity.*;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
+import io.temporal.client.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateWithSignalAndQuery {
+public class UpdateRetryException {
+
+  private static final AtomicInteger retryCount = new AtomicInteger();
+
   private static final Logger log = LoggerFactory.getLogger(UpdateTest.class);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setWorkflowTypes(UpdateWithSignalAndQuery.TestUpdateWithSignalWorkflowImpl.class)
-          .setActivityImplementations(new UpdateTest.ActivityImpl())
+          .setWorkflowTypes(TestUpdateWorkflowImpl.class)
           .build();
 
   @Test
-  public void testUpdateWithSignal() {
+  public void testUpdateExceptionRetries() {
     Assume.assumeTrue(
         "skipping for test server because test server does not support update",
         testWorkflowRule.isUseExternalService());
@@ -62,51 +66,44 @@ public class UpdateWithSignalAndQuery {
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(workflowId)
             .build();
-    TestWorkflows.WorkflowWithUpdateAndSignal workflow =
-        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdateAndSignal.class, options);
+    WorkflowWithUpdate workflow = workflowClient.newWorkflowStub(WorkflowWithUpdate.class, options);
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
     // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
 
-    assertEquals(workflowId, execution.getWorkflowId());
-
     SDKTestWorkflowRule.waitForOKQuery(workflow);
     assertEquals("initial", workflow.getState());
 
-    assertEquals("update 1", workflow.update("update 1"));
-    workflow.signal("signal 1");
-    assertEquals("update 2", workflow.update("update 2"));
+    assertEquals(workflowId, execution.getWorkflowId());
 
-    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
-    testWorkflowRule.invalidateWorkflowCache();
-
-    assertEquals("update 3", workflow.update("update 3"));
-
-    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
-    testWorkflowRule.invalidateWorkflowCache();
-
-    workflow.signal("signal 2");
-
+    try {
+      workflow.update(0, "");
+      Assert.fail("unreachable");
+    } catch (WorkflowUpdateException e) {
+      Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
+      Assert.assertEquals("Failure", ((ApplicationFailure) e.getCause()).getType());
+      Assert.assertEquals(
+          "message='simulated 3', type='Failure', nonRetryable=false", e.getCause().getMessage());
+    }
     workflow.complete();
 
-    assertEquals(
-        Arrays.asList("update 1", "signal 1", "update 2", "update 3", "signal 2"),
-        workflow.execute());
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(execution, Optional.empty())
+            .getResult(String.class);
+    assertEquals("", result);
   }
 
-  public static class TestUpdateWithSignalWorkflowImpl
-      implements TestWorkflows.WorkflowWithUpdateAndSignal {
+  public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
     String state = "initial";
-    List<String> updatesAndSignals = new ArrayList<>();
+    List<String> updates = new ArrayList<>();
     CompletablePromise<Void> promise = Workflow.newPromise();
-    TestActivities.VariousTestActivities localActivities =
-        Workflow.newLocalActivityStub(
-            TestActivities.VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
 
     @Override
-    public List<String> execute() {
+    public String execute() {
       promise.get();
-      return updatesAndSignals;
+      return "";
     }
 
     @Override
@@ -115,19 +112,24 @@ public class UpdateWithSignalAndQuery {
     }
 
     @Override
-    public void signal(String value) {
-      updatesAndSignals.add(value);
+    public String update(Integer index, String value) {
+      int c = retryCount.incrementAndGet();
+      if (c < 3) {
+        throw new IllegalArgumentException("simulated " + c);
+      } else {
+        throw ApplicationFailure.newFailure("simulated " + c, "Failure");
+      }
     }
 
     @Override
-    public String update(String value) {
-      updatesAndSignals.add(value);
-      return value;
-    }
+    public void updateValidator(Integer index, String value) {}
 
     @Override
     public void complete() {
       promise.complete(null);
     }
+
+    @Override
+    public void completeValidator() {}
   }
 }

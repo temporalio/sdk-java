@@ -429,6 +429,7 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
+  @Experimental
   final class UpdateAsyncOutput<R> {
     private final CompletableFuture<R> result;
 

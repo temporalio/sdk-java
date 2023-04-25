@@ -22,6 +22,7 @@ package io.temporal.internal.client.external;
 
 import io.grpc.Deadline;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -38,6 +39,7 @@ public interface GenericWorkflowClient {
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryParameters);
 
+  @Experimental
   UpdateWorkflowExecutionResponse update(UpdateWorkflowExecutionRequest updateParameters);
 
   void terminate(TerminateWorkflowExecutionRequest request);

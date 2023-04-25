@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
@@ -190,10 +191,12 @@ public final class WorkflowInternal {
     }
 
     // Get all validators and lazily assign them to update handlers as we see them.
-    Map<String, POJOWorkflowMethodMetadata> validators = new HashMap<>();
+    Map<String, POJOWorkflowMethodMetadata> validators =
+        new HashMap<>(workflowMetadata.getUpdateValidatorMethods().size());
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateValidatorMethods()) {
       Method method = methodMetadata.getWorkflowMethod();
-      UpdateValidateMethod updateValidatorMethod = method.getAnnotation(UpdateValidateMethod.class);
+      UpdateValidatorMethod updateValidatorMethod =
+          method.getAnnotation(UpdateValidatorMethod.class);
       if (validators.containsKey(updateValidatorMethod.updateName())) {
         throw new IllegalArgumentException(
             "Duplicate validator for update handle " + updateValidatorMethod.updateName());
@@ -211,10 +214,9 @@ public final class WorkflowInternal {
         updateMethodName = method.getName();
       }
       // Check if any validators claim they are the validator for this update
-      POJOWorkflowMethodMetadata validatorMethodMetadata = validators.get(updateMethodName);
+      POJOWorkflowMethodMetadata validatorMethodMetadata = validators.remove(updateMethodName);
       Method validatorMethod;
       if (validatorMethodMetadata != null) {
-        validators.remove(updateMethodName);
         validatorMethod = validatorMethodMetadata.getWorkflowMethod();
         if (!Arrays.equals(validatorMethod.getParameterTypes(), method.getParameterTypes())) {
           throw new IllegalArgumentException(
@@ -253,7 +255,9 @@ public final class WorkflowInternal {
               new WorkflowOutboundCallsInterceptor.RegisterUpdateHandlersInput(updateRequests));
     }
     if (!validators.isEmpty()) {
-      throw new IllegalArgumentException("Unused validators declared: " + validators);
+      throw new IllegalArgumentException(
+          "Missing update methods for update validator(s): "
+              + Joiner.on(", ").join(validators.keySet()));
     }
   }
 

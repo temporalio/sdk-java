@@ -35,6 +35,7 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.UpdateProtocolCallback;
+import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
@@ -167,8 +168,8 @@ class SyncWorkflow implements ReplayWorkflow {
             Optional<Payloads> result =
                 workflowProc.handleExecuteUpdate(updateName, input, eventId);
             callbacks.complete(result, null);
-          } catch (Exception e) {
-            callbacks.complete(Optional.empty(), this.dataConverter.exceptionToFailure(e));
+          } catch (WorkflowExecutionException e) {
+            callbacks.complete(Optional.empty(), e.getFailure());
           }
         });
   }

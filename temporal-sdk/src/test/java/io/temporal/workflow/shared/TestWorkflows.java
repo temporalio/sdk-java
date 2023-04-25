@@ -186,13 +186,13 @@ public class TestWorkflows {
     @UpdateMethod(name = "update")
     String update(Integer index, String value);
 
-    @UpdateValidateMethod(updateName = "update")
+    @UpdateValidatorMethod(updateName = "update")
     void updateValidator(Integer index, String value);
 
     @UpdateMethod
     void complete();
 
-    @UpdateValidateMethod(updateName = "complete")
+    @UpdateValidatorMethod(updateName = "complete")
     void completeValidator();
   }
 

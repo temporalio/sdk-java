@@ -37,7 +37,7 @@ import javax.annotation.Nonnull;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @Experimental
-public @interface UpdateValidateMethod {
+public @interface UpdateValidatorMethod {
 
   /**
    * Name of the update handler the validator should be used for. Must not be null.

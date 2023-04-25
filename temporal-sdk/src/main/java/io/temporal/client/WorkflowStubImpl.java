@@ -329,13 +329,12 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateReference<R> updateAsync(
-      String updateName, Class<R> resultClass, Object... args) {
-    return updateAsync(updateName, "", "", resultClass, resultClass, args);
+  public <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args) {
+    return startUpdate(updateName, "", "", resultClass, resultClass, args);
   }
 
   @Override
-  public <R> UpdateReference<R> updateAsync(
+  public <R> UpdateHandle<R> startUpdate(
       String updateName,
       String updateId,
       String firstExecutionRunId,
@@ -356,7 +355,7 @@ class WorkflowStubImpl implements WorkflowStub {
                 resultType,
                 firstExecutionRunId));
 
-    return new UpdateReferenceImpl<>(
+    return new UpdateHandleImpl<>(
         updateId,
         targetExecution,
         result

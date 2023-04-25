@@ -38,7 +38,7 @@ final class POJOWorkflowMethod {
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
     SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
     UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
-    UpdateValidateMethod updateValidatorMethod = method.getAnnotation(UpdateValidateMethod.class);
+    UpdateValidatorMethod updateValidatorMethod = method.getAnnotation(UpdateValidatorMethod.class);
 
     int count = 0;
     WorkflowMethodType type = null;
@@ -75,7 +75,7 @@ final class POJOWorkflowMethod {
       type = WorkflowMethodType.UPDATE_VALIDATOR;
       if (method.getReturnType() != Void.TYPE) {
         throw new IllegalArgumentException(
-            "Method annotated with @UpdateValidateMethod must have a void return type: " + method);
+            "Method annotated with @UpdateValidatorMethod must have a void return type: " + method);
       }
       count++;
       name = updateValidatorMethod.updateName();

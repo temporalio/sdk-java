@@ -66,7 +66,7 @@ public class UpdateTest {
         WorkflowNotFoundException.class,
         () -> workflowStub.update("update", Void.class, "some-value"));
 
-    UpdateReference updateRef = workflowStub.updateAsync("update", Void.class, "some-value");
+    UpdateHandle updateRef = workflowStub.startUpdate("update", Void.class, "some-value");
     assertThrows(ExecutionException.class, () -> updateRef.getResultAsync().get());
   }
 
@@ -98,7 +98,7 @@ public class UpdateTest {
         WorkflowNotFoundException.class,
         () -> workflowStub.update("update", Void.class, "some-value"));
 
-    UpdateReference updateRef = workflowStub.updateAsync("update", Void.class, "some-value");
+    UpdateHandle updateRef = workflowStub.startUpdate("update", Void.class, "some-value");
     assertThrows(ExecutionException.class, () -> updateRef.getResultAsync().get());
   }
 

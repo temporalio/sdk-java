@@ -24,31 +24,31 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * UpdateReference is a reference to an update workflow execution request that can be used to get
- * the status of that update request.
- */
 @Experimental
-public interface UpdateReference<T> {
-  /**
-   * Gets the workflow execution this update request was sent to.
-   *
-   * @return the workflow execution this update was sent to.
-   */
-  WorkflowExecution getExecution();
+final class UpdateHandleImpl<T> implements UpdateHandle<T> {
 
-  /**
-   * Gets the unique ID of this update.
-   *
-   * @return the updates ID.
-   */
-  String getId();
+  private final String id;
+  private final WorkflowExecution execution;
+  private final CompletableFuture<T> future;
 
-  /**
-   * Returns a {@link CompletableFuture} with the update workflow execution request result
-   * potentially waiting for the update to complete.
-   *
-   * @return future completed with the result of the update or an exception
-   */
-  <R> CompletableFuture<R> getResultAsync();
+  UpdateHandleImpl(String id, WorkflowExecution execution, CompletableFuture<T> future) {
+    this.id = id;
+    this.execution = execution;
+    this.future = future;
+  }
+
+  @Override
+  public WorkflowExecution getExecution() {
+    return execution;
+  }
+
+  @Override
+  public String getId() {
+    return id;
+  }
+
+  @Override
+  public CompletableFuture<T> getResultAsync() {
+    return future;
+  }
 }

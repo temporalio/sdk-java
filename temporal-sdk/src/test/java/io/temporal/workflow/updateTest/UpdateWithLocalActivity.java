@@ -59,7 +59,7 @@ public class UpdateWithLocalActivity {
   @Test
   public void testUpdateWithLocalActivities() {
     Assume.assumeTrue(
-        "skipping because test server does not support update",
+        "skipping for test server because test server does not support update",
         testWorkflowRule.isUseExternalService());
 
     String workflowId = UUID.randomUUID().toString();

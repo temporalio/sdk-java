@@ -123,7 +123,7 @@ public interface WorkflowStub {
 
   /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a
-   * reference to the update request. Usually a update handler is a method annotated with {@link
+   * handle to the update request. Usually a update handler is a method annotated with {@link
    * io.temporal.workflow.UpdateMethod}.
    *
    * @param updateName name of the update handler. Usually it is a method name.
@@ -133,10 +133,11 @@ public interface WorkflowStub {
    * @return update reference that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateReference<R> updateAsync(String updateName, Class<R> resultClass, Object... args);
+  <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args);
+
   /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a
-   * reference to the update request.
+   * handle to the update request.
    *
    * @param updateName name of the update handler. Usually it is a method name.
    * @param updateId is an application-layer identifier for the requested update. It must be unique
@@ -152,7 +153,7 @@ public interface WorkflowStub {
    * @return update reference that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateReference<R> updateAsync(
+  <R> UpdateHandle<R> startUpdate(
       String updateName,
       String updateId,
       String firstExecutionRunId,

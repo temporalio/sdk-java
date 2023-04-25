@@ -34,6 +34,8 @@ import io.temporal.internal.common.ProtocolType;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class UpdateProtocolStateMachine
     extends EntityStateMachineInitialCommand<
@@ -53,6 +55,8 @@ final class UpdateProtocolStateMachine
     ACCEPTED,
     COMPLETED,
   }
+
+  private static final Logger log = LoggerFactory.getLogger(UpdateProtocolStateMachine.class);
 
   private final Functions.Func<Boolean> replaying;
 
@@ -169,6 +173,21 @@ final class UpdateProtocolStateMachine
             .setBody(Any.pack(outcomeResponse))
             .build());
     explicitEvent(ExplicitEvent.COMPLETE);
+  }
+
+  @Override
+  public void handleMessage(Message message) {
+    // The right sequence of failures on the server right now may lead to duplicate request messages
+    // for the same protocolInstanceID being sent to the worker. To work around this ignore
+    // subsequent
+    // messages if we are not in the NEW state.
+    if (getState() == State.NEW) {
+      super.handleMessage(message);
+    } else if (log.isWarnEnabled()) {
+      log.warn(
+          "Received duplicate update messages for protocol instance: "
+              + message.getProtocolInstanceId());
+    }
   }
 
   private class UpdateProtocolCallbackImpl implements UpdateProtocolCallback {
