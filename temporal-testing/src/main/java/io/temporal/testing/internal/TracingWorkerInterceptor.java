@@ -322,6 +322,29 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public void registerUpdateHandlers(RegisterUpdateHandlersInput input) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        StringBuilder updates = new StringBuilder();
+        for (UpdateRegistrationRequest request : input.getRequests()) {
+          if (updates.length() > 0) {
+            updates.append(", ");
+          }
+          updates.append(request.getUpdateName());
+        }
+        trace.add("registerUpdateHandlers " + updates);
+      }
+      next.registerUpdateHandlers(input);
+    }
+
+    @Override
+    public void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("registerDynamicUpdateHandler");
+      }
+      this.registerDynamicUpdateHandler(input);
+    }
+
+    @Override
     public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("registerDynamicSignalHandler");

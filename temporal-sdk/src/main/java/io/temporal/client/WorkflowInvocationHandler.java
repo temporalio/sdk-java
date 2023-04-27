@@ -270,9 +270,11 @@ class WorkflowInvocationHandler implements InvocationHandler {
       } else if (type == WorkflowMethodType.SIGNAL) {
         signalWorkflow(methodMetadata, untyped, method, args);
         result = null;
+      } else if (type == WorkflowMethodType.UPDATE) {
+        result = updateWorkflow(methodMetadata, untyped, method, args);
       } else {
         throw new IllegalArgumentException(
-            method + " is not annotated with @WorkflowMethod or @QueryMethod");
+            method + " is not annotated with @WorkflowMethod, @QueryMethod, @UpdateMethod");
       }
     }
 
@@ -304,6 +306,15 @@ class WorkflowInvocationHandler implements InvocationHandler {
       }
       String queryType = methodMetadata.getName();
       return untyped.query(queryType, method.getReturnType(), method.getGenericReturnType(), args);
+    }
+
+    private Object updateWorkflow(
+        POJOWorkflowMethodMetadata methodMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+      String updateType = methodMetadata.getName();
+      return untyped.update(updateType, method.getReturnType(), args);
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")

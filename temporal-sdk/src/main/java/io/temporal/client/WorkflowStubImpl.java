@@ -29,6 +29,7 @@ import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.errordetails.v1.WorkflowNotReadyFailure;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.UpdateOutput;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.StatusUtils;
@@ -290,6 +291,81 @@ class WorkflowStubImpl implements WorkflowStub {
           null);
     }
     return result.getResult();
+  }
+
+  @Override
+  public <R> R update(String updateName, Class<R> resultClass, Object... args) {
+    return update(updateName, "", "", resultClass, resultClass, args);
+  }
+
+  @Override
+  public <R> R update(
+      String updateName,
+      String updateId,
+      String firstExecutionRunId,
+      Class<R> resultClass,
+      Type resultType,
+      Object... args) {
+    checkStarted();
+    UpdateOutput<R> result;
+    WorkflowExecution targetExecution = execution.get();
+    try {
+      result =
+          workflowClientInvoker.update(
+              new WorkflowClientCallsInterceptor.UpdateInput<>(
+                  targetExecution,
+                  updateName,
+                  updateId,
+                  args,
+                  resultClass,
+                  resultType,
+                  firstExecutionRunId));
+      return result.getResult();
+
+    } catch (Exception e) {
+      Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
+      throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), throwable);
+    }
+  }
+
+  @Override
+  public <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args) {
+    return startUpdate(updateName, "", "", resultClass, resultClass, args);
+  }
+
+  @Override
+  public <R> UpdateHandle<R> startUpdate(
+      String updateName,
+      String updateId,
+      String firstExecutionRunId,
+      Class<R> resultClass,
+      Type resultType,
+      Object... args) {
+    checkStarted();
+    WorkflowExecution targetExecution = execution.get();
+
+    WorkflowClientCallsInterceptor.UpdateAsyncOutput<R> result =
+        workflowClientInvoker.updateAsync(
+            new WorkflowClientCallsInterceptor.UpdateInput<>(
+                targetExecution,
+                updateName,
+                updateId,
+                args,
+                resultClass,
+                resultType,
+                firstExecutionRunId));
+
+    return new UpdateHandleImpl<>(
+        updateId,
+        targetExecution,
+        result
+            .getResult()
+            .exceptionally(
+                e -> {
+                  Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
+                  throw new WorkflowServiceException(
+                      targetExecution, workflowType.orElse(null), throwable);
+                }));
   }
 
   @Override

@@ -332,6 +332,12 @@ final class WorkflowWorker implements SuspendableWorker {
                         requestBuilder,
                         result.getRequestRetryOptions(),
                         workflowTypeScope);
+                // If we were processing a speculative WFT the server may instruct us that the task
+                // was dropped by resting out event ID.
+                long resetEventId = response.getResetHistoryEventId();
+                if (resetEventId != 0) {
+                  result.getEventIdSetHandle().apply(resetEventId);
+                }
                 nextWFTResponse =
                     response.hasWorkflowTask()
                         ? Optional.of(response.getWorkflowTask())

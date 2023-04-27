@@ -75,6 +75,10 @@ public interface WorkflowClientCallsInterceptor {
 
   <R> QueryOutput<R> query(QueryInput<R> input);
 
+  <R> UpdateOutput<R> update(UpdateInput<R> input);
+
+  <R> UpdateAsyncOutput<R> updateAsync(UpdateInput<R> input);
+
   CancelOutput cancel(CancelInput input);
 
   TerminateOutput terminate(TerminateInput input);
@@ -353,6 +357,88 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+  }
+
+  @Experimental
+  final class UpdateInput<R> {
+    private final WorkflowExecution workflowExecution;
+    private final String updateName;
+    private final Object[] arguments;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final String updateId;
+    private final String firstExecutionRunId;
+
+    public UpdateInput(
+        WorkflowExecution workflowExecution,
+        String updateName,
+        String updateId,
+        Object[] arguments,
+        Class<R> resultClass,
+        Type resultType,
+        String firstExecutionRunId) {
+      this.workflowExecution = workflowExecution;
+      this.updateId = updateId;
+      this.updateName = updateName;
+      this.arguments = arguments;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.firstExecutionRunId = firstExecutionRunId;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+
+    public String getUpdateName() {
+      return updateName;
+    }
+
+    public String getUpdateId() {
+      return updateId;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public String getFirstExecutionRunId() {
+      return this.firstExecutionRunId;
+    }
+  }
+
+  @Experimental
+  final class UpdateOutput<R> {
+    private final R result;
+
+    public UpdateOutput(R result) {
+      this.result = result;
+    }
+
+    public R getResult() {
+      return result;
+    }
+  }
+
+  @Experimental
+  final class UpdateAsyncOutput<R> {
+    private final CompletableFuture<R> result;
+
+    public UpdateAsyncOutput(CompletableFuture<R> result) {
+      this.result = result;
+    }
+
+    public CompletableFuture<R> getResult() {
+      return result;
     }
   }
 

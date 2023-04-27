@@ -131,6 +131,38 @@ public interface WorkflowInboundCallsInterceptor {
     }
   }
 
+  @Experimental
+  final class UpdateInput {
+    private final String updateName;
+    private final Object[] arguments;
+
+    public UpdateInput(String updateName, Object[] arguments) {
+      this.updateName = updateName;
+      this.arguments = arguments;
+    }
+
+    public String getUpdateName() {
+      return updateName;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+  }
+
+  @Experimental
+  final class UpdateOutput {
+    private final Object result;
+
+    public UpdateOutput(Object result) {
+      this.result = result;
+    }
+
+    public Object getResult() {
+      return result;
+    }
+  }
+
   /**
    * Called when workflow class is instantiated. May create a {@link
    * WorkflowOutboundCallsInterceptor} instance. The instance must forward all the calls to {@code
@@ -157,6 +189,20 @@ public interface WorkflowInboundCallsInterceptor {
 
   /** Called when a workflow is queried. */
   QueryOutput handleQuery(QueryInput input);
+
+  /**
+   * Called when update workflow execution request is delivered to a workflow execution, before the
+   * update is executed.
+   */
+  @Experimental
+  void validateUpdate(UpdateInput input);
+
+  /**
+   * Called when update workflow execution request is delivered to a workflow execution, after
+   * passing the validator.
+   */
+  @Experimental
+  UpdateOutput executeUpdate(UpdateInput input);
 
   /**
    * Intercepts creation of the workflow main method thread

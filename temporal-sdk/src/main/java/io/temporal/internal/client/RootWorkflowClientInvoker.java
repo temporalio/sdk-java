@@ -23,10 +23,16 @@ package io.temporal.internal.client;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 
 import io.temporal.api.common.v1.*;
+import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.update.v1.Input;
+import io.temporal.api.update.v1.Meta;
+import io.temporal.api.update.v1.Request;
+import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowUpdateException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -282,6 +288,88 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             input.getResultType(),
             dataConverterWithWorkflowContext);
     return new QueryOutput<>(rejectStatus, resultValue);
+  }
+
+  @Override
+  public <R> UpdateOutput<R> update(UpdateInput<R> input) {
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
+
+    Optional<Payloads> inputArgs =
+        dataConverterWithWorkflowContext.toPayloads(input.getArguments());
+    Input.Builder updateInput = Input.newBuilder().setName(input.getUpdateName());
+    inputArgs.ifPresent(updateInput::setArgs);
+
+    WaitPolicy policy =
+        WaitPolicy.newBuilder()
+            .setLifecycleStage(
+                UpdateWorkflowExecutionLifecycleStage
+                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
+            .build();
+
+    Request request =
+        Request.newBuilder()
+            .setMeta(
+                Meta.newBuilder()
+                    .setUpdateId(input.getUpdateId())
+                    .setIdentity(clientOptions.getIdentity()))
+            .setInput(updateInput)
+            .build();
+    UpdateWorkflowExecutionRequest updateRequest =
+        UpdateWorkflowExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setWaitPolicy(policy)
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId())
+                    .setRunId(input.getWorkflowExecution().getRunId()))
+            .setFirstExecutionRunId(input.getFirstExecutionRunId())
+            .setRequest(request)
+            .build();
+    UpdateWorkflowExecutionResponse result;
+    result = genericClient.update(updateRequest);
+
+    if (result.hasOutcome()) {
+      switch (result.getOutcome().getValueCase()) {
+        case SUCCESS:
+          Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
+          R resultValue =
+              convertResultPayloads(
+                  updateResult,
+                  input.getResultClass(),
+                  input.getResultType(),
+                  dataConverterWithWorkflowContext);
+          return new UpdateOutput<>(resultValue);
+        case FAILURE:
+          throw new WorkflowUpdateException(
+              input.getWorkflowExecution(),
+              input.getUpdateId(),
+              input.getUpdateName(),
+              dataConverterWithWorkflowContext.failureToException(
+                  result.getOutcome().getFailure()));
+        default:
+          throw new RuntimeException(
+              "Received unexpected outcome from update request: "
+                  + result.getOutcome().getValueCase());
+      }
+    }
+    throw new RuntimeException("Received no outcome from server");
+  }
+
+  @Override
+  public <R> UpdateAsyncOutput<R> updateAsync(UpdateInput<R> input) {
+    // TODO(https://github.com/temporalio/sdk-java/issues/1743) Support update polling
+    CompletableFuture future = new CompletableFuture<R>();
+    try {
+      future.complete(update(input).getResult());
+    } catch (Exception e) {
+      future.completeExceptionally(e);
+    }
+    return new UpdateAsyncOutput<>(future);
   }
 
   @Override

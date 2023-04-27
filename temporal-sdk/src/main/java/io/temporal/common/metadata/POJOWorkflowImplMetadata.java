@@ -21,6 +21,7 @@
 package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
+import io.temporal.common.Experimental;
 import java.util.*;
 
 /**
@@ -66,6 +67,8 @@ public final class POJOWorkflowImplMetadata {
   private final List<POJOWorkflowMethodMetadata> workflowMethods;
   private final List<POJOWorkflowMethodMetadata> signalMethods;
   private final List<POJOWorkflowMethodMetadata> queryMethods;
+  private final List<POJOWorkflowMethodMetadata> updateMethods;
+  private final List<POJOWorkflowMethodMetadata> updateValidatorMethods;
 
   /**
    * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
@@ -97,6 +100,8 @@ public final class POJOWorkflowImplMetadata {
     Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
+    Map<String, POJOWorkflowMethodMetadata> updateMethods = new HashMap<>();
+    Map<String, POJOWorkflowMethodMetadata> updateValidatorMethods = new HashMap<>();
     Map<EqualsByNameType, POJOWorkflowMethodMetadata> byNameType = new HashMap<>();
 
     // Getting all the top level interfaces instead of the direct ones that Class.getInterfaces()
@@ -136,6 +141,12 @@ public final class POJOWorkflowImplMetadata {
           case QUERY:
             queryMethods.put(methodMetadata.getName(), methodMetadata);
             break;
+          case UPDATE:
+            updateMethods.put(methodMetadata.getName(), methodMetadata);
+            break;
+          case UPDATE_VALIDATOR:
+            updateValidatorMethods.put(methodMetadata.getName(), methodMetadata);
+            break;
         }
       }
     }
@@ -148,6 +159,8 @@ public final class POJOWorkflowImplMetadata {
     this.workflowMethods = ImmutableList.copyOf(workflowMethods.values());
     this.signalMethods = ImmutableList.copyOf(signalMethods.values());
     this.queryMethods = ImmutableList.copyOf(queryMethods.values());
+    this.updateMethods = ImmutableList.copyOf(updateMethods.values());
+    this.updateValidatorMethods = ImmutableList.copyOf(updateValidatorMethods.values());
   }
 
   /** List of workflow interfaces an object implements. */
@@ -168,5 +181,17 @@ public final class POJOWorkflowImplMetadata {
   /** List of query methods an object implements across all the workflow interfaces. */
   public List<POJOWorkflowMethodMetadata> getQueryMethods() {
     return queryMethods;
+  }
+
+  /** List of update methods an object implements across all the workflow interfaces. */
+  @Experimental
+  public List<POJOWorkflowMethodMetadata> getUpdateMethods() {
+    return updateMethods;
+  }
+
+  /** List of update validator methods an object implements across all the workflow interfaces. */
+  @Experimental
+  public List<POJOWorkflowMethodMetadata> getUpdateValidatorMethods() {
+    return updateValidatorMethods;
   }
 }

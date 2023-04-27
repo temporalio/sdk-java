@@ -99,6 +99,24 @@ class WorkflowExecutionHandler {
     return context.handleQuery(type, args);
   }
 
+  public void handleValidateUpdate(String updateName, Optional<Payloads> input, long eventId) {
+    try {
+      context.handleValidateUpdate(updateName, input, eventId);
+    } catch (Throwable e) {
+      applyWorkflowFailurePolicyAndRethrow(e);
+    }
+  }
+
+  public Optional<Payloads> handleExecuteUpdate(
+      String updateName, Optional<Payloads> input, long eventId) {
+    try {
+      return context.handleExecuteUpdate(updateName, input, eventId);
+    } catch (Throwable e) {
+      applyWorkflowFailurePolicyAndRethrow(e);
+    }
+    return Optional.empty();
+  }
+
   private void applyWorkflowFailurePolicyAndRethrow(Throwable e) {
     if (e instanceof DestroyWorkflowThreadError) {
       throw (DestroyWorkflowThreadError) e;

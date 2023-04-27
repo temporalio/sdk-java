@@ -261,6 +261,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         workflow,
         new SignalDispatcher(dataConverterWithWorkflowContext),
         new QueryDispatcher(dataConverterWithWorkflowContext),
+        new UpdateDispatcher(dataConverterWithWorkflowContext),
         workflowImplementationOptions,
         dataConverter,
         workflowThreadExecutor,

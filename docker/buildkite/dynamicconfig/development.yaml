@@ -6,3 +6,6 @@ system.enableActivityEagerExecution:
 system.enableEagerWorkflowStart:
   - value: true
     constraints: {}
+frontend.enableUpdateWorkflowExecution:
+  - value: true
+    constraints: {}
