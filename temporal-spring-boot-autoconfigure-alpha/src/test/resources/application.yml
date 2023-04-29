@@ -41,6 +41,18 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-by-task-queue-dynamic-suffix
+  temporal:
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.bytaskqueue
+default-queue:
+  name: PropertyResolverTest
+
+---
+spring:
+  config:
+    activate:
       on-profile: auto-discovery-by-worker-name
   temporal:
     workers:
