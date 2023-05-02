@@ -42,7 +42,7 @@ public @interface ActivityImpl {
   /**
    * @return Worker Task Queues to register this activity bean with. If Worker with the specified
    *     Task Queue is not present in the application config, it will be created with a default
-   *     config.
+   *     config. Can be specified as a property key, e.g.: ${propertyKey}.
    */
   String[] taskQueues() default {};
 }

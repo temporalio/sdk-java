@@ -44,13 +44,15 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionValidationException;
+import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.util.Assert;
 
 /** Creates a {@link WorkerFactory} and Workers for a given namespace provided by WorkflowClient. */
-public class WorkersTemplate implements BeanFactoryAware {
+public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private static final Logger log = LoggerFactory.getLogger(WorkersTemplate.class);
 
   private final @Nonnull TemporalProperties properties;
@@ -66,6 +68,7 @@ public class WorkersTemplate implements BeanFactoryAware {
   private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
 
   private ConfigurableListableBeanFactory beanFactory;
+  private Environment environment;
 
   private WorkerFactory workerFactory;
   private Collection<Worker> workers;
@@ -149,6 +152,7 @@ public class WorkersTemplate implements BeanFactoryAware {
     for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
       WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
       for (String taskQueue : annotation.taskQueues()) {
+        taskQueue = environment.resolvePlaceholders(taskQueue);
         Worker worker = workerFactory.tryGetWorker(taskQueue);
         if (worker == null) {
           log.info(
@@ -175,6 +179,7 @@ public class WorkersTemplate implements BeanFactoryAware {
           ActivityImpl annotation = AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
           if (annotation != null) {
             for (String taskQueue : annotation.taskQueues()) {
+              taskQueue = environment.resolvePlaceholders(taskQueue);
               Worker worker = workerFactory.tryGetWorker(taskQueue);
               if (worker == null) {
                 log.info(
@@ -369,6 +374,11 @@ public class WorkersTemplate implements BeanFactoryAware {
   public void setBeanFactory(@Nonnull BeanFactory beanFactory) throws BeansException {
     Assert.isInstanceOf(ConfigurableListableBeanFactory.class, beanFactory);
     this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
+  }
+
+  @Override
+  public void setEnvironment(@Nonnull Environment environment) {
+    this.environment = environment;
   }
 
   private Worker createNewWorker(
