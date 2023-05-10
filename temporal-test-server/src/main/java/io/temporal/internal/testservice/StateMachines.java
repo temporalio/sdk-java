@@ -427,22 +427,22 @@ class StateMachines {
 
   /** Represents an accepted update workflow execution request */
   static final class UpdateWorkflowExecutionData {
-    final String Id;
+    final String id;
     final CompletableFuture<UpdateWorkflowExecutionResponse> acceptance;
     final CompletableFuture<UpdateWorkflowExecutionResponse> complete;
 
     public UpdateWorkflowExecutionData(
-        String Id,
+        String id,
         CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
         CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
-      this.Id = Id;
+      this.id = id;
       this.acceptance = acceptance;
       this.complete = complete;
     }
 
     @Override
     public String toString() {
-      return "UpdateWorkflowExecutionData{" + "ID=" + Id + '}';
+      return "UpdateWorkflowExecutionData{" + "ID=" + id + '}';
     }
   }
 
@@ -1223,11 +1223,21 @@ class StateMachines {
 
   private static void bufferUpdate(
       RequestContext ctx, WorkflowTaskData data, UpdateWorkflowExecution update, long notUsed) {
+    if (data.getUpdateRequest(update.getId()).isPresent()) {
+      throw Status.INTERNAL
+          .withDescription("Update ID already exists: " + update.getId())
+          .asRuntimeException();
+    }
     data.updateRequestBuffer.put(update.getId(), update);
   }
 
   private static void addUpdate(
       RequestContext ctx, WorkflowTaskData data, UpdateWorkflowExecution update, long notUsed) {
+    if (data.getUpdateRequest(update.getId()).isPresent()) {
+      throw Status.INTERNAL
+          .withDescription("Update ID already exists: " + update.getId())
+          .asRuntimeException();
+    }
     data.updateRequest.put(update.getId(), update);
   }
 
@@ -1782,7 +1792,7 @@ class StateMachines {
               .setUpdateRef(
                   UpdateRef.newBuilder()
                       .setWorkflowExecution(ctx.getExecution())
-                      .setUpdateId(data.Id))
+                      .setUpdateId(data.id))
               .setOutcome(Outcome.getDefaultInstance())
               .build();
 
@@ -1824,7 +1834,7 @@ class StateMachines {
               .setUpdateRef(
                   UpdateRef.newBuilder()
                       .setWorkflowExecution(ctx.getExecution())
-                      .setUpdateId(data.Id))
+                      .setUpdateId(data.id))
               .setOutcome(response.getOutcome())
               .build();
 
