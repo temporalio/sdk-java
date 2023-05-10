@@ -31,6 +31,7 @@ import static io.temporal.internal.testservice.StateMachines.Action.START;
 import static io.temporal.internal.testservice.StateMachines.Action.TERMINATE;
 import static io.temporal.internal.testservice.StateMachines.Action.TIME_OUT;
 import static io.temporal.internal.testservice.StateMachines.Action.UPDATE;
+import static io.temporal.internal.testservice.StateMachines.Action.UPDATE_WORKFLOW_EXECUTION;
 import static io.temporal.internal.testservice.StateMachines.State.CANCELED;
 import static io.temporal.internal.testservice.StateMachines.State.CANCELLATION_REQUESTED;
 import static io.temporal.internal.testservice.StateMachines.State.COMPLETED;
@@ -43,7 +44,9 @@ import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
 import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
 
 import com.google.common.base.Preconditions;
+import com.google.protobuf.Any;
 import com.google.protobuf.Duration;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -73,79 +76,21 @@ import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
-import io.temporal.api.history.v1.ActivityTaskCancelRequestedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskStartedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
-import io.temporal.api.history.v1.ExternalWorkflowExecutionSignaledEventAttributes;
-import io.temporal.api.history.v1.History;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.history.v1.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.api.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.SignalExternalWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.api.history.v1.TimerCanceledEventAttributes;
-import io.temporal.api.history.v1.TimerFiredEventAttributes;
-import io.temporal.api.history.v1.TimerStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionCancelRequestedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionCanceledEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionTerminatedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskCompletedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskTimedOutEventAttributes;
+import io.temporal.api.history.v1.*;
+import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.api.update.v1.*;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.UpdateWorkflowExecution;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowTask;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.workflow.Functions;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import javax.annotation.Nonnull;
@@ -190,7 +135,8 @@ class StateMachines {
     UPDATE,
     COMPLETE,
     CONTINUE_AS_NEW,
-    QUERY
+    QUERY,
+    UPDATE_WORKFLOW_EXECUTION,
   }
 
   static final class WorkflowData {
@@ -280,6 +226,14 @@ class StateMachines {
      */
     final List<RequestContext> bufferedEvents = new ArrayList<>();
 
+    /**
+     * Update requests that are added during execution of a workflow task. They have to be buffered
+     * to be added to the next workflow task.
+     */
+    final Map<String, UpdateWorkflowExecution> updateRequestBuffer = new LinkedHashMap<>();
+
+    final Map<String, UpdateWorkflowExecution> updateRequest = new LinkedHashMap<>();
+
     long scheduledEventId = NO_EVENT_ID;
 
     int attempt = 0;
@@ -300,6 +254,12 @@ class StateMachines {
       workflowTask = null;
       scheduledEventId = NO_EVENT_ID;
       attempt = 0;
+    }
+
+    Optional<UpdateWorkflowExecution> getUpdateRequest(String protocolInstanceId) {
+      return Optional.ofNullable(
+          updateRequest.getOrDefault(
+              protocolInstanceId, updateRequestBuffer.get(protocolInstanceId)));
     }
 
     @Override
@@ -327,6 +287,10 @@ class StateMachines {
           + queryBuffer
           + ", consistentQueryRequests="
           + consistentQueryRequests
+          + ", updateRequest="
+          + updateRequest
+          + ", updateRequestBuffer="
+          + updateRequestBuffer
           + '}';
     }
   }
@@ -461,6 +425,27 @@ class StateMachines {
     }
   }
 
+  /** Represents an accepted update workflow execution request */
+  static final class UpdateWorkflowExecutionData {
+    final String id;
+    final CompletableFuture<UpdateWorkflowExecutionResponse> acceptance;
+    final CompletableFuture<UpdateWorkflowExecutionResponse> complete;
+
+    public UpdateWorkflowExecutionData(
+        String id,
+        CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
+        CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
+      this.id = id;
+      this.acceptance = acceptance;
+      this.complete = complete;
+    }
+
+    @Override
+    public String toString() {
+      return "UpdateWorkflowExecutionData{" + "ID=" + id + '}';
+    }
+  }
+
   static StateMachine<WorkflowData> newWorkflowStateMachine(WorkflowData data) {
     return new StateMachine<>(data)
         .add(NONE, START, STARTED, StateMachines::startWorkflow)
@@ -512,8 +497,10 @@ class StateMachines {
         //        .add(STARTED_QUERY_ONLY, TIME_OUT, NONE, StateMachines::failQueryWorkflowTask)
         //        .add(STARTED_QUERY_ONLY, COMPLETE, NONE, StateMachines::completeQuery)
         .add(STARTED, QUERY, STARTED, StateMachines::bufferQuery)
+        .add(STARTED, UPDATE_WORKFLOW_EXECUTION, STARTED, StateMachines::bufferUpdate)
         .add(INITIATED, INITIATE, INITIATED, StateMachines::noop)
         .add(INITIATED, QUERY, INITIATED, StateMachines::queryWhileScheduled)
+        .add(INITIATED, UPDATE_WORKFLOW_EXECUTION, INITIATED, StateMachines::addUpdate)
         .add(INITIATED, START, STARTED, StateMachines::startWorkflowTask)
         .add(STARTED, COMPLETE, NONE, StateMachines::completeWorkflowTask)
         .add(STARTED, FAIL, NONE, StateMachines::failWorkflowTask)
@@ -570,6 +557,15 @@ class StateMachines {
         .add(STARTED, FAIL, FAILED, StateMachines::childWorkflowFailed)
         .add(STARTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutChildWorkflow)
         .add(STARTED, CANCEL, CANCELED, StateMachines::childWorkflowCanceled);
+  }
+
+  public static StateMachine<UpdateWorkflowExecutionData> newUpdateWorkflowExecution(
+      String updateId,
+      CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
+      CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
+    return new StateMachine<>(new UpdateWorkflowExecutionData(updateId, acceptance, complete))
+        .add(NONE, START, STARTED, StateMachines::acceptUpdate)
+        .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
 
   public static StateMachine<TimerData> newTimerStateMachine() {
@@ -1151,6 +1147,9 @@ class StateMachines {
         (historySize) -> {
           data.scheduledEventId = scheduledEventId;
           data.workflowTask = workflowTaskResponse;
+          // Move buffered update request to new workflow task
+          data.updateRequest.putAll(data.updateRequestBuffer);
+          data.updateRequestBuffer.clear();
         });
   }
 
@@ -1220,6 +1219,26 @@ class StateMachines {
       TestWorkflowMutableStateImpl.ConsistentQuery query,
       long notUsed) {
     data.queryBuffer.put(query.getKey(), query);
+  }
+
+  private static void bufferUpdate(
+      RequestContext ctx, WorkflowTaskData data, UpdateWorkflowExecution update, long notUsed) {
+    if (data.getUpdateRequest(update.getId()).isPresent()) {
+      throw Status.INTERNAL
+          .withDescription("Update ID already exists: " + update.getId())
+          .asRuntimeException();
+    }
+    data.updateRequestBuffer.put(update.getId(), update);
+  }
+
+  private static void addUpdate(
+      RequestContext ctx, WorkflowTaskData data, UpdateWorkflowExecution update, long notUsed) {
+    if (data.getUpdateRequest(update.getId()).isPresent()) {
+      throw Status.INTERNAL
+          .withDescription("Update ID already exists: " + update.getId())
+          .asRuntimeException();
+    }
+    data.updateRequest.put(update.getId(), update);
   }
 
   private static void startWorkflowTask(
@@ -1315,6 +1334,19 @@ class StateMachines {
               queries.entrySet()) {
             QueryWorkflowRequest queryWorkflowRequest = queryEntry.getValue().getRequest();
             task.putQueries(queryEntry.getKey(), queryWorkflowRequest.getQuery());
+          }
+          // Transfer the messages
+          Map<String, UpdateWorkflowExecution> updates = data.updateRequest;
+          for (Map.Entry<String, UpdateWorkflowExecution> update : updates.entrySet()) {
+            UpdateWorkflowExecutionRequest updateRequest = update.getValue().getRequest();
+            Message updateMessage =
+                Message.newBuilder()
+                    .setId(update.getKey() + "/request")
+                    .setProtocolInstanceId(update.getKey())
+                    .setEventId(data.scheduledEventId)
+                    .setBody(Any.pack(updateRequest.getRequest()))
+                    .build();
+            task.addMessages(updateMessage);
           }
           if (data.lastSuccessfulStartedEventId > 0) {
             task.setPreviousStartedEventId(data.lastSuccessfulStartedEventId);
@@ -1498,7 +1530,6 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
             .setResult(request.getResult())
-            .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1515,7 +1546,6 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
             .setResult(request.getResult())
-            .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1555,7 +1585,6 @@ class StateMachines {
             .setScheduledEventId(data.scheduledEventId)
             .setFailure(failure)
             .setRetryState(retryState)
-            .setIdentity(identity)
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1727,6 +1756,92 @@ class StateMachines {
   private static void heartbeatActivityTask(
       RequestContext nullCtx, ActivityTaskData data, Payloads details, long notUsed) {
     data.heartbeatDetails = details;
+  }
+
+  private static void acceptUpdate(
+      RequestContext ctx,
+      UpdateWorkflowExecutionData data,
+      Message msg,
+      long workflowTaskCompletedEventId) {
+    try {
+      Acceptance acceptance = msg.getBody().unpack(Acceptance.class);
+
+      WorkflowExecutionUpdateAcceptedEventAttributes acceptedAttribute =
+          WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
+              .setAcceptedRequestSequencingEventId(workflowTaskCompletedEventId - 1)
+              .setProtocolInstanceId(msg.getProtocolInstanceId())
+              .setAcceptedRequestMessageId(acceptance.getAcceptedRequestMessageId())
+              .setAcceptedRequest(acceptance.getAcceptedRequest())
+              .build();
+
+      HistoryEvent event =
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED)
+              .setWorkflowExecutionUpdateAcceptedEventAttributes(acceptedAttribute)
+              .build();
+      // If the workflow is finished we can't write more events
+      // to history so if the message was processed after the workflow
+      // was closed there is nothing we can do.
+      // The real server also has this same problem
+      if (!ctx.getWorkflowMutableState().isTerminalState()) {
+        ctx.addEvent(event);
+      }
+
+      UpdateWorkflowExecutionResponse response =
+          UpdateWorkflowExecutionResponse.newBuilder()
+              .setUpdateRef(
+                  UpdateRef.newBuilder()
+                      .setWorkflowExecution(ctx.getExecution())
+                      .setUpdateId(data.id))
+              .setOutcome(Outcome.getDefaultInstance())
+              .build();
+
+      data.acceptance.complete(response);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static void completeUpdate(
+      RequestContext ctx,
+      UpdateWorkflowExecutionData data,
+      Message msg,
+      long workflowTaskCompletedEventId) {
+    try {
+      Response response = msg.getBody().unpack(Response.class);
+
+      WorkflowExecutionUpdateCompletedEventAttributes completedAttribute =
+          WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
+              .setMeta(response.getMeta())
+              .setOutcome(response.getOutcome())
+              .build();
+
+      HistoryEvent event =
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED)
+              .setWorkflowExecutionUpdateCompletedEventAttributes(completedAttribute)
+              .build();
+      // If the workflow is finished we can't write more events
+      // to history so if the message was processed after the workflow
+      // was closed there is nothing we can do.
+      // The real server also has this same problem
+      if (!ctx.getWorkflowMutableState().isTerminalState()) {
+        ctx.addEvent(event);
+      }
+
+      UpdateWorkflowExecutionResponse updateResponse =
+          UpdateWorkflowExecutionResponse.newBuilder()
+              .setUpdateRef(
+                  UpdateRef.newBuilder()
+                      .setWorkflowExecution(ctx.getExecution())
+                      .setUpdateId(data.id))
+              .setOutcome(response.getOutcome())
+              .build();
+
+      data.complete.complete(updateResponse);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static void startTimer(

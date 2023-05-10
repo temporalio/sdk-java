@@ -20,16 +20,18 @@
 
 package io.temporal.client.functional;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.CompletablePromise;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.concurrent.ExecutionException;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -38,15 +40,10 @@ public class UpdateTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(UpdateTest.QuickWorkflowWithUpdateImpl.class)
+          .setWorkflowTypes(
+              UpdateTest.QuickWorkflowWithUpdateImpl.class,
+              UpdateTest.LongWorkflowWithUpdateImpl.class)
           .build();
-
-  @Before
-  public void checkExternalService() {
-    Assume.assumeTrue(
-        "skipping because test server does not support update",
-        testWorkflowRule.isUseExternalService());
-  }
 
   @Test
   public void updateNonExistentWorkflow() {
@@ -102,6 +99,44 @@ public class UpdateTest {
     assertThrows(ExecutionException.class, () -> updateRef.getResultAsync().get());
   }
 
+  @Test
+  public void updateWorkflowDuplicateId() {
+    Assume.assumeTrue(
+        "skipping for real server because the real server does not handle duplicate update ID correctly",
+        !testWorkflowRule.isUseExternalService());
+
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+
+    WorkflowExecution execution = workflowStub.start();
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+
+    assertEquals(
+        "some-value",
+        workflowStub.update(
+            "update",
+            "update-id",
+            execution.getRunId(),
+            String.class,
+            String.class,
+            0,
+            "some-value"));
+    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
+    // Try to send another update request with the same update Id
+    assertEquals(
+        "some-value",
+        workflowStub.update(
+            "update", "update-id", "", String.class, String.class, 1, "some-other-value"));
+
+    workflowStub.update("complete", void.class);
+
+    workflowStub.getResult(String.class);
+  }
+
   public static class QuickWorkflowWithUpdateImpl implements TestWorkflows.TestUpdatedWorkflow {
 
     @Override
@@ -111,5 +146,36 @@ public class UpdateTest {
 
     @Override
     public void update(String arg) {}
+  }
+
+  public static class LongWorkflowWithUpdateImpl implements TestWorkflows.WorkflowWithUpdate {
+    CompletablePromise<Void> promise = Workflow.newPromise();
+
+    @Override
+    public String execute() {
+      promise.get();
+      return "complete";
+    }
+
+    @Override
+    public String getState() {
+      return "running";
+    }
+
+    @Override
+    public String update(Integer index, String value) {
+      return value;
+    }
+
+    @Override
+    public void updateValidator(Integer index, String value) {}
+
+    @Override
+    public void complete() {
+      promise.complete(null);
+    }
+
+    @Override
+    public void completeValidator() {}
   }
 }

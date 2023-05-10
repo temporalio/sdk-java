@@ -771,11 +771,27 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request,
       StreamObserver<UpdateWorkflowExecutionResponse> responseObserver) {
-    // TODO(https://github.com/temporalio/sdk-java/issues/1742) Add support for update to the test
-    // server
+    try {
+      ExecutionId executionId =
+          new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      @Nullable Deadline deadline = Context.current().getDeadline();
+      UpdateWorkflowExecutionResponse response =
+          mutableState.updateWorkflowExecution(request, deadline);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
+  public void pollWorkflowExecutionUpdate(
+      PollWorkflowExecutionUpdateRequest request,
+      StreamObserver<PollWorkflowExecutionUpdateResponse> responseObserver) {
     responseObserver.onError(
         Status.UNIMPLEMENTED
-            .withDescription("Test server does not implement update")
+            .withDescription("Test server does not implement poll update")
             .asRuntimeException());
   }
 
