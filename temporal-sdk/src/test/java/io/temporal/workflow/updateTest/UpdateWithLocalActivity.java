@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -58,10 +57,6 @@ public class UpdateWithLocalActivity {
 
   @Test
   public void testUpdateWithLocalActivities() {
-    Assume.assumeTrue(
-        "skipping for test server because test server does not support update",
-        testWorkflowRule.isUseExternalService());
-
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =

@@ -35,7 +35,6 @@ import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -56,10 +55,6 @@ public class UpdateRetryException {
 
   @Test
   public void testUpdateExceptionRetries() {
-    Assume.assumeTrue(
-        "skipping for test server because test server does not support update",
-        testWorkflowRule.isUseExternalService());
-
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =

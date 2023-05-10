@@ -31,9 +31,11 @@ import static io.temporal.internal.testservice.TestServiceRetryState.validateAnd
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
+import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.CancelTimerCommandAttributes;
@@ -42,6 +44,7 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ProtocolMessageCommandAttributes;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
@@ -70,34 +73,16 @@ import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttribut
 import io.temporal.api.history.v1.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
+import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.QueryRejected;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.update.v1.*;
 import io.temporal.api.workflow.v1.PendingActivityInfo;
 import io.temporal.api.workflow.v1.PendingChildExecutionInfo;
 import io.temporal.api.workflow.v1.WorkflowExecutionConfig;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ServerFailure;
 import io.temporal.internal.common.ProtoEnumNameUtils;
@@ -110,17 +95,12 @@ import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
 import io.temporal.internal.testservice.StateMachines.SignalExternalData;
 import io.temporal.internal.testservice.StateMachines.State;
 import io.temporal.internal.testservice.StateMachines.TimerData;
+import io.temporal.internal.testservice.StateMachines.UpdateWorkflowExecutionData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -173,6 +153,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
       new HashMap<>();
+  private final Map<String, StateMachine<UpdateWorkflowExecutionData>> updates = new HashMap<>();
   private final StateMachine<WorkflowData> workflow;
   /** A single workflow task state machine is used for the whole workflow lifecycle. */
   private final StateMachine<WorkflowTaskData> workflowTaskStateMachine;
@@ -433,6 +414,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void completeWorkflowTask(
       int historySizeFromToken, RespondWorkflowTaskCompletedRequest request) {
     List<Command> commands = request.getCommandsList();
+    List<Message> messages = request.getMessagesList();
+
     completeWorkflowTaskUpdate(
         ctx -> {
           if (ctx.getInitialEventId() != historySizeFromToken + 1) {
@@ -470,8 +453,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .asRuntimeException();
           }
 
-          if (unhandledCommand(request)) {
-            // Fail the workflow task if there are new events and a command tries to complete the
+          if (unhandledCommand(request) || unhandledMessages(request)) {
+            // Fail the workflow task if there are new events or messages and a command tries to
+            // complete the
             // workflow
             failWorkflowTaskWithAReason(
                 WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND,
@@ -501,12 +485,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           try {
             workflowTaskStateMachine.action(StateMachines.Action.COMPLETE, ctx, request, 0);
             for (Command command : commands) {
-              processCommand(ctx, command, request.getIdentity(), workflowTaskCompletedId);
+              processCommand(
+                  ctx, command, messages, request.getIdentity(), workflowTaskCompletedId);
             }
+            // Any messages not processed in processCommand need to be handled after all commands
+            for (Message message : messages) {
+              processMessage(ctx, message, request.getIdentity(), workflowTaskCompletedId);
+            }
+            workflowTaskStateMachine.getData().updateRequest.clear();
+
             for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
               ctx.add(deferredCtx);
             }
             WorkflowTaskData data = this.workflowTaskStateMachine.getData();
+
             boolean completed =
                 workflow.getState() == StateMachines.State.COMPLETED
                     || workflow.getState() == StateMachines.State.FAILED
@@ -514,6 +506,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             if (!completed
                 && ((ctx.isNeedWorkflowTask()
                         || !workflowTaskStateMachine.getData().bufferedEvents.isEmpty())
+                    || !workflowTaskStateMachine.getData().updateRequestBuffer.isEmpty()
                     || request.getForceCreateNewWorkflowTask())) {
               scheduleWorkflowTask(ctx);
             }
@@ -615,6 +608,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return (newEvents && hasCompletionCommand(request.getCommandsList()));
   }
 
+  private boolean unhandledMessages(RespondWorkflowTaskCompletedRequest request) {
+    return (!workflowTaskStateMachine.getData().updateRequestBuffer.isEmpty()
+        && hasCompletionCommand(request.getCommandsList()));
+  }
+
   private boolean hasCompletionCommand(List<Command> commands) {
     for (Command command : commands) {
       if (WorkflowExecutionUtils.isWorkflowExecutionCompleteCommand(command)) {
@@ -625,7 +623,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processCommand(
-      RequestContext ctx, Command d, String identity, long workflowTaskCompletedId) {
+      RequestContext ctx,
+      Command d,
+      List<Message> messages,
+      String identity,
+      long workflowTaskCompletedId) {
     switch (d.getCommandType()) {
       case COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION:
         processCompleteWorkflowExecution(
@@ -684,10 +686,47 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         processUpsertWorkflowSearchAttributes(
             ctx, d.getUpsertWorkflowSearchAttributesCommandAttributes(), workflowTaskCompletedId);
         break;
+      case COMMAND_TYPE_PROTOCOL_MESSAGE:
+        processProtocolMessageAttributes(
+            ctx,
+            d.getProtocolMessageCommandAttributes(),
+            messages,
+            identity,
+            workflowTaskCompletedId);
+        break;
       default:
         throw Status.INVALID_ARGUMENT
             .withDescription("Unknown command type: " + d.getCommandType() + " for " + d)
             .asRuntimeException();
+    }
+  }
+
+  private void processMessage(
+      RequestContext ctx, Message msg, String identity, long workflowTaskCompletedId) {
+    String clazzName = msg.getBody().getTypeUrl().split("/")[1];
+
+    try {
+      switch (clazzName) {
+        case "temporal.api.update.v1.Acceptance":
+          processAcceptanceMessage(
+              ctx, msg, msg.getBody().unpack(Acceptance.class), workflowTaskCompletedId);
+          break;
+        case "temporal.api.update.v1.Rejection":
+          processRejectionMessage(
+              ctx, msg, msg.getBody().unpack(Rejection.class), workflowTaskCompletedId);
+          break;
+        case "temporal.api.update.v1.Response":
+          processOutcomeMessage(
+              ctx, msg, msg.getBody().unpack(Response.class), workflowTaskCompletedId);
+          break;
+        default:
+          throw Status.INVALID_ARGUMENT
+              .withDescription(
+                  "Unknown message type: " + msg.getProtocolInstanceId() + " for " + msg)
+              .asRuntimeException();
+      }
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -1516,6 +1555,88 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return null;
   }
 
+  /**
+   * processProtocolMessageAttributes handles protocol messages, it is expected to look up the
+   * {@code Message} in the given {@code List<Message>} process that message and remove that {@code
+   * Message} from the list.
+   */
+  private WorkflowTaskFailedCause processProtocolMessageAttributes(
+      RequestContext ctx,
+      ProtocolMessageCommandAttributes attr,
+      List<Message> messages,
+      String identity,
+      long workflowTaskCompletedId) {
+    Message orderedMsg =
+        messages.stream()
+            .filter(msg -> msg.getId() == attr.getMessageId())
+            .findFirst()
+            .map(
+                msg -> {
+                  messages.remove(msg);
+                  return msg;
+                })
+            .get();
+    processMessage(ctx, orderedMsg, identity, workflowTaskCompletedId);
+    return null;
+  }
+
+  private void processAcceptanceMessage(
+      RequestContext ctx, Message msg, Acceptance acceptance, long workflowTaskCompletedId) {
+    String protocolInstanceId = msg.getProtocolInstanceId();
+    StateMachine<UpdateWorkflowExecutionData> update = updates.get(protocolInstanceId);
+
+    if (update != null) {
+      throw Status.FAILED_PRECONDITION
+          .withDescription("Already accepted update with Id " + protocolInstanceId)
+          .asRuntimeException();
+    }
+    UpdateWorkflowExecution u =
+        workflowTaskStateMachine.getData().updateRequest.get(protocolInstanceId);
+
+    update =
+        StateMachines.newUpdateWorkflowExecution(
+            protocolInstanceId, u.getAcceptance(), u.getCompletion());
+    updates.put(protocolInstanceId, update);
+    update.action(StateMachines.Action.START, ctx, msg, workflowTaskCompletedId);
+  }
+
+  private void processRejectionMessage(
+      RequestContext ctx, Message msg, Rejection rejection, long workflowTaskCompletedId) {
+    String protocolInstanceId = msg.getProtocolInstanceId();
+    StateMachine<UpdateWorkflowExecutionData> update = updates.get(protocolInstanceId);
+
+    if (update != null) {
+      throw Status.FAILED_PRECONDITION
+          .withDescription("Already accepted update with Id " + protocolInstanceId)
+          .asRuntimeException();
+    }
+    UpdateWorkflowExecution u =
+        workflowTaskStateMachine.getData().updateRequest.get(msg.getProtocolInstanceId());
+    // If an update validation fail, do not write to history and do not store the update.
+    UpdateWorkflowExecutionResponse response =
+        UpdateWorkflowExecutionResponse.newBuilder()
+            .setUpdateRef(
+                UpdateRef.newBuilder()
+                    .setUpdateId(rejection.getRejectedRequest().getMeta().getUpdateId())
+                    .setWorkflowExecution(ctx.getExecution()))
+            .setOutcome(Outcome.newBuilder().setFailure(rejection.getFailure()).build())
+            .build();
+    u.getAcceptance().complete(response);
+  }
+
+  private void processOutcomeMessage(
+      RequestContext ctx, Message msg, Response response, long workflowTaskCompletedId) {
+    String protocolInstanceId = msg.getProtocolInstanceId();
+    StateMachine<UpdateWorkflowExecutionData> update = updates.get(protocolInstanceId);
+
+    if (update == null) {
+      throw Status.FAILED_PRECONDITION
+          .withDescription("No update with Id " + protocolInstanceId)
+          .asRuntimeException();
+    }
+    update.action(Action.COMPLETE, ctx, msg, workflowTaskCompletedId);
+  }
+
   @Override
   @Nullable
   public PollWorkflowTaskQueueResponse startWorkflow(
@@ -1960,6 +2081,80 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
+  @Override
+  public UpdateWorkflowExecutionResponse updateWorkflowExecution(
+      UpdateWorkflowExecutionRequest request, Deadline deadline) {
+    UpdateWorkflowExecution update = new UpdateWorkflowExecution(request);
+    CompletableFuture<UpdateWorkflowExecutionResponse> acceptance = update.getAcceptance();
+    CompletableFuture<UpdateWorkflowExecutionResponse> completion = update.getCompletion();
+
+    // Before sending an update request, make sure the update does not
+    // already exist
+    boolean updateExists = false;
+    lock.lock();
+    Optional<UpdateWorkflowExecution> inflightUpdate =
+        workflowTaskStateMachine.getData().getUpdateRequest(update.getId());
+    if (inflightUpdate.isPresent()) {
+      acceptance = inflightUpdate.get().getAcceptance();
+      completion = inflightUpdate.get().getCompletion();
+      updateExists = true;
+    }
+    StateMachine<UpdateWorkflowExecutionData> completeUpdate = updates.get(update.getId());
+    if (completeUpdate != null) {
+      acceptance = completeUpdate.getData().acceptance;
+      completion = completeUpdate.getData().complete;
+      updateExists = true;
+    }
+    lock.unlock();
+
+    try {
+      if (!updateExists) {
+        update(
+            ctx -> {
+              if (workflowTaskStateMachine.getState() == State.NONE) {
+                scheduleWorkflowTask(ctx);
+              }
+              workflowTaskStateMachine.action(Action.UPDATE_WORKFLOW_EXECUTION, ctx, update, 0);
+            });
+      }
+      switch (request.getWaitPolicy().getLifecycleStage()) {
+        case UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED:
+          UpdateWorkflowExecutionResponse acceptResponse =
+              acceptance.get(
+                  deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
+                  TimeUnit.MILLISECONDS);
+          if (acceptResponse.getOutcome().hasFailure()) {
+            return acceptResponse;
+          }
+          return completion.get(
+              deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
+              TimeUnit.MILLISECONDS);
+        default:
+          throw Status.INTERNAL
+              .withDescription(
+                  "TestServer does not support this wait policy: "
+                      + request.getWaitPolicy().getLifecycleStage())
+              .asRuntimeException();
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof StatusRuntimeException) {
+        throw (StatusRuntimeException) cause;
+      }
+      throw Status.INTERNAL
+          .withCause(cause)
+          .withDescription(cause.getMessage())
+          .asRuntimeException();
+    } catch (TimeoutException e) {
+      throw Status.DEADLINE_EXCEEDED
+          .withCause(e)
+          .withDescription("update deadline exceeded")
+          .asRuntimeException();
+    }
+  }
+
   static class CancelExternalWorkflowExecutionCallerInfo {
     private final String namespace;
     private final long externalInitiatedEventId;
@@ -2141,6 +2336,52 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           + request
           + ", result="
           + result
+          + '}';
+    }
+  }
+
+  static class UpdateWorkflowExecution {
+    private final String id;
+    private final UpdateWorkflowExecutionRequest request;
+    private final CompletableFuture<UpdateWorkflowExecutionResponse> acceptance =
+        new CompletableFuture<>();
+    private final CompletableFuture<UpdateWorkflowExecutionResponse> completion =
+        new CompletableFuture<>();
+
+    private UpdateWorkflowExecution(UpdateWorkflowExecutionRequest request) {
+      this.request = request;
+      String updateId = request.getRequest().getMeta().getUpdateId();
+      this.id = updateId.isEmpty() ? UUID.randomUUID().toString() : updateId;
+    }
+
+    public UpdateWorkflowExecutionRequest getRequest() {
+      return request;
+    }
+
+    public CompletableFuture<UpdateWorkflowExecutionResponse> getAcceptance() {
+      return acceptance;
+    }
+
+    public CompletableFuture<UpdateWorkflowExecutionResponse> getCompletion() {
+      return completion;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public String toString() {
+      return "UpdateWorkflowExecution{"
+          + "id='"
+          + id
+          + '\''
+          + ", request="
+          + request
+          + ", acceptance="
+          + acceptance
+          + ", completion="
+          + completion
           + '}';
     }
   }

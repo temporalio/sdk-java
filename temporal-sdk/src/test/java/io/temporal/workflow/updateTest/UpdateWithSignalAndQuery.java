@@ -33,7 +33,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.*;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -52,10 +51,6 @@ public class UpdateWithSignalAndQuery {
 
   @Test
   public void testUpdateWithSignal() {
-    Assume.assumeTrue(
-        "skipping for test server because test server does not support update",
-        testWorkflowRule.isUseExternalService());
-
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
