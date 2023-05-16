@@ -8,7 +8,7 @@ and have `io.temporal:temporal-spring-boot-starter-alpha:${temporalVersion}` add
 # Connection setup
 
 The following configuration connects to a locally started Temporal Server 
-(see [Temporal Docker Compose](https://github.com/temporalio/docker-compose) or [Tempotalite](https://github.com/temporalio/temporalite))
+(see [Temporal Docker Compose](https://github.com/temporalio/docker-compose) or [Temporalite](https://github.com/temporalio/temporalite))
 
 ```yml
 spring.temporal:
