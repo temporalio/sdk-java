@@ -116,6 +116,9 @@ interface TestWorkflowMutableState {
   UpdateWorkflowExecutionResponse updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request, Deadline deadline);
 
+  PollWorkflowExecutionUpdateResponse pollUpdateWorkflowExecution(
+      PollWorkflowExecutionUpdateRequest request, Deadline deadline);
+
   DescribeWorkflowExecutionResponse describeWorkflowExecution();
 
   void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest);

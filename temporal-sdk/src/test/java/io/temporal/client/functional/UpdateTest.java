@@ -20,18 +20,15 @@
 
 package io.temporal.client.functional;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.util.concurrent.ExecutionException;
-import org.junit.Assume;
+import java.util.concurrent.*;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -47,12 +44,20 @@ public class UpdateTest {
 
   @Test
   public void updateNonExistentWorkflow() {
-
     TestWorkflows.TestUpdatedWorkflow workflow =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(TestWorkflows.TestUpdatedWorkflow.class, "non-existing-id");
     assertThrows(WorkflowNotFoundException.class, () -> workflow.update("some-value"));
+  }
+
+  @Test
+  public void pollUpdateNonExistentWorkflow() throws ExecutionException, InterruptedException {
+    WorkflowStub workflowStub =
+        testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("non-existing-id");
+    // Getting the update handle to a nonexistent workflow is fine
+    UpdateHandle<String> handle = workflowStub.getUpdateHandle("update-id", String.class);
+    assertThrows(Exception.class, () -> handle.getResultAsync().get());
   }
 
   @Test
@@ -63,8 +68,9 @@ public class UpdateTest {
         WorkflowNotFoundException.class,
         () -> workflowStub.update("update", Void.class, "some-value"));
 
-    UpdateHandle updateRef = workflowStub.startUpdate("update", Void.class, "some-value");
-    assertThrows(ExecutionException.class, () -> updateRef.getResultAsync().get());
+    assertThrows(
+        WorkflowNotFoundException.class,
+        () -> workflowStub.startUpdate("update", Void.class, "some-value"));
   }
 
   @Test
@@ -95,16 +101,13 @@ public class UpdateTest {
         WorkflowNotFoundException.class,
         () -> workflowStub.update("update", Void.class, "some-value"));
 
-    UpdateHandle updateRef = workflowStub.startUpdate("update", Void.class, "some-value");
-    assertThrows(ExecutionException.class, () -> updateRef.getResultAsync().get());
+    assertThrows(
+        WorkflowNotFoundException.class,
+        () -> workflowStub.startUpdate("update", Void.class, "some-value"));
   }
 
   @Test
-  public void updateWorkflowDuplicateId() {
-    Assume.assumeTrue(
-        "skipping for real server because the real server does not handle duplicate update ID correctly",
-        !testWorkflowRule.isUseExternalService());
-
+  public void updateWorkflowDuplicateId() throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
     WorkflowStub workflowStub =
@@ -114,27 +117,31 @@ public class UpdateTest {
 
     WorkflowExecution execution = workflowStub.start();
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+    String updateId = "update-id";
+
+    // Try to get the result of an invalid update
+    UpdateHandle<String> handle = workflowStub.getUpdateHandle(updateId, String.class);
+    assertThrows(Exception.class, () -> handle.getResultAsync().get());
 
     assertEquals(
         "some-value",
         workflowStub.update(
-            "update",
-            "update-id",
-            execution.getRunId(),
-            String.class,
-            String.class,
-            0,
-            "some-value"));
+            "update", updateId, execution.getRunId(), String.class, String.class, 0, "some-value"));
     testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     // Try to send another update request with the same update Id
     assertEquals(
         "some-value",
         workflowStub.update(
-            "update", "update-id", "", String.class, String.class, 1, "some-other-value"));
+            "update", updateId, "", String.class, String.class, 1, "some-other-value"));
 
+    // Try to poll the update before the workflow is complete.
+    assertEquals("some-value", handle.getResultAsync().get());
+    // Complete the workflow
     workflowStub.update("complete", void.class);
+    assertEquals("complete", workflowStub.getResult(String.class));
 
-    workflowStub.getResult(String.class);
+    // Try to poll again
+    assertEquals("some-value", handle.getResultAsync().get());
   }
 
   public static class QuickWorkflowWithUpdateImpl implements TestWorkflows.TestUpdatedWorkflow {

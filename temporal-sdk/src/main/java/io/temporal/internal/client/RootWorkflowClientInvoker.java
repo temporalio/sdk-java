@@ -22,14 +22,14 @@ package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 
+import io.grpc.Deadline;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.update.v1.Input;
-import io.temporal.api.update.v1.Meta;
-import io.temporal.api.update.v1.Request;
-import io.temporal.api.update.v1.WaitPolicy;
+import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowUpdateException;
@@ -41,6 +41,7 @@ import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -291,7 +292,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   }
 
   @Override
-  public <R> UpdateOutput<R> update(UpdateInput<R> input) {
+  public <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input) {
     DataConverter dataConverterWithWorkflowContext =
         clientOptions
             .getDataConverter()
@@ -304,13 +305,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     Input.Builder updateInput = Input.newBuilder().setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
 
-    WaitPolicy policy =
-        WaitPolicy.newBuilder()
-            .setLifecycleStage(
-                UpdateWorkflowExecutionLifecycleStage
-                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
-            .build();
-
     Request request =
         Request.newBuilder()
             .setMeta(
@@ -322,7 +316,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     UpdateWorkflowExecutionRequest updateRequest =
         UpdateWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
-            .setWaitPolicy(policy)
+            .setWaitPolicy(input.getWaitPolicy())
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder()
                     .setWorkflowId(input.getWorkflowExecution().getWorkflowId())
@@ -330,8 +324,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setFirstExecutionRunId(input.getFirstExecutionRunId())
             .setRequest(request)
             .build();
-    UpdateWorkflowExecutionResponse result;
-    result = genericClient.update(updateRequest);
+    UpdateWorkflowExecutionResponse result = genericClient.update(updateRequest);
 
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {
@@ -343,11 +336,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   input.getResultClass(),
                   input.getResultType(),
                   dataConverterWithWorkflowContext);
-          return new UpdateOutput<>(resultValue);
+          return new StartUpdateOutput<R>(result.getUpdateRef(), true, resultValue);
         case FAILURE:
           throw new WorkflowUpdateException(
-              input.getWorkflowExecution(),
-              input.getUpdateId(),
+              result.getUpdateRef().getWorkflowExecution(),
+              result.getUpdateRef().getUpdateId(),
               input.getUpdateName(),
               dataConverterWithWorkflowContext.failureToException(
                   result.getOutcome().getFailure()));
@@ -356,20 +349,111 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               "Received unexpected outcome from update request: "
                   + result.getOutcome().getValueCase());
       }
+    } else {
+      return new StartUpdateOutput<R>(result.getUpdateRef(), false, null);
     }
-    throw new RuntimeException("Received no outcome from server");
   }
 
   @Override
-  public <R> UpdateAsyncOutput<R> updateAsync(UpdateInput<R> input) {
-    // TODO(https://github.com/temporalio/sdk-java/issues/1743) Support update polling
-    CompletableFuture future = new CompletableFuture<R>();
-    try {
-      future.complete(update(input).getResult());
-    } catch (Exception e) {
-      future.completeExceptionally(e);
-    }
-    return new UpdateAsyncOutput<>(future);
+  public <R> PollWorkflowUpdateOutput<R> pollWorkflowUpdate(PollWorkflowUpdateInput<R> input) {
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
+
+    UpdateRef update =
+        UpdateRef.newBuilder()
+            .setWorkflowExecution(input.getWorkflowExecution())
+            .setUpdateId(input.getUpdateId())
+            .build();
+
+    WaitPolicy waitPolicy =
+        WaitPolicy.newBuilder()
+            .setLifecycleStage(
+                UpdateWorkflowExecutionLifecycleStage
+                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
+            .build();
+
+    PollWorkflowExecutionUpdateRequest pollUpdateRequest =
+        PollWorkflowExecutionUpdateRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setUpdateRef(update)
+            .setWaitPolicy(waitPolicy)
+            .build();
+
+    CompletableFuture<PollWorkflowExecutionUpdateResponse> future = new CompletableFuture<>();
+
+    Deadline pollTimeoutDeadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
+    pollWorkflowUpdateHelper(future, pollUpdateRequest, pollTimeoutDeadline);
+    return new PollWorkflowUpdateOutput(
+        future.thenApply(
+            (result) -> {
+              if (result.hasOutcome()) {
+                switch (result.getOutcome().getValueCase()) {
+                  case SUCCESS:
+                    Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
+                    R resultValue =
+                        convertResultPayloads(
+                            updateResult,
+                            input.getResultClass(),
+                            input.getResultType(),
+                            dataConverterWithWorkflowContext);
+                    return resultValue;
+                  case FAILURE:
+                    throw new WorkflowUpdateException(
+                        input.getWorkflowExecution(),
+                        input.getUpdateId(),
+                        input.getUpdateName(),
+                        dataConverterWithWorkflowContext.failureToException(
+                            result.getOutcome().getFailure()));
+                  default:
+                    throw new RuntimeException(
+                        "Received unexpected outcome from poll update request: "
+                            + result.getOutcome().getValueCase());
+                }
+              }
+              //
+              throw new RuntimeException("Received no outcome from server");
+            }));
+  }
+
+  private void pollWorkflowUpdateHelper(
+      CompletableFuture<PollWorkflowExecutionUpdateResponse> resultCF,
+      PollWorkflowExecutionUpdateRequest request,
+      Deadline deadline) {
+
+    Deadline pollTimeoutDeadline = Deadline.after(60L, TimeUnit.SECONDS).minimum(deadline);
+    genericClient
+        .pollUpdateAsync(request, pollTimeoutDeadline)
+        .whenComplete(
+            (r, e) -> {
+              if ((e instanceof StatusRuntimeException
+                      && ((StatusRuntimeException) e).getStatus().getCode()
+                          == Status.Code.DEADLINE_EXCEEDED)
+                  || pollTimeoutDeadline.isExpired()
+                  || (e == null && !r.hasOutcome())) {
+                // if the request has timed out, stop retrying
+                if (!deadline.isExpired()) {
+                  pollWorkflowUpdateHelper(resultCF, request, deadline);
+                } else {
+                  resultCF.completeExceptionally(
+                      new TimeoutException(
+                          "WorkflowId="
+                              + request.getUpdateRef().getWorkflowExecution().getWorkflowId()
+                              + ", runId="
+                              + request.getUpdateRef().getWorkflowExecution().getRunId()
+                              + ", updateId="
+                              + request.getUpdateRef().getUpdateId()));
+                }
+              } else if (e != null) {
+                resultCF.completeExceptionally(e);
+              } else {
+                resultCF.complete(r);
+              }
+            });
   }
 
   @Override

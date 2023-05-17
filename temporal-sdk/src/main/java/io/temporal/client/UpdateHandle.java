@@ -23,6 +23,7 @@ package io.temporal.client;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * UpdateHandle is a handle to an update workflow execution request that can be used to get the
@@ -51,4 +52,14 @@ public interface UpdateHandle<T> {
    * @return future completed with the result of the update or an exception
    */
   CompletableFuture<T> getResultAsync();
+
+  /**
+   * Returns a {@link CompletableFuture} with the update workflow execution request result
+   * potentially waiting for the update to complete.
+   *
+   * @param timeout maximum time to wait and perform the background long polling
+   * @param unit unit of timeout
+   * @return future completed with the result of the update or an exception
+   */
+  CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit);
 }

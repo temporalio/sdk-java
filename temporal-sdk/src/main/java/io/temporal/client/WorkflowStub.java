@@ -22,6 +22,7 @@ package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.common.Experimental;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
@@ -103,8 +104,7 @@ public interface WorkflowStub {
    *     the update request with an error.
    * @param resultClass class of the update return value.
    * @param <R> type of the update return value.
-   * @param resultType type of the workflow return value. Differs from resultClass for generic
-   *     types.
+   * @param resultType type of the update return value. Differs from resultClass for generic types.
    * @param args update method arguments
    * @return update result
    * @throws WorkflowNotFoundException if the workflow execution doesn't exist or completed and
@@ -130,7 +130,7 @@ public interface WorkflowStub {
    * @param resultClass class of the update return value
    * @param <R> type of the update return value
    * @param args update method arguments
-   * @return update reference that can be used to get the result of the update.
+   * @return update handle that can be used to get the result of the update.
    */
   @Experimental
   <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args);
@@ -145,21 +145,49 @@ public interface WorkflowStub {
    * @param firstExecutionRunId specifies the RunID expected to identify the first run in the
    *     workflow execution chain. If this expectation does not match then the server will reject
    *     the update request with an error.
+   * @param waitPolicy specifies at what point in the update request life cycles this request should
+   *     return.
    * @param resultClass class of the update return value.
    * @param <R> type of the update return value.
-   * @param resultType type of the workflow return value. Differs from resultClass for generic
-   *     types.
+   * @param resultType type of the update return value. Differs from resultClass for generic types.
    * @param args update method arguments
-   * @return update reference that can be used to get the result of the update.
+   * @return update handle that can be used to get the result of the update.
    */
   @Experimental
   <R> UpdateHandle<R> startUpdate(
       String updateName,
       String updateId,
       String firstExecutionRunId,
+      UpdateWorkflowExecutionLifecycleStage waitPolicy,
       Class<R> resultClass,
       Type resultType,
       Object... args);
+
+  /**
+   * Get an update handle to an update request previously started. Getting an update handle does not
+   * guarantee the update ID exists.
+   *
+   * @param updateId the identifier for the requested update.
+   * @param resultClass class of the update return value.
+   * @param <R> type of the update return value.
+   * @return update handle that can be used to get the result of the update.
+   */
+  @Experimental
+  <R> UpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass);
+
+  /**
+   * Get an update handle to an update request previously started.Getting an update handle does not
+   * guarantee the update ID exists.
+   *
+   * @param updateId is an application-layer identifier for the requested update. It must be unique
+   *     within the scope of a workflow execution.
+   * @param resultClass class of the update return value.
+   * @param <R> type of the update return value.
+   * @param resultType type of the update return value. Differs from resultClass for generic types.
+   * @return update handle that can be used to get the result of the update.
+   */
+  @Experimental
+  <R> UpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass, Type resultType);
 
   WorkflowExecution start(Object... args);
 

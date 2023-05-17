@@ -23,18 +23,19 @@ package io.temporal.client;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Experimental
-final class UpdateHandleImpl<T> implements UpdateHandle<T> {
+final class CompletedUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   private final String id;
   private final WorkflowExecution execution;
-  private final CompletableFuture<T> future;
+  private final T result;
 
-  UpdateHandleImpl(String id, WorkflowExecution execution, CompletableFuture<T> future) {
+  CompletedUpdateHandleImpl(String id, WorkflowExecution execution, T result) {
     this.id = id;
     this.execution = execution;
-    this.future = future;
+    this.result = result;
   }
 
   @Override
@@ -49,6 +50,11 @@ final class UpdateHandleImpl<T> implements UpdateHandle<T> {
 
   @Override
   public CompletableFuture<T> getResultAsync() {
-    return future;
+    return CompletableFuture.completedFuture(result);
+  }
+
+  @Override
+  public CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit) {
+    return CompletableFuture.completedFuture(result);
   }
 }

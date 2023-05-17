@@ -29,7 +29,8 @@ class LongPollUtil {
   static <ReqT, RespT> boolean isLongPoll(
       MethodDescriptor<ReqT, RespT> method, CallOptions callOptions) {
     if (method == WorkflowServiceGrpc.getPollWorkflowTaskQueueMethod()
-        || method == WorkflowServiceGrpc.getPollActivityTaskQueueMethod()) {
+        || method == WorkflowServiceGrpc.getPollActivityTaskQueueMethod()
+        || method == WorkflowServiceGrpc.getPollWorkflowExecutionUpdateMethod()) {
       return true;
     }
     if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {

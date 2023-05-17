@@ -62,13 +62,13 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   }
 
   @Override
-  public <R> UpdateOutput<R> update(UpdateInput<R> input) {
-    return next.update(input);
+  public <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input) {
+    return next.startUpdate(input);
   }
 
   @Override
-  public <R> UpdateAsyncOutput<R> updateAsync(UpdateInput<R> input) {
-    return next.updateAsync(input);
+  public <R> PollWorkflowUpdateOutput<R> pollWorkflowUpdate(PollWorkflowUpdateInput<R> input) {
+    return next.pollWorkflowUpdate(input);
   }
 
   @Override
