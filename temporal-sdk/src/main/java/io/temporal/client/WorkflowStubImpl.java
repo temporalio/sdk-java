@@ -305,8 +305,8 @@ class WorkflowStubImpl implements WorkflowStub {
       Object... args) {
     checkStarted();
     try {
-      StartUpdateOptions<R> options =
-          StartUpdateOptions.<R>newBuilder()
+      UpdateOptions<R> options =
+          UpdateOptions.<R>newBuilder()
               .setUpdateName(updateName)
               .setUpdateId(updateId)
               .setFirstExecutionRunId(firstExecutionRunId)
@@ -324,8 +324,8 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args) {
-    StartUpdateOptions<R> options =
-        StartUpdateOptions.<R>newBuilder()
+    UpdateOptions<R> options =
+        UpdateOptions.<R>newBuilder()
             .setUpdateName(updateName)
             .setWaitPolicy(UpdateWaitPolicy.ACCEPTED)
             .setResultClass(resultClass)
@@ -336,7 +336,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(StartUpdateOptions<R> options, Object... args) {
+  public <R> UpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
     checkStarted();
     options.validate();
     WorkflowExecution targetExecution = execution.get();

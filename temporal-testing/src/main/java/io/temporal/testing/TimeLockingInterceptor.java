@@ -21,8 +21,8 @@
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.StartUpdateOptions;
 import io.temporal.client.UpdateHandle;
+import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
@@ -256,7 +256,7 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public <R> UpdateHandle<R> startUpdate(StartUpdateOptions<R> options, Object... args) {
+    public <R> UpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
       return next.startUpdate(options, args);
     }
 

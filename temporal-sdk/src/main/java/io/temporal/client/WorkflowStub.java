@@ -143,7 +143,7 @@ public interface WorkflowStub {
    * @return update handle that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateHandle<R> startUpdate(StartUpdateOptions<R> options, Object... args);
+  <R> UpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args);
 
   /**
    * Get an update handle to a previously started update request. Getting an update handle does not

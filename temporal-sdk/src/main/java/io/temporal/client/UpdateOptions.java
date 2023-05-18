@@ -24,33 +24,37 @@ import com.google.common.base.Objects;
 import java.lang.reflect.Type;
 import java.util.UUID;
 
-public final class StartUpdateOptions<T> {
-  public static <T> StartUpdateOptions.Builder<T> newBuilder() {
-    return new StartUpdateOptions.Builder<T>();
+public final class UpdateOptions<T> {
+  public static <T> UpdateOptions.Builder<T> newBuilder() {
+    return new UpdateOptions.Builder<T>();
   }
 
-  public static StartUpdateOptions.Builder newBuilder(StartUpdateOptions options) {
-    return new StartUpdateOptions.Builder(options);
+  public static <T> UpdateOptions.Builder<T> newBuilder(Class<T> resultClass) {
+    return new UpdateOptions.Builder<T>().setResultClass(resultClass);
   }
 
-  public static StartUpdateOptions getDefaultInstance() {
+  public static UpdateOptions.Builder newBuilder(UpdateOptions options) {
+    return new UpdateOptions.Builder(options);
+  }
+
+  public static UpdateOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
 
-  private static final StartUpdateOptions DEFAULT_INSTANCE;
+  private static final UpdateOptions DEFAULT_INSTANCE;
 
   static {
-    DEFAULT_INSTANCE = StartUpdateOptions.newBuilder().build();
+    DEFAULT_INSTANCE = UpdateOptions.newBuilder().build();
   }
 
-  private String updateName;
-  private String updateId;
-  private String firstExecutionRunId;
-  private UpdateWaitPolicy waitPolicy;
-  private Class<T> resultClass;
-  private Type resultType;
+  private final String updateName;
+  private final String updateId;
+  private final String firstExecutionRunId;
+  private final UpdateWaitPolicy waitPolicy;
+  private final Class<T> resultClass;
+  private final Type resultType;
 
-  private StartUpdateOptions(
+  private UpdateOptions(
       String updateName,
       String updateId,
       String firstExecutionRunId,
@@ -89,15 +93,15 @@ public final class StartUpdateOptions<T> {
     return resultType;
   }
 
-  public StartUpdateOptions.Builder toBuilder() {
-    return new StartUpdateOptions.Builder(this);
+  public UpdateOptions.Builder toBuilder() {
+    return new UpdateOptions.Builder(this);
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    StartUpdateOptions that = (StartUpdateOptions) o;
+    UpdateOptions that = (UpdateOptions) o;
     return Objects.equal(updateName, that.updateName)
         && updateId == that.updateId
         && firstExecutionRunId == that.firstExecutionRunId
@@ -152,9 +156,9 @@ public final class StartUpdateOptions<T> {
     private Class<T> resultClass;
     private Type resultType;
 
-    public Builder() {}
+    private Builder() {}
 
-    private Builder(StartUpdateOptions<T> options) {
+    private Builder(UpdateOptions<T> options) {
       if (options == null) {
         return;
       }
@@ -226,12 +230,12 @@ public final class StartUpdateOptions<T> {
     }
 
     /** Builds StartUpdateOptions with default values. */
-    public StartUpdateOptions<T> build() {
+    public UpdateOptions<T> build() {
       if (updateId == null || updateId.isEmpty()) {
         updateId = UUID.randomUUID().toString();
       }
 
-      return new StartUpdateOptions<T>(
+      return new UpdateOptions<T>(
           updateName,
           updateId,
           firstExecutionRunId == null ? "" : firstExecutionRunId,
