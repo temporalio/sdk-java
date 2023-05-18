@@ -125,14 +125,31 @@ public class UpdateTest {
 
     assertEquals(
         "some-value",
-        workflowStub.update(
-            "update", updateId, execution.getRunId(), String.class, String.class, 0, "some-value"));
+        workflowStub
+            .startUpdate(
+                UpdateOptions.newBuilder(String.class)
+                    .setUpdateName("update")
+                    .setUpdateId(updateId)
+                    .setFirstExecutionRunId(execution.getRunId())
+                    .build(),
+                0,
+                "some-value")
+            .getResultAsync()
+            .get());
     testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     // Try to send another update request with the same update Id
     assertEquals(
         "some-value",
-        workflowStub.update(
-            "update", updateId, "", String.class, String.class, 1, "some-other-value"));
+        workflowStub
+            .startUpdate(
+                UpdateOptions.newBuilder(String.class)
+                    .setUpdateName("update")
+                    .setUpdateId(updateId)
+                    .setFirstExecutionRunId(execution.getRunId())
+                    .build(),
+                "some-other-value")
+            .getResultAsync()
+            .get());
 
     // Try to poll the update before the workflow is complete.
     assertEquals("some-value", handle.getResultAsync().get());

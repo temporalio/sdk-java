@@ -292,27 +292,13 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R update(String updateName, Class<R> resultClass, Object... args) {
-    return update(updateName, "", "", resultClass, resultClass, args);
-  }
-
-  @Override
-  public <R> R update(
-      String updateName,
-      String updateId,
-      String firstExecutionRunId,
-      Class<R> resultClass,
-      Type resultType,
-      Object... args) {
     checkStarted();
     try {
       UpdateOptions<R> options =
           UpdateOptions.<R>newBuilder()
               .setUpdateName(updateName)
-              .setUpdateId(updateId)
-              .setFirstExecutionRunId(firstExecutionRunId)
               .setWaitPolicy(UpdateWaitPolicy.COMPLETED)
               .setResultClass(resultClass)
-              .setResultType(resultType)
               .build();
       return startUpdate(options, args).getResultAsync().get();
     } catch (InterruptedException e) {
