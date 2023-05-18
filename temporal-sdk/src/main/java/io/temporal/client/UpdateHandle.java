@@ -46,7 +46,7 @@ public interface UpdateHandle<T> {
   String getId();
 
   /**
-   * Returns a {@link CompletableFuture} with the update workflow execution request result
+   * Returns a {@link CompletableFuture} with the update workflow execution request result,
    * potentially waiting for the update to complete.
    *
    * @return future completed with the result of the update or an exception
@@ -54,7 +54,7 @@ public interface UpdateHandle<T> {
   CompletableFuture<T> getResultAsync();
 
   /**
-   * Returns a {@link CompletableFuture} with the update workflow execution request result
+   * Returns a {@link CompletableFuture} with the update workflow execution request result,
    * potentially waiting for the update to complete.
    *
    * @param timeout maximum time to wait and perform the background long polling

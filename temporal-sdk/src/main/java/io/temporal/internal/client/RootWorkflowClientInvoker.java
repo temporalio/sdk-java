@@ -415,7 +415,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                             + result.getOutcome().getValueCase());
                 }
               }
-              //
               throw new RuntimeException("Received no outcome from server");
             }));
   }

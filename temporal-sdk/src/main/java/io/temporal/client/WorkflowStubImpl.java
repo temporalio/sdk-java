@@ -24,7 +24,6 @@ import com.google.common.base.Strings;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.errordetails.v1.WorkflowNotReadyFailure;
@@ -306,17 +305,16 @@ class WorkflowStubImpl implements WorkflowStub {
       Object... args) {
     checkStarted();
     try {
-      return startUpdate(
-              updateName,
-              updateId,
-              firstExecutionRunId,
-              UpdateWorkflowExecutionLifecycleStage
-                  .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
-              resultClass,
-              resultType,
-              args)
-          .getResultAsync()
-          .get();
+      StartUpdateOptions<R> options =
+          StartUpdateOptions.<R>newBuilder()
+              .setUpdateName(updateName)
+              .setUpdateId(updateId)
+              .setFirstExecutionRunId(firstExecutionRunId)
+              .setWaitPolicy(UpdateWaitPolicy.COMPLETED)
+              .setResultClass(resultClass)
+              .setResultType(resultType)
+              .build();
+      return startUpdate(options, args).getResultAsync().get();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } catch (ExecutionException e) {
@@ -326,42 +324,36 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args) {
-    return startUpdate(
-        updateName,
-        "",
-        "",
-        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED,
-        resultClass,
-        resultClass,
-        args);
+    StartUpdateOptions<R> options =
+        StartUpdateOptions.<R>newBuilder()
+            .setUpdateName(updateName)
+            .setWaitPolicy(UpdateWaitPolicy.ACCEPTED)
+            .setResultClass(resultClass)
+            .setResultType(resultClass)
+            .build();
+
+    return startUpdate(options, args);
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(
-      String updateName,
-      String updateId,
-      String firstExecutionRunId,
-      UpdateWorkflowExecutionLifecycleStage waitPolicy,
-      Class<R> resultClass,
-      Type resultType,
-      Object... args) {
+  public <R> UpdateHandle<R> startUpdate(StartUpdateOptions<R> options, Object... args) {
     checkStarted();
+    options.validate();
     WorkflowExecution targetExecution = execution.get();
     try {
-      if (updateId == null || updateId.isEmpty()) {
-        updateId = UUID.randomUUID().toString();
-      }
       WorkflowClientCallsInterceptor.StartUpdateOutput<R> result =
           workflowClientInvoker.startUpdate(
               new WorkflowClientCallsInterceptor.StartUpdateInput<>(
                   targetExecution,
-                  updateName,
-                  updateId,
+                  options.getUpdateName(),
+                  options.getUpdateId(),
                   args,
-                  resultClass,
-                  resultType,
-                  firstExecutionRunId,
-                  WaitPolicy.newBuilder().setLifecycleStage(waitPolicy).build()));
+                  options.getResultClass(),
+                  options.getResultType(),
+                  options.getFirstExecutionRunId(),
+                  WaitPolicy.newBuilder()
+                      .setLifecycleStage(options.getWaitPolicy().getProto())
+                      .build()));
 
       if (result.hasResult()) {
         return new CompletedUpdateHandleImpl<>(
@@ -372,11 +364,11 @@ class WorkflowStubImpl implements WorkflowStub {
         return new LazyUpdateHandleImpl<>(
             workflowClientInvoker,
             workflowType.orElse(null),
-            updateName,
+            options.getUpdateName(),
             result.getReference().getUpdateId(),
             result.getReference().getWorkflowExecution(),
-            resultClass,
-            resultType);
+            options.getResultClass(),
+            options.getResultType());
       }
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
