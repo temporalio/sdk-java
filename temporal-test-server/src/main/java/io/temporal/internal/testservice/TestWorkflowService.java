@@ -789,10 +789,18 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollWorkflowExecutionUpdate(
       PollWorkflowExecutionUpdateRequest request,
       StreamObserver<PollWorkflowExecutionUpdateResponse> responseObserver) {
-    responseObserver.onError(
-        Status.UNIMPLEMENTED
-            .withDescription("Test server does not implement poll update")
-            .asRuntimeException());
+    try {
+      ExecutionId executionId =
+          new ExecutionId(request.getNamespace(), request.getUpdateRef().getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      @Nullable Deadline deadline = Context.current().getDeadline();
+      PollWorkflowExecutionUpdateResponse response =
+          mutableState.pollUpdateWorkflowExecution(request, deadline);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
   }
 
   @Override

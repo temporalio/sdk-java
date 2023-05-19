@@ -2084,51 +2084,32 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public UpdateWorkflowExecutionResponse updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request, Deadline deadline) {
-    UpdateWorkflowExecution update = new UpdateWorkflowExecution(request);
-    CompletableFuture<UpdateWorkflowExecutionResponse> acceptance = update.getAcceptance();
-    CompletableFuture<UpdateWorkflowExecutionResponse> completion = update.getCompletion();
-
-    // Before sending an update request, make sure the update does not
-    // already exist
-    boolean updateExists = false;
-    lock.lock();
-    Optional<UpdateWorkflowExecution> inflightUpdate =
-        workflowTaskStateMachine.getData().getUpdateRequest(update.getId());
-    if (inflightUpdate.isPresent()) {
-      acceptance = inflightUpdate.get().getAcceptance();
-      completion = inflightUpdate.get().getCompletion();
-      updateExists = true;
-    }
-    StateMachine<UpdateWorkflowExecutionData> completeUpdate = updates.get(update.getId());
-    if (completeUpdate != null) {
-      acceptance = completeUpdate.getData().acceptance;
-      completion = completeUpdate.getData().complete;
-      updateExists = true;
-    }
-    lock.unlock();
-
     try {
-      if (!updateExists) {
-        update(
-            ctx -> {
-              if (workflowTaskStateMachine.getState() == State.NONE) {
-                scheduleWorkflowTask(ctx);
-              }
-              workflowTaskStateMachine.action(Action.UPDATE_WORKFLOW_EXECUTION, ctx, update, 0);
-            });
-      }
+      UpdateHandle updateHandle = getOrCreateUpdate(request);
       switch (request.getWaitPolicy().getLifecycleStage()) {
         case UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED:
           UpdateWorkflowExecutionResponse acceptResponse =
-              acceptance.get(
-                  deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
-                  TimeUnit.MILLISECONDS);
+              updateHandle
+                  .getAcceptance()
+                  .get(
+                      deadline != null
+                          ? deadline.timeRemaining(TimeUnit.MILLISECONDS)
+                          : Long.MAX_VALUE,
+                      TimeUnit.MILLISECONDS);
           if (acceptResponse.getOutcome().hasFailure()) {
             return acceptResponse;
           }
-          return completion.get(
-              deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
-              TimeUnit.MILLISECONDS);
+          return updateHandle
+              .getCompletion()
+              .get(
+                  deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
+                  TimeUnit.MILLISECONDS);
+        case UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED:
+          return updateHandle
+              .getAcceptance()
+              .get(
+                  deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
+                  TimeUnit.MILLISECONDS);
         default:
           throw Status.INTERNAL
               .withDescription(
@@ -2152,6 +2133,102 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .withCause(e)
           .withDescription("update deadline exceeded")
           .asRuntimeException();
+    }
+  }
+
+  @Override
+  public PollWorkflowExecutionUpdateResponse pollUpdateWorkflowExecution(
+      PollWorkflowExecutionUpdateRequest request, Deadline deadline) {
+    try {
+      UpdateHandle updateHandle = getUpdate(request.getUpdateRef().getUpdateId());
+      UpdateWorkflowExecutionResponse completionResponse =
+          updateHandle
+              .getCompletion()
+              .get(
+                  deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE,
+                  TimeUnit.MILLISECONDS);
+
+      return PollWorkflowExecutionUpdateResponse.newBuilder()
+          .setOutcome(completionResponse.getOutcome())
+          .build();
+    } catch (TimeoutException e) {
+      return PollWorkflowExecutionUpdateResponse.getDefaultInstance();
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof StatusRuntimeException) {
+        throw (StatusRuntimeException) cause;
+      }
+      throw Status.INTERNAL
+          .withCause(cause)
+          .withDescription(cause.getMessage())
+          .asRuntimeException();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  UpdateHandle getOrCreateUpdate(UpdateWorkflowExecutionRequest updateRequest) {
+    // Before sending an update request, make sure the update does not
+    // already exist
+    lock.lock();
+    String updateId = updateRequest.getRequest().getMeta().getUpdateId();
+    try {
+      Optional<UpdateWorkflowExecution> inflightUpdate =
+          workflowTaskStateMachine.getData().getUpdateRequest(updateId);
+      if (inflightUpdate.isPresent()) {
+        return new UpdateHandle(
+            inflightUpdate.get().getId(),
+            inflightUpdate.get().getAcceptance(),
+            inflightUpdate.get().getCompletion());
+      }
+      StateMachine<UpdateWorkflowExecutionData> acceptedUpdate = updates.get(updateId);
+      if (acceptedUpdate != null) {
+        return new UpdateHandle(
+            acceptedUpdate.getData().id,
+            acceptedUpdate.getData().acceptance,
+            acceptedUpdate.getData().complete);
+      }
+
+      UpdateWorkflowExecution update = new UpdateWorkflowExecution(updateRequest);
+      update(
+          ctx -> {
+            if (workflowTaskStateMachine.getState() == State.NONE) {
+              scheduleWorkflowTask(ctx);
+            }
+            workflowTaskStateMachine.action(Action.UPDATE_WORKFLOW_EXECUTION, ctx, update, 0);
+          });
+      return new UpdateHandle(update.getId(), update.getAcceptance(), update.getCompletion());
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  UpdateHandle getUpdate(String updateId) {
+    // Before sending an update request, make sure the update does not
+    // already exist
+    lock.lock();
+    try {
+      Optional<UpdateWorkflowExecution> inflightUpdate =
+          workflowTaskStateMachine.getData().getUpdateRequest(updateId);
+      if (inflightUpdate.isPresent()) {
+        return new UpdateHandle(
+            inflightUpdate.get().getId(),
+            inflightUpdate.get().getAcceptance(),
+            inflightUpdate.get().getCompletion());
+      }
+      StateMachine<UpdateWorkflowExecutionData> acceptedUpdate = updates.get(updateId);
+      if (acceptedUpdate != null) {
+        return new UpdateHandle(
+            acceptedUpdate.getData().id,
+            acceptedUpdate.getData().acceptance,
+            acceptedUpdate.getData().complete);
+      }
+      throw Status.NOT_FOUND
+          .withDescription("update " + updateId + " not found")
+          .asRuntimeException();
+
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -2383,6 +2460,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           + ", completion="
           + completion
           + '}';
+    }
+  }
+
+  static class UpdateHandle {
+    private final String id;
+    private final CompletableFuture<UpdateWorkflowExecutionResponse> acceptance;
+    private final CompletableFuture<UpdateWorkflowExecutionResponse> completion;
+
+    private UpdateHandle(
+        String id,
+        CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
+        CompletableFuture<UpdateWorkflowExecutionResponse> completion) {
+      this.id = id;
+      this.acceptance = acceptance;
+      this.completion = completion;
+    }
+
+    public CompletableFuture<UpdateWorkflowExecutionResponse> getAcceptance() {
+      return acceptance;
+    }
+
+    public CompletableFuture<UpdateWorkflowExecutionResponse> getCompletion() {
+      return completion;
+    }
+
+    public String getId() {
+      return id;
     }
   }
 

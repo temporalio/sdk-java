@@ -42,6 +42,10 @@ public interface GenericWorkflowClient {
   @Experimental
   UpdateWorkflowExecutionResponse update(UpdateWorkflowExecutionRequest updateParameters);
 
+  @Experimental
+  CompletableFuture<PollWorkflowExecutionUpdateResponse> pollUpdateAsync(
+      @Nonnull PollWorkflowExecutionUpdateRequest request, @Nonnull Deadline deadline);
+
   void terminate(TerminateWorkflowExecutionRequest request);
 
   GetWorkflowExecutionHistoryResponse longPollHistory(

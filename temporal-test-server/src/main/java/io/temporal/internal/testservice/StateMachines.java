@@ -1793,7 +1793,6 @@ class StateMachines {
                   UpdateRef.newBuilder()
                       .setWorkflowExecution(ctx.getExecution())
                       .setUpdateId(data.id))
-              .setOutcome(Outcome.getDefaultInstance())
               .build();
 
       data.acceptance.complete(response);
