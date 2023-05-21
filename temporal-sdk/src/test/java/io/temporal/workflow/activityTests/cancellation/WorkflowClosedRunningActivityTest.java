@@ -100,9 +100,11 @@ public class WorkflowClosedRunningActivityTest {
         untyped.terminate("test termination");
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
-        assertTrue(activityCancelled.waitForSignal(7, TimeUnit.SECONDS));
         break;
     }
+
+    // Wait for workflow failure before checking activity cancellation or workflow history
+    assertThrows(WorkflowFailedException.class, () -> untyped.getResult(String.class));
 
     assertTrue(activityCancelled.waitForSignal(1, TimeUnit.SECONDS));
 
@@ -125,9 +127,9 @@ public class WorkflowClosedRunningActivityTest {
       while (true) {
         try {
           Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
-        } catch (ActivityNotExistsException e) {
+        } catch (ActivityCompletionException e) {
           // in case of the whole workflow gets cancelled, we are getting
-          // ActivityNotExistsException
+          // some type of ActivityCompletionException
           activityCancelled.signal();
         }
 

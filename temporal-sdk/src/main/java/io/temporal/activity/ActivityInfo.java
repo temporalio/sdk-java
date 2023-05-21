@@ -67,6 +67,13 @@ public interface ActivityInfo {
   long getScheduledTimestamp();
 
   /**
+   * Time when the activity task (this attempt) was started
+   *
+   * @return Timestamp in milliseconds (UNIX Epoch time)
+   */
+  long getStartedTimestamp();
+
+  /**
    * Time when the Activity Task (current attempt) was scheduled by the Temporal Server.
    *
    * @return Timestamp in milliseconds (UNIX Epoch time)

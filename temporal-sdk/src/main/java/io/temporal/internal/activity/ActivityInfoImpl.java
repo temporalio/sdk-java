@@ -88,6 +88,11 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   }
 
   @Override
+  public long getStartedTimestamp() {
+    return Timestamps.toMillis(response.getStartedTime());
+  }
+
+  @Override
   public Duration getScheduleToCloseTimeout() {
     return ProtobufTimeUtils.toJavaDuration(response.getScheduleToCloseTimeout());
   }

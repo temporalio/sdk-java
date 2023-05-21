@@ -27,10 +27,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
@@ -51,6 +48,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 import org.hamcrest.CoreMatchers;
@@ -707,6 +705,102 @@ public class ActivityTimeoutTest {
   }
 
   /**
+   * Checks the behavior of an activity heartbeating past its schedule to close timeout.
+   *
+   * <ul>
+   *   <li>The correct timeout exception is thrown into workflow code, and fails the workflow
+   *   <li>The heartbeat call in the activity throws with the expected exception
+   * </ul>
+   */
+  @Test
+  public void scheduleToCloseTimeout_onHeartbeat() throws Exception {
+    TestActivitiesImpl testActivities = new TestActivitiesImpl();
+
+    Worker worker = testWorkflowRule.getWorker();
+    worker.registerWorkflowImplementationTypes(TestScheduleToCloseTimeoutOnHeartbeat.class);
+    worker.registerActivitiesImplementations(testActivities);
+    testWorkflowRule.getTestEnvironment().start();
+
+    TestWorkflows.TestWorkflowReturnString workflowStub =
+        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class);
+    WorkflowException e = assertThrows(WorkflowException.class, workflowStub::execute);
+
+    assertTrue(e.getCause() instanceof ActivityFailure);
+    ActivityFailure activityFailure = (ActivityFailure) e.getCause();
+
+    assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
+
+    assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure scheduleToClose = (TimeoutFailure) activityFailure.getCause();
+    assertEquals(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, scheduleToClose.getTimeoutType());
+    assertEquals("heartbeatValue", scheduleToClose.getLastHeartbeatDetails().get(String.class));
+
+    assertNull(scheduleToClose.getCause());
+
+    testActivities.activityAttemptCompleted.waitForSignal(10, TimeUnit.SECONDS);
+
+    assertEquals(1, testActivities.completionExceptions.size());
+    ActivityCompletionException exception = testActivities.completionExceptions.get(0);
+    assertTrue(exception instanceof ActivityTaskTimedOutException);
+    ActivityTaskTimedOutException activityTaskTimedOutException =
+        (ActivityTaskTimedOutException) exception;
+
+    assertEquals(
+        TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, activityTaskTimedOutException.getTimeoutType());
+    long millisPastDeadline =
+        System.currentTimeMillis() - activityTaskTimedOutException.getTimeoutDeadline();
+    assertTrue(millisPastDeadline > 0 && millisPastDeadline < 10000);
+  }
+
+  /**
+   * Checks the behavior of an activity heartbeating past its start to close timeout.
+   *
+   * <ul>
+   *   <li>The correct timeout exception is thrown into workflow code, and fails the workflow
+   *   <li>The heartbeat call in the activity throws with the expected exception
+   * </ul>
+   */
+  @Test
+  public void startToCloseTimeout_onHeartbeat() throws Exception {
+    TestActivitiesImpl testActivities = new TestActivitiesImpl();
+
+    Worker worker = testWorkflowRule.getWorker();
+    worker.registerWorkflowImplementationTypes(TestStartToCloseTimeoutOnHeartbeat.class);
+    worker.registerActivitiesImplementations(testActivities);
+    testWorkflowRule.getTestEnvironment().start();
+
+    TestWorkflows.TestWorkflowReturnString workflowStub =
+        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class);
+    WorkflowException e = assertThrows(WorkflowException.class, workflowStub::execute);
+
+    assertTrue(e.getCause() instanceof ActivityFailure);
+    ActivityFailure activityFailure = (ActivityFailure) e.getCause();
+
+    assertEquals(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED, activityFailure.getRetryState());
+
+    assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure startToClose = (TimeoutFailure) activityFailure.getCause();
+    assertEquals(TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, startToClose.getTimeoutType());
+    assertEquals("heartbeatValue", startToClose.getLastHeartbeatDetails().get(String.class));
+
+    assertNull(startToClose.getCause());
+
+    testActivities.activityAttemptCompleted.waitForSignal(10, TimeUnit.SECONDS);
+
+    assertEquals(1, testActivities.completionExceptions.size());
+    ActivityCompletionException exception = testActivities.completionExceptions.get(0);
+    assertTrue(exception instanceof ActivityTaskTimedOutException);
+    ActivityTaskTimedOutException activityTaskTimedOutException =
+        (ActivityTaskTimedOutException) exception;
+
+    assertEquals(
+        TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, activityTaskTimedOutException.getTimeoutType());
+    long millisPastDeadline =
+        System.currentTimeMillis() - activityTaskTimedOutException.getTimeoutDeadline();
+    assertTrue(millisPastDeadline > 0 && millisPastDeadline < 10000);
+  }
+
+  /**
    * Checks the behavior of heartbeat timeout activity failure in presence of limited retries.
    *
    * <p>The expected structure is <br>
@@ -828,6 +922,54 @@ public class ActivityTimeoutTest {
 
       // false for second argument means to heartbeat once to set details and then stop.
       activities.heartbeatAndWait(5000, false);
+
+      fail();
+      return "unexpected completion";
+    }
+  }
+
+  public static class TestStartToCloseTimeoutOnHeartbeat
+      implements TestWorkflows.TestWorkflowReturnString {
+
+    @Override
+    public String execute() {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setHeartbeatTimeout(
+                  Duration.ofSeconds(10)) // long heartbeat timeout to trigger throttling
+              .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+              .build();
+
+      TestActivities.VariousTestActivities activities =
+          Workflow.newActivityStub(TestActivities.VariousTestActivities.class, options);
+
+      // true for second argument means to keep heartbeating
+      activities.heartbeatAndWait(5000, true);
+
+      fail();
+      return "unexpected completion";
+    }
+  }
+
+  public static class TestScheduleToCloseTimeoutOnHeartbeat
+      implements TestWorkflows.TestWorkflowReturnString {
+
+    @Override
+    public String execute() {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setHeartbeatTimeout(
+                  Duration.ofSeconds(10)) // long heartbeat timeout to trigger throttling
+              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .build();
+
+      TestActivities.VariousTestActivities activities =
+          Workflow.newActivityStub(TestActivities.VariousTestActivities.class, options);
+
+      // true for second argument means to keep heartbeating
+      activities.heartbeatAndWait(5000, true);
 
       fail();
       return "unexpected completion";

@@ -26,6 +26,7 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
@@ -57,7 +58,6 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final String identity;
   private final ScheduledExecutorService heartbeatExecutor;
   private final long heartbeatIntervalMillis;
-  private final DataConverter dataConverter;
   private final DataConverter dataConverterWithActivityContext;
 
   private final Scope metricsScope;
@@ -83,7 +83,6 @@ class HeartbeatContextImpl implements HeartbeatContext {
       Duration defaultHeartbeatThrottleInterval) {
     this.service = service;
     this.metricsScope = metricsScope;
-    this.dataConverter = dataConverter;
     this.dataConverterWithActivityContext =
         dataConverter.withContext(
             new ActivitySerializationContext(
@@ -110,6 +109,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
    */
   @Override
   public <V> void heartbeat(V details) throws ActivityCompletionException {
+    checkHasTimedOutLocally();
     if (heartbeatExecutor.isShutdown()) {
       throw new ActivityWorkerShutdownException(info);
     }
@@ -127,6 +127,35 @@ class HeartbeatContextImpl implements HeartbeatContext {
       }
     } finally {
       lock.unlock();
+    }
+  }
+
+  /**
+   * Check for start to close and schedule to close timeouts locally. This allows for these timeouts
+   * to be detected even if the heartbeat gets throttled and never reaches Temporal server.
+   *
+   * @throws ActivityTaskTimedOutException
+   */
+  private void checkHasTimedOutLocally() throws ActivityTaskTimedOutException {
+    // Check schedule to start first. If both timeouts have been exceeded,
+    // throwing this one is more important because there won't be any more
+    // activity retries.
+    if (!info.getScheduleToCloseTimeout().isZero()) {
+      long scheduleToCloseDeadline =
+          info.getScheduledTimestamp() + info.getScheduleToCloseTimeout().toMillis();
+      if (System.currentTimeMillis() > scheduleToCloseDeadline) {
+        throw new ActivityTaskTimedOutException(
+            info, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, scheduleToCloseDeadline);
+      }
+    }
+
+    if (!info.getStartToCloseTimeout().isZero()) {
+      long startToCloseDeadline =
+          info.getStartedTimestamp() + info.getStartToCloseTimeout().toMillis();
+      if (System.currentTimeMillis() > startToCloseDeadline) {
+        throw new ActivityTaskTimedOutException(
+            info, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, startToCloseDeadline);
+      }
     }
   }
 

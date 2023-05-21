@@ -33,9 +33,11 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionClient;
+import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.io.Closeable;
 import java.io.IOException;
@@ -222,6 +224,9 @@ public class TestActivities {
   public static class TestActivitiesImpl implements VariousTestActivities {
 
     public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
+    public final List<ActivityCompletionException> completionExceptions =
+        Collections.synchronizedList(new ArrayList<>());
+    public final Signal activityAttemptCompleted = new Signal();
     public final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger heartbeatCounter = new AtomicInteger();
     public final AtomicInteger applicationFailureCounter = new AtomicInteger();
@@ -353,7 +358,12 @@ public class TestActivities {
         int count = 0;
         while (System.nanoTime() - startNs < TimeUnit.MILLISECONDS.toNanos(waitMs)) {
           if (heartbeatMoreThanOnce || count == 0) {
-            Activity.getExecutionContext().heartbeat("heartbeatValue");
+            try {
+              Activity.getExecutionContext().heartbeat("heartbeatValue");
+            } catch (ActivityCompletionException e) {
+              completionExceptions.add(e);
+              throw e;
+            }
           }
           count++;
           Thread.sleep(100);
@@ -361,6 +371,8 @@ public class TestActivities {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
+      } finally {
+        activityAttemptCompleted.signal();
       }
       return "heartbeatAndWait";
     }
