@@ -191,7 +191,7 @@ public final class WorkerOptions {
      * <p>Due to internal logic where pollers alternate between sticky and non-sticky queues, this
      * value cannot be 1 and will be adjusted to 2 if set to that value.
      *
-     * <p>Default is 5.
+     * <p>Default is 5, which is chosen if set to zero.
      */
     public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
@@ -203,7 +203,7 @@ public final class WorkerOptions {
      * workflow tasks will be using host local task queue due to caching. So try incrementing {@link
      * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
      *
-     * <p>Default is 5.
+     * <p>Default is 5, which is chosen if set to zero.
      *
      * @deprecated Use {@link #setMaxConcurrentWorkflowTaskPollers}
      */
@@ -217,7 +217,7 @@ public final class WorkerOptions {
      * worker is not throttled due to `MaxActivitiesPerSecond` or
      * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
      *
-     * <p>Default is 5.
+     * <p>Default is 5, which is chosen if set to zero.
      */
     public Builder setMaxConcurrentActivityTaskPollers(int maxConcurrentActivityTaskPollers) {
       this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
@@ -229,7 +229,7 @@ public final class WorkerOptions {
      * worker is not throttled due to `MaxActivitiesPerSecond` or
      * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
      *
-     * <p>Default is 5.
+     * <p>Default is 5, which is chosen if set to zero.
      *
      * @deprecated Use {@link #setMaxConcurrentActivityTaskPollers}
      */
