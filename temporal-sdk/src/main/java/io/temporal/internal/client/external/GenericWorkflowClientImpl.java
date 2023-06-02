@@ -232,6 +232,74 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
+  @Override
+  public CreateScheduleResponse createSchedule(CreateScheduleRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .createSchedule(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<ListSchedulesResponse> listSchedulesAsync(ListSchedulesRequest request) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .listSchedules(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public UpdateScheduleResponse updateSchedule(UpdateScheduleRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .updateSchedule(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public PatchScheduleResponse patchSchedule(PatchScheduleRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .patchSchedule(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public DeleteScheduleResponse deleteSchedule(DeleteScheduleRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .deleteSchedule(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public DescribeScheduleResponse describeSchedule(DescribeScheduleRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .describeSchedule(request),
+        grpcRetryerOptions);
+  }
+
   private static <T> CompletableFuture<T> toCompletableFuture(
       ListenableFuture<T> listenableFuture) {
     CompletableFuture<T> result = new CompletableFuture<>();
