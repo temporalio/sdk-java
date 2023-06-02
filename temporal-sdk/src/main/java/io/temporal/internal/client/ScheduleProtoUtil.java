@@ -20,7 +20,6 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import com.google.common.base.MoreObjects;
@@ -38,6 +37,7 @@ import io.temporal.api.workflow.v1.NewWorkflowExecutionInfo;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.*;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
@@ -46,7 +46,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class ScheduleProtoUtil {
 
@@ -119,18 +118,19 @@ public class ScheduleProtoUtil {
         workflowRequest.setInput(inputArgs.get());
       }
 
-      @Nullable
-      Memo memo =
-          (startWorkflowAction.getOptions().getMemo() != null)
-              ? Memo.newBuilder()
-                  .putAllFields(
-                      intoPayloadMap(
-                          clientOptions.getDataConverter(),
-                          startWorkflowAction.getOptions().getMemo()))
-                  .build()
-              : null;
-      if (memo != null) {
-        workflowRequest.setMemo(memo);
+      if (startWorkflowAction.getOptions().getMemo() != null) {
+        Map<String, Payload> memo = new HashMap<>();
+        for (Map.Entry<String, Object> item :
+            startWorkflowAction.getOptions().getMemo().entrySet()) {
+          if (item.getValue() instanceof EncodedValues) {
+            memo.put(
+                item.getKey(), ((EncodedValues) item.getValue()).toPayloads().get().getPayloads(0));
+          } else {
+            memo.put(
+                item.getKey(), clientOptions.getDataConverter().toPayload(item.getValue()).get());
+          }
+        }
+        workflowRequest.setMemo(Memo.newBuilder().putAllFields(memo).build());
       }
 
       if (wfOptions.getSearchAttributes() != null && !wfOptions.getSearchAttributes().isEmpty()) {
@@ -409,7 +409,13 @@ public class ScheduleProtoUtil {
 
       if (startWfAction.hasMemo()) {
         Map<String, Object> memos = new HashMap<>();
-        memos.putAll(startWfAction.getMemo().getFieldsMap());
+        for (Map.Entry<String, Payload> memo : startWfAction.getMemo().getFieldsMap().entrySet()) {
+          EncodedValues encodedMemo =
+              new EncodedValues(
+                  Optional.of(Payloads.newBuilder().addPayloads(memo.getValue()).build()),
+                  clientOptions.getDataConverter());
+          memos.put(memo.getKey(), encodedMemo);
+        }
         wfOptionsBuilder.setMemo(memos);
       }
 

@@ -59,7 +59,8 @@ public final class ScheduleActionStartWorkflow implements ScheduleAction {
   }
 
   /**
-   * Get the workflow options used.
+   * Get the workflow options used. Note {@link WorkflowOptions#getMemo()} every value here is an
+   * instance of {@link EncodedValues}. To access, call {@link EncodedValues#get} with an index of 0.
    *
    * @return workflow options used for the scheduled workflows.
    */

@@ -20,9 +20,6 @@
 
 package io.temporal.client.schedules;
 
-import static org.junit.Assume.assumeTrue;
-
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.EncodedValues;
@@ -41,10 +38,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import static org.junit.Assume.assumeTrue;
+
 public class ScheduleTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setUseExternalService(true)
           .setWorkflowTypes(ScheduleTest.QuickWorkflowImpl.class)
           .build();
 
@@ -85,10 +85,10 @@ public class ScheduleTest {
             .build());
   }
 
-  @Before
-  public void checkRealServer() {
-    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  }
+   @Before
+   public void checkRealServer() {
+     assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+   }
 
   @Test
   public void createSchedule() {
@@ -328,13 +328,9 @@ public class ScheduleTest {
     Assert.assertEquals("TestWorkflow1", startWfAction.getWorkflowType());
     EncodedValues parameters = startWfAction.getArgs();
     Assert.assertEquals("arg", parameters.get(0, String.class));
-    Payload memoPayload = (Payload) startWfAction.getOptions().getMemo().get("memokey1");
-    String memoValue =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getOptions()
-            .getDataConverter()
-            .fromPayload(memoPayload, String.class, String.class);
+    EncodedValues encodedMemo =
+        (EncodedValues) startWfAction.getOptions().getMemo().get("memokey1");
+    String memoValue = encodedMemo.get(0, String.class);
     Assert.assertEquals("memoval1", memoValue);
     //
     Assert.assertEquals(
@@ -375,13 +371,9 @@ public class ScheduleTest {
     Assert.assertEquals("memoval2", description.getMemo("memokey2", String.class));
     ScheduleActionStartWorkflow startWfAction =
         ((ScheduleActionStartWorkflow) description.getSchedule().getAction());
-    Payload memoPayload = (Payload) startWfAction.getOptions().getMemo().get("memokey1");
-    String memoValue =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getOptions()
-            .getDataConverter()
-            .fromPayload(memoPayload, String.class, String.class);
+    EncodedValues encodedMemo =
+        (EncodedValues) startWfAction.getOptions().getMemo().get("memokey1");
+    String memoValue = encodedMemo.get(0, String.class);
     Assert.assertEquals("memoval1", memoValue);
 
     handle.update(
@@ -403,13 +395,8 @@ public class ScheduleTest {
         ScheduleActionStartWorkflow.class, description.getSchedule().getAction().getClass());
     Assert.assertEquals("memoval2", description.getMemo("memokey2", String.class));
     startWfAction = ((ScheduleActionStartWorkflow) description.getSchedule().getAction());
-    memoPayload = (Payload) startWfAction.getOptions().getMemo().get("memokey3");
-    memoValue =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getOptions()
-            .getDataConverter()
-            .fromPayload(memoPayload, String.class, String.class);
+    encodedMemo = (EncodedValues) startWfAction.getOptions().getMemo().get("memokey3");
+    memoValue = encodedMemo.get(0, String.class);
     Assert.assertEquals("memoval3", memoValue);
 
     Assert.assertEquals(
@@ -417,7 +404,7 @@ public class ScheduleTest {
         ((ScheduleActionStartWorkflow) description.getSchedule().getAction())
             .getOptions()
             .getWorkflowTaskTimeout());
-    //
+    // Update the schedule state
     Instant expectedUpdateTime = description.getInfo().getLastUpdatedAt();
     handle.update(
         (ScheduleUpdateInput input) -> {
@@ -432,13 +419,8 @@ public class ScheduleTest {
     //
     Assert.assertEquals("memoval2", description.getMemo("memokey2", String.class));
     startWfAction = ((ScheduleActionStartWorkflow) description.getSchedule().getAction());
-    memoPayload = (Payload) startWfAction.getOptions().getMemo().get("memokey3");
-    //    memoValue =
-    //        testWorkflowRule
-    //            .getWorkflowClient()
-    //            .getOptions()
-    //            .getDataConverter()
-    //            .fromPayload(memoPayload, String.class, String.class);
+    encodedMemo = (EncodedValues) startWfAction.getOptions().getMemo().get("memokey3");
+    memoValue = encodedMemo.get(0, String.class);
     Assert.assertEquals("memoval3", memoValue);
     //
     Assert.assertNotEquals(expectedUpdateTime, description.getInfo().getLastUpdatedAt());
