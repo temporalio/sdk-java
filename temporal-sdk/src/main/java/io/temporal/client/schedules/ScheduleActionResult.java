@@ -27,7 +27,7 @@ public final class ScheduleActionResult {
   /**
    * Get the scheduled time of the action including jitter.
    *
-   * @return
+   * @return scheduled time of action
    */
   public Instant getScheduledAt() {
     return scheduledAt;
@@ -36,7 +36,7 @@ public final class ScheduleActionResult {
   /**
    * Get when the action actually started.
    *
-   * @return
+   * @return time action actually started
    */
   public Instant getStartedAt() {
     return startedAt;
@@ -45,7 +45,7 @@ public final class ScheduleActionResult {
   /**
    * Action that took place.
    *
-   * @return
+   * @return action started
    */
   public ScheduleActionExecution getAction() {
     return action;

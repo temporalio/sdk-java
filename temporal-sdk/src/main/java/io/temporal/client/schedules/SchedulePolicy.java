@@ -149,7 +149,10 @@ public final class SchedulePolicy {
     }
 
     public SchedulePolicy build() {
-      return new SchedulePolicy(overlap, catchupWindow, pauseOnFailure);
+      return new SchedulePolicy(
+          overlap == null ? ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP : overlap,
+          catchupWindow,
+          pauseOnFailure);
     }
   }
 }

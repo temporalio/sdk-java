@@ -45,7 +45,6 @@ public class ScheduleTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setUseExternalService(true)
           .setWorkflowTypes(ScheduleTest.QuickWorkflowImpl.class)
           .build();
 

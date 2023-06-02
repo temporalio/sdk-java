@@ -58,20 +58,37 @@ public final class ScheduleClientOptions {
     DEFAULT_INSTANCE = ScheduleActionStartWorkflow.newBuilder().build();
   }
 
+  /**
+   * Get the namespace this client will operate on.
+   *
+   * @return Client namespace
+   */
   public String getNamespace() {
     return namespace;
   }
 
+  /**
+   * Get the data converters of this client
+   *
+   * @return The list of data converters to use with the client.
+   */
   public DataConverter getDataConverter() {
     return dataConverter;
   }
 
+  /**
+   * Get the human-readable identity of the client.
+   *
+   * @return The identity of the client used on some requests.
+   */
   public String getIdentity() {
     return identity;
   }
 
   /**
-   * @return the list of context propagators to use with the client.
+   * Get the context propagators of this client
+   *
+   * @return The list of context propagators to use with the client.
    */
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
@@ -103,13 +120,15 @@ public final class ScheduleClientOptions {
       return this;
     }
 
-    /** Override human-readable identity of the worker. */
+    /** Override human-readable identity of the client. */
     public Builder setIdentity(String identity) {
       this.identity = identity;
       return this;
     }
 
     /**
+     * Set the context propagators for this client.
+     *
      * @param contextPropagators specifies the list of context propagators to use with the client.
      */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {

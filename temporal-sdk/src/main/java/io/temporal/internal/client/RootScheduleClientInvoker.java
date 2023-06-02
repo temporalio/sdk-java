@@ -115,7 +115,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   @Override
   public ListScheduleOutput listSchedules(ListSchedulesInput input) {
     ListScheduleListDescriptionIterator iterator =
-        new ListScheduleListDescriptionIterator(clientOptions.getNamespace(), null, genericClient);
+        new ListScheduleListDescriptionIterator(
+            clientOptions.getNamespace(), input.getPageSize(), genericClient);
     iterator.init();
     Iterator<ScheduleListDescription> wrappedIterator =
         Iterators.transform(

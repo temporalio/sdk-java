@@ -77,8 +77,7 @@ public final class ScheduleActionStartWorkflow implements ScheduleAction {
   }
 
   /**
-   * Arguments for the workflow. Note, when fetching this from the server, the every value here is
-   * an instance of <see cref="IEncodedRawValue" />
+   * Arguments for the workflow.
    *
    * @return the arguments used for the scheduled workflows.
    */
@@ -107,9 +106,7 @@ public final class ScheduleActionStartWorkflow implements ScheduleAction {
       return this;
     }
 
-    /** Set the workflow type. 
-     * workflowInterface must implement a WorkflowInterface 
-     */
+    /** Set the workflow type. workflowInterface must implement a WorkflowInterface */
     public <T> Builder setWorkflowType(Class<T> workflowInterface) {
       POJOWorkflowInterfaceMetadata workflowMetadata =
           POJOWorkflowInterfaceMetadata.newInstance(workflowInterface, true);

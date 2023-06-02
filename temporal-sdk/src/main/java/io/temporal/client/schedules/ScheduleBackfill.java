@@ -56,7 +56,7 @@ public final class ScheduleBackfill {
   /**
    * Get the start of the range in this request. This is exclusive.
    *
-   * @return
+   * @return start of range
    */
   public Instant getStartAt() {
     return startAt;
@@ -65,7 +65,7 @@ public final class ScheduleBackfill {
   /**
    * End of the range to evaluate the schedule in this request. This is inclusive.
    *
-   * @return
+   * @return end of range
    */
   public Instant getEndAt() {
     return endAt;
@@ -74,7 +74,7 @@ public final class ScheduleBackfill {
   /**
    * Get the overlap policy for this request
    *
-   * @return
+   * @return overlap policy
    */
   public ScheduleOverlapPolicy getOverlapPolicy() {
     return overlapPolicy;

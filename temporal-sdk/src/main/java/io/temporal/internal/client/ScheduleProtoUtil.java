@@ -26,7 +26,6 @@ import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.*;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.schedule.v1.*;
 import io.temporal.api.schedule.v1.Schedule;
 import io.temporal.api.schedule.v1.ScheduleAction;
@@ -61,18 +60,18 @@ public class ScheduleProtoUtil {
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> workflowOptionsContextPropagators) {
-    List<ContextPropagator> workflowClientContextPropagators =
+      List<ContextPropagator> scheduleOptionsContextPropagators) {
+    List<ContextPropagator> scheduleClientContextPropagators =
         clientOptions.getContextPropagators();
-    if ((workflowClientContextPropagators.isEmpty() && workflowOptionsContextPropagators == null)
-        || (workflowOptionsContextPropagators != null
-            && workflowOptionsContextPropagators.isEmpty())) {
+    if ((scheduleClientContextPropagators.isEmpty() && scheduleOptionsContextPropagators == null)
+        || (scheduleOptionsContextPropagators != null
+            && scheduleOptionsContextPropagators.isEmpty())) {
       return null;
     }
 
     List<ContextPropagator> listToUse =
         MoreObjects.firstNonNull(
-            workflowOptionsContextPropagators, workflowClientContextPropagators);
+            scheduleOptionsContextPropagators, scheduleClientContextPropagators);
     Map<String, Payload> result = new HashMap<>();
     for (ContextPropagator propagator : listToUse) {
       result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
@@ -86,12 +85,11 @@ public class ScheduleProtoUtil {
 
       WorkflowOptions wfOptions = startWorkflowAction.getOptions();
       // Disallow some options
-      if (wfOptions.getWorkflowIdReusePolicy()
-          != WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE) {
+      if (wfOptions.getWorkflowIdReusePolicy() != null) {
         throw new IllegalArgumentException(
             "ID reuse policy cannot change from default for scheduled workflow");
       }
-      if (wfOptions.getWorkflowIdReusePolicy() != null) {
+      if (wfOptions.getCronSchedule() != null) {
         throw new IllegalArgumentException("Cron schedule cannot be set on scheduled workflow");
       }
       // Validate required options
@@ -304,7 +302,8 @@ public class ScheduleProtoUtil {
   public io.temporal.client.schedules.ScheduleSpec protoToScheduleSpec(ScheduleSpec scheduleSpec) {
     io.temporal.client.schedules.ScheduleSpec.Builder specBuilder =
         io.temporal.client.schedules.ScheduleSpec.newBuilder()
-            .setTimeZoneName(scheduleSpec.getTimezoneName());
+            .setTimeZoneName(
+                scheduleSpec.getTimezoneName() == null ? "" : scheduleSpec.getTimezoneName());
 
     if (scheduleSpec.hasJitter()) {
       specBuilder.setJitter(ProtobufTimeUtils.toJavaDuration(scheduleSpec.getJitter()));
@@ -408,13 +407,13 @@ public class ScheduleProtoUtil {
             RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
       }
 
-      if (startWfAction.getMemo() != null) {
+      if (startWfAction.hasMemo()) {
         Map<String, Object> memos = new HashMap<>();
         memos.putAll(startWfAction.getMemo().getFieldsMap());
         wfOptionsBuilder.setMemo(memos);
       }
 
-      if (startWfAction.getSearchAttributes() != null) {
+      if (startWfAction.hasSearchAttributes()) {
         wfOptionsBuilder.setSearchAttributes(
             Collections.unmodifiableMap(
                 SearchAttributesUtil.decode(startWfAction.getSearchAttributes())));
@@ -427,11 +426,14 @@ public class ScheduleProtoUtil {
   }
 
   public SchedulePolicy protoToPolicy(SchedulePolicies policy) {
-    return SchedulePolicy.newBuilder()
-        .setCatchupWindow(ProtobufTimeUtils.toJavaDuration(policy.getCatchupWindow()))
-        .setPauseOnFailure(policy.getPauseOnFailure())
-        .setOverlap(policy.getOverlapPolicy())
-        .build();
+    SchedulePolicy.Builder policyBuilder =
+        SchedulePolicy.newBuilder()
+            .setPauseOnFailure(policy.getPauseOnFailure())
+            .setOverlap(policy.getOverlapPolicy());
+    if (policy.hasCatchupWindow()) {
+      policyBuilder.setCatchupWindow(ProtobufTimeUtils.toJavaDuration(policy.getCatchupWindow()));
+    }
+    return policyBuilder.build();
   }
 
   public io.temporal.client.schedules.ScheduleState protoToScheduleState(ScheduleState state) {
@@ -463,7 +465,7 @@ public class ScheduleProtoUtil {
         info.getFutureActionTimesList().stream()
             .map(t -> ProtobufTimeUtils.toJavaInstant(t))
             .collect(Collectors.toList()),
-        ProtobufTimeUtils.toJavaInstant(info.getCreateTime()),
-        ProtobufTimeUtils.toJavaInstant(info.getUpdateTime()));
+        info.hasCreateTime() ? ProtobufTimeUtils.toJavaInstant(info.getCreateTime()) : null,
+        info.hasUpdateTime() ? ProtobufTimeUtils.toJavaInstant(info.getUpdateTime()) : null);
   }
 }

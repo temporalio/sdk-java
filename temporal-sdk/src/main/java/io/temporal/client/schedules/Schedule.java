@@ -165,12 +165,8 @@ public final class Schedule {
       this.spec = Objects.requireNonNull(spec);
     }
 
-    private Builder(Schedule options) {
-      if (options == null) {
-        this.action = null;
-        this.spec = null;
-        return;
-      }
+    private Builder(@Nonnull Schedule options) {
+      Objects.requireNonNull(options);
       action = options.action;
       policy = options.policy;
       state = options.state;

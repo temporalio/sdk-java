@@ -90,10 +90,15 @@ public final class ScheduleListOptions {
 
     private Builder() {}
 
-    private Builder(ScheduleListOptions options) {}
+    private Builder(ScheduleListOptions options) {
+      if (options == null) {
+        return;
+      }
+      pageSize = options.pageSize;
+    }
 
     public ScheduleListOptions build() {
-      return new ScheduleListOptions(pageSize);
+      return new ScheduleListOptions(pageSize == 0 ? 100 : pageSize);
     }
   }
 }

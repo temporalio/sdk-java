@@ -50,43 +50,90 @@ public final class ScheduleCalendarSpec {
     DEFAULT_INSTANCE = ScheduleCalendarSpec.newBuilder().build();
   }
 
+  /** Default range set for zero. */
   public static final List<ScheduleRange> BEGINNING =
       Collections.singletonList(new ScheduleRange(0));
+
+  /** Default range set for all days in a month. */
   public static final List<ScheduleRange> ALL_MONTH_DAYS =
       Collections.singletonList(new ScheduleRange(1, 31));
+
+  /** Default range set for all months in a year. */
   public static final List<ScheduleRange> ALL_MONTHS =
       Collections.singletonList(new ScheduleRange(1, 12));
+
+  /** Default range set for all days in a week. */
   public static final List<ScheduleRange> ALL_WEEK_DAYS =
       Collections.singletonList(new ScheduleRange(0, 6));
 
+  /**
+   * Gets the second range to match.
+   *
+   * @return second ranges
+   */
   public List<ScheduleRange> getSeconds() {
     return seconds;
   }
 
+  /**
+   * Gets the minute range to match.
+   *
+   * @return minute ranges
+   */
   public List<ScheduleRange> getMinutes() {
     return minutes;
   }
 
+  /**
+   * Gets the hour range to match.
+   *
+   * @return hour ranges
+   */
   public List<ScheduleRange> getHour() {
     return hour;
   }
 
+  /**
+   * Gets the day of month range to match.
+   *
+   * @return hour ranges
+   */
   public List<ScheduleRange> getDayOfMonth() {
     return dayOfMonth;
   }
 
+  /**
+   * Gets the month range to match.
+   *
+   * @return month ranges
+   */
   public List<ScheduleRange> getMonth() {
     return month;
   }
 
+  /**
+   * Gets the year range to match.
+   *
+   * @return year ranges
+   */
   public List<ScheduleRange> getYear() {
     return year;
   }
 
+  /**
+   * Gets the day of the week range to match.
+   *
+   * @return day of the week range
+   */
   public List<ScheduleRange> getDayOfWeek() {
     return dayOfWeek;
   }
 
+  /**
+   * Gets the description of this specification.
+   *
+   * @return specification description
+   */
   public String getComment() {
     return comment;
   }
@@ -163,41 +210,78 @@ public final class ScheduleCalendarSpec {
   }
 
   public static class Builder {
+
+    /**
+     * Set the second range to match 0-59.
+     *
+     * <p>Default matches 0.
+     */
     public Builder setSeconds(List<ScheduleRange> seconds) {
       this.seconds = seconds;
       return this;
     }
 
+    /**
+     * Set the minute range to match 0-59.
+     *
+     * <p>Default matches 0.
+     */
     public Builder setMinutes(List<ScheduleRange> minutes) {
       this.minutes = minutes;
       return this;
     }
 
+    /**
+     * Set the hour range to match 0-23.
+     *
+     * <p>Default matches 0.
+     */
     public Builder setHour(List<ScheduleRange> hour) {
       this.hour = hour;
       return this;
     }
 
+    /**
+     * Set the day of month range to match 1-31.
+     *
+     * <p>Default matches all days.
+     */
     public Builder setDayOfMonth(List<ScheduleRange> dayOfMonth) {
       this.dayOfMonth = dayOfMonth;
       return this;
     }
 
+    /**
+     * Set the month range to match 1-12.
+     *
+     * <p>Default matches all months.
+     */
     public Builder setMonth(List<ScheduleRange> month) {
       this.month = month;
       return this;
     }
 
+    /**
+     * Set the optional year range to match.
+     *
+     * <p>Default of empty matches all years.
+     */
     public Builder setYear(List<ScheduleRange> year) {
       this.year = year;
       return this;
     }
 
+    /**
+     * Set the day of week range to match.0-6, 0 is Sunday.
+     *
+     * <p>Default matches all days.
+     */
     public Builder setDayOfWeek(List<ScheduleRange> dayOfWeek) {
       this.dayOfWeek = dayOfWeek;
       return this;
     }
 
+    /** Set the description of this specification. */
     public Builder setComment(String comment) {
       this.comment = comment;
       return this;
