@@ -890,4 +890,14 @@ public class DeterministicRunnerTest {
     d.close();
     assertTrue("Close should return only after the thread finished", threadFinished.get());
   }
+
+  @Test
+  public void testGetRunnerLocalOfNull() {
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit, DummySyncWorkflowContext.newDummySyncWorkflowContext(), () -> {});
+    RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>();
+    d.setRunnerLocal(runnerLocalInternal, null);
+    d.getRunnerLocal(runnerLocalInternal);
+  }
 }

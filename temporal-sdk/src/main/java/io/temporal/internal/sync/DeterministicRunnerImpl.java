@@ -594,7 +594,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (!runnerLocalMap.containsKey(key)) {
       return Optional.empty();
     }
-    return Optional.of((T) runnerLocalMap.get(key));
+    return Optional.ofNullable((T) runnerLocalMap.get(key));
   }
 
   <T> void setRunnerLocal(RunnerLocalInternal<T> key, T value) {
