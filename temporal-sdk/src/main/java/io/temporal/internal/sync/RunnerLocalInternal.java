@@ -24,11 +24,24 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 public final class RunnerLocalInternal<T> {
+  private T supplierResult = null;
+  private boolean supplierCalled = false;
+
+  Optional<T> invokeSupplier(Supplier<? extends T> supplier) {
+    if (!supplierCalled) {
+      T result = supplier.get();
+      supplierCalled = true;
+      supplierResult = result;
+      return Optional.ofNullable(result);
+    } else {
+      return Optional.ofNullable(supplierResult);
+    }
+  }
 
   public T get(Supplier<? extends T> supplier) {
-    Optional<T> result =
+    Optional<Optional<T>> result =
         DeterministicRunnerImpl.currentThreadInternal().getRunner().getRunnerLocal(this);
-    return result.orElse(supplier.get());
+    return result.orElseGet(() -> invokeSupplier(supplier)).orElse(null);
   }
 
   public void set(T value) {
