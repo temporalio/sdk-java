@@ -405,7 +405,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   /**
-   * Retrieve data from runner locals. Returns 1. not found (an empty Optional) 2. found but null
+   * Retrieve data from thread locals. Returns 1. not found (an empty Optional) 2. found but null
    * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
    * value) The type nesting is because Java Optionals cannot understand "Some null" vs "None",
    * which is exactly what we need here.
