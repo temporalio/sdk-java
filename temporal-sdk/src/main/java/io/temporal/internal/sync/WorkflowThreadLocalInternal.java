@@ -25,9 +25,24 @@ import java.util.function.Supplier;
 
 public final class WorkflowThreadLocalInternal<T> {
 
+  private T supplierResult = null;
+  private boolean supplierCalled = false;
+
+  Optional<T> invokeSupplier(Supplier<? extends T> supplier) {
+    if (!supplierCalled) {
+      T result = supplier.get();
+      supplierCalled = true;
+      supplierResult = result;
+      return Optional.ofNullable(result);
+    } else {
+      return Optional.ofNullable(supplierResult);
+    }
+  }
+
   public T get(Supplier<? extends T> supplier) {
-    Optional<T> result = DeterministicRunnerImpl.currentThreadInternal().getThreadLocal(this);
-    return result.orElse(supplier.get());
+    Optional<Optional<T>> result =
+        DeterministicRunnerImpl.currentThreadInternal().getThreadLocal(this);
+    return result.orElseGet(() -> invokeSupplier(supplier)).orElse(null);
   }
 
   public void set(T value) {
