@@ -22,7 +22,11 @@ package io.temporal.internal.statemachines;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.ProtocolMessageCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.CommandType;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.update.v1.Acceptance;
@@ -53,7 +57,14 @@ final class UpdateProtocolStateMachine
     NEW,
     REQUEST_INITIATED,
     ACCEPTED,
+    ACCEPTED_COMMAND_CREATED,
+    ACCEPTED_COMMAND_RECORDED,
     COMPLETED,
+    COMPLETED_COMMAND_CREATED,
+    COMPLETED_COMMAND_RECORDED,
+    COMPLETED_IMMEDIATELY,
+    COMPLETED_IMMEDIATELY_COMMAND_CREATED,
+    COMPLETED_IMMEDIATELY_COMMAND_RECORDED
   }
 
   private static final Logger log = LoggerFactory.getLogger(UpdateProtocolStateMachine.class);
@@ -67,19 +78,74 @@ final class UpdateProtocolStateMachine
   private String requestMsgId;
   private long requestSeqID;
   private Request initialRequest;
+  private String messageId;
 
   public static final StateMachineDefinition<State, ExplicitEvent, UpdateProtocolStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, UpdateProtocolStateMachine>newInstance(
-                  "Update", State.NEW, State.COMPLETED)
+                  "Update", State.NEW, State.COMPLETED_COMMAND_RECORDED)
               .add(
                   State.NEW,
                   ProtocolType.UPDATE_V1,
                   State.REQUEST_INITIATED,
                   UpdateProtocolStateMachine::triggerUpdate)
-              .add(State.REQUEST_INITIATED, ExplicitEvent.ACCEPT, State.ACCEPTED)
-              .add(State.REQUEST_INITIATED, ExplicitEvent.REJECT, State.COMPLETED)
-              .add(State.ACCEPTED, ExplicitEvent.COMPLETE, State.COMPLETED);
+              .add(
+                  State.REQUEST_INITIATED,
+                  ExplicitEvent.ACCEPT,
+                  State.ACCEPTED,
+                  UpdateProtocolStateMachine::sendCommandMessage)
+              .add(
+                  State.ACCEPTED,
+                  CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE,
+                  State.ACCEPTED_COMMAND_CREATED)
+              .add(
+                  State.ACCEPTED_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+                  State.ACCEPTED_COMMAND_RECORDED)
+              .add(
+                  State.ACCEPTED_COMMAND_RECORDED,
+                  ExplicitEvent.COMPLETE,
+                  State.COMPLETED,
+                  UpdateProtocolStateMachine::sendCommandMessage)
+              .add(
+                  State.COMPLETED,
+                  CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE,
+                  State.COMPLETED_COMMAND_CREATED)
+              .add(
+                  State.COMPLETED_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
+                  State.COMPLETED_COMMAND_RECORDED)
+              // Handle the validation failure case
+              .add(State.REQUEST_INITIATED, ExplicitEvent.REJECT, State.COMPLETED_COMMAND_RECORDED)
+              // Handle an edge case when the update handle completes immediately. The state machine
+              // should then expect
+              // to see two protocol command messages back to back then two update events.
+              .add(
+                  State.ACCEPTED,
+                  ExplicitEvent.COMPLETE,
+                  State.COMPLETED_IMMEDIATELY,
+                  UpdateProtocolStateMachine::sendCommandMessage)
+              .add(
+                  State.COMPLETED_IMMEDIATELY,
+                  CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE,
+                  State.COMPLETED_IMMEDIATELY_COMMAND_CREATED)
+              .add(
+                  State.COMPLETED_IMMEDIATELY_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE,
+                  State.COMPLETED_IMMEDIATELY_COMMAND_RECORDED)
+              .add(
+                  State.COMPLETED_IMMEDIATELY_COMMAND_RECORDED,
+                  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+                  State.COMPLETED_COMMAND_CREATED)
+              // Handle an edge case when an update handle completes after it has sent the protocol
+              // message command
+              // but has not seen the corresponding event. This can happen if the update handle runs
+              // a local activity
+              .add(
+                  State.ACCEPTED_COMMAND_CREATED,
+                  ExplicitEvent.COMPLETE,
+                  State.COMPLETED_IMMEDIATELY_COMMAND_CREATED,
+                  UpdateProtocolStateMachine::sendCommandMessage);
 
   public static UpdateProtocolStateMachine newInstance(
       Functions.Func<Boolean> replaying,
@@ -115,8 +181,16 @@ final class UpdateProtocolStateMachine
     UpdateMessage updateMessage =
         new UpdateMessage(this.currentMessage, new UpdateProtocolCallbackImpl());
 
-    // TODO send ProtocolMessage command when server supports
     updateHandle.apply(updateMessage);
+  }
+
+  void sendCommandMessage() {
+    addCommand(
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE)
+            .setProtocolMessageCommandAttributes(
+                ProtocolMessageCommandAttributes.newBuilder().setMessageId(messageId))
+            .build());
   }
 
   public void accept() {
@@ -127,13 +201,13 @@ final class UpdateProtocolStateMachine
             .setAcceptedRequest(initialRequest)
             .build();
 
+    messageId = requestMsgId + "/accept";
     sendHandle.apply(
         Message.newBuilder()
-            .setId(requestMsgId + "/accept")
+            .setId(messageId)
             .setProtocolInstanceId(protoInstanceID)
             .setBody(Any.pack(acceptResponse))
             .build());
-    // TODO send ProtocolMessage command when server supports
     explicitEvent(ExplicitEvent.ACCEPT);
   }
 
@@ -146,9 +220,10 @@ final class UpdateProtocolStateMachine
             .setFailure(failure)
             .build();
 
+    String messageId = requestMsgId + "/reject";
     sendHandle.apply(
         Message.newBuilder()
-            .setId(requestMsgId + "/reject")
+            .setId(messageId)
             .setProtocolInstanceId(protoInstanceID)
             .setBody(Any.pack(rejectResponse))
             .build());
@@ -165,7 +240,8 @@ final class UpdateProtocolStateMachine
 
     Response outcomeResponse =
         Response.newBuilder().setOutcome(outcome).setMeta(initialRequest.getMeta()).build();
-    // TODO send ProtocolMessage command when server supports
+
+    messageId = requestMsgId + "/complete";
     sendHandle.apply(
         Message.newBuilder()
             .setId(requestMsgId + "/complete")

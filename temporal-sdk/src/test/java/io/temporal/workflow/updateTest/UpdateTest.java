@@ -88,6 +88,7 @@ public class UpdateTest {
     assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
     assertThrows(WorkflowUpdateException.class, () -> workflow.update(0, "Bad update"));
 
+    testWorkflowRule.invalidateWorkflowCache();
     workflow.complete();
 
     String result =

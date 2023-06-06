@@ -414,7 +414,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void completeWorkflowTask(
       int historySizeFromToken, RespondWorkflowTaskCompletedRequest request) {
     List<Command> commands = request.getCommandsList();
-    List<Message> messages = request.getMessagesList();
+    List<Message> messages = new ArrayList<>(request.getMessagesList());
 
     completeWorkflowTaskUpdate(
         ctx -> {
@@ -1568,7 +1568,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId) {
     Message orderedMsg =
         messages.stream()
-            .filter(msg -> msg.getId() == attr.getMessageId())
+            .filter(msg -> msg.getId().equals(attr.getMessageId()))
             .findFirst()
             .map(
                 msg -> {
