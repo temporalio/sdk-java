@@ -21,10 +21,12 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,5 +77,58 @@ public class WorkflowLocalsTest {
       p2.get();
       return "result=" + threadLocal.get() + ", " + workflowLocal.get();
     }
+  }
+
+  public static class TestWorkflowLocalsSupplierReuse implements TestWorkflow1 {
+
+    private final AtomicInteger localCalls = new AtomicInteger(0);
+    private final AtomicInteger threadLocalCalls = new AtomicInteger(0);
+
+    private final WorkflowThreadLocal<Integer> workflowThreadLocal =
+        WorkflowThreadLocal.withInitial(
+            () -> {
+              threadLocalCalls.addAndGet(1);
+              return null;
+            });
+    private final WorkflowLocal<Integer> workflowLocal =
+        WorkflowLocal.withInitial(
+            () -> {
+              localCalls.addAndGet(1);
+              return null;
+            });
+
+    @Override
+    public String execute(String taskQueue) {
+      assertNull(workflowThreadLocal.get());
+      workflowThreadLocal.set(null);
+      assertNull(workflowThreadLocal.get());
+      assertNull(workflowThreadLocal.get());
+      workflowThreadLocal.set(55);
+      assertEquals((long) workflowThreadLocal.get(), 55);
+      assertEquals(threadLocalCalls.get(), 1);
+
+      assertNull(workflowLocal.get());
+      workflowLocal.set(null);
+      assertNull(workflowLocal.get());
+      assertNull(workflowLocal.get());
+      workflowLocal.set(58);
+      assertEquals((long) workflowLocal.get(), 58);
+      assertEquals(localCalls.get(), 1);
+      return "ok";
+    }
+  }
+
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRuleSupplierReuse =
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestWorkflowLocalsSupplierReuse.class)
+          .build();
+
+  @Test
+  public void testWorkflowLocalsSupplierReuse() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRuleSupplierReuse.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
+    Assert.assertEquals("ok", result);
   }
 }

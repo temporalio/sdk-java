@@ -589,12 +589,22 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         || !toExecuteInWorkflowThread.isEmpty();
   }
 
+  /**
+   * Retrieve data from runner locals. Returns 1. not found (an empty Optional) 2. found but null
+   * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
+   * value). The type nesting is because Java Optionals cannot understand "Some null" vs "None",
+   * which is exactly what we need here.
+   *
+   * @param key
+   * @return one of three cases
+   * @param <T>
+   */
   @SuppressWarnings("unchecked")
-  <T> Optional<T> getRunnerLocal(RunnerLocalInternal<T> key) {
+  <T> Optional<Optional<T>> getRunnerLocal(RunnerLocalInternal<T> key) {
     if (!runnerLocalMap.containsKey(key)) {
       return Optional.empty();
     }
-    return Optional.of((T) runnerLocalMap.get(key));
+    return Optional.of(Optional.ofNullable((T) runnerLocalMap.get(key)));
   }
 
   <T> void setRunnerLocal(RunnerLocalInternal<T> key, T value) {

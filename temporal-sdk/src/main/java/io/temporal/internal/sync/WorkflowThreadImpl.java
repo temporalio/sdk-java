@@ -404,13 +404,22 @@ class WorkflowThreadImpl implements WorkflowThread {
     threadLocalMap.put(key, value);
   }
 
+  /**
+   * Retrieve data from thread locals. Returns 1. not found (an empty Optional) 2. found but null
+   * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
+   * value). The type nesting is because Java Optionals cannot understand "Some null" vs "None",
+   * which is exactly what we need here.
+   *
+   * @param key
+   * @return one of three cases
+   * @param <T>
+   */
   @SuppressWarnings("unchecked")
-  @Override
-  public <T> Optional<T> getThreadLocal(WorkflowThreadLocalInternal<T> key) {
+  public <T> Optional<Optional<T>> getThreadLocal(WorkflowThreadLocalInternal<T> key) {
     if (!threadLocalMap.containsKey(key)) {
       return Optional.empty();
     }
-    return Optional.of((T) threadLocalMap.get(key));
+    return Optional.of(Optional.ofNullable((T) threadLocalMap.get(key)));
   }
 
   /**
