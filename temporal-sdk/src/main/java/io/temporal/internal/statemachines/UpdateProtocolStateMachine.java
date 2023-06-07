@@ -244,7 +244,7 @@ final class UpdateProtocolStateMachine
     messageId = requestMsgId + "/complete";
     sendHandle.apply(
         Message.newBuilder()
-            .setId(requestMsgId + "/complete")
+            .setId(messageId)
             .setProtocolInstanceId(protoInstanceID)
             .setBody(Any.pack(outcomeResponse))
             .build());
