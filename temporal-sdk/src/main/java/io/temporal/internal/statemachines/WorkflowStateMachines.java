@@ -20,6 +20,7 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.api.enums.v1.CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE;
 import static io.temporal.internal.common.WorkflowExecutionUtils.getEventTypeForCommand;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
@@ -28,14 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Any;
-import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.Command;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -387,14 +381,7 @@ public final class WorkflowStateMachines {
     if (handleLocalActivityMarker(event)) {
       return;
     }
-    // Currently Update events are command events that have no
-    // associated command so there is nothing to handle currently.
-    // Once the server supports ProtocolMessageCommand we can handle them here.
-    // TODO(https://github.com/temporalio/sdk-java/issues/1744)
-    if (event.hasWorkflowExecutionUpdateAcceptedEventAttributes()
-        || event.hasWorkflowExecutionUpdateCompletedEventAttributes()) {
-      return;
-    }
+
     // Match event to the next command in the stateMachine queue.
     // After matching the command is notified about the event and is removed from the
     // queue.
@@ -952,6 +939,43 @@ public final class WorkflowStateMachines {
   private void validateCommand(Command command, HistoryEvent event) {
     // TODO(maxim): Add more thorough validation logic. For example check if activity IDs are
     // matching.
+
+    // ProtocolMessageCommand is different from other commands because it can be associated with
+    // multiple types of events
+    // TODO(#1781) Validate protocol message is expected type.
+    if (command.getCommandType() == COMMAND_TYPE_PROTOCOL_MESSAGE) {
+      ProtocolMessageCommandAttributes commandAttributes =
+          command.getProtocolMessageCommandAttributes();
+      switch (event.getEventType()) {
+        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
+          assertMatch(
+              command,
+              event,
+              "messageType",
+              true,
+              commandAttributes.getMessageId().endsWith("accept"));
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_REJECTED:
+          assertMatch(
+              command,
+              event,
+              "messageType",
+              true,
+              commandAttributes.getMessageId().endsWith("reject"));
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
+          assertMatch(
+              command,
+              event,
+              "messageType",
+              true,
+              commandAttributes.getMessageId().endsWith("complete"));
+          break;
+        default:
+          throw new IllegalArgumentException("Unexpected event type: " + event.getEventType());
+      }
+      return;
+    }
     assertMatch(
         command,
         event,
@@ -1021,6 +1045,7 @@ public final class WorkflowStateMachines {
       case COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
       case COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION:
       case COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_PROTOCOL_MESSAGE:
         break;
       case UNRECOGNIZED:
       case COMMAND_TYPE_UNSPECIFIED:

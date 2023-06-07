@@ -20,13 +20,13 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.internal.statemachines.TestHistoryBuilder.assertCommand;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.*;
+import static org.junit.Assert.*;
 
 import com.google.protobuf.Any;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.*;
@@ -134,10 +134,6 @@ public class UpdateProtocolStateMachineTest {
       stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
-      long timerStartedEventId =
-          h.addGetEventId(
-              EventType.EVENT_TYPE_TIMER_STARTED,
-              TimerStartedEventAttributes.newBuilder().setTimerId("timer1"));
       h.add(
           EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
           WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
@@ -150,6 +146,10 @@ public class UpdateProtocolStateMachineTest {
                           Input.newBuilder()
                               .setName("updateName")
                               .setArgs(converter.toPayloads("arg").get()))));
+      long timerStartedEventId =
+          h.addGetEventId(
+              EventType.EVENT_TYPE_TIMER_STARTED,
+              TimerStartedEventAttributes.newBuilder().setTimerId("timer1"));
       h.add(
           EventType.EVENT_TYPE_TIMER_FIRED,
           TimerFiredEventAttributes.newBuilder()
@@ -161,15 +161,180 @@ public class UpdateProtocolStateMachineTest {
           WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
               .setOutcome(
                   Outcome.newBuilder().setSuccess(converter.toPayloads("m2Arg1").get()).build()));
-      h.addWorkflowTask();
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0);
+      assertEquals(0, commands.size());
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+      assertEquals(0, commands.size());
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(0).getCommandType());
+      assertEquals(
+          CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands.get(1).getCommandType());
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestUpdateListener();
       stateMachines = newStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
-      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertEquals(0, commands.size());
+    }
+  }
+
+  @Test
+  public void testUpdateCompleted() {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder.add(
+            (r) -> {
+              stateMachines.setMessages(
+                  Arrays.asList(
+                      Message.newBuilder()
+                          .setProtocolInstanceId("protocol_id")
+                          .setId("id")
+                          .setEventId(2)
+                          .setBody(
+                              Any.pack(
+                                  Request.newBuilder()
+                                      .setInput(Input.newBuilder().setName("updateName").build())
+                                      .build()))
+                          .build()));
+            });
+      }
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Optional<Payloads>>add1(
+                (v, c) -> {
+                  message.getCallbacks().accept();
+                  stateMachines.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c);
+                })
+            .add(
+                (r) -> {
+                  message.getCallbacks().complete(converter.toPayloads("update result"), null);
+                });
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    MarkerRecordedEventAttributes.Builder markerBuilder =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
+            .putDetails(MARKER_ID_KEY, converter.toPayloads("id1").get());
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.addWorkflowTask();
+      h.addWorkflowTaskScheduled();
+      h.addWorkflowTaskStarted();
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.handleWorkflowTask(stateMachines, 0, 2);
+      List<ExecuteLocalActivityParameters> requests = stateMachines.takeLocalActivityRequests();
+    }
+  }
+
+  @Test
+  public void testUpdateCompletedImmediately() {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {}
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .add(
+                (r) -> {
+                  message.getCallbacks().accept();
+                })
+            .add(
+                (r) -> {
+                  message.getCallbacks().complete(converter.toPayloads("update result"), null);
+                })
+            .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_WORKFLOW_EXECUTION_ACCEPTED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        7: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+          WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
+              .setProtocolInstanceId("protocol_id")
+              .setAcceptedRequestMessageId("id")
+              .setAcceptedRequestSequencingEventId(2)
+              .setAcceptedRequest(
+                  Request.newBuilder()
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
+          WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
+              .setOutcome(
+                  Outcome.newBuilder().setSuccess(converter.toPayloads("m2Arg1").get()).build()));
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0);
+      assertEquals(0, commands.size());
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0, 1);
+      assertEquals(0, commands.size());
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertEquals(0, commands.size());
     }
   }
 
