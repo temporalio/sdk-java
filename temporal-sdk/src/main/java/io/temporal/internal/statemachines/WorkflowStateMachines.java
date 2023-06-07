@@ -942,6 +942,7 @@ public final class WorkflowStateMachines {
 
     // ProtocolMessageCommand is different from other commands because it can be associated with
     // multiple types of events
+    // TODO(#1781) Validate protocol message is expected type.
     if (command.getCommandType() == COMMAND_TYPE_PROTOCOL_MESSAGE) {
       ProtocolMessageCommandAttributes commandAttributes =
           command.getProtocolMessageCommandAttributes();
