@@ -132,6 +132,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
+            "test-activity-env-task-queue",
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             activityExecutionContextFactory,
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
@@ -519,6 +520,16 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         }
       }
       return Defaults.defaultValue(resultClass);
+    }
+
+    @Override
+    public void registerUpdateHandlers(RegisterUpdateHandlersInput input) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input) {
+      throw new UnsupportedOperationException("not implemented");
     }
   }
 

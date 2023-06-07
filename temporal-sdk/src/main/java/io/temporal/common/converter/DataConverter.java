@@ -20,12 +20,15 @@
 
 package io.temporal.common.converter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.Experimental;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
@@ -96,13 +99,12 @@ public interface DataConverter {
   Optional<Payloads> toPayloads(Object... values) throws DataConverterException;
 
   /**
-   * Implements conversion of an array of values of different types. Useful for deserializing
-   * arguments of function invocations.
+   * Implements conversion of a single {@link Payload} from the serialized {@link Payloads}.
    *
    * @param index index of the value in the payloads
    * @param content serialized value to convert to Java objects.
-   * @param valueType type of the value stored in the content
-   * @param valueGenericType generic type of the value stored in the content
+   * @param valueType type of the value stored in the {@code content}
+   * @param valueGenericType generic type of the value stored in the {@code content}
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
@@ -112,32 +114,23 @@ public interface DataConverter {
       throws DataConverterException;
 
   /**
-   * Instantiate an appropriate Java Exception from a serialized Failure object. The default
-   * implementation delegates the conversion process to an instance of {@link
-   * io.temporal.failure.FailureConverter}, using this data converter for payload decoding.
+   * Implements conversion of the whole {@code content} {@link Payloads} into an array of values of
+   * different types.
    *
-   * @param failure Failure protobuf object to deserialize into an exception
-   * @throws NullPointerException if failure is null
-   */
-  @Nonnull
-  TemporalFailure failureToException(@Nonnull Failure failure);
-
-  /**
-   * Serialize an existing Throwable object into a Failure object. The default implementation
-   * delegates the conversion process to an instance of {@link
-   * io.temporal.failure.FailureConverter}, using this data converter for payload encoding.
+   * <p>Implementation note<br>
+   * This method is expected to return an array of the same length as {@code parameterTypes}. If
+   * {@code content} has not enough {@link Payload} elements, this method provides default
+   * instances.
    *
-   * @param throwable a Throwable object to serialize into a Failure protobuf object
-   * @throws NullPointerException if throwable is null
+   * @param content serialized value to convert to Java objects.
+   * @param parameterTypes types of the values stored in the @code content}
+   * @param genericParameterTypes generic types of the values stored in the {@code content}
+   * @return array if converted Java objects
+   * @throws DataConverterException if conversion of the data passed as parameter failed for any
+   *     reason.
    */
-  @Nonnull
-  Failure exceptionToFailure(@Nonnull Throwable throwable);
-
-  static Object[] arrayFromPayloads(
-      DataConverter converter,
-      Optional<Payloads> content,
-      Class<?>[] parameterTypes,
-      Type[] genericParameterTypes)
+  default Object[] fromPayloads(
+      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
       throws DataConverterException {
     if (parameterTypes != null
         && (genericParameterTypes == null
@@ -149,8 +142,8 @@ public interface DataConverter {
               + Arrays.toString(genericParameterTypes));
     }
 
-    int length = parameterTypes.length;
-    Object[] result = new Object[length];
+    int totalLength = parameterTypes.length;
+    Object[] result = new Object[totalLength];
     if (!content.isPresent()) {
       // Return defaults for all the parameters
       for (int i = 0; i < parameterTypes.length; i++) {
@@ -166,9 +159,68 @@ public interface DataConverter {
       if (i >= count) {
         result[i] = Defaults.defaultValue((Class<?>) gt);
       } else {
-        result[i] = converter.fromPayload(payloads.getPayloads(i), pt, gt);
+        result[i] = this.fromPayload(payloads.getPayloads(i), pt, gt);
       }
     }
     return result;
+  }
+
+  /**
+   * Instantiate an appropriate Java Exception from a serialized Failure object. The default
+   * implementation delegates the conversion process to an instance of {@link FailureConverter},
+   * using this data converter for payload decoding.
+   *
+   * @param failure Failure protobuf object to deserialize into an exception
+   * @throws NullPointerException if failure is null
+   */
+  @Nonnull
+  TemporalFailure failureToException(@Nonnull Failure failure);
+
+  /**
+   * Serialize an existing Throwable object into a Failure object. The default implementation
+   * delegates the conversion process to an instance of {@link FailureConverter}, using this data
+   * converter for payload encoding.
+   *
+   * @param throwable a Throwable object to serialize into a Failure protobuf object
+   * @throws NullPointerException if throwable is null
+   */
+  @Nonnull
+  Failure exceptionToFailure(@Nonnull Throwable throwable);
+
+  /**
+   * A correct implementation of this interface should have a fully functional "contextless"
+   * implementation. Temporal SDK will call this method when a knowledge of the context exists, but
+   * {@link DataConverter} can be used directly by user code and sometimes SDK itself without any
+   * context.
+   *
+   * <p>Note: this method is expected to be cheap and fast. Temporal SDK doesn't always cache the
+   * instances and may be calling this method very often. Users are responsible to make sure that
+   * this method doesn't recreate expensive objects like Jackson's {@link ObjectMapper} on every
+   * call.
+   *
+   * @param context provides information to the data converter about the abstraction the data
+   *     belongs to
+   * @return an instance of DataConverter that may use the provided {@code context} for
+   *     serialization
+   * @see SerializationContext
+   */
+  @Experimental
+  @Nonnull
+  default DataConverter withContext(@Nonnull SerializationContext context) {
+    return this;
+  }
+
+  /**
+   * @deprecated use {@link DataConverter#fromPayloads(int, Optional, Class, Type)}. This is an SDK
+   *     implementation detail and never was expected to be exposed to users.
+   */
+  @Deprecated
+  static Object[] arrayFromPayloads(
+      DataConverter converter,
+      Optional<Payloads> content,
+      Class<?>[] parameterTypes,
+      Type[] genericParameterTypes)
+      throws DataConverterException {
+    return converter.fromPayloads(content, parameterTypes, genericParameterTypes);
   }
 }

@@ -134,10 +134,6 @@ final class Poller<T> implements SuspendableWorker {
         // it's ok to forcefully shutdown pollers, especially because they stuck in a long poll call
         // we don't lose any progress doing that
         .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
-        // TODO Poller shouldn't shutdown taskExecutor, because it gets it already created
-        // externally.
-        //  Creator of taskExecutor should be responsible for it's shutdown
-        .thenCompose(ignore -> taskExecutor.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {
               log.error("Unexpected exception during shutdown", e);
@@ -155,8 +151,7 @@ final class Poller<T> implements SuspendableWorker {
     }
 
     long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = ShutdownManager.awaitTermination(pollExecutor, timeoutMillis);
-    ShutdownManager.awaitTermination(taskExecutor, timeoutMillis);
+    ShutdownManager.awaitTermination(pollExecutor, timeoutMillis);
   }
 
   @Override

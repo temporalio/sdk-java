@@ -21,9 +21,7 @@
 package io.temporal.common.metadata;
 
 import com.google.common.base.Strings;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
@@ -39,6 +37,9 @@ final class POJOWorkflowMethod {
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
     SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+    UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+    UpdateValidatorMethod updateValidatorMethod = method.getAnnotation(UpdateValidatorMethod.class);
+
     int count = 0;
     WorkflowMethodType type = null;
     String name = null;
@@ -64,6 +65,20 @@ final class POJOWorkflowMethod {
       }
       count++;
       name = queryMethod.name();
+    }
+    if (updateMethod != null) {
+      type = WorkflowMethodType.UPDATE;
+      count++;
+      name = updateMethod.name();
+    }
+    if (updateValidatorMethod != null) {
+      type = WorkflowMethodType.UPDATE_VALIDATOR;
+      if (method.getReturnType() != Void.TYPE) {
+        throw new IllegalArgumentException(
+            "Method annotated with @UpdateValidatorMethod must have a void return type: " + method);
+      }
+      count++;
+      name = updateValidatorMethod.updateName();
     }
     if (count == 0) {
       type = WorkflowMethodType.NONE;

@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -33,6 +34,8 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
+import io.temporal.internal.statemachines.UpdateProtocolCallback;
+import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
@@ -61,9 +64,15 @@ class SyncWorkflow implements ReplayWorkflow {
   private final SyncWorkflowContext workflowContext;
   private WorkflowExecutionHandler workflowProc;
   private DeterministicRunner runner;
+  private DataConverter dataConverter;
 
   public SyncWorkflow(
+      String namespace,
+      WorkflowExecution workflowExecution,
       SyncWorkflowDefinition workflow,
+      SignalDispatcher signalDispatcher,
+      QueryDispatcher queryDispatcher,
+      UpdateDispatcher updateDispatcher,
       @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       WorkflowThreadExecutor workflowThreadExecutor,
@@ -78,8 +87,17 @@ class SyncWorkflow implements ReplayWorkflow {
     this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
     this.cache = cache;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
+    this.dataConverter = dataConverter;
     this.workflowContext =
-        new SyncWorkflowContext(workflowImplementationOptions, dataConverter, contextPropagators);
+        new SyncWorkflowContext(
+            namespace,
+            workflowExecution,
+            signalDispatcher,
+            queryDispatcher,
+            updateDispatcher,
+            workflowImplementationOptions,
+            dataConverter,
+            contextPropagators);
   }
 
   @Override
@@ -125,6 +143,35 @@ class SyncWorkflow implements ReplayWorkflow {
   public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
     runner.executeInWorkflowThread(
         "signal " + signalName, () -> workflowProc.handleSignal(signalName, input, eventId));
+  }
+
+  @Override
+  public void handleUpdate(
+      String updateName, Optional<Payloads> input, long eventId, UpdateProtocolCallback callbacks) {
+    runner.executeInWorkflowThread(
+        "update " + updateName,
+        () -> {
+          // Skip validator on replay
+          if (!callbacks.isReplaying()) {
+            try {
+              // TODO(https://github.com/temporalio/sdk-java/issues/1748) handleValidateUpdate
+              // should not just be run
+              // in a workflow thread
+              workflowProc.handleValidateUpdate(updateName, input, eventId);
+            } catch (Exception e) {
+              callbacks.reject(this.dataConverter.exceptionToFailure(e));
+              return;
+            }
+          }
+          callbacks.accept();
+          try {
+            Optional<Payloads> result =
+                workflowProc.handleExecuteUpdate(updateName, input, eventId);
+            callbacks.complete(result, null);
+          } catch (WorkflowExecutionException e) {
+            callbacks.complete(Optional.empty(), e.getFailure());
+          }
+        });
   }
 
   @Override

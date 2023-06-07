@@ -20,8 +20,8 @@
 
 package io.temporal.workflow.unsafe;
 
-import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.sync.WorkflowInternal;
+import io.temporal.workflow.Functions;
 
 /**
  * While {@link io.temporal.workflow.Workflow} contains methods exposing the main Temporal Workflow
@@ -50,12 +50,12 @@ public final class WorkflowUnsafe {
    *     thread context.
    */
   public static boolean isWorkflowThread() {
-    return WorkflowThreadMarker.isWorkflowThread();
+    return WorkflowInternal.isWorkflowThread();
   }
 
   /**
    * <b>Warning!</b> <br>
-   * Never make workflow logic depend on this flag as it is going to break determinism. The only
+   * Never make workflow code depend on this flag as it is going to break determinism. The only
    * reasonable uses for this flag is deduping external never failing side effects like logging or
    * metric reporting.
    *
@@ -64,6 +64,48 @@ public final class WorkflowUnsafe {
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();
+  }
+
+  /**
+   * Runs the supplied procedure in the calling thread with disabled deadlock detection if called
+   * from the workflow thread. Does nothing except the procedure execution if called from a
+   * non-workflow thread.
+   *
+   * <p><b>Warning!</b> <br>
+   * Never make workflow logic depend on this flag. Workflow code that runs into deadlock detector
+   * is implemented incorrectly. The intended use of this execution mode is blocking calls and IO in
+   * {@link io.temporal.payload.codec.PayloadCodec}, {@link
+   * io.temporal.common.converter.PayloadConverter} or {@link
+   * io.temporal.common.interceptors.WorkerInterceptor} implementations.
+   *
+   * @param proc to run with disabled deadlock detection
+   */
+  public static void deadlockDetectorOff(Functions.Proc proc) {
+    deadlockDetectorOff(
+        () -> {
+          proc.apply();
+          return null;
+        });
+  }
+
+  /**
+   * Runs the supplied function in the calling thread with disabled deadlock detection if called
+   * from the workflow thread. Does nothing except the function execution if called from a
+   * non-workflow thread.
+   *
+   * <p><b>Warning!</b> <br>
+   * Never make workflow code depend on this flag. Workflow code that runs into deadlock detector is
+   * implemented incorrectly (see {@link }). The intended use of this execution mode is blocking
+   * calls and IO in {@link io.temporal.payload.codec.PayloadCodec}, {@link
+   * io.temporal.common.converter.PayloadConverter} or {@link
+   * io.temporal.common.interceptors.WorkerInterceptor} implementations.
+   *
+   * @param func to run with disabled deadlock detection
+   * @return result of {@code func} execution
+   * @param <T> type of {@code func} result
+   */
+  public static <T> T deadlockDetectorOff(Functions.Func<T> func) {
+    return WorkflowInternal.deadlockDetectorOff(func);
   }
 
   /** Prohibit instantiation. */

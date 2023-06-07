@@ -131,6 +131,16 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestUpdatedWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @UpdateMethod(name = "testUpdate")
+    void update(String arg);
+  }
+
+  @WorkflowInterface
   public interface ReceiveSignalObjectWorkflow {
 
     @WorkflowMethod
@@ -165,6 +175,47 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface WorkflowWithUpdate {
+
+    @WorkflowMethod
+    String execute();
+
+    @QueryMethod
+    String getState();
+
+    @UpdateMethod(name = "update")
+    String update(Integer index, String value);
+
+    @UpdateValidatorMethod(updateName = "update")
+    void updateValidator(Integer index, String value);
+
+    @UpdateMethod
+    void complete();
+
+    @UpdateValidatorMethod(updateName = "complete")
+    void completeValidator();
+  }
+
+  @WorkflowInterface
+  public interface WorkflowWithUpdateAndSignal {
+
+    @WorkflowMethod
+    List<String> execute();
+
+    @QueryMethod
+    String getState();
+
+    @SignalMethod
+    void signal(String value);
+
+    @UpdateMethod()
+    String update(String value);
+
+    @UpdateMethod
+    void complete();
+  }
+
+  @WorkflowInterface
   public interface TestWorkflowWithQuery {
     @WorkflowMethod()
     String execute();
@@ -174,9 +225,16 @@ public class TestWorkflows {
   }
 
   /** IMPLEMENTATIONS * */
-  public static class DoNothingWorkflow implements NoArgsWorkflow {
+  public static class DoNothingNoArgsWorkflow implements NoArgsWorkflow {
     @Override
     public void execute() {}
+  }
+
+  public static class DoNothingTestWorkflow1 implements TestWorkflow1 {
+    @Override
+    public String execute(String input) {
+      return input;
+    }
   }
 
   public static class TestChild implements ITestChild {

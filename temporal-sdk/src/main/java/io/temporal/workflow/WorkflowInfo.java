@@ -23,6 +23,7 @@ package io.temporal.workflow;
 import io.temporal.api.common.v1.SearchAttributes;
 import java.time.Duration;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -54,6 +55,7 @@ public interface WorkflowInfo {
    * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
    *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
    */
+  @Nonnull
   String getRunId();
 
   /**
@@ -61,6 +63,7 @@ public interface WorkflowInfo {
    *     chain of ContinueAsNew, Retry, Cron and Reset. Identifies the whole Runs chain of Workflow
    *     Execution.
    */
+  @Nonnull
   String getFirstExecutionRunId();
 
   /**
@@ -78,7 +81,8 @@ public interface WorkflowInfo {
    * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
    *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
    */
-  Optional<String> getOriginalExecutionRunId();
+  @Nonnull
+  String getOriginalExecutionRunId();
 
   /**
    * @return Workflow Task Queue name

@@ -263,7 +263,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       lock.unlock();
       // Close was requested while running
       if (closeRequested) {
-        close();
+        close(true);
       }
     }
   }
@@ -285,13 +285,17 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     executeInWorkflowThread("cancel workflow callback", () -> rootWorkflowThread.cancel(reason));
   }
 
+  @Override
+  public void close() {
+    close(false);
+  }
+
   /**
    * Destroys all controlled workflow threads by throwing {@link DestroyWorkflowThreadError} from
    * {@link WorkflowThreadContext#yield(String, Supplier)} when the threads are blocking on the
    * temporal-sdk code.
    */
-  @Override
-  public void close() {
+  private void close(boolean fromWorkflowThread) {
     lock.lock();
     if (closeFuture.isDone()) {
       lock.unlock();
@@ -308,9 +312,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         || closeStarted) {
 
       lock.unlock();
-      // We will not perform the closure in this call and should just wait on the future when
-      // another thread responsible for it will close.
-      closeFuture.join();
+      // If called from the workflow thread, we don't want to block this call, otherwise we
+      // will cause a deadlock. The thread performing the closure waits for all workflow threads
+      // to complete first.
+      if (!fromWorkflowThread) {
+        // We will not perform the closure in this call and should just wait on the future when
+        // another thread responsible for it will close.
+        closeFuture.join();
+      }
       return;
     }
 
@@ -580,12 +589,22 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         || !toExecuteInWorkflowThread.isEmpty();
   }
 
+  /**
+   * Retrieve data from runner locals. Returns 1. not found (an empty Optional) 2. found but null
+   * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
+   * value). The type nesting is because Java Optionals cannot understand "Some null" vs "None",
+   * which is exactly what we need here.
+   *
+   * @param key
+   * @return one of three cases
+   * @param <T>
+   */
   @SuppressWarnings("unchecked")
-  <T> Optional<T> getRunnerLocal(RunnerLocalInternal<T> key) {
+  <T> Optional<Optional<T>> getRunnerLocal(RunnerLocalInternal<T> key) {
     if (!runnerLocalMap.containsKey(key)) {
       return Optional.empty();
     }
-    return Optional.of((T) runnerLocalMap.get(key));
+    return Optional.of(Optional.ofNullable((T) runnerLocalMap.get(key)));
   }
 
   <T> void setRunnerLocal(RunnerLocalInternal<T> key, T value) {

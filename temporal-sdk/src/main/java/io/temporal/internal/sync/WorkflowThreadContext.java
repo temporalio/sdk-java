@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.TimeUnit;
@@ -36,11 +37,8 @@ class WorkflowThreadContext {
   private static final Logger log = LoggerFactory.getLogger(WorkflowThreadContext.class);
 
   // Shared runner lock
-  private final Lock lock;
-  // Used to block await call
-  private final Condition yieldCondition;
-  // Used to block runUntilBlocked call
-  private final Condition runCondition;
+  private final Lock runnerLock;
+  private final WorkflowThreadScheduler scheduler;
   // Used to block evaluateInCoroutineContext
   private final Condition evaluationCondition;
 
@@ -55,11 +53,10 @@ class WorkflowThreadContext {
   private String yieldReason;
   private boolean destroyRequested;
 
-  WorkflowThreadContext(Lock lock) {
-    this.lock = lock;
-    this.yieldCondition = lock.newCondition();
-    this.runCondition = lock.newCondition();
-    this.evaluationCondition = lock.newCondition();
+  WorkflowThreadContext(Lock runnerLock) {
+    this.runnerLock = runnerLock;
+    this.scheduler = new WorkflowThreadScheduler(runnerLock);
+    this.evaluationCondition = runnerLock.newCondition();
   }
 
   /**
@@ -81,7 +78,7 @@ class WorkflowThreadContext {
       throw new IllegalArgumentException("null unblockFunction");
     }
     // Evaluates unblockFunction out of the lock to avoid deadlocks.
-    lock.lock();
+    runnerLock.lock();
     try {
       if (destroyRequested) {
         throw new DestroyWorkflowThreadError();
@@ -90,8 +87,7 @@ class WorkflowThreadContext {
 
       while (!inRunUntilBlocked || !unblockFunction.get()) {
         status = Status.YIELDED;
-        runCondition.signal();
-        yieldCondition.await();
+        scheduler.yieldLocked();
         if (destroyRequested) {
           throw new DestroyWorkflowThreadError();
         }
@@ -108,7 +104,7 @@ class WorkflowThreadContext {
       }
     } finally {
       remainedBlocked = false;
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
@@ -140,7 +136,7 @@ class WorkflowThreadContext {
    * @param function to evaluate. Consumes reason for yielding as a parameter.
    */
   public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
-    lock.lock();
+    runnerLock.lock();
     try {
       Preconditions.checkArgument(function != null, "null function");
       if (status != Status.YIELDED && status != Status.RUNNING) {
@@ -160,7 +156,7 @@ class WorkflowThreadContext {
       Preconditions.checkState(!inRunUntilBlocked, "Running runUntilBlocked");
       evaluationFunction = function;
       status = Status.EVALUATING;
-      yieldCondition.signal();
+      scheduler.scheduleLocked();
       while (status == Status.EVALUATING) {
         evaluationCondition.await();
       }
@@ -169,69 +165,67 @@ class WorkflowThreadContext {
       throw new Error("Unexpected interrupt", e);
     } finally {
       evaluationFunction = null;
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
   public void verifyAndStart() {
-    lock.lock();
+    runnerLock.lock();
     try {
       Preconditions.checkState(this.status == Status.CREATED, "already started");
       this.status = Status.RUNNING;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
   public Status getStatus() {
-    lock.lock();
+    runnerLock.lock();
     try {
       return status;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
-  public void setStatus(Status status) {
+  public void makeDone() {
     // Unblock runUntilBlocked if thread exited instead of yielding.
-    lock.lock();
+    runnerLock.lock();
     try {
-      this.status = status;
-      if (isDone()) {
-        runCondition.signal();
-        // it's important to clear the thread after or together (under one lock) when setting the
-        // status, so nobody sees the context yet with RUNNING status, but without a currentThread
-        clearCurrentThreadLocked();
-      }
+      this.status = Status.DONE;
+      scheduler.completeLocked();
+      // it's important to clear the thread after or together (under one lock) when setting the
+      // status, so nobody sees the context yet with RUNNING status, but without a currentThread
+      clearCurrentThreadLocked();
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
   public boolean isDone() {
-    lock.lock();
+    runnerLock.lock();
     try {
       return status == Status.DONE;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
   public Throwable getUnhandledException() {
-    lock.lock();
+    runnerLock.lock();
     try {
       return unhandledException;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
   public void setUnhandledException(Throwable unhandledException) {
-    lock.lock();
+    runnerLock.lock();
     try {
       this.unhandledException = unhandledException;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
@@ -249,7 +243,7 @@ class WorkflowThreadContext {
     if (DebugModeUtils.isTemporalDebugModeOn()) {
       deadlockDetectionTimeoutMs = Long.MAX_VALUE;
     }
-    lock.lock();
+    runnerLock.lock();
     try {
       if (status == Status.DONE) {
         return false;
@@ -257,35 +251,25 @@ class WorkflowThreadContext {
       Preconditions.checkState(
           evaluationFunction == null, "Cannot runUntilBlocked while evaluating");
       inRunUntilBlocked = true;
-      if (status == Status.YIELDED) {
-        // we have to swap it here to allow potentialProgressStatesLocked to start returning true
-        status = Status.RUNNING;
-      }
       remainedBlocked = true;
-      yieldCondition.signal();
-      while (potentialProgressStatesLocked()) {
-        boolean awaitTimedOut =
-            !runCondition.await(deadlockDetectionTimeoutMs, TimeUnit.MILLISECONDS);
-        if (awaitTimedOut
-            // check that the condition is still true after acquiring the lock back
-            // (it could be moved into DONE meanwhile)
-            && potentialProgressStatesLocked()) {
-          long detectionTimestamp = System.currentTimeMillis();
-          if (currentThread != null) {
-            throw new PotentialDeadlockException(currentThread.getName(), this, detectionTimestamp);
-          } else {
-            // This should never happen.
-            // We clear currentThread only after setting the status to DONE.
-            // And we check for it by the status condition check after waking up on the condition
-            // and acquiring the lock back
-            log.warn(
-                "Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
-            throw new PotentialDeadlockException("UnknownThread", this, detectionTimestamp);
-          }
+      scheduler.scheduleLocked();
+      WorkflowThreadScheduler.WaitForYieldResult yieldResult =
+          scheduler.waitForYieldLocked(deadlockDetectionTimeoutMs, TimeUnit.MILLISECONDS);
+      if (WorkflowThreadScheduler.WaitForYieldResult.DEADLOCK_DETECTED.equals(yieldResult)) {
+        long detectionTimestamp = System.currentTimeMillis();
+        if (currentThread != null) {
+          throw new PotentialDeadlockException(currentThread.getName(), this, detectionTimestamp);
+        } else {
+          // This should never happen.
+          // We clear currentThread only after setting the status to DONE.
+          // And we check for it by the status condition check after waking up on the condition
+          // and acquiring the lock back
+          log.warn("Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
+          throw new PotentialDeadlockException("UnknownThread", this, detectionTimestamp);
         }
-        Preconditions.checkState(
-            evaluationFunction == null, "Cannot runUntilBlocked while evaluating");
       }
+      Preconditions.checkState(
+          evaluationFunction == null, "Cannot runUntilBlocked while evaluating");
       return !remainedBlocked;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -295,26 +279,16 @@ class WorkflowThreadContext {
       return true;
     } finally {
       inRunUntilBlocked = false;
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
-  /**
-   * Should be called under the lock.
-   *
-   * @return true is current status is RUNNING or CREATED - two states we actively monitor for
-   *     potential deadlocks
-   */
-  private boolean potentialProgressStatesLocked() {
-    return status == Status.RUNNING || status == Status.CREATED;
-  }
-
   public boolean isDestroyRequested() {
-    lock.lock();
+    runnerLock.lock();
     try {
       return destroyRequested;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
@@ -323,7 +297,7 @@ class WorkflowThreadContext {
    * There is no guarantee that the thread is destroyed at the end of this call.
    */
   void initiateDestroy() {
-    lock.lock();
+    runnerLock.lock();
     try {
       destroyRequested = true;
       if (status == Status.CREATED) {
@@ -339,18 +313,18 @@ class WorkflowThreadContext {
         // nothing to destroy
         return;
       }
-      yieldCondition.signal();
+      scheduler.scheduleLocked();
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
   public void initializeCurrentThread(Thread currentThread) {
-    lock.lock();
+    runnerLock.lock();
     try {
       this.currentThread = currentThread;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
   }
 
@@ -370,11 +344,16 @@ class WorkflowThreadContext {
    */
   @Nullable
   public Thread getCurrentThread() {
-    lock.lock();
+    runnerLock.lock();
     try {
       return currentThread;
     } finally {
-      lock.unlock();
+      runnerLock.unlock();
     }
+  }
+
+  public NonIdempotentHandle lockDeadlockDetector() {
+    scheduler.lockDeadlockDetection();
+    return scheduler::unlockDeadlockDetection;
   }
 }

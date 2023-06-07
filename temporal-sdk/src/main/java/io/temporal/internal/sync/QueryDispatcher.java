@@ -33,19 +33,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class QueryDispatcher {
-
   private static final Logger log = LoggerFactory.getLogger(QueryDispatcher.class);
 
-  private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
-  private final DataConverter converter;
-
+  private final DataConverter dataConverterWithWorkflowContext;
   private final Map<String, WorkflowOutboundCallsInterceptor.RegisterQueryInput> queryCallbacks =
       new HashMap<>();
 
   private DynamicQueryHandler dynamicQueryHandler;
+  private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
 
-  public QueryDispatcher(DataConverter converter) {
-    this.converter = converter;
+  public QueryDispatcher(DataConverter dataConverterWithWorkflowContext) {
+    this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
   }
 
   public void setInboundCallsInterceptor(WorkflowInboundCallsInterceptor inboundCallsInterceptor) {
@@ -79,17 +77,17 @@ class QueryDispatcher {
         throw new IllegalArgumentException(
             "Unknown query type: " + queryName + ", knownTypes=" + queryCallbacks.keySet());
       }
-      args = new Object[] {new EncodedValues(input, converter)};
+      args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
     } else {
       args =
-          DataConverter.arrayFromPayloads(
-              converter, input, handler.getArgTypes(), handler.getGenericArgTypes());
+          dataConverterWithWorkflowContext.fromPayloads(
+              input, handler.getArgTypes(), handler.getGenericArgTypes());
     }
     Object result =
         inboundCallsInterceptor
             .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, args))
             .getResult();
-    return converter.toPayloads(result);
+    return dataConverterWithWorkflowContext.toPayloads(result);
   }
 
   public void registerQueryHandlers(WorkflowOutboundCallsInterceptor.RegisterQueryInput request) {

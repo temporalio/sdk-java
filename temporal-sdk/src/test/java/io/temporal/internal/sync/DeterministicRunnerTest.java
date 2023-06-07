@@ -34,7 +34,6 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.Signal;
 import io.temporal.internal.replay.*;
@@ -60,7 +59,9 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.junit.*;
 
 public class DeterministicRunnerTest {
@@ -668,7 +669,7 @@ public class DeterministicRunnerTest {
     when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     SyncWorkflowContext syncWorkflowContext =
-        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+        DummySyncWorkflowContext.newDummySyncWorkflowContext();
     syncWorkflowContext.setReplayContext(replayWorkflowContext);
 
     DeterministicRunnerImpl d =
@@ -696,8 +697,7 @@ public class DeterministicRunnerTest {
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
 
-    syncWorkflowContext =
-        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+    syncWorkflowContext = DummySyncWorkflowContext.newDummySyncWorkflowContext();
     syncWorkflowContext.setReplayContext(replayWorkflowContext);
 
     DeterministicRunnerImpl d2 =
@@ -809,6 +809,9 @@ public class DeterministicRunnerTest {
     }
 
     @Override
+    public void setCurrentStartedEvenId(Long event) {}
+
+    @Override
     public void close() {
       runner.close();
     }
@@ -888,5 +891,76 @@ public class DeterministicRunnerTest {
 
     d.close();
     assertTrue("Close should return only after the thread finished", threadFinished.get());
+  }
+
+  @Test
+  public void testGetRunnerLocalAbsent() {
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>();
+              assertEquals(
+                  "supplier default value",
+                  runnerLocalInternal.get(() -> "supplier default value"));
+            });
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+  }
+
+  @Test
+  public void testGetRunnerLocalPresentAndNull() {
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>();
+              runnerLocalInternal.set(null);
+              assertNull(runnerLocalInternal.get(() -> "supplier default value"));
+            });
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+  }
+
+  @Test
+  public void testGetRunnerLocalPresentAndNonNull() {
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>();
+              runnerLocalInternal.set("explicitly set value");
+              assertEquals(
+                  "explicitly set value", runnerLocalInternal.get(() -> "supplier default value"));
+            });
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+  }
+
+  private static Supplier<String> getStringSupplier(AtomicInteger supplierCalls) {
+    return () -> {
+      supplierCalls.addAndGet(1);
+      return "supplier default value";
+    };
+  }
+
+  @Test
+  public void testSupplierCalledOnce() {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>();
+              runnerLocalInternal.get(getStringSupplier(supplierCalls));
+              runnerLocalInternal.get(getStringSupplier(supplierCalls));
+              runnerLocalInternal.get(getStringSupplier(supplierCalls));
+              assertEquals(
+                  "supplier default value",
+                  runnerLocalInternal.get(getStringSupplier(supplierCalls)));
+              assertEquals(1, supplierCalls.get());
+            });
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
   }
 }

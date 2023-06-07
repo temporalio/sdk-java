@@ -23,6 +23,7 @@ package io.temporal.internal.statemachines;
 import com.google.common.base.Objects;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.internal.common.ProtocolType;
 
 /**
  * This class represents an event that can cause a transition from one state to another.
@@ -51,23 +52,34 @@ class TransitionEvent<ExplicitEvent> {
   final ExplicitEvent explicitEvent;
   final EventType historyEvent;
   final CommandType commandEvent;
+  final ProtocolType messageEvent;
 
   public TransitionEvent(ExplicitEvent explicitEvent) {
     this.explicitEvent = explicitEvent;
     this.historyEvent = null;
     this.commandEvent = null;
+    this.messageEvent = null;
   }
 
   public TransitionEvent(EventType historyEvent) {
     this.historyEvent = historyEvent;
     this.explicitEvent = null;
     this.commandEvent = null;
+    this.messageEvent = null;
+  }
+
+  public TransitionEvent(ProtocolType messageEvent) {
+    this.historyEvent = null;
+    this.explicitEvent = null;
+    this.commandEvent = null;
+    this.messageEvent = messageEvent;
   }
 
   public TransitionEvent(CommandType commandEvent) {
     this.commandEvent = commandEvent;
     this.historyEvent = null;
     this.explicitEvent = null;
+    this.messageEvent = null;
   }
 
   @Override
@@ -77,12 +89,13 @@ class TransitionEvent<ExplicitEvent> {
     TransitionEvent<?> that = (TransitionEvent<?>) o;
     return Objects.equal(explicitEvent, that.explicitEvent)
         && historyEvent == that.historyEvent
-        && commandEvent == that.commandEvent;
+        && commandEvent == that.commandEvent
+        && messageEvent == that.messageEvent;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(explicitEvent, historyEvent, commandEvent);
+    return Objects.hashCode(explicitEvent, historyEvent, commandEvent, messageEvent);
   }
 
   @Override
@@ -91,6 +104,8 @@ class TransitionEvent<ExplicitEvent> {
       return explicitEvent.toString();
     } else if (historyEvent != null) {
       return historyEvent.toString().substring(EVENT_TYPE_PREFIX_LENGTH);
+    } else if (messageEvent != null) {
+      return messageEvent.toString();
     }
     return commandEvent.toString().substring(COMMAND_TYPE_PREFIX_LENGTH);
   }

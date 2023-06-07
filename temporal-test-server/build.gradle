@@ -23,7 +23,10 @@ dependencies {
     }
 
     implementation "com.google.guava:guava:$guavaVersion"
-    implementation "com.cronutils:cron-utils:${cronUtilsVersion}"
+    implementation("com.cronutils:cron-utils:${cronUtilsVersion}") {
+        // com.cronutils:cron-utils:9.2.1 carries slf4j 2.x
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
 
     testImplementation project(':temporal-testing')
     testImplementation "junit:junit:${junitVersion}"
@@ -67,6 +70,11 @@ protobuf {
         }
     }
     generateProtoTasks {
+        all()*.builtins {
+            java {
+                option 'annotate_code'
+            }
+        }
         all()*.plugins {
             grpc {
                 outputSubDir = 'java'

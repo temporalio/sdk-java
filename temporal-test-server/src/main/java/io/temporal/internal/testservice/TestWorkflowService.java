@@ -24,12 +24,14 @@ import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -198,7 +200,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Duration backoffInterval = getBackoffInterval(request.getCronSchedule(), store.currentTime());
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionImpl(
-              request, backoffInterval, Optional.empty(), OptionalLong.empty(), Optional.empty());
+              request, backoffInterval, Optional.empty(), OptionalLong.empty(), null);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -211,22 +213,42 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Duration backoffStartInterval,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
-      Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal) {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String namespace = requireNotNull("Namespace", startRequest.getNamespace());
     WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
     TestWorkflowMutableState existing;
     lock.lock();
     try {
+      String newRunId = UUID.randomUUID().toString();
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
+
         if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
+            && policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+          existing.terminateWorkflowExecution(
+              TerminateWorkflowExecutionRequest.newBuilder()
+                  .setNamespace(startRequest.getNamespace())
+                  .setWorkflowExecution(existing.getExecutionId().getExecution())
+                  .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
+                  .setIdentity("history-service")
+                  .setDetails(
+                      Payloads.newBuilder()
+                          .addPayloads(
+                              Payload.newBuilder()
+                                  .setData(
+                                      ByteString.copyFromUtf8(
+                                          String.format("terminated by new runID: %s", newRunId)))
+                                  .build())
+                          .build())
+                  .build());
+        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
             || policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
           return throwDuplicatedWorkflow(startRequest, existing);
-        }
-        if (policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+        } else if (policy
+                == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
             && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
                 || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
           return throwDuplicatedWorkflow(startRequest, existing);
@@ -244,12 +266,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } else {
         retryState = Optional.empty();
       }
-      String runId = UUID.randomUUID().toString();
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
-          runId,
-          // it's the first execution in the continue-as-new chain, so firstExecutionRunId = runId
-          runId,
+          newRunId,
+          // it's the first execution in the continue-as-new chain, so firstExecutionRunId =
+          // newRunId
+          newRunId,
           Optional.empty(),
           retryState,
           backoffStartInterval,
@@ -301,7 +323,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
-      Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
       WorkflowId workflowId) {
     String namespace = startRequest.getNamespace();
     TestWorkflowMutableState mutableState =
@@ -324,8 +346,28 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
     executions.put(executionId, mutableState);
-    mutableState.startWorkflow(continuedExecutionRunId.isPresent(), signalWithStartSignal);
-    return StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).build();
+
+    PollWorkflowTaskQueueRequest eagerWorkflowTaskPollRequest =
+        startRequest.getRequestEagerExecution()
+            ? PollWorkflowTaskQueueRequest.newBuilder()
+                .setIdentity(startRequest.getIdentity())
+                .setNamespace(startRequest.getNamespace())
+                .setTaskQueue(startRequest.getTaskQueue())
+                .build()
+            : null;
+
+    @Nullable
+    PollWorkflowTaskQueueResponse eagerWorkflowTask =
+        mutableState.startWorkflow(
+            continuedExecutionRunId.isPresent(),
+            signalWithStartSignal,
+            eagerWorkflowTaskPollRequest);
+    StartWorkflowExecutionResponse.Builder response =
+        StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId());
+    if (eagerWorkflowTask != null) {
+      response.setEagerWorkflowTask(eagerWorkflowTask);
+    }
+    return response.build();
   }
 
   @Override
@@ -726,6 +768,42 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
+  public void updateWorkflowExecution(
+      UpdateWorkflowExecutionRequest request,
+      StreamObserver<UpdateWorkflowExecutionResponse> responseObserver) {
+    try {
+      ExecutionId executionId =
+          new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      @Nullable Deadline deadline = Context.current().getDeadline();
+      UpdateWorkflowExecutionResponse response =
+          mutableState.updateWorkflowExecution(request, deadline);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
+  public void pollWorkflowExecutionUpdate(
+      PollWorkflowExecutionUpdateRequest request,
+      StreamObserver<PollWorkflowExecutionUpdateResponse> responseObserver) {
+    try {
+      ExecutionId executionId =
+          new ExecutionId(request.getNamespace(), request.getUpdateRef().getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      @Nullable Deadline deadline = Context.current().getDeadline();
+      PollWorkflowExecutionUpdateResponse response =
+          mutableState.pollUpdateWorkflowExecution(request, deadline);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
   public void signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionRequest r,
       StreamObserver<SignalWithStartWorkflowExecutionResponse> responseObserver) {
@@ -794,7 +872,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               Duration.ZERO,
               Optional.empty(),
               OptionalLong.empty(),
-              Optional.of(signalRequest));
+              signalRequest);
       responseObserver.onNext(
           SignalWithStartWorkflowExecutionResponse.newBuilder()
               .setRunId(startResult.getRunId())
@@ -888,7 +966,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               lastFail,
               parent,
               parentChildInitiatedEventId,
-              Optional.empty(),
+              null,
               continuedExecutionId.getWorkflowId());
       return response.getRunId();
     } finally {

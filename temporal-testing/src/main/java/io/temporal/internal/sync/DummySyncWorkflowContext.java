@@ -46,7 +46,15 @@ import javax.annotation.Nullable;
 public class DummySyncWorkflowContext {
   public static SyncWorkflowContext newDummySyncWorkflowContext() {
     SyncWorkflowContext context =
-        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+        new SyncWorkflowContext(
+            "dummy",
+            WorkflowExecution.newBuilder().setWorkflowId("dummy").setRunId("dummy").build(),
+            new SignalDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
+            new QueryDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
+            new UpdateDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
+            null,
+            DefaultDataConverter.STANDARD_INSTANCE,
+            null);
     context.setReplayContext(new DummyReplayWorkflowContext());
     context.initHeadOutboundCallsInterceptor(context);
     context.initHeadInboundCallsInterceptor(
@@ -119,14 +127,16 @@ public class DummySyncWorkflowContext {
       return "dummy-workflow-id";
     }
 
+    @Nonnull
     @Override
     public String getRunId() {
       return "dummy-run-id";
     }
 
+    @Nonnull
     @Override
     public String getFirstExecutionRunId() {
-      return null;
+      throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -134,9 +144,10 @@ public class DummySyncWorkflowContext {
       throw new UnsupportedOperationException("not implemented");
     }
 
+    @Nonnull
     @Override
-    public Optional<String> getOriginalExecutionRunId() {
-      return Optional.empty();
+    public String getOriginalExecutionRunId() {
+      throw new UnsupportedOperationException("not implemented");
     }
 
     @Override

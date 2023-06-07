@@ -475,6 +475,10 @@ public final class Workflow {
     return WorkflowInternal.newTimer(delay);
   }
 
+  /**
+   * @deprecated use {@link #newWorkflowQueue(int)} instead. An implementation returned by this
+   *     method has a bug.
+   */
   @Deprecated
   public static <E> WorkflowQueue<E> newQueue(int capacity) {
     return WorkflowInternal.newQueue(capacity);
@@ -665,7 +669,7 @@ public final class Workflow {
    *
    * <p>This method always returns false if called from a non workflow thread.
    *
-   * @deprecated use {{@link WorkflowUnsafe#isReplaying()}}
+   * @deprecated use {@link WorkflowUnsafe#isReplaying()}
    */
   @Deprecated
   public static boolean isReplaying() {

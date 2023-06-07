@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
@@ -39,31 +40,15 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
+import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
-import io.temporal.workflow.ActivityStub;
-import io.temporal.workflow.CancellationScope;
-import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ChildWorkflowStub;
-import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.DynamicQueryHandler;
-import io.temporal.workflow.DynamicSignalHandler;
-import io.temporal.workflow.ExternalWorkflowStub;
-import io.temporal.workflow.Functions;
+import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.WorkflowQueue;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.function.BiPredicate;
@@ -142,7 +127,7 @@ public final class WorkflowInternal {
   /**
    * Register query or queries implementation object. There is no need to register top level
    * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
-   * QueryMethod} are registered.
+   * QueryMethod} are registered. TODO(quinn) LIES!
    */
   public static void registerListener(Object implementation) {
     if (implementation instanceof DynamicSignalHandler) {
@@ -157,6 +142,13 @@ public final class WorkflowInternal {
           .registerDynamicQueryHandler(
               new WorkflowOutboundCallsInterceptor.RegisterDynamicQueryHandlerInput(
                   (DynamicQueryHandler) implementation));
+      return;
+    }
+    if (implementation instanceof DynamicUpdateHandler) {
+      getWorkflowOutboundInterceptor()
+          .registerDynamicUpdateHandler(
+              new WorkflowOutboundCallsInterceptor.RegisterDynamicUpdateHandlerInput(
+                  (DynamicUpdateHandler) implementation));
       return;
     }
     Class<?> cls = implementation.getClass();
@@ -197,6 +189,76 @@ public final class WorkflowInternal {
       getWorkflowOutboundInterceptor()
           .registerSignalHandlers(
               new WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput(requests));
+    }
+
+    // Get all validators and lazily assign them to update handlers as we see them.
+    Map<String, POJOWorkflowMethodMetadata> validators =
+        new HashMap<>(workflowMetadata.getUpdateValidatorMethods().size());
+    for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateValidatorMethods()) {
+      Method method = methodMetadata.getWorkflowMethod();
+      UpdateValidatorMethod updateValidatorMethod =
+          method.getAnnotation(UpdateValidatorMethod.class);
+      if (validators.containsKey(updateValidatorMethod.updateName())) {
+        throw new IllegalArgumentException(
+            "Duplicate validator for update handle " + updateValidatorMethod.updateName());
+      }
+      validators.put(updateValidatorMethod.updateName(), methodMetadata);
+    }
+
+    List<WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest> updateRequests =
+        new ArrayList<>();
+    for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateMethods()) {
+      Method method = methodMetadata.getWorkflowMethod();
+      UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+      String updateMethodName = updateMethod.name();
+      if (updateMethodName.isEmpty()) {
+        updateMethodName = method.getName();
+      }
+      // Check if any validators claim they are the validator for this update
+      POJOWorkflowMethodMetadata validatorMethodMetadata = validators.remove(updateMethodName);
+      Method validatorMethod;
+      if (validatorMethodMetadata != null) {
+        validatorMethod = validatorMethodMetadata.getWorkflowMethod();
+        if (!Arrays.equals(validatorMethod.getParameterTypes(), method.getParameterTypes())) {
+          throw new IllegalArgumentException(
+              "Validator for: "
+                  + updateMethodName
+                  + " type parameters do not match the update handle");
+        }
+      } else {
+        validatorMethod = null;
+      }
+      updateRequests.add(
+          new WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest(
+              methodMetadata.getName(),
+              method.getParameterTypes(),
+              method.getGenericParameterTypes(),
+              (args) -> {
+                try {
+                  if (validatorMethod != null) {
+                    validatorMethod.invoke(implementation, args);
+                  }
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              },
+              (args) -> {
+                try {
+                  return method.invoke(implementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              }));
+    }
+    if (!updateRequests.isEmpty()) {
+      getWorkflowOutboundInterceptor()
+          .registerUpdateHandlers(
+              new WorkflowOutboundCallsInterceptor.RegisterUpdateHandlersInput(updateRequests));
+    }
+    if (!validators.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing update methods for update validator(s): "
+              + Joiner.on(", ").join(validators.keySet()));
     }
   }
 
@@ -396,14 +458,6 @@ public final class WorkflowInternal {
     return result.get();
   }
 
-  private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
-    return getRootWorkflowContext().getWorkflowOutboundInterceptor();
-  }
-
-  static SyncWorkflowContext getRootWorkflowContext() {
-    return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
-  }
-
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     getWorkflowOutboundInterceptor().await(reason, unblockCondition);
@@ -465,17 +519,10 @@ public final class WorkflowInternal {
     return CheckedExceptionWrapper.unwrap(e);
   }
 
-  /** Prohibit instantiation */
-  private WorkflowInternal() {}
-
   /** Returns false if not under workflow code. */
   public static boolean isReplaying() {
     Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
     return thread.isPresent() && getRootWorkflowContext().isReplaying();
-  }
-
-  public static WorkflowInfo getWorkflowInfo() {
-    return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
   public static <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
@@ -519,6 +566,24 @@ public final class WorkflowInternal {
 
   public static void sleep(Duration duration) {
     getWorkflowOutboundInterceptor().sleep(duration);
+  }
+
+  public static boolean isWorkflowThread() {
+    return WorkflowThreadMarker.isWorkflowThread();
+  }
+
+  public static <T> T deadlockDetectorOff(Functions.Func<T> func) {
+    if (isWorkflowThread()) {
+      try (NonIdempotentHandle ignored = getWorkflowThread().lockDeadlockDetector()) {
+        return func.apply();
+      }
+    } else {
+      return func.apply();
+    }
+  }
+
+  public static WorkflowInfo getWorkflowInfo() {
+    return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
   public static Scope getMetricsScope() {
@@ -627,4 +692,19 @@ public final class WorkflowInternal {
         // converter
         .map(f -> getDataConverter().failureToException(f));
   }
+
+  private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
+    return getRootWorkflowContext().getWorkflowOutboundInterceptor();
+  }
+
+  static SyncWorkflowContext getRootWorkflowContext() {
+    return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
+  }
+
+  private static WorkflowThread getWorkflowThread() {
+    return DeterministicRunnerImpl.currentThreadInternal();
+  }
+
+  /** Prohibit instantiation */
+  private WorkflowInternal() {}
 }

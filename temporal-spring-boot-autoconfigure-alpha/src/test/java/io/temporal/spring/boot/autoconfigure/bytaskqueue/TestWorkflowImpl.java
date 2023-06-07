@@ -25,7 +25,7 @@ import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 
-@WorkflowImpl(taskQueues = "UnitTest")
+@WorkflowImpl(taskQueues = {"${default-queue.name:UnitTest}"})
 public class TestWorkflowImpl implements TestWorkflow {
   @Override
   public String execute(String input) {

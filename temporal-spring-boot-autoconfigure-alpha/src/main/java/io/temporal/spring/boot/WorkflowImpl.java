@@ -42,7 +42,7 @@ public @interface WorkflowImpl {
   /**
    * @return Worker Task Queues to register this workflow implementation with. If Worker with the
    *     specified Task Queue is not defined in the application config, it will be created with a
-   *     default config.
+   *     default config. Can be specified by a property key, e.g.: ${propertyKey}.
    */
   String[] taskQueues() default {};
 }

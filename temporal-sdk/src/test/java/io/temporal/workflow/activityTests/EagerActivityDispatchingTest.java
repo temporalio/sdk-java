@@ -47,8 +47,7 @@ import java.util.stream.Collectors;
 import org.junit.*;
 
 public class EagerActivityDispatchingTest {
-
-  private final String taskQueue = "test-eageractivities";
+  private static final String TASK_QUEUE = "test-eager-activity-dispatch";
   private TestWorkflowEnvironment env;
   private ArrayList<WorkerFactory> workerFactories;
 
@@ -81,7 +80,7 @@ public class EagerActivityDispatchingTest {
     WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
     workerFactories.add(workerFactory);
 
-    Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
+    Worker worker = workerFactory.newWorker(TASK_QUEUE, workerOptions);
     worker.registerActivitiesImplementations(activitiesImpl);
     if (registerWorkflows)
       worker.registerWorkflowImplementationTypes(EagerActivityTestWorkflowImpl.class);
@@ -112,7 +111,7 @@ public class EagerActivityDispatchingTest {
         env.getWorkflowClient()
             .newWorkflowStub(
                 EagerActivityTestWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+                WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     workflowStub.execute(true);
 
     WorkflowExecutionHistory history =
@@ -152,7 +151,7 @@ public class EagerActivityDispatchingTest {
         env.getWorkflowClient()
             .newWorkflowStub(
                 EagerActivityTestWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+                WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     workflowStub.execute(true);
 
     WorkflowExecutionHistory history =
@@ -192,7 +191,7 @@ public class EagerActivityDispatchingTest {
         env.getWorkflowClient()
             .newWorkflowStub(
                 EagerActivityTestWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+                WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     workflowStub.execute(false);
 
     WorkflowExecutionHistory history =

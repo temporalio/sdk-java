@@ -28,6 +28,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Collection;
@@ -62,11 +63,11 @@ public final class WorkflowOptions {
     }
     String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
     return WorkflowOptions.newBuilder()
-        .setWorkflowIdReusePolicy(o.getWorkflowIdReusePolicy())
         .setWorkflowId(o.getWorkflowId())
-        .setWorkflowTaskTimeout(o.getWorkflowTaskTimeout())
+        .setWorkflowIdReusePolicy(o.getWorkflowIdReusePolicy())
         .setWorkflowRunTimeout(o.getWorkflowRunTimeout())
         .setWorkflowExecutionTimeout(o.getWorkflowExecutionTimeout())
+        .setWorkflowTaskTimeout(o.getWorkflowTaskTimeout())
         .setTaskQueue(o.getTaskQueue())
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
@@ -74,6 +75,7 @@ public final class WorkflowOptions {
         .setSearchAttributes(o.getSearchAttributes())
         .setTypedSearchAttributes(o.getTypedSearchAttributes())
         .setContextPropagators(o.getContextPropagators())
+        .setDisableEagerExecution(o.isDisableEagerExecution())
         .validateBuildWithDefaults();
   }
 
@@ -103,6 +105,8 @@ public final class WorkflowOptions {
 
     private List<ContextPropagator> contextPropagators;
 
+    private boolean disableEagerExecution;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -121,6 +125,7 @@ public final class WorkflowOptions {
       this.searchAttributes = options.searchAttributes;
       this.typedSearchAttributes = options.typedSearchAttributes;
       this.contextPropagators = options.contextPropagators;
+      this.disableEagerExecution = options.disableEagerExecution;
     }
 
     /**
@@ -313,6 +318,27 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * If {@link WorkflowClient} is used to create a {@link WorkerFactory} that is
+     *
+     * <ul>
+     *   <li>started
+     *   <li>has a non-paused worker on the right task queue
+     *   <li>has available workflow task executor slots
+     * </ul>
+     *
+     * and such a {@link WorkflowClient} is used to start a workflow, then the first workflow task
+     * could be dispatched on this local worker with the response to the start call if Server
+     * supports it. This option can be used to disable this mechanism.
+     *
+     * @param disableEagerExecution if true, an eager local execution of the workflow task will
+     *     never be requested even if it is possible.
+     */
+    public Builder setDisableEagerExecution(boolean disableEagerExecution) {
+      this.disableEagerExecution = disableEagerExecution;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -326,7 +352,8 @@ public final class WorkflowOptions {
           memo,
           searchAttributes,
           typedSearchAttributes,
-          contextPropagators);
+          contextPropagators,
+          disableEagerExecution);
     }
 
     /**
@@ -345,7 +372,8 @@ public final class WorkflowOptions {
           memo,
           searchAttributes,
           typedSearchAttributes,
-          contextPropagators);
+          contextPropagators,
+          disableEagerExecution);
     }
   }
 
@@ -373,6 +401,8 @@ public final class WorkflowOptions {
 
   private final List<ContextPropagator> contextPropagators;
 
+  private final boolean disableEagerExecution;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -385,7 +415,8 @@ public final class WorkflowOptions {
       Map<String, Object> memo,
       Map<String, ?> searchAttributes,
       SearchAttributes typedSearchAttributes,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      boolean disableEagerExecution) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -398,6 +429,7 @@ public final class WorkflowOptions {
     this.searchAttributes = searchAttributes;
     this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
+    this.disableEagerExecution = disableEagerExecution;
   }
 
   public String getWorkflowId() {
@@ -457,6 +489,10 @@ public final class WorkflowOptions {
     return contextPropagators;
   }
 
+  public boolean isDisableEagerExecution() {
+    return disableEagerExecution;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -477,7 +513,8 @@ public final class WorkflowOptions {
         && Objects.equal(memo, that.memo)
         && Objects.equal(searchAttributes, that.searchAttributes)
         && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
-        && Objects.equal(contextPropagators, that.contextPropagators);
+        && Objects.equal(contextPropagators, that.contextPropagators)
+        && Objects.equal(disableEagerExecution, that.disableEagerExecution);
   }
 
   @Override
@@ -494,7 +531,8 @@ public final class WorkflowOptions {
         memo,
         searchAttributes,
         typedSearchAttributes,
-        contextPropagators);
+        contextPropagators,
+        disableEagerExecution);
   }
 
   @Override
@@ -527,6 +565,8 @@ public final class WorkflowOptions {
         + typedSearchAttributes
         + ", contextPropagators="
         + contextPropagators
+        + ", disableEagerExecution="
+        + disableEagerExecution
         + '}';
   }
 }

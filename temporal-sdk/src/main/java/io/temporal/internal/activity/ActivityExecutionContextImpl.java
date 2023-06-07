@@ -27,6 +27,7 @@ import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
@@ -144,8 +145,11 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     try {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
+      ActivitySerializationContext activitySerializationContext =
+          new ActivitySerializationContext(info);
       return new CompletionAwareManualCompletionClient(
-          manualCompletionClientFactory.getClient(info.getTaskToken(), metricsScope),
+          manualCompletionClientFactory.getClient(
+              info.getTaskToken(), metricsScope, activitySerializationContext),
           completionHandle);
     } finally {
       lock.unlock();

@@ -20,6 +20,7 @@
 
 package io.temporal.internal.replay;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
@@ -27,9 +28,13 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
+import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.update.v1.Input;
+import io.temporal.api.update.v1.Request;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.MetricsType;
@@ -71,7 +76,8 @@ final class ReplayWorkflowExecutor {
     } catch (CanceledFailure e) {
       if (!context.isCancelRequested()) {
         failure =
-            new WorkflowExecutionException(workflow.getWorkflowContext().mapExceptionToFailure(e));
+            new WorkflowExecutionException(
+                workflow.getWorkflowContext().mapWorkflowExceptionToFailure(e));
       }
       completed = true;
     }
@@ -139,6 +145,22 @@ final class ReplayWorkflowExecutor {
     Optional<Payloads> input =
         signalAttributes.hasInput() ? Optional.of(signalAttributes.getInput()) : Optional.empty();
     this.workflow.handleSignal(signalAttributes.getSignalName(), input, event.getEventId());
+  }
+
+  public void handleWorkflowExecutionUpdated(UpdateMessage updateMessage) {
+    if (context.isWorkflowMethodCompleted()) {
+      throw new IllegalStateException("Update received after workflow is closed.");
+    }
+    try {
+      Message protocolMessage = updateMessage.getMessage();
+      Request update = protocolMessage.getBody().unpack(Request.class);
+      Input input = update.getInput();
+      Optional<Payloads> args = Optional.ofNullable(input.getArgs());
+      this.workflow.handleUpdate(
+          input.getName(), args, protocolMessage.getEventId(), updateMessage.getCallbacks());
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException("Message is not an update.");
+    }
   }
 
   public Optional<Payloads> query(WorkflowQuery query) {

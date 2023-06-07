@@ -32,12 +32,14 @@ import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A delegating {@link DataConverter} implementation that wraps and chains both another {@link
@@ -51,8 +53,9 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   private static final String ENCODED_FAILURE_MESSAGE = "Encoded failure";
 
   private final DataConverter dataConverter;
-  private final PayloadCodec codec;
+  private final ChainCodec chainCodec;
   private final boolean encodeFailureAttributes;
+  private final @Nullable SerializationContext serializationContext;
 
   /**
    * When serializing to Payloads:
@@ -113,31 +116,49 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       DataConverter dataConverter,
       Collection<PayloadCodec> codecs,
       boolean encodeFailureAttributes) {
+    this(dataConverter, new ChainCodec(codecs), encodeFailureAttributes, null);
+  }
+
+  CodecDataConverter(
+      DataConverter dataConverter,
+      ChainCodec codecs,
+      boolean encodeFailureAttributes,
+      @Nullable SerializationContext serializationContext) {
     this.dataConverter = dataConverter;
-    this.codec = new ChainCodec(codecs);
+    this.chainCodec = codecs;
     this.encodeFailureAttributes = encodeFailureAttributes;
+    this.serializationContext = serializationContext;
   }
 
   @Override
   public <T> Optional<Payload> toPayload(T value) {
-    Optional<Payload> payload = dataConverter.toPayload(value);
-    List<Payload> encodedPayloads = codec.encode(Collections.singletonList(payload.get()));
+    Optional<Payload> payload =
+        ConverterUtils.withContext(dataConverter, serializationContext).toPayload(value);
+    List<Payload> encodedPayloads =
+        ConverterUtils.withContext(chainCodec, serializationContext)
+            .encode(Collections.singletonList(payload.get()));
     Preconditions.checkState(encodedPayloads.size() == 1, "Expected one encoded payload");
     return Optional.of(encodedPayloads.get(0));
   }
 
   @Override
   public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType) {
-    List<Payload> decodedPayload = codec.decode(Collections.singletonList(payload));
+    List<Payload> decodedPayload =
+        ConverterUtils.withContext(chainCodec, serializationContext)
+            .decode(Collections.singletonList(payload));
     Preconditions.checkState(decodedPayload.size() == 1, "Expected one decoded payload");
-    return dataConverter.fromPayload(decodedPayload.get(0), valueClass, valueType);
+    return ConverterUtils.withContext(dataConverter, serializationContext)
+        .fromPayload(decodedPayload.get(0), valueClass, valueType);
   }
 
   @Override
   public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
-    Optional<Payloads> payloads = dataConverter.toPayloads(values);
+    Optional<Payloads> payloads =
+        ConverterUtils.withContext(dataConverter, serializationContext).toPayloads(values);
     if (payloads.isPresent()) {
-      List<Payload> encodedPayloads = codec.encode(payloads.get().getPayloadsList());
+      List<Payload> encodedPayloads =
+          ConverterUtils.withContext(chainCodec, serializationContext)
+              .encode(payloads.get().getPayloadsList());
       payloads = Optional.of(Payloads.newBuilder().addAllPayloads(encodedPayloads).build());
     }
     return payloads;
@@ -150,14 +171,56 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     if (content.isPresent()) {
       content = Optional.of(decodePayloads(content.get()));
     }
-    return dataConverter.fromPayloads(index, content, valueType, valueGenericType);
+    return ConverterUtils.withContext(dataConverter, serializationContext)
+        .fromPayloads(index, content, valueType, valueGenericType);
+  }
+
+  @Override
+  public Object[] fromPayloads(
+      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
+      throws DataConverterException {
+    if (content.isPresent()) {
+      content = Optional.of(decodePayloads(content.get()));
+    }
+    return ConverterUtils.withContext(dataConverter, serializationContext)
+        .fromPayloads(content, parameterTypes, genericParameterTypes);
   }
 
   @Override
   @Nonnull
   public Failure exceptionToFailure(@Nonnull Throwable throwable) {
     Preconditions.checkNotNull(throwable, "throwable");
-    return this.encodeFailure(dataConverter.exceptionToFailure(throwable).toBuilder()).build();
+    return this.encodeFailure(
+            ConverterUtils.withContext(dataConverter, serializationContext)
+                .exceptionToFailure(throwable)
+                .toBuilder())
+        .build();
+  }
+
+  @Override
+  @Nonnull
+  public TemporalFailure failureToException(@Nonnull Failure failure) {
+    Preconditions.checkNotNull(failure, "failure");
+    return ConverterUtils.withContext(dataConverter, serializationContext)
+        .failureToException(this.decodeFailure(failure.toBuilder()).build());
+  }
+
+  @Nonnull
+  @Override
+  public CodecDataConverter withContext(@Nonnull SerializationContext context) {
+    return new CodecDataConverter(dataConverter, chainCodec, encodeFailureAttributes, context);
+  }
+
+  @Nonnull
+  @Override
+  public List<Payload> encode(@Nonnull List<Payload> payloads) {
+    return ConverterUtils.withContext(chainCodec, serializationContext).encode(payloads);
+  }
+
+  @Nonnull
+  @Override
+  public List<Payload> decode(@Nonnull List<Payload> payloads) {
+    return ConverterUtils.withContext(chainCodec, serializationContext).decode(payloads);
   }
 
   private Failure.Builder encodeFailure(Failure.Builder failure) {
@@ -219,13 +282,6 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return failure;
   }
 
-  @Override
-  @Nonnull
-  public TemporalFailure failureToException(@Nonnull Failure failure) {
-    Preconditions.checkNotNull(failure, "failure");
-    return dataConverter.failureToException(this.decodeFailure(failure.toBuilder()).build());
-  }
-
   private Failure.Builder decodeFailure(Failure.Builder failure) {
     if (failure.hasCause()) {
       failure.setCause(decodeFailure(failure.getCause().toBuilder()));
@@ -284,26 +340,12 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return failure;
   }
 
-  @Nonnull
-  @Override
-  public List<Payload> encode(@Nonnull List<Payload> payloads) {
-    return codec.encode(payloads);
-  }
-
   private Payloads encodePayloads(Payloads decodedPayloads) {
-    List<Payload> encodedPayloads = codec.encode(decodedPayloads.getPayloadsList());
-    return Payloads.newBuilder().addAllPayloads(encodedPayloads).build();
-  }
-
-  @Nonnull
-  @Override
-  public List<Payload> decode(@Nonnull List<Payload> payloads) {
-    return codec.decode(payloads);
+    return Payloads.newBuilder().addAllPayloads(encode(decodedPayloads.getPayloadsList())).build();
   }
 
   private Payloads decodePayloads(Payloads encodedPayloads) {
-    List<Payload> decodedPayloads = codec.decode(encodedPayloads.getPayloadsList());
-    return Payloads.newBuilder().addAllPayloads(decodedPayloads).build();
+    return Payloads.newBuilder().addAllPayloads(decode(encodedPayloads.getPayloadsList())).build();
   }
 
   static class EncodedAttributes {

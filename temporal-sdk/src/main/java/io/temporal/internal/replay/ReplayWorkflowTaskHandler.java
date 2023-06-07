@@ -45,6 +45,7 @@ import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.workflow.Functions;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
@@ -132,7 +133,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         finalCommand = wftResult.isFinalCommand();
         result =
             createCompletedWFTRequest(
-                workflowTask.getWorkflowType().getName(), workflowTask, wftResult);
+                workflowTask.getWorkflowType().getName(),
+                workflowTask,
+                wftResult,
+                workflowRunTaskHandler::setCurrentStartedEvenId);
       }
 
       if (useCache) {
@@ -181,7 +185,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result createCompletedWFTRequest(
       String workflowType,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      WorkflowTaskResult result) {
+      WorkflowTaskResult result,
+      Functions.Proc1<Long> eventIdSetHandle) {
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     if (log.isTraceEnabled()) {
       log.trace(
@@ -209,6 +214,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
             .addAllCommands(result.getCommands())
+            .addAllMessages(result.getMessages())
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewWorkflowTask(result.isForceWorkflowTask())
             .setMeteringMetadata(
@@ -231,7 +237,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(
-        workflowType, completedRequest.build(), null, null, null, result.isFinalCommand());
+        workflowType,
+        completedRequest.build(),
+        null,
+        null,
+        null,
+        result.isFinalCommand(),
+        eventIdSetHandle);
   }
 
   private Result failureToWFTResult(
@@ -252,7 +264,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                               .setFailure(((WorkflowExecutionException) e).getFailure()))
                       .build())
               .build();
-      return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false);
+      return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false, null);
     }
 
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
@@ -289,7 +301,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR);
     }
     return new WorkflowTaskHandler.Result(
-        workflowType, null, failedRequest.build(), null, null, false);
+        workflowType, null, failedRequest.build(), null, null, false, null);
   }
 
   private Result createDirectQueryResult(
@@ -318,7 +330,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         null,
         queryCompletedRequest.build(),
         null,
-        false);
+        false,
+        null);
   }
 
   @Override
@@ -350,6 +363,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private WorkflowRunTaskHandler createStatefulHandler(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
+    WorkflowExecution workflowExecution = workflowTask.getWorkflowExecution();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
     // Sticky workflow task with partial history.
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
@@ -367,7 +381,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           .setHistory(getHistoryResponse.getHistory())
           .setNextPageToken(getHistoryResponse.getNextPageToken());
     }
-    ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
+    ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType, workflowExecution);
     return new ReplayWorkflowRunTaskHandler(
         namespace, workflow, workflowTask, options, metricsScope, localActivityDispatcher);
   }

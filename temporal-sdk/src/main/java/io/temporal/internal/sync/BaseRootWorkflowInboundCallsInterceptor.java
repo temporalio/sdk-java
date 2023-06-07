@@ -57,6 +57,16 @@ public abstract class BaseRootWorkflowInboundCallsInterceptor
     return workflowContext.handleInterceptedQuery(input);
   }
 
+  @Override
+  public void validateUpdate(UpdateInput input) {
+    workflowContext.handleInterceptedValidateUpdate(input);
+  }
+
+  @Override
+  public UpdateOutput executeUpdate(UpdateInput input) {
+    return workflowContext.handleInterceptedExecuteUpdate(input);
+  }
+
   @Nonnull
   @Override
   public Object newWorkflowMethodThread(Runnable runnable, String name) {

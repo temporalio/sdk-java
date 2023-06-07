@@ -36,12 +36,15 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.RootWorkflowClientInvoker;
+import io.temporal.internal.client.WorkerFactoryRegistry;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
@@ -57,15 +60,16 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class WorkflowClientInternal implements WorkflowClient {
+final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClientInternal {
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
-  private final WorkflowClientInterceptor[] interceptors;
   private final WorkflowClientCallsInterceptor workflowClientCallsInvoker;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final Scope metricsScope;
+  private final WorkflowClientInterceptor[] interceptors;
+  private final WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
 
   /**
    * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
@@ -79,10 +83,11 @@ final class WorkflowClientInternal implements WorkflowClient {
       WorkflowServiceStubs service, WorkflowClientOptions options) {
     enforceNonWorkflowThread();
     return WorkflowThreadMarker.protectFromWorkflowThread(
-        new WorkflowClientInternal(service, options), WorkflowClient.class);
+        new WorkflowClientInternalImpl(service, options), WorkflowClient.class);
   }
 
-  WorkflowClientInternal(WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
+  WorkflowClientInternalImpl(
+      WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
@@ -104,7 +109,7 @@ final class WorkflowClientInternal implements WorkflowClient {
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
     WorkflowClientCallsInterceptor workflowClientInvoker =
-        new RootWorkflowClientInvoker(genericClient, options);
+        new RootWorkflowClientInvoker(genericClient, options, workerFactoryRegistry);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
           clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);
@@ -229,7 +234,7 @@ final class WorkflowClientInternal implements WorkflowClient {
     ActivityCompletionClient result =
         WorkflowThreadMarker.protectFromWorkflowThread(
             new ActivityCompletionClientImpl(
-                manualActivityCompletionClientFactory, () -> {}, metricsScope),
+                manualActivityCompletionClientFactory, () -> {}, metricsScope, null),
             ActivityCompletionClient.class);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newActivityCompletionClient(result);
@@ -504,5 +509,20 @@ final class WorkflowClientInternal implements WorkflowClient {
 
     return StreamSupport.stream(
         Spliterators.spliteratorUnknownSize(iterator, CHARACTERISTICS), false);
+  }
+
+  @Override
+  public Object getInternal() {
+    return this;
+  }
+
+  @Override
+  public void registerWorkerFactory(WorkerFactory workerFactory) {
+    workerFactoryRegistry.register(workerFactory);
+  }
+
+  @Override
+  public void deregisterWorkerFactory(WorkerFactory workerFactory) {
+    workerFactoryRegistry.deregister(workerFactory);
   }
 }

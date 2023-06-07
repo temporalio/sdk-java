@@ -22,6 +22,8 @@ package io.temporal.common.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.update.v1.UpdateRef;
+import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -74,6 +77,12 @@ public interface WorkflowClientCallsInterceptor {
 
   <R> QueryOutput<R> query(QueryInput<R> input);
 
+  @Experimental
+  <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input);
+
+  @Experimental
+  <R> PollWorkflowUpdateOutput<R> pollWorkflowUpdate(PollWorkflowUpdateInput<R> input);
+
   CancelOutput cancel(CancelInput input);
 
   TerminateOutput terminate(TerminateInput input);
@@ -85,12 +94,20 @@ public interface WorkflowClientCallsInterceptor {
     private final Object[] arguments;
     private final WorkflowOptions options;
 
+    /**
+     * @param workflowId id of the workflow to be started
+     * @param workflowType workflow type name
+     * @param header internal Temporal header that is used to pass context between different
+     *     abstractions and actors
+     * @param arguments input arguments for the workflow
+     * @param options workflow options
+     */
     public WorkflowStartInput(
-        String workflowId,
-        String workflowType,
-        Header header,
-        Object[] arguments,
-        WorkflowOptions options) {
+        @Nonnull String workflowId,
+        @Nonnull String workflowType,
+        @Nonnull Header header,
+        @Nonnull Object[] arguments,
+        @Nonnull WorkflowOptions options) {
       this.workflowId = workflowId;
       this.workflowType = workflowType;
       this.header = header;
@@ -120,12 +137,13 @@ public interface WorkflowClientCallsInterceptor {
   }
 
   final class WorkflowStartOutput {
-    private final WorkflowExecution workflowExecution;
+    private final @Nonnull WorkflowExecution workflowExecution;
 
-    public WorkflowStartOutput(WorkflowExecution workflowExecution) {
+    public WorkflowStartOutput(@Nonnull WorkflowExecution workflowExecution) {
       this.workflowExecution = workflowExecution;
     }
 
+    @Nonnull
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
     }
@@ -343,6 +361,176 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+  }
+
+  @Experimental
+  final class StartUpdateInput<R> {
+    private final WorkflowExecution workflowExecution;
+    private final String updateName;
+    private final Object[] arguments;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final String updateId;
+    private final String firstExecutionRunId;
+    private final WaitPolicy waitPolicy;
+
+    public StartUpdateInput(
+        WorkflowExecution workflowExecution,
+        String updateName,
+        String updateId,
+        Object[] arguments,
+        Class<R> resultClass,
+        Type resultType,
+        String firstExecutionRunId,
+        WaitPolicy waitPolicy) {
+      this.workflowExecution = workflowExecution;
+      this.updateId = updateId;
+      this.updateName = updateName;
+      this.arguments = arguments;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.firstExecutionRunId = firstExecutionRunId;
+      this.waitPolicy = waitPolicy;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+
+    public String getUpdateName() {
+      return updateName;
+    }
+
+    public String getUpdateId() {
+      return updateId;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public String getFirstExecutionRunId() {
+      return firstExecutionRunId;
+    }
+
+    public WaitPolicy getWaitPolicy() {
+      return waitPolicy;
+    }
+  }
+
+  @Experimental
+  final class UpdateOutput<R> {
+    private final R result;
+
+    public UpdateOutput(R result) {
+      this.result = result;
+    }
+
+    public R getResult() {
+      return result;
+    }
+  }
+
+  @Experimental
+  final class StartUpdateOutput<R> {
+    private final UpdateRef reference;
+    private final R result;
+    private final boolean hasResult;
+
+    public StartUpdateOutput(UpdateRef reference, boolean hasResult, R result) {
+      this.reference = reference;
+      this.result = result;
+      this.hasResult = hasResult;
+    }
+
+    public UpdateRef getReference() {
+      return reference;
+    }
+
+    public boolean hasResult() {
+      return hasResult;
+    }
+
+    public R getResult() {
+      return result;
+    }
+  }
+
+  @Experimental
+  final class PollWorkflowUpdateInput<R> {
+    private final WorkflowExecution workflowExecution;
+    private long timeout;
+    private TimeUnit timeoutUnit;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final String updateName;
+    private final String updateId;
+
+    public PollWorkflowUpdateInput(
+        WorkflowExecution workflowExecution,
+        String updateName,
+        String updateId,
+        Class<R> resultClass,
+        Type resultType,
+        long timeout,
+        TimeUnit timeoutUnit) {
+      this.workflowExecution = workflowExecution;
+      this.updateName = updateName;
+      this.updateId = updateId;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.timeout = timeout;
+      this.timeoutUnit = timeoutUnit;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+
+    public long getTimeout() {
+      return timeout;
+    }
+
+    public TimeUnit getTimeoutUnit() {
+      return timeoutUnit;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public String getUpdateName() {
+      return updateName;
+    }
+
+    public String getUpdateId() {
+      return updateId;
+    }
+  }
+
+  @Experimental
+  final class PollWorkflowUpdateOutput<R> {
+    private final CompletableFuture<R> result;
+
+    public PollWorkflowUpdateOutput(CompletableFuture<R> result) {
+      this.result = result;
+    }
+
+    public CompletableFuture<R> getResult() {
+      return result;
     }
   }
 

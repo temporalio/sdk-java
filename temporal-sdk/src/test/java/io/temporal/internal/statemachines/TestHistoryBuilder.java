@@ -30,34 +30,7 @@ import com.google.protobuf.util.Timestamps;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.history.v1.ActivityTaskCancelRequestedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskStartedEventAttributes;
-import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.api.history.v1.TimerCanceledEventAttributes;
-import io.temporal.api.history.v1.TimerFiredEventAttributes;
-import io.temporal.api.history.v1.TimerStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskCompletedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskTimedOutEventAttributes;
+import io.temporal.api.history.v1.*;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -563,6 +536,14 @@ class TestHistoryBuilder {
         case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
           result.setChildWorkflowExecutionTerminatedEventAttributes(
               (ChildWorkflowExecutionTerminatedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
+          result.setWorkflowExecutionUpdateAcceptedEventAttributes(
+              (WorkflowExecutionUpdateAcceptedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
+          result.setWorkflowExecutionUpdateCompletedEventAttributes(
+              (WorkflowExecutionUpdateCompletedEventAttributes) attributes);
           break;
 
         case EVENT_TYPE_UNSPECIFIED:

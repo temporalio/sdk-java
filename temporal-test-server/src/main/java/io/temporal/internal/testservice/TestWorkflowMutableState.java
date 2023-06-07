@@ -20,6 +20,7 @@
 
 package io.temporal.internal.testservice;
 
+import io.grpc.Deadline;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
@@ -32,27 +33,9 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.*;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 interface TestWorkflowMutableState {
 
@@ -89,8 +72,11 @@ interface TestWorkflowMutableState {
 
   void childWorkflowCanceled(String workflowId, ChildWorkflowExecutionCanceledEventAttributes a);
 
-  void startWorkflow(
-      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal);
+  @Nullable
+  PollWorkflowTaskQueueResponse startWorkflow(
+      boolean continuedAsNew,
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
+      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest);
 
   void startActivityTask(
       PollActivityTaskQueueResponseOrBuilder task, PollActivityTaskQueueRequest pollRequest);
@@ -126,6 +112,12 @@ interface TestWorkflowMutableState {
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIdRequest canceledRequest);
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
+
+  UpdateWorkflowExecutionResponse updateWorkflowExecution(
+      UpdateWorkflowExecutionRequest request, Deadline deadline);
+
+  PollWorkflowExecutionUpdateResponse pollUpdateWorkflowExecution(
+      PollWorkflowExecutionUpdateRequest request, Deadline deadline);
 
   DescribeWorkflowExecutionResponse describeWorkflowExecution();
 

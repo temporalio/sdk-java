@@ -122,6 +122,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public void registerUpdateHandlers(RegisterUpdateHandlersInput input) {
+    next.registerUpdateHandlers(input);
+  }
+
+  @Override
   public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
     next.registerDynamicSignalHandler(input);
   }
@@ -129,6 +134,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
     next.registerDynamicQueryHandler(input);
+  }
+
+  @Override
+  public void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input) {
+    next.registerDynamicUpdateHandler(input);
   }
 
   @Override

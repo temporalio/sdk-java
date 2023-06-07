@@ -37,6 +37,7 @@ public class MetricsTag {
   public static final String WORKFLOW_TYPE = "workflow_type";
   public static final String SIGNAL_NAME = "signal_name";
   public static final String QUERY_TYPE = "query_type";
+  public static final String UPDATE_NAME = "update_name";
   public static final String STATUS_CODE = "status_code";
   public static final String EXCEPTION = "exception";
   public static final String OPERATION_NAME = "operation";

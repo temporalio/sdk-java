@@ -27,6 +27,7 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.protobuf.Any;
 import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
@@ -41,7 +42,10 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.protocol.v1.Message;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.ProtocolType;
+import io.temporal.internal.common.ProtocolUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
@@ -105,6 +109,10 @@ public final class WorkflowStateMachines {
 
   private final Map<Long, EntityStateMachine> stateMachines = new HashMap<>();
 
+  private final Map<String, EntityStateMachine> protocolStateMachines = new HashMap<>();
+
+  private final Queue<Message> messageOutbox = new ArrayDeque<>();
+
   private final Queue<CancellableCommand> commands = new ArrayDeque<>();
 
   /**
@@ -146,6 +154,9 @@ public final class WorkflowStateMachines {
 
   private final WFTBuffer wftBuffer = new WFTBuffer();
 
+  /** */
+  private List<Message> messages = new ArrayList<Message>();
+
   public WorkflowStateMachines(StatesMachinesCallback callbacks) {
     this(callbacks, (stateMachine) -> {});
   }
@@ -174,12 +185,20 @@ public final class WorkflowStateMachines {
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
   }
 
+  public void setCurrentStartedEventId(long eventId) {
+    this.currentStartedEventId = eventId;
+  }
+
   public long getCurrentStartedEventId() {
     return currentStartedEventId;
   }
 
   public void setReplaying(boolean replaying) {
     this.replaying = replaying;
+  }
+
+  public void setMessages(List<Message> messages) {
+    this.messages = messages;
   }
 
   /**
@@ -228,14 +247,58 @@ public final class WorkflowStateMachines {
       }
     }
 
+    // Look ahead to infer protocol messages
+    if (EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED.equals(events.get(0).getEventType())) {
+      if (this.isReplaying()) {
+        for (HistoryEvent event : events) {
+          if (event.hasWorkflowExecutionUpdateAcceptedEventAttributes()) {
+            WorkflowExecutionUpdateAcceptedEventAttributes updateEvent =
+                event.getWorkflowExecutionUpdateAcceptedEventAttributes();
+            this.messages.add(
+                Message.newBuilder()
+                    .setId(updateEvent.getAcceptedRequestMessageId())
+                    .setProtocolInstanceId(updateEvent.getProtocolInstanceId())
+                    .setEventId(updateEvent.getAcceptedRequestSequencingEventId())
+                    .setBody(Any.pack(updateEvent.getAcceptedRequest()))
+                    .build());
+          }
+        }
+      }
+    }
+
     for (Iterator<HistoryEvent> iterator = events.iterator(); iterator.hasNext(); ) {
       HistoryEvent event = iterator.next();
+
+      // On replay the messages are available after the workflow task schedule event, so we
+      // need to handle them before workflow task started event to maintain a consistent order.
+      for (Message msg : this.takeLTE(event.getEventId() - 1)) {
+        handleSingleMessage(msg);
+      }
+
       try {
         handleSingleEvent(event, iterator.hasNext() || hasNextEvent);
       } catch (RuntimeException e) {
         throw createEventProcessingException(e, event);
       }
+
+      for (Message msg : this.takeLTE(event.getEventId())) {
+        handleSingleMessage(msg);
+      }
     }
+  }
+
+  private List<Message> takeLTE(long eventId) {
+    List<Message> m = new ArrayList<Message>();
+    List<Message> remainingMessages = new ArrayList<Message>();
+    for (Message msg : this.messages) {
+      if (msg.getEventId() > eventId) {
+        remainingMessages.add(msg);
+      } else {
+        m.add(msg);
+      }
+    }
+    this.messages = remainingMessages;
+    return m;
   }
 
   private RuntimeException createEventProcessingException(RuntimeException e, HistoryEvent event) {
@@ -256,6 +319,32 @@ public final class WorkflowStateMachines {
       return new InternalWorkflowTaskException(
           createEventHandlingMessage(event) + ". " + createShortCurrentStateMessagePostfix(), ex);
     }
+  }
+
+  private void handleSingleMessage(Message message) {
+    // Get or create protocol state machine based on Instance ID and protocolName
+    EntityStateMachine stateMachine =
+        protocolStateMachines.computeIfAbsent(
+            message.getProtocolInstanceId(),
+            (protocolInstance) -> {
+              String protocolName = ProtocolUtils.getProtocol(message);
+              Optional<ProtocolType> type = ProtocolType.get(protocolName);
+              if (type.isPresent()) {
+                switch (type.get()) {
+                  case UPDATE_V1:
+                    return UpdateProtocolStateMachine.newInstance(
+                        this::isReplaying,
+                        callbacks::update,
+                        this::sendMessage,
+                        commandSink,
+                        stateMachineSink);
+                  default:
+                    throw new IllegalArgumentException("Unknown protocol type:" + protocolName);
+                }
+              }
+              throw new IllegalArgumentException("Protocol type not specified:" + message);
+            });
+    stateMachine.handleMessage(message);
   }
 
   private void handleSingleEvent(HistoryEvent event, boolean hasNextEvent) {
@@ -296,6 +385,14 @@ public final class WorkflowStateMachines {
    */
   private void handleCommandEvent(HistoryEvent event) {
     if (handleLocalActivityMarker(event)) {
+      return;
+    }
+    // Currently Update events are command events that have no
+    // associated command so there is nothing to handle currently.
+    // Once the server supports ProtocolMessageCommand we can handle them here.
+    // TODO(https://github.com/temporalio/sdk-java/issues/1744)
+    if (event.hasWorkflowExecutionUpdateAcceptedEventAttributes()
+        || event.hasWorkflowExecutionUpdateCompletedEventAttributes()) {
       return;
     }
     // Match event to the next command in the stateMachine queue.
@@ -413,6 +510,22 @@ public final class WorkflowStateMachines {
         result.add(command.getCommand());
       }
     }
+    return result;
+  }
+
+  public void sendMessage(Message message) {
+    checkEventLoopExecuting();
+    if (!isReplaying()) {
+      messageOutbox.add(message);
+    }
+  }
+
+  public List<Message> takeMessages() {
+    List<Message> result = new ArrayList<>(messageOutbox.size());
+    for (Message message : messageOutbox) {
+      result.add(message);
+    }
+    messageOutbox.clear();
     return result;
   }
 
@@ -545,8 +658,16 @@ public final class WorkflowStateMachines {
         ActivityStateMachine.newInstance(
             attributes,
             (p, f) -> {
-              callback.apply(p, f);
-              if (f != null && f.hasCause() && f.getCause().hasCanceledFailureInfo()) {
+              Failure failure = f != null ? f.getFailure() : null;
+              callback.apply(p, failure);
+
+              if (f != null
+                  && !f.isFromEvent()
+                  && failure.hasCause()
+                  && failure.getCause().hasCanceledFailureInfo()) {
+                // If !f.isFromEvent(), we want to unblock the event loop as the promise got filled
+                // and the workflow may make progress. If f.isFromEvent(), we need to delay event
+                // loop triggering until WorkflowTaskStarted.
                 eventLoop();
               }
             },
@@ -940,7 +1061,6 @@ public final class WorkflowStateMachines {
           value.nonReplayWorkflowTaskStarted();
         }
       }
-
       WorkflowStateMachines.this.currentStartedEventId = startedEventId;
 
       eventLoop();

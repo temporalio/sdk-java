@@ -26,6 +26,7 @@ import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 final class WorkflowInfoImpl implements WorkflowInfo {
@@ -51,11 +52,13 @@ final class WorkflowInfoImpl implements WorkflowInfo {
     return context.getWorkflowType().getName();
   }
 
+  @Nonnull
   @Override
   public String getRunId() {
     return context.getRunId();
   }
 
+  @Nonnull
   @Override
   public String getFirstExecutionRunId() {
     return context.getFirstExecutionRunId();
@@ -66,8 +69,9 @@ final class WorkflowInfoImpl implements WorkflowInfo {
     return context.getContinuedExecutionRunId();
   }
 
+  @Nonnull
   @Override
-  public Optional<String> getOriginalExecutionRunId() {
+  public String getOriginalExecutionRunId() {
     return context.getOriginalExecutionRunId();
   }
 

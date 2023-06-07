@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.client.functional;
 
 import static org.junit.Assert.assertEquals;
 

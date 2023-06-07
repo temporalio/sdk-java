@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.workflow.CancellationScope;
 import java.util.Optional;
 import java.util.concurrent.Future;
@@ -90,6 +91,13 @@ public interface WorkflowThread extends CancellationScope {
    */
   boolean runUntilBlocked(long deadlockDetectionTimeoutMs);
 
+  /**
+   * Disables deadlock detector on this thread
+   *
+   * @return a handle that must be used to unlock the deadlock detector back
+   */
+  NonIdempotentHandle lockDeadlockDetector();
+
   Throwable getUnhandledException();
 
   boolean isDone();
@@ -112,7 +120,7 @@ public interface WorkflowThread extends CancellationScope {
 
   <T> void setThreadLocal(WorkflowThreadLocalInternal<T> key, T value);
 
-  <T> Optional<T> getThreadLocal(WorkflowThreadLocalInternal<T> key);
+  <T> Optional<Optional<T>> getThreadLocal(WorkflowThreadLocalInternal<T> key);
 
   WorkflowThreadContext getWorkflowThreadContext();
 }
