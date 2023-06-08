@@ -29,6 +29,12 @@ import javax.annotation.Nullable;
 
 /** Description of a listed schedule. */
 public final class ScheduleListDescription {
+  private final String scheduleId;
+  private final ScheduleListSchedule schedule;
+  private final ScheduleListInfo info;
+  private final Map<String, Payload> memos;
+  private final @Nonnull DataConverter dataConverter;
+  private final Map<String, ?> searchAttributes;
 
   public ScheduleListDescription(
       String scheduleId,
@@ -94,11 +100,4 @@ public final class ScheduleListDescription {
   public Map<String, ?> getSearchAttributes() {
     return searchAttributes;
   }
-
-  private final String scheduleId;
-  private final ScheduleListSchedule schedule;
-  private final ScheduleListInfo info;
-  private final Map<String, Payload> memos;
-  private final @Nonnull DataConverter dataConverter;
-  private final Map<String, ?> searchAttributes;
 }

@@ -24,7 +24,7 @@ import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Time period and policy for actions taken as if the time passed right now. */
+/** Time period and policy for actions taken as if their scheduled time has already passed. */
 public final class ScheduleBackfill {
   private final Instant startAt;
   private final Instant endAt;
@@ -36,7 +36,7 @@ public final class ScheduleBackfill {
    * @param startAt Start of the range to evaluate the schedule in. This is exclusive.
    * @param endAt End of the range to evaluate the schedule in. This is inclusive.
    */
-  ScheduleBackfill(Instant startAt, Instant endAt) {
+  public ScheduleBackfill(Instant startAt, Instant endAt) {
     this(startAt, endAt, ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_UNSPECIFIED);
   }
 
@@ -47,7 +47,7 @@ public final class ScheduleBackfill {
    * @param endAt End of the range to evaluate the schedule in. This is inclusive.
    * @param overlapPolicy Overlap policy to use for this backfill request.
    */
-  ScheduleBackfill(Instant startAt, Instant endAt, ScheduleOverlapPolicy overlapPolicy) {
+  public ScheduleBackfill(Instant startAt, Instant endAt, ScheduleOverlapPolicy overlapPolicy) {
     this.startAt = startAt;
     this.endAt = endAt;
     this.overlapPolicy = overlapPolicy;

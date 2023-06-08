@@ -20,8 +20,17 @@
 
 package io.temporal.client.schedules;
 
+import java.util.Objects;
+
 /** Action execution representing a scheduled workflow start. */
-public final class ScheduleActionExecutionStartWorkflow implements ScheduleActionExecution {
+public final class ScheduleActionExecutionStartWorkflow extends ScheduleActionExecution {
+  private final String workflowId;
+  private final String firstExecutionRunId;
+
+  public ScheduleActionExecutionStartWorkflow(String workflowId, String firstExecutionRunId) {
+    this.workflowId = workflowId;
+    this.firstExecutionRunId = firstExecutionRunId;
+  }
 
   /**
    * Get the workflow ID of the scheduled workflow.
@@ -37,15 +46,33 @@ public final class ScheduleActionExecutionStartWorkflow implements ScheduleActio
    *
    * @return run ID
    */
-  public String getFirstExecutionRunID() {
-    return firstExecutionRunID;
+  public String getFirstExecutionRunId() {
+    return firstExecutionRunId;
   }
 
-  private final String workflowId;
-  private final String firstExecutionRunID;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ScheduleActionExecutionStartWorkflow that = (ScheduleActionExecutionStartWorkflow) o;
+    return Objects.equals(workflowId, that.workflowId)
+        && Objects.equals(firstExecutionRunId, that.firstExecutionRunId);
+  }
 
-  public ScheduleActionExecutionStartWorkflow(String workflowId, String firstExecutionRunID) {
-    this.workflowId = workflowId;
-    this.firstExecutionRunID = firstExecutionRunID;
+  @Override
+  public int hashCode() {
+    return Objects.hash(workflowId, firstExecutionRunId);
+  }
+
+  @Override
+  public String toString() {
+    return "ScheduleActionExecutionStartWorkflow{"
+        + "workflowId='"
+        + workflowId
+        + '\''
+        + ", firstExecutionRunId='"
+        + firstExecutionRunId
+        + '\''
+        + '}';
   }
 }

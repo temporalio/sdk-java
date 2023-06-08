@@ -20,7 +20,9 @@
 
 package io.temporal.client.schedules;
 
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 /**
  * Client to the Temporal service used to create, list and get handles to Schedules.
@@ -28,6 +30,29 @@ import java.util.stream.Stream;
  * @see ScheduleHandle
  */
 public interface ScheduleClient {
+  /**
+   * Creates a client that connects to an instance of the Temporal Service to interact with
+   * schedules.
+   *
+   * @param service client to the Temporal Service endpoint.
+   * @return client to interact with schedules
+   */
+  static ScheduleClient newInstance(WorkflowServiceStubs service) {
+    return ScheduleClientImpl.newInstance(service, ScheduleClientOptions.getDefaultInstance());
+  }
+
+  /**
+   * Creates a client that connects to an instance of the Temporal Service to interact with
+   * schedules.
+   *
+   * @param service client to the Temporal Service endpoint.
+   * @param options Options (like {@link io.temporal.common.converter.DataConverter}er override) for
+   *     configuring client.
+   * @return client to interact with schedules
+   */
+  static ScheduleClient newInstance(WorkflowServiceStubs service, ScheduleClientOptions options) {
+    return ScheduleClientImpl.newInstance(service, options);
+  }
 
   /**
    * Create a schedule and return its handle.
@@ -51,8 +76,15 @@ public interface ScheduleClient {
   /**
    * List schedules.
    *
-   * @param options for the list call.
    * @return sequential stream that performs remote pagination under the hood
    */
-  Stream<ScheduleListDescription> listSchedules(ScheduleListOptions options);
+  Stream<ScheduleListDescription> listSchedules();
+
+  /**
+   * List schedules.
+   *
+   * @param pageSize how many results to fetch from the Server at a time. Default is 100.
+   * @return sequential stream that performs remote pagination under the hood
+   */
+  Stream<ScheduleListDescription> listSchedules(@Nullable Integer pageSize);
 }

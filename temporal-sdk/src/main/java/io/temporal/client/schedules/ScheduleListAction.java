@@ -21,4 +21,6 @@
 package io.temporal.client.schedules;
 
 /** Base class for an action a listed schedule can take. */
-public interface ScheduleListAction {}
+public abstract class ScheduleListAction {
+  ScheduleListAction() {}
+}

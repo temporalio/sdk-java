@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/** Eager iterator for listing schedules. */
 public final class ListScheduleListDescriptionIterator
     extends EagerPaginator<ListSchedulesResponse, ScheduleListEntry> {
   private final @Nonnull String namespace;

@@ -32,14 +32,66 @@ public final class ScheduleState {
     return new ScheduleState.Builder(options);
   }
 
-  public static ScheduleState getDefaultInstance() {
-    return DEFAULT_INSTANCE;
+  public static final class Builder {
+    private String note;
+    private boolean paused;
+    private boolean limitedAction;
+    private long remainingActions;
+
+    private Builder() {}
+
+    private Builder(ScheduleState options) {
+      if (options == null) {
+        return;
+      }
+      this.note = options.note;
+      this.paused = options.paused;
+      this.limitedAction = options.limitedAction;
+      this.remainingActions = options.remainingActions;
+    }
+
+    /** Set a human-readable message for the schedule. */
+    public Builder setNote(String note) {
+      this.note = note;
+      return this;
+    }
+
+    /** Set whether this schedule is paused. */
+    public Builder setPaused(boolean paused) {
+      this.paused = paused;
+      return this;
+    }
+
+    /** Set ,if true, whether remaining actions will be decremented for each action */
+    public Builder setLimitedAction(boolean limitedAction) {
+      this.limitedAction = limitedAction;
+      return this;
+    }
+
+    /**
+     * Set the actions remaining on this schedule. Once this number hits 0, no further actions are
+     * scheduled automatically.
+     */
+    public Builder setRemainingActions(long remainingActions) {
+      this.remainingActions = remainingActions;
+      return this;
+    }
+
+    public ScheduleState build() {
+      return new ScheduleState(note, paused, limitedAction, remainingActions);
+    }
   }
 
-  private static final ScheduleState DEFAULT_INSTANCE;
+  private final String note;
+  private final boolean paused;
+  private final boolean limitedAction;
+  private final long remainingActions;
 
-  static {
-    DEFAULT_INSTANCE = ScheduleState.newBuilder().build();
+  private ScheduleState(String note, boolean paused, boolean limitedAction, long remainingActions) {
+    this.note = note;
+    this.paused = paused;
+    this.limitedAction = limitedAction;
+    this.remainingActions = remainingActions;
   }
 
   /**
@@ -80,18 +132,6 @@ public final class ScheduleState {
     return remainingActions;
   }
 
-  private final String note;
-  private final boolean paused;
-  private final boolean limitedAction;
-  private final long remainingActions;
-
-  private ScheduleState(String note, boolean paused, boolean limitedAction, long remainingActions) {
-    this.note = note;
-    this.paused = paused;
-    this.limitedAction = limitedAction;
-    this.remainingActions = remainingActions;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -121,56 +161,5 @@ public final class ScheduleState {
         + ", remainingActions="
         + remainingActions
         + '}';
-  }
-
-  public static final class Builder {
-
-    /** Set a human-readable message for the schedule. */
-    public Builder setNote(String note) {
-      this.note = note;
-      return this;
-    }
-
-    /** Set whether this schedule is paused. */
-    public Builder setPaused(boolean paused) {
-      this.paused = paused;
-      return this;
-    }
-
-    /** Set ,if true, whether remaining actions will be decremented for each action */
-    public Builder setLimitedAction(boolean limitedAction) {
-      this.limitedAction = limitedAction;
-      return this;
-    }
-
-    /**
-     * Set the actions remaining on this schedule. Once this number hits 0, no further actions are
-     * scheduled automatically.
-     */
-    public Builder setRemainingActions(long remainingActions) {
-      this.remainingActions = remainingActions;
-      return this;
-    }
-
-    private String note;
-    private boolean paused;
-    private boolean limitedAction;
-    private long remainingActions;
-
-    private Builder() {}
-
-    private Builder(ScheduleState options) {
-      if (options == null) {
-        return;
-      }
-      this.note = options.note;
-      this.paused = options.paused;
-      this.limitedAction = options.limitedAction;
-      this.remainingActions = options.remainingActions;
-    }
-
-    public ScheduleState build() {
-      return new ScheduleState(note, paused, limitedAction, remainingActions);
-    }
   }
 }

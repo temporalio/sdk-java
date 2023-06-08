@@ -73,15 +73,17 @@ public class ScheduleTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setMemo(Collections.singletonMap("memokey1", "memoval1"))
             .build();
-    return Schedule.newBuilder(
-        ScheduleActionStartWorkflow.newBuilder()
-            .setWorkflowType("TestWorkflow1")
-            .setArgs("arg")
-            .setOptions(wfOptions)
-            .build(),
-        ScheduleSpec.newBuilder()
-            .setIntervals(Arrays.asList(new ScheduleIntervalSpec(Duration.ofSeconds(1))))
-            .build());
+    return Schedule.newBuilder()
+        .setAction(
+            ScheduleActionStartWorkflow.newBuilder()
+                .setWorkflowType("TestWorkflow1")
+                .setArguments("arg")
+                .setOptions(wfOptions)
+                .build())
+        .setSpec(
+            ScheduleSpec.newBuilder()
+                .setIntervals(Arrays.asList(new ScheduleIntervalSpec(Duration.ofSeconds(1))))
+                .build());
   }
 
   @Before
@@ -270,12 +272,14 @@ public class ScheduleTest {
             .build();
 
     Schedule schedule =
-        Schedule.newBuilder(
+        Schedule.newBuilder()
+            .setAction(
                 ScheduleActionStartWorkflow.newBuilder()
                     .setWorkflowType(TestWorkflows.TestWorkflow1.class)
-                    .setArgs("arg")
+                    .setArguments("arg")
                     .setOptions(wfOptions)
-                    .build(),
+                    .build())
+            .setSpec(
                 ScheduleSpec.newBuilder()
                     .setCalendars(
                         Arrays.asList(
@@ -325,7 +329,7 @@ public class ScheduleTest {
     ScheduleActionStartWorkflow startWfAction =
         (ScheduleActionStartWorkflow) description.getSchedule().getAction();
     Assert.assertEquals("TestWorkflow1", startWfAction.getWorkflowType());
-    EncodedValues parameters = startWfAction.getArgs();
+    EncodedValues parameters = startWfAction.getArguments();
     Assert.assertEquals("arg", parameters.get(0, String.class));
     EncodedValues encodedMemo =
         (EncodedValues) startWfAction.getOptions().getMemo().get("memokey1");
@@ -408,9 +412,9 @@ public class ScheduleTest {
     handle.update(
         (ScheduleUpdateInput input) -> {
           Schedule.Builder builder =
-              Schedule.newBuilder(
-                  input.getDescription().getSchedule().getAction(),
-                  ScheduleSpec.getDefaultInstance());
+              Schedule.newBuilder()
+                  .setAction(input.getDescription().getSchedule().getAction())
+                  .setSpec(ScheduleSpec.newBuilder().build());
           builder.setState(ScheduleState.newBuilder().setPaused(true).build());
           return new ScheduleUpdate(builder.build());
         });
@@ -447,8 +451,7 @@ public class ScheduleTest {
     // Add delay for schedules to appear
     testWorkflowRule.sleep(Duration.ofSeconds(2));
     // List all schedules and filter
-    Stream<ScheduleListDescription> scheduleStream =
-        client.listSchedules(ScheduleListOptions.newBuilder().build());
+    Stream<ScheduleListDescription> scheduleStream = client.listSchedules();
     List<ScheduleListDescription> listedSchedules =
         scheduleStream
             .filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix))
@@ -486,12 +489,12 @@ public class ScheduleTest {
     // Add delay for schedules to appear
     testWorkflowRule.sleep(Duration.ofSeconds(2));
     // List all schedules and filter
-    scheduleStream = client.listSchedules(ScheduleListOptions.newBuilder().build());
+    scheduleStream = client.listSchedules(10);
     long listedSchedulesCount =
         scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
     Assert.assertEquals(3, listedSchedulesCount);
     // Cleanup all schedules
-    scheduleStream = client.listSchedules(ScheduleListOptions.newBuilder().build());
+    scheduleStream = client.listSchedules(null);
     scheduleStream
         .filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix))
         .forEach(

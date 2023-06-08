@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Specification relative to calendar time when to run an action.
+ * Specification of when to run an action in relation to calendar time.
  *
  * <p>A timestamp matches if at least one range of each field matches except for year. If year is
  * missing, that means all years match. For all fields besides year, at least one range must be
@@ -40,14 +40,120 @@ public final class ScheduleCalendarSpec {
     return new ScheduleCalendarSpec.Builder(spec);
   }
 
-  public static ScheduleCalendarSpec getDefaultInstance() {
-    return DEFAULT_INSTANCE;
-  }
+  public static final class Builder {
+    private List<ScheduleRange> seconds;
+    private List<ScheduleRange> minutes;
+    private List<ScheduleRange> hour;
+    private List<ScheduleRange> dayOfMonth;
+    private List<ScheduleRange> month;
+    private List<ScheduleRange> year;
+    private List<ScheduleRange> dayOfWeek;
+    private String comment;
 
-  private static final ScheduleCalendarSpec DEFAULT_INSTANCE;
+    private Builder() {}
 
-  static {
-    DEFAULT_INSTANCE = ScheduleCalendarSpec.newBuilder().build();
+    private Builder(ScheduleCalendarSpec spec) {
+      if (spec == null) {
+        return;
+      }
+      this.seconds = spec.seconds;
+      this.minutes = spec.minutes;
+      this.hour = spec.hour;
+      this.dayOfMonth = spec.dayOfMonth;
+      this.month = spec.month;
+      this.year = spec.year;
+      this.dayOfWeek = spec.dayOfWeek;
+      this.comment = spec.comment;
+    }
+
+    /**
+     * Set the second ranges to provided values. Values must be within the range 0-59.
+     *
+     * <p>Default matches 0.
+     */
+    public Builder setSeconds(List<ScheduleRange> seconds) {
+      this.seconds = seconds;
+      return this;
+    }
+
+    /**
+     * Set the minutes ranges to provided values. Values must be within the range 0-59.
+     *
+     * <p>Default matches 0.
+     */
+    public Builder setMinutes(List<ScheduleRange> minutes) {
+      this.minutes = minutes;
+      return this;
+    }
+
+    /**
+     * Set the hour ranges to provided values. Values must be within the range 0-23.
+     *
+     * <p>Default matches 0.
+     */
+    public Builder setHour(List<ScheduleRange> hour) {
+      this.hour = hour;
+      return this;
+    }
+
+    /**
+     * Set the day of month ranges to provided values. Values must be within the range 1-31.
+     *
+     * <p>Default matches all days.
+     */
+    public Builder setDayOfMonth(List<ScheduleRange> dayOfMonth) {
+      this.dayOfMonth = dayOfMonth;
+      return this;
+    }
+
+    /**
+     * Set the month ranges to provided values. Values must be within the range 1-12.
+     *
+     * <p>Default matches all months.
+     */
+    public Builder setMonth(List<ScheduleRange> month) {
+      this.month = month;
+      return this;
+    }
+
+    /**
+     * Set the optional year ranges to provided values.
+     *
+     * <p>Default of empty matches all years.
+     */
+    public Builder setYear(List<ScheduleRange> year) {
+      this.year = year;
+      return this;
+    }
+
+    /**
+     * Set the day of week ranges to provided values. Values must be within the range 0-6, 0 is
+     * Sunday.
+     *
+     * <p>Default matches all days.
+     */
+    public Builder setDayOfWeek(List<ScheduleRange> dayOfWeek) {
+      this.dayOfWeek = dayOfWeek;
+      return this;
+    }
+
+    /** Set the description of this specification. */
+    public Builder setComment(String comment) {
+      this.comment = comment;
+      return this;
+    }
+
+    public ScheduleCalendarSpec build() {
+      return new ScheduleCalendarSpec(
+          seconds == null ? ScheduleCalendarSpec.BEGINNING : seconds,
+          minutes == null ? ScheduleCalendarSpec.BEGINNING : minutes,
+          hour == null ? ScheduleCalendarSpec.BEGINNING : hour,
+          dayOfMonth == null ? ScheduleCalendarSpec.ALL_MONTH_DAYS : dayOfMonth,
+          month == null ? ScheduleCalendarSpec.ALL_MONTHS : month,
+          year == null ? Collections.EMPTY_LIST : year,
+          dayOfWeek == null ? ScheduleCalendarSpec.ALL_WEEK_DAYS : dayOfWeek,
+          comment == null ? "" : comment);
+    }
   }
 
   /** Default range set for zero. */
@@ -65,6 +171,34 @@ public final class ScheduleCalendarSpec {
   /** Default range set for all days in a week. */
   public static final List<ScheduleRange> ALL_WEEK_DAYS =
       Collections.singletonList(new ScheduleRange(0, 6));
+
+  private final List<ScheduleRange> seconds;
+  private final List<ScheduleRange> minutes;
+  private final List<ScheduleRange> hour;
+  private final List<ScheduleRange> dayOfMonth;
+  private final List<ScheduleRange> month;
+  private final List<ScheduleRange> year;
+  private final List<ScheduleRange> dayOfWeek;
+  private final String comment;
+
+  private ScheduleCalendarSpec(
+      List<ScheduleRange> seconds,
+      List<ScheduleRange> minutes,
+      List<ScheduleRange> hour,
+      List<ScheduleRange> dayOfMonth,
+      List<ScheduleRange> month,
+      List<ScheduleRange> year,
+      List<ScheduleRange> dayOfWeek,
+      String comment) {
+    this.seconds = seconds;
+    this.minutes = minutes;
+    this.hour = hour;
+    this.dayOfMonth = dayOfMonth;
+    this.month = month;
+    this.year = year;
+    this.dayOfWeek = dayOfWeek;
+    this.comment = comment;
+  }
 
   /**
    * Gets the second range to match.
@@ -138,34 +272,6 @@ public final class ScheduleCalendarSpec {
     return comment;
   }
 
-  private final List<ScheduleRange> seconds;
-  private final List<ScheduleRange> minutes;
-  private final List<ScheduleRange> hour;
-  private final List<ScheduleRange> dayOfMonth;
-  private final List<ScheduleRange> month;
-  private final List<ScheduleRange> year;
-  private final List<ScheduleRange> dayOfWeek;
-  private final String comment;
-
-  private ScheduleCalendarSpec(
-      List<ScheduleRange> seconds,
-      List<ScheduleRange> minutes,
-      List<ScheduleRange> hour,
-      List<ScheduleRange> dayOfMonth,
-      List<ScheduleRange> month,
-      List<ScheduleRange> year,
-      List<ScheduleRange> dayOfWeek,
-      String comment) {
-    this.seconds = seconds;
-    this.minutes = minutes;
-    this.hour = hour;
-    this.dayOfMonth = dayOfMonth;
-    this.month = month;
-    this.year = year;
-    this.dayOfWeek = dayOfWeek;
-    this.comment = comment;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -207,121 +313,5 @@ public final class ScheduleCalendarSpec {
         + comment
         + '\''
         + '}';
-  }
-
-  public static class Builder {
-
-    /**
-     * Set the second range to match 0-59.
-     *
-     * <p>Default matches 0.
-     */
-    public Builder setSeconds(List<ScheduleRange> seconds) {
-      this.seconds = seconds;
-      return this;
-    }
-
-    /**
-     * Set the minute range to match 0-59.
-     *
-     * <p>Default matches 0.
-     */
-    public Builder setMinutes(List<ScheduleRange> minutes) {
-      this.minutes = minutes;
-      return this;
-    }
-
-    /**
-     * Set the hour range to match 0-23.
-     *
-     * <p>Default matches 0.
-     */
-    public Builder setHour(List<ScheduleRange> hour) {
-      this.hour = hour;
-      return this;
-    }
-
-    /**
-     * Set the day of month range to match 1-31.
-     *
-     * <p>Default matches all days.
-     */
-    public Builder setDayOfMonth(List<ScheduleRange> dayOfMonth) {
-      this.dayOfMonth = dayOfMonth;
-      return this;
-    }
-
-    /**
-     * Set the month range to match 1-12.
-     *
-     * <p>Default matches all months.
-     */
-    public Builder setMonth(List<ScheduleRange> month) {
-      this.month = month;
-      return this;
-    }
-
-    /**
-     * Set the optional year range to match.
-     *
-     * <p>Default of empty matches all years.
-     */
-    public Builder setYear(List<ScheduleRange> year) {
-      this.year = year;
-      return this;
-    }
-
-    /**
-     * Set the day of week range to match.0-6, 0 is Sunday.
-     *
-     * <p>Default matches all days.
-     */
-    public Builder setDayOfWeek(List<ScheduleRange> dayOfWeek) {
-      this.dayOfWeek = dayOfWeek;
-      return this;
-    }
-
-    /** Set the description of this specification. */
-    public Builder setComment(String comment) {
-      this.comment = comment;
-      return this;
-    }
-
-    private List<ScheduleRange> seconds;
-    private List<ScheduleRange> minutes;
-    private List<ScheduleRange> hour;
-    private List<ScheduleRange> dayOfMonth;
-    private List<ScheduleRange> month;
-    private List<ScheduleRange> year;
-    private List<ScheduleRange> dayOfWeek;
-    private String comment;
-
-    private Builder() {}
-
-    private Builder(ScheduleCalendarSpec spec) {
-      if (spec == null) {
-        return;
-      }
-      this.seconds = spec.seconds;
-      this.minutes = spec.minutes;
-      this.hour = spec.hour;
-      this.dayOfMonth = spec.dayOfMonth;
-      this.month = spec.month;
-      this.year = spec.year;
-      this.dayOfWeek = spec.dayOfWeek;
-      this.comment = spec.comment;
-    }
-
-    public ScheduleCalendarSpec build() {
-      return new ScheduleCalendarSpec(
-          seconds == null ? ScheduleCalendarSpec.BEGINNING : seconds,
-          minutes == null ? ScheduleCalendarSpec.BEGINNING : minutes,
-          hour == null ? ScheduleCalendarSpec.BEGINNING : hour,
-          dayOfMonth == null ? ScheduleCalendarSpec.ALL_MONTH_DAYS : dayOfMonth,
-          month == null ? ScheduleCalendarSpec.ALL_MONTHS : month,
-          year == null ? Collections.EMPTY_LIST : year,
-          dayOfWeek == null ? ScheduleCalendarSpec.ALL_WEEK_DAYS : dayOfWeek,
-          comment == null ? "" : comment);
-    }
   }
 }

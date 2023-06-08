@@ -39,14 +39,123 @@ public final class ScheduleSpec {
     return new ScheduleSpec.Builder(options);
   }
 
-  public static ScheduleSpec getDefaultInstance() {
-    return DEFAULT_INSTANCE;
+  public static final class Builder {
+    private List<ScheduleCalendarSpec> calendars;
+    private List<ScheduleIntervalSpec> intervals;
+    private List<String> cronExpressions;
+    private List<ScheduleCalendarSpec> skip;
+    private Instant startAt;
+    private Instant endAt;
+    private Duration jitter;
+    private String timeZoneName;
+
+    private Builder() {}
+
+    private Builder(ScheduleSpec options) {
+      if (options == null) {
+        return;
+      }
+      this.calendars = options.calendars;
+      this.intervals = options.intervals;
+      this.cronExpressions = options.cronExpressions;
+      this.skip = options.skip;
+      this.startAt = options.startAt;
+      this.endAt = options.endAt;
+      this.jitter = options.jitter;
+      this.timeZoneName = options.timeZoneName;
+    }
+
+    /** Set the calendar-based specification of times a schedule should run. */
+    public Builder setCalendars(List<ScheduleCalendarSpec> calendars) {
+      this.calendars = calendars;
+      return this;
+    }
+
+    /** Set the interval-based specification of times a schedule should run. */
+    public Builder setIntervals(List<ScheduleIntervalSpec> intervals) {
+      this.intervals = intervals;
+      return this;
+    }
+
+    /**
+     * Set the cron-based specification of times a schedule should run.
+     *
+     * <p>This is provided for easy migration from legacy string-based cron scheduling. New uses
+     * should use {@link ScheduleSpec#calendars} instead. These expressions will be translated to
+     * calendar-based specifications on the server.
+     */
+    public Builder setCronExpressions(List<String> cronExpressions) {
+      this.cronExpressions = cronExpressions;
+      return this;
+    }
+
+    /** Set the calendar-based specification of times a schedule should not run. */
+    public Builder setSkip(List<ScheduleCalendarSpec> skip) {
+      this.skip = skip;
+      return this;
+    }
+
+    /** Set the start time of the schedule, before which any matching times will be skipped. */
+    public Builder setStartAt(Instant startAt) {
+      this.startAt = startAt;
+      return this;
+    }
+
+    /** Set the end time of the schedule, after which any matching times will be skipped. */
+    public Builder setEndAt(Instant endAt) {
+      this.endAt = endAt;
+      return this;
+    }
+
+    /**
+     * Set the jitter to apply to each action.
+     *
+     * <p>An action's schedule time will be incremented by a random value between 0 and this value
+     * if present (but not past the next schedule).
+     */
+    public Builder setJitter(Duration jitter) {
+      this.jitter = jitter;
+      return this;
+    }
+
+    /** Set the schedules time zone as a string, for example <c>US/Central</c>. */
+    public Builder setTimeZoneName(String timeZoneName) {
+      this.timeZoneName = timeZoneName;
+      return this;
+    }
+
+    public ScheduleSpec build() {
+      return new ScheduleSpec(
+          calendars, intervals, cronExpressions, skip, startAt, endAt, jitter, timeZoneName);
+    }
   }
 
-  private static final ScheduleSpec DEFAULT_INSTANCE;
+  private final List<ScheduleCalendarSpec> calendars;
+  private final List<ScheduleIntervalSpec> intervals;
+  private final List<String> cronExpressions;
+  private final List<ScheduleCalendarSpec> skip;
+  private final Instant startAt;
+  private final Instant endAt;
+  private final Duration jitter;
+  private final String timeZoneName;
 
-  static {
-    DEFAULT_INSTANCE = ScheduleSpec.newBuilder().build();
+  private ScheduleSpec(
+      List<ScheduleCalendarSpec> calendars,
+      List<ScheduleIntervalSpec> intervals,
+      List<String> cronExpressions,
+      List<ScheduleCalendarSpec> skip,
+      Instant startAt,
+      Instant endAt,
+      Duration jitter,
+      String timeZoneName) {
+    this.calendars = calendars;
+    this.intervals = intervals;
+    this.cronExpressions = cronExpressions;
+    this.skip = skip;
+    this.startAt = startAt;
+    this.endAt = endAt;
+    this.jitter = jitter;
+    this.timeZoneName = timeZoneName;
   }
 
   /**
@@ -125,34 +234,6 @@ public final class ScheduleSpec {
     return timeZoneName;
   }
 
-  private final List<ScheduleCalendarSpec> calendars;
-  private final List<ScheduleIntervalSpec> intervals;
-  private final List<String> cronExpressions;
-  private final List<ScheduleCalendarSpec> skip;
-  private final Instant startAt;
-  private final Instant endAt;
-  private final Duration jitter;
-  private final String timeZoneName;
-
-  private ScheduleSpec(
-      List<ScheduleCalendarSpec> calendars,
-      List<ScheduleIntervalSpec> intervals,
-      List<String> cronExpressions,
-      List<ScheduleCalendarSpec> skip,
-      Instant startAt,
-      Instant endAt,
-      Duration jitter,
-      String timeZoneName) {
-    this.calendars = calendars;
-    this.intervals = intervals;
-    this.cronExpressions = cronExpressions;
-    this.skip = skip;
-    this.startAt = startAt;
-    this.endAt = endAt;
-    this.jitter = jitter;
-    this.timeZoneName = timeZoneName;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -195,97 +276,5 @@ public final class ScheduleSpec {
         + timeZoneName
         + '\''
         + '}';
-  }
-
-  public static final class Builder {
-
-    /** Set the calendar-based specification of times a schedule should run. */
-    public Builder setCalendars(List<ScheduleCalendarSpec> calendars) {
-      this.calendars = calendars;
-      return this;
-    }
-
-    /** Set the interval-based specification of times a schedule should run. */
-    public Builder setIntervals(List<ScheduleIntervalSpec> intervals) {
-      this.intervals = intervals;
-      return this;
-    }
-
-    /**
-     * Set the cron-based specification of times a schedule should run.
-     *
-     * <p>This is provided for easy migration from legacy string-based cron scheduling. New uses
-     * should use {@link ScheduleSpec#calendars} instead. These expressions will be translated to
-     * calendar-based specifications on the server.
-     */
-    public Builder setCronExpressions(List<String> cronExpressions) {
-      this.cronExpressions = cronExpressions;
-      return this;
-    }
-
-    /** Set the calendar-based specification of times a schedule should not run. */
-    public Builder setSkip(List<ScheduleCalendarSpec> skip) {
-      this.skip = skip;
-      return this;
-    }
-
-    /** Set the start time of the schedule, before which any matching times will be skipped. */
-    public Builder setStartAt(Instant startAt) {
-      this.startAt = startAt;
-      return this;
-    }
-
-    /** Set the end time of the schedule, after which any matching times will be skipped. */
-    public Builder setEndAt(Instant endAt) {
-      this.endAt = endAt;
-      return this;
-    }
-
-    /**
-     * Set the jitter to apply to each action.
-     *
-     * <p>An action's schedule time will be incremented by a random value between 0 and this value
-     * if present (but not past the next schedule).
-     */
-    public Builder setJitter(Duration jitter) {
-      this.jitter = jitter;
-      return this;
-    }
-
-    /** Set the schedules time zone as a string, for example <c>US/Central</c>. */
-    public Builder setTimeZoneName(String timeZoneName) {
-      this.timeZoneName = timeZoneName;
-      return this;
-    }
-
-    private List<ScheduleCalendarSpec> calendars;
-    private List<ScheduleIntervalSpec> intervals;
-    private List<String> cronExpressions;
-    private List<ScheduleCalendarSpec> skip;
-    private Instant startAt;
-    private Instant endAt;
-    private Duration jitter;
-    private String timeZoneName;
-
-    private Builder() {}
-
-    private Builder(ScheduleSpec options) {
-      if (options == null) {
-        return;
-      }
-      this.calendars = options.calendars;
-      this.intervals = options.intervals;
-      this.cronExpressions = options.cronExpressions;
-      this.skip = options.skip;
-      this.startAt = options.startAt;
-      this.endAt = options.endAt;
-      this.jitter = options.jitter;
-      this.timeZoneName = options.timeZoneName;
-    }
-
-    public ScheduleSpec build() {
-      return new ScheduleSpec(
-          calendars, intervals, cronExpressions, skip, startAt, endAt, jitter, timeZoneName);
-    }
   }
 }

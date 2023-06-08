@@ -20,6 +20,7 @@
 
 package io.temporal.client.schedules;
 
+import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.workflow.Functions;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -28,9 +29,9 @@ import javax.annotation.Nonnull;
 public interface ScheduleHandle {
 
   /**
-   * Get this schedules ID.
+   * Get this schedule's ID.
    *
-   * @return the schedules ID
+   * @return the schedule's ID
    */
   String getId();
 
@@ -64,9 +65,9 @@ public interface ScheduleHandle {
   /**
    * Trigger an action on this schedule to happen immediately.
    *
-   * @param options Options for triggering.
+   * @param overlapPolicy override the schedule overlap policy.
    */
-  void trigger(ScheduleTriggerOptions options);
+  void trigger(ScheduleOverlapPolicy overlapPolicy);
 
   /** Trigger an action on this schedule to happen immediately. */
   void trigger();

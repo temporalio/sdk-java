@@ -20,8 +20,13 @@
 
 package io.temporal.client.schedules;
 
-/** An update returned from an updater. */
+/** An update returned from a schedule updater. */
 public final class ScheduleUpdate {
+  private final Schedule schedule;
+
+  public ScheduleUpdate(Schedule schedule) {
+    this.schedule = schedule;
+  }
 
   /**
    * Get the Schedule to update.
@@ -30,11 +35,5 @@ public final class ScheduleUpdate {
    */
   public Schedule getSchedule() {
     return schedule;
-  }
-
-  private final Schedule schedule;
-
-  public ScheduleUpdate(Schedule schedule) {
-    this.schedule = schedule;
   }
 }

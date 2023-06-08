@@ -25,18 +25,6 @@ import java.util.Map;
 
 /** Options for creating a schedule. */
 public final class ScheduleOptions {
-
-  private ScheduleOptions(
-      boolean triggerImmediately,
-      List<ScheduleBackfill> backfills,
-      Map<String, Object> memo,
-      Map<String, ?> searchAttributes) {
-    this.triggerImmediately = triggerImmediately;
-    this.backfills = backfills;
-    this.memo = memo;
-    this.searchAttributes = searchAttributes;
-  }
-
   public static ScheduleOptions.Builder newBuilder() {
     return new ScheduleOptions.Builder();
   }
@@ -45,59 +33,7 @@ public final class ScheduleOptions {
     return new ScheduleOptions.Builder(options);
   }
 
-  public static ScheduleOptions getDefaultInstance() {
-    return DEFAULT_INSTANCE;
-  }
-
-  private static final ScheduleOptions DEFAULT_INSTANCE;
-
-  static {
-    DEFAULT_INSTANCE = ScheduleOptions.newBuilder().build();
-  }
-
-  /**
-   * Get if the schedule will be triggered immediately upon creation.
-   *
-   * @return True if the schedule will trigger on creation
-   */
-  public boolean isTriggerImmediately() {
-    return triggerImmediately;
-  }
-
-  /**
-   * Get the time periods to take actions on as if that time passed right now.
-   *
-   * @return backfill requests
-   */
-  public List<ScheduleBackfill> getBackfills() {
-    return backfills;
-  }
-
-  /**
-   * Get the memo for the schedule. Values for the memo cannot be null.
-   *
-   * @return memos for the schedule
-   */
-  public Map<String, Object> getMemo() {
-    return memo;
-  }
-
-  /**
-   * Get the search attributes for the schedule.
-   *
-   * @return search attributes for the schedule
-   */
-  public Map<String, ?> getSearchAttributes() {
-    return searchAttributes;
-  }
-
-  private final boolean triggerImmediately;
-  private final List<ScheduleBackfill> backfills;
-  private final Map<String, Object> memo;
-  private final Map<String, ?> searchAttributes;
-
   public static final class Builder {
-
     private boolean triggerImmediately;
     private List<ScheduleBackfill> backfills;
     private Map<String, Object> memo;
@@ -142,5 +78,57 @@ public final class ScheduleOptions {
     public ScheduleOptions build() {
       return new ScheduleOptions(triggerImmediately, backfills, memo, searchAttributes);
     }
+  }
+
+  private final boolean triggerImmediately;
+  private final List<ScheduleBackfill> backfills;
+  private final Map<String, Object> memo;
+  private final Map<String, ?> searchAttributes;
+
+  private ScheduleOptions(
+      boolean triggerImmediately,
+      List<ScheduleBackfill> backfills,
+      Map<String, Object> memo,
+      Map<String, ?> searchAttributes) {
+    this.triggerImmediately = triggerImmediately;
+    this.backfills = backfills;
+    this.memo = memo;
+    this.searchAttributes = searchAttributes;
+  }
+
+  /**
+   * Get if the schedule will be triggered immediately upon creation.
+   *
+   * @return True if the schedule will trigger on creation
+   */
+  public boolean isTriggerImmediately() {
+    return triggerImmediately;
+  }
+
+  /**
+   * Get the time periods to take actions on as if that time passed right now.
+   *
+   * @return backfill requests
+   */
+  public List<ScheduleBackfill> getBackfills() {
+    return backfills;
+  }
+
+  /**
+   * Get the memo for the schedule. Values for the memo cannot be null.
+   *
+   * @return memos for the schedule
+   */
+  public Map<String, Object> getMemo() {
+    return memo;
+  }
+
+  /**
+   * Get the search attributes for the schedule.
+   *
+   * @return search attributes for the schedule
+   */
+  public Map<String, ?> getSearchAttributes() {
+    return searchAttributes;
   }
 }

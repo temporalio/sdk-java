@@ -20,16 +20,13 @@
 
 package io.temporal.client.schedules;
 
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
-import java.util.Optional;
 
 /** Schedule action to start a workflow. */
-public final class ScheduleActionStartWorkflow implements ScheduleAction {
+public final class ScheduleActionStartWorkflow extends ScheduleAction {
   public static ScheduleActionStartWorkflow.Builder newBuilder() {
     return new ScheduleActionStartWorkflow.Builder();
   }
@@ -39,14 +36,84 @@ public final class ScheduleActionStartWorkflow implements ScheduleAction {
     return new ScheduleActionStartWorkflow.Builder(options);
   }
 
-  public static ScheduleActionStartWorkflow getDefaultInstance() {
-    return DEFAULT_INSTANCE;
+  public static class Builder {
+    private String workflowType;
+    private WorkflowOptions options;
+    private Header header;
+    private EncodedValues arguments;
+
+    private Builder() {}
+
+    private Builder(ScheduleActionStartWorkflow options) {
+      if (options == null) {
+        return;
+      }
+      this.workflowType = options.workflowType;
+      this.options = options.options;
+      this.header = options.header;
+      this.arguments = options.arguments;
+    }
+
+    /** Set the name of the workflow type */
+    public Builder setWorkflowType(String workflowType) {
+      this.workflowType = workflowType;
+      return this;
+    }
+
+    /** Set the workflow type. workflowInterface must implement a WorkflowInterface */
+    public <T> Builder setWorkflowType(Class<T> workflowInterface) {
+      POJOWorkflowInterfaceMetadata workflowMetadata =
+          POJOWorkflowInterfaceMetadata.newInstance(workflowInterface, true);
+      this.workflowType = workflowMetadata.getWorkflowType().get();
+      return this;
+    }
+
+    /**
+     * Set the workflow options to use when starting a workflow action.
+     *
+     * @note ID and TaskQueue are required. Some options like ID reuse policy, cron schedule, and
+     *     start signal cannot be set or an error will occur.
+     */
+    public Builder setOptions(WorkflowOptions options) {
+      this.options = options;
+      return this;
+    }
+
+    /** Set the headers sent with each workflow scheduled. */
+    public Builder setHeader(Header header) {
+      this.header = header;
+      return this;
+    }
+
+    /** Set the workflow arguments to use when starting a workflow action. */
+    public Builder setRawArguments(EncodedValues values) {
+      this.arguments = values;
+      return this;
+    }
+
+    /** Set the workflow arguments to use when starting a workflow action. */
+    public Builder setArguments(Object... arguments) {
+      this.arguments = new EncodedValues(arguments);
+      return this;
+    }
+
+    public ScheduleActionStartWorkflow build() {
+      return new ScheduleActionStartWorkflow(
+          workflowType, options, header == null ? Header.empty() : header, arguments);
+    }
   }
 
-  private static final ScheduleActionStartWorkflow DEFAULT_INSTANCE;
+  private final String workflowType;
+  private final WorkflowOptions options;
+  private final Header header;
+  private final EncodedValues arguments;
 
-  static {
-    DEFAULT_INSTANCE = ScheduleActionStartWorkflow.newBuilder().build();
+  private ScheduleActionStartWorkflow(
+      String workflowType, WorkflowOptions options, Header header, EncodedValues arguments) {
+    this.workflowType = workflowType;
+    this.options = options;
+    this.header = header;
+    this.arguments = arguments;
   }
 
   /**
@@ -83,88 +150,7 @@ public final class ScheduleActionStartWorkflow implements ScheduleAction {
    *
    * @return the arguments used for the scheduled workflows.
    */
-  public EncodedValues getArgs() {
-    return args;
-  }
-
-  private final String workflowType;
-  private final WorkflowOptions options;
-  private final Header header;
-  private final EncodedValues args;
-
-  private ScheduleActionStartWorkflow(
-      String workflowType, WorkflowOptions options, Header header, EncodedValues args) {
-    this.workflowType = workflowType;
-    this.options = options;
-    this.header = header;
-    this.args = args;
-  }
-
-  public static class Builder {
-
-    /** Set the name of the workflow type */
-    public Builder setWorkflowType(String workflowType) {
-      this.workflowType = workflowType;
-      return this;
-    }
-
-    /** Set the workflow type. workflowInterface must implement a WorkflowInterface */
-    public <T> Builder setWorkflowType(Class<T> workflowInterface) {
-      POJOWorkflowInterfaceMetadata workflowMetadata =
-          POJOWorkflowInterfaceMetadata.newInstance(workflowInterface, true);
-      this.workflowType = workflowMetadata.getWorkflowType().get();
-      return this;
-    }
-
-    /**
-     * Set the workflow options to use when starting a workflow action.
-     *
-     * @note ID and TaskQueue are required. Some options like ID reuse policy, cron schedule, and
-     *     start signal cannot be set or an error will occur.
-     */
-    public Builder setOptions(WorkflowOptions options) {
-      this.options = options;
-      return this;
-    }
-
-    /** Set the headers sent with each workflow scheduled. */
-    public Builder setHeader(Header header) {
-      this.header = header;
-      return this;
-    }
-
-    /** Set the workflow arguments to use when starting a workflow action. */
-    public Builder setArgs(Optional<Payloads> payloads, DataConverter converter) {
-      this.args = new EncodedValues(payloads, converter);
-      return this;
-    }
-
-    /** Set the workflow arguments to use when starting a workflow action. */
-    public Builder setArgs(Object... args) {
-      this.args = new EncodedValues(args);
-      return this;
-    }
-
-    private String workflowType;
-    private WorkflowOptions options;
-    private Header header;
-    private EncodedValues args;
-
-    private Builder() {}
-
-    private Builder(ScheduleActionStartWorkflow options) {
-      if (options == null) {
-        return;
-      }
-      this.workflowType = options.workflowType;
-      this.options = options.options;
-      this.header = options.header;
-      this.args = options.args;
-    }
-
-    public ScheduleActionStartWorkflow build() {
-      return new ScheduleActionStartWorkflow(
-          workflowType, options, header == null ? Header.empty() : header, args);
-    }
+  public EncodedValues getArguments() {
+    return arguments;
   }
 }

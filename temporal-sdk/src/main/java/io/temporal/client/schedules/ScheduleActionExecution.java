@@ -25,4 +25,6 @@ package io.temporal.client.schedules;
  *
  * @see ScheduleActionExecutionStartWorkflow
  */
-public interface ScheduleActionExecution {}
+public abstract class ScheduleActionExecution {
+  ScheduleActionExecution() {}
+}

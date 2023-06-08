@@ -34,14 +34,60 @@ public final class SchedulePolicy {
     return new SchedulePolicy.Builder(options);
   }
 
-  public static SchedulePolicy getDefaultInstance() {
-    return DEFAULT_INSTANCE;
+  public static final class Builder {
+    private ScheduleOverlapPolicy overlap;
+    private Duration catchupWindow;
+    private boolean pauseOnFailure;
+
+    private Builder() {}
+
+    private Builder(SchedulePolicy options) {
+      if (options == null) {
+        return;
+      }
+      this.overlap = options.overlap;
+      this.catchupWindow = options.catchupWindow;
+      this.pauseOnFailure = options.pauseOnFailure;
+    }
+
+    /** Set the policy for what happens when an action is started while another is still running. */
+    public Builder setOverlap(ScheduleOverlapPolicy overlap) {
+      this.overlap = overlap;
+      return this;
+    }
+
+    /**
+     * Set the amount of time in the past to execute missed actions after a Temporal server is
+     * unavailable.
+     */
+    public Builder setCatchupWindow(Duration catchupWindow) {
+      this.catchupWindow = catchupWindow;
+      return this;
+    }
+
+    /** Set whether to pause the schedule if an action fails or times out. */
+    public Builder setPauseOnFailure(boolean pauseOnFailure) {
+      this.pauseOnFailure = pauseOnFailure;
+      return this;
+    }
+
+    public SchedulePolicy build() {
+      return new SchedulePolicy(
+          overlap == null ? ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP : overlap,
+          catchupWindow,
+          pauseOnFailure);
+    }
   }
 
-  private static final SchedulePolicy DEFAULT_INSTANCE;
+  private final ScheduleOverlapPolicy overlap;
+  private final Duration catchupWindow;
+  private final boolean pauseOnFailure;
 
-  static {
-    DEFAULT_INSTANCE = SchedulePolicy.newBuilder().build();
+  private SchedulePolicy(
+      ScheduleOverlapPolicy overlap, Duration catchupWindow, boolean pauseOnFailure) {
+    this.overlap = overlap;
+    this.catchupWindow = catchupWindow;
+    this.pauseOnFailure = pauseOnFailure;
   }
 
   /**
@@ -72,17 +118,6 @@ public final class SchedulePolicy {
     return pauseOnFailure;
   }
 
-  private final ScheduleOverlapPolicy overlap;
-  private final Duration catchupWindow;
-  private final boolean pauseOnFailure;
-
-  private SchedulePolicy(
-      ScheduleOverlapPolicy overlap, Duration catchupWindow, boolean pauseOnFailure) {
-    this.overlap = overlap;
-    this.catchupWindow = catchupWindow;
-    this.pauseOnFailure = pauseOnFailure;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -108,51 +143,5 @@ public final class SchedulePolicy {
         + ", pauseOnFailure="
         + pauseOnFailure
         + '}';
-  }
-
-  public static class Builder {
-
-    /** Set the policy for what happens when an action is started while another is still running. */
-    public Builder setOverlap(ScheduleOverlapPolicy overlap) {
-      this.overlap = overlap;
-      return this;
-    }
-
-    /**
-     * Set the amount of time in the past to execute missed actions after a Temporal server is
-     * unavailable.
-     */
-    public Builder setCatchupWindow(Duration catchupWindow) {
-      this.catchupWindow = catchupWindow;
-      return this;
-    }
-
-    /** Set whether to pause the schedule if an action fails or times out. */
-    public Builder setPauseOnFailure(boolean pauseOnFailure) {
-      this.pauseOnFailure = pauseOnFailure;
-      return this;
-    }
-
-    private ScheduleOverlapPolicy overlap;
-    private Duration catchupWindow;
-    private boolean pauseOnFailure;
-
-    private Builder() {}
-
-    private Builder(SchedulePolicy options) {
-      if (options == null) {
-        return;
-      }
-      this.overlap = options.overlap;
-      this.catchupWindow = options.catchupWindow;
-      this.pauseOnFailure = options.pauseOnFailure;
-    }
-
-    public SchedulePolicy build() {
-      return new SchedulePolicy(
-          overlap == null ? ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP : overlap,
-          catchupWindow,
-          pauseOnFailure);
-    }
   }
 }

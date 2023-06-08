@@ -46,6 +46,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class ScheduleProtoUtil {
 
@@ -112,8 +113,8 @@ public class ScheduleProtoUtil {
                   ProtobufTimeUtils.toProtoDuration(wfOptions.getWorkflowTaskTimeout()))
               .setTaskQueue(TaskQueue.newBuilder().setName(wfOptions.getTaskQueue()).build());
 
-      startWorkflowAction.getArgs().setDataConverter(clientOptions.getDataConverter());
-      Optional<Payloads> inputArgs = startWorkflowAction.getArgs().toPayloads();
+      startWorkflowAction.getArguments().setDataConverter(clientOptions.getDataConverter());
+      Optional<Payloads> inputArgs = startWorkflowAction.getArguments().toPayloads();
       if (inputArgs.isPresent()) {
         workflowRequest.setInput(inputArgs.get());
       }
@@ -299,7 +300,10 @@ public class ScheduleProtoUtil {
     return calendarBuilder.build();
   }
 
-  public io.temporal.client.schedules.ScheduleSpec protoToScheduleSpec(ScheduleSpec scheduleSpec) {
+  @Nonnull
+  public io.temporal.client.schedules.ScheduleSpec protoToScheduleSpec(
+      @Nonnull ScheduleSpec scheduleSpec) {
+    Objects.requireNonNull(scheduleSpec);
     io.temporal.client.schedules.ScheduleSpec.Builder specBuilder =
         io.temporal.client.schedules.ScheduleSpec.newBuilder()
             .setTimeZoneName(
@@ -378,15 +382,17 @@ public class ScheduleProtoUtil {
         Collections.unmodifiableMap(SearchAttributesUtil.decode(entry.getSearchAttributes())));
   }
 
-  public @Nonnull io.temporal.client.schedules.ScheduleAction protoToAction(
-      @Nonnull ScheduleAction action) {
+  @Nonnull
+  public io.temporal.client.schedules.ScheduleAction protoToAction(@Nonnull ScheduleAction action) {
     Objects.requireNonNull(action);
     if (action.hasStartWorkflow()) {
       NewWorkflowExecutionInfo startWfAction = action.getStartWorkflow();
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());
 
-      builder.setArgs(Optional.of(startWfAction.getInput()), clientOptions.getDataConverter());
+      builder.setRawArguments(
+          new EncodedValues(
+              Optional.of(startWfAction.getInput()), clientOptions.getDataConverter()));
 
       WorkflowOptions.Builder wfOptionsBuilder = WorkflowOptions.newBuilder();
       // set required options
@@ -431,7 +437,11 @@ public class ScheduleProtoUtil {
     throw new IllegalArgumentException("Unsupported action " + action.getActionCase());
   }
 
-  public SchedulePolicy protoToPolicy(SchedulePolicies policy) {
+  @Nullable
+  public SchedulePolicy protoToPolicy(@Nullable SchedulePolicies policy) {
+    if (policy == null) {
+      return null;
+    }
     SchedulePolicy.Builder policyBuilder =
         SchedulePolicy.newBuilder()
             .setPauseOnFailure(policy.getPauseOnFailure())
@@ -442,7 +452,12 @@ public class ScheduleProtoUtil {
     return policyBuilder.build();
   }
 
-  public io.temporal.client.schedules.ScheduleState protoToScheduleState(ScheduleState state) {
+  @Nullable
+  public io.temporal.client.schedules.ScheduleState protoToScheduleState(
+      @Nullable ScheduleState state) {
+    if (state == null) {
+      return null;
+    }
     return io.temporal.client.schedules.ScheduleState.newBuilder()
         .setNote(state.getNotes())
         .setPaused(state.getPaused())
@@ -452,8 +467,9 @@ public class ScheduleProtoUtil {
   }
 
   public io.temporal.client.schedules.Schedule protoToSchedule(Schedule schedule) {
-    return io.temporal.client.schedules.Schedule.newBuilder(
-            protoToAction(schedule.getAction()), protoToScheduleSpec(schedule.getSpec()))
+    return io.temporal.client.schedules.Schedule.newBuilder()
+        .setAction(protoToAction(schedule.getAction()))
+        .setSpec(protoToScheduleSpec(schedule.getSpec()))
         .setPolicy(protoToPolicy(schedule.getPolicies()))
         .setState(protoToScheduleState(schedule.getState()))
         .build();

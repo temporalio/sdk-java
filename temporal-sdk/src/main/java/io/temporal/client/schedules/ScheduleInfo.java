@@ -23,9 +23,18 @@ package io.temporal.client.schedules;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** Information about a schedule. */
 public final class ScheduleInfo {
+  private final long numActions;
+  private final long numActionsMissedCatchupWindow;
+  private final long numActionsSkippedOverlap;
+  private final List<ScheduleActionExecution> runningActions;
+  private final List<ScheduleActionResult> recentActions;
+  private final List<Instant> nextActionTimes;
+  private final Instant createdAt;
+  private final Instant lastUpdatedAt;
 
   public ScheduleInfo(
       long numActions,
@@ -83,7 +92,7 @@ public final class ScheduleInfo {
   }
 
   /**
-   * Get a list of the most recent actions, oldest first..
+   * Get a list of the most recent actions, oldest first.
    *
    * @return list of the most recent actions
    */
@@ -100,22 +109,24 @@ public final class ScheduleInfo {
     return nextActionTimes;
   }
 
+  /**
+   * Get the time the schedule was created at.
+   *
+   * @return time the schedule was created
+   */
   public Instant getCreatedAt() {
     return createdAt;
   }
 
+  /**
+   * Get the last time the schedule was updated.
+   *
+   * @return last time the schedule was updated
+   */
+  @Nullable
   public Instant getLastUpdatedAt() {
     return lastUpdatedAt;
   }
-
-  private final long numActions;
-  private final long numActionsMissedCatchupWindow;
-  private final long numActionsSkippedOverlap;
-  private final List<ScheduleActionExecution> runningActions;
-  private final List<ScheduleActionResult> recentActions;
-  private final List<Instant> nextActionTimes;
-  private final Instant createdAt;
-  private final Instant lastUpdatedAt;
 
   @Override
   public boolean equals(Object o) {

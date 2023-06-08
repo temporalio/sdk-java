@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
-public class ScheduleHandleImpl implements ScheduleHandle {
+class ScheduleHandleImpl implements ScheduleHandle {
   private final String Id;
   private final ScheduleClientCallsInterceptor interceptor;
 
@@ -75,9 +75,9 @@ public class ScheduleHandleImpl implements ScheduleHandle {
   }
 
   @Override
-  public void trigger(ScheduleTriggerOptions options) {
+  public void trigger(ScheduleOverlapPolicy overlapPolicy) {
     interceptor.triggerSchedule(
-        new ScheduleClientCallsInterceptor.TriggerScheduleInput(Id, options.getOverlapPolicy()));
+        new ScheduleClientCallsInterceptor.TriggerScheduleInput(Id, overlapPolicy));
   }
 
   @Override

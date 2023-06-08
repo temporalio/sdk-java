@@ -20,8 +20,16 @@
 
 package io.temporal.client.schedules;
 
+import java.util.Objects;
+
 /** Action to start a workflow on a listed schedule. */
-public final class ScheduleListActionStartWorkflow implements ScheduleListAction {
+public final class ScheduleListActionStartWorkflow extends ScheduleListAction {
+  private final String workflow;
+
+  public ScheduleListActionStartWorkflow(String workflow) {
+    this.workflow = workflow;
+  }
+
   /**
    * Get the scheduled workflow type name.
    *
@@ -31,9 +39,21 @@ public final class ScheduleListActionStartWorkflow implements ScheduleListAction
     return workflow;
   }
 
-  private final String workflow;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ScheduleListActionStartWorkflow that = (ScheduleListActionStartWorkflow) o;
+    return Objects.equals(workflow, that.workflow);
+  }
 
-  public ScheduleListActionStartWorkflow(String workflow) {
-    this.workflow = workflow;
+  @Override
+  public int hashCode() {
+    return Objects.hash(workflow);
+  }
+
+  @Override
+  public String toString() {
+    return "ScheduleListActionStartWorkflow{" + "workflow='" + workflow + '\'' + '}';
   }
 }

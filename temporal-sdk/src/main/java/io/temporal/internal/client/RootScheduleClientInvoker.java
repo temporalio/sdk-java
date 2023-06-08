@@ -84,8 +84,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             && input.getOptions().getBackfills().size() > 0)) {
       SchedulePatch.Builder patchBuilder = SchedulePatch.newBuilder();
 
-      if (input.getOptions().getBackfills() != null
-          && input.getOptions().getBackfills().size() > 0) {
+      if (input.getOptions().getBackfills() != null) {
         input.getOptions().getBackfills().stream()
             .forEach(b -> patchBuilder.addBackfillRequest(backfillToProto(b)));
       }

@@ -29,16 +29,6 @@ import java.util.List;
 
 /** Options for ScheduleClient configuration. */
 public final class ScheduleClientOptions {
-  private ScheduleClientOptions(
-      String namespace,
-      DataConverter dataConverter,
-      String identity,
-      List<ContextPropagator> contextPropagators) {
-    this.namespace = namespace;
-    this.dataConverter = dataConverter;
-    this.identity = identity;
-    this.contextPropagators = contextPropagators;
-  }
 
   public static ScheduleClientOptions.Builder newBuilder() {
     return new ScheduleClientOptions.Builder();
@@ -48,14 +38,98 @@ public final class ScheduleClientOptions {
     return new ScheduleClientOptions.Builder(options);
   }
 
+  public static ScheduleClientOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
   public ScheduleClientOptions.Builder toBuilder() {
     return new ScheduleClientOptions.Builder(this);
   }
 
-  private static final ScheduleActionStartWorkflow DEFAULT_INSTANCE;
+  private static final ScheduleClientOptions DEFAULT_INSTANCE;
 
   static {
-    DEFAULT_INSTANCE = ScheduleActionStartWorkflow.newBuilder().build();
+    DEFAULT_INSTANCE = ScheduleClientOptions.newBuilder().build();
+  }
+
+  public static final class Builder {
+    private static final String DEFAULT_NAMESPACE = "default";
+    private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS =
+        Collections.emptyList();
+
+    private String namespace;
+    private DataConverter dataConverter;
+    private String identity;
+    private List<ContextPropagator> contextPropagators;
+
+    private Builder() {}
+
+    private Builder(ScheduleClientOptions options) {
+      if (options == null) {
+        return;
+      }
+      namespace = options.namespace;
+      dataConverter = options.dataConverter;
+      identity = options.identity;
+      contextPropagators = options.contextPropagators;
+    }
+
+    /** Set the namespace this client will operate on. */
+    public Builder setNamespace(String namespace) {
+      this.namespace = namespace;
+      return this;
+    }
+
+    /**
+     * Overrides a data converter implementation used serialize workflow arguments and results.
+     *
+     * <p>Default is {@link DataConverter#getDefaultInstance()}.
+     */
+    public Builder setDataConverter(DataConverter dataConverter) {
+      this.dataConverter = dataConverter;
+      return this;
+    }
+
+    /** Override human-readable identity of the client. */
+    public Builder setIdentity(String identity) {
+      this.identity = identity;
+      return this;
+    }
+
+    /**
+     * Set the context propagators for this client.
+     *
+     * @param contextPropagators specifies the list of context propagators to use with the client.
+     */
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
+      return this;
+    }
+
+    public ScheduleClientOptions build() {
+      String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
+      return new ScheduleClientOptions(
+          namespace == null ? DEFAULT_NAMESPACE : namespace,
+          dataConverter == null ? GlobalDataConverter.get() : dataConverter,
+          name,
+          contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators);
+    }
+  }
+
+  private final String namespace;
+  private final DataConverter dataConverter;
+  private final String identity;
+  private final List<ContextPropagator> contextPropagators;
+
+  private ScheduleClientOptions(
+      String namespace,
+      DataConverter dataConverter,
+      String identity,
+      List<ContextPropagator> contextPropagators) {
+    this.namespace = namespace;
+    this.dataConverter = dataConverter;
+    this.identity = identity;
+    this.contextPropagators = contextPropagators;
   }
 
   /**
@@ -92,74 +166,5 @@ public final class ScheduleClientOptions {
    */
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
-  }
-
-  private final String namespace;
-  private final DataConverter dataConverter;
-  private final String identity;
-  private final List<ContextPropagator> contextPropagators;
-
-  public static final class Builder {
-    private static final String DEFAULT_NAMESPACE = "default";
-    private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS =
-        Collections.emptyList();
-
-    /** Set the namespace this client will operate on. */
-    public Builder setNamespace(String namespace) {
-      this.namespace = namespace;
-      return this;
-    }
-
-    /**
-     * Overrides a data converter implementation used serialize workflow arguments and results.
-     *
-     * <p>Default is {@link DataConverter#getDefaultInstance()}.
-     */
-    public Builder setDataConverter(DataConverter dataConverter) {
-      this.dataConverter = dataConverter;
-      return this;
-    }
-
-    /** Override human-readable identity of the client. */
-    public Builder setIdentity(String identity) {
-      this.identity = identity;
-      return this;
-    }
-
-    /**
-     * Set the context propagators for this client.
-     *
-     * @param contextPropagators specifies the list of context propagators to use with the client.
-     */
-    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
-      this.contextPropagators = contextPropagators;
-      return this;
-    }
-
-    private String namespace;
-    private DataConverter dataConverter;
-    private String identity;
-    private List<ContextPropagator> contextPropagators;
-
-    private Builder() {}
-
-    private Builder(ScheduleClientOptions options) {
-      if (options == null) {
-        return;
-      }
-      namespace = options.namespace;
-      dataConverter = options.dataConverter;
-      identity = options.identity;
-      contextPropagators = options.contextPropagators;
-    }
-
-    public ScheduleClientOptions build() {
-      String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
-      return new ScheduleClientOptions(
-          namespace == null ? DEFAULT_NAMESPACE : namespace,
-          dataConverter == null ? GlobalDataConverter.get() : dataConverter,
-          name,
-          contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators);
-    }
   }
 }

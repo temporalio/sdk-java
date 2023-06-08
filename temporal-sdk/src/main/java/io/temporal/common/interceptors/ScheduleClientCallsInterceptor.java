@@ -31,8 +31,8 @@ import java.util.stream.Stream;
  * Intercepts calls to the {@link io.temporal.client.schedules.ScheduleClient} and {@link
  * io.temporal.client.schedules.ScheduleHandle} related to the lifecycle of a Schedule.
  *
- * <p>Prefer extending {@link ScheduleClientCallsInterceptorBase} and overriding only the methods
- * you need instead of implementing this interface directly. {@link ScheduleClientCallsInterceptor}
+ * <p>Prefer extending {@link ScheduleClientCallsInterceptorBase} and override only the methods you
+ * need instead of implementing this interface directly. {@link ScheduleClientCallsInterceptor}
  * provides correct default implementations to all the methods of this interface.
  */
 @Experimental

@@ -32,6 +32,8 @@ import javax.annotation.Nullable;
  * <p>epoch + (n * every) + offset.
  */
 public final class ScheduleIntervalSpec {
+  private final Duration every;
+  private final Duration offset;
 
   /**
    * Construct a ScheduleIntervalSpec
@@ -70,9 +72,6 @@ public final class ScheduleIntervalSpec {
   public @Nullable Duration getOffset() {
     return offset;
   }
-
-  private final Duration every;
-  private final Duration offset;
 
   @Override
   public String toString() {

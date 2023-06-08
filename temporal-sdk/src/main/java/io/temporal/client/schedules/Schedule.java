@@ -22,43 +22,93 @@ package io.temporal.client.schedules;
 
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** A schedule for periodically running an action. */
 public final class Schedule {
-
-  public static Schedule.Builder newBuilder(
-      @Nonnull ScheduleAction action, @Nonnull ScheduleSpec spec) {
-    return new Schedule.Builder(action, spec);
+  public static Schedule.Builder newBuilder() {
+    return new Schedule.Builder();
   }
 
   public static Schedule.Builder newBuilder(Schedule options) {
     return new Schedule.Builder(options);
   }
 
+  public static final class Builder {
+    private ScheduleAction action;
+    private ScheduleSpec spec;
+    private SchedulePolicy policy;
+    private ScheduleState state;
+
+    private Builder() {}
+
+    private Builder(Schedule options) {
+      if (options == null) {
+        return;
+      }
+      action = options.action;
+      policy = options.policy;
+      state = options.state;
+      spec = options.spec;
+    }
+
+    /**
+     * Set the action for this schedule. Required to build.
+     *
+     * @see ScheduleAction
+     */
+    public Builder setAction(ScheduleAction action) {
+      this.action = action;
+      return this;
+    }
+
+    /**
+     * Set the spec for this schedule. Required to build.
+     *
+     * @see ScheduleSpec
+     */
+    public Builder setSpec(ScheduleSpec spec) {
+      this.spec = spec;
+      return this;
+    }
+
+    /**
+     * Set the spec for this schedule
+     *
+     * @see ScheduleSpec
+     */
+    public Builder setPolicy(SchedulePolicy policy) {
+      this.policy = policy;
+      return this;
+    }
+
+    /**
+     * Set the state for this schedule
+     *
+     * @see ScheduleState
+     */
+    public Builder setState(ScheduleState state) {
+      this.state = state;
+      return this;
+    }
+
+    public Schedule build() {
+      return new Schedule(
+          Objects.requireNonNull(action), Objects.requireNonNull(spec), policy, state);
+    }
+  }
+
+  private final ScheduleAction action;
+  private final SchedulePolicy policy;
+  private final ScheduleState state;
+  private final ScheduleSpec spec;
+
   private Schedule(
-      ScheduleAction action, SchedulePolicy policy, ScheduleState state, ScheduleSpec spec) {
+      ScheduleAction action, ScheduleSpec spec, SchedulePolicy policy, ScheduleState state) {
     this.action = action;
+    this.spec = spec;
     this.policy = policy;
     this.state = state;
-    this.spec = spec;
-  }
-
-  /**
-   * Gets the policy for the schedule.
-   *
-   * @return policy of the schedule
-   */
-  public SchedulePolicy getPolicy() {
-    return policy;
-  }
-
-  /**
-   * Gets the state of the schedule.
-   *
-   * @return state of the schedule
-   */
-  public ScheduleState getState() {
-    return state;
   }
 
   /**
@@ -66,6 +116,7 @@ public final class Schedule {
    *
    * @return action of the schedule
    */
+  @Nonnull
   public ScheduleAction getAction() {
     return action;
   }
@@ -75,14 +126,30 @@ public final class Schedule {
    *
    * @return spec of the schedule
    */
+  @Nonnull
   public ScheduleSpec getSpec() {
     return spec;
   }
 
-  private final ScheduleAction action;
-  private final SchedulePolicy policy;
-  private final ScheduleState state;
-  private final ScheduleSpec spec;
+  /**
+   * Gets the policy for the schedule.
+   *
+   * @return policy of the schedule
+   */
+  @Nullable
+  public SchedulePolicy getPolicy() {
+    return policy;
+  }
+
+  /**
+   * Gets the state of the schedule.
+   *
+   * @return state of the schedule
+   */
+  @Nullable
+  public ScheduleState getState() {
+    return state;
+  }
 
   @Override
   public boolean equals(Object o) {
@@ -112,69 +179,5 @@ public final class Schedule {
         + ", spec="
         + spec
         + '}';
-  }
-
-  public static class Builder {
-    /**
-     * Set the action for this schedule
-     *
-     * @see ScheduleAction
-     */
-    public Builder setAction(ScheduleAction action) {
-      this.action = action;
-      return this;
-    }
-
-    /**
-     * Set the spec for this schedule
-     *
-     * @see ScheduleSpec
-     */
-    public Builder setSpec(ScheduleSpec spec) {
-      this.spec = spec;
-      return this;
-    }
-
-    /**
-     * Set the spec for this schedule
-     *
-     * @see ScheduleSpec
-     */
-    public Builder setPolicy(SchedulePolicy policy) {
-      this.policy = policy;
-      return this;
-    }
-
-    /**
-     * Set the state for this schedule
-     *
-     * @see ScheduleState
-     */
-    public Builder setState(ScheduleState state) {
-      this.state = state;
-      return this;
-    }
-
-    private ScheduleAction action;
-    private ScheduleSpec spec;
-    private SchedulePolicy policy;
-    private ScheduleState state;
-
-    private Builder(@Nonnull ScheduleAction action, @Nonnull ScheduleSpec spec) {
-      this.action = Objects.requireNonNull(action);
-      this.spec = Objects.requireNonNull(spec);
-    }
-
-    private Builder(@Nonnull Schedule options) {
-      Objects.requireNonNull(options);
-      action = options.action;
-      policy = options.policy;
-      state = options.state;
-      spec = options.spec;
-    }
-
-    public Schedule build() {
-      return new Schedule(action, policy, state, spec);
-    }
   }
 }

@@ -25,6 +25,9 @@ import java.util.Objects;
 
 /** Inclusive range for a schedule match value. */
 public final class ScheduleRange {
+  private final int start;
+  private final int end;
+  private final int step;
 
   /**
    * Create a inclusive range for a schedule match value.
@@ -85,10 +88,6 @@ public final class ScheduleRange {
   public int getStep() {
     return step;
   }
-
-  private final int start;
-  private final int end;
-  private final int step;
 
   @Override
   public boolean equals(Object o) {
