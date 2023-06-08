@@ -57,7 +57,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
-      @Nullable String binaryChecksum,
+      @Nullable String buildID,
       @Nonnull Semaphore workflowTaskExecutorSemaphore,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
       @Nonnull Scope workerMetricsScope) {
@@ -78,7 +78,8 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(Objects.requireNonNull(namespace))
             .setIdentity(Objects.requireNonNull(identity))
-            .setBinaryChecksum(binaryChecksum);
+            // TODO: Set checksum or ver capabilities based on capabilities
+            .setBinaryChecksum(buildID);
 
     this.pollRequest =
         pollRequestBuilder

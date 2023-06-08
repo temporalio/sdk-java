@@ -75,6 +75,8 @@ public final class WorkerOptions {
     private Duration defaultHeartbeatThrottleInterval;
     private Duration stickyQueueScheduleToStartTimeout;
     private boolean disableEagerExecution;
+    private String buildID;
+    private boolean useBuildIDForVersioning;
 
     private Builder() {}
 
@@ -95,6 +97,8 @@ public final class WorkerOptions {
       this.defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
       this.stickyQueueScheduleToStartTimeout = o.stickyQueueScheduleToStartTimeout;
       this.disableEagerExecution = o.disableEagerExecution;
+      this.useBuildIDForVersioning = o.useBuildIDForVersioning;
+      this.buildID = o.buildID;
     }
 
     /**
@@ -319,6 +323,32 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
+     * will only recieve tasks which it is compatible with. For more information see: TODO: Doc link
+     *
+     * <p>Defaults to false
+     *
+     * <p>This is an EXPERIMENTAL API.
+     */
+    public Builder setUseBuildIDForVersioning(boolean useBuildIDForVersioning) {
+      this.useBuildIDForVersioning = useBuildIDForVersioning;
+      return this;
+    }
+
+    /**
+     * Set a unique identifier for this worker. The identifier should be stable with respect to the
+     * code the worker uses for workflows, activities, and interceptors. For more information see:
+     * TODO: Doc link
+     *
+     * <p>A Build ID must be set if {@link #setUseBuildIDForVersioning(boolean)} is set true.
+     *
+     * <p>This is an EXPERIMENTAL API.
+     */
+    public void setBuildID(String buildID) {
+      this.buildID = buildID;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -333,7 +363,9 @@ public final class WorkerOptions {
           maxHeartbeatThrottleInterval,
           defaultHeartbeatThrottleInterval,
           stickyQueueScheduleToStartTimeout,
-          disableEagerExecution);
+          disableEagerExecution,
+          useBuildIDForVersioning,
+          buildID);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -359,6 +391,11 @@ public final class WorkerOptions {
           stickyQueueScheduleToStartTimeout == null
               || !stickyQueueScheduleToStartTimeout.isNegative(),
           "negative stickyQueueScheduleToStartTimeout");
+      if (useBuildIDForVersioning) {
+        Preconditions.checkState(
+            buildID != null && !buildID.isEmpty(),
+            "buildID must be set non-empty if useBuildIDForVersioning is set true");
+      }
 
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -391,7 +428,9 @@ public final class WorkerOptions {
           stickyQueueScheduleToStartTimeout == null
               ? DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT
               : stickyQueueScheduleToStartTimeout,
-          disableEagerExecution);
+          disableEagerExecution,
+          useBuildIDForVersioning,
+          buildID);
     }
   }
 
@@ -408,6 +447,8 @@ public final class WorkerOptions {
   private final Duration defaultHeartbeatThrottleInterval;
   private final @Nonnull Duration stickyQueueScheduleToStartTimeout;
   private final boolean disableEagerExecution;
+  private final boolean useBuildIDForVersioning;
+  private final String buildID;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -422,7 +463,9 @@ public final class WorkerOptions {
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       @Nonnull Duration stickyQueueScheduleToStartTimeout,
-      boolean disableEagerExecution) {
+      boolean disableEagerExecution,
+      boolean useBuildIDForVersioning,
+      String buildID) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -436,6 +479,8 @@ public final class WorkerOptions {
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
     this.disableEagerExecution = disableEagerExecution;
+    this.useBuildIDForVersioning = useBuildIDForVersioning;
+    this.buildID = buildID;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -507,6 +552,14 @@ public final class WorkerOptions {
     return disableEagerExecution;
   }
 
+  public boolean isUsingBuildIDForVersioning() {
+    return useBuildIDForVersioning;
+  }
+
+  public String getBuildID() {
+    return buildID;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -524,7 +577,9 @@ public final class WorkerOptions {
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
         && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval)
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
-        && disableEagerExecution == that.disableEagerExecution;
+        && disableEagerExecution == that.disableEagerExecution
+        && useBuildIDForVersioning == that.useBuildIDForVersioning
+        && buildID.equals(that.buildID);
   }
 
   @Override
@@ -542,7 +597,9 @@ public final class WorkerOptions {
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
         stickyQueueScheduleToStartTimeout,
-        disableEagerExecution);
+        disableEagerExecution,
+        useBuildIDForVersioning,
+        buildID);
   }
 
   @Override
@@ -574,6 +631,10 @@ public final class WorkerOptions {
         + stickyQueueScheduleToStartTimeout
         + ", disableEagerExecution="
         + disableEagerExecution
+        + ", useBuildIDForVersioning="
+        + useBuildIDForVersioning
+        + ", buildID='"
+        + buildID
         + '}';
   }
 }

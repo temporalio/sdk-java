@@ -129,7 +129,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   stickyTaskQueueName,
                   options.getIdentity(),
-                  options.getBinaryChecksum(),
+                  options.getBuildID(),
                   executorSlotsSemaphore,
                   stickyQueueBalancer,
                   workerMetricsScope),
@@ -435,7 +435,8 @@ final class WorkflowWorker implements SuspendableWorker {
       taskCompleted
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
-          .setBinaryChecksum(options.getBinaryChecksum())
+          // TODO: Set this or capabilities based on capabilities
+          .setBinaryChecksum(options.getBuildID())
           .setTaskToken(taskToken);
 
       return grpcRetryer.retryWithResult(

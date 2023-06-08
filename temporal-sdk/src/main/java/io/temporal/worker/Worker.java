@@ -561,15 +561,22 @@ public final class Worker {
         .build();
   }
 
+  @SuppressWarnings("deprecation")
   private static SingleWorkerOptions.Builder toSingleWorkerOptions(
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators) {
+    String buildID = null;
+    if (options.getBuildID() != null) {
+      buildID = options.getBuildID();
+    } else if (clientOptions.getBinaryChecksum() != null) {
+      buildID = clientOptions.getBinaryChecksum();
+    }
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
-        .setBinaryChecksum(clientOptions.getBinaryChecksum())
+        .setBuildID(buildID)
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())

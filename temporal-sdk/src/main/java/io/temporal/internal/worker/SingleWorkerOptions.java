@@ -43,6 +43,7 @@ public final class SingleWorkerOptions {
 
     private String identity;
     private String binaryChecksum;
+    private String buildID;
     private DataConverter dataConverter;
     private int taskExecutorThreadPoolSize = 100;
     private PollerOptions pollerOptions;
@@ -75,6 +76,7 @@ public final class SingleWorkerOptions {
       this.defaultDeadlockDetectionTimeout = options.getDefaultDeadlockDetectionTimeout();
       this.maxHeartbeatThrottleInterval = options.getMaxHeartbeatThrottleInterval();
       this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
+      this.buildID = options.getBuildID();
     }
 
     public Builder setIdentity(String identity) {
@@ -82,6 +84,7 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    @Deprecated
     public Builder setBinaryChecksum(String binaryChecksum) {
       this.binaryChecksum = binaryChecksum;
       return this;
@@ -145,6 +148,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setBuildID(String buildID) {
+      this.buildID = buildID;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -164,6 +172,7 @@ public final class SingleWorkerOptions {
       return new SingleWorkerOptions(
           this.identity,
           this.binaryChecksum,
+          this.buildID,
           dataConverter,
           this.taskExecutorThreadPoolSize,
           pollerOptions,
@@ -180,6 +189,7 @@ public final class SingleWorkerOptions {
 
   private final String identity;
   private final String binaryChecksum;
+  private final String buildID;
   private final DataConverter dataConverter;
   private final int taskExecutorThreadPoolSize;
   private final PollerOptions pollerOptions;
@@ -195,6 +205,7 @@ public final class SingleWorkerOptions {
   private SingleWorkerOptions(
       String identity,
       String binaryChecksum,
+      String buildID,
       DataConverter dataConverter,
       int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
@@ -208,6 +219,7 @@ public final class SingleWorkerOptions {
       Duration defaultHeartbeatThrottleInterval) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
+    this.buildID = buildID;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
@@ -225,8 +237,16 @@ public final class SingleWorkerOptions {
     return identity;
   }
 
+  @Deprecated
   public String getBinaryChecksum() {
     return binaryChecksum;
+  }
+
+  public String getBuildID() {
+    if (buildID == null) {
+      return binaryChecksum;
+    }
+    return buildID;
   }
 
   public DataConverter getDataConverter() {
