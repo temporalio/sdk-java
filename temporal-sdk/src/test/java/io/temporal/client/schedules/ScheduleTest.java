@@ -343,12 +343,12 @@ public class ScheduleTest {
                 Arrays.asList(
                     description.getSchedule().getSpec().getCalendars().get(0),
                     ScheduleCalendarSpec.newBuilder()
-                        .setSeconds(Arrays.asList(new ScheduleRange(0)))
-                        .setMinutes(Arrays.asList(new ScheduleRange(0)))
-                        .setHour(Arrays.asList(new ScheduleRange(12)))
-                        .setDayOfMonth(Arrays.asList(new ScheduleRange(1, 31)))
-                        .setMonth(Arrays.asList(new ScheduleRange(1, 12)))
-                        .setDayOfWeek(Arrays.asList(new ScheduleRange(1)))
+                        .setSeconds(Arrays.asList(new ScheduleRange(0, 0, 1)))
+                        .setMinutes(Arrays.asList(new ScheduleRange(0, 0, 1)))
+                        .setHour(Arrays.asList(new ScheduleRange(12, 12, 1)))
+                        .setDayOfMonth(Arrays.asList(new ScheduleRange(1, 31, 1)))
+                        .setMonth(Arrays.asList(new ScheduleRange(1, 12, 1)))
+                        .setDayOfWeek(Arrays.asList(new ScheduleRange(1, 1, 1)))
                         .build()))
             .build(),
         description.getSchedule().getSpec());

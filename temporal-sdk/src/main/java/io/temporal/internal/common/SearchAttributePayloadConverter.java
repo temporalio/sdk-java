@@ -228,6 +228,7 @@ final class SearchAttributePayloadConverter {
     switch (indexedValueType) {
       case INDEXED_VALUE_TYPE_TEXT:
       case INDEXED_VALUE_TYPE_KEYWORD:
+      case INDEXED_VALUE_TYPE_KEYWORD_LIST:
         return String.class;
       case INDEXED_VALUE_TYPE_INT:
         return Long.class;
