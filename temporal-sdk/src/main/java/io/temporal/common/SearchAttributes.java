@@ -55,11 +55,10 @@ public final class SearchAttributes {
       untypedValues = new TreeMap<>(copyFrom.untypedValues);
     }
 
-    /** Set a search attribute key and typed value. */
+    /** Set a search attribute key and typed value, replacing previous if present. */
     public <T> Builder set(SearchAttributeKey<T> key, @Nonnull T value) {
       Objects.requireNonNull(untypedValues, "Collection already built");
       Objects.requireNonNull(value, "Value cannot be null");
-      // TODO(cretz): Prevent duplicate key name?
       untypedValues.put(key, value);
       return this;
     }

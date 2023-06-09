@@ -71,6 +71,7 @@ public class RepeatedWorkflowTaskFailuresTest {
 
   public static class TestWorkflow implements TestWorkflows.PrimitiveWorkflow {
 
+    @SuppressWarnings("deprecation")
     @Override
     public void execute() {
       if (++retryCount < 4) {

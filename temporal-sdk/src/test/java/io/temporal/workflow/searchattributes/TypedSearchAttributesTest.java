@@ -47,14 +47,16 @@ import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Typed attribute translation of {@link SearchAttributesTest} */
 public class TypedSearchAttributesTest {
-  private static final SearchAttributeKey<String> TEST_NEW_KEY =
-      SearchAttributeKey.forText("NewKey");
-  private static final String TEST_NEW_VALUE = "NewVal";
+  private static final SearchAttributeKey<List<String>> TEST_NEW_KEY =
+      SearchAttributeKey.forKeywordList("NewKey");
+  private static final List<String> TEST_NEW_VALUE = Arrays.asList("foo", "bar");
   private static final SearchAttributeKey<String> TEST_UNKNOWN_KEY =
       SearchAttributeKey.forText("UnknownKey");
 
@@ -71,7 +73,7 @@ public class TypedSearchAttributesTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
-          .registerSearchAttribute(TEST_NEW_KEY.getName(), TEST_NEW_KEY.getValueType())
+          .registerSearchAttribute(TEST_NEW_KEY)
           .build();
 
   @Test

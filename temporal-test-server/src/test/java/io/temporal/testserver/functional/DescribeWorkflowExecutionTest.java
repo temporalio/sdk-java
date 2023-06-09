@@ -38,6 +38,8 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributeKey;
+import io.temporal.common.SearchAttributes;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -109,9 +111,12 @@ public class DescribeWorkflowExecutionTest {
   // We need to use them here in order for this test to work against docker-compose.
   // Sadly, they don't fit our hitchhiker's guide narrative.
   private static class SearchAttributeFields {
-    public static final String QUESTION = "CustomStringField";
-    public static final String ASKER = "CustomTextField";
-    public static final String ANSWER = "CustomKeywordField";
+    public static final SearchAttributeKey<String> QUESTION =
+        SearchAttributeKey.forText("CustomStringField");
+    public static final SearchAttributeKey<String> ASKER =
+        SearchAttributeKey.forText("CustomTextField");
+    public static final SearchAttributeKey<String> ANSWER =
+        SearchAttributeKey.forKeyword("CustomKeywordField");
   }
 
   private WorkflowOptions options() {
@@ -123,12 +128,11 @@ public class DescribeWorkflowExecutionTest {
         .setWorkflowRunTimeout(Duration.ofMinutes(2))
         .setWorkflowTaskTimeout(Duration.ofMinutes(1))
         .setMemo(ImmutableMap.of("memo", "random"))
-        .setSearchAttributes(
-            ImmutableMap.of(
-                SearchAttributeFields.QUESTION,
-                "How many roads must a man walk down?",
-                SearchAttributeFields.ASKER,
-                "Mice"))
+        .setTypedSearchAttributes(
+            SearchAttributes.newBuilder()
+                .set(SearchAttributeFields.QUESTION, "How many roads must a man walk down?")
+                .set(SearchAttributeFields.ASKER, "Mice")
+                .build())
         .build();
   }
 
@@ -488,13 +492,11 @@ public class DescribeWorkflowExecutionTest {
     @Override
     public void run(
         String myToken, String childToken, boolean heartbeat, int failAttemptsEarlierThan) {
-      Workflow.upsertSearchAttributes(
+      Workflow.upsertTypedSearchAttributes(
           // vs. the attributes present at start, this will add one, update one, and leave one
           // unchanged
-          ImmutableMap.of(
-              SearchAttributeFields.ANSWER,
-              "42",
-              SearchAttributeFields.QUESTION,
+          SearchAttributeFields.ASKER.valueSet("42"),
+          SearchAttributeFields.QUESTION.valueSet(
               "What do you get when you multiply six by nine?"));
 
       if (childToken != null) {

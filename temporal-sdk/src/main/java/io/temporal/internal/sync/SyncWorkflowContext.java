@@ -727,7 +727,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (searchAttributes != null && !searchAttributes.isEmpty()) {
       if (options.getTypedSearchAttributes() != null) {
         throw new IllegalArgumentException(
-            "Cannot have typed search attributes and search attributes");
+            "Cannot have both typed search attributes and search attributes");
       }
       attributes.setSearchAttributes(SearchAttributesUtil.encode(searchAttributes));
     } else if (options.getTypedSearchAttributes() != null) {

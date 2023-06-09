@@ -33,6 +33,8 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,6 +48,7 @@ public class UpsertTypedSearchAttributeTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUpsertSearchAttributesImpl.class)
+          .registerSearchAttribute(TestUpsertSearchAttributesImpl.MY_KEYWORD_LIST_ATTR)
           .build();
 
   @Test
@@ -80,6 +83,8 @@ public class UpsertTypedSearchAttributeTest {
 
     public static final SearchAttributeKey<String> CUSTOM_KEYWORD_ATTR =
         SearchAttributeKey.forKeyword("CustomKeywordField");
+    private static final SearchAttributeKey<List<String>> MY_KEYWORD_LIST_ATTR =
+        SearchAttributeKey.forKeywordList("MyKeywordListField");
 
     private static final AtomicBoolean FAILED = new AtomicBoolean();
 
@@ -114,6 +119,27 @@ public class UpsertTypedSearchAttributeTest {
       if (FAILED.compareAndSet(false, true)) {
         throw new IllegalStateException("force replay");
       }
+
+      // Also check keyword list
+      Workflow.upsertTypedSearchAttributes(
+          MY_KEYWORD_LIST_ATTR.valueSet(Arrays.asList("foo", "bar")));
+      newAttributes = Workflow.getTypedSearchAttributes();
+      assertEquals(2, newAttributes.size());
+      assertEquals(
+          Arrays.asList("foo", "bar"),
+          Workflow.getTypedSearchAttributes().get(MY_KEYWORD_LIST_ATTR));
+
+      // Change and confirm completely replaced
+      Workflow.upsertTypedSearchAttributes(
+          MY_KEYWORD_LIST_ATTR.valueSet(Arrays.asList("baz", "qux")));
+      assertEquals(
+          Arrays.asList("baz", "qux"),
+          Workflow.getTypedSearchAttributes().get(MY_KEYWORD_LIST_ATTR));
+
+      // Unset
+      Workflow.upsertTypedSearchAttributes(MY_KEYWORD_LIST_ATTR.valueUnset());
+      newAttributes = Workflow.getTypedSearchAttributes();
+      assertEquals(1, newAttributes.size());
     }
   }
 }

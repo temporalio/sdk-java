@@ -178,12 +178,4 @@ final class DescribeWorkflowAsserter {
         "child workflow count should match", expected, actual.getPendingChildrenCount());
     return this;
   }
-
-  public DescribeWorkflowAsserter assertSearchAttributes(Map<String, Object> expected) {
-    Assert.assertEquals(
-        "search attributes should match",
-        expected,
-        toSimpleMap(actual.getWorkflowExecutionInfo().getSearchAttributes().getIndexedFieldsMap()));
-    return this;
-  }
 }
