@@ -20,6 +20,7 @@
 
 package io.temporal.common.interceptors;
 
+import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
@@ -148,6 +149,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public void upsertSearchAttributes(Map<String, ?> searchAttributes) {
     next.upsertSearchAttributes(searchAttributes);
+  }
+
+  @Override
+  public void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    next.upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
   @Override

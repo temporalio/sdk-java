@@ -24,6 +24,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @deprecated typed search attributes should be used instead.
+ */
+@Deprecated
 public class SearchAttribute {
   /**
    * Passing this value as a search attribute value into {@link

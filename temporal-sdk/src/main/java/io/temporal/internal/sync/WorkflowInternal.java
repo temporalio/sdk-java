@@ -33,6 +33,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -653,8 +654,20 @@ public final class WorkflowInternal {
     return Collections.unmodifiableMap(SearchAttributesUtil.decode(searchAttributes));
   }
 
+  @Nonnull
+  public static io.temporal.common.SearchAttributes getTypedSearchAttributes() {
+    SearchAttributes searchAttributes =
+        getRootWorkflowContext().getReplayContext().getSearchAttributes();
+    return SearchAttributesUtil.decodeTyped(searchAttributes);
+  }
+
   public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
     getWorkflowOutboundInterceptor().upsertSearchAttributes(searchAttributes);
+  }
+
+  public static void upsertTypedSearchAttributes(
+      SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    getWorkflowOutboundInterceptor().upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
   public static DataConverter getDataConverter() {

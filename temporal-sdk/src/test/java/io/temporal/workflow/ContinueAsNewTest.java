@@ -22,6 +22,8 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.common.SearchAttributeKey;
+import io.temporal.common.SearchAttributes;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
 import java.util.HashMap;
@@ -79,13 +81,15 @@ public class ContinueAsNewTest {
       }
       Map<String, Object> memo = new HashMap<>();
       memo.put("myKey", "MyValue");
-      Map<String, Object> searchAttributes = new HashMap<>();
-      searchAttributes.put("CustomKeywordField", "foo1");
+      SearchAttributes searchAttributes =
+          SearchAttributes.newBuilder()
+              .set(SearchAttributeKey.forKeyword("CustomKeywordField"), "foo1")
+              .build();
       ContinueAsNewOptions options =
           ContinueAsNewOptions.newBuilder()
               .setTaskQueue(continueAsNewTaskQueue)
               .setMemo(memo)
-              .setSearchAttributes(searchAttributes)
+              .setTypedSearchAttributes(searchAttributes)
               .build();
       TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, options);
       next.execute(count - 1, continueAsNewTaskQueue);

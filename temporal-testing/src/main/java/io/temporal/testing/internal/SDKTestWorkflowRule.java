@@ -36,6 +36,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
@@ -205,6 +206,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       testWorkflowRuleBuilder.registerSearchAttribute(name, type);
+      return this;
+    }
+
+    public Builder registerSearchAttribute(SearchAttributeKey<?> key) {
+      testWorkflowRuleBuilder.registerSearchAttribute(key);
       return this;
     }
 

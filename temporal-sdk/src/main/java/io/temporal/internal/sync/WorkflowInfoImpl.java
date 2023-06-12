@@ -96,6 +96,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   @Nullable
   public SearchAttributes getSearchAttributes() {
     return context.getSearchAttributes();

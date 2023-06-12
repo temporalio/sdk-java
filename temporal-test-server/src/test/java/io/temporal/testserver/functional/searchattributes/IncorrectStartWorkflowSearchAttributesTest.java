@@ -53,6 +53,7 @@ public class IncorrectStartWorkflowSearchAttributesTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(DummyWorkflow.class).build();
 
+  @SuppressWarnings("deprecation")
   @Test
   public void searchAttributeIsNotRegistered() {
     final String WORKFLOW_ID = "workflow-with-non-existing-sa";
@@ -91,6 +92,7 @@ public class IncorrectStartWorkflowSearchAttributesTest {
         historyException.getStatus().getCode());
   }
 
+  @SuppressWarnings("deprecation")
   @Test
   public void searchAttributeIsIncorrectValueType() {
     final String WORKFLOW_ID = "workflow-with-sa-incorrect-value-type";

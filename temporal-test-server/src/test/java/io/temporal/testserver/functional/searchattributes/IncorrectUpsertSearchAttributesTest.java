@@ -132,6 +132,7 @@ public class IncorrectUpsertSearchAttributesTest {
   }
 
   public static class UpsertingWorkflow implements TestWorkflows.PrimitiveWorkflow {
+    @SuppressWarnings("deprecation")
     @Override
     public void execute() {
       // try to set incorrect search attributes on the first attempt

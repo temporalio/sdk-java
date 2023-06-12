@@ -25,6 +25,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.worker.WorkerFactory;
@@ -72,6 +73,7 @@ public final class WorkflowOptions {
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
         .setSearchAttributes(o.getSearchAttributes())
+        .setTypedSearchAttributes(o.getTypedSearchAttributes())
         .setContextPropagators(o.getContextPropagators())
         .setDisableEagerExecution(o.isDisableEagerExecution())
         .validateBuildWithDefaults();
@@ -99,6 +101,8 @@ public final class WorkflowOptions {
 
     private Map<String, ?> searchAttributes;
 
+    private SearchAttributes typedSearchAttributes;
+
     private List<ContextPropagator> contextPropagators;
 
     private boolean disableEagerExecution;
@@ -119,6 +123,7 @@ public final class WorkflowOptions {
       this.cronSchedule = options.cronSchedule;
       this.memo = options.memo;
       this.searchAttributes = options.searchAttributes;
+      this.typedSearchAttributes = options.typedSearchAttributes;
       this.contextPropagators = options.contextPropagators;
       this.disableEagerExecution = options.disableEagerExecution;
     }
@@ -265,10 +270,37 @@ public final class WorkflowOptions {
      *   <li>OffsetDateTime
      *   <li>{@link Collection} of the types above
      * </ul>
+     *
+     * @deprecated use {@link #setTypedSearchAttributes} instead.
      */
     // Workflow#upsertSearchAttributes docs needs to be kept in sync with this method
+    @Deprecated
     public Builder setSearchAttributes(Map<String, ?> searchAttributes) {
+      if (searchAttributes != null
+          && !searchAttributes.isEmpty()
+          && this.typedSearchAttributes != null) {
+        throw new IllegalArgumentException(
+            "Cannot have search attributes and typed search attributes");
+      }
       this.searchAttributes = searchAttributes;
+      return this;
+    }
+
+    /**
+     * Specifies Search Attributes that will be attached to the Workflow. Search Attributes are
+     * additional indexed information attributed to workflow and used for search and visibility.
+     *
+     * <p>The search attributes can be used in query of List/Scan/Count workflow APIs. The key and
+     * its value type must be registered on Temporal server side.
+     */
+    public Builder setTypedSearchAttributes(SearchAttributes typedSearchAttributes) {
+      if (typedSearchAttributes != null
+          && searchAttributes != null
+          && !searchAttributes.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Cannot have typed search attributes and search attributes");
+      }
+      this.typedSearchAttributes = typedSearchAttributes;
       return this;
     }
 
@@ -319,6 +351,7 @@ public final class WorkflowOptions {
           cronSchedule,
           memo,
           searchAttributes,
+          typedSearchAttributes,
           contextPropagators,
           disableEagerExecution);
     }
@@ -338,6 +371,7 @@ public final class WorkflowOptions {
           cronSchedule,
           memo,
           searchAttributes,
+          typedSearchAttributes,
           contextPropagators,
           disableEagerExecution);
     }
@@ -363,6 +397,8 @@ public final class WorkflowOptions {
 
   private final Map<String, ?> searchAttributes;
 
+  private final SearchAttributes typedSearchAttributes;
+
   private final List<ContextPropagator> contextPropagators;
 
   private final boolean disableEagerExecution;
@@ -378,6 +414,7 @@ public final class WorkflowOptions {
       String cronSchedule,
       Map<String, Object> memo,
       Map<String, ?> searchAttributes,
+      SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
       boolean disableEagerExecution) {
     this.workflowId = workflowId;
@@ -390,6 +427,7 @@ public final class WorkflowOptions {
     this.cronSchedule = cronSchedule;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
     this.disableEagerExecution = disableEagerExecution;
   }
@@ -430,8 +468,16 @@ public final class WorkflowOptions {
     return memo;
   }
 
+  /**
+   * @deprecated use {@link #getTypedSearchAttributes} instead.
+   */
+  @Deprecated
   public Map<String, ?> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  public SearchAttributes getTypedSearchAttributes() {
+    return typedSearchAttributes;
   }
 
   /**
@@ -466,6 +512,7 @@ public final class WorkflowOptions {
         && Objects.equal(cronSchedule, that.cronSchedule)
         && Objects.equal(memo, that.memo)
         && Objects.equal(searchAttributes, that.searchAttributes)
+        && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equal(contextPropagators, that.contextPropagators)
         && Objects.equal(disableEagerExecution, that.disableEagerExecution);
   }
@@ -483,6 +530,7 @@ public final class WorkflowOptions {
         cronSchedule,
         memo,
         searchAttributes,
+        typedSearchAttributes,
         contextPropagators,
         disableEagerExecution);
   }
@@ -513,6 +561,8 @@ public final class WorkflowOptions {
         + memo
         + ", searchAttributes="
         + searchAttributes
+        + ", typedSearchAttributes="
+        + typedSearchAttributes
         + ", contextPropagators="
         + contextPropagators
         + ", disableEagerExecution="

@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.docker.RegisterTestNamespace;
@@ -325,6 +326,19 @@ public class TestWorkflowRule implements TestRule {
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       this.searchAttributes.put(name, type);
       return this;
+    }
+
+    /**
+     * Add a search attribute to be registered on the Temporal Server.
+     *
+     * @param key key to register
+     * @return {@code this}
+     * @see <a
+     *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
+     *     a Custom Search Attribute Using tctl</a>
+     */
+    public Builder registerSearchAttribute(SearchAttributeKey<?> key) {
+      return this.registerSearchAttribute(key.getName(), key.getValueType());
     }
 
     /**
