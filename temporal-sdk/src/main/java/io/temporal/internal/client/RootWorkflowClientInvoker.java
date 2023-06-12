@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 
 public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
   private static final Logger log = LoggerFactory.getLogger(RootWorkflowClientInvoker.class);
+  private static final long POLL_UPDATE_TIMEOUT_S = 60L;
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions clientOptions;
@@ -324,7 +325,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setFirstExecutionRunId(input.getFirstExecutionRunId())
             .setRequest(request)
             .build();
-    UpdateWorkflowExecutionResponse result = genericClient.update(updateRequest);
+    Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
+    UpdateWorkflowExecutionResponse result =
+        genericClient.update(updateRequest, pollTimeoutDeadline);
 
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {
@@ -424,7 +427,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       PollWorkflowExecutionUpdateRequest request,
       Deadline deadline) {
 
-    Deadline pollTimeoutDeadline = Deadline.after(60L, TimeUnit.SECONDS).minimum(deadline);
+    Deadline pollTimeoutDeadline =
+        Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS).minimum(deadline);
     genericClient
         .pollUpdateAsync(request, pollTimeoutDeadline)
         .whenComplete(
