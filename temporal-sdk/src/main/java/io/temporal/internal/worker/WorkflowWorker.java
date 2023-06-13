@@ -28,6 +28,7 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.common.v1.WorkerVersionStamp;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.*;
@@ -130,9 +131,11 @@ final class WorkflowWorker implements SuspendableWorker {
                   stickyTaskQueueName,
                   options.getIdentity(),
                   options.getBuildID(),
+                  options.isUsingBuildIDForVersioning(),
                   executorSlotsSemaphore,
                   stickyQueueBalancer,
-                  workerMetricsScope),
+                  workerMetricsScope,
+                  service.getServerCapabilities()),
               pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
@@ -435,9 +438,12 @@ final class WorkflowWorker implements SuspendableWorker {
       taskCompleted
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
-          // TODO: Set this or capabilities based on capabilities
-          .setBinaryChecksum(options.getBuildID())
           .setTaskToken(taskToken);
+      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+        taskCompleted.setWorkerVersionStamp(this.workerVersionStamp());
+      } else {
+        taskCompleted.setBinaryChecksum(options.getBuildID());
+      }
 
       return grpcRetryer.retryWithResult(
           () ->
@@ -458,6 +464,10 @@ final class WorkflowWorker implements SuspendableWorker {
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
 
       taskFailed.setIdentity(options.getIdentity()).setNamespace(namespace).setTaskToken(taskToken);
+
+      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+        taskFailed.setWorkerVersion(this.workerVersionStamp());
+      }
 
       grpcRetryer.retry(
           () ->
@@ -498,6 +508,13 @@ final class WorkflowWorker implements SuspendableWorker {
             currentTask.getStartedEventId(),
             e);
       }
+    }
+
+    private WorkerVersionStamp workerVersionStamp() {
+      return WorkerVersionStamp.newBuilder()
+          .setBuildId(options.getBuildID())
+          .setUseVersioning(options.isUsingBuildIDForVersioning())
+          .build();
     }
   }
 }

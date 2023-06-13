@@ -112,9 +112,12 @@ final class ActivityWorker implements SuspendableWorker {
                   namespace,
                   taskQueue,
                   options.getIdentity(),
+                  options.getBuildID(),
+                  options.isUsingBuildIDForVersioning(),
                   taskQueueActivitiesPerSecond,
                   executorSlotsSemaphore,
-                  workerMetricsScope),
+                  workerMetricsScope,
+                  service.getServerCapabilities()),
               this.pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);

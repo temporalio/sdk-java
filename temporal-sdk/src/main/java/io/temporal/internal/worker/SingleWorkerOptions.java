@@ -44,6 +44,7 @@ public final class SingleWorkerOptions {
     private String identity;
     private String binaryChecksum;
     private String buildID;
+    private boolean useBuildIDForVersioning;
     private DataConverter dataConverter;
     private int taskExecutorThreadPoolSize = 100;
     private PollerOptions pollerOptions;
@@ -77,6 +78,7 @@ public final class SingleWorkerOptions {
       this.maxHeartbeatThrottleInterval = options.getMaxHeartbeatThrottleInterval();
       this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
       this.buildID = options.getBuildID();
+      this.useBuildIDForVersioning = options.isUsingBuildIDForVersioning();
     }
 
     public Builder setIdentity(String identity) {
@@ -153,6 +155,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setUseBuildIDForVersioning(boolean useBuildIDForVersioning) {
+      this.useBuildIDForVersioning = useBuildIDForVersioning;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -173,6 +180,7 @@ public final class SingleWorkerOptions {
           this.identity,
           this.binaryChecksum,
           this.buildID,
+          this.useBuildIDForVersioning,
           dataConverter,
           this.taskExecutorThreadPoolSize,
           pollerOptions,
@@ -190,6 +198,7 @@ public final class SingleWorkerOptions {
   private final String identity;
   private final String binaryChecksum;
   private final String buildID;
+  private final boolean useBuildIDForVersioning;
   private final DataConverter dataConverter;
   private final int taskExecutorThreadPoolSize;
   private final PollerOptions pollerOptions;
@@ -206,6 +215,7 @@ public final class SingleWorkerOptions {
       String identity,
       String binaryChecksum,
       String buildID,
+      boolean useBuildIDForVersioning,
       DataConverter dataConverter,
       int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
@@ -220,6 +230,7 @@ public final class SingleWorkerOptions {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildID = buildID;
+    this.useBuildIDForVersioning = useBuildIDForVersioning;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
@@ -247,6 +258,10 @@ public final class SingleWorkerOptions {
       return binaryChecksum;
     }
     return buildID;
+  }
+
+  public boolean isUsingBuildIDForVersioning() {
+    return useBuildIDForVersioning;
   }
 
   public DataConverter getDataConverter() {

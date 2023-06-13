@@ -577,6 +577,7 @@ public final class Worker {
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setBuildID(buildID)
+        .setUseBuildIDForVersioning(options.isUsingBuildIDForVersioning())
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
