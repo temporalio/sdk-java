@@ -28,7 +28,6 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.common.v1.WorkerVersionStamp;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.*;
@@ -440,7 +439,7 @@ final class WorkflowWorker implements SuspendableWorker {
           .setNamespace(namespace)
           .setTaskToken(taskToken);
       if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
-        taskCompleted.setWorkerVersionStamp(this.workerVersionStamp());
+        taskCompleted.setWorkerVersionStamp(options.workerVersionStamp());
       } else {
         taskCompleted.setBinaryChecksum(options.getBuildID());
       }
@@ -466,7 +465,7 @@ final class WorkflowWorker implements SuspendableWorker {
       taskFailed.setIdentity(options.getIdentity()).setNamespace(namespace).setTaskToken(taskToken);
 
       if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
-        taskFailed.setWorkerVersion(this.workerVersionStamp());
+        taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 
       grpcRetryer.retry(
@@ -508,13 +507,6 @@ final class WorkflowWorker implements SuspendableWorker {
             currentTask.getStartedEventId(),
             e);
       }
-    }
-
-    private WorkerVersionStamp workerVersionStamp() {
-      return WorkerVersionStamp.newBuilder()
-          .setBuildId(options.getBuildID())
-          .setUseVersioning(options.isUsingBuildIDForVersioning())
-          .build();
     }
   }
 }

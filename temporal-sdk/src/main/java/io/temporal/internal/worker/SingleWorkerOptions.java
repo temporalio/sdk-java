@@ -22,6 +22,7 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.WorkerVersionStamp;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
@@ -306,5 +307,12 @@ public final class SingleWorkerOptions {
 
   public Duration getDefaultHeartbeatThrottleInterval() {
     return defaultHeartbeatThrottleInterval;
+  }
+
+  public WorkerVersionStamp workerVersionStamp() {
+    return WorkerVersionStamp.newBuilder()
+        .setBuildId(this.getBuildID())
+        .setUseVersioning(this.isUsingBuildIDForVersioning())
+        .build();
   }
 }
