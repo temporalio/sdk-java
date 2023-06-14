@@ -348,4 +348,28 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                     .pollWorkflowExecutionUpdate(request)),
         new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
   }
+
+  @Override
+  public UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIDCompatability(
+      UpdateWorkerBuildIdCompatibilityRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .updateWorkerBuildIdCompatibility(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public GetWorkerBuildIdCompatibilityResponse getWorkerBuildIDCompatability(
+      GetWorkerBuildIdCompatibilityRequest req) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .getWorkerBuildIdCompatibility(req),
+        grpcRetryerOptions);
+  }
 }

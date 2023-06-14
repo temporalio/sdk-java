@@ -345,8 +345,9 @@ public final class WorkerOptions {
      *
      * <p>This is an EXPERIMENTAL API.
      */
-    public void setBuildID(String buildID) {
+    public Builder setBuildID(String buildID) {
       this.buildID = buildID;
+      return this;
     }
 
     public WorkerOptions build() {

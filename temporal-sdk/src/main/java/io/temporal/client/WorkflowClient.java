@@ -24,6 +24,7 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
@@ -300,6 +301,30 @@ public interface WorkflowClient {
    * @see #streamHistory(String, String) for a lazy memory-efficient version of this method
    */
   WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId, @Nullable String runId);
+
+  /**
+   * Allows you to update the worker-build-id based version sets for a particular task queue. This
+   * is used in conjunction with workers who specify their build id and thus opt into the feature.
+   *
+   * @param taskQueue The task queue to update the version set(s) of.
+   * @param operation The operation to perform. See {@link BuildIDOperation} for more.
+   * @throws WorkflowServiceException for any failures including networking and service availability
+   *     issues.
+   */
+  @Experimental
+  void updateWorkerBuildIDCompatability(
+      @Nonnull String taskQueue, @Nonnull BuildIDOperation operation);
+
+  /**
+   * Returns the worker-build-id based version sets for a particular task queue.
+   *
+   * @param taskQueue The task queue to fetch the version set(s) of.
+   * @return The version set(s) for the task queue.
+   * @throws WorkflowServiceException for any failures including networking and service availability
+   *     issues.
+   */
+  @Experimental
+  WorkerBuildIDVersionSets getWorkerBuildIDCompatability(@Nonnull String taskQueue);
 
   /**
    * Executes zero argument workflow with void return type

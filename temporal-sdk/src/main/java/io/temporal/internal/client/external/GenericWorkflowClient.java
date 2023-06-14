@@ -76,4 +76,11 @@ public interface GenericWorkflowClient {
   DeleteScheduleResponse deleteSchedule(DeleteScheduleRequest request);
 
   DescribeScheduleResponse describeSchedule(DescribeScheduleRequest request);
+
+  @Experimental
+  UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIDCompatability(
+      UpdateWorkerBuildIdCompatibilityRequest request);
+
+  GetWorkerBuildIdCompatibilityResponse getWorkerBuildIDCompatability(
+      GetWorkerBuildIdCompatibilityRequest req);
 }
