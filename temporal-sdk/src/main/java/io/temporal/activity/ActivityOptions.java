@@ -24,6 +24,7 @@ import com.google.common.base.Objects;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.VersioningIntent;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import java.time.Duration;
@@ -62,6 +63,7 @@ public final class ActivityOptions {
     private List<ContextPropagator> contextPropagators;
     private ActivityCancellationType cancellationType;
     private boolean disableEagerExecution;
+    private VersioningIntent versioningIntent;
 
     private Builder() {}
 
@@ -78,6 +80,7 @@ public final class ActivityOptions {
       this.scheduleToStartTimeout = options.scheduleToStartTimeout;
       this.cancellationType = options.cancellationType;
       this.disableEagerExecution = options.disableEagerExecution;
+      this.versioningIntent = options.versioningIntent;
     }
 
     /**
@@ -231,6 +234,15 @@ public final class ActivityOptions {
       return this;
     }
 
+    /**
+     * Specifies whether this activity should run on a worker with a compatible build ID or not. See
+     * the variants of {@link VersioningIntent}.
+     */
+    public Builder setVersioningIntent(VersioningIntent versioningIntent) {
+      this.versioningIntent = versioningIntent;
+      return this;
+    }
+
     public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
@@ -259,6 +271,9 @@ public final class ActivityOptions {
       } else if (override.contextPropagators != null) {
         this.contextPropagators.addAll(override.contextPropagators);
       }
+      if (override.versioningIntent != VersioningIntent.VERSIONING_INTENT_UNSPECIFIED) {
+        this.versioningIntent = override.versioningIntent;
+      }
       return this;
     }
 
@@ -280,7 +295,8 @@ public final class ActivityOptions {
           retryOptions,
           contextPropagators,
           cancellationType,
-          disableEagerExecution);
+          disableEagerExecution,
+          versioningIntent);
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
@@ -293,7 +309,10 @@ public final class ActivityOptions {
           retryOptions,
           contextPropagators,
           cancellationType == null ? ActivityCancellationType.TRY_CANCEL : cancellationType,
-          disableEagerExecution);
+          disableEagerExecution,
+          versioningIntent == null
+              ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
+              : versioningIntent);
     }
   }
 
@@ -306,6 +325,7 @@ public final class ActivityOptions {
   private final List<ContextPropagator> contextPropagators;
   private final ActivityCancellationType cancellationType;
   private final boolean disableEagerExecution;
+  private final VersioningIntent versioningIntent;
 
   private ActivityOptions(
       Duration heartbeatTimeout,
@@ -316,7 +336,8 @@ public final class ActivityOptions {
       RetryOptions retryOptions,
       List<ContextPropagator> contextPropagators,
       ActivityCancellationType cancellationType,
-      boolean disableEagerExecution) {
+      boolean disableEagerExecution,
+      VersioningIntent versioningIntent) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
@@ -326,6 +347,7 @@ public final class ActivityOptions {
     this.contextPropagators = contextPropagators;
     this.cancellationType = cancellationType;
     this.disableEagerExecution = disableEagerExecution;
+    this.versioningIntent = versioningIntent;
   }
 
   /**
@@ -388,6 +410,13 @@ public final class ActivityOptions {
     return disableEagerExecution;
   }
 
+  /**
+   * @see ActivityOptions.Builder#setVersioningIntent(VersioningIntent)
+   */
+  public VersioningIntent getVersioningIntent() {
+    return versioningIntent;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -405,7 +434,8 @@ public final class ActivityOptions {
         && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(retryOptions, that.retryOptions)
         && Objects.equal(contextPropagators, that.contextPropagators)
-        && disableEagerExecution == that.disableEagerExecution;
+        && disableEagerExecution == that.disableEagerExecution
+        && versioningIntent == that.versioningIntent;
   }
 
   @Override
@@ -419,7 +449,8 @@ public final class ActivityOptions {
         retryOptions,
         contextPropagators,
         cancellationType,
-        disableEagerExecution);
+        disableEagerExecution,
+        versioningIntent);
   }
 
   @Override
@@ -444,6 +475,8 @@ public final class ActivityOptions {
         + cancellationType
         + ", disableEagerExecution="
         + disableEagerExecution
+        + ", versioningIntent="
+        + versioningIntent
         + '}';
   }
 }

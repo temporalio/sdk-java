@@ -73,6 +73,7 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
@@ -83,11 +84,13 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // TODO separate WorkflowOutboundCallsInterceptor functionality from this class into
 // RootWorkflowOutboundInterceptor
+
 /**
  * Root, the most top level WorkflowContext that unites all relevant contexts, handlers, options,
  * states, etc. It's created when SyncWorkflow which represent a context of a workflow type
@@ -220,8 +223,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         (this.defaultActivityOptions == null)
             ? defaultActivityOptions
             : this.defaultActivityOptions.toBuilder()
-                .mergeActivityOptions(defaultActivityOptions)
-                .build();
+            .mergeActivityOptions(defaultActivityOptions)
+            .build();
   }
 
   public void applyActivityOptions(Map<String, ActivityOptions> activityTypeToOption) {
@@ -238,8 +241,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         (this.defaultLocalActivityOptions == null)
             ? defaultLocalActivityOptions
             : this.defaultLocalActivityOptions.toBuilder()
-                .mergeActivityOptions(defaultLocalActivityOptions)
-                .build();
+            .mergeActivityOptions(defaultLocalActivityOptions)
+            .build();
   }
 
   public void applyLocalActivityOptions(Map<String, LocalActivityOptions> activityTypeToOption) {
@@ -281,7 +284,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   if (f == null) {
                     return input.getResultType() != Void.TYPE
                         ? dataConverterWithActivityContext.fromPayloads(
-                            0, r, input.getResultClass(), input.getResultType())
+                        0, r, input.getResultClass(), input.getResultType())
                         : null;
                   } else {
                     throw dataConverterWithActivityContext.failureToException(
@@ -405,7 +408,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               if (f == null) {
                 return input.getResultClass() != Void.TYPE
                     ? dataConverterWithActivityContext.fromPayloads(
-                        0, r, input.getResultClass(), input.getResultType())
+                    0, r, input.getResultClass(), input.getResultType())
                     : null;
               } else {
                 throw dataConverterWithActivityContext.failureToException(
@@ -543,6 +546,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);
+
+    if (options.getVersioningIntent() != null) {
+      attributes.setUseCompatibleVersion(options.getVersioningIntent().determineUseCompatibleFlag(
+          replayContext.getTaskQueue().equals(options.getTaskQueue())));
+    }
+
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
@@ -623,10 +632,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Memo memo =
         (input.getOptions().getMemo() != null)
             ? Memo.newBuilder()
-                .putAllFields(
-                    intoPayloadMap(
-                        dataConverterWithChildWorkflowContext, input.getOptions().getMemo()))
-                .build()
+            .putAllFields(
+                intoPayloadMap(
+                    dataConverterWithChildWorkflowContext, input.getOptions().getMemo()))
+            .build()
             : null;
 
     StartChildWorkflowExecutionParameters parameters =
@@ -746,6 +755,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
+    }
+
+    if (options.getVersioningIntent() != null) {
+      attributes.setUseCompatibleVersion(options.getVersioningIntent().determineUseCompatibleFlag(
+          replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
     return new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
   }
@@ -1064,6 +1078,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             Memo.newBuilder()
                 .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo)));
       }
+      if (options.getVersioningIntent() != null) {
+        attributes.setUseCompatibleVersion(options.getVersioningIntent().determineUseCompatibleFlag(
+            replayContext.getTaskQueue().equals(options.getTaskQueue())));
+      }
     }
 
     List<ContextPropagator> propagators =
@@ -1199,7 +1217,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return contextData;
   }
 
-  /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */
+  /**
+   * Simple wrapper over a failure just to allow completing the CompletablePromise as a failure
+   */
   private static class FailureWrapperException extends RuntimeException {
     private final Failure failure;
 

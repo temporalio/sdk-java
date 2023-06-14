@@ -21,6 +21,7 @@
 package io.temporal.workflow;
 
 import io.temporal.common.SearchAttributes;
+import io.temporal.common.VersioningIntent;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
 import java.util.List;
@@ -60,6 +61,7 @@ public final class ContinueAsNewOptions {
     private Map<String, Object> searchAttributes;
     private SearchAttributes typedSearchAttributes;
     private List<ContextPropagator> contextPropagators;
+    private VersioningIntent versioningIntent;
 
     private Builder() {}
 
@@ -74,6 +76,7 @@ public final class ContinueAsNewOptions {
       this.searchAttributes = options.getSearchAttributes();
       this.typedSearchAttributes = options.getTypedSearchAttributes();
       this.contextPropagators = options.getContextPropagators();
+      this.versioningIntent = options.versioningIntent;
     }
 
     public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
@@ -127,6 +130,15 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
+    /**
+     * Specifies whether this continued workflow should run on a worker with a compatible build ID
+     * or not. See the variants of {@link VersioningIntent}.
+     */
+    public Builder setVersioningIntent(VersioningIntent versioningIntent) {
+      this.versioningIntent = versioningIntent;
+      return this;
+    }
+
     public ContinueAsNewOptions build() {
       return new ContinueAsNewOptions(
           workflowRunTimeout,
@@ -135,7 +147,8 @@ public final class ContinueAsNewOptions {
           memo,
           searchAttributes,
           typedSearchAttributes,
-          contextPropagators);
+          contextPropagators,
+          versioningIntent);
     }
   }
 
@@ -146,6 +159,7 @@ public final class ContinueAsNewOptions {
   private final @Nullable Map<String, Object> searchAttributes;
   private final @Nullable SearchAttributes typedSearchAttributes;
   private final @Nullable List<ContextPropagator> contextPropagators;
+  private final @Nullable VersioningIntent versioningIntent;
 
   public ContinueAsNewOptions(
       @Nullable Duration workflowRunTimeout,
@@ -154,7 +168,8 @@ public final class ContinueAsNewOptions {
       @Nullable Map<String, Object> memo,
       @Nullable Map<String, Object> searchAttributes,
       @Nullable SearchAttributes typedSearchAttributes,
-      @Nullable List<ContextPropagator> contextPropagators) {
+      @Nullable List<ContextPropagator> contextPropagators,
+      @Nullable VersioningIntent versioningIntent) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.workflowTaskTimeout = workflowTaskTimeout;
@@ -162,6 +177,7 @@ public final class ContinueAsNewOptions {
     this.searchAttributes = searchAttributes;
     this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
+    this.versioningIntent = versioningIntent;
   }
 
   public @Nullable Duration getWorkflowRunTimeout() {
@@ -194,5 +210,9 @@ public final class ContinueAsNewOptions {
 
   public @Nullable List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
+  }
+
+  public @Nullable VersioningIntent getVersioningIntent() {
+    return versioningIntent;
   }
 }
