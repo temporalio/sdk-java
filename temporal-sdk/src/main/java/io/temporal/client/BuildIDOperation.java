@@ -92,4 +92,26 @@ public abstract class BuildIDOperation {
       }
     };
   }
+
+  /**
+   * This operation merges two sets into one set, thus declaring all the Build IDs in both as
+   * compatible with one another. The default of the primary set is maintained as the merged set's
+   * overall default.
+   *
+   * @param primaryBuildID A build ID which is used to find the primary set to be merged.
+   * @param secondaryBuildID A build ID which is used to find the secondary set to be merged.
+   */
+  public static BuildIDOperation mergeSets(
+      @Nonnull String primaryBuildID, @Nonnull String secondaryBuildID) {
+    return new BuildIDOperation() {
+      @Override
+      void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
+        builder.setMergeSets(
+            UpdateWorkerBuildIdCompatibilityRequest.MergeSets.newBuilder()
+                .setPrimarySetBuildId(primaryBuildID)
+                .setSecondarySetBuildId(secondaryBuildID)
+                .build());
+      }
+    };
+  }
 }

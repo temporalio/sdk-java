@@ -45,5 +45,10 @@ public class BuildIDVersionSetsTest {
         taskQueue, BuildIDOperation.promoteBuildIDWithinSet("1.0"));
     sets = workflowClient.getWorkerBuildIDCompatability(taskQueue);
     assertEquals("1.0", sets.defaultBuildID());
+
+    workflowClient.updateWorkerBuildIDCompatability(
+        taskQueue, BuildIDOperation.mergeSets("2.0", "1.0"));
+    sets = workflowClient.getWorkerBuildIDCompatability(taskQueue);
+    assertEquals("2.0", sets.defaultBuildID());
   }
 }

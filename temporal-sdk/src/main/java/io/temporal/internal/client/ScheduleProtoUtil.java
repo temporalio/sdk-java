@@ -134,9 +134,10 @@ public class ScheduleProtoUtil {
         workflowRequest.setMemo(Memo.newBuilder().putAllFields(memo).build());
       }
 
-      if (wfOptions.getSearchAttributes() != null && !wfOptions.getSearchAttributes().isEmpty()) {
+      if (wfOptions.getTypedSearchAttributes() != null
+          && wfOptions.getTypedSearchAttributes().size() > 0) {
         workflowRequest.setSearchAttributes(
-            SearchAttributesUtil.encode(wfOptions.getSearchAttributes()));
+            SearchAttributesUtil.encodeTyped(wfOptions.getTypedSearchAttributes()));
       }
 
       Header grpcHeader =
@@ -426,9 +427,8 @@ public class ScheduleProtoUtil {
       }
 
       if (startWfAction.hasSearchAttributes()) {
-        wfOptionsBuilder.setSearchAttributes(
-            Collections.unmodifiableMap(
-                SearchAttributesUtil.decode(startWfAction.getSearchAttributes())));
+        wfOptionsBuilder.setTypedSearchAttributes(
+            SearchAttributesUtil.decodeTyped(startWfAction.getSearchAttributes()));
       }
 
       builder.setOptions(wfOptionsBuilder.build());
