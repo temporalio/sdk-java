@@ -20,7 +20,6 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
@@ -38,6 +37,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -66,7 +66,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final SingleWorkerOptions options;
   private final Duration stickyTaskQueueScheduleToStartTimeout;
   private final WorkflowServiceStubs service;
-  private final String stickyTaskQueueName;
+  private final TaskQueue stickyTaskQueue;
   private final LocalActivityDispatcher localActivityDispatcher;
 
   public ReplayWorkflowTaskHandler(
@@ -74,7 +74,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       ReplayWorkflowFactory asyncWorkflowFactory,
       WorkflowExecutorCache cache,
       SingleWorkerOptions options,
-      String stickyTaskQueueName,
+      TaskQueue stickyTaskQueue,
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
       LocalActivityDispatcher localActivityDispatcher) {
@@ -82,7 +82,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
     this.options = options;
-    this.stickyTaskQueueName = stickyTaskQueueName;
+    this.stickyTaskQueue = stickyTaskQueue;
     this.stickyTaskQueueScheduleToStartTimeout = stickyTaskQueueScheduleToStartTimeout;
     this.service = Objects.requireNonNull(service);
     this.localActivityDispatcher = localActivityDispatcher;
@@ -103,7 +103,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     AtomicBoolean createdNew = new AtomicBoolean();
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     WorkflowRunTaskHandler workflowRunTaskHandler = null;
-    boolean useCache = stickyTaskQueueName != null;
+    boolean useCache = stickyTaskQueue != null;
 
     try {
       workflowRunTaskHandler =
@@ -224,12 +224,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                     .build())
             .setReturnNewWorkflowTask(result.isForceWorkflowTask());
 
-    if (stickyTaskQueueName != null
+    if (stickyTaskQueue != null
         && (stickyTaskQueueScheduleToStartTimeout == null
             || !stickyTaskQueueScheduleToStartTimeout.isZero())) {
       StickyExecutionAttributes.Builder attributes =
-          StickyExecutionAttributes.newBuilder()
-              .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName));
+          StickyExecutionAttributes.newBuilder().setWorkerTaskQueue(stickyTaskQueue);
       if (stickyTaskQueueScheduleToStartTimeout != null) {
         attributes.setScheduleToStartTimeout(
             ProtobufTimeUtils.toProtoDuration(stickyTaskQueueScheduleToStartTimeout));

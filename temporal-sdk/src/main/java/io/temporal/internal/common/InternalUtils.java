@@ -26,10 +26,12 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
-  public static TaskQueue createStickyTaskQueue(String taskQueueName) {
+  public static TaskQueue createStickyTaskQueue(
+      String stickyTaskQueueName, String normalTaskQueueName) {
     return TaskQueue.newBuilder()
-        .setName(taskQueueName)
+        .setName(stickyTaskQueueName)
         .setKind(TaskQueueKind.TASK_QUEUE_KIND_STICKY)
+        .setNormalName(normalTaskQueueName)
         .build();
   }
 

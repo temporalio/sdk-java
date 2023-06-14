@@ -77,7 +77,7 @@ public class HistoryUtils {
             generateWorkflowTaskWithInitialHistory(
                 namespace, taskqueueName, workflowType, workflowServiceStubs);
         return generateWorkflowTaskWithPartialHistoryFromExistingTask(
-            response, namespace, HOST_TASK_QUEUE, workflowServiceStubs);
+            response, namespace, HOST_TASK_QUEUE, taskqueueName, workflowServiceStubs);
       } finally {
         workflowServiceStubs.shutdownNow();
         workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
@@ -90,11 +90,16 @@ public class HistoryUtils {
           PollWorkflowTaskQueueResponse response,
           String namespace,
           String stickyTaskQueueName,
+          String normalTaskQueueName,
           WorkflowServiceStubs service)
           throws Exception {
     // we send a signal that leads to creation of the new workflow task
     signalWorkflow(response.getWorkflowExecution(), namespace, service);
-    respondWorkflowTaskCompletedWithSticky(response.getTaskToken(), stickyTaskQueueName, service);
-    return pollWorkflowTaskQueue(namespace, createStickyTaskQueue(stickyTaskQueueName), service);
+    respondWorkflowTaskCompletedWithSticky(
+        response.getTaskToken(),
+        createStickyTaskQueue(stickyTaskQueueName, normalTaskQueueName),
+        service);
+    return pollWorkflowTaskQueue(
+        namespace, createStickyTaskQueue(stickyTaskQueueName, normalTaskQueueName), service);
   }
 }

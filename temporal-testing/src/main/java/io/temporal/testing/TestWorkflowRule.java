@@ -495,6 +495,10 @@ public class TestWorkflowRule implements TestRule {
     return testEnvironment.getWorkerFactory().getWorker(getTaskQueue());
   }
 
+  public WorkerFactoryOptions getWorkerFactoryOptions() {
+    return workerFactoryOptions;
+  }
+
   public <T> T newWorkflowStub(Class<T> workflow) {
     return getWorkflowClient()
         .newWorkflowStub(workflow, newWorkflowOptionsForTaskQueue(getTaskQueue()));

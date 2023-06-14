@@ -255,6 +255,10 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getWorker();
   }
 
+  public WorkerFactoryOptions getWorkerFactoryOptions() {
+    return testWorkflowRule.getWorkerFactoryOptions();
+  }
+
   public WorkflowExecutionHistory getExecutionHistory(String workflowId) {
     return testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
   }

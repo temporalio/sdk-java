@@ -112,6 +112,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
                 TaskQueue.newBuilder()
                     .setName(stickyTaskQueue)
                     .setKind(TaskQueueKind.TASK_QUEUE_KIND_STICKY)
+                    .setNormalName(taskQueue)
                     .build())
             .build();
   }
