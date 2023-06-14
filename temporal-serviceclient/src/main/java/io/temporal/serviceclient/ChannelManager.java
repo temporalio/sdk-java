@@ -305,8 +305,8 @@ final class ChannelManager {
    *
    * @param healthCheckServiceName a target service name for the health check request
    * @param timeout custom timeout for the healthcheck
-   * @throws StatusRuntimeException if the service is unavailable.
    * @return gRPC Health {@link HealthCheckResponse}
+   * @throws StatusRuntimeException if the service is unavailable.
    */
   public HealthCheckResponse healthCheck(
       String healthCheckServiceName, @Nullable Duration timeout) {
@@ -324,12 +324,15 @@ final class ChannelManager {
 
   public Supplier<GetSystemInfoResponse.Capabilities> getServerCapabilities() {
     return () -> {
-      GetSystemInfoResponse.Capabilities capabilities = serverCapabilitiesFuture.getNow(null);
-      if (capabilities == null) {
-        serverCapabilitiesFuture.complete(
-            SystemInfoInterceptor.getServerCapabilitiesOrThrow(interceptedChannel, null));
+      synchronized (serverCapabilitiesFuture) {
+        GetSystemInfoResponse.Capabilities capabilities = serverCapabilitiesFuture.getNow(null);
+        if (capabilities == null) {
+          serverCapabilitiesFuture.complete(
+              SystemInfoInterceptor.getServerCapabilitiesOrThrow(interceptedChannel, null));
+          capabilities = serverCapabilitiesFuture.getNow(null);
+        }
+        return capabilities;
       }
-      return capabilities;
     };
   }
 
