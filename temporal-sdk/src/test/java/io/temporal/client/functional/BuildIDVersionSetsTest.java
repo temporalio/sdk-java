@@ -21,6 +21,7 @@
 package io.temporal.client.functional;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.client.BuildIDOperation;
 import io.temporal.client.WorkerBuildIDVersionSets;
@@ -31,16 +32,13 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class BuildIDVersionSetsTest {
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          // TODO: remove when test server implements
-          .setUseExternalService(true)
-          .setNamespace("default")
-          .build();
+  @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
   @Test
   public void testManipulateGraph() {
+    assumeTrue(
+        "Test Server doesn't support versioning yet", SDKTestWorkflowRule.useExternalService);
+
     String taskQueue = testWorkflowRule.getTaskQueue();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 

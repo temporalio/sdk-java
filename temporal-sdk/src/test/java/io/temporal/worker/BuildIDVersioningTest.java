@@ -20,6 +20,8 @@
 
 package io.temporal.worker;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.BuildIDOperation;
@@ -45,13 +47,14 @@ public class BuildIDVersioningTest {
               WorkerOptions.newBuilder().setBuildID("1.0").setUseBuildIDForVersioning(true).build())
           .setWorkflowTypes(BuildIDVersioningTest.TestVersioningWorkflowImpl.class)
           .setActivityImplementations(new BuildIDVersioningTest.ActivityImpl())
-          .setUseExternalService(true)
-          .setNamespace("default")
           .setDoNotStart(true)
           .build();
 
   @Test
   public void testBuildIDVersioningDataSetProperly() {
+    assumeTrue(
+        "Test Server doesn't support versioning yet", SDKTestWorkflowRule.useExternalService);
+
     String taskQueue = testWorkflowRule.getTaskQueue();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
