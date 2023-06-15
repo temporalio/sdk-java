@@ -318,7 +318,8 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public UpdateWorkflowExecutionResponse update(UpdateWorkflowExecutionRequest updateParameters) {
+  public UpdateWorkflowExecutionResponse update(
+      @Nonnull UpdateWorkflowExecutionRequest updateParameters, @Nonnull Deadline deadline) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1)
             .put(MetricsTag.UPDATE_NAME, updateParameters.getRequest().getInput().getName())
@@ -329,9 +330,10 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         () ->
             service
                 .blockingStub()
+                .withDeadline(deadline)
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .updateWorkflowExecution(updateParameters),
-        grpcRetryerOptions);
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
   }
 
   @Override
