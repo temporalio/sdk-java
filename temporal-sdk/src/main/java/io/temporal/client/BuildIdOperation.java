@@ -21,6 +21,7 @@
 package io.temporal.client;
 
 import io.temporal.api.workflowservice.v1.UpdateWorkerBuildIdCompatibilityRequest;
+import io.temporal.common.Experimental;
 import javax.annotation.Nonnull;
 
 /**
@@ -29,6 +30,7 @@ import javax.annotation.Nonnull;
  *
  * <p>See each public static method to learn about and construct the available operations.
  */
+@Experimental
 public abstract class BuildIdOperation {
   private BuildIdOperation() {}
 

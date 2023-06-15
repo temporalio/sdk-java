@@ -23,6 +23,7 @@ package io.temporal.worker;
 import static java.lang.Double.compare;
 
 import com.google.common.base.Preconditions;
+import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -325,12 +326,11 @@ public final class WorkerOptions {
 
     /**
      * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
-     * will only recieve tasks which it is compatible with. For more information see: TODO: Doc link
+     * will only receive tasks which it is compatible with. For more information see: TODO: Doc link
      *
      * <p>Defaults to false
-     *
-     * <p>This is an EXPERIMENTAL API.
      */
+    @Experimental
     public Builder setUseBuildIdForVersioning(boolean useBuildIdForVersioning) {
       this.useBuildIdForVersioning = useBuildIdForVersioning;
       return this;
@@ -342,9 +342,8 @@ public final class WorkerOptions {
      * TODO: Doc link
      *
      * <p>A Build Id must be set if {@link #setUseBuildIdForVersioning(boolean)} is set true.
-     *
-     * <p>This is an EXPERIMENTAL API.
      */
+    @Experimental
     public Builder setBuildId(String buildId) {
       this.buildId = buildId;
       return this;

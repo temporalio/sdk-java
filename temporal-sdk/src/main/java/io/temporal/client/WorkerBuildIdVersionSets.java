@@ -21,10 +21,14 @@
 package io.temporal.client;
 
 import io.temporal.api.workflowservice.v1.GetWorkerBuildIdCompatibilityResponse;
+import io.temporal.common.Experimental;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Represents the sets of compatible Build Ids associated with a particular task queue. */
+@Experimental
 public class WorkerBuildIdVersionSets {
 
   /** Represents a set of Build Ids which are compatible with one another. */
@@ -32,7 +36,7 @@ public class WorkerBuildIdVersionSets {
     private final List<String> buildIds;
 
     CompatibleSet(List<String> buildIds) {
-      this.buildIds = buildIds;
+      this.buildIds = Collections.unmodifiableList(buildIds);
     }
 
     /**
@@ -43,33 +47,34 @@ public class WorkerBuildIdVersionSets {
     }
 
     /**
-     * @return The default Build Id for this compatible set
+     * @return The default Build Id for this compatible set.
      */
-    public String defaultBuildId() {
+    public Optional<String> defaultBuildId() {
       if (buildIds.isEmpty()) {
-        return null;
+        return Optional.empty();
       }
-      return buildIds.get(buildIds.size() - 1);
+      return Optional.of(buildIds.get(buildIds.size() - 1));
     }
   }
 
   private final List<CompatibleSet> buildIdVersionSets;
 
-  public WorkerBuildIdVersionSets(GetWorkerBuildIdCompatibilityResponse fetchResponse) {
+  WorkerBuildIdVersionSets(GetWorkerBuildIdCompatibilityResponse fetchResponse) {
     buildIdVersionSets =
-        fetchResponse.getMajorVersionSetsList().stream()
-            .map(majorSet -> new CompatibleSet(majorSet.getBuildIdsList()))
-            .collect(Collectors.toList());
+        Collections.unmodifiableList(
+            fetchResponse.getMajorVersionSetsList().stream()
+                .map(majorSet -> new CompatibleSet(majorSet.getBuildIdsList()))
+                .collect(Collectors.toList()));
   }
 
   /**
-   * @return the current overall default Build Id for the queue. Returns null if there are no
+   * @return the current overall default Build Id for the queue. Returns empty if there are no
    *     defined Build Ids.
    */
-  public String defaultBuildId() {
+  public Optional<String> defaultBuildId() {
     CompatibleSet defaultSet = defaultSet();
     if (defaultSet == null) {
-      return null;
+      return Optional.empty();
     }
     return defaultSet.defaultBuildId();
   }
