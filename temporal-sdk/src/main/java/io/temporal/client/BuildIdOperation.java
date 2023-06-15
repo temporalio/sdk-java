@@ -41,12 +41,7 @@ public abstract class BuildIdOperation {
    * @param buildId The Build Id to add as the new overall default.
    */
   public static BuildIdOperation newIdInNewDefaultSet(@Nonnull String buildId) {
-    return new BuildIdOperation() {
-      @Override
-      void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setAddNewBuildIdInNewDefaultSet(buildId);
-      }
-    };
+    return new NewIdInNewDefaultSet(buildId);
   }
 
   /**
@@ -62,17 +57,7 @@ public abstract class BuildIdOperation {
    */
   public static BuildIdOperation newCompatibleVersion(
       @Nonnull String buildId, @Nonnull String existingCompatibleBuildId, boolean makeSetDefault) {
-    return new BuildIdOperation() {
-      @Override
-      void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setAddNewCompatibleBuildId(
-            UpdateWorkerBuildIdCompatibilityRequest.AddNewCompatibleVersion.newBuilder()
-                .setNewBuildId(buildId)
-                .setExistingCompatibleBuildId(existingCompatibleBuildId)
-                .setMakeSetDefault(makeSetDefault)
-                .build());
-      }
-    };
+    return new NewCompatibleVersion(buildId, existingCompatibleBuildId, makeSetDefault);
   }
 
   /**
@@ -90,12 +75,7 @@ public abstract class BuildIdOperation {
    * @param buildId An existing Build Id which is used to find the set to be promoted.
    */
   public static BuildIdOperation promoteSetByBuildId(@Nonnull String buildId) {
-    return new BuildIdOperation() {
-      @Override
-      void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setPromoteSetByBuildId(buildId);
-      }
-    };
+    return new PromoteSetByBuildId(buildId);
   }
 
   /**
@@ -105,12 +85,7 @@ public abstract class BuildIdOperation {
    * @param buildId An existing Build Id which will be promoted within its compatible set.
    */
   public static BuildIdOperation promoteBuildIdWithinSet(@Nonnull String buildId) {
-    return new BuildIdOperation() {
-      @Override
-      void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setPromoteBuildIdWithinSet(buildId);
-      }
-    };
+    return new PromoteBuildIdWithinSet(buildId);
   }
 
   /**
@@ -123,15 +98,87 @@ public abstract class BuildIdOperation {
    */
   public static BuildIdOperation mergeSets(
       @Nonnull String primaryBuildId, @Nonnull String secondaryBuildId) {
-    return new BuildIdOperation() {
-      @Override
-      void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setMergeSets(
-            UpdateWorkerBuildIdCompatibilityRequest.MergeSets.newBuilder()
-                .setPrimarySetBuildId(primaryBuildId)
-                .setSecondarySetBuildId(secondaryBuildId)
-                .build());
-      }
-    };
+    return new MergeSets(primaryBuildId, secondaryBuildId);
+  }
+
+  private static class NewIdInNewDefaultSet extends BuildIdOperation {
+    private final String buildId;
+
+    public NewIdInNewDefaultSet(String buildId) {
+      this.buildId = buildId;
+    }
+
+    @Override
+    void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
+      builder.setAddNewBuildIdInNewDefaultSet(buildId);
+    }
+  }
+
+  private static class NewCompatibleVersion extends BuildIdOperation {
+    private final String buildId;
+    private final String existingCompatibleBuildId;
+    private final boolean makeSetDefault;
+
+    public NewCompatibleVersion(
+        String buildId, String existingCompatibleBuildId, boolean makeSetDefault) {
+      this.buildId = buildId;
+      this.existingCompatibleBuildId = existingCompatibleBuildId;
+      this.makeSetDefault = makeSetDefault;
+    }
+
+    @Override
+    void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
+      builder.setAddNewCompatibleBuildId(
+          UpdateWorkerBuildIdCompatibilityRequest.AddNewCompatibleVersion.newBuilder()
+              .setNewBuildId(buildId)
+              .setExistingCompatibleBuildId(existingCompatibleBuildId)
+              .setMakeSetDefault(makeSetDefault)
+              .build());
+    }
+  }
+
+  private static class PromoteSetByBuildId extends BuildIdOperation {
+    private final String buildId;
+
+    public PromoteSetByBuildId(String buildId) {
+      this.buildId = buildId;
+    }
+
+    @Override
+    void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
+      builder.setPromoteSetByBuildId(buildId);
+    }
+  }
+
+  private static class PromoteBuildIdWithinSet extends BuildIdOperation {
+    private final String buildId;
+
+    public PromoteBuildIdWithinSet(String buildId) {
+      this.buildId = buildId;
+    }
+
+    @Override
+    void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
+      builder.setPromoteBuildIdWithinSet(buildId);
+    }
+  }
+
+  private static class MergeSets extends BuildIdOperation {
+    private final String primaryBuildId;
+    private final String secondaryBuildId;
+
+    public MergeSets(String primaryBuildId, String secondaryBuildId) {
+      this.primaryBuildId = primaryBuildId;
+      this.secondaryBuildId = secondaryBuildId;
+    }
+
+    @Override
+    void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
+      builder.setMergeSets(
+          UpdateWorkerBuildIdCompatibilityRequest.MergeSets.newBuilder()
+              .setPrimarySetBuildId(primaryBuildId)
+              .setSecondarySetBuildId(secondaryBuildId)
+              .build());
+    }
   }
 }
