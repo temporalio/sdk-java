@@ -61,9 +61,20 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
         testWorkflowRule.getHistoryEvent(
             execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
     assertNotNull(completionEvent);
-    assertEquals(
-        BINARY_CHECKSUM,
-        completionEvent.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum());
+    // The build id needs to either show up in the old binary checksum, if server is older,
+    // or the worker versioning stamp.
+    String inBinaryChecksum =
+        completionEvent.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum();
+    if (!inBinaryChecksum.isEmpty()) {
+      assertEquals(BINARY_CHECKSUM, inBinaryChecksum);
+    } else {
+      assertEquals(
+          BINARY_CHECKSUM,
+          completionEvent
+              .getWorkflowTaskCompletedEventAttributes()
+              .getWorkerVersion()
+              .getBuildId());
+    }
   }
 
   public static class SimpleTestWorkflow implements TestWorkflow1 {
