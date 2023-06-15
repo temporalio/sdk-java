@@ -30,6 +30,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.update.v1.Acceptance;
+import io.temporal.api.update.v1.Meta;
 import io.temporal.api.update.v1.Outcome;
 import io.temporal.api.update.v1.Rejection;
 import io.temporal.api.update.v1.Request;
@@ -77,7 +78,7 @@ final class UpdateProtocolStateMachine
   private String protoInstanceID;
   private String requestMsgId;
   private long requestSeqID;
-  private Request initialRequest;
+  private Meta meta;
   private String messageId;
 
   public static final StateMachineDefinition<State, ExplicitEvent, UpdateProtocolStateMachine>
@@ -174,7 +175,7 @@ final class UpdateProtocolStateMachine
     requestMsgId = this.currentMessage.getId();
     requestSeqID = this.currentMessage.getEventId();
     try {
-      initialRequest = this.currentMessage.getBody().unpack(Request.class);
+      meta = this.currentMessage.getBody().unpack(Request.class).getMeta();
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException("Current message not an update:" + this.currentMessage);
     }
@@ -198,7 +199,6 @@ final class UpdateProtocolStateMachine
         Acceptance.newBuilder()
             .setAcceptedRequestMessageId(requestMsgId)
             .setAcceptedRequestSequencingEventId(requestSeqID)
-            .setAcceptedRequest(initialRequest)
             .build();
 
     messageId = requestMsgId + "/accept";
@@ -216,7 +216,6 @@ final class UpdateProtocolStateMachine
         Rejection.newBuilder()
             .setRejectedRequestMessageId(requestMsgId)
             .setRejectedRequestSequencingEventId(requestSeqID)
-            .setRejectedRequest(initialRequest)
             .setFailure(failure)
             .build();
 
@@ -238,8 +237,7 @@ final class UpdateProtocolStateMachine
       outcome = outcome.setSuccess(payload.isPresent() ? payload.get() : null);
     }
 
-    Response outcomeResponse =
-        Response.newBuilder().setOutcome(outcome).setMeta(initialRequest.getMeta()).build();
+    Response outcomeResponse = Response.newBuilder().setOutcome(outcome).setMeta(meta).build();
 
     messageId = requestMsgId + "/complete";
     sendHandle.apply(
