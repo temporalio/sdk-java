@@ -21,7 +21,7 @@
 package io.temporal.common;
 
 /**
- * Indicates whether the user intends certain commands to be run on a compatible worker build ID
+ * Indicates whether the user intends certain commands to be run on a compatible worker Build Id
  * version or not.
  */
 public enum VersioningIntent {
@@ -34,12 +34,12 @@ public enum VersioningIntent {
   /**
    * Indicates that the command should run on a worker with compatible version if possible. It may
    * not be possible if the target task queue does not also have knowledge of the current worker's
-   * build ID.
+   * Build Id.
    */
   VERSIONING_INTENT_COMPATIBLE,
   /**
-   * Indicates that the command should run on the target task queue's current overall-default build
-   * ID.
+   * Indicates that the command should run on the target task queue's current overall-default Build
+   * Id.
    */
   VERSIONING_INTENT_DEFAULT;
 

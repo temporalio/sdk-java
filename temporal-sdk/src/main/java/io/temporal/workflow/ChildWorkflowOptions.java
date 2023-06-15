@@ -301,7 +301,7 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * Specifies whether this child workflow should run on a worker with a compatible build ID or
+     * Specifies whether this child workflow should run on a worker with a compatible Build Id or
      * not. See the variants of {@link VersioningIntent}.
      */
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {

@@ -316,25 +316,25 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
-  public void updateWorkerBuildIDCompatability(
-      @Nonnull String taskQueue, @Nonnull BuildIDOperation operation) {
+  public void updateWorkerBuildIdCompatability(
+      @Nonnull String taskQueue, @Nonnull BuildIdOperation operation) {
     UpdateWorkerBuildIdCompatibilityRequest.Builder reqBuilder =
         UpdateWorkerBuildIdCompatibilityRequest.newBuilder()
             .setTaskQueue(taskQueue)
             .setNamespace(options.getNamespace());
     operation.augmentBuilder(reqBuilder);
-    genericClient.updateWorkerBuildIDCompatability(reqBuilder.build());
+    genericClient.updateWorkerBuildIdCompatability(reqBuilder.build());
   }
 
   @Override
-  public WorkerBuildIDVersionSets getWorkerBuildIDCompatability(@Nonnull String taskQueue) {
+  public WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue) {
     GetWorkerBuildIdCompatibilityRequest req =
         GetWorkerBuildIdCompatibilityRequest.newBuilder()
             .setTaskQueue(taskQueue)
             .setNamespace(options.getNamespace())
             .build();
-    GetWorkerBuildIdCompatibilityResponse resp = genericClient.getWorkerBuildIDCompatability(req);
-    return new WorkerBuildIDVersionSets(resp);
+    GetWorkerBuildIdCompatibilityResponse resp = genericClient.getWorkerBuildIdCompatability(req);
+    return new WorkerBuildIdVersionSets(resp);
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {

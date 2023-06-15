@@ -235,7 +235,7 @@ public final class ActivityOptions {
     }
 
     /**
-     * Specifies whether this activity should run on a worker with a compatible build ID or not. See
+     * Specifies whether this activity should run on a worker with a compatible Build Id or not. See
      * the variants of {@link VersioningIntent}.
      */
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {

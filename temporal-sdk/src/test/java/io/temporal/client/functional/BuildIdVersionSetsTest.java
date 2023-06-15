@@ -23,15 +23,15 @@ package io.temporal.client.functional;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
-import io.temporal.client.BuildIDOperation;
-import io.temporal.client.WorkerBuildIDVersionSets;
+import io.temporal.client.BuildIdOperation;
+import io.temporal.client.WorkerBuildIdVersionSets;
 import io.temporal.client.WorkflowClient;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.util.Arrays;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class BuildIDVersionSetsTest {
+public class BuildIdVersionSetsTest {
   @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
   @Test
@@ -42,31 +42,31 @@ public class BuildIDVersionSetsTest {
     String taskQueue = testWorkflowRule.getTaskQueue();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.newIDInNewDefaultSet("1.0"));
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.newIDInNewDefaultSet("2.0"));
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.newCompatibleVersion("1.1", "1.0"));
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newIdInNewDefaultSet("1.0"));
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newIdInNewDefaultSet("2.0"));
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newCompatibleVersion("1.1", "1.0"));
 
-    WorkerBuildIDVersionSets sets = workflowClient.getWorkerBuildIDCompatability(taskQueue);
-    assertEquals("2.0", sets.defaultBuildID());
+    WorkerBuildIdVersionSets sets = workflowClient.getWorkerBuildIdCompatability(taskQueue);
+    assertEquals("2.0", sets.defaultBuildId());
     assertEquals(2, sets.allSets().size());
-    assertEquals(Arrays.asList("1.0", "1.1"), sets.allSets().get(0).getBuildIDs());
+    assertEquals(Arrays.asList("1.0", "1.1"), sets.allSets().get(0).getBuildIds());
 
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.promoteSetByBuildID("1.0"));
-    sets = workflowClient.getWorkerBuildIDCompatability(taskQueue);
-    assertEquals("1.1", sets.defaultBuildID());
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.promoteSetByBuildId("1.0"));
+    sets = workflowClient.getWorkerBuildIdCompatability(taskQueue);
+    assertEquals("1.1", sets.defaultBuildId());
 
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.promoteBuildIDWithinSet("1.0"));
-    sets = workflowClient.getWorkerBuildIDCompatability(taskQueue);
-    assertEquals("1.0", sets.defaultBuildID());
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.promoteBuildIdWithinSet("1.0"));
+    sets = workflowClient.getWorkerBuildIdCompatability(taskQueue);
+    assertEquals("1.0", sets.defaultBuildId());
 
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.mergeSets("2.0", "1.0"));
-    sets = workflowClient.getWorkerBuildIDCompatability(taskQueue);
-    assertEquals("2.0", sets.defaultBuildID());
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.mergeSets("2.0", "1.0"));
+    sets = workflowClient.getWorkerBuildIdCompatability(taskQueue);
+    assertEquals("2.0", sets.defaultBuildId());
   }
 }

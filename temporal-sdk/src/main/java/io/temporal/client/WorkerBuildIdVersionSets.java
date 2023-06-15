@@ -24,71 +24,71 @@ import io.temporal.api.workflowservice.v1.GetWorkerBuildIdCompatibilityResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Represents the sets of compatible Build IDs associated with a particular task queue. */
-public class WorkerBuildIDVersionSets {
+/** Represents the sets of compatible Build Ids associated with a particular task queue. */
+public class WorkerBuildIdVersionSets {
 
-  /** Represents a set of Build IDs which are compatible with one another. */
+  /** Represents a set of Build Ids which are compatible with one another. */
   public static class CompatibleSet {
-    private final List<String> buildIDs;
+    private final List<String> buildIds;
 
-    CompatibleSet(List<String> buildIDs) {
-      this.buildIDs = buildIDs;
+    CompatibleSet(List<String> buildIds) {
+      this.buildIds = buildIds;
     }
 
     /**
-     * @return All the Build IDs in the set
+     * @return All the Build Ids in the set
      */
-    public List<String> getBuildIDs() {
-      return buildIDs;
+    public List<String> getBuildIds() {
+      return buildIds;
     }
 
     /**
-     * @return The default Build ID for this compatible set
+     * @return The default Build Id for this compatible set
      */
-    public String defaultBuildID() {
-      if (buildIDs.isEmpty()) {
+    public String defaultBuildId() {
+      if (buildIds.isEmpty()) {
         return null;
       }
-      return buildIDs.get(buildIDs.size() - 1);
+      return buildIds.get(buildIds.size() - 1);
     }
   }
 
-  private final List<CompatibleSet> buildIDVersionSets;
+  private final List<CompatibleSet> buildIdVersionSets;
 
-  public WorkerBuildIDVersionSets(GetWorkerBuildIdCompatibilityResponse fetchResponse) {
-    buildIDVersionSets =
+  public WorkerBuildIdVersionSets(GetWorkerBuildIdCompatibilityResponse fetchResponse) {
+    buildIdVersionSets =
         fetchResponse.getMajorVersionSetsList().stream()
             .map(majorSet -> new CompatibleSet(majorSet.getBuildIdsList()))
             .collect(Collectors.toList());
   }
 
   /**
-   * @return the current overall default Build ID for the queue. Returns null if there are no
-   *     defined Build IDs.
+   * @return the current overall default Build Id for the queue. Returns null if there are no
+   *     defined Build Ids.
    */
-  public String defaultBuildID() {
+  public String defaultBuildId() {
     CompatibleSet defaultSet = defaultSet();
     if (defaultSet == null) {
       return null;
     }
-    return defaultSet.defaultBuildID();
+    return defaultSet.defaultBuildId();
   }
 
   /**
    * @return the current overall default compatible set for the queue. Returns null if there are no
-   *     defined Build IDs.
+   *     defined Build Ids.
    */
   public CompatibleSet defaultSet() {
-    if (buildIDVersionSets.isEmpty()) {
+    if (buildIdVersionSets.isEmpty()) {
       return null;
     }
-    return buildIDVersionSets.get(buildIDVersionSets.size() - 1);
+    return buildIdVersionSets.get(buildIdVersionSets.size() - 1);
   }
 
   /**
    * @return All compatible sets for the queue. The last set in the list is the overall default.
    */
   public List<CompatibleSet> allSets() {
-    return buildIDVersionSets;
+    return buildIdVersionSets;
   }
 }

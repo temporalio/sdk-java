@@ -25,50 +25,50 @@ import javax.annotation.Nonnull;
 
 /**
  * The implementations of this class can be passed as parameters to {@link
- * WorkflowClient#updateWorkerBuildIDCompatability(String, BuildIDOperation)}
+ * WorkflowClient#updateWorkerBuildIdCompatability(String, BuildIdOperation)}
  *
  * <p>See each public static method to learn about and construct the available operations.
  */
-public abstract class BuildIDOperation {
-  private BuildIDOperation() {}
+public abstract class BuildIdOperation {
+  private BuildIdOperation() {}
 
   abstract void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder);
 
   /**
-   * This operation adds a new Build ID into a new set, which will be used as the default set for
-   * the queue. This means all new workflows will start on this Build ID.
+   * This operation adds a new Build Id into a new set, which will be used as the default set for
+   * the queue. This means all new workflows will start on this Build Id.
    *
-   * @param buildID The Build ID to add as the new overall default.
+   * @param buildId The Build Id to add as the new overall default.
    */
-  public static BuildIDOperation newIDInNewDefaultSet(@Nonnull String buildID) {
-    return new BuildIDOperation() {
+  public static BuildIdOperation newIdInNewDefaultSet(@Nonnull String buildId) {
+    return new BuildIdOperation() {
       @Override
       void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setAddNewBuildIdInNewDefaultSet(buildID);
+        builder.setAddNewBuildIdInNewDefaultSet(buildId);
       }
     };
   }
 
   /**
-   * This operation adds a new Build ID into an existing compatible set. The newly added ID becomes
+   * This operation adds a new Build Id into an existing compatible set. The newly added ID becomes
    * the default for that compatible set, and thus new workflow tasks for workflows which have been
-   * executing on workers in that set will now start on this new Build ID.
+   * executing on workers in that set will now start on this new Build Id.
    *
-   * @param buildID The Build ID to add to an existing compatible set.
-   * @param existingCompatibleBuildID A Build ID which must already be defined on the task queue,
+   * @param buildId The Build Id to add to an existing compatible set.
+   * @param existingCompatibleBuildId A Build Id which must already be defined on the task queue,
    *     and is used to find the compatible set to add the new ID to.
    * @param makeSetDefault If set to true, the targeted set will also be promoted to become the
    *     overall default set for the queue.
    */
-  public static BuildIDOperation newCompatibleVersion(
-      @Nonnull String buildID, @Nonnull String existingCompatibleBuildID, boolean makeSetDefault) {
-    return new BuildIDOperation() {
+  public static BuildIdOperation newCompatibleVersion(
+      @Nonnull String buildId, @Nonnull String existingCompatibleBuildId, boolean makeSetDefault) {
+    return new BuildIdOperation() {
       @Override
       void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
         builder.setAddNewCompatibleBuildId(
             UpdateWorkerBuildIdCompatibilityRequest.AddNewCompatibleVersion.newBuilder()
-                .setNewBuildId(buildID)
-                .setExistingCompatibleBuildId(existingCompatibleBuildID)
+                .setNewBuildId(buildId)
+                .setExistingCompatibleBuildId(existingCompatibleBuildId)
                 .setMakeSetDefault(makeSetDefault)
                 .build());
       }
@@ -79,57 +79,57 @@ public abstract class BuildIDOperation {
    * Performs {@link #newCompatibleVersion(String, String, boolean)}, with `makeSetDefault` set to
    * false.
    */
-  public static BuildIDOperation newCompatibleVersion(
-      @Nonnull String buildID, @Nonnull String existingCompatibleBuildID) {
-    return newCompatibleVersion(buildID, existingCompatibleBuildID, false);
+  public static BuildIdOperation newCompatibleVersion(
+      @Nonnull String buildId, @Nonnull String existingCompatibleBuildId) {
+    return newCompatibleVersion(buildId, existingCompatibleBuildId, false);
   }
 
   /**
    * This operation promotes a set to become the overall default set for the queue.
    *
-   * @param buildID An existing Build ID which is used to find the set to be promoted.
+   * @param buildId An existing Build Id which is used to find the set to be promoted.
    */
-  public static BuildIDOperation promoteSetByBuildID(@Nonnull String buildID) {
-    return new BuildIDOperation() {
+  public static BuildIdOperation promoteSetByBuildId(@Nonnull String buildId) {
+    return new BuildIdOperation() {
       @Override
       void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setPromoteSetByBuildId(buildID);
+        builder.setPromoteSetByBuildId(buildId);
       }
     };
   }
 
   /**
-   * This operation promotes a Build ID inside some compatible set to become the default ID in that
+   * This operation promotes a Build Id inside some compatible set to become the default ID in that
    * set.
    *
-   * @param buildID An existing Build ID which will be promoted within its compatible set.
+   * @param buildId An existing Build Id which will be promoted within its compatible set.
    */
-  public static BuildIDOperation promoteBuildIDWithinSet(@Nonnull String buildID) {
-    return new BuildIDOperation() {
+  public static BuildIdOperation promoteBuildIdWithinSet(@Nonnull String buildId) {
+    return new BuildIdOperation() {
       @Override
       void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
-        builder.setPromoteBuildIdWithinSet(buildID);
+        builder.setPromoteBuildIdWithinSet(buildId);
       }
     };
   }
 
   /**
-   * This operation merges two sets into one set, thus declaring all the Build IDs in both as
+   * This operation merges two sets into one set, thus declaring all the Build Ids in both as
    * compatible with one another. The default of the primary set is maintained as the merged set's
    * overall default.
    *
-   * @param primaryBuildID A build ID which is used to find the primary set to be merged.
-   * @param secondaryBuildID A build ID which is used to find the secondary set to be merged.
+   * @param primaryBuildId A Build Id which is used to find the primary set to be merged.
+   * @param secondaryBuildId A Build Id which is used to find the secondary set to be merged.
    */
-  public static BuildIDOperation mergeSets(
-      @Nonnull String primaryBuildID, @Nonnull String secondaryBuildID) {
-    return new BuildIDOperation() {
+  public static BuildIdOperation mergeSets(
+      @Nonnull String primaryBuildId, @Nonnull String secondaryBuildId) {
+    return new BuildIdOperation() {
       @Override
       void augmentBuilder(UpdateWorkerBuildIdCompatibilityRequest.Builder builder) {
         builder.setMergeSets(
             UpdateWorkerBuildIdCompatibilityRequest.MergeSets.newBuilder()
-                .setPrimarySetBuildId(primaryBuildID)
-                .setSecondarySetBuildId(secondaryBuildID)
+                .setPrimarySetBuildId(primaryBuildId)
+                .setSecondarySetBuildId(secondaryBuildId)
                 .build());
       }
     };

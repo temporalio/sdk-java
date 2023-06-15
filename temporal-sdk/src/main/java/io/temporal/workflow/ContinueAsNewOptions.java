@@ -131,7 +131,7 @@ public final class ContinueAsNewOptions {
     }
 
     /**
-     * Specifies whether this continued workflow should run on a worker with a compatible build ID
+     * Specifies whether this continued workflow should run on a worker with a compatible Build Id
      * or not. See the variants of {@link VersioningIntent}.
      */
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {

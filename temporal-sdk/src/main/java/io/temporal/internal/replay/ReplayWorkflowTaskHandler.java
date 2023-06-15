@@ -255,7 +255,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .setIdentity(options.getIdentity())
               .setNamespace(namespace)
               // TODO: Set stamp or not based on capabilities
-              .setBinaryChecksum(options.getBuildID())
+              .setBinaryChecksum(options.getBuildId())
               .addCommands(
                   Command.newBuilder()
                       .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)

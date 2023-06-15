@@ -45,7 +45,7 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(WorkflowClientOptions.newBuilder().build())
-          .setWorkerOptions(WorkerOptions.newBuilder().setBuildID(BINARY_CHECKSUM).build())
+          .setWorkerOptions(WorkerOptions.newBuilder().setBuildId(BINARY_CHECKSUM).build())
           .setWorkflowTypes(SimpleTestWorkflow.class)
           .build();
 

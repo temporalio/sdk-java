@@ -567,17 +567,17 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators) {
-    String buildID = null;
-    if (options.getBuildID() != null) {
-      buildID = options.getBuildID();
+    String buildId = null;
+    if (options.getBuildId() != null) {
+      buildId = options.getBuildId();
     } else if (clientOptions.getBinaryChecksum() != null) {
-      buildID = clientOptions.getBinaryChecksum();
+      buildId = clientOptions.getBinaryChecksum();
     }
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
-        .setBuildID(buildID)
-        .setUseBuildIDForVersioning(options.isUsingBuildIDForVersioning())
+        .setBuildId(buildId)
+        .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())

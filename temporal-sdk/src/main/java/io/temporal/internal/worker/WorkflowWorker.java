@@ -129,8 +129,8 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   stickyTaskQueueName,
                   options.getIdentity(),
-                  options.getBuildID(),
-                  options.isUsingBuildIDForVersioning(),
+                  options.getBuildId(),
+                  options.isUsingBuildIdForVersioning(),
                   executorSlotsSemaphore,
                   stickyQueueBalancer,
                   workerMetricsScope,
@@ -441,7 +441,7 @@ final class WorkflowWorker implements SuspendableWorker {
       if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskCompleted.setWorkerVersionStamp(options.workerVersionStamp());
       } else {
-        taskCompleted.setBinaryChecksum(options.getBuildID());
+        taskCompleted.setBinaryChecksum(options.getBuildId());
       }
 
       return grpcRetryer.retryWithResult(

@@ -78,9 +78,9 @@ public interface GenericWorkflowClient {
   DescribeScheduleResponse describeSchedule(DescribeScheduleRequest request);
 
   @Experimental
-  UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIDCompatability(
+  UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIdCompatability(
       UpdateWorkerBuildIdCompatibilityRequest request);
 
-  GetWorkerBuildIdCompatibilityResponse getWorkerBuildIDCompatability(
+  GetWorkerBuildIdCompatibilityResponse getWorkerBuildIdCompatability(
       GetWorkerBuildIdCompatibilityRequest req);
 }

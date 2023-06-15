@@ -54,8 +54,8 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
-      @Nullable String buildID,
-      boolean useBuildIDForVersioning,
+      @Nullable String buildId,
+      boolean useBuildIdForVersioning,
       double activitiesPerSecond,
       Semaphore pollSemaphore,
       @Nonnull Scope metricsScope,
@@ -79,8 +79,8 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequest.setWorkerVersionCapabilities(
           WorkerVersionCapabilities.newBuilder()
-              .setBuildId(buildID)
-              .setUseVersioning(useBuildIDForVersioning)
+              .setBuildId(buildId)
+              .setUseVersioning(useBuildIdForVersioning)
               .build());
     }
     this.pollRequest = pollRequest.build();

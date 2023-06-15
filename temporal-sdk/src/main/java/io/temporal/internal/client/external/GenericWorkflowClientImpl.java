@@ -350,7 +350,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIDCompatability(
+  public UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIdCompatability(
       UpdateWorkerBuildIdCompatibilityRequest request) {
     return grpcRetryer.retryWithResult(
         () ->
@@ -362,7 +362,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public GetWorkerBuildIdCompatibilityResponse getWorkerBuildIDCompatability(
+  public GetWorkerBuildIdCompatibilityResponse getWorkerBuildIdCompatability(
       GetWorkerBuildIdCompatibilityRequest req) {
     return grpcRetryer.retryWithResult(
         () ->

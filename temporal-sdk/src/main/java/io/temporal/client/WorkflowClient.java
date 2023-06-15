@@ -307,13 +307,13 @@ public interface WorkflowClient {
    * is used in conjunction with workers who specify their build id and thus opt into the feature.
    *
    * @param taskQueue The task queue to update the version set(s) of.
-   * @param operation The operation to perform. See {@link BuildIDOperation} for more.
+   * @param operation The operation to perform. See {@link BuildIdOperation} for more.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
    */
   @Experimental
-  void updateWorkerBuildIDCompatability(
-      @Nonnull String taskQueue, @Nonnull BuildIDOperation operation);
+  void updateWorkerBuildIdCompatability(
+      @Nonnull String taskQueue, @Nonnull BuildIdOperation operation);
 
   /**
    * Returns the worker-build-id based version sets for a particular task queue.
@@ -324,7 +324,7 @@ public interface WorkflowClient {
    *     issues.
    */
   @Experimental
-  WorkerBuildIDVersionSets getWorkerBuildIDCompatability(@Nonnull String taskQueue);
+  WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue);
 
   /**
    * Executes zero argument workflow with void return type

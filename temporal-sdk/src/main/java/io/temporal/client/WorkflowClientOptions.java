@@ -125,7 +125,7 @@ public final class WorkflowClientOptions {
      * Sets worker binary checksum, which gets propagated in all history events and can be used for
      * auto-reset assuming that every build has a new unique binary checksum. Can be null.
      *
-     * @deprecated use {@link io.temporal.worker.WorkerOptions.Builder#setBuildID(String)} instead.
+     * @deprecated use {@link io.temporal.worker.WorkerOptions.Builder#setBuildId(String)} instead.
      */
     @Deprecated
     public Builder setBinaryChecksum(String binaryChecksum) {

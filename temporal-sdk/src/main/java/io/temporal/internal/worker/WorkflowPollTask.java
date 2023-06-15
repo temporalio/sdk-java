@@ -60,8 +60,8 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
-      @Nullable String buildID,
-      boolean useBuildIDForVersioning,
+      @Nullable String buildId,
+      boolean useBuildIdForVersioning,
       @Nonnull Semaphore workflowTaskExecutorSemaphore,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
       @Nonnull Scope workerMetricsScope,
@@ -87,11 +87,11 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequestBuilder.setWorkerVersionCapabilities(
           WorkerVersionCapabilities.newBuilder()
-              .setBuildId(buildID)
-              .setUseVersioning(useBuildIDForVersioning)
+              .setBuildId(buildId)
+              .setUseVersioning(useBuildIdForVersioning)
               .build());
     } else {
-      pollRequestBuilder.setBinaryChecksum(buildID);
+      pollRequestBuilder.setBinaryChecksum(buildId);
     }
 
     this.pollRequest =

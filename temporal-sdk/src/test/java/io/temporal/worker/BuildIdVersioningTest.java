@@ -24,7 +24,7 @@ import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.client.BuildIDOperation;
+import io.temporal.client.BuildIdOperation;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -39,19 +39,19 @@ import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class BuildIDVersioningTest {
+public class BuildIdVersioningTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(
-              WorkerOptions.newBuilder().setBuildID("1.0").setUseBuildIDForVersioning(true).build())
-          .setWorkflowTypes(BuildIDVersioningTest.TestVersioningWorkflowImpl.class)
-          .setActivityImplementations(new BuildIDVersioningTest.ActivityImpl())
+              WorkerOptions.newBuilder().setBuildId("1.0").setUseBuildIdForVersioning(true).build())
+          .setWorkflowTypes(BuildIdVersioningTest.TestVersioningWorkflowImpl.class)
+          .setActivityImplementations(new BuildIdVersioningTest.ActivityImpl())
           .setDoNotStart(true)
           .build();
 
   @Test
-  public void testBuildIDVersioningDataSetProperly() {
+  public void testBuildIdVersioningDataSetProperly() {
     assumeTrue(
         "Test Server doesn't support versioning yet", SDKTestWorkflowRule.useExternalService);
 
@@ -59,8 +59,8 @@ public class BuildIDVersioningTest {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
     // Add 1.0 to the queue
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.newIDInNewDefaultSet("1.0"));
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newIdInNewDefaultSet("1.0"));
 
     // Now start the worker (to avoid poll timeout while queue is unversioned)
     testWorkflowRule.getTestEnvironment().start();
@@ -79,8 +79,8 @@ public class BuildIDVersioningTest {
     testWorkflowRule.waitForTheEndOfWFT(workflowId);
 
     // Add 2.0 to the queue
-    workflowClient.updateWorkerBuildIDCompatability(
-        taskQueue, BuildIDOperation.newIDInNewDefaultSet("2.0"));
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newIdInNewDefaultSet("2.0"));
 
     // Continue driving original workflow
     wf1.mySignal("activity");
@@ -103,9 +103,9 @@ public class BuildIDVersioningTest {
     Worker w2 =
         w2F.newWorker(
             taskQueue,
-            WorkerOptions.newBuilder().setBuildID("2.0").setUseBuildIDForVersioning(true).build());
-    w2.registerWorkflowImplementationTypes(BuildIDVersioningTest.TestVersioningWorkflowImpl.class);
-    w2.registerActivitiesImplementations(new BuildIDVersioningTest.ActivityImpl());
+            WorkerOptions.newBuilder().setBuildId("2.0").setUseBuildIdForVersioning(true).build());
+    w2.registerWorkflowImplementationTypes(BuildIdVersioningTest.TestVersioningWorkflowImpl.class);
+    w2.registerActivitiesImplementations(new BuildIdVersioningTest.ActivityImpl());
     w2F.start();
 
     wf2.mySignal("activity");
