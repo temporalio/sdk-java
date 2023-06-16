@@ -430,12 +430,15 @@ class StateMachines {
     final String id;
     final CompletableFuture<UpdateWorkflowExecutionResponse> acceptance;
     final CompletableFuture<UpdateWorkflowExecutionResponse> complete;
+    final Request initialRequest;
 
     public UpdateWorkflowExecutionData(
         String id,
+        Request initialRequest,
         CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
         CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
       this.id = id;
+      this.initialRequest = initialRequest;
       this.acceptance = acceptance;
       this.complete = complete;
     }
@@ -561,9 +564,11 @@ class StateMachines {
 
   public static StateMachine<UpdateWorkflowExecutionData> newUpdateWorkflowExecution(
       String updateId,
+      Request initialRequest,
       CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
       CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
-    return new StateMachine<>(new UpdateWorkflowExecutionData(updateId, acceptance, complete))
+    return new StateMachine<>(
+            new UpdateWorkflowExecutionData(updateId, initialRequest, acceptance, complete))
         .add(NONE, START, STARTED, StateMachines::acceptUpdate)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
@@ -1771,7 +1776,7 @@ class StateMachines {
               .setAcceptedRequestSequencingEventId(workflowTaskCompletedEventId - 1)
               .setProtocolInstanceId(msg.getProtocolInstanceId())
               .setAcceptedRequestMessageId(acceptance.getAcceptedRequestMessageId())
-              .setAcceptedRequest(acceptance.getAcceptedRequest())
+              .setAcceptedRequest(data.initialRequest)
               .build();
 
       HistoryEvent event =

@@ -1595,7 +1595,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     update =
         StateMachines.newUpdateWorkflowExecution(
-            protocolInstanceId, u.getAcceptance(), u.getCompletion());
+            protocolInstanceId, u.getRequest().getRequest(), u.getAcceptance(), u.getCompletion());
     updates.put(protocolInstanceId, update);
     update.action(StateMachines.Action.START, ctx, msg, workflowTaskCompletedId);
   }
