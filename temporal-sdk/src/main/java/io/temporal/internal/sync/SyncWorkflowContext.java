@@ -88,6 +88,7 @@ import org.slf4j.LoggerFactory;
 
 // TODO separate WorkflowOutboundCallsInterceptor functionality from this class into
 // RootWorkflowOutboundInterceptor
+
 /**
  * Root, the most top level WorkflowContext that unites all relevant contexts, handlers, options,
  * states, etc. It's created when SyncWorkflow which represent a context of a workflow type
@@ -543,6 +544,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);
+
+    if (options.getVersioningIntent() != null) {
+      attributes.setUseCompatibleVersion(
+          options
+              .getVersioningIntent()
+              .determineUseCompatibleFlag(
+                  replayContext.getTaskQueue().equals(options.getTaskQueue())));
+    }
+
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
@@ -746,6 +756,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
+    }
+
+    if (options.getVersioningIntent() != null) {
+      attributes.setUseCompatibleVersion(
+          options
+              .getVersioningIntent()
+              .determineUseCompatibleFlag(
+                  replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
     return new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
   }
@@ -1063,6 +1081,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         attributes.setMemo(
             Memo.newBuilder()
                 .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo)));
+      }
+      if (options.getVersioningIntent() != null) {
+        attributes.setUseCompatibleVersion(
+            options
+                .getVersioningIntent()
+                .determineUseCompatibleFlag(
+                    replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
     }
 

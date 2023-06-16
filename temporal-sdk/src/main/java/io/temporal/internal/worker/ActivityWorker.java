@@ -112,9 +112,12 @@ final class ActivityWorker implements SuspendableWorker {
                   namespace,
                   taskQueue,
                   options.getIdentity(),
+                  options.getBuildId(),
+                  options.isUsingBuildIdForVersioning(),
                   taskQueueActivitiesPerSecond,
                   executorSlotsSemaphore,
-                  workerMetricsScope),
+                  workerMetricsScope,
+                  service.getServerCapabilities()),
               this.pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
@@ -327,6 +330,7 @@ final class ActivityWorker implements SuspendableWorker {
                 .setTaskToken(taskToken)
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
+                .setWorkerVersion(options.workerVersionStamp())
                 .build();
 
         grpcRetryer.retry(
@@ -344,6 +348,7 @@ final class ActivityWorker implements SuspendableWorker {
                   .setTaskToken(taskToken)
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
+                  .setWorkerVersion(options.workerVersionStamp())
                   .build();
 
           grpcRetryer.retry(
@@ -361,6 +366,7 @@ final class ActivityWorker implements SuspendableWorker {
                     .setTaskToken(taskToken)
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
+                    .setWorkerVersion(options.workerVersionStamp())
                     .build();
 
             grpcRetryer.retry(

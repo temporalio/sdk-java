@@ -129,10 +129,12 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   stickyTaskQueueName,
                   options.getIdentity(),
-                  options.getBinaryChecksum(),
+                  options.getBuildId(),
+                  options.isUsingBuildIdForVersioning(),
                   executorSlotsSemaphore,
                   stickyQueueBalancer,
-                  workerMetricsScope),
+                  workerMetricsScope,
+                  service.getServerCapabilities()),
               pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
@@ -435,8 +437,12 @@ final class WorkflowWorker implements SuspendableWorker {
       taskCompleted
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
-          .setBinaryChecksum(options.getBinaryChecksum())
           .setTaskToken(taskToken);
+      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+        taskCompleted.setWorkerVersionStamp(options.workerVersionStamp());
+      } else {
+        taskCompleted.setBinaryChecksum(options.getBuildId());
+      }
 
       return grpcRetryer.retryWithResult(
           () ->
@@ -457,6 +463,10 @@ final class WorkflowWorker implements SuspendableWorker {
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
 
       taskFailed.setIdentity(options.getIdentity()).setNamespace(namespace).setTaskToken(taskToken);
+
+      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+        taskFailed.setWorkerVersion(options.workerVersionStamp());
+      }
 
       grpcRetryer.retry(
           () ->

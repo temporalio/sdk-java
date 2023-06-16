@@ -109,6 +109,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             workflowTask1,
             "namespace",
             "stickyTaskQueue",
+            "taskQueue",
             testWorkflowRule.getWorkflowServiceStubs());
 
     assertEquals(
@@ -155,6 +156,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             workflowTask,
             "namespace",
             "stickyTaskQueue",
+            "taskQueue",
             testWorkflowRule.getWorkflowServiceStubs());
     WorkflowRunTaskHandler workflowRunTaskHandler2 =
         cache.getOrCreate(workflowTask2, scope, () -> doNotCreateFakeExecutor(workflowTask2));

@@ -25,10 +25,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import com.google.common.base.Objects;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
-import io.temporal.common.CronSchedule;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
-import io.temporal.common.SearchAttributes;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -61,34 +58,21 @@ public final class ChildWorkflowOptions {
   public static final class Builder {
 
     private String namespace;
-
     private String workflowId;
-
     private WorkflowIdReusePolicy workflowIdReusePolicy;
-
     private Duration workflowRunTimeout;
-
     private Duration workflowExecutionTimeout;
-
     private Duration workflowTaskTimeout;
-
     private String taskQueue;
-
     private RetryOptions retryOptions;
-
     private String cronSchedule;
-
     private ParentClosePolicy parentClosePolicy;
-
     private Map<String, Object> memo;
-
     private Map<String, Object> searchAttributes;
-
     private SearchAttributes typedSearchAttributes;
-
     private List<ContextPropagator> contextPropagators;
-
     private ChildWorkflowCancellationType cancellationType;
+    private VersioningIntent versioningIntent;
 
     private Builder() {}
 
@@ -111,6 +95,7 @@ public final class ChildWorkflowOptions {
       this.typedSearchAttributes = options.getTypedSearchAttributes();
       this.contextPropagators = options.getContextPropagators();
       this.cancellationType = options.getCancellationType();
+      this.versioningIntent = options.getVersioningIntent();
     }
 
     /**
@@ -315,6 +300,15 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    /**
+     * Specifies whether this child workflow should run on a worker with a compatible Build Id or
+     * not. See the variants of {@link VersioningIntent}.
+     */
+    public Builder setVersioningIntent(VersioningIntent versioningIntent) {
+      this.versioningIntent = versioningIntent;
+      return this;
+    }
+
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
           namespace,
@@ -331,7 +325,8 @@ public final class ChildWorkflowOptions {
           searchAttributes,
           typedSearchAttributes,
           contextPropagators,
-          cancellationType);
+          cancellationType,
+          versioningIntent);
     }
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
@@ -352,39 +347,29 @@ public final class ChildWorkflowOptions {
           contextPropagators,
           cancellationType == null
               ? ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED
-              : cancellationType);
+              : cancellationType,
+          versioningIntent == null
+              ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
+              : versioningIntent);
     }
   }
 
   private final String namespace;
-
   private final String workflowId;
-
   private final WorkflowIdReusePolicy workflowIdReusePolicy;
-
   private final Duration workflowRunTimeout;
-
   private final Duration workflowExecutionTimeout;
-
   private final Duration workflowTaskTimeout;
-
   private final String taskQueue;
-
   private final RetryOptions retryOptions;
-
   private final String cronSchedule;
-
   private final ParentClosePolicy parentClosePolicy;
-
   private final Map<String, Object> memo;
-
   private final Map<String, Object> searchAttributes;
-
   private final SearchAttributes typedSearchAttributes;
-
   private final List<ContextPropagator> contextPropagators;
-
   private final ChildWorkflowCancellationType cancellationType;
+  private final VersioningIntent versioningIntent;
 
   private ChildWorkflowOptions(
       String namespace,
@@ -401,7 +386,8 @@ public final class ChildWorkflowOptions {
       Map<String, Object> searchAttributes,
       SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
-      ChildWorkflowCancellationType cancellationType) {
+      ChildWorkflowCancellationType cancellationType,
+      VersioningIntent versioningIntent) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -417,6 +403,7 @@ public final class ChildWorkflowOptions {
     this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
     this.cancellationType = cancellationType;
+    this.versioningIntent = versioningIntent;
   }
 
   public String getNamespace() {
@@ -483,6 +470,10 @@ public final class ChildWorkflowOptions {
     return cancellationType;
   }
 
+  public VersioningIntent getVersioningIntent() {
+    return versioningIntent;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -506,7 +497,8 @@ public final class ChildWorkflowOptions {
         && Objects.equal(searchAttributes, that.searchAttributes)
         && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equal(contextPropagators, that.contextPropagators)
-        && cancellationType == that.cancellationType;
+        && cancellationType == that.cancellationType
+        && versioningIntent == that.versioningIntent;
   }
 
   @Override
@@ -526,7 +518,8 @@ public final class ChildWorkflowOptions {
         searchAttributes,
         typedSearchAttributes,
         contextPropagators,
-        cancellationType);
+        cancellationType,
+        versioningIntent);
   }
 
   @Override
@@ -566,6 +559,8 @@ public final class ChildWorkflowOptions {
         + contextPropagators
         + ", cancellationType="
         + cancellationType
+        + ", versioningIntent="
+        + versioningIntent
         + '}';
   }
 }

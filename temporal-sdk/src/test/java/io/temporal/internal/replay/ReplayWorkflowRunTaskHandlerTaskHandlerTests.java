@@ -33,6 +33,7 @@ import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.NoopScope;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -89,7 +90,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             setUpMockWorkflowFactory(),
             cache,
             SingleWorkerOptions.newBuilder().build(),
-            "sticky",
+            InternalUtils.createStickyTaskQueue("sticky", "taskQueue"),
             Duration.ofSeconds(5),
             testWorkflowRule.getWorkflowServiceStubs(),
             null);

@@ -22,6 +22,7 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.WorkerVersionStamp;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
@@ -43,6 +44,8 @@ public final class SingleWorkerOptions {
 
     private String identity;
     private String binaryChecksum;
+    private String buildId;
+    private boolean useBuildIdForVersioning;
     private DataConverter dataConverter;
     private int taskExecutorThreadPoolSize = 100;
     private PollerOptions pollerOptions;
@@ -75,6 +78,8 @@ public final class SingleWorkerOptions {
       this.defaultDeadlockDetectionTimeout = options.getDefaultDeadlockDetectionTimeout();
       this.maxHeartbeatThrottleInterval = options.getMaxHeartbeatThrottleInterval();
       this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
+      this.buildId = options.getBuildId();
+      this.useBuildIdForVersioning = options.isUsingBuildIdForVersioning();
     }
 
     public Builder setIdentity(String identity) {
@@ -82,6 +87,7 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    @Deprecated
     public Builder setBinaryChecksum(String binaryChecksum) {
       this.binaryChecksum = binaryChecksum;
       return this;
@@ -145,6 +151,16 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setBuildId(String buildId) {
+      this.buildId = buildId;
+      return this;
+    }
+
+    public Builder setUseBuildIdForVersioning(boolean useBuildIdForVersioning) {
+      this.useBuildIdForVersioning = useBuildIdForVersioning;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -164,6 +180,8 @@ public final class SingleWorkerOptions {
       return new SingleWorkerOptions(
           this.identity,
           this.binaryChecksum,
+          this.buildId,
+          this.useBuildIdForVersioning,
           dataConverter,
           this.taskExecutorThreadPoolSize,
           pollerOptions,
@@ -180,6 +198,8 @@ public final class SingleWorkerOptions {
 
   private final String identity;
   private final String binaryChecksum;
+  private final String buildId;
+  private final boolean useBuildIdForVersioning;
   private final DataConverter dataConverter;
   private final int taskExecutorThreadPoolSize;
   private final PollerOptions pollerOptions;
@@ -195,6 +215,8 @@ public final class SingleWorkerOptions {
   private SingleWorkerOptions(
       String identity,
       String binaryChecksum,
+      String buildId,
+      boolean useBuildIdForVersioning,
       DataConverter dataConverter,
       int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
@@ -208,6 +230,8 @@ public final class SingleWorkerOptions {
       Duration defaultHeartbeatThrottleInterval) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
+    this.buildId = buildId;
+    this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
@@ -225,8 +249,20 @@ public final class SingleWorkerOptions {
     return identity;
   }
 
+  @Deprecated
   public String getBinaryChecksum() {
     return binaryChecksum;
+  }
+
+  public String getBuildId() {
+    if (buildId == null) {
+      return binaryChecksum;
+    }
+    return buildId;
+  }
+
+  public boolean isUsingBuildIdForVersioning() {
+    return useBuildIdForVersioning;
   }
 
   public DataConverter getDataConverter() {
@@ -271,5 +307,12 @@ public final class SingleWorkerOptions {
 
   public Duration getDefaultHeartbeatThrottleInterval() {
     return defaultHeartbeatThrottleInterval;
+  }
+
+  public WorkerVersionStamp workerVersionStamp() {
+    return WorkerVersionStamp.newBuilder()
+        .setBuildId(this.getBuildId())
+        .setUseVersioning(this.isUsingBuildIdForVersioning())
+        .build();
   }
 }

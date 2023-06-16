@@ -24,8 +24,10 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
@@ -35,6 +37,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -57,10 +60,12 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
-      @Nullable String binaryChecksum,
+      @Nullable String buildId,
+      boolean useBuildIdForVersioning,
       @Nonnull Semaphore workflowTaskExecutorSemaphore,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
-      @Nonnull Scope workerMetricsScope) {
+      @Nonnull Scope workerMetricsScope,
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
     this.workflowTaskExecutorSemaphore = Objects.requireNonNull(workflowTaskExecutorSemaphore);
     this.stickyQueueBalancer = Objects.requireNonNull(stickyQueueBalancer);
     this.metricsScope = Objects.requireNonNull(workerMetricsScope);
@@ -77,8 +82,17 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     PollWorkflowTaskQueueRequest.Builder pollRequestBuilder =
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(Objects.requireNonNull(namespace))
-            .setIdentity(Objects.requireNonNull(identity))
-            .setBinaryChecksum(binaryChecksum);
+            .setIdentity(Objects.requireNonNull(identity));
+
+    if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+      pollRequestBuilder.setWorkerVersionCapabilities(
+          WorkerVersionCapabilities.newBuilder()
+              .setBuildId(buildId)
+              .setUseVersioning(useBuildIdForVersioning)
+              .build());
+    } else {
+      pollRequestBuilder.setBinaryChecksum(buildId);
+    }
 
     this.pollRequest =
         pollRequestBuilder
@@ -98,6 +112,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
                 TaskQueue.newBuilder()
                     .setName(stickyTaskQueue)
                     .setKind(TaskQueueKind.TASK_QUEUE_KIND_STICKY)
+                    .setNormalName(taskQueue)
                     .build())
             .build();
   }

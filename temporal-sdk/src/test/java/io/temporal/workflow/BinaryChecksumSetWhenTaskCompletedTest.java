@@ -32,6 +32,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Rule;
@@ -43,8 +44,8 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowClientOptions(
-              WorkflowClientOptions.newBuilder().setBinaryChecksum(BINARY_CHECKSUM).build())
+          .setWorkflowClientOptions(WorkflowClientOptions.newBuilder().build())
+          .setWorkerOptions(WorkerOptions.newBuilder().setBuildId(BINARY_CHECKSUM).build())
           .setWorkflowTypes(SimpleTestWorkflow.class)
           .build();
 
@@ -60,9 +61,20 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
         testWorkflowRule.getHistoryEvent(
             execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
     assertNotNull(completionEvent);
-    assertEquals(
-        BINARY_CHECKSUM,
-        completionEvent.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum());
+    // The build id needs to either show up in the old binary checksum, if server is older,
+    // or the worker versioning stamp.
+    String inBinaryChecksum =
+        completionEvent.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum();
+    if (!inBinaryChecksum.isEmpty()) {
+      assertEquals(BINARY_CHECKSUM, inBinaryChecksum);
+    } else {
+      assertEquals(
+          BINARY_CHECKSUM,
+          completionEvent
+              .getWorkflowTaskCompletedEventAttributes()
+              .getWorkerVersion()
+              .getBuildId());
+    }
   }
 
   public static class SimpleTestWorkflow implements TestWorkflow1 {

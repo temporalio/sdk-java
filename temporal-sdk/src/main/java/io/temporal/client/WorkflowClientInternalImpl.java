@@ -30,6 +30,9 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.workflowservice.v1.GetWorkerBuildIdCompatibilityRequest;
+import io.temporal.api.workflowservice.v1.GetWorkerBuildIdCompatibilityResponse;
+import io.temporal.api.workflowservice.v1.UpdateWorkerBuildIdCompatibilityRequest;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
@@ -310,6 +313,28 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .addAllEvents(streamHistory(workflowId, runId).collect(Collectors.toList()))
             .build(),
         workflowId);
+  }
+
+  @Override
+  public void updateWorkerBuildIdCompatability(
+      @Nonnull String taskQueue, @Nonnull BuildIdOperation operation) {
+    UpdateWorkerBuildIdCompatibilityRequest.Builder reqBuilder =
+        UpdateWorkerBuildIdCompatibilityRequest.newBuilder()
+            .setTaskQueue(taskQueue)
+            .setNamespace(options.getNamespace());
+    operation.augmentBuilder(reqBuilder);
+    genericClient.updateWorkerBuildIdCompatability(reqBuilder.build());
+  }
+
+  @Override
+  public WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue) {
+    GetWorkerBuildIdCompatibilityRequest req =
+        GetWorkerBuildIdCompatibilityRequest.newBuilder()
+            .setTaskQueue(taskQueue)
+            .setNamespace(options.getNamespace())
+            .build();
+    GetWorkerBuildIdCompatibilityResponse resp = genericClient.getWorkerBuildIdCompatability(req);
+    return new WorkerBuildIdVersionSets(resp);
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {

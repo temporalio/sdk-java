@@ -20,7 +20,10 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
+
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
@@ -102,6 +105,10 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             localActivityOptions.getWorkerInterceptors(),
             localActivityOptions.getContextPropagators());
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
+    TaskQueue stickyTaskQueue = null;
+    if (stickyTaskQueueName != null) {
+      stickyTaskQueue = createStickyTaskQueue(stickyTaskQueueName, taskQueue);
+    }
 
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
@@ -109,7 +116,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             factory,
             cache,
             singleWorkerOptions,
-            stickyTaskQueueName,
+            stickyTaskQueue,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
             service,
             laWorker.getLocalActivityScheduler());

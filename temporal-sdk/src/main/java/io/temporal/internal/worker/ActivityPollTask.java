@@ -24,8 +24,10 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 
 import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -33,7 +35,9 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,32 +45,25 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   private final WorkflowServiceStubs service;
-  private final String namespace;
-  private final String taskQueue;
-  private final String identity;
-  private final double activitiesPerSecond;
   private final Semaphore pollSemaphore;
   private final Scope metricsScope;
+  private final PollActivityTaskQueueRequest pollRequest;
 
   public ActivityPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
+      @Nullable String buildId,
+      boolean useBuildIdForVersioning,
       double activitiesPerSecond,
       Semaphore pollSemaphore,
-      @Nonnull Scope metricsScope) {
+      @Nonnull Scope metricsScope,
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
     this.service = Objects.requireNonNull(service);
-    this.namespace = Objects.requireNonNull(namespace);
-    this.taskQueue = Objects.requireNonNull(taskQueue);
-    this.identity = Objects.requireNonNull(identity);
-    this.activitiesPerSecond = activitiesPerSecond;
     this.pollSemaphore = pollSemaphore;
     this.metricsScope = Objects.requireNonNull(metricsScope);
-  }
 
-  @Override
-  public ActivityTask poll() {
     PollActivityTaskQueueRequest.Builder pollRequest =
         PollActivityTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
@@ -79,6 +76,18 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               .build());
     }
 
+    if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+      pollRequest.setWorkerVersionCapabilities(
+          WorkerVersionCapabilities.newBuilder()
+              .setBuildId(buildId)
+              .setUseVersioning(useBuildIdForVersioning)
+              .build());
+    }
+    this.pollRequest = pollRequest.build();
+  }
+
+  @Override
+  public ActivityTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
@@ -97,7 +106,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
           service
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-              .pollActivityTaskQueue(pollRequest.build());
+              .pollActivityTaskQueue(pollRequest);
 
       if (response == null || response.getTaskToken().isEmpty()) {
         metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);

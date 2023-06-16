@@ -21,7 +21,6 @@
 package io.temporal.testing.internal;
 
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
-import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -75,22 +74,22 @@ public class TestServiceUtils {
   }
 
   public static void respondWorkflowTaskCompletedWithSticky(
-      ByteString taskToken, String stickyTaskqueueName, WorkflowServiceStubs service)
+      ByteString taskToken, TaskQueue stickyTaskQueue, WorkflowServiceStubs service)
       throws Exception {
     respondWorkflowTaskCompletedWithSticky(
-        taskToken, stickyTaskqueueName, Duration.ofSeconds(100), service);
+        taskToken, stickyTaskQueue, Duration.ofSeconds(100), service);
   }
 
   public static void respondWorkflowTaskCompletedWithSticky(
       ByteString taskToken,
-      String stickyTaskqueueName,
+      TaskQueue stickyTaskQueue,
       Duration startToCloseTimeout,
       WorkflowServiceStubs service)
       throws Exception {
     RespondWorkflowTaskCompletedRequest.Builder request =
         RespondWorkflowTaskCompletedRequest.newBuilder();
     StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
-    attributes.setWorkerTaskQueue(createStickyTaskQueue(stickyTaskqueueName));
+    attributes.setWorkerTaskQueue(stickyTaskQueue);
     attributes.setScheduleToStartTimeout(ProtobufTimeUtils.toProtoDuration(startToCloseTimeout));
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
