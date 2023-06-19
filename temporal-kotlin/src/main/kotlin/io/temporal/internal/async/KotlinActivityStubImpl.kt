@@ -29,13 +29,18 @@ internal class KotlinActivityStubImpl(
   private val activityExecutor: WorkflowOutboundCallsInterceptor
 ) : KotlinActivityStub {
 
-  private val options: ActivityOptions = ActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
+  private val options: ActivityOptions = ActivityOptions.newBuilder(options).validateAndBuildWithDefaults()
 
   override suspend fun <R> execute(activityName: String, resultClass: Class<R>, vararg args: Any): R? {
     return activityExecutor
       .executeActivity(
         WorkflowOutboundCallsInterceptor.ActivityInput(
-          activityName, resultClass, resultClass, args, options, Header.empty()
+          activityName,
+          resultClass,
+          resultClass,
+          args,
+          options,
+          Header.empty()
         )
       ).result
   }
@@ -49,7 +54,12 @@ internal class KotlinActivityStubImpl(
     return activityExecutor
       .executeActivity(
         WorkflowOutboundCallsInterceptor.ActivityInput(
-          activityName, resultClass, resultType, args, options, Header.empty()
+          activityName,
+          resultClass,
+          resultType,
+          args,
+          options,
+          Header.empty()
         )
       ).result
   }

@@ -22,7 +22,6 @@ package io.temporal.internal.client;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.BaseWorkerFactory;
-import io.temporal.worker.WorkerFactory;
 
 /**
  * From OOP point of view, there is no reason for this interface not to extend {@link

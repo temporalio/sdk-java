@@ -8,12 +8,10 @@ import io.temporal.api.query.v1.WorkflowQuery
 import io.temporal.client.WorkflowClient
 import io.temporal.common.context.ContextPropagator
 import io.temporal.common.converter.DataConverter
-import io.temporal.common.converter.DefaultDataConverter
 import io.temporal.internal.replay.ReplayWorkflow
 import io.temporal.internal.replay.ReplayWorkflowContext
 import io.temporal.internal.replay.WorkflowContext
 import io.temporal.internal.statemachines.UpdateProtocolCallback
-import io.temporal.internal.sync.*
 import io.temporal.internal.worker.WorkflowExecutorCache
 import io.temporal.worker.WorkflowImplementationOptions
 import kotlinx.coroutines.async
@@ -49,22 +47,27 @@ class KotlinWorkflow(
 
   private val dispatcher = TemporalCoroutineDispatcher()
   private val coroutineDispatcher = TemporalCallbackCoroutineDispatcher(dispatcher)
-  private val scope = TemporalScope()
+  private val scope = TemporalScope(workflowContext)
 
   private var executionHandler: KotlinWorkflowExecutionHandler? = null
 
   override fun start(event: HistoryEvent, context: ReplayWorkflowContext) {
     require(
-      !(event.eventType != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
-        || !event.hasWorkflowExecutionStartedEventAttributes())
+      !(
+        event.eventType != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED ||
+          !event.hasWorkflowExecutionStartedEventAttributes()
+        )
     ) { "first event is not WorkflowExecutionStarted, but " + event.eventType }
     val startEvent = event.workflowExecutionStartedEventAttributes
     val workflowType = startEvent.workflowType
     requireNotNull(workflow) { "Unknown workflow type: $workflowType" }
-    workflowContext!!.setReplayContext(context)
+    workflowContext.setReplayContext(context)
 
     executionHandler = KotlinWorkflowExecutionHandler(
-      workflowContext, workflow, startEvent, workflowImplementationOptions!!
+      workflowContext,
+      workflow,
+      startEvent,
+      workflowImplementationOptions!!
     )
     // The following order is ensured by this code and DeterministicRunner implementation:
     // 1. workflow.initialize
@@ -97,8 +100,8 @@ class KotlinWorkflow(
     if (executionHandler == null) {
       return false
     }
-    dispatcher!!.eventLoop(defaultDeadlockDetectionTimeout)
-    return dispatcher!!.isDone() || executionHandler!!.isDone // Do not wait for all other threads.
+    dispatcher.eventLoop(defaultDeadlockDetectionTimeout)
+    return dispatcher.isDone() || executionHandler!!.isDone // Do not wait for all other threads.
   }
 
   override fun getOutput(): Optional<Payloads> {
@@ -112,8 +115,8 @@ class KotlinWorkflow(
 
   override fun close() {
     if (executionHandler != null) {
-      //TODO: Validate that cancel is the right operation to call here
-      dispatcher!!.cancel()
+      // TODO: Validate that cancel is the right operation to call here
+      dispatcher.cancel()
     }
   }
 
@@ -127,7 +130,7 @@ class KotlinWorkflow(
       TODO("Implement stack trace if possible")
 //      return DefaultDataConverter.STANDARD_INSTANCE.toPayloads(runner!!.stackTrace())
     }
-    val args = if (query.hasQueryArgs()) Optional.of(query.queryArgs) else Optional.empty()
+//    val args = if (query.hasQueryArgs()) Optional.of(query.queryArgs) else Optional.empty()
     TODO("Implement query")
 //    return executionHandler!!.handleQuery(query.queryType, args)
   }

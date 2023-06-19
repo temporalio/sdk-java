@@ -22,11 +22,11 @@ package io.temporal.kotlin.interceptors
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor
 
 class WorkerInterceptorBase : KotlinWorkerInterceptor {
-    override fun interceptWorkflow(next: WorkflowInboundCallsInterceptor): WorkflowInboundCallsInterceptor {
-        return next
-    }
+  override fun interceptWorkflow(next: WorkflowInboundCallsInterceptor): WorkflowInboundCallsInterceptor {
+    return next
+  }
 
-    override fun interceptActivity(next: ActivityInboundCallsInterceptor): ActivityInboundCallsInterceptor {
-        return next
-    }
+  override fun interceptActivity(next: ActivityInboundCallsInterceptor): ActivityInboundCallsInterceptor {
+    return next
+  }
 }

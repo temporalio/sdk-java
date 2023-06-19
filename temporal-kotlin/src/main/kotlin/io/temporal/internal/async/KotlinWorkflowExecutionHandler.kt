@@ -109,8 +109,8 @@ internal class KotlinWorkflowExecutionHandler(
     val fullReplayDirectQueryName = replayWorkflowContext.fullReplayDirectQueryName
     val info = Workflow.getInfo()
     if (fullReplayDirectQueryName != null) {
-      if (log.isDebugEnabled
-        && !requestedCancellation(replayWorkflowContext.isCancelRequested, exception)
+      if (log.isDebugEnabled &&
+        !requestedCancellation(replayWorkflowContext.isCancelRequested, exception)
       ) {
         log.debug(
           "Replayed workflow execution failure WorkflowId='{}', RunId={}, WorkflowType='{}' for direct query QueryType='{}'",
@@ -122,8 +122,8 @@ internal class KotlinWorkflowExecutionHandler(
         )
       }
     } else {
-      if (log.isWarnEnabled
-        && !requestedCancellation(replayWorkflowContext.isCancelRequested, exception)
+      if (log.isWarnEnabled &&
+        !requestedCancellation(replayWorkflowContext.isCancelRequested, exception)
       ) {
         log.warn(
           "Workflow execution failure WorkflowId='{}', RunId={}, WorkflowType='{}'",

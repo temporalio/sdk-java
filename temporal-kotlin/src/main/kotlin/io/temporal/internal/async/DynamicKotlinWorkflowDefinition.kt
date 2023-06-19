@@ -53,7 +53,7 @@ internal class DynamicKotlinWorkflowDefinition(
     val result = workflowInvoker!!.execute(
       WorkflowInboundCallsInterceptor.WorkflowInput(header!!, arrayOf(args))
     )
-    return dataConverter.toPayloads(result!!.result).orElse(null)
+    return dataConverter.toPayloads(result.result).orElse(null)
   }
 
   internal inner class RootWorkflowInboundCallsInterceptor(workflowContext: KotlinWorkflowContext?) :
@@ -63,7 +63,7 @@ internal class DynamicKotlinWorkflowDefinition(
     private var workflow: KotlinDynamicWorkflow? = null
 
     override suspend fun init(outboundCalls: WorkflowOutboundCallsInterceptor) {
-      super.init(outboundCalls!!)
+      super.init(outboundCalls)
       newInstance()
       WorkflowInternal.registerListener(workflow)
     }

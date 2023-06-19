@@ -47,5 +47,5 @@ import io.temporal.common.converter.EncodedValues
  * @see io.temporal.activity.DynamicActivity
  */
 interface KotlinDynamicWorkflow {
-    suspend fun execute(args: EncodedValues): Any?
+  suspend fun execute(args: EncodedValues): Any?
 }

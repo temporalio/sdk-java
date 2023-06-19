@@ -1,7 +1,10 @@
 package io.temporal.internal.async
 
-import kotlinx.coroutines.*
-import java.lang.Runnable
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Delay
+import kotlinx.coroutines.InternalCoroutinesApi
 import java.util.*
 import java.util.concurrent.DelayQueue
 import java.util.concurrent.Delayed
@@ -9,10 +12,11 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
+@Suppress("UNUSED_PARAMETER")
 @OptIn(InternalCoroutinesApi::class)
 class TemporalCoroutineDispatcher : CoroutineDispatcher(), Delay {
 
-  private val queue: Queue<Runnable> = LinkedList()
+  private val queue: java.util.Queue<Runnable> = LinkedList()
   private val callbackQueue: Queue<Runnable> = LinkedList()
   private val delayQueue: DelayQueue<DelayedContinuation> = DelayQueue()
 
@@ -24,7 +28,7 @@ class TemporalCoroutineDispatcher : CoroutineDispatcher(), Delay {
     callbackQueue.add(block)
   }
 
-  //TODO: deadlock detector
+  // TODO: deadlock detector
   fun eventLoop(defaultDeadlockDetectionTimeout: Long): Boolean {
 //        println("eventLoop begin")
     if (isDone()) {
@@ -94,7 +98,7 @@ class TemporalCallbackCoroutineDispatcher(val dispatcher: TemporalCoroutineDispa
 }
 
 internal class TemporalScope(private val workflowContext: KotlinWorkflowContext) : CoroutineScope {
-  //TODO: Add argument to the Temporal context.
+  // TODO: Add argument to the Temporal context.
   override val coroutineContext: CoroutineContext = TemporalCoroutineContext(workflowContext)
 
   // CoroutineScope is used intentionally for user-friendly representation

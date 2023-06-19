@@ -45,56 +45,55 @@ import io.temporal.common.interceptors.Header
  */
 @Experimental
 interface WorkflowInboundCallsInterceptor {
-    class WorkflowInput(val header: Header?, val arguments: Array<Any>)
-    class WorkflowOutput(val result: Any?)
-    class SignalInput(val signalName: String, val arguments: Array<Any>, val eventId: Long)
-    class QueryInput(val queryName: String, val arguments: Array<Any>)
-    class QueryOutput(val result: Any)
+  class WorkflowInput(val header: Header?, val arguments: Array<Any>)
+  class WorkflowOutput(val result: Any?)
+  class SignalInput(val signalName: String, val arguments: Array<Any>, val eventId: Long)
+  class QueryInput(val queryName: String, val arguments: Array<Any>)
+  class QueryOutput(val result: Any)
 
-    @Experimental
-    class UpdateInput(val updateName: String, val arguments: Array<Any>)
+  @Experimental
+  class UpdateInput(val updateName: String, val arguments: Array<Any>)
 
-    @Experimental
-    class UpdateOutput(val result: Any)
+  @Experimental
+  class UpdateOutput(val result: Any)
 
-    /**
-     * Called when workflow class is instantiated. May create a [ ] instance. The instance must forward all the calls to `outboundCalls`, but it may change the input parameters.
-     *
-     *
-     * The instance should be passed into the {next.init(newWorkflowOutboundCallsInterceptor)}.
-     *
-     * @param outboundCalls an existing interceptor instance to be proxied by the interceptor created
-     * inside this method
-     * @see KotlinWorkerInterceptor.interceptWorkflow for the definition of "next" {@link
-     * *     WorkflowInboundCallsInterceptor}
-     */
-    suspend fun init(outboundCalls: WorkflowOutboundCallsInterceptor)
+  /**
+   * Called when workflow class is instantiated. May create a [ ] instance. The instance must forward all the calls to `outboundCalls`, but it may change the input parameters.
+   *
+   *
+   * The instance should be passed into the {next.init(newWorkflowOutboundCallsInterceptor)}.
+   *
+   * @param outboundCalls an existing interceptor instance to be proxied by the interceptor created
+   * inside this method
+   * @see KotlinWorkerInterceptor.interceptWorkflow for the definition of "next" {@link
+   * *     WorkflowInboundCallsInterceptor}
+   */
+  suspend fun init(outboundCalls: WorkflowOutboundCallsInterceptor)
 
-    /**
-     * Called when workflow main method is called.
-     *
-     * @return result of the workflow execution.
-     */
-    suspend fun execute(input: WorkflowInput): WorkflowOutput
+  /**
+   * Called when workflow main method is called.
+   *
+   * @return result of the workflow execution.
+   */
+  suspend fun execute(input: WorkflowInput): WorkflowOutput
 
-    /** Called when signal is delivered to a workflow execution.  */
-    suspend fun handleSignal(input: SignalInput)
+  /** Called when signal is delivered to a workflow execution.  */
+  suspend fun handleSignal(input: SignalInput)
 
-    /** Called when a workflow is queried.  */
-    fun handleQuery(input: QueryInput): QueryOutput
+  /** Called when a workflow is queried.  */
+  fun handleQuery(input: QueryInput): QueryOutput
 
-    /**
-     * Called when update workflow execution request is delivered to a workflow execution, before the
-     * update is executed.
-     */
-    @Experimental
-    fun validateUpdate(input: UpdateInput)
+  /**
+   * Called when update workflow execution request is delivered to a workflow execution, before the
+   * update is executed.
+   */
+  @Experimental
+  fun validateUpdate(input: UpdateInput)
 
-    /**
-     * Called when update workflow execution request is delivered to a workflow execution, after
-     * passing the validator.
-     */
-    @Experimental
-    suspend fun executeUpdate(input: UpdateInput): UpdateOutput
-
+  /**
+   * Called when update workflow execution request is delivered to a workflow execution, after
+   * passing the validator.
+   */
+  @Experimental
+  suspend fun executeUpdate(input: UpdateInput): UpdateOutput
 }

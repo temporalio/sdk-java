@@ -1,6 +1,5 @@
 package io.temporal.internal.async
 
-import com.google.common.base.MoreObjects
 import com.uber.m3.tally.Scope
 import io.temporal.activity.ActivityOptions
 import io.temporal.activity.LocalActivityOptions
@@ -29,6 +28,7 @@ import io.temporal.payload.context.ActivitySerializationContext
 import io.temporal.payload.context.WorkflowSerializationContext
 import io.temporal.worker.WorkflowImplementationOptions
 import io.temporal.workflow.Functions
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.slf4j.LoggerFactory
 import java.lang.reflect.Type
@@ -78,7 +78,6 @@ class KotlinWorkflowContext(
     // SyncWorkflow#start(HistoryEvent, ReplayWorkflowContext)
     headInboundInterceptor = InitialWorkflowInboundCallsInterceptor(this)
     headOutboundInterceptor = this
-
   }
 
   private val dataConverterWithCurrentWorkflowContext = dataConverter.withContext(
@@ -107,7 +106,7 @@ class KotlinWorkflowContext(
 
   fun initHeadInboundCallsInterceptor(head: WorkflowInboundCallsInterceptor) {
     headInboundInterceptor = head
-    //TODO: signal, query, update dispatchers
+    // TODO: signal, query, update dispatchers
 //    signalDispatcher.setInboundCallsInterceptor(head)
 //    queryDispatcher.setInboundCallsInterceptor(head)
 //    updateDispatcher.setInboundCallsInterceptor(head)
@@ -116,7 +115,6 @@ class KotlinWorkflowContext(
   override fun mapWorkflowExceptionToFailure(failure: Throwable): Failure {
     return dataConverterWithCurrentWorkflowContext.exceptionToFailure(failure)
   }
-
 
   override fun getWorkflowImplementationOptions(): WorkflowImplementationOptions {
     return workflowImplementationOptions!!
@@ -136,13 +134,17 @@ class KotlinWorkflowContext(
       return
     }
     ActivityOptionUtils.mergePredefinedLocalActivityOptions(
-      localActivityOptionsMap!!, activityTypeToOption
+      localActivityOptionsMap!!,
+      activityTypeToOption
     )
   }
 
   override fun <R : Any?> getLastCompletionResult(resultClass: Class<R>, resultType: Type): R? {
     return dataConverter.fromPayloads(
-      0, Optional.ofNullable(replayContext.lastCompletionResult), resultClass, resultType
+      0,
+      Optional.ofNullable(replayContext.lastCompletionResult),
+      resultClass,
+      resultType
     )
   }
 
@@ -172,16 +174,23 @@ class KotlinWorkflowContext(
       input.activityName,
       // input.getOptions().getTaskQueue() may be not specified, workflow task queue is used
       // by the Server in this case
-      if (input.options != null && input.options.taskQueue != null) input.options.taskQueue else replayContext.taskQueue,
+      if (input.options.taskQueue != null) input.options.taskQueue else replayContext.taskQueue,
       false
     )
     val dataConverterWithActivityContext = dataConverter.withContext(serializationContext)
     val args = dataConverterWithActivityContext.toPayloads(*input.args)
     try {
       val output = executeActivityOnce(input.activityName, input.options, input.header, args)
-      val result = if (input.resultType !== Void.TYPE) dataConverterWithActivityContext.fromPayloads(
-        0, Optional.of(output.result), input.resultClass, input.resultType
-      ) else null
+      val result = if (input.resultType !== Void.TYPE) {
+        dataConverterWithActivityContext.fromPayloads(
+          0,
+          Optional.of(output.result),
+          input.resultClass,
+          input.resultType
+        )
+      } else {
+        null
+      }
       return WorkflowOutboundCallsInterceptor.ActivityOutput(output.activityId, result)
     } catch (e: FailureWrapperException) {
       throw dataConverterWithActivityContext.failureToException(e.failure)
@@ -197,7 +206,6 @@ class KotlinWorkflowContext(
   }
 
   override fun newRandom(): Random = replayContext.newRandom()
-
 
   override suspend fun signalExternalWorkflow(input: WorkflowOutboundCallsInterceptor.SignalExternalInput): WorkflowOutboundCallsInterceptor.SignalExternalOutput {
     TODO("Not yet implemented")
@@ -233,7 +241,7 @@ class KotlinWorkflowContext(
     TODO("Not yet implemented")
   }
 
-  override fun getVersion(changeId: String?, minSupported: Int, maxSupported: Int): Int {
+  override fun getVersion(changeId: String, minSupported: Int, maxSupported: Int): Int {
     TODO("Not yet implemented")
   }
 
@@ -253,7 +261,7 @@ class KotlinWorkflowContext(
     TODO("Not yet implemented")
   }
 
-  override fun registerDynamicSignalHandler(handler: WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput) {
+  override fun registerDynamicSignalHandler(input: WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput) {
     TODO("Not yet implemented")
   }
 
@@ -273,7 +281,7 @@ class KotlinWorkflowContext(
     TODO("Not yet implemented")
   }
 
-  override fun upsertTypedSearchAttributes(vararg searchAttributeUpdates: SearchAttributeUpdate<*>) {
+  override fun upsertTypedSearchAttributes(searchAttributeUpdates: List<SearchAttributeUpdate<*>>) {
     TODO("Not yet implemented")
   }
 
@@ -284,8 +292,12 @@ class KotlinWorkflowContext(
   val metricScope: Scope
     get() = replayContext.metricsScope
 
+  @OptIn(ExperimentalCoroutinesApi::class)
   private suspend fun executeActivityOnce(
-    activityTypeName: String, options: ActivityOptions, header: Header, input: Optional<Payloads>
+    activityTypeName: String,
+    options: ActivityOptions,
+    header: Header,
+    input: Optional<Payloads>
   ): ActivityOutput<Payloads> {
     val params: ExecuteActivityParameters = constructExecuteActivityParameters(activityTypeName, options, header, input)
 
@@ -295,7 +307,7 @@ class KotlinWorkflowContext(
         params
       ) { output: Optional<Payloads>, failure: Failure? ->
         if (failure == null) {
-          continuation.resume(ActivityOutput(activityId!!, output.get()), onCancellation = null);
+          continuation.resume(ActivityOutput(activityId!!, output.get()), onCancellation = null)
         } else {
           continuation.resumeWithException(FailureWrapperException(failure))
         }
@@ -310,7 +322,10 @@ class KotlinWorkflowContext(
 
   // TODO: this is copy of the similar method in SyncWorkflowContext. Extract to common class.
   private fun constructExecuteActivityParameters(
-    name: String, options: ActivityOptions, header: Header, input: Optional<Payloads>
+    name: String,
+    options: ActivityOptions,
+    header: Header,
+    input: Optional<Payloads>
   ): ExecuteActivityParameters {
     var taskQueue = options.taskQueue
     if (taskQueue == null) {
@@ -387,8 +402,8 @@ class KotlinWorkflowContext(
     BaseRootKotlinWorkflowInboundCallsInterceptor(workflowContext) {
     override suspend fun execute(input: WorkflowInboundCallsInterceptor.WorkflowInput): WorkflowInboundCallsInterceptor.WorkflowOutput {
       throw UnsupportedOperationException(
-        "SyncWorkflowContext should be initialized with a non-initial WorkflowInboundCallsInterceptor "
-          + "before #execute can be called"
+        "SyncWorkflowContext should be initialized with a non-initial WorkflowInboundCallsInterceptor " +
+          "before #execute can be called"
       )
     }
   }

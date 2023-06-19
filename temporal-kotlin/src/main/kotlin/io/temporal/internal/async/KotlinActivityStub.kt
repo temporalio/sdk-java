@@ -19,7 +19,6 @@
  */
 package io.temporal.internal.async
 
-import io.temporal.workflow.Promise
 import java.lang.reflect.Type
 
 /**
@@ -28,29 +27,29 @@ import java.lang.reflect.Type
  * implemented in other languages. Created through [Workflow.newActivityStub].
  */
 interface KotlinActivityStub {
-    /**
-     * Executes an activity by its type name and arguments. Blocks until the activity completion.
-     *
-     * @param activityName name of an activity type to execute.
-     * @param resultClass the expected return type of the activity. Use Void.class for activities that
-     * return void type.
-     * @param args arguments of the activity.
-     * @param <R> return type.
-     * @return an activity result.
-    </R> */
-    suspend fun <R> execute(activityName: String, resultClass: Class<R>, vararg args: Any): R?
+  /**
+   * Executes an activity by its type name and arguments. Blocks until the activity completion.
+   *
+   * @param activityName name of an activity type to execute.
+   * @param resultClass the expected return type of the activity. Use Void.class for activities that
+   * return void type.
+   * @param args arguments of the activity.
+   * @param <R> return type.
+   * @return an activity result.
+   </R> */
+  suspend fun <R> execute(activityName: String, resultClass: Class<R>, vararg args: Any): R?
 
-    /**
-     * Executes an activity by its type name and arguments. Blocks until the activity completion.
-     *
-     * @param activityName name of an activity type to execute.
-     * @param resultClass the expected return class of the activity. Use Void.class for activities
-     * that return void type.
-     * @param resultType the expected return type of the activity. Differs from resultClass for
-     * generic types.
-     * @param args arguments of the activity.
-     * @param <R> return type.
-     * @return an activity result.
-    </R> */
-    suspend fun <R> execute(activityName: String, resultClass: Class<R>, resultType: Type, vararg args: Any): R?
+  /**
+   * Executes an activity by its type name and arguments. Blocks until the activity completion.
+   *
+   * @param activityName name of an activity type to execute.
+   * @param resultClass the expected return class of the activity. Use Void.class for activities
+   * that return void type.
+   * @param resultType the expected return type of the activity. Differs from resultClass for
+   * generic types.
+   * @param args arguments of the activity.
+   * @param <R> return type.
+   * @return an activity result.
+   </R> */
+  suspend fun <R> execute(activityName: String, resultClass: Class<R>, resultType: Type, vararg args: Any): R?
 }

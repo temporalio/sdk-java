@@ -44,7 +44,9 @@ import io.temporal.kotlin.interceptors.WorkflowOutboundCallsInterceptor
 import io.temporal.kotlin.workflow.KotlinDynamicWorkflow
 import io.temporal.payload.context.WorkflowSerializationContext
 import io.temporal.serviceclient.CheckedExceptionWrapper
-import io.temporal.worker.*
+import io.temporal.worker.TypeAlreadyRegisteredException
+import io.temporal.worker.WorkerOptions
+import io.temporal.worker.WorkflowImplementationOptions
 import io.temporal.workflow.DynamicWorkflow
 import io.temporal.workflow.Functions.Func
 import io.temporal.workflow.Functions.Func1
@@ -67,8 +69,8 @@ class KotlinWorkflowImplementationFactory(
 //    defaultDeadlockDetectionTimeout = workerOptions.defaultDeadlockDetectionTimeout
 //    namespace = clientOptions.namespace
 
-  //TODO: Kotlin specific interceptors.
-  private var workerInterceptors: Array<KotlinWorkerInterceptor> = emptyArray() //factoryOptions.workerInterceptors
+  // TODO: Kotlin specific interceptors.
+  private var workerInterceptors: Array<KotlinWorkerInterceptor> = emptyArray() // factoryOptions.workerInterceptors
   private var dataConverter: DataConverter = clientOptions.dataConverter
   private var contextPropagators: List<ContextPropagator> = clientOptions.contextPropagators
   private var defaultDeadlockDetectionTimeout: Long = workerOptions.defaultDeadlockDetectionTimeout
@@ -87,7 +89,8 @@ class KotlinWorkflowImplementationFactory(
   private val implementationOptions = Collections.synchronizedMap(HashMap<String, WorkflowImplementationOptions>())
 
   override fun registerWorkflowImplementationTypes(
-    options: WorkflowImplementationOptions, workflowImplementationTypes: Array<Class<*>>
+    options: WorkflowImplementationOptions,
+    workflowImplementationTypes: Array<Class<*>>
   ) {
     for (type in workflowImplementationTypes) {
       registerWorkflowImplementationType(options, type)
@@ -98,8 +101,11 @@ class KotlinWorkflowImplementationFactory(
    * @param clazz has to be a workflow interface class. The only exception is if it's a
    * DynamicWorkflow class.
    */
+
   override fun <R> addWorkflowImplementationFactory(
-    options: WorkflowImplementationOptions, clazz: Class<R>, factory: Func<R?>
+    options: WorkflowImplementationOptions,
+    clazz: Class<R>,
+    factory: Func<R?>
   ) {
     if (DynamicWorkflow::class.java.isAssignableFrom(clazz)) {
       if (dynamicWorkflowImplementationFactory != null) {
@@ -108,6 +114,7 @@ class KotlinWorkflowImplementationFactory(
           "An implementation of KotlinDynamicWorkflow or its factory is already registered with the worker"
         )
       }
+      @Suppress("UNCHECKED_CAST")
       dynamicWorkflowImplementationFactory = factory as Func<out KotlinDynamicWorkflow>
       return
     }
@@ -116,7 +123,7 @@ class KotlinWorkflowImplementationFactory(
     require(workflowMetadata.workflowMethod.isPresent) { "Workflow interface doesn't contain a method annotated with @WorkflowMethod: $clazz" }
     val methodsMetadata = workflowMetadata.methodsMetadata
     for (methodMetadata in methodsMetadata) {
-      when (methodMetadata.type) {
+      when (methodMetadata.type!!) {
         WorkflowMethodType.WORKFLOW -> {
           val typeName = methodMetadata.name
           if (workflowDefinitions.containsKey(typeName)) {
@@ -137,12 +144,17 @@ class KotlinWorkflowImplementationFactory(
           implementationOptions[typeName] = options
         }
         WorkflowMethodType.SIGNAL -> {}
+        WorkflowMethodType.NONE -> TODO()
+        WorkflowMethodType.QUERY -> TODO()
+        WorkflowMethodType.UPDATE -> TODO()
+        WorkflowMethodType.UPDATE_VALIDATOR -> TODO()
       }
     }
   }
 
   private fun <T> registerWorkflowImplementationType(
-    options: WorkflowImplementationOptions, workflowImplementationClass: Class<T>
+    options: WorkflowImplementationOptions,
+    workflowImplementationClass: Class<T>
   ) {
 //    if (KotlinDynamicWorkflow::class.java.isAssignableFrom(workflowImplementationClass)) {
 //      addWorkflowImplementationFactory<T>(
@@ -184,9 +196,11 @@ class KotlinWorkflowImplementationFactory(
     val workflowMetadata = POJOWorkflowImplMetadata.newInstance(workflowImplementationClass)
     val workflowMethods = workflowMetadata.workflowMethods
     require(!workflowMethods.isEmpty()) {
-      ("Workflow implementation doesn't implement any interface "
-        + "with a workflow method annotated with @WorkflowMethod: "
-        + workflowImplementationClass)
+      (
+        "Workflow implementation doesn't implement any interface " +
+          "with a workflow method annotated with @WorkflowMethod: " +
+          workflowImplementationClass
+        )
     }
     for (workflowMethod in workflowMethods) {
       val workflowName = workflowMethod.name
@@ -207,20 +221,23 @@ class KotlinWorkflowImplementationFactory(
   }
 
   private fun getWorkflowDefinition(
-    workflowType: WorkflowType, workflowExecution: WorkflowExecution
+    workflowType: WorkflowType,
+    workflowExecution: WorkflowExecution
   ): KotlinWorkflowDefinition {
     val factory = workflowDefinitions[workflowType.name]
     if (factory == null) {
       if (dynamicWorkflowImplementationFactory != null) {
         return DynamicKotlinWorkflowDefinition(
-          dynamicWorkflowImplementationFactory!!, workerInterceptors, dataConverter
+          dynamicWorkflowImplementationFactory!!,
+          workerInterceptors,
+          dataConverter
         )
       }
       throw Error(
-        "Unknown workflow type \""
-          + workflowType.name
-          + "\". Known types are "
-          + workflowDefinitions.keys
+        "Unknown workflow type \"" +
+          workflowType.name +
+          "\". Known types are " +
+          workflowDefinitions.keys
       )
     }
     return try {
@@ -231,13 +248,14 @@ class KotlinWorkflowImplementationFactory(
   }
 
   override fun getWorkflow(
-    workflowType: WorkflowType, workflowExecution: WorkflowExecution
+    workflowType: WorkflowType,
+    workflowExecution: WorkflowExecution
   ): ReplayWorkflow {
     val workflow = getWorkflowDefinition(workflowType, workflowExecution)
     val workflowImplementationOptions = implementationOptions[workflowType.name]
-    val dataConverterWithWorkflowContext = dataConverter.withContext(
-      WorkflowSerializationContext(namespace, workflowExecution.workflowId)
-    )
+//    val dataConverterWithWorkflowContext = dataConverter.withContext(
+    WorkflowSerializationContext(namespace, workflowExecution.workflowId)
+
     return KotlinWorkflow(
       namespace,
       workflowExecution,
@@ -277,15 +295,19 @@ class KotlinWorkflowImplementationFactory(
     @Throws(CanceledFailure::class, WorkflowExecutionException::class)
     override suspend fun execute(header: Header?, input: Payloads?): Payloads? {
       val args = dataConverterWithWorkflowContext.fromPayloads(
-        Optional.ofNullable(input), workflowMethod.parameterTypes, workflowMethod.genericParameterTypes
+        Optional.ofNullable(input),
+        workflowMethod.parameterTypes,
+        workflowMethod.genericParameterTypes
       )
       Preconditions.checkNotNull(workflowInvoker, "initialize not called")
       val result = workflowInvoker!!.execute(WorkflowInboundCallsInterceptor.WorkflowInput(header, args))
       return if (workflowMethod.returnType == Void.TYPE) {
         null
-      } else dataConverterWithWorkflowContext.toPayloads(
-        result.result
-      ).orElse(null)
+      } else {
+        dataConverterWithWorkflowContext.toPayloads(
+          result.result
+        ).orElse(null)
+      }
     }
 
     private inner class RootWorkflowInboundCallsInterceptor(workflowContext: KotlinWorkflowContext) :
@@ -320,26 +342,26 @@ class KotlinWorkflowImplementationFactory(
           } catch (e: NoSuchMethodException) {
             // Error to fail workflow task as this can be fixed by a new deployment.
             throw Error(
-              "Failure instantiating workflow implementation class "
-                + workflowImplementationClass.name,
+              "Failure instantiating workflow implementation class " +
+                workflowImplementationClass.name,
               e
             )
           } catch (e: InstantiationException) {
             throw Error(
-              "Failure instantiating workflow implementation class "
-                + workflowImplementationClass.name,
+              "Failure instantiating workflow implementation class " +
+                workflowImplementationClass.name,
               e
             )
           } catch (e: IllegalAccessException) {
             throw Error(
-              "Failure instantiating workflow implementation class "
-                + workflowImplementationClass.name,
+              "Failure instantiating workflow implementation class " +
+                workflowImplementationClass.name,
               e
             )
           } catch (e: InvocationTargetException) {
             throw Error(
-              "Failure instantiating workflow implementation class "
-                + workflowImplementationClass.name,
+              "Failure instantiating workflow implementation class " +
+                workflowImplementationClass.name,
               e
             )
           }
@@ -349,10 +371,12 @@ class KotlinWorkflowImplementationFactory(
   }
 
   override fun toString(): String {
-    return ("POJOWorkflowImplementationFactory{"
-      + "registeredWorkflowTypes="
-      + workflowDefinitions.keys
-      + '}')
+    return (
+      "POJOWorkflowImplementationFactory{" +
+        "registeredWorkflowTypes=" +
+        workflowDefinitions.keys +
+        '}'
+      )
   }
 
   companion object {
@@ -360,12 +384,18 @@ class KotlinWorkflowImplementationFactory(
     val WORKFLOW_HANDLER_STACKTRACE_CUTOFF = ImmutableSet.builder<String>() // POJO
       .add(
         ReflectionUtils.getMethodNameForStackTraceCutoff(
-          KotlinWorkflowImplementation::class.java, "execute", Header::class.java, Optional::class.java
+          KotlinWorkflowImplementation::class.java,
+          "execute",
+          Header::class.java,
+          Optional::class.java
         )
       ) // Dynamic
       .add(
         ReflectionUtils.getMethodNameForStackTraceCutoff(
-          DynamicKotlinWorkflowDefinition::class.java, "execute", Header::class.java, Optional::class.java
+          DynamicKotlinWorkflowDefinition::class.java,
+          "execute",
+          Header::class.java,
+          Optional::class.java
         )
       )
       .build()

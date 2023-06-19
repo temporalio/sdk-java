@@ -26,7 +26,6 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.WorkflowExecutorCache;
-
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;

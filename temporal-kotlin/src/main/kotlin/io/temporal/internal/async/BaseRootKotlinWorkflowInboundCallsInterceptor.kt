@@ -43,7 +43,6 @@ abstract class BaseRootKotlinWorkflowInboundCallsInterceptor(protected val workf
     //        workflowContext.handleInterceptedSignal(input)
   }
 
-
   override fun handleQuery(input: WorkflowInboundCallsInterceptor.QueryInput): WorkflowInboundCallsInterceptor.QueryOutput {
     TODO("Implement")
 //        return workflowContext.handleInterceptedQuery(input)

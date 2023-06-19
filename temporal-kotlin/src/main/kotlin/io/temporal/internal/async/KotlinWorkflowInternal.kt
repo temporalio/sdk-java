@@ -34,15 +34,17 @@ import java.util.*
 /**
  * Never reference directly. It is public only because Java doesn't have internal package support.
  */
-object KotlinWorkflowInternal {
-  const val DEFAULT_VERSION = -1
+class KotlinWorkflowInternal {
 
-  /**
-   * Register query or queries implementation object. There is no need to register top level
-   * workflow implementation object as it is done implicitly. Only methods annotated with @[ ] are registered. TODO(quinn) LIES!
-   */
-  fun registerListener(implementation: Any) {
-    TODO("Implement")
+  companion object {
+    const val DEFAULT_VERSION = -1
+
+    /**
+     * Register query or queries implementation object. There is no need to register top level
+     * workflow implementation object as it is done implicitly. Only methods annotated with @[ ] are registered. TODO(quinn) LIES!
+     */
+    fun registerListener(implementation: Any) {
+      TODO("Implement")
 //        if (implementation is DynamicSignalHandler) {
 //            workflowOutboundInterceptor
 //                .registerDynamicSignalHandler(
@@ -175,30 +177,30 @@ object KotlinWorkflowInternal {
 //            ("Missing update methods for update validator(s): "
 //                    + Joiner.on(", ").join(validators.keys))
 //        }
-  }
+    }
 
-  /** Should be used to get current time instead of [System.currentTimeMillis]  */
-  fun currentTimeMillis(): Long {
-    return workflowOutboundInterceptor.currentTimeMillis()
-  }
+    /** Should be used to get current time instead of [System.currentTimeMillis]  */
+    fun currentTimeMillis(): Long {
+      return workflowOutboundInterceptor.currentTimeMillis()
+    }
 
-  fun setDefaultActivityOptions(activityOptions: ActivityOptions?) {
-    rootWorkflowContext.defaultActivityOptions = activityOptions
-  }
+    fun setDefaultActivityOptions(activityOptions: ActivityOptions?) {
+      rootWorkflowContext.defaultActivityOptions = activityOptions
+    }
 
-  fun applyActivityOptions(activityTypeToOptions: Map<String, ActivityOptions>) {
-    rootWorkflowContext.applyActivityOptions(activityTypeToOptions)
-  }
+    fun applyActivityOptions(activityTypeToOptions: Map<String, ActivityOptions>) {
+      rootWorkflowContext.applyActivityOptions(activityTypeToOptions)
+    }
 
-  fun setDefaultLocalActivityOptions(localActivityOptions: LocalActivityOptions?) {
-    rootWorkflowContext.defaultLocalActivityOptions = localActivityOptions
-  }
+    fun setDefaultLocalActivityOptions(localActivityOptions: LocalActivityOptions?) {
+      rootWorkflowContext.defaultLocalActivityOptions = localActivityOptions
+    }
 
-  fun applyLocalActivityOptions(
-    activityTypeToOptions: Map<String, LocalActivityOptions>
-  ) {
-    rootWorkflowContext.applyLocalActivityOptions(activityTypeToOptions)
-  }
+    fun applyLocalActivityOptions(
+      activityTypeToOptions: Map<String, LocalActivityOptions>
+    ) {
+      rootWorkflowContext.applyLocalActivityOptions(activityTypeToOptions)
+    }
 
 //  /**
 //   * Creates client stub to activities that implement given interface.
@@ -207,41 +209,41 @@ object KotlinWorkflowInternal {
 //   * @param options options that together with the properties of [     ] specify the activity invocation parameters
 //   * @param activityMethodOptions activity method-specific invocation parameters
 //   */
-////  fun <T> newActivityStub(
-////    activityInterface: Class<T>?,
-////    options: ActivityOptions?,
-////    activityMethodOptions: Map<String?, ActivityOptions?>?
-////  ): T {
-////    // Merge the activity options we may have received from the workflow with the options we may
-////    // have received in WorkflowImplementationOptions.
-////    var options = options
-////    val context = rootWorkflowContext
-////    options = options ?: context.getDefaultActivityOptions()
-////    val mergedActivityOptionsMap: Map<String?, ActivityOptions?>
-////    @Nonnull val predefinedActivityOptions = context.getActivityOptions()
-////    if (activityMethodOptions != null && !activityMethodOptions.isEmpty()
-////      && predefinedActivityOptions.isEmpty()
-////    ) {
-////      // we need to merge only in this case
-////      mergedActivityOptionsMap = HashMap(predefinedActivityOptions)
-////      ActivityOptionUtils.mergePredefinedActivityOptions(
-////        mergedActivityOptionsMap, activityMethodOptions
-////      )
-////    } else {
-////      mergedActivityOptionsMap = MoreObjects.firstNonNull(
-////        activityMethodOptions,
-////        MoreObjects.firstNonNull(predefinedActivityOptions, emptyMap<String?, ActivityOptions>())
-////      )
-////    }
-////    val invocationHandler = ActivityInvocationHandler.newInstance(
-////      activityInterface,
-////      options,
-////      mergedActivityOptionsMap,
-////      context.getWorkflowOutboundInterceptor()
-////    )
-////    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler)
-////  }
-////
+// //  fun <T> newActivityStub(
+// //    activityInterface: Class<T>?,
+// //    options: ActivityOptions?,
+// //    activityMethodOptions: Map<String?, ActivityOptions?>?
+// //  ): T {
+// //    // Merge the activity options we may have received from the workflow with the options we may
+// //    // have received in WorkflowImplementationOptions.
+// //    var options = options
+// //    val context = rootWorkflowContext
+// //    options = options ?: context.getDefaultActivityOptions()
+// //    val mergedActivityOptionsMap: Map<String?, ActivityOptions?>
+// //    @Nonnull val predefinedActivityOptions = context.getActivityOptions()
+// //    if (activityMethodOptions != null && !activityMethodOptions.isEmpty()
+// //      && predefinedActivityOptions.isEmpty()
+// //    ) {
+// //      // we need to merge only in this case
+// //      mergedActivityOptionsMap = HashMap(predefinedActivityOptions)
+// //      ActivityOptionUtils.mergePredefinedActivityOptions(
+// //        mergedActivityOptionsMap, activityMethodOptions
+// //      )
+// //    } else {
+// //      mergedActivityOptionsMap = MoreObjects.firstNonNull(
+// //        activityMethodOptions,
+// //        MoreObjects.firstNonNull(predefinedActivityOptions, emptyMap<String?, ActivityOptions>())
+// //      )
+// //    }
+// //    val invocationHandler = ActivityInvocationHandler.newInstance(
+// //      activityInterface,
+// //      options,
+// //      mergedActivityOptionsMap,
+// //      context.getWorkflowOutboundInterceptor()
+// //    )
+// //    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler)
+// //  }
+// //
 //  /**
 //   * Creates client stub to local activities that implement given interface.
 //   *
@@ -284,9 +286,9 @@ object KotlinWorkflowInternal {
 //    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler)
 //  }
 
-  fun newUntypedActivityStub(options: ActivityOptions?): KotlinActivityStub {
-    return KotlinActivityStubImpl(options, workflowOutboundInterceptor)
-  }
+    fun newUntypedActivityStub(options: ActivityOptions?): KotlinActivityStub {
+      return KotlinActivityStubImpl(options, workflowOutboundInterceptor)
+    }
 
 //  fun newUntypedLocalActivityStub(options: LocalActivityOptions?): KotlinActivityStub {
 //    return LocalActivityStubImpl.newInstance(options, workflowOutboundInterceptor)
@@ -504,20 +506,19 @@ object KotlinWorkflowInternal {
 //    }
 //  }
 
-  val workflowInfo: KotlinWorkflowInfo
-    get() = KotlinWorkflowInfoImpl(rootWorkflowContext.getReplayContext())
+    val workflowInfo: KotlinWorkflowInfo
+      get() = KotlinWorkflowInfoImpl(rootWorkflowContext.getReplayContext())
 
-  val metricsScope: Scope
-    get() = rootWorkflowContext.metricScope
+    val metricsScope: Scope
+      get() = rootWorkflowContext.metricScope
 
+    fun randomUUID(): UUID {
+      return rootWorkflowContext.randomUUID()
+    }
 
-  fun randomUUID(): UUID {
-    return rootWorkflowContext.randomUUID()
-  }
-
-  fun newRandom(): Random {
-    return rootWorkflowContext.newRandom()
-  }
+    fun newRandom(): Random {
+      return rootWorkflowContext.newRandom()
+    }
 
 //  private val isLoggingEnabledInReplay: Boolean
 //    private get() = rootWorkflowContext.isLoggingEnabledInReplay()
@@ -582,38 +583,39 @@ object KotlinWorkflowInternal {
 //    workflowOutboundInterceptor.upsertTypedSearchAttributes(*searchAttributeUpdates)
 //  }
 
-  val dataConverter: DataConverter
-    get() = rootWorkflowContext.dataConverter
+    val dataConverter: DataConverter
+      get() = rootWorkflowContext.dataConverter
 
-  /**
-   * Name of the workflow type the interface defines. It is either the interface short name * or
-   * value of [WorkflowMethod.name] parameter.
-   *
-   * @param workflowInterfaceClass interface annotated with @WorkflowInterface
-   */
-  fun getWorkflowType(workflowInterfaceClass: Class<*>?): String {
-    val metadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterfaceClass)
-    return metadata.workflowType.get()
-  }
-
-  // Temporal Failure Values are additional user payload and serialized using user data
-  // converter
-  val previousRunFailure: Optional<Exception>
-    get() = Optional.ofNullable(rootWorkflowContext.getReplayContext().previousRunFailure) // Temporal Failure Values are additional user payload and serialized using user data
-      // converter
-      .map { f: Failure? ->
-        dataConverter.failureToException(
-          f!!
-        )
-      }
-
-  private val workflowOutboundInterceptor: WorkflowOutboundCallsInterceptor
-    private get() = rootWorkflowContext.getWorkflowOutboundInterceptor()
-
-  val rootWorkflowContext: KotlinWorkflowContext
-    get() {
-      val temporalCoroutineContext = coroutineContext[TemporalCoroutineContext]
-        ?: throw Error("Called from non workflow thread or coroutine")
-      return temporalCoroutineContext.workflowContext
+    /**
+     * Name of the workflow type the interface defines. It is either the interface short name * or
+     * value of [WorkflowMethod.name] parameter.
+     *
+     * @param workflowInterfaceClass interface annotated with @WorkflowInterface
+     */
+    fun getWorkflowType(workflowInterfaceClass: Class<*>?): String {
+      val metadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterfaceClass)
+      return metadata.workflowType.get()
     }
+
+    // Temporal Failure Values are additional user payload and serialized using user data
+    // converter
+    val previousRunFailure: Optional<Exception>
+      get() = Optional.ofNullable(rootWorkflowContext.getReplayContext().previousRunFailure) // Temporal Failure Values are additional user payload and serialized using user data
+        // converter
+        .map { f: Failure? ->
+          dataConverter.failureToException(
+            f!!
+          )
+        }
+
+    private val workflowOutboundInterceptor: WorkflowOutboundCallsInterceptor
+      private get() = rootWorkflowContext.getWorkflowOutboundInterceptor()
+
+    val rootWorkflowContext: KotlinWorkflowContext
+      get() {
+        val temporalCoroutineContext = coroutineContext[TemporalCoroutineContext]
+          ?: throw Error("Called from non workflow thread or coroutine")
+        return temporalCoroutineContext.workflowContext
+      }
+  }
 }

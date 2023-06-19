@@ -12,9 +12,9 @@ class KotlinWorkerFactory(workflowClient: WorkflowClient, factoryOptions: Kotlin
   override fun newReplayWorkflowFactory(
     workerOptions: WorkerOptions,
     clientOptions: WorkflowClientOptions,
-    cache: WorkflowExecutorCache,
+    cache: WorkflowExecutorCache
   ): ReplayWorkflowFactory {
-    return KotlinWorkflowImplementationFactory(clientOptions, workerOptions, cache);
+    return KotlinWorkflowImplementationFactory(clientOptions, workerOptions, cache)
   }
 }
 
@@ -25,5 +25,5 @@ fun toFactoryOptions(factoryOptions: KotlinWorkerFactoryOptions?): WorkerFactory
   return WorkerFactoryOptions.newBuilder()
     .setEnableLoggingInReplay(o.isEnableLoggingInReplay)
     .setWorkflowCacheSize(o.workflowCacheSize)
-    .build();
+    .build()
 }

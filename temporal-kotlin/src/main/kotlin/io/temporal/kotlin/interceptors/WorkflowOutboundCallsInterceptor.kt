@@ -25,8 +25,15 @@ import io.temporal.api.common.v1.WorkflowExecution
 import io.temporal.common.Experimental
 import io.temporal.common.SearchAttributeUpdate
 import io.temporal.common.interceptors.Header
-import io.temporal.workflow.*
-import io.temporal.workflow.Functions.*
+import io.temporal.workflow.ChildWorkflowOptions
+import io.temporal.workflow.ContinueAsNewOptions
+import io.temporal.workflow.DynamicQueryHandler
+import io.temporal.workflow.DynamicSignalHandler
+import io.temporal.workflow.DynamicUpdateHandler
+import io.temporal.workflow.Functions.Func
+import io.temporal.workflow.Functions.Func1
+import io.temporal.workflow.Functions.Proc1
+import io.temporal.workflow.Promise
 import java.lang.reflect.Type
 import java.time.Duration
 import java.util.*
@@ -146,30 +153,34 @@ interface WorkflowOutboundCallsInterceptor {
   suspend fun signalExternalWorkflow(input: SignalExternalInput): SignalExternalOutput
   fun cancelWorkflow(input: CancelWorkflowInput): CancelWorkflowOutput
 
-  //TODO: Consider removing sleep and keep only built in delay
+  // TODO: Consider removing sleep and keep only built in delay
   suspend fun sleep(duration: Duration)
   suspend fun await(timeout: Duration, reason: String?, unblockCondition: Supplier<Boolean?>): Boolean
   suspend fun await(reason: String?, unblockCondition: Supplier<Boolean?>)
   fun <R> sideEffect(resultClass: Class<R>, resultType: Type, func: Func<R?>): R?
   fun <R> mutableSideEffect(
-    id: String, resultClass: Class<R>, resultType: Type, updated: BiPredicate<R?, R?>, func: Func<R?>
+    id: String,
+    resultClass: Class<R>,
+    resultType: Type,
+    updated: BiPredicate<R?, R?>,
+    func: Func<R?>
   ): R?
 
-  fun getVersion(changeId: String?, minSupported: Int, maxSupported: Int): Int
+  fun getVersion(changeId: String, minSupported: Int, maxSupported: Int): Int
   fun continueAsNew(input: ContinueAsNewInput)
   fun registerQuery(input: RegisterQueryInput)
   fun registerSignalHandlers(input: RegisterSignalHandlersInput)
 
   @Experimental
   fun registerUpdateHandlers(input: RegisterUpdateHandlersInput)
-  fun registerDynamicSignalHandler(handler: RegisterDynamicSignalHandlerInput)
+  fun registerDynamicSignalHandler(input: RegisterDynamicSignalHandlerInput)
   fun registerDynamicQueryHandler(input: RegisterDynamicQueryHandlerInput)
 
   @Experimental
   fun registerDynamicUpdateHandler(input: RegisterDynamicUpdateHandlerInput)
   fun randomUUID(): UUID
   fun upsertSearchAttributes(searchAttributes: Map<String?, *>)
-  fun upsertTypedSearchAttributes(vararg searchAttributeUpdates: SearchAttributeUpdate<*>)
+  fun upsertTypedSearchAttributes(searchAttributeUpdates: List<SearchAttributeUpdate<*>>)
 
   fun currentTimeMillis(): Long
 }

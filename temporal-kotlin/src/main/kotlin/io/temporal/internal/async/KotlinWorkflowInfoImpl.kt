@@ -25,7 +25,7 @@ import io.temporal.workflow.KotlinWorkflowInfo
 import java.time.Duration
 
 internal class KotlinWorkflowInfoImpl(
-  private val context: ReplayWorkflowContext,
+  private val context: ReplayWorkflowContext
 ) : KotlinWorkflowInfo {
   override val namespace: String = context.namespace
   override val workflowId: String = context.workflowId

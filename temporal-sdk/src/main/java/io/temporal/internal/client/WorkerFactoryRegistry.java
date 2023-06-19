@@ -20,18 +20,19 @@
 
 package io.temporal.internal.client;
 
-import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.BaseWorkerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class WorkerFactoryRegistry {
-  private final CopyOnWriteArrayList<WorkerFactory> workerFactories = new CopyOnWriteArrayList<>();
+  private final CopyOnWriteArrayList<BaseWorkerFactory> workerFactories =
+      new CopyOnWriteArrayList<>();
 
-  public Iterable<WorkerFactory> workerFactoriesRandomOrder() {
+  public Iterable<BaseWorkerFactory> workerFactoriesRandomOrder() {
     int count = workerFactories.size();
     if (count > 1) {
-      ArrayList<WorkerFactory> result = new ArrayList<>(workerFactories);
+      ArrayList<BaseWorkerFactory> result = new ArrayList<>(workerFactories);
       Collections.shuffle(result);
       return result;
     } else {
@@ -39,11 +40,11 @@ public class WorkerFactoryRegistry {
     }
   }
 
-  public void register(WorkerFactory workerFactory) {
+  public void register(BaseWorkerFactory workerFactory) {
     workerFactories.addIfAbsent(workerFactory);
   }
 
-  public void deregister(WorkerFactory workerFactory) {
+  public void deregister(BaseWorkerFactory workerFactory) {
     workerFactories.remove(workerFactory);
   }
 }
