@@ -84,7 +84,7 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor
 `</pre> *
  */
 @Experimental
-interface WorkerInterceptor {
+interface KotlinWorkerInterceptor {
     /**
      * Called when workflow class is instantiated. May create a [ ] instance. The instance must forward all the calls to `next` [WorkflowInboundCallsInterceptor], but it may change the input parameters.
      *

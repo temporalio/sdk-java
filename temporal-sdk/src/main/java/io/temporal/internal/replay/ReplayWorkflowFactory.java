@@ -22,10 +22,18 @@ package io.temporal.internal.replay;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.Functions;
 
 public interface ReplayWorkflowFactory {
   ReplayWorkflow getWorkflow(WorkflowType workflowType, WorkflowExecution workflowExecution)
       throws Exception;
 
   boolean isAnyTypeSupported();
+
+  void registerWorkflowImplementationTypes(
+      WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes);
+
+  <R> void addWorkflowImplementationFactory(
+      WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory);
 }

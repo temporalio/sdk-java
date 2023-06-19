@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableSet;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
@@ -45,6 +46,8 @@ import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.TypeAlreadyRegisteredException;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
@@ -100,19 +103,18 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private final String namespace;
 
   public POJOWorkflowImplementationFactory(
-      SingleWorkerOptions singleWorkerOptions,
+      WorkerFactoryOptions factoryOptions,
+      WorkflowClientOptions clientOptions,
+      WorkerOptions workerOptions,
       WorkflowThreadExecutor workflowThreadExecutor,
-      WorkerInterceptor[] workerInterceptors,
-      WorkflowExecutorCache cache,
-      @Nonnull String namespace) {
-    Objects.requireNonNull(singleWorkerOptions);
-    this.dataConverter = singleWorkerOptions.getDataConverter();
+      WorkflowExecutorCache cache) {
+    this.dataConverter = clientOptions.getDataConverter();
     this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
-    this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
+    this.workerInterceptors = Objects.requireNonNull(factoryOptions.getWorkerInterceptors());
     this.cache = cache;
-    this.contextPropagators = singleWorkerOptions.getContextPropagators();
-    this.defaultDeadlockDetectionTimeout = singleWorkerOptions.getDefaultDeadlockDetectionTimeout();
-    this.namespace = namespace;
+    this.contextPropagators = clientOptions.getContextPropagators();
+    this.defaultDeadlockDetectionTimeout = workerOptions.getDefaultDeadlockDetectionTimeout();
+    this.namespace = clientOptions.getNamespace();
   }
 
   public void registerWorkflowImplementationTypes(

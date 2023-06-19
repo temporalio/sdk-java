@@ -41,7 +41,7 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final String taskQueue;
 
   private final ScheduledExecutorService heartbeatExecutor;
-  private final ActivityTaskHandlerImpl taskHandler;
+  private final ActivityTaskHandler taskHandler;
   private final ActivityWorker worker;
 
   public SyncActivityWorker(

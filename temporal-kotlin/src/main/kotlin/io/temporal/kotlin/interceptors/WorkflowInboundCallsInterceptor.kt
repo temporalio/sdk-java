@@ -26,7 +26,7 @@ import io.temporal.common.interceptors.Header
  * Intercepts inbound calls to the workflow execution on the worker side.
  *
  *
- * An instance should be created in [ ][WorkerInterceptor.interceptWorkflow].
+ * An instance should be created in [ ][KotlinWorkerInterceptor.interceptWorkflow].
  *
  *
  * The calls to this interceptor are executed under workflow context, all the rules and
@@ -41,7 +41,7 @@ import io.temporal.common.interceptors.Header
  * The implementation must forward all the calls to `next`, but it may change the input
  * parameters.
  *
- * @see WorkerInterceptor.interceptWorkflow
+ * @see KotlinWorkerInterceptor.interceptWorkflow
  */
 @Experimental
 interface WorkflowInboundCallsInterceptor {
@@ -65,7 +65,7 @@ interface WorkflowInboundCallsInterceptor {
      *
      * @param outboundCalls an existing interceptor instance to be proxied by the interceptor created
      * inside this method
-     * @see WorkerInterceptor.interceptWorkflow for the definition of "next" {@link
+     * @see KotlinWorkerInterceptor.interceptWorkflow for the definition of "next" {@link
      * *     WorkflowInboundCallsInterceptor}
      */
     suspend fun init(outboundCalls: WorkflowOutboundCallsInterceptor)

@@ -21,6 +21,7 @@
 package io.temporal.internal.client;
 
 import io.temporal.client.WorkflowClient;
+import io.temporal.worker.BaseWorkerFactory;
 import io.temporal.worker.WorkerFactory;
 
 /**
@@ -32,7 +33,7 @@ import io.temporal.worker.WorkerFactory;
  * {@link WorkflowClient#getInternal()} is used only for internal functionality.
  */
 public interface WorkflowClientInternal {
-  void registerWorkerFactory(WorkerFactory workerFactory);
+  void registerWorkerFactory(BaseWorkerFactory workerFactory);
 
-  void deregisterWorkerFactory(WorkerFactory workerFactory);
+  void deregisterWorkerFactory(BaseWorkerFactory workerFactory);
 }

@@ -28,6 +28,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -66,7 +67,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final WorkflowWorker workflowWorker;
   private final QueryReplayHelper queryReplayHelper;
   private final LocalActivityWorker laWorker;
-  private final POJOWorkflowImplementationFactory factory;
+  private final ReplayWorkflowFactory factory;
   private final DataConverter dataConverter;
   private final ActivityTaskHandlerImpl laTaskHandler;
 
@@ -79,20 +80,14 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowRunLockManager runLocks,
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
-      @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
+      @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
+      ReplayWorkflowFactory factory) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
     this.dataConverter = singleWorkerOptions.getDataConverter();
 
-    factory =
-        new POJOWorkflowImplementationFactory(
-            singleWorkerOptions,
-            Objects.requireNonNull(workflowThreadExecutor),
-            singleWorkerOptions.getWorkerInterceptors(),
-            cache,
-            namespace);
+    this.factory = factory;
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
         new LocalActivityExecutionContextFactoryImpl();

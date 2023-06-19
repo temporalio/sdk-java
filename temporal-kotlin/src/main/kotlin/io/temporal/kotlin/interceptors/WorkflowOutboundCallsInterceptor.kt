@@ -50,7 +50,7 @@ import java.util.function.Supplier
  * into `init` method of the `next` [WorkflowInboundCallsInterceptor] The
  * implementation must forward all the calls to the outbound interceptor passed as a `outboundCalls` parameter to the `init` call.
  *
- * @see WorkerInterceptor.interceptWorkflow for the definition of "next" {@link
+ * @see KotlinWorkerInterceptor.interceptWorkflow for the definition of "next" {@link
  * *     WorkflowInboundCallsInterceptor}.
  */
 @Experimental

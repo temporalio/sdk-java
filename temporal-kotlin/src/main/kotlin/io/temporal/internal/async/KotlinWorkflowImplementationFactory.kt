@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableSet
 import io.temporal.api.common.v1.Payloads
 import io.temporal.api.common.v1.WorkflowExecution
 import io.temporal.api.common.v1.WorkflowType
+import io.temporal.client.WorkflowClientOptions
 import io.temporal.common.context.ContextPropagator
 import io.temporal.common.converter.DataConverter
 import io.temporal.common.interceptors.Header
@@ -34,18 +35,16 @@ import io.temporal.failure.CanceledFailure
 import io.temporal.internal.common.env.ReflectionUtils
 import io.temporal.internal.replay.ReplayWorkflow
 import io.temporal.internal.replay.ReplayWorkflowFactory
-import io.temporal.internal.sync.*
-import io.temporal.internal.worker.SingleWorkerOptions
+import io.temporal.internal.sync.WorkflowInternal
 import io.temporal.internal.worker.WorkflowExecutionException
 import io.temporal.internal.worker.WorkflowExecutorCache
-import io.temporal.kotlin.interceptors.WorkerInterceptor
+import io.temporal.kotlin.interceptors.KotlinWorkerInterceptor
 import io.temporal.kotlin.interceptors.WorkflowInboundCallsInterceptor
 import io.temporal.kotlin.interceptors.WorkflowOutboundCallsInterceptor
 import io.temporal.kotlin.workflow.KotlinDynamicWorkflow
 import io.temporal.payload.context.WorkflowSerializationContext
 import io.temporal.serviceclient.CheckedExceptionWrapper
-import io.temporal.worker.TypeAlreadyRegisteredException
-import io.temporal.worker.WorkflowImplementationOptions
+import io.temporal.worker.*
 import io.temporal.workflow.DynamicWorkflow
 import io.temporal.workflow.Functions.Func
 import io.temporal.workflow.Functions.Func1
@@ -55,15 +54,26 @@ import java.lang.reflect.Method
 import java.util.*
 
 class KotlinWorkflowImplementationFactory(
-  singleWorkerOptions: SingleWorkerOptions,
-  workerInterceptors: Array<WorkerInterceptor>,
-  cache: WorkflowExecutorCache,
-  namespace: String
+  clientOptions: WorkflowClientOptions,
+  workerOptions: WorkerOptions,
+  cache: WorkflowExecutorCache
 ) : ReplayWorkflowFactory {
-  private val workerInterceptors: Array<WorkerInterceptor>
-  private val dataConverter: DataConverter
-  private val contextPropagators: List<ContextPropagator>
-  private val defaultDeadlockDetectionTimeout: Long
+
+//    dataConverter = clientOptions.dataConverter
+//    workflowThreadExecutor = Objects.requireNonNull<WorkflowThreadExecutor>(workflowThreadExecutor)
+//    workerInterceptors = Objects.requireNonNull(factoryOptions.workerInterceptors)
+//    this.cache = cache!!
+//    contextPropagators = clientOptions.contextPropagators
+//    defaultDeadlockDetectionTimeout = workerOptions.defaultDeadlockDetectionTimeout
+//    namespace = clientOptions.namespace
+
+  //TODO: Kotlin specific interceptors.
+  private var workerInterceptors: Array<KotlinWorkerInterceptor> = emptyArray() //factoryOptions.workerInterceptors
+  private var dataConverter: DataConverter = clientOptions.dataConverter
+  private var contextPropagators: List<ContextPropagator> = clientOptions.contextPropagators
+  private var defaultDeadlockDetectionTimeout: Long = workerOptions.defaultDeadlockDetectionTimeout
+  private val cache: WorkflowExecutorCache = cache
+  private var namespace: String = clientOptions.namespace
 
   /** Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance.  */
   private val workflowDefinitions =
@@ -75,20 +85,8 @@ class KotlinWorkflowImplementationFactory(
   /** If present then it is called for any unknown workflow type.  */
   private var dynamicWorkflowImplementationFactory: Func<out KotlinDynamicWorkflow>? = null
   private val implementationOptions = Collections.synchronizedMap(HashMap<String, WorkflowImplementationOptions>())
-  private val cache: WorkflowExecutorCache
-  private val namespace: String
 
-  init {
-    Objects.requireNonNull(singleWorkerOptions)
-    dataConverter = singleWorkerOptions.dataConverter
-    this.workerInterceptors = Objects.requireNonNull(workerInterceptors)
-    this.cache = cache
-    contextPropagators = singleWorkerOptions.contextPropagators
-    defaultDeadlockDetectionTimeout = singleWorkerOptions.defaultDeadlockDetectionTimeout
-    this.namespace = namespace
-  }
-
-  fun registerWorkflowImplementationTypes(
+  override fun registerWorkflowImplementationTypes(
     options: WorkflowImplementationOptions, workflowImplementationTypes: Array<Class<*>>
   ) {
     for (type in workflowImplementationTypes) {
@@ -100,7 +98,7 @@ class KotlinWorkflowImplementationFactory(
    * @param clazz has to be a workflow interface class. The only exception is if it's a
    * DynamicWorkflow class.
    */
-  fun <R> addWorkflowImplementationFactory(
+  override fun <R> addWorkflowImplementationFactory(
     options: WorkflowImplementationOptions, clazz: Class<R>, factory: Func<R?>
   ) {
     if (DynamicWorkflow::class.java.isAssignableFrom(clazz)) {

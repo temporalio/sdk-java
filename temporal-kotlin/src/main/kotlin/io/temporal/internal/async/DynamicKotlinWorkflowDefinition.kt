@@ -25,16 +25,15 @@ import io.temporal.common.converter.EncodedValues
 import io.temporal.common.converter.Values
 import io.temporal.common.interceptors.Header
 import io.temporal.internal.sync.WorkflowInternal
-import io.temporal.kotlin.interceptors.WorkerInterceptor
+import io.temporal.kotlin.interceptors.KotlinWorkerInterceptor
 import io.temporal.kotlin.interceptors.WorkflowInboundCallsInterceptor
 import io.temporal.kotlin.interceptors.WorkflowOutboundCallsInterceptor
 import io.temporal.kotlin.workflow.KotlinDynamicWorkflow
-import io.temporal.workflow.DynamicWorkflow
 import io.temporal.workflow.Functions.Func
 
 internal class DynamicKotlinWorkflowDefinition(
   private val factory: Func<out KotlinDynamicWorkflow>,
-  private val workerInterceptors: Array<WorkerInterceptor>,
+  private val workerInterceptors: Array<KotlinWorkerInterceptor>,
   private val dataConverter: DataConverter
 ) : KotlinWorkflowDefinition {
   private var workflowInvoker: WorkflowInboundCallsInterceptor? = null
