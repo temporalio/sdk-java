@@ -17,6 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.temporal.internal.async
 
 import com.uber.m3.tally.Scope
@@ -25,10 +26,9 @@ import io.temporal.activity.LocalActivityOptions
 import io.temporal.api.failure.v1.Failure
 import io.temporal.common.converter.DataConverter
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata
-import io.temporal.kotlin.interceptors.WorkflowOutboundCallsInterceptor
 import io.temporal.workflow.KotlinWorkflowInfo
 import io.temporal.workflow.WorkflowMethod
-import kotlinx.coroutines.GlobalScope.coroutineContext
+import kotlinx.coroutines.currentCoroutineContext
 import java.util.*
 
 /**
@@ -180,26 +180,26 @@ class KotlinWorkflowInternal {
     }
 
     /** Should be used to get current time instead of [System.currentTimeMillis]  */
-    fun currentTimeMillis(): Long {
-      return workflowOutboundInterceptor.currentTimeMillis()
+    suspend fun currentTimeMillis(): Long {
+      return getWorkflowOutboundCallsInterceptor().currentTimeMillis()
     }
 
-    fun setDefaultActivityOptions(activityOptions: ActivityOptions?) {
-      rootWorkflowContext.defaultActivityOptions = activityOptions
+    suspend fun setDefaultActivityOptions(activityOptions: ActivityOptions?) {
+      getRootWorkflowContext().defaultActivityOptions = activityOptions
     }
 
-    fun applyActivityOptions(activityTypeToOptions: Map<String, ActivityOptions>) {
-      rootWorkflowContext.applyActivityOptions(activityTypeToOptions)
+    suspend fun applyActivityOptions(activityTypeToOptions: Map<String, ActivityOptions>) {
+      getRootWorkflowContext().applyActivityOptions(activityTypeToOptions)
     }
 
-    fun setDefaultLocalActivityOptions(localActivityOptions: LocalActivityOptions?) {
-      rootWorkflowContext.defaultLocalActivityOptions = localActivityOptions
+    suspend fun setDefaultLocalActivityOptions(localActivityOptions: LocalActivityOptions?) {
+      getRootWorkflowContext().defaultLocalActivityOptions = localActivityOptions
     }
 
-    fun applyLocalActivityOptions(
+    suspend fun applyLocalActivityOptions(
       activityTypeToOptions: Map<String, LocalActivityOptions>
     ) {
-      rootWorkflowContext.applyLocalActivityOptions(activityTypeToOptions)
+      getRootWorkflowContext().applyLocalActivityOptions(activityTypeToOptions)
     }
 
 //  /**
@@ -286,8 +286,8 @@ class KotlinWorkflowInternal {
 //    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler)
 //  }
 
-    fun newUntypedActivityStub(options: ActivityOptions?): KotlinActivityStub {
-      return KotlinActivityStubImpl(options, workflowOutboundInterceptor)
+    suspend fun newUntypedActivityStub(options: ActivityOptions?): KotlinActivityStub {
+      return KotlinActivityStubImpl(options, getWorkflowOutboundCallsInterceptor())
     }
 
 //  fun newUntypedLocalActivityStub(options: LocalActivityOptions?): KotlinActivityStub {
@@ -445,11 +445,11 @@ class KotlinWorkflowInternal {
 //  val isReplaying: Boolean
 //    get() {
 //      val thread = DeterministicRunnerImpl.currentThreadInternalIfPresent()
-//      return thread.isPresent && rootWorkflowContext.isReplaying()
+//      return thread.isPresent && getRootWorkflowContext().isReplaying()
 //    }
 //
 //  fun <T> getMemo(key: String?, valueClass: Class<T>?, genericType: Type?): T? {
-//    val memo = rootWorkflowContext.getReplayContext().getMemo(key) ?: return null
+//    val memo = getRootWorkflowContext().getReplayContext().getMemo(key) ?: return null
 //    return dataConverter.fromPayload(memo, valueClass, genericType)
 //  }
 //
@@ -506,22 +506,16 @@ class KotlinWorkflowInternal {
 //    }
 //  }
 
-    val workflowInfo: KotlinWorkflowInfo
-      get() = KotlinWorkflowInfoImpl(rootWorkflowContext.getReplayContext())
+    suspend fun getWorkflowInfo(): KotlinWorkflowInfo = KotlinWorkflowInfoImpl(getRootWorkflowContext().replayContext!!)
 
-    val metricsScope: Scope
-      get() = rootWorkflowContext.metricScope
+    suspend fun getMetricsScope(): Scope = getRootWorkflowContext().metricScope
 
-    fun randomUUID(): UUID {
-      return rootWorkflowContext.randomUUID()
-    }
+    suspend fun randomUUID(): UUID = getRootWorkflowContext().randomUUID()
 
-    fun newRandom(): Random {
-      return rootWorkflowContext.newRandom()
-    }
+    suspend fun newRandom(): Random = getRootWorkflowContext().newRandom()
 
 //  private val isLoggingEnabledInReplay: Boolean
-//    private get() = rootWorkflowContext.isLoggingEnabledInReplay()
+//    private get() = getRootWorkflowContext().isLoggingEnabledInReplay()
 //  fun getLogger(clazz: Class<*>?): Logger {
 //    val logger = LoggerFactory.getLogger(clazz)
 //    return ReplayAwareLogger(
@@ -539,7 +533,7 @@ class KotlinWorkflowInternal {
 //  }
 
 //  fun <R> getLastCompletionResult(resultClass: Class<R>?, resultType: Type?): R? {
-//    return rootWorkflowContext.getLastCompletionResult(resultClass, resultType)
+//    return getRootWorkflowContext().getLastCompletionResult(resultClass, resultType)
 //  }
 //
 //  fun <T> getSearchAttribute(name: String?): T? {
@@ -555,21 +549,21 @@ class KotlinWorkflowInternal {
 //  }
 //
 //  fun <T> getSearchAttributeValues(name: String?): List<T>? {
-//    val searchAttributes = rootWorkflowContext.getReplayContext().searchAttributes ?: return null
+//    val searchAttributes = getRootWorkflowContext().getReplayContext().searchAttributes ?: return null
 //    val decoded = SearchAttributesUtil.decode<T>(searchAttributes, name!!)
 //    return if (decoded != null) Collections.unmodifiableList(decoded) else null
 //  }
 //
 //  val searchAttributes: Map<String, List<*>>
 //    get() {
-//      val searchAttributes = rootWorkflowContext.getReplayContext().searchAttributes
+//      val searchAttributes = getRootWorkflowContext().getReplayContext().searchAttributes
 //        ?: return emptyMap()
 //      return Collections.unmodifiableMap(SearchAttributesUtil.decode(searchAttributes))
 //    }
 //
 //  val typedSearchAttributes: SearchAttributes
 //    get() {
-//      val searchAttributes = rootWorkflowContext.getReplayContext().searchAttributes
+//      val searchAttributes = getRootWorkflowContext().getReplayContext().searchAttributes
 //      return SearchAttributesUtil.decodeTyped(searchAttributes)
 //    }
 //
@@ -583,8 +577,7 @@ class KotlinWorkflowInternal {
 //    workflowOutboundInterceptor.upsertTypedSearchAttributes(*searchAttributeUpdates)
 //  }
 
-    val dataConverter: DataConverter
-      get() = rootWorkflowContext.dataConverter
+    suspend fun getDataConverter(): DataConverter = getRootWorkflowContext().dataConverter
 
     /**
      * Name of the workflow type the interface defines. It is either the interface short name * or
@@ -599,23 +592,23 @@ class KotlinWorkflowInternal {
 
     // Temporal Failure Values are additional user payload and serialized using user data
     // converter
-    val previousRunFailure: Optional<Exception>
-      get() = Optional.ofNullable(rootWorkflowContext.getReplayContext().previousRunFailure) // Temporal Failure Values are additional user payload and serialized using user data
-        // converter
+    suspend fun getPreviousRunFailure(): Optional<Exception> {
+      // Temporal Failure Values are additional user payload and serialized using user data converter
+      val dataConverter = getDataConverter()
+      return Optional.ofNullable(getRootWorkflowContext().replayContext!!.previousRunFailure)
         .map { f: Failure? ->
-          dataConverter.failureToException(
-            f!!
-          )
+          dataConverter.failureToException(f!!)
         }
+    }
 
-    private val workflowOutboundInterceptor: WorkflowOutboundCallsInterceptor
-      private get() = rootWorkflowContext.getWorkflowOutboundInterceptor()
+    suspend fun getWorkflowOutboundCallsInterceptor() = getRootWorkflowContext().getWorkflowOutboundInterceptor()
 
-    val rootWorkflowContext: KotlinWorkflowContext
-      get() {
-        val temporalCoroutineContext = coroutineContext[TemporalCoroutineContext]
-          ?: throw Error("Called from non workflow thread or coroutine")
-        return temporalCoroutineContext.workflowContext
+    suspend fun getRootWorkflowContext(): KotlinWorkflowContext {
+      val temporalCoroutineContext = currentCoroutineContext()[TemporalCoroutineContext]
+      if (temporalCoroutineContext == null) {
+        throw Error("Called from non workflow thread or coroutine")
       }
+      return temporalCoroutineContext.workflowContext
+    }
   }
 }

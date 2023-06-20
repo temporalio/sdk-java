@@ -17,6 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.temporal.internal.async
 
 import io.temporal.api.common.v1.Payloads
@@ -106,7 +107,7 @@ internal class KotlinWorkflowExecutionHandler(
 
   private fun throwAndFailWorkflowExecution(exception: Throwable) {
     val replayWorkflowContext = context.getReplayContext()
-    val fullReplayDirectQueryName = replayWorkflowContext.fullReplayDirectQueryName
+    val fullReplayDirectQueryName = replayWorkflowContext!!.fullReplayDirectQueryName
     val info = Workflow.getInfo()
     if (fullReplayDirectQueryName != null) {
       if (log.isDebugEnabled &&

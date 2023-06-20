@@ -1,21 +1,23 @@
 /*
- *  Copyright (c) 2020 Temporal Technologies, Inc. All Rights Reserved
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
  *
- *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
- *  Modifications copyright (C) 2017 Uber Technologies, Inc.
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"). You may not
- *  use this file except in compliance with the License. A copy of the License is
- *  located at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *  http://aws.amazon.com/apache2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *  or in the "license" file accompanying this file. This file is distributed on
- *  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- *  express or implied. See the License for the specific language governing
- *  permissions and limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package io.temporal.workflow
 
 import io.temporal.activity.ActivityInterface
@@ -23,19 +25,21 @@ import io.temporal.activity.ActivityMethod
 import io.temporal.activity.ActivityOptions
 import io.temporal.client.WorkflowClient
 import io.temporal.client.WorkflowOptions
+import io.temporal.client.getResult
 import io.temporal.serviceclient.WorkflowServiceStubs
-import io.temporal.worker.WorkerFactory
-import io.temporal.workflow.HelloActivity.GreetingActivitiesImpl
+import io.temporal.worker.KotlinWorkerFactory
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import java.time.Duration
 
-/** Sample Temporal Workflow Definition that executes a single Activity.  */
-object HelloActivity {
+/** Sample Kotlin Temporal Workflow Definition that executes a couple activities in parallel using coroutines  */
+object HelloKotlinWorkflow {
   // Define the task queue name
-  const val TASK_QUEUE = "HelloActivityTaskQueue"
+  const val TASK_QUEUE = "HelloKotlinTaskQueue"
 
   // Define our workflow unique id
-  const val WORKFLOW_ID = "HelloActivityWorkflow"
+  const val WORKFLOW_ID = "HelloKotlinWorkflow"
 
   /**
    * With our Workflow and Activities defined, we can now start execution. The main method starts
@@ -54,7 +58,7 @@ object HelloActivity {
     /*
  * Define the workflow factory. It is used to create workflow workers for a specific task queue.
  */
-    val factory = WorkerFactory.newInstance(client)
+    val factory = KotlinWorkerFactory(client, null)
 
     /*
  * Define the workflow worker. Workflow workers listen to a defined task queue and process
@@ -79,8 +83,8 @@ object HelloActivity {
  */factory.start()
 
     // Create the workflow client stub. It is used to start our workflow execution.
-    val workflow = client.newWorkflowStub(
-      GreetingWorkflow::class.java,
+    val workflow = client.newUntypedWorkflowStub(
+      "GreetingWorkflow",
       WorkflowOptions.newBuilder()
         .setWorkflowId(WORKFLOW_ID)
         .setTaskQueue(TASK_QUEUE)
@@ -94,8 +98,8 @@ object HelloActivity {
  * See {@link io.temporal.samples.hello.HelloSignal} for an example of starting workflow
  * without waiting synchronously for its result.
  */
-    val greeting = workflow.getGreeting("World")
-
+    workflow.start("Kotlin")
+    val greeting = workflow.getResult<String>()
     // Display workflow execution results
     println(greeting)
     System.exit(0)
@@ -120,7 +124,7 @@ object HelloActivity {
      * Execution completes when this method finishes execution.
      */
     @WorkflowMethod
-    fun getGreeting(name: String?): String
+    suspend fun getGreeting(name: String?): String
   }
 
   /**
@@ -144,25 +148,15 @@ object HelloActivity {
 
   // Define the workflow implementation which implements our getGreeting workflow method.
   class GreetingWorkflowImpl : GreetingWorkflow {
-    /**
-     * Define the GreetingActivities stub. Activity stubs are proxies for activity invocations that
-     * are executed outside of the workflow thread on the activity worker, that can be on a
-     * different host. Temporal is going to dispatch the activity results back to the workflow and
-     * unblock the stub as soon as activity is completed on the activity worker.
-     *
-     *
-     * In the [ActivityOptions] definition the "setStartToCloseTimeout" option sets the
-     * overall timeout that our workflow is willing to wait for activity to complete. For this
-     * example it is set to 2 seconds.
-     */
-    private val activities = Workflow.newActivityStub(
-      GreetingActivities::class.java,
-      ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(2)).build()
-    )
 
-    override fun getGreeting(name: String?): String {
-      // This is a blocking call that returns only after the activity has completed.
-      return activities.composeGreeting("Hello", name)
+    override suspend fun getGreeting(name: String?): String = coroutineScope {
+      val activities = KotlinWorkflow.newUntypedActivityStub(
+        ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(2)).build()
+      )
+
+      val result1 = async { activities.execute("greet", String::class.java, "Hello", name!!) }
+      val result2 = async { activities.execute("greet", String::class.java, "Bye", name!!) }
+      return@coroutineScope result1.await()!! + "\n" + result2.await()!!
     }
   }
 
@@ -170,7 +164,6 @@ object HelloActivity {
   internal class GreetingActivitiesImpl : GreetingActivities {
     override fun composeGreeting(greeting: String?, name: String?): String {
       log.info("Composing greeting...")
-//      throw ApplicationFailure.newNonRetryableFailure("simulated", "illegal-argument")
       return greeting + " " + name + "!"
     }
 

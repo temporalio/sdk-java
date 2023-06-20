@@ -17,10 +17,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.temporal.internal.async
 
 import com.google.common.base.Preconditions
-import com.google.common.collect.ImmutableSet
 import io.temporal.api.common.v1.Payloads
 import io.temporal.api.common.v1.WorkflowExecution
 import io.temporal.api.common.v1.WorkflowType
@@ -32,7 +32,6 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata
 import io.temporal.common.metadata.WorkflowMethodType
 import io.temporal.failure.CanceledFailure
-import io.temporal.internal.common.env.ReflectionUtils
 import io.temporal.internal.replay.ReplayWorkflow
 import io.temporal.internal.replay.ReplayWorkflowFactory
 import io.temporal.internal.sync.WorkflowInternal
@@ -54,6 +53,8 @@ import org.slf4j.LoggerFactory
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.util.*
+import kotlin.reflect.full.callSuspend
+import kotlin.reflect.jvm.kotlinFunction
 
 class KotlinWorkflowImplementationFactory(
   clientOptions: WorkflowClientOptions,
@@ -281,9 +282,11 @@ class KotlinWorkflowImplementationFactory(
     // don't pass it down to other classes, it's a "cached" instance for internal usage only
     private val dataConverterWithWorkflowContext: DataConverter
   ) : KotlinWorkflowDefinition {
+
     private var workflowInvoker: WorkflowInboundCallsInterceptor? = null
+
     override suspend fun initialize() {
-      val workflowContext = KotlinWorkflowInternal.rootWorkflowContext
+      val workflowContext = KotlinWorkflowInternal.getRootWorkflowContext()
       workflowInvoker = RootWorkflowInboundCallsInterceptor(workflowContext)
       for (workerInterceptor in workerInterceptors) {
         workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker!!)
@@ -296,8 +299,9 @@ class KotlinWorkflowImplementationFactory(
     override suspend fun execute(header: Header?, input: Payloads?): Payloads? {
       val args = dataConverterWithWorkflowContext.fromPayloads(
         Optional.ofNullable(input),
-        workflowMethod.parameterTypes,
-        workflowMethod.genericParameterTypes
+        // TODO(maxim): Validate that the last element is coroutine continuation
+        workflowMethod.parameterTypes.dropLast(1).toTypedArray(),
+        workflowMethod.genericParameterTypes.dropLast(1).toTypedArray()
       )
       Preconditions.checkNotNull(workflowInvoker, "initialize not called")
       val result = workflowInvoker!!.execute(WorkflowInboundCallsInterceptor.WorkflowInput(header, args))
@@ -322,7 +326,8 @@ class KotlinWorkflowImplementationFactory(
 
       override suspend fun execute(input: WorkflowInboundCallsInterceptor.WorkflowInput): WorkflowInboundCallsInterceptor.WorkflowOutput {
         return try {
-          val result = workflowMethod.invoke(workflow, *input.arguments)
+          val kMethod = workflowMethod.kotlinFunction
+          val result = kMethod!!.callSuspend(workflow, *input.arguments)
           WorkflowInboundCallsInterceptor.WorkflowOutput(result)
         } catch (e: IllegalAccessException) {
           throw CheckedExceptionWrapper.wrap(e)
@@ -381,23 +386,25 @@ class KotlinWorkflowImplementationFactory(
 
   companion object {
     private val log = LoggerFactory.getLogger(KotlinWorkflowImplementationFactory::class.java)
-    val WORKFLOW_HANDLER_STACKTRACE_CUTOFF = ImmutableSet.builder<String>() // POJO
-      .add(
-        ReflectionUtils.getMethodNameForStackTraceCutoff(
-          KotlinWorkflowImplementation::class.java,
-          "execute",
-          Header::class.java,
-          Optional::class.java
-        )
-      ) // Dynamic
-      .add(
-        ReflectionUtils.getMethodNameForStackTraceCutoff(
-          DynamicKotlinWorkflowDefinition::class.java,
-          "execute",
-          Header::class.java,
-          Optional::class.java
-        )
-      )
-      .build()
+
+    // TODO(maxim): See if this is needed for Kotlin
+    val WORKFLOW_HANDLER_STACKTRACE_CUTOFF = 0 // ImmutableSet.builder<String>() // POJO
+//      .add(
+//        ReflectionUtils.getMethodNameForStackTraceCutoff(
+//          KotlinWorkflowImplementation::class.java,
+//          "execute",
+//          Header::class.java,
+//          Payloads::class.java
+//        )
+//      ) // Dynamic
+//      .add(
+//        ReflectionUtils.getMethodNameForStackTraceCutoff(
+//          DynamicKotlinWorkflowDefinition::class.java,
+//          "execute",
+//          Header::class.java,
+//          Payloads::class.java
+//        )
+//      )
+//      .build()
   }
 }

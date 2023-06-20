@@ -1,3 +1,23 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.temporal.internal.async
 
 import com.uber.m3.tally.Scope
@@ -57,6 +77,8 @@ class KotlinWorkflowContext(
   private var activityOptionsMap: Map<String, ActivityOptions>? = null
   private var localActivityOptionsMap: Map<String, LocalActivityOptions>? = null
 
+  private var replayContext: ReplayWorkflowContext? = null
+
   init {
     if (workflowImplementationOptions != null) {
       defaultActivityOptions = workflowImplementationOptions!!.defaultActivityOptions
@@ -88,7 +110,7 @@ class KotlinWorkflowContext(
     replayContext = context
   }
 
-  override fun getReplayContext(): ReplayWorkflowContext {
+  override fun getReplayContext(): ReplayWorkflowContext? {
     return replayContext
   }
 
@@ -142,7 +164,7 @@ class KotlinWorkflowContext(
   override fun <R : Any?> getLastCompletionResult(resultClass: Class<R>, resultType: Type): R? {
     return dataConverter.fromPayloads(
       0,
-      Optional.ofNullable(replayContext.lastCompletionResult),
+      Optional.ofNullable(replayContext!!.lastCompletionResult),
       resultClass,
       resultType
     )
@@ -157,7 +179,7 @@ class KotlinWorkflowContext(
       return HashMap()
     }
 
-    val headerData: Map<String, Payload> = HashMap(replayContext.header)
+    val headerData: Map<String, Payload> = HashMap(replayContext!!.header)
     val contextData: MutableMap<String, Any> = HashMap()
     for (propagator in contextPropagators) {
       contextData[propagator.name] = propagator.deserializeContext(headerData)
@@ -168,13 +190,13 @@ class KotlinWorkflowContext(
 
   override suspend fun <R> executeActivity(input: WorkflowOutboundCallsInterceptor.ActivityInput<R>): WorkflowOutboundCallsInterceptor.ActivityOutput<R?> {
     val serializationContext = ActivitySerializationContext(
-      replayContext.namespace,
-      replayContext.workflowId,
-      replayContext.workflowType.name,
+      replayContext!!.namespace,
+      replayContext!!.workflowId,
+      replayContext!!.workflowType.name,
       input.activityName,
       // input.getOptions().getTaskQueue() may be not specified, workflow task queue is used
       // by the Server in this case
-      if (input.options.taskQueue != null) input.options.taskQueue else replayContext.taskQueue,
+      if (input.options.taskQueue != null) input.options.taskQueue else replayContext!!.taskQueue,
       false
     )
     val dataConverterWithActivityContext = dataConverter.withContext(serializationContext)
@@ -205,7 +227,7 @@ class KotlinWorkflowContext(
     TODO("Not yet implemented")
   }
 
-  override fun newRandom(): Random = replayContext.newRandom()
+  override fun newRandom(): Random = replayContext!!.newRandom()
 
   override suspend fun signalExternalWorkflow(input: WorkflowOutboundCallsInterceptor.SignalExternalInput): WorkflowOutboundCallsInterceptor.SignalExternalOutput {
     TODO("Not yet implemented")
@@ -290,7 +312,7 @@ class KotlinWorkflowContext(
   }
 
   val metricScope: Scope
-    get() = replayContext.metricsScope
+    get() = replayContext!!.metricsScope
 
   @OptIn(ExperimentalCoroutinesApi::class)
   private suspend fun executeActivityOnce(
@@ -303,7 +325,7 @@ class KotlinWorkflowContext(
 
     return suspendCancellableCoroutine { continuation ->
       var activityId: String? = null
-      val activityOutput = replayContext.scheduleActivityTask(
+      val activityOutput = replayContext!!.scheduleActivityTask(
         params
       ) { output: Optional<Payloads>, failure: Failure? ->
         if (failure == null) {
@@ -329,7 +351,7 @@ class KotlinWorkflowContext(
   ): ExecuteActivityParameters {
     var taskQueue = options.taskQueue
     if (taskQueue == null) {
-      taskQueue = replayContext.taskQueue
+      taskQueue = replayContext!!.taskQueue
     }
     val attributes = ScheduleActivityTaskCommandAttributes.newBuilder()
       .setActivityType(ActivityType.newBuilder().setName(name))
@@ -345,7 +367,7 @@ class KotlinWorkflowContext(
       )
       .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.heartbeatTimeout))
       .setRequestEagerExecution(
-        !options.isEagerExecutionDisabled && (taskQueue == replayContext.taskQueue)
+        !options.isEagerExecutionDisabled && (taskQueue == replayContext!!.taskQueue)
       )
     input.ifPresent { value: Payloads? ->
       attributes.input = value
@@ -366,7 +388,7 @@ class KotlinWorkflowContext(
     if (options.versioningIntent != null) {
       attributes.useCompatibleVersion = options
         .versioningIntent
-        .determineUseCompatibleFlag(replayContext.taskQueue == options.taskQueue)
+        .determineUseCompatibleFlag(replayContext!!.taskQueue == options.taskQueue)
     }
     return ExecuteActivityParameters(attributes, options.cancellationType)
   }
@@ -396,7 +418,7 @@ class KotlinWorkflowContext(
    * thread and should be replaced with another specific implementation during initialization stage
    * `workflow.initialize()` performed inside the workflow root thread.
    *
-   * @see SyncWorkflow.start
+   * @see KotlinWorkflow.start
    */
   private class InitialWorkflowInboundCallsInterceptor(workflowContext: KotlinWorkflowContext) :
     BaseRootKotlinWorkflowInboundCallsInterceptor(workflowContext) {

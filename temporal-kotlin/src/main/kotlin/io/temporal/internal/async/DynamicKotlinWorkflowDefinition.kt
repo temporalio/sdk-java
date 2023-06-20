@@ -17,6 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.temporal.internal.async
 
 import io.temporal.api.common.v1.Payloads
@@ -39,7 +40,7 @@ internal class DynamicKotlinWorkflowDefinition(
   private var workflowInvoker: WorkflowInboundCallsInterceptor? = null
 
   override suspend fun initialize() {
-    val workflowContext: KotlinWorkflowContext = KotlinWorkflowInternal.rootWorkflowContext
+    val workflowContext: KotlinWorkflowContext = KotlinWorkflowInternal.getRootWorkflowContext()
     workflowInvoker = RootWorkflowInboundCallsInterceptor(workflowContext)
     for (workerInterceptor in workerInterceptors) {
       workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker!!)
