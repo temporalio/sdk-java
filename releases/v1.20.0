@@ -13,8 +13,6 @@ change. This feature allows you to assign build identifiers to workers, and ensu
 queue do not receive tasks that they will be incompatible with. You declare the relative [in]compatibility of build
 identifiers. We will be publishing documentation on this feature soon (and these notes will be updated with a link).
 
-https://docs.temporal.io/dev-guide/java/versioning#worker-versioning
-
 ## Experimental: Workflow Update
 
 This version adds support for Workflow update. Workflow update is another way to interact with a running workflow along
