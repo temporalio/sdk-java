@@ -298,11 +298,14 @@ public final class DefaultFailureConverter implements FailureConverter {
     try {
       @SuppressWarnings("StringSplitter")
       String[] lines = stackTrace.split("\r\n|\n");
-      StackTraceElement[] result = new StackTraceElement[lines.length];
+      ArrayList<StackTraceElement> result = new ArrayList<>(lines.length);
       for (int i = 0; i < lines.length; i++) {
-        result[i] = parseStackTraceElement(lines[i]);
+        StackTraceElement elem = parseStackTraceElement(lines[i]);
+        if (elem != null) {
+          result.add();
+        }
       }
-      return result;
+      return result.toArray(new StackTraceElement[result.size()]);
     } catch (Exception e) {
       if (log.isWarnEnabled()) {
         log.warn("Failed to parse stack trace: " + stackTrace);
