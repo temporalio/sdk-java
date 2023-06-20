@@ -15,9 +15,9 @@ identifiers. We will be publishing documentation on this feature soon (and these
 
 ## Experimental: Workflow Update
 
-This version adds support for Workflow update. Workflow update is another way to interact with a running workflow along
-with signals and queries. Workflow update combines aspects of signals and queries. Like signals, workflow update can
-mutate workflow state. Like queries, workflow update can return a value based on a workflows state.
+This version adds support for Workflow Update. Workflow Update is another way to interact with a running workflow along
+with signals and queries. Workflow update combines aspects of signals and queries. Like signals, updates can
+mutate workflow state. Like queries, updates can return a value to the caller based on a workflows state.
 
 # Changeset
 
@@ -40,3 +40,4 @@ mutate workflow state. Like queries, workflow update can return a value based on
 2023-06-16 - c215a78b - Worker / Build Id versioning (#1786)
 2023-06-16 - c30e07dd - Do not add accepted/rejected request to messages (#1787)
 2023-06-19 - 479cf4b1 - WorkerOptions extend javadocs for default values (#1774)
+2023-06-20 - 55e29ca4 - Avoid NPE on malformed/truncated failure stack traces (#1795)
