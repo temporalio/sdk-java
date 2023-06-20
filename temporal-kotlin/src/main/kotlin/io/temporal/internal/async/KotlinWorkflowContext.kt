@@ -237,10 +237,6 @@ class KotlinWorkflowContext(
     TODO("Not yet implemented")
   }
 
-  override suspend fun sleep(duration: Duration) {
-    TODO("Not yet implemented")
-  }
-
   override suspend fun await(timeout: Duration, reason: String?, unblockCondition: Supplier<Boolean?>): Boolean {
     TODO("Not yet implemented")
   }

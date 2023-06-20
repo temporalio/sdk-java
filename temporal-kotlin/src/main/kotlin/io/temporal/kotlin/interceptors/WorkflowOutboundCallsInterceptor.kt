@@ -155,7 +155,6 @@ interface WorkflowOutboundCallsInterceptor {
   fun cancelWorkflow(input: CancelWorkflowInput): CancelWorkflowOutput
 
   // TODO: Consider removing sleep and keep only built in delay
-  suspend fun sleep(duration: Duration)
   suspend fun await(timeout: Duration, reason: String?, unblockCondition: Supplier<Boolean?>): Boolean
   suspend fun await(reason: String?, unblockCondition: Supplier<Boolean?>)
   fun <R> sideEffect(resultClass: Class<R>, resultType: Type, func: Func<R?>): R?

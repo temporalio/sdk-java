@@ -30,6 +30,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs
 import io.temporal.worker.KotlinWorkerFactory
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 import java.time.Duration
 
@@ -155,7 +156,10 @@ object HelloKotlinWorkflow {
       )
 
       val result1 = async { activities.execute("greet", String::class.java, "Hello", name!!) }
-      val result2 = async { activities.execute("greet", String::class.java, "Bye", name!!) }
+      val result2 = async {
+        delay(1000)
+        activities.execute("greet", String::class.java, "Bye", name!!)
+      }
       return@coroutineScope result1.await()!! + "\n" + result2.await()!!
     }
   }

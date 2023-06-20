@@ -65,7 +65,7 @@ class KotlinWorkflow(
       contextPropagators
     )
 
-  private val dispatcher = TemporalCoroutineDispatcher()
+  private val dispatcher = TemporalCoroutineDispatcher(workflowContext)
   private val coroutineDispatcher = TemporalCallbackCoroutineDispatcher(dispatcher)
   private val scope = TemporalScope(workflowContext)
 

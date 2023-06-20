@@ -55,10 +55,6 @@ class WorkflowOutboundCallsInterceptorBase(private val next: WorkflowOutboundCal
     return next.cancelWorkflow(input)
   }
 
-  override suspend fun sleep(duration: Duration) {
-    return next.sleep(duration)
-  }
-
   override suspend fun await(timeout: Duration, reason: String?, unblockCondition: Supplier<Boolean?>): Boolean {
     return next.await(timeout, reason, unblockCondition)
   }
