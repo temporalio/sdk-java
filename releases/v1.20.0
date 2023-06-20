@@ -6,14 +6,16 @@ This version adds support for the schedule API to help users run workflows perio
 
 Note: the following two features will require support from the Temporal server, to be available in release v1.21.0.
 
-## Worker Versioning
+## Experimental: Worker Versioning
 
 This version adds support for our new Worker Versioning feature. Please note that this feature's API is subject to
 change. This feature allows you to assign build identifiers to workers, and ensure that workers operating on a task
 queue do not receive tasks that they will be incompatible with. You declare the relative [in]compatibility of build
 identifiers. We will be publishing documentation on this feature soon (and these notes will be updated with a link).
 
-## Workflow Update
+https://docs.temporal.io/dev-guide/java/versioning#worker-versioning
+
+## Experimental: Workflow Update
 
 This version adds support for Workflow update. Workflow update is another way to interact with a running workflow along
 with signals and queries. Workflow update combines aspects of signals and queries. Like signals, workflow update can
