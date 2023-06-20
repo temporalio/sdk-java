@@ -303,7 +303,7 @@ public final class DefaultFailureConverter implements FailureConverter {
       for (int i = 0; i < lines.length; i++) {
         StackTraceElement elem = parseStackTraceElement(lines[i]);
         if (elem != null) {
-          result.add();
+          result.add(elem);
         }
       }
       return result.toArray(new StackTraceElement[result.size()]);
