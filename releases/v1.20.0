@@ -1,0 +1,42 @@
+# Highlights
+
+## Schedules API
+
+This version adds support for the schedule API to help users run workflows periodically.
+
+Note: the following two features will require support from the Temporal server, to be available in release v1.21.0.
+
+## Worker Versioning
+
+This version adds support for our new Worker Versioning feature. Please note that this feature's API is subject to
+change. This feature allows you to assign build identifiers to workers, and ensure that workers operating on a task
+queue do not receive tasks that they will be incompatible with. You declare the relative [in]compatibility of build
+identifiers. We will be publishing documentation on this feature soon (and these notes will be updated with a link).
+
+## Workflow Update
+
+This version adds support for Workflow update. Workflow update is another way to interact with a running workflow along
+with signals and queries. Workflow update combines aspects of signals and queries. Like signals, workflow update can
+mutate workflow state. Like queries, workflow update can return a value based on a workflows state.
+
+# Changeset
+
+2023-03-30 - 0b7d1b71 - Allow Data Converter code to escape deadlock detection (#1723)
+2023-04-12 - 4f919565 - Fix getOriginalExecutionRunId return value and add explicit @NonNull annotations (#1737)
+2023-04-19 - 1e494932 - Add comment on Workflow#newQueue (#1747)
+2023-04-21 - c1cff1c5 - Data Converters now have method deserializing all the Payloads at once (#1726)
+2023-04-27 - ad27b61d - Add support for sync update (#1749)
+2023-04-27 - d5b3e891 - Remove use of deprecated API (#1758)
+2023-05-01 - 5ed77f7d - Allow task queue names to use property placeholders (#1760)
+2023-05-10 - e354d1ff - Add support for update to the Java test server (#1762)
+2023-05-16 - 16dc271f - Update README.md (#1765)
+2023-05-19 - 1be0cee5 - Add support for async update (#1766)
+2023-05-31 - 18120b16 - Update CODEOWNERS (#1773)
+2023-06-07 - a73e9d99 - Issue 1761 fix supplier reuse (#1779)
+2023-06-07 - ee2f5d09 - Add update protocol commands (#1780)
+2023-06-08 - 09850411 - Add schedules API (#1776)
+2023-06-12 - bff4b6fe - Typed search attributes (#1782)
+2023-06-15 - 94424c8f - Treat UpdateWorkflowExecution as a long poll (#1784)
+2023-06-16 - c215a78b - Worker / Build Id versioning (#1786)
+2023-06-16 - c30e07dd - Do not add accepted/rejected request to messages (#1787)
+2023-06-19 - 479cf4b1 - WorkerOptions extend javadocs for default values (#1774)
