@@ -1,4 +1,4 @@
 [submodule "temporal-serviceclient/src/main/proto"]
 	path = temporal-serviceclient/src/main/proto
 	url = https://github.com/temporalio/api.git
-	hexsha = ddf07ab9933e8230309850e3c579e1ff34b03f53
+	hexsha = cfa1a15b960920a47de8ec272873a4ee4db574c4
