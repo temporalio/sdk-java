@@ -93,7 +93,7 @@ public final class Worker {
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
-    this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
+    this.options = options;
     WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();

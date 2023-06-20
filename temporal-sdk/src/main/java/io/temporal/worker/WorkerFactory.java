@@ -63,7 +63,7 @@ public final class WorkerFactory extends BaseWorkerFactory {
     this.workflowThreadPool =
         new ThreadPoolExecutor(
             0,
-            factoryOptions.getMaxWorkflowThreadCount(),
+            this.factoryOptions.getMaxWorkflowThreadCount(),
             1,
             TimeUnit.MINUTES,
             new SynchronousQueue<>());

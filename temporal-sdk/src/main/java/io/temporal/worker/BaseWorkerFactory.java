@@ -85,6 +85,7 @@ public abstract class BaseWorkerFactory {
         state == State.Initial,
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
 
+    workerOptions = WorkerOptions.newBuilder(workerOptions).validateAndBuildWithDefaults();
     // Only one worker can exist for a task queue
     Worker existingWorker = workers.get(taskQueue);
     if (existingWorker == null) {
