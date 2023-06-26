@@ -1,4 +1,7 @@
 subprojects {
+    if (name == 'temporal-bom') {
+        return
+    }
     apply plugin: 'org.cadixdev.licenser'
     license {
         header rootProject.file('LICENSE.header')
