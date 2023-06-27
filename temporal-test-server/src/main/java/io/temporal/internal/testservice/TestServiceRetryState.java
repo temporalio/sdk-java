@@ -109,10 +109,6 @@ final class TestServiceRetryState {
         }
       }
     }
-    Timestamp expirationTime = getExpirationTime();
-    if (retryPolicy.getMaximumAttempts() == 0 && Timestamps.toMillis(expirationTime) == 0) {
-      return new BackoffInterval(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET);
-    }
 
     if (retryPolicy.getMaximumAttempts() > 0 && getAttempt() >= retryPolicy.getMaximumAttempts()) {
       // currAttempt starts from 1.
@@ -137,6 +133,7 @@ final class TestServiceRetryState {
       nextInterval = maxInterval;
     }
 
+    Timestamp expirationTime = getExpirationTime();
     long backoffInterval = nextInterval;
     Timestamp nextScheduleTime = Timestamps.add(currentTime, Durations.fromMillis(backoffInterval));
     if (expirationTime.getNanos() != 0

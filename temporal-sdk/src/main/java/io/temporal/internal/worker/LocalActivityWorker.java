@@ -140,10 +140,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       throw (Error) attemptThrowable;
     }
 
-    if (isRetryPolicyNotSet(activityTask)) {
-      return new RetryDecision(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET, null);
-    }
-
     RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
 
     if (RetryOptionsUtils.isNotRetryable(retryOptions, attemptThrowable)) {
@@ -374,10 +370,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         PollActivityTaskQueueResponseOrBuilder activityTask,
         @Nullable Failure previousLocalExecutionFailure) {
       int currentAttempt = activityTask.getAttempt();
-
-      if (isRetryPolicyNotSet(activityTask)) {
-        return RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET;
-      }
 
       RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
 
@@ -762,13 +754,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       result.setCause(cause);
     }
     return result.build();
-  }
-
-  private static boolean isRetryPolicyNotSet(
-      PollActivityTaskQueueResponseOrBuilder pollActivityTask) {
-    return !pollActivityTask.hasScheduleToCloseTimeout()
-        && (!pollActivityTask.hasRetryPolicy()
-            || pollActivityTask.getRetryPolicy().getMaximumAttempts() <= 0);
   }
 
   private static boolean isNonRetryableApplicationFailure(@Nullable Throwable executionThrowable) {
