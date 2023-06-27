@@ -83,6 +83,11 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   }
 
   @Override
+  public long getStartedTimestamp() {
+    return Timestamps.toMillis(response.getStartedTime());
+  }
+
+  @Override
   public long getCurrentAttemptScheduledTimestamp() {
     return Timestamps.toMillis(response.getCurrentAttemptScheduledTime());
   }
@@ -183,6 +188,8 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
         + getActivityType()
         + ", scheduledTimestamp="
         + getScheduledTimestamp()
+        + ", startedTimestamp="
+        + getStartedTimestamp()
         + ", currentAttemptScheduledTimestamp="
         + getCurrentAttemptScheduledTimestamp()
         + ", scheduleToCloseTimeout="
