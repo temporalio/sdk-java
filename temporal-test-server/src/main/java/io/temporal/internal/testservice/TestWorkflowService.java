@@ -509,6 +509,23 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @Override
+  public void getSystemInfo(
+      GetSystemInfoRequest request, StreamObserver<GetSystemInfoResponse> responseObserver) {
+    responseObserver.onNext(
+        GetSystemInfoResponse.newBuilder()
+            .setCapabilities(
+                // These are the capabilities I could verify the test server supports
+                GetSystemInfoResponse.Capabilities.newBuilder()
+                    .setSdkMetadata(true)
+                    .setSignalAndQueryHeader(true)
+                    .setEncodedFailureAttributes(true)
+                    .setEagerWorkflowStart(true)
+                    .build())
+            .build());
+    responseObserver.onCompleted();
+  }
+
   private Context.CancellableContext deadlineCtx(Deadline deadline) {
     return Context.current().withDeadline(deadline, this.backgroundScheduler);
   }

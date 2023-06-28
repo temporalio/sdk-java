@@ -1405,6 +1405,7 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setBinaryChecksum(request.getBinaryChecksum())
             .setMeteringMetadata(request.getMeteringMetadata())
+            .setSdkMetadata(request.getSdkMetadata())
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
