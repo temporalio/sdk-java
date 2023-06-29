@@ -1,0 +1,18 @@
+plugins {
+    id 'java-platform'
+}
+
+dependencies {
+    constraints {
+        api project(':temporal-kotlin')
+        api project(':temporal-opentracing')
+        api project(':temporal-remote-data-encoder')
+        api project(':temporal-sdk')
+        api project(':temporal-serviceclient')
+        api project(':temporal-shaded')
+        api project(':temporal-spring-boot-autoconfigure-alpha')
+        api project(':temporal-spring-boot-starter-alpha')
+        api project(':temporal-test-server')
+        api project(':temporal-testing')
+    }
+}

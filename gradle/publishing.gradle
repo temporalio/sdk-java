@@ -16,7 +16,12 @@ subprojects {
         publications {
             mavenJava(MavenPublication) {
                 afterEvaluate {
-                    from components.java
+                    plugins.withId('java-platform') {
+                        from components.javaPlatform
+                    }
+                    plugins.withId('java') {
+                        from components.java
+                    }
                 }
             }
         }

@@ -1,4 +1,7 @@
 subprojects {
+    if (name == 'temporal-bom') {
+        return
+    }
     apply plugin: 'java-library'
 
     java {
