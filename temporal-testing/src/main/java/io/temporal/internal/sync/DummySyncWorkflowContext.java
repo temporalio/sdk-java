@@ -32,6 +32,7 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.statemachines.ExecuteActivityParameters;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
@@ -273,7 +274,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public void getVersion(
+    public boolean getVersion(
         String changeId,
         int minSupported,
         int maxSupported,
@@ -304,6 +305,11 @@ public class DummySyncWorkflowContext {
     @Override
     public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
       throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public boolean tryUseSdkFlag(SdkFlag flag) {
+      return false;
     }
 
     @Override

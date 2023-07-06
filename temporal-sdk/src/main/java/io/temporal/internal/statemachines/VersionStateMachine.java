@@ -369,11 +369,12 @@ final class VersionStateMachine {
     this.stateMachineSink = stateMachineSink;
   }
 
-  public void getVersion(
+  public State getVersion(
       int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism = new InvocationStateMachine(minSupported, maxSupported, callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
+    return ism.getState();
   }
 
   public void handleNonMatchingEvent(HistoryEvent event) {

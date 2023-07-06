@@ -39,6 +39,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.Config;
 import io.temporal.internal.common.UpdateMessage;
@@ -90,13 +91,16 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   private final ReplayWorkflowExecutor replayWorkflowExecutor;
 
+  private final GetSystemInfoResponse.Capabilities capabilities;
+
   ReplayWorkflowRunTaskHandler(
       String namespace,
       ReplayWorkflow workflow,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       SingleWorkerOptions workerOptions,
       Scope metricsScope,
-      LocalActivityDispatcher localActivityDispatcher) {
+      LocalActivityDispatcher localActivityDispatcher,
+      GetSystemInfoResponse.Capabilities capabilities) {
     HistoryEvent startedEvent = workflowTask.getHistory().getEvents(0);
     if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
@@ -107,7 +111,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.localActivityDispatcher = localActivityDispatcher;
     this.workflow = workflow;
 
-    this.workflowStateMachines = new WorkflowStateMachines(new StatesMachinesCallbackImpl());
+    this.workflowStateMachines =
+        new WorkflowStateMachines(new StatesMachinesCallbackImpl(), capabilities);
     String fullReplayDirectQueryType =
         workflowTask.hasQuery() ? workflowTask.getQuery().getQueryType() : null;
     this.context =
@@ -125,6 +130,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
     this.localActivityCompletionSink = localActivityCompletionQueue::add;
     this.localActivityMeteringHelper = new LocalActivityMeteringHelper();
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -159,6 +165,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       processLocalActivityRequests(wftHearbeatDeadline);
       List<Command> commands = workflowStateMachines.takeCommands();
       List<Message> messages = workflowStateMachines.takeMessages();
+      List<Integer> newSdkFlags = workflowStateMachines.takeNewSdkFlags();
       if (context.isWorkflowMethodCompleted()) {
         // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation
@@ -175,6 +182,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           .setFinalCommand(context.isWorkflowMethodCompleted())
           .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
           .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
+          .setSdkFlags(newSdkFlags)
           .build();
     } finally {
       lock.unlock();

@@ -26,6 +26,7 @@ import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttribut
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.statemachines.ExecuteActivityParameters;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.LocalActivityCallback;
@@ -269,8 +270,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param minSupported min version supported for the change
    * @param maxSupported max version supported for the change
    * @param callback used to return version
+   * @return True if the identifier is not present in history
    */
-  void getVersion(
+  boolean getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
@@ -382,4 +384,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   /** Updates or inserts search attributes used to index workflows. */
   void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes);
+
+  /**
+   * @return true if this flag may currently be used.
+   */
+  boolean tryUseSdkFlag(SdkFlag flag);
 }

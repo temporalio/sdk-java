@@ -40,6 +40,7 @@ public final class WorkflowTaskResult {
     private Map<String, WorkflowQueryResult> queryResults;
     private boolean forceWorkflowTask;
     private int nonfirstLocalActivityAttempts;
+    private List<Integer> sdkFlags;
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
@@ -71,6 +72,11 @@ public final class WorkflowTaskResult {
       return this;
     }
 
+    public Builder setSdkFlags(List<Integer> sdkFlags) {
+      this.sdkFlags = sdkFlags;
+      return this;
+    }
+
     public WorkflowTaskResult build() {
       return new WorkflowTaskResult(
           commands == null ? Collections.emptyList() : commands,
@@ -78,7 +84,8 @@ public final class WorkflowTaskResult {
           queryResults == null ? Collections.emptyMap() : queryResults,
           finalCommand,
           forceWorkflowTask,
-          nonfirstLocalActivityAttempts);
+          nonfirstLocalActivityAttempts,
+          sdkFlags == null ? Collections.emptyList() : sdkFlags);
     }
   }
 
@@ -88,6 +95,7 @@ public final class WorkflowTaskResult {
   private final Map<String, WorkflowQueryResult> queryResults;
   private final boolean forceWorkflowTask;
   private final int nonfirstLocalActivityAttempts;
+  private final List<Integer> sdkFlags;
 
   private WorkflowTaskResult(
       List<Command> commands,
@@ -95,7 +103,8 @@ public final class WorkflowTaskResult {
       Map<String, WorkflowQueryResult> queryResults,
       boolean finalCommand,
       boolean forceWorkflowTask,
-      int nonfirstLocalActivityAttempts) {
+      int nonfirstLocalActivityAttempts,
+      List<Integer> sdkFlags) {
     this.commands = commands;
     this.messages = messages;
     this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
@@ -105,6 +114,7 @@ public final class WorkflowTaskResult {
     this.queryResults = queryResults;
     this.finalCommand = finalCommand;
     this.forceWorkflowTask = forceWorkflowTask;
+    this.sdkFlags = sdkFlags;
   }
 
   public List<Command> getCommands() {
@@ -130,5 +140,9 @@ public final class WorkflowTaskResult {
 
   public int getNonfirstLocalActivityAttempts() {
     return nonfirstLocalActivityAttempts;
+  }
+
+  public List<Integer> getSdkFlags() {
+    return sdkFlags;
   }
 }
