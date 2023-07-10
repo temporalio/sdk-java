@@ -22,10 +22,12 @@ package io.temporal.common.converter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
+import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.Experimental;
+import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
@@ -67,6 +69,7 @@ import javax.annotation.Nonnull;
  * {@link CodecDataConverter} or used directly if no custom {@link PayloadCodec}s are needed.
  */
 public interface DataConverter {
+  FailureConverter failureConverter = new DefaultFailureConverter();
 
   /**
    * @deprecated use {@link GlobalDataConverter#get()}
@@ -174,7 +177,10 @@ public interface DataConverter {
    * @throws NullPointerException if failure is null
    */
   @Nonnull
-  TemporalFailure failureToException(@Nonnull Failure failure);
+  default TemporalFailure failureToException(@Nonnull Failure failure) {
+    Preconditions.checkNotNull(failure, "failure");
+    return failureConverter.failureToException(failure, this);
+  }
 
   /**
    * Serialize an existing Throwable object into a Failure object. The default implementation
@@ -185,7 +191,10 @@ public interface DataConverter {
    * @throws NullPointerException if throwable is null
    */
   @Nonnull
-  Failure exceptionToFailure(@Nonnull Throwable throwable);
+  default Failure exceptionToFailure(@Nonnull Throwable throwable) {
+    Preconditions.checkNotNull(throwable, "throwable");
+    return failureConverter.exceptionToFailure(throwable, this);
+  }
 
   /**
    * A correct implementation of this interface should have a fully functional "contextless"
