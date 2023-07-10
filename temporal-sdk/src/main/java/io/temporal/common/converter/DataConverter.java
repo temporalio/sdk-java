@@ -69,7 +69,6 @@ import javax.annotation.Nonnull;
  * {@link CodecDataConverter} or used directly if no custom {@link PayloadCodec}s are needed.
  */
 public interface DataConverter {
-  FailureConverter failureConverter = new DefaultFailureConverter();
 
   /**
    * @deprecated use {@link GlobalDataConverter#get()}
@@ -179,7 +178,7 @@ public interface DataConverter {
   @Nonnull
   default TemporalFailure failureToException(@Nonnull Failure failure) {
     Preconditions.checkNotNull(failure, "failure");
-    return failureConverter.failureToException(failure, this);
+    return new DefaultFailureConverter().failureToException(failure, this);
   }
 
   /**
@@ -193,7 +192,7 @@ public interface DataConverter {
   @Nonnull
   default Failure exceptionToFailure(@Nonnull Throwable throwable) {
     Preconditions.checkNotNull(throwable, "throwable");
-    return failureConverter.exceptionToFailure(throwable, this);
+    return new DefaultFailureConverter().exceptionToFailure(throwable, this);
   }
 
   /**
