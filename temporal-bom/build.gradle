@@ -2,6 +2,8 @@ plugins {
     id 'java-platform'
 }
 
+description = '''Temporal Java BOM'''
+
 dependencies {
     constraints {
         api project(':temporal-kotlin')
