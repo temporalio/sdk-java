@@ -114,7 +114,7 @@ public class RootNamespaceAutoConfiguration {
     return clientTemplate.getWorkflowClient();
   }
 
-  @Bean(name = "temporalWorkflowScheduleClient")
+  @Bean(name = "temporalScheduleClient")
   public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
     return ScheduleClient.newInstance(clientTemplate.getWorkflowClient().getWorkflowServiceStubs());
   }
