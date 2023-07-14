@@ -24,6 +24,8 @@ import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClient;
+import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -37,6 +39,7 @@ public class ClientTemplate {
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private WorkflowClient workflowClient;
+  private ScheduleClient scheduleClient;
 
   public ClientTemplate(
       @Nonnull String namespace,
@@ -44,9 +47,11 @@ public class ClientTemplate {
       @Nullable Tracer tracer,
       @Nullable WorkflowServiceStubs workflowServiceStubs,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer) {
+      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomer) {
     this.optionsTemplate =
-        new WorkflowClientOptionsTemplate(namespace, dataConverter, tracer, customizer);
+        new WorkflowClientOptionsTemplate(
+            namespace, dataConverter, tracer, clientCustomizer, scheduleCustomer);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
@@ -58,6 +63,13 @@ public class ClientTemplate {
     return workflowClient;
   }
 
+  public ScheduleClient getScheduleClient() {
+    if (scheduleClient == null) {
+      this.scheduleClient = createScheduleClient();
+    }
+    return scheduleClient;
+  }
+
   private WorkflowClient createWorkflowClient() {
     if (testWorkflowEnvironment != null) {
       return testWorkflowEnvironment.getWorkflowClient();
@@ -66,6 +78,18 @@ public class ClientTemplate {
           workflowServiceStubs != null, "ClientTemplate was created without workflowServiceStubs");
       return WorkflowClient.newInstance(
           workflowServiceStubs, optionsTemplate.createWorkflowClientOptions());
+    }
+  }
+
+  private ScheduleClient createScheduleClient() {
+    if (testWorkflowEnvironment != null) {
+      return ScheduleClient.newInstance(
+          testWorkflowEnvironment.getWorkflowClient().getWorkflowServiceStubs());
+    } else {
+      Preconditions.checkState(
+          workflowServiceStubs != null, "ClientTemplate was created without workflowServiceStubs");
+      return ScheduleClient.newInstance(
+          workflowServiceStubs, optionsTemplate.createScheduleClientOptions());
     }
   }
 }

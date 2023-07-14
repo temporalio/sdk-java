@@ -24,6 +24,7 @@ import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClient;
+import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -87,7 +88,9 @@ public class RootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer) {
+          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomize) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
@@ -99,7 +102,8 @@ public class RootNamespaceAutoConfiguration {
         testWorkflowEnvironment,
         workerFactoryCustomizer,
         workerCustomizer,
-        clientCustomizer);
+        clientCustomizer,
+        scheduleCustomize);
   }
 
   /** Client */
@@ -116,7 +120,7 @@ public class RootNamespaceAutoConfiguration {
 
   @Bean(name = "temporalScheduleClient")
   public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
-    return ScheduleClient.newInstance(clientTemplate.getWorkflowClient().getWorkflowServiceStubs());
+    return clientTemplate.getScheduleClient();
   }
 
   /** Workers */
