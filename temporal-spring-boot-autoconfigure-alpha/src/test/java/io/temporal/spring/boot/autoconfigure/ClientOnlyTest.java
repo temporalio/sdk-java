@@ -21,9 +21,11 @@
 package io.temporal.spring.boot.autoconfigure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.testing.TestWorkflowEnvironment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,8 @@ public class ClientOnlyTest {
 
   @Autowired WorkflowClient workflowClient;
 
+  @Autowired ScheduleClient scheduleClient;
+
   @BeforeEach
   void setUp() {
     applicationContext.start();
@@ -55,6 +59,12 @@ public class ClientOnlyTest {
     HealthCheckResponse healthCheckResponse =
         workflowClient.getWorkflowServiceStubs().healthCheck();
     assertEquals(HealthCheckResponse.ServingStatus.SERVING, healthCheckResponse.getStatus());
+  }
+
+  @Test
+  public void testScheduleClientWiring() {
+    assertNotNull(scheduleClient);
+    assertNotNull(scheduleClient.getHandle("test"));
   }
 
   @ComponentScan(

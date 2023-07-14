@@ -23,6 +23,7 @@ package io.temporal.spring.boot.autoconfigure;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -111,6 +112,11 @@ public class RootNamespaceAutoConfiguration {
   @Bean(name = "temporalWorkflowClient")
   public WorkflowClient client(ClientTemplate clientTemplate) {
     return clientTemplate.getWorkflowClient();
+  }
+
+  @Bean(name = "temporalWorkflowScheduleClient")
+  public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
+    return ScheduleClient.newInstance(clientTemplate.getWorkflowClient().getWorkflowServiceStubs());
   }
 
   /** Workers */
