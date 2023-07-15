@@ -82,7 +82,7 @@ public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest {
   }
 
   @Test
-  public void testGetVersionAndCancelTimer_replay() throws Exception {
+  public void testGetVersionAndCancelTimerReplay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "get_version_after_scope_cancellation.json", testWorkflowRule.getWorker());
   }

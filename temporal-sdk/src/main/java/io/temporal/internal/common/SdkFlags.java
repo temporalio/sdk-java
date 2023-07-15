@@ -20,24 +20,21 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.workflow.Functions;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.EnumSet;
 
 /** Represents all the flags that are currently set in a workflow execution. */
 public final class SdkFlags {
-  private final GetSystemInfoResponse.Capabilities capabilities;
+  private final boolean supportSdkMetadata;
   private final Functions.Func<Boolean> replaying;
-  // Flags that have been received from the server
-  private final List<SdkFlag> sdkFlags = new ArrayList<>();
+  // Flags that have been received from the server or have not been sent yet.
+  private final EnumSet<SdkFlag> sdkFlags = EnumSet.noneOf(SdkFlag.class);
   // Flags that have been set this WFT that have not been sent to the server.
   // Keep track of them separately, so we know what to send to the server.
-  private final List<SdkFlag> unsentSdkFlags = new ArrayList<>();
+  private final EnumSet<SdkFlag> unsentSdkFlags = EnumSet.noneOf(SdkFlag.class);
 
-  public SdkFlags(
-      GetSystemInfoResponse.Capabilities capabilities, Functions.Func<Boolean> replaying) {
-    this.capabilities = capabilities;
+  public SdkFlags(boolean supportSdkMetadata, Functions.Func<Boolean> replaying) {
+    this.supportSdkMetadata = supportSdkMetadata;
     this.replaying = replaying;
   }
 
@@ -47,7 +44,7 @@ public final class SdkFlags {
    * @return True, as long as the server supports SDK flags
    */
   public boolean setSdkFlag(SdkFlag flag) {
-    if (!capabilities.getSdkMetadata()) {
+    if (!supportSdkMetadata) {
       return false;
     }
     sdkFlags.add(flag);
@@ -58,27 +55,24 @@ public final class SdkFlags {
    * @return True if this flag may currently be used.
    */
   public boolean tryUseSdkFlag(SdkFlag flag) {
-    if (!capabilities.getSdkMetadata()) {
+    if (!supportSdkMetadata) {
       return false;
     }
 
     if (!replaying.apply()) {
+      sdkFlags.add(flag);
       unsentSdkFlags.add(flag);
       return true;
     } else {
-      return unsentSdkFlags.contains(flag) || sdkFlags.contains(flag);
+      return sdkFlags.contains(flag);
     }
   }
 
-  /***
+  /**
    * @return All flags set since the last call to takeNewSdkFlags.
    */
-  public List<Integer> takeNewSdkFlags() {
-    List<Integer> result = new ArrayList<>(unsentSdkFlags.size());
-    for (SdkFlag flag : unsentSdkFlags) {
-      sdkFlags.add(flag);
-      result.add(flag.getValue());
-    }
+  public EnumSet<SdkFlag> takeNewSdkFlags() {
+    EnumSet<SdkFlag> result = unsentSdkFlags.clone();
     unsentSdkFlags.clear();
     return result;
   }

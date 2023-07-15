@@ -67,7 +67,7 @@ public class GetVersionInSignalOnReplayTest {
   }
 
   @Test
-  public void testGetVersionInSignal_replay() throws Exception {
+  public void testGetVersionInSignalReplay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testGetVersionInSignalHistory.json", TestGetVersionInSignal.class);
   }

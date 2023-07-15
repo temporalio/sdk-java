@@ -63,7 +63,7 @@ public class GetVersionMultithreadingTest {
   }
 
   @Test
-  public void testGetVersionDefaultMultithreading_replay() throws Exception {
+  public void testGetVersionDefaultMultithreadingReplay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testGetVersionDefaultMultithreadingHistory.json", TestGetVersionWorkflowImpl.class);
   }

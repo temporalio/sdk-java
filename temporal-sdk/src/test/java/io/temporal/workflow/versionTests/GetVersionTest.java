@@ -80,7 +80,7 @@ public class GetVersionTest {
   }
 
   @Test
-  public void testGetVersion_replay() throws Exception {
+  public void testGetVersionReplay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testGetVersionHistory.json", TestGetVersionWorkflowImpl.class);
   }

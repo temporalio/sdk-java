@@ -169,7 +169,7 @@ public final class WorkflowStateMachines {
     this.commandSink = cancellableCommands::add;
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
-    this.flags = new SdkFlags(capabilities, this::isReplaying);
+    this.flags = new SdkFlags(capabilities.getSdkMetadata(), this::isReplaying);
   }
 
   @VisibleForTesting
@@ -179,8 +179,7 @@ public final class WorkflowStateMachines {
     this.commandSink = cancellableCommands::add;
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
-    this.flags =
-        new SdkFlags(GetSystemInfoResponse.Capabilities.newBuilder().build(), this::isReplaying);
+    this.flags = new SdkFlags(false, this::isReplaying);
   }
 
   // TODO revisit and potentially remove workflowTaskStartedEventId at all from the state machines.
@@ -310,7 +309,7 @@ public final class WorkflowStateMachines {
         WorkflowTaskCompletedEventAttributes completedEvent =
             event.getWorkflowTaskCompletedEventAttributes();
         for (Integer flag : completedEvent.getSdkMetadata().getLangUsedFlagsList()) {
-          SdkFlag sdkFlag = SdkFlag.GetValue(flag);
+          SdkFlag sdkFlag = SdkFlag.getValue(flag);
           if (sdkFlag.equals(SdkFlag.UNKNOWN)) {
             throw new IllegalArgumentException("Unknown SDK flag:" + flag);
           }
@@ -563,9 +562,9 @@ public final class WorkflowStateMachines {
   }
 
   /**
-   * @return List of all new flags set since the last call
+   * @return Set of all new flags set since the last call
    */
-  public List<Integer> takeNewSdkFlags() {
+  public EnumSet<SdkFlag> takeNewSdkFlags() {
     return flags.takeNewSdkFlags();
   }
 
@@ -924,7 +923,6 @@ public final class WorkflowStateMachines {
         versions.computeIfAbsent(
             changeId,
             (idKey) -> {
-              System.out.println("Creating VersionStateMachine");
               return VersionStateMachine.newInstance(
                   changeId, this::isReplaying, commandSink, stateMachineSink);
             });

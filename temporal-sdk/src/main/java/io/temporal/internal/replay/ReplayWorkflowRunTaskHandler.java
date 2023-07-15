@@ -42,6 +42,7 @@ import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.Config;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
@@ -165,7 +166,11 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       processLocalActivityRequests(wftHearbeatDeadline);
       List<Command> commands = workflowStateMachines.takeCommands();
       List<Message> messages = workflowStateMachines.takeMessages();
-      List<Integer> newSdkFlags = workflowStateMachines.takeNewSdkFlags();
+      EnumSet<SdkFlag> newFlags = workflowStateMachines.takeNewSdkFlags();
+      List<Integer> newSdkFlags = new ArrayList<>(newFlags.size());
+      for (SdkFlag flag : newFlags) {
+        newSdkFlags.add(flag.getValue());
+      }
       if (context.isWorkflowMethodCompleted()) {
         // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation

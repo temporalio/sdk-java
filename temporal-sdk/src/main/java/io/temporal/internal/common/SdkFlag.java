@@ -27,7 +27,7 @@ package io.temporal.internal.common;
 public enum SdkFlag {
   UNSET(0),
   /*
-   * Changes behaviour of GetVersion to not yield if no previous call existed in history.
+   * Changes behavior of GetVersion to not yield if no previous call existed in history.
    */
   SKIP_YIELD_ON_DEFAULT_VERSION(1),
   UNKNOWN(Integer.MAX_VALUE);
@@ -38,14 +38,14 @@ public enum SdkFlag {
     this.value = value;
   }
 
-  public boolean Compare(int i) {
+  public boolean compare(int i) {
     return value == i;
   }
 
-  public static SdkFlag GetValue(int _id) {
+  public static SdkFlag getValue(int id) {
     SdkFlag[] As = SdkFlag.values();
     for (int i = 0; i < As.length; i++) {
-      if (As[i].Compare(_id)) return As[i];
+      if (As[i].compare(id)) return As[i];
     }
     return SdkFlag.UNKNOWN;
   }
