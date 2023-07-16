@@ -165,12 +165,50 @@ public class SpanFactory {
       Tracer tracer, String updateName, String workflowId, String runId) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
-            .setSpanOperationType(SpanOperationType.SIGNAL_WORKFLOW)
+            .setSpanOperationType(SpanOperationType.UPDATE_WORKFLOW)
             .setActionName(updateName)
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
     return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowStartUpdateSpan(
+      Tracer tracer,
+      String updateName,
+      String workflowId,
+      String runId,
+      SpanContext workflowSignalSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.UPDATE_WORKFLOW)
+            .setActionName(updateName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowQuerySpan(
+      Tracer tracer, String updateName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.QUERY_WORKFLOW)
+            .setActionName(updateName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowQuerySpan(
+      Tracer tracer, String queryName, SpanContext workflowSignalSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.QUERY_WORKFLOW)
+            .setActionName(queryName)
+            .build();
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
   }
 
   @SuppressWarnings("deprecation")

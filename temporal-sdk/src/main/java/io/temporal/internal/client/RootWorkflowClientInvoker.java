@@ -255,7 +255,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public <R> QueryOutput<R> query(QueryInput<R> input) {
-    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(input.getQueryType());
+    WorkflowQuery.Builder query =
+        WorkflowQuery.newBuilder()
+            .setQueryType(input.getQueryType())
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
     DataConverter dataConverterWithWorkflowContext =
         clientOptions
             .getDataConverter()

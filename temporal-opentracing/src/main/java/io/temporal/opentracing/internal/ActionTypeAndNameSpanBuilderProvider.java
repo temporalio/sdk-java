@@ -96,6 +96,8 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
+      case QUERY_WORKFLOW:
+        return ImmutableMap.of();
     }
     throw new IllegalArgumentException("Unknown span operation type provided");
   }

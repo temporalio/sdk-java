@@ -219,7 +219,7 @@ class SyncWorkflow implements ReplayWorkflow {
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
-    return workflowProc.handleQuery(query.getQueryType(), args);
+    return workflowProc.handleQuery(query.getQueryType(), query.getHeader(), args);
   }
 
   @Override

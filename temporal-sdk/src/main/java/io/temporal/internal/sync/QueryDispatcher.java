@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.DynamicQueryHandler;
@@ -69,7 +70,7 @@ class QueryDispatcher {
     return new WorkflowInboundCallsInterceptor.QueryOutput(result);
   }
 
-  public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
+  public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
     WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
     Object[] args;
     if (handler == null) {
@@ -85,7 +86,7 @@ class QueryDispatcher {
     }
     Object result =
         inboundCallsInterceptor
-            .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, args))
+            .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, header, args))
             .getResult();
     return dataConverterWithWorkflowContext.toPayloads(result);
   }

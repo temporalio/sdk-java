@@ -342,8 +342,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return queryDispatcher.handleInterceptedQuery(input);
   }
 
-  public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
-    return queryDispatcher.handleQuery(queryName, input);
+  public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
+    return queryDispatcher.handleQuery(queryName, header, input);
   }
 
   private class ActivityCallback {

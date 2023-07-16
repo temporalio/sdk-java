@@ -275,7 +275,7 @@ class WorkflowStubImpl implements WorkflowStub {
       result =
           workflowClientInvoker.query(
               new WorkflowClientCallsInterceptor.QueryInput<>(
-                  targetExecution, queryType, args, resultClass, resultType));
+                  targetExecution, queryType, Header.empty(), args, resultClass, resultType));
     } catch (Exception e) {
       return throwAsWorkflowFailureExceptionForQuery(e, resultClass, targetExecution);
     }

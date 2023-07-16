@@ -99,8 +99,9 @@ class WorkflowExecutionHandler {
     }
   }
 
-  public Optional<Payloads> handleQuery(String type, Optional<Payloads> args) {
-    return context.handleQuery(type, args);
+  public Optional<Payloads> handleQuery(
+      String type, io.temporal.api.common.v1.Header header, Optional<Payloads> args) {
+    return context.handleQuery(type, new Header(header), args);
   }
 
   public void handleValidateUpdate(

@@ -297,6 +297,7 @@ public interface WorkflowClientCallsInterceptor {
   final class QueryInput<R> {
     private final WorkflowExecution workflowExecution;
     private final String queryType;
+    private final Header header;
     private final Object[] arguments;
     private final Class<R> resultClass;
     private final Type resultType;
@@ -304,11 +305,13 @@ public interface WorkflowClientCallsInterceptor {
     public QueryInput(
         WorkflowExecution workflowExecution,
         String queryType,
+        Header header,
         Object[] arguments,
         Class<R> resultClass,
         Type resultType) {
       this.workflowExecution = workflowExecution;
       this.queryType = queryType;
+      this.header = header;
       this.arguments = arguments;
       this.resultClass = resultClass;
       this.resultType = resultType;
@@ -320,6 +323,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public String getQueryType() {
       return queryType;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArguments() {

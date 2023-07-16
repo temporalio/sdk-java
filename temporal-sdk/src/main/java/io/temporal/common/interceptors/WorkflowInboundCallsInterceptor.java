@@ -109,15 +109,21 @@ public interface WorkflowInboundCallsInterceptor {
 
   final class QueryInput {
     private final String queryName;
+    private final Header header;
     private final Object[] arguments;
 
-    public QueryInput(String signalName, Object[] arguments) {
-      this.queryName = signalName;
+    public QueryInput(String queryName, Header header, Object[] arguments) {
+      this.queryName = queryName;
+      this.header = header;
       this.arguments = arguments;
     }
 
     public String getQueryName() {
       return queryName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArguments() {
