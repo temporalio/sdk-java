@@ -144,7 +144,8 @@ final class ReplayWorkflowExecutor {
     }
     Optional<Payloads> input =
         signalAttributes.hasInput() ? Optional.of(signalAttributes.getInput()) : Optional.empty();
-    this.workflow.handleSignal(signalAttributes.getSignalName(), input, event.getEventId());
+    this.workflow.handleSignal(
+        signalAttributes.getSignalName(), input, event.getEventId(), signalAttributes.getHeader());
   }
 
   public void handleWorkflowExecutionUpdated(UpdateMessage updateMessage) {

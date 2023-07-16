@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.CancelExternalWorkflowException;
 import io.temporal.workflow.ExternalWorkflowStub;
@@ -51,7 +52,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
         outboundCallsInterceptor
             .signalExternalWorkflow(
                 new WorkflowOutboundCallsInterceptor.SignalExternalInput(
-                    execution, signalName, args))
+                    execution, signalName, Header.empty(), args))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);

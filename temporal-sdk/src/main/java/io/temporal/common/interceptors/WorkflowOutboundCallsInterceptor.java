@@ -263,11 +263,14 @@ public interface WorkflowOutboundCallsInterceptor {
   final class SignalExternalInput {
     private final WorkflowExecution execution;
     private final String signalName;
+    private final Header header;
     private final Object[] args;
 
-    public SignalExternalInput(WorkflowExecution execution, String signalName, Object[] args) {
+    public SignalExternalInput(
+        WorkflowExecution execution, String signalName, Header header, Object[] args) {
       this.execution = execution;
       this.signalName = signalName;
+      this.header = header;
       this.args = args;
     }
 
@@ -277,6 +280,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getSignalName() {
       return signalName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArgs() {

@@ -20,6 +20,7 @@
 
 package io.temporal.opentracing.internal;
 
+import io.opentracing.References;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -53,6 +54,27 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
             tracer);
     try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
       return super.start(input);
+    } finally {
+      workflowStartSpan.finish();
+    }
+  }
+
+  @Override
+  public WorkflowSignalOutput signal(WorkflowSignalInput input) {
+    Span workflowStartSpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createWorkflowSignalSpan(
+                        tracer,
+                        input.getSignalName(),
+                        input.getWorkflowExecution().getWorkflowId(),
+                        References.FOLLOWS_FROM)
+                    .start(),
+            input.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
+      return super.signal(input);
     } finally {
       workflowStartSpan.finish();
     }

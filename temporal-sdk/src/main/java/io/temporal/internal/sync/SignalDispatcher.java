@@ -24,6 +24,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.worker.MetricsType;
@@ -76,13 +77,14 @@ class SignalDispatcher {
     }
   }
 
-  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+  public void handleSignal(
+      String signalName, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
         signalCallbacks.get(signalName);
     Object[] args;
     if (handler == null) {
       if (dynamicSignalHandler == null) {
-        signalBuffer.add(new SignalData(signalName, input, eventId));
+        signalBuffer.add(new SignalData(signalName, input, eventId, header));
         return;
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
@@ -97,7 +99,7 @@ class SignalDispatcher {
       }
     }
     inboundCallsInterceptor.handleSignal(
-        new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId));
+        new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId, header));
   }
 
   public void registerSignalHandlers(
@@ -110,7 +112,11 @@ class SignalDispatcher {
       signalCallbacks.put(signalType, request);
     }
     for (SignalData signalData : signalBuffer) {
-      handleSignal(signalData.getSignalName(), signalData.getPayload(), signalData.getEventId());
+      handleSignal(
+          signalData.getSignalName(),
+          signalData.getPayload(),
+          signalData.getEventId(),
+          signalData.getHeader());
     }
   }
 
@@ -140,11 +146,13 @@ class SignalDispatcher {
     private final String signalName;
     private final Optional<Payloads> payload;
     private final long eventId;
+    private final Header header;
 
-    private SignalData(String signalName, Optional<Payloads> payload, long eventId) {
+    private SignalData(String signalName, Optional<Payloads> payload, long eventId, Header header) {
       this.signalName = Objects.requireNonNull(signalName);
       this.payload = Objects.requireNonNull(payload);
       this.eventId = eventId;
+      this.header = header;
     }
 
     public String getSignalName() {
@@ -157,6 +165,10 @@ class SignalDispatcher {
 
     public long getEventId() {
       return eventId;
+    }
+
+    public Header getHeader() {
+      return header;
     }
   }
 }

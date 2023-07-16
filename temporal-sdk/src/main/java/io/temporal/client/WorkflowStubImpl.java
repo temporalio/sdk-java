@@ -88,7 +88,7 @@ class WorkflowStubImpl implements WorkflowStub {
     try {
       workflowClientInvoker.signal(
           new WorkflowClientCallsInterceptor.WorkflowSignalInput(
-              targetExecution, signalName, args));
+              targetExecution, signalName, Header.empty(), args));
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), throwable);

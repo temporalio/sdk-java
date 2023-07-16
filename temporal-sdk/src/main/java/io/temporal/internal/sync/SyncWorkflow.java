@@ -20,6 +20,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
@@ -140,9 +141,11 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+  public void handleSignal(
+      String signalName, Optional<Payloads> input, long eventId, Header header) {
     runner.executeInWorkflowThread(
-        "signal " + signalName, () -> workflowProc.handleSignal(signalName, input, eventId));
+        "signal " + signalName,
+        () -> workflowProc.handleSignal(signalName, input, eventId, header));
   }
 
   @Override

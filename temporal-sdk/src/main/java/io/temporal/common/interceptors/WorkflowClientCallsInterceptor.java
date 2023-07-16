@@ -152,12 +152,17 @@ public interface WorkflowClientCallsInterceptor {
   final class WorkflowSignalInput {
     private final WorkflowExecution workflowExecution;
     private final String signalName;
+    private final Header header;
     private final Object[] arguments;
 
     public WorkflowSignalInput(
-        WorkflowExecution workflowExecution, String signalName, Object[] signalArguments) {
+        WorkflowExecution workflowExecution,
+        String signalName,
+        Header header,
+        Object[] signalArguments) {
       this.workflowExecution = workflowExecution;
       this.signalName = signalName;
+      this.header = header;
       this.arguments = signalArguments;
     }
 
@@ -167,6 +172,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public String getSignalName() {
       return signalName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArguments() {

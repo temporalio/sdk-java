@@ -81,11 +81,13 @@ public interface WorkflowInboundCallsInterceptor {
     private final String signalName;
     private final Object[] arguments;
     private final long EventId;
+    private final Header header;
 
-    public SignalInput(String signalName, Object[] arguments, long eventId) {
+    public SignalInput(String signalName, Object[] arguments, long eventId, Header header) {
       this.signalName = signalName;
       this.arguments = arguments;
       EventId = eventId;
+      this.header = header;
     }
 
     public String getSignalName() {
@@ -98,6 +100,10 @@ public interface WorkflowInboundCallsInterceptor {
 
     public long getEventId() {
       return EventId;
+    }
+
+    public Header getHeader() {
+      return header;
     }
   }
 

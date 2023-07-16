@@ -82,4 +82,32 @@ public class OpenTracingWorkflowInboundCallsInterceptor
       workflowRunSpan.finish();
     }
   }
+
+  @Override
+  public void handleSignal(SignalInput input) {
+    Tracer tracer = options.getTracer();
+    SpanContext rootSpanContext =
+        contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Span workflowRunSpan =
+        spanFactory
+            .createWorkflowSignalSpan(
+                tracer,
+                Workflow.getInfo().getWorkflowType(),
+                Workflow.getInfo().getWorkflowId(),
+                Workflow.getInfo().getRunId(),
+                rootSpanContext)
+            .start();
+    try (Scope scope = tracer.scopeManager().activate(workflowRunSpan)) {
+      super.handleSignal(input);
+    } catch (Throwable t) {
+      if (t instanceof DestroyWorkflowThreadError) {
+        spanFactory.logEviction(workflowRunSpan);
+      } else {
+        spanFactory.logFail(workflowRunSpan, t);
+      }
+      throw t;
+    } finally {
+      workflowRunSpan.finish();
+    }
+  }
 }

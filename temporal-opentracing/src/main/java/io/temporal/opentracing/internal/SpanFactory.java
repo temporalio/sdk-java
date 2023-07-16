@@ -77,6 +77,34 @@ public class SpanFactory {
     return createSpan(context, tracer, null, References.CHILD_OF);
   }
 
+  public Tracer.SpanBuilder createWorkflowSignalSpan(
+      Tracer tracer, String signalName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.SIGNAL_WORKFLOW)
+            .setActionName(signalName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowSignalSpan(
+      Tracer tracer,
+      String signalName,
+      String workflowId,
+      String runId,
+      SpanContext workflowSignalSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.SIGNAL_WORKFLOW)
+            .setActionName(signalName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
+  }
+
   public Tracer.SpanBuilder createContinueAsNewWorkflowStartSpan(
       Tracer tracer, String continueAsNewWorkflowType, String workflowId, String parentRunId) {
     SpanCreationContext context =

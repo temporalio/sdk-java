@@ -87,9 +87,13 @@ class WorkflowExecutionHandler {
 
   public void close() {}
 
-  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+  public void handleSignal(
+      String signalName,
+      Optional<Payloads> input,
+      long eventId,
+      io.temporal.api.common.v1.Header header) {
     try {
-      context.handleSignal(signalName, input, eventId);
+      context.handleSignal(signalName, input, eventId, new Header(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }

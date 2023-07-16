@@ -101,6 +101,32 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   }
 
   @Override
+  public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
+    if (!WorkflowUnsafe.isReplaying()) {
+      WorkflowInfo workflowInfo = Workflow.getInfo();
+      Span childWorkflowStartSpan =
+          contextAccessor.writeSpanContextToHeader(
+              () ->
+                  spanFactory
+                      .createWorkflowSignalSpan(
+                          tracer,
+                          input.getSignalName(),
+                          workflowInfo.getWorkflowId(),
+                          workflowInfo.getRunId())
+                      .start(),
+              input.getHeader(),
+              tracer);
+      try (Scope ignored = tracer.scopeManager().activate(childWorkflowStartSpan)) {
+        return super.signalExternalWorkflow(input);
+      } finally {
+        childWorkflowStartSpan.finish();
+      }
+    } else {
+      return super.signalExternalWorkflow(input);
+    }
+  }
+
+  @Override
   public void continueAsNew(ContinueAsNewInput input) {
     if (!WorkflowUnsafe.isReplaying()) {
       Span continueAsNewStartSpan =

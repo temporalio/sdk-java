@@ -21,6 +21,7 @@
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -128,12 +129,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public WorkflowSignalOutput signal(WorkflowSignalInput input) {
+    Header grpcHeader = toHeaderGrpc(input.getHeader(), null);
+
     SignalWorkflowExecutionRequest.Builder request =
         SignalWorkflowExecutionRequest.newBuilder()
             .setSignalName(input.getSignalName())
             .setWorkflowExecution(input.getWorkflowExecution())
             .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace());
+            .setNamespace(clientOptions.getNamespace())
+            .setHeader(grpcHeader);
 
     DataConverter dataConverterWitSignalContext =
         clientOptions
