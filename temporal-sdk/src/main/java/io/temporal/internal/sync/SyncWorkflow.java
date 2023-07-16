@@ -150,7 +150,11 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void handleUpdate(
-      String updateName, Optional<Payloads> input, long eventId, UpdateProtocolCallback callbacks) {
+      String updateName,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      UpdateProtocolCallback callbacks) {
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
@@ -160,7 +164,7 @@ class SyncWorkflow implements ReplayWorkflow {
               // TODO(https://github.com/temporalio/sdk-java/issues/1748) handleValidateUpdate
               // should not just be run
               // in a workflow thread
-              workflowProc.handleValidateUpdate(updateName, input, eventId);
+              workflowProc.handleValidateUpdate(updateName, input, eventId, header);
             } catch (Exception e) {
               callbacks.reject(this.dataConverter.exceptionToFailure(e));
               return;
@@ -169,7 +173,7 @@ class SyncWorkflow implements ReplayWorkflow {
           callbacks.accept();
           try {
             Optional<Payloads> result =
-                workflowProc.handleExecuteUpdate(updateName, input, eventId);
+                workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
             callbacks.complete(result, null);
           } catch (WorkflowExecutionException e) {
             callbacks.complete(Optional.empty(), e.getFailure());

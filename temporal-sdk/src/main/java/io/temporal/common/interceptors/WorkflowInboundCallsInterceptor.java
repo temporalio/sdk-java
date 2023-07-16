@@ -140,15 +140,21 @@ public interface WorkflowInboundCallsInterceptor {
   @Experimental
   final class UpdateInput {
     private final String updateName;
+    private final Header header;
     private final Object[] arguments;
 
-    public UpdateInput(String updateName, Object[] arguments) {
+    public UpdateInput(String updateName, Header header, Object[] arguments) {
       this.updateName = updateName;
+      this.header = header;
       this.arguments = arguments;
     }
 
     public String getUpdateName() {
       return updateName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArguments() {

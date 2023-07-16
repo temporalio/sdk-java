@@ -88,7 +88,7 @@ public class OpenTracingWorkflowInboundCallsInterceptor
     Tracer tracer = options.getTracer();
     SpanContext rootSpanContext =
         contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
-    Span workflowRunSpan =
+    Span workflowSignalSpan =
         spanFactory
             .createWorkflowSignalSpan(
                 tracer,
@@ -97,17 +97,45 @@ public class OpenTracingWorkflowInboundCallsInterceptor
                 Workflow.getInfo().getRunId(),
                 rootSpanContext)
             .start();
-    try (Scope scope = tracer.scopeManager().activate(workflowRunSpan)) {
+    try (Scope scope = tracer.scopeManager().activate(workflowSignalSpan)) {
       super.handleSignal(input);
     } catch (Throwable t) {
       if (t instanceof DestroyWorkflowThreadError) {
-        spanFactory.logEviction(workflowRunSpan);
+        spanFactory.logEviction(workflowSignalSpan);
       } else {
-        spanFactory.logFail(workflowRunSpan, t);
+        spanFactory.logFail(workflowSignalSpan, t);
       }
       throw t;
     } finally {
-      workflowRunSpan.finish();
+      workflowSignalSpan.finish();
+    }
+  }
+
+  @Override
+  public UpdateOutput executeUpdate(UpdateInput input) {
+    Tracer tracer = options.getTracer();
+    SpanContext rootSpanContext =
+        contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Span workflowSignalSpan =
+        spanFactory
+            .createWorkflowSignalSpan(
+                tracer,
+                Workflow.getInfo().getWorkflowType(),
+                Workflow.getInfo().getWorkflowId(),
+                Workflow.getInfo().getRunId(),
+                rootSpanContext)
+            .start();
+    try (Scope scope = tracer.scopeManager().activate(workflowSignalSpan)) {
+      return super.executeUpdate(input);
+    } catch (Throwable t) {
+      if (t instanceof DestroyWorkflowThreadError) {
+        spanFactory.logEviction(workflowSignalSpan);
+      } else {
+        spanFactory.logFail(workflowSignalSpan, t);
+      }
+      throw t;
+    } finally {
+      workflowSignalSpan.finish();
     }
   }
 }

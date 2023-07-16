@@ -292,13 +292,15 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
           public void start(HistoryEvent event, ReplayWorkflowContext context) {}
 
           @Override
-          public void handleSignal(String signalName, Optional<Payloads> input, long eventId, Header header) {}
+          public void handleSignal(
+              String signalName, Optional<Payloads> input, long eventId, Header header) {}
 
           @Override
           public void handleUpdate(
               String updateName,
               Optional<Payloads> input,
               long eventId,
+              Header header,
               UpdateProtocolCallback callbacks) {}
 
           @Override

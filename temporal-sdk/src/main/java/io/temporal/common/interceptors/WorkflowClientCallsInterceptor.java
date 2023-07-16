@@ -377,6 +377,7 @@ public interface WorkflowClientCallsInterceptor {
   final class StartUpdateInput<R> {
     private final WorkflowExecution workflowExecution;
     private final String updateName;
+    private final Header header;
     private final Object[] arguments;
     private final Class<R> resultClass;
     private final Type resultType;
@@ -387,6 +388,7 @@ public interface WorkflowClientCallsInterceptor {
     public StartUpdateInput(
         WorkflowExecution workflowExecution,
         String updateName,
+        Header header,
         String updateId,
         Object[] arguments,
         Class<R> resultClass,
@@ -394,6 +396,7 @@ public interface WorkflowClientCallsInterceptor {
         String firstExecutionRunId,
         WaitPolicy waitPolicy) {
       this.workflowExecution = workflowExecution;
+      this.header = header;
       this.updateId = updateId;
       this.updateName = updateName;
       this.arguments = arguments;
@@ -409,6 +412,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public String getUpdateName() {
       return updateName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public String getUpdateId() {

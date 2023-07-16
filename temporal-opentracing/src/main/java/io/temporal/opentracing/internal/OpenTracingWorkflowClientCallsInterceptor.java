@@ -61,7 +61,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
 
   @Override
   public WorkflowSignalOutput signal(WorkflowSignalInput input) {
-    Span workflowStartSpan =
+    Span workflowSignalSpan =
         contextAccessor.writeSpanContextToHeader(
             () ->
                 spanFactory
@@ -73,10 +73,10 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
                     .start(),
             input.getHeader(),
             tracer);
-    try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
+    try (Scope ignored = tracer.scopeManager().activate(workflowSignalSpan)) {
       return super.signal(input);
     } finally {
-      workflowStartSpan.finish();
+      workflowSignalSpan.finish();
     }
   }
 
@@ -95,6 +95,27 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
       return super.signalWithStart(input);
     } finally {
       workflowStartSpan.finish();
+    }
+  }
+
+  @Override
+  public <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input) {
+    Span workflowStartUpdateSpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createWorkflowStartUpdateSpan(
+                        tracer,
+                        input.getUpdateName(),
+                        input.getWorkflowExecution().getWorkflowId(),
+                        References.FOLLOWS_FROM)
+                    .start(),
+            input.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowStartUpdateSpan)) {
+      return super.startUpdate(input);
+    } finally {
+      workflowStartUpdateSpan.finish();
     }
   }
 

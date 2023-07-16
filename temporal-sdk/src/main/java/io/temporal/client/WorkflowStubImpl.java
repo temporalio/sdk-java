@@ -332,6 +332,7 @@ class WorkflowStubImpl implements WorkflowStub {
               new WorkflowClientCallsInterceptor.StartUpdateInput<>(
                   targetExecution,
                   options.getUpdateName(),
+                  Header.empty(),
                   options.getUpdateId(),
                   args,
                   options.getResultClass(),

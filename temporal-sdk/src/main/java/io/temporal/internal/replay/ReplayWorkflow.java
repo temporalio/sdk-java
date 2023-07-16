@@ -40,7 +40,11 @@ public interface ReplayWorkflow {
 
   /** Handle an update workflow execution event */
   void handleUpdate(
-      String updateName, Optional<Payloads> input, long eventId, UpdateProtocolCallback callbacks);
+      String updateName,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      UpdateProtocolCallback callbacks);
 
   /**
    * @return true if the execution of the workflow method is finished or an exit was explicitly

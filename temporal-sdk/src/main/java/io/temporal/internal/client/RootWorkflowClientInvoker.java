@@ -21,7 +21,6 @@
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
-import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -306,7 +305,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     Optional<Payloads> inputArgs =
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
-    Input.Builder updateInput = Input.newBuilder().setName(input.getUpdateName());
+    Input.Builder updateInput =
+        Input.newBuilder()
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null))
+            .setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
 
     Request request =

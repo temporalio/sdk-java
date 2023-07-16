@@ -161,6 +161,18 @@ public class SpanFactory {
     return createSpan(context, tracer, activityStartSpanContext, References.FOLLOWS_FROM);
   }
 
+  public Tracer.SpanBuilder createWorkflowStartUpdateSpan(
+      Tracer tracer, String updateName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.SIGNAL_WORKFLOW)
+            .setActionName(updateName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
   @SuppressWarnings("deprecation")
   public void logFail(Span toSpan, Throwable failReason) {
     toSpan.setTag(StandardTagNames.FAILED, true);

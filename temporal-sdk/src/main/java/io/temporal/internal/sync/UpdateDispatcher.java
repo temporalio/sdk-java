@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor.UpdateInput;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor.UpdateOutput;
@@ -53,7 +54,8 @@ class UpdateDispatcher {
     this.inboundCallsInterceptor = inboundCallsInterceptor;
   }
 
-  public void handleValidateUpdate(String updateName, Optional<Payloads> input, long eventId) {
+  public void handleValidateUpdate(
+      String updateName, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =
         updateCallbacks.get(updateName);
     Object[] args;
@@ -70,11 +72,11 @@ class UpdateDispatcher {
     }
 
     inboundCallsInterceptor.validateUpdate(
-        new WorkflowInboundCallsInterceptor.UpdateInput(updateName, args));
+        new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args));
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, Optional<Payloads> input, long eventId) {
+      String updateName, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =
         updateCallbacks.get(updateName);
     Object[] args;
@@ -91,7 +93,8 @@ class UpdateDispatcher {
     }
     Object result =
         inboundCallsInterceptor
-            .executeUpdate(new WorkflowInboundCallsInterceptor.UpdateInput(updateName, args))
+            .executeUpdate(
+                new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
             .getResult();
     return dataConverterWithWorkflowContext.toPayloads(result);
   }

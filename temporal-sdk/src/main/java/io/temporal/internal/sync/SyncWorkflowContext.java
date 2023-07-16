@@ -318,13 +318,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     signalDispatcher.handleSignal(signalName, input, eventId, header);
   }
 
-  public void handleValidateUpdate(String updateName, Optional<Payloads> input, long eventId) {
-    updateDispatcher.handleValidateUpdate(updateName, input, eventId);
+  public void handleValidateUpdate(
+      String updateName, Optional<Payloads> input, long eventId, Header header) {
+    updateDispatcher.handleValidateUpdate(updateName, input, eventId, header);
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, Optional<Payloads> input, long eventId) {
-    return updateDispatcher.handleExecuteUpdate(updateName, input, eventId);
+      String updateName, Optional<Payloads> input, long eventId, Header header) {
+    return updateDispatcher.handleExecuteUpdate(updateName, input, eventId, header);
   }
 
   public void handleInterceptedValidateUpdate(WorkflowInboundCallsInterceptor.UpdateInput input) {

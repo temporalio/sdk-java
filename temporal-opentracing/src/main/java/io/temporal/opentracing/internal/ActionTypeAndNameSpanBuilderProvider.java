@@ -89,6 +89,7 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
       case START_ACTIVITY:
       case RUN_ACTIVITY:
       case SIGNAL_WORKFLOW:
+      case UPDATE_WORKFLOW:
         String runId = context.getRunId();
         Preconditions.checkNotNull(
             runId, "runId is expected to be not null for span operation type %s", operationType);
