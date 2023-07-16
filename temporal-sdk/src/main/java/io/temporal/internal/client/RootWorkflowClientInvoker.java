@@ -37,6 +37,7 @@ import io.temporal.client.WorkflowUpdateException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.lang.reflect.Type;
@@ -129,15 +130,13 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public WorkflowSignalOutput signal(WorkflowSignalInput input) {
-    Header grpcHeader = toHeaderGrpc(input.getHeader(), null);
-
     SignalWorkflowExecutionRequest.Builder request =
         SignalWorkflowExecutionRequest.newBuilder()
             .setSignalName(input.getSignalName())
             .setWorkflowExecution(input.getWorkflowExecution())
             .setIdentity(clientOptions.getIdentity())
             .setNamespace(clientOptions.getNamespace())
-            .setHeader(grpcHeader);
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
 
     DataConverter dataConverterWitSignalContext =
         clientOptions
