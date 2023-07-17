@@ -105,7 +105,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       if (Status.Code.ALREADY_EXISTS.equals(e.getStatus().getCode())) {
         throw new ScheduleAlreadyRunningException(e);
       } else {
-        throw e;
+        throw new ScheduleException(e);
       }
     }
   }
