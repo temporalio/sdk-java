@@ -37,10 +37,9 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.common.ProtocolType;
-import io.temporal.internal.common.ProtocolUtils;
-import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.common.*;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.sync.WorkflowThread;
@@ -57,6 +56,10 @@ public final class WorkflowStateMachines {
     OK,
     NON_MATCHING_EVENT
   }
+
+  /** Initial set of SDK flags that will be set on all new workflow executions. */
+  private static final List<SdkFlag> initialFlags =
+      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -148,11 +151,25 @@ public final class WorkflowStateMachines {
 
   private final WFTBuffer wftBuffer = new WFTBuffer();
 
-  /** */
   private List<Message> messages = new ArrayList<Message>();
 
-  public WorkflowStateMachines(StatesMachinesCallback callbacks) {
-    this(callbacks, (stateMachine) -> {});
+  private final SdkFlags flags;
+
+  public WorkflowStateMachines(
+      StatesMachinesCallback callbacks, GetSystemInfoResponse.Capabilities capabilities) {
+    this(callbacks, (stateMachine) -> {}, capabilities);
+  }
+
+  @VisibleForTesting
+  public WorkflowStateMachines(
+      StatesMachinesCallback callbacks,
+      Functions.Proc1<StateMachine> stateMachineSink,
+      GetSystemInfoResponse.Capabilities capabilities) {
+    this.callbacks = Objects.requireNonNull(callbacks);
+    this.commandSink = cancellableCommands::add;
+    this.stateMachineSink = stateMachineSink;
+    this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
+    this.flags = new SdkFlags(capabilities.getSdkMetadata(), this::isReplaying);
   }
 
   @VisibleForTesting
@@ -162,6 +179,7 @@ public final class WorkflowStateMachines {
     this.commandSink = cancellableCommands::add;
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
+    this.flags = new SdkFlags(false, this::isReplaying);
   }
 
   // TODO revisit and potentially remove workflowTaskStartedEventId at all from the state machines.
@@ -231,32 +249,15 @@ public final class WorkflowStateMachines {
    *     this batch contains the last events of the history
    */
   private void handleEventsBatch(List<HistoryEvent> events, boolean hasNextEvent) {
-    if (EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED.equals(events.get(0).getEventType())) {
-      for (HistoryEvent event : events) {
-        try {
-          preloadVersionMarker(event);
-        } catch (RuntimeException e) {
-          throw createEventProcessingException(e, event);
-        }
+    if (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.equals(events.get(0).getEventType())) {
+      for (SdkFlag flag : initialFlags) {
+        flags.tryUseSdkFlag(flag);
       }
     }
 
-    // Look ahead to infer protocol messages
     if (EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED.equals(events.get(0).getEventType())) {
-      if (this.isReplaying()) {
-        for (HistoryEvent event : events) {
-          if (event.hasWorkflowExecutionUpdateAcceptedEventAttributes()) {
-            WorkflowExecutionUpdateAcceptedEventAttributes updateEvent =
-                event.getWorkflowExecutionUpdateAcceptedEventAttributes();
-            this.messages.add(
-                Message.newBuilder()
-                    .setId(updateEvent.getAcceptedRequestMessageId())
-                    .setProtocolInstanceId(updateEvent.getProtocolInstanceId())
-                    .setEventId(updateEvent.getAcceptedRequestSequencingEventId())
-                    .setBody(Any.pack(updateEvent.getAcceptedRequest()))
-                    .build());
-          }
-        }
+      for (HistoryEvent event : events) {
+        handleSingleEventLookahead(event);
       }
     }
 
@@ -278,6 +279,43 @@ public final class WorkflowStateMachines {
       for (Message msg : this.takeLTE(event.getEventId())) {
         handleSingleMessage(msg);
       }
+    }
+  }
+
+  /** Handle an event when looking ahead at history during replay */
+  private void handleSingleEventLookahead(HistoryEvent event) {
+    EventType eventType = event.getEventType();
+    switch (eventType) {
+      case EVENT_TYPE_MARKER_RECORDED:
+        try {
+          preloadVersionMarker(event);
+        } catch (RuntimeException e) {
+          throw createEventProcessingException(e, event);
+        }
+        break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
+        // Look ahead to infer protocol messages
+        WorkflowExecutionUpdateAcceptedEventAttributes updateEvent =
+            event.getWorkflowExecutionUpdateAcceptedEventAttributes();
+        this.messages.add(
+            Message.newBuilder()
+                .setId(updateEvent.getAcceptedRequestMessageId())
+                .setProtocolInstanceId(updateEvent.getProtocolInstanceId())
+                .setEventId(updateEvent.getAcceptedRequestSequencingEventId())
+                .setBody(Any.pack(updateEvent.getAcceptedRequest()))
+                .build());
+        break;
+      case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
+        WorkflowTaskCompletedEventAttributes completedEvent =
+            event.getWorkflowTaskCompletedEventAttributes();
+        for (Integer flag : completedEvent.getSdkMetadata().getLangUsedFlagsList()) {
+          SdkFlag sdkFlag = SdkFlag.getValue(flag);
+          if (sdkFlag.equals(SdkFlag.UNKNOWN)) {
+            throw new IllegalArgumentException("Unknown SDK flag:" + flag);
+          }
+          flags.setSdkFlag(sdkFlag);
+        }
+        break;
     }
   }
 
@@ -514,6 +552,20 @@ public final class WorkflowStateMachines {
     }
     messageOutbox.clear();
     return result;
+  }
+
+  /**
+   * @return True if the SDK flag is supported in this workflow execution
+   */
+  public boolean tryUseSdkFlag(SdkFlag flag) {
+    return flags.tryUseSdkFlag(flag);
+  }
+
+  /**
+   * @return Set of all new flags set since the last call
+   */
+  public EnumSet<SdkFlag> takeNewSdkFlags() {
+    return flags.takeNewSdkFlags();
   }
 
   private void prepareCommands() {
@@ -862,7 +914,7 @@ public final class WorkflowStateMachines {
         stateMachineSink);
   }
 
-  public void getVersion(
+  public boolean getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
@@ -870,19 +922,22 @@ public final class WorkflowStateMachines {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
             changeId,
-            (idKey) ->
-                VersionStateMachine.newInstance(
-                    changeId, this::isReplaying, commandSink, stateMachineSink));
-    stateMachine.getVersion(
-        minSupported,
-        maxSupported,
-        (v, e) -> {
-          callback.apply(v, e);
-          // without this getVersion call will trigger the end of WFT,
-          // instead we want to prepare subsequent commands and unblock the execution one more
-          // time.
-          eventLoop();
-        });
+            (idKey) -> {
+              return VersionStateMachine.newInstance(
+                  changeId, this::isReplaying, commandSink, stateMachineSink);
+            });
+    VersionStateMachine.State state =
+        stateMachine.getVersion(
+            minSupported,
+            maxSupported,
+            (v, e) -> {
+              callback.apply(v, e);
+              // without this getVersion call will trigger the end of WFT,
+              // instead we want to prepare subsequent commands and unblock the execution one more
+              // time.
+              eventLoop();
+            });
+    return state != VersionStateMachine.State.SKIPPED_REPLAYING;
   }
 
   public List<ExecuteLocalActivityParameters> takeLocalActivityRequests() {

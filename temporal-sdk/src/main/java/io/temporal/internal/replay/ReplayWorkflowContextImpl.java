@@ -32,6 +32,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.statemachines.*;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.workflow.Functions;
@@ -241,6 +242,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public boolean tryUseSdkFlag(SdkFlag flag) {
+    return workflowStateMachines.tryUseSdkFlag(flag);
+  }
+
+  @Override
   public Functions.Proc1<RuntimeException> newTimer(
       Duration delay, Functions.Proc1<RuntimeException> callback) {
     if (delay.compareTo(Duration.ZERO) <= 0) {
@@ -290,12 +296,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public void getVersion(
+  public boolean getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
-    workflowStateMachines.getVersion(changeId, minSupported, maxSupported, callback);
+    return workflowStateMachines.getVersion(changeId, minSupported, maxSupported, callback);
   }
 
   @Override

@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
@@ -63,6 +64,12 @@ public class GetVersionInSignalOnReplayTest {
     String result = workflowStub.getResult(String.class);
     assertTrue(hasReplayedSignal);
     assertEquals("[done]", result);
+  }
+
+  @Test
+  public void testGetVersionInSignalReplay() throws Exception {
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "testGetVersionInSignalHistory.json", TestGetVersionInSignal.class);
   }
 
   /** The following test covers the scenario where getVersion call is performed inside a signal */

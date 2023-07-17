@@ -70,7 +70,7 @@ public class AsyncActivityRetryTest {
   }
 
   @Test
-  public void testAsyncActivityRetry_replay() throws Exception {
+  public void testAsyncActivityRetryReplay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }
