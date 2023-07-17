@@ -88,8 +88,11 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
       case RUN_WORKFLOW:
       case START_ACTIVITY:
       case RUN_ACTIVITY:
+      case SIGNAL_EXTERNAL_WORKFLOW:
       case SIGNAL_WORKFLOW:
       case UPDATE_WORKFLOW:
+      case HANDLE_SIGNAL:
+      case HANDLE_UPDATE:
         String runId = context.getRunId();
         Preconditions.checkNotNull(
             runId, "runId is expected to be not null for span operation type %s", operationType);
@@ -97,6 +100,7 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
       case QUERY_WORKFLOW:
+      case HANDLE_QUERY:
         return ImmutableMap.of();
     }
     throw new IllegalArgumentException("Unknown span operation type provided");
