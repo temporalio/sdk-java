@@ -69,7 +69,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
                         tracer,
                         input.getSignalName(),
                         input.getWorkflowExecution().getWorkflowId(),
-                        References.FOLLOWS_FROM)
+                        input.getWorkflowExecution().getRunId())
                     .start(),
             input.getHeader(),
             tracer);
@@ -108,7 +108,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
                         tracer,
                         input.getQueryType(),
                         input.getWorkflowExecution().getWorkflowId(),
-                        References.FOLLOWS_FROM)
+                        input.getWorkflowExecution().getRunId())
                     .start(),
             input.getHeader(),
             tracer);
@@ -129,7 +129,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
                         tracer,
                         input.getUpdateName(),
                         input.getWorkflowExecution().getWorkflowId(),
-                        References.FOLLOWS_FROM)
+                        input.getWorkflowExecution().getRunId())
                     .start(),
             input.getHeader(),
             tracer);

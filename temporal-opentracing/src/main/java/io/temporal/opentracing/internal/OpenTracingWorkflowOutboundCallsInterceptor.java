@@ -108,7 +108,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
           contextAccessor.writeSpanContextToHeader(
               () ->
                   spanFactory
-                      .createWorkflowSignalSpan(
+                      .createExternalWorkflowSignalSpan(
                           tracer,
                           input.getSignalName(),
                           workflowInfo.getWorkflowId(),
