@@ -101,12 +101,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     try {
       genericClient.createSchedule(request.build());
-    } catch (Exception e) {
-      if (e instanceof StatusRuntimeException) {
-        StatusRuntimeException sre = (StatusRuntimeException) e;
-        if (Status.Code.ALREADY_EXISTS.equals(sre.getStatus().getCode())) {
-          throw new ScheduleAlreadyRunningException(sre);
-        }
+    } catch (StatusRuntimeException e) {
+      if (Status.Code.ALREADY_EXISTS.equals(e.getStatus().getCode())) {
+        throw new ScheduleAlreadyRunningException(e);
+      } else {
+        throw new ScheduleException(e);
       }
     }
   }
