@@ -43,9 +43,9 @@ public enum SdkFlag {
   }
 
   public static SdkFlag getValue(int id) {
-    SdkFlag[] As = SdkFlag.values();
-    for (int i = 0; i < As.length; i++) {
-      if (As[i].compare(id)) return As[i];
+    SdkFlag[] as = SdkFlag.values();
+    for (int i = 0; i < as.length; i++) {
+      if (as[i].compare(id)) return as[i];
     }
     return SdkFlag.UNKNOWN;
   }
