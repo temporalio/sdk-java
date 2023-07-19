@@ -122,6 +122,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, ActivityOptions> activityOptionsMap;
   private LocalActivityOptions defaultLocalActivityOptions = null;
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
+  private boolean readOnly = false;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -849,8 +850,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
           () -> {
-            R r = func.apply();
-            return dataConverterWithCurrentWorkflowContext.toPayloads(r);
+            try {
+              readOnly = true;
+              R r = func.apply();
+              return dataConverterWithCurrentWorkflowContext.toPayloads(r);
+            } finally {
+              readOnly = false;
+            }
           },
           (p) ->
               runner.executeInWorkflowThread(
@@ -888,13 +894,19 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   (b) ->
                       dataConverterWithCurrentWorkflowContext.fromPayloads(
                           0, Optional.of(b), resultClass, resultType));
-          R funcResult =
-              Objects.requireNonNull(func.apply(), "mutableSideEffect function " + "returned null");
-          if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
-            unserializedResult.set(funcResult);
-            return dataConverterWithCurrentWorkflowContext.toPayloads(funcResult);
+          try {
+            readOnly = true;
+            R funcResult =
+                Objects.requireNonNull(
+                    func.apply(), "mutableSideEffect function " + "returned null");
+            if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
+              unserializedResult.set(funcResult);
+              return dataConverterWithCurrentWorkflowContext.toPayloads(funcResult);
+            }
+            return Optional.empty(); // returned only when value doesn't need to be updated
+          } finally {
+            readOnly = false;
           }
-          return Optional.empty(); // returned only when value doesn't need to be updated
         },
         (p) ->
             runner.executeInWorkflowThread(
@@ -995,6 +1007,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   boolean isReplaying() {
     return replayContext.isReplaying();
+  }
+
+  boolean isReadOnly() {
+    return readOnly;
+  }
+
+  void setReadOnly(boolean readOnly) {
+    this.readOnly = readOnly;
   }
 
   @Override

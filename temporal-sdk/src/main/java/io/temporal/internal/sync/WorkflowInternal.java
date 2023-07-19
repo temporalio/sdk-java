@@ -84,6 +84,7 @@ public final class WorkflowInternal {
   }
 
   public static Promise<Void> newTimer(Duration duration) {
+    assertNotReadOnly("schedule timer");
     return getWorkflowOutboundInterceptor().newTimer(duration);
   }
 
@@ -322,7 +323,8 @@ public final class WorkflowInternal {
             activityInterface,
             options,
             mergedActivityOptionsMap,
-            context.getWorkflowOutboundInterceptor());
+            context.getWorkflowOutboundInterceptor(),
+            () -> assertNotReadOnly("schedule activity"));
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -366,16 +368,21 @@ public final class WorkflowInternal {
             activityInterface,
             options,
             mergedLocalActivityOptionsMap,
-            WorkflowInternal.getWorkflowOutboundInterceptor());
+            WorkflowInternal.getWorkflowOutboundInterceptor(),
+            () -> assertNotReadOnly("schedule local activity"));
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
   public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
-    return ActivityStubImpl.newInstance(options, getWorkflowOutboundInterceptor());
+    return ActivityStubImpl.newInstance(
+        options, getWorkflowOutboundInterceptor(), () -> assertNotReadOnly("schedule activity"));
   }
 
   public static ActivityStub newUntypedLocalActivityStub(LocalActivityOptions options) {
-    return LocalActivityStubImpl.newInstance(options, getWorkflowOutboundInterceptor());
+    return LocalActivityStubImpl.newInstance(
+        options,
+        getWorkflowOutboundInterceptor(),
+        () -> assertNotReadOnly("schedule local activity"));
   }
 
   @SuppressWarnings("unchecked")
@@ -386,7 +393,10 @@ public final class WorkflowInternal {
             workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ChildWorkflowInvocationHandler(
-                workflowInterface, options, getWorkflowOutboundInterceptor()));
+                workflowInterface,
+                options,
+                getWorkflowOutboundInterceptor(),
+                WorkflowInternal::assertNotReadOnly));
   }
 
   @SuppressWarnings("unchecked")
@@ -397,7 +407,10 @@ public final class WorkflowInternal {
             workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ExternalWorkflowInvocationHandler(
-                workflowInterface, execution, getWorkflowOutboundInterceptor()));
+                workflowInterface,
+                execution,
+                getWorkflowOutboundInterceptor(),
+                WorkflowInternal::assertNotReadOnly));
   }
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
@@ -411,11 +424,16 @@ public final class WorkflowInternal {
 
   public static ChildWorkflowStub newUntypedChildWorkflowStub(
       String workflowType, ChildWorkflowOptions options) {
-    return new ChildWorkflowStubImpl(workflowType, options, getWorkflowOutboundInterceptor());
+    return new ChildWorkflowStubImpl(
+        workflowType,
+        options,
+        getWorkflowOutboundInterceptor(),
+        WorkflowInternal::assertNotReadOnly);
   }
 
   public static ExternalWorkflowStub newUntypedExternalWorkflowStub(WorkflowExecution execution) {
-    return new ExternalWorkflowStubImpl(execution, getWorkflowOutboundInterceptor());
+    return new ExternalWorkflowStubImpl(
+        execution, getWorkflowOutboundInterceptor(), WorkflowInternal::assertNotReadOnly);
   }
 
   /**
@@ -445,6 +463,7 @@ public final class WorkflowInternal {
    */
   public static <R> R executeActivity(
       String name, ActivityOptions options, Class<R> resultClass, Type resultType, Object... args) {
+    assertNotReadOnly("schedule activity");
     Promise<R> result =
         getWorkflowOutboundInterceptor()
             .executeActivity(
@@ -460,25 +479,30 @@ public final class WorkflowInternal {
 
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
+    assertNotReadOnly("await");
     getWorkflowOutboundInterceptor().await(reason, unblockCondition);
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
+    assertNotReadOnly("await with timeout");
     return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
+    assertNotReadOnly("side effect");
     return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func);
   }
 
   public static <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    assertNotReadOnly("mutable side effect");
     return getWorkflowOutboundInterceptor()
         .mutableSideEffect(id, resultClass, resultType, updated, func);
   }
 
   public static int getVersion(String changeId, int minSupported, int maxSupported) {
+    assertNotReadOnly("get version");
     return getWorkflowOutboundInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
@@ -536,12 +560,14 @@ public final class WorkflowInternal {
 
   public static <R> R retry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
+    assertNotReadOnly("retry");
     return WorkflowRetryerInternal.retry(
         options.toBuilder().validateBuildWithDefaults(), expiration, fn);
   }
 
   public static void continueAsNew(
       @Nullable String workflowType, @Nullable ContinueAsNewOptions options, Object[] args) {
+    assertNotReadOnly("continue as new");
     getWorkflowOutboundInterceptor()
         .continueAsNew(
             new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
@@ -553,18 +579,21 @@ public final class WorkflowInternal {
       @Nullable ContinueAsNewOptions options,
       Object[] args,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+    assertNotReadOnly("continue as new");
     outboundCallsInterceptor.continueAsNew(
         new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
             workflowType, options, args, Header.empty()));
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    assertNotReadOnly("cancel workflow");
     return getWorkflowOutboundInterceptor()
         .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
         .getResult();
   }
 
   public static void sleep(Duration duration) {
+    assertNotReadOnly("sleep");
     getWorkflowOutboundInterceptor().sleep(duration);
   }
 
@@ -595,10 +624,12 @@ public final class WorkflowInternal {
   }
 
   public static UUID randomUUID() {
+    assertNotReadOnly("random UUID");
     return getRootWorkflowContext().randomUUID();
   }
 
   public static Random newRandom() {
+    assertNotReadOnly("random");
     return getRootWorkflowContext().newRandom();
   }
 
@@ -662,11 +693,13 @@ public final class WorkflowInternal {
   }
 
   public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
+    assertNotReadOnly("upset search attribute");
     getWorkflowOutboundInterceptor().upsertSearchAttributes(searchAttributes);
   }
 
   public static void upsertTypedSearchAttributes(
       SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    assertNotReadOnly("upset search attribute");
     getWorkflowOutboundInterceptor().upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
@@ -699,6 +732,16 @@ public final class WorkflowInternal {
 
   static SyncWorkflowContext getRootWorkflowContext() {
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
+  }
+
+  static boolean isReadOnly() {
+    return getRootWorkflowContext().isReadOnly();
+  }
+
+  static void assertNotReadOnly(String action) {
+    if (isReadOnly()) {
+      throw new IllegalStateException("While in read-only function, action attempted:" + action);
+    }
   }
 
   private static WorkflowThread getWorkflowThread() {

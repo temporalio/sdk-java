@@ -20,7 +20,10 @@
 
 package io.temporal.workflow.shared;
 
+import static io.temporal.workflow.searchattributes.UpsertTypedSearchAttributeTest.TestUpsertSearchAttributesImpl.CUSTOM_KEYWORD_ATTR;
+
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.CronSchedule;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.*;
@@ -266,6 +269,87 @@ public class TestWorkflows {
     @Override
     public String execute(String arg) {
       return arg.toUpperCase();
+    }
+  }
+
+  public static String[] illegalCallCases = {
+    "start_activity",
+    "start_local_activity",
+    "upsert_search_attribute",
+    "start_child_workflow",
+    "signal_child_workflow",
+    "timer",
+    "random",
+    "random_uuid",
+    "side_effect",
+    "mutable_side_effect",
+    "signal_external_handle"
+  };
+
+  // Calls that are not permitted from a read only context
+  public static void illegalCalls(String testCase) {
+    switch (testCase) {
+      case "start_activity":
+        Workflow.newActivityStub(
+                TestActivities.TestActivity1.class,
+                ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build())
+            .execute("test");
+        break;
+      case "start_local_activity":
+        Workflow.newLocalActivityStub(
+                TestActivities.TestActivity1.class,
+                LocalActivityOptions.newBuilder()
+                    .setScheduleToStartTimeout(Duration.ofHours(1))
+                    .build())
+            .execute("test");
+        break;
+      case "upsert_search_attribute":
+        Workflow.upsertTypedSearchAttributes(CUSTOM_KEYWORD_ATTR.valueSet("test value"));
+        break;
+      case "start_child_workflow":
+        Workflow.newChildWorkflowStub(TestWorkflows.TestSignaledWorkflow.class).execute();
+        break;
+      case "signal_child_workflow":
+        Workflow.newChildWorkflowStub(TestWorkflows.TestSignaledWorkflow.class)
+            .signal("test signal");
+        break;
+      case "timer":
+        Workflow.newTimer(Duration.ofSeconds(10));
+        break;
+      case "random":
+        Workflow.newRandom();
+        break;
+      case "sleep":
+        Workflow.sleep(1000);
+        break;
+      case "random_uuid":
+        Workflow.randomUUID();
+        break;
+      case "side_effect":
+        Workflow.sideEffect(
+            void.class,
+            () -> {
+              return null;
+            });
+        break;
+      case "mutable_side_effect":
+        Workflow.mutableSideEffect(
+            "id",
+            int.class,
+            (Integer i, Integer j) -> {
+              return i.equals(j);
+            },
+            () -> {
+              return 0;
+            });
+        break;
+      case "signal_external_handle":
+        Workflow.newExternalWorkflowStub(
+                TestWorkflows.TestSignaledWorkflow.class, "test-workflow-id")
+            .signal("test signal");
+        break;
+      default:
+        break;
     }
   }
 }
