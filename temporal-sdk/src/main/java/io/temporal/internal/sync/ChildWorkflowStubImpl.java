@@ -36,11 +36,13 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   private final ChildWorkflowOptions options;
   private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final CompletablePromise<WorkflowExecution> execution;
+  private final Functions.Proc1<String> assertReadOnly;
 
   ChildWorkflowStubImpl(
       String workflowType,
       ChildWorkflowOptions options,
-      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor,
+      Functions.Proc1<String> assertReadOnly) {
     this.workflowType = Objects.requireNonNull(workflowType);
     this.options = ChildWorkflowOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.outboundCallsInterceptor = Objects.requireNonNull(outboundCallsInterceptor);
@@ -50,6 +52,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     // The "main" Child Workflow promise is the one returned from the execute method and that
     // promise will always be logged if not accessed.
     this.execution.handle((ex, failure) -> null);
+    this.assertReadOnly = assertReadOnly;
   }
 
   @Override
@@ -77,6 +80,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> R execute(Class<R> resultClass, Type resultType, Object... args) {
+    assertReadOnly.apply("schedule child workflow");
     Promise<R> result = executeAsync(resultClass, resultType, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
@@ -99,6 +103,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args) {
+    assertReadOnly.apply("schedule child workflow");
     ChildWorkflowOutput<R> result =
         outboundCallsInterceptor.executeChildWorkflow(
             new WorkflowOutboundCallsInterceptor.ChildWorkflowInput<>(
@@ -115,6 +120,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    assertReadOnly.apply("signal workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
             .signalExternalWorkflow(
