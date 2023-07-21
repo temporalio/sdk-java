@@ -51,7 +51,7 @@ public class WorkflowWorkerTest {
   private static final String WORKFLOW_TYPE = "test-workflow-type";
 
   @Test
-  public void concurrentPollRequestLock() throws Exception {
+  public void concurrentPollRequestLockTest() throws Exception {
     // Test that if the server sends multiple concurrent workflow tasks for the same workflow the
     // SDK holds the lock during all processing.
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
