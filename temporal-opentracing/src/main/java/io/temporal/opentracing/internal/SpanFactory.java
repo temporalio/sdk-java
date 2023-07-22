@@ -86,7 +86,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, null, References.CHILD_OF);
   }
 
   public Tracer.SpanBuilder createWorkflowSignalSpan(
@@ -114,7 +114,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, workflowSignalSpanContext, References.CHILD_OF);
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createContinueAsNewWorkflowStartSpan(
@@ -198,7 +198,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, workflowSignalSpanContext, References.CHILD_OF);
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createWorkflowQuerySpan(
@@ -220,7 +220,7 @@ public class SpanFactory {
             .setSpanOperationType(SpanOperationType.HANDLE_QUERY)
             .setActionName(queryName)
             .build();
-    return createSpan(context, tracer, workflowSignalSpanContext, References.CHILD_OF);
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
   }
 
   @SuppressWarnings("deprecation")
