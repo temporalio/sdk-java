@@ -15,6 +15,8 @@ services:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms256m -Xmx256m
       - xpack.security.enabled=false
+    security_opt:
+      - no-new-privileges:true
 
   cassandra:
     image: cassandra:3.11.9
@@ -22,6 +24,8 @@ services:
       driver: none
     expose:
       - 9042
+    security_opt:
+      - no-new-privileges:true
 
   temporal:
     image: temporaliotest/auto-setup:latest
@@ -44,6 +48,8 @@ services:
       - elasticsearch
     volumes:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+    security_opt:
+      - no-new-privileges:true
 
 
   unit-test-docker-jdk8:
