@@ -107,6 +107,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       } else {
         throw new ScheduleException(e);
       }
+    } catch (Exception e) {
+      throw new ScheduleException(e);
     }
   }
 
@@ -153,7 +155,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -164,7 +170,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setNamespace(clientOptions.getNamespace())
             .setScheduleId(input.getScheduleId())
             .build();
-    genericClient.deleteSchedule(request);
+    try {
+      genericClient.deleteSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -175,16 +185,20 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .build();
 
-    DescribeScheduleResponse response = genericClient.describeSchedule(request);
-    return new DescribeScheduleOutput(
-        new ScheduleDescription(
-            input.getScheduleId(),
-            scheduleRequestHeader.protoToScheduleInfo(response.getInfo()),
-            scheduleRequestHeader.protoToSchedule(response.getSchedule()),
-            Collections.unmodifiableMap(
-                SearchAttributesUtil.decode(response.getSearchAttributes())),
-            response.getMemo().getFieldsMap(),
-            clientOptions.getDataConverter()));
+    try {
+      DescribeScheduleResponse response = genericClient.describeSchedule(request);
+      return new DescribeScheduleOutput(
+          new ScheduleDescription(
+              input.getScheduleId(),
+              scheduleRequestHeader.protoToScheduleInfo(response.getInfo()),
+              scheduleRequestHeader.protoToSchedule(response.getSchedule()),
+              Collections.unmodifiableMap(
+                  SearchAttributesUtil.decode(response.getSearchAttributes())),
+              response.getMemo().getFieldsMap(),
+              clientOptions.getDataConverter()));
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -198,8 +212,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -216,7 +233,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -230,7 +251,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -249,6 +274,10 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setRequestId(UUID.randomUUID().toString())
             .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()))
             .build();
-    genericClient.updateSchedule(request);
+    try {
+      genericClient.updateSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 }
