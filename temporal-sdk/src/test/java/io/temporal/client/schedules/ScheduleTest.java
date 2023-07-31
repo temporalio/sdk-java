@@ -20,6 +20,8 @@
 
 package io.temporal.client.schedules;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.EncodedValues;
@@ -37,8 +39,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
-import static org.junit.Assume.assumeTrue;
 
 public class ScheduleTest {
   @Rule
@@ -86,10 +86,10 @@ public class ScheduleTest {
                 .build());
   }
 
-    @Before
-    public void checkRealServer() {
-      assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-    }
+  @Before
+  public void checkRealServer() {
+    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+  }
 
   @Test
   public void createSchedule() {
