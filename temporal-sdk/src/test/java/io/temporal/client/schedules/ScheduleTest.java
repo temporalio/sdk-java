@@ -20,8 +20,6 @@
 
 package io.temporal.client.schedules;
 
-import static org.junit.Assume.assumeTrue;
-
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.EncodedValues;
@@ -39,6 +37,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.junit.Assume.assumeTrue;
 
 public class ScheduleTest {
   @Rule
@@ -86,10 +86,10 @@ public class ScheduleTest {
                 .build());
   }
 
-  @Before
-  public void checkRealServer() {
-    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  }
+    @Before
+    public void checkRealServer() {
+      assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+    }
 
   @Test
   public void createSchedule() {
@@ -111,7 +111,7 @@ public class ScheduleTest {
     try {
       handle.describe();
       Assert.fail();
-    } catch (Exception e) {
+    } catch (ScheduleException e) {
     }
     // Create a handle to a non-existent schedule, creating the handle should not throw
     // but any operations on it should.
@@ -119,7 +119,7 @@ public class ScheduleTest {
       ScheduleHandle badHandle = client.getHandle(UUID.randomUUID().toString());
       badHandle.delete();
       Assert.fail();
-    } catch (Exception e) {
+    } catch (ScheduleException e) {
     }
   }
 
@@ -167,6 +167,12 @@ public class ScheduleTest {
     Assert.assertEquals(false, description.getSchedule().getState().isPaused());
     // Cleanup schedule
     handle.delete();
+    // Try to unpause a deleted schedule
+    try {
+      handle.unpause("");
+      Assert.fail();
+    } catch (ScheduleException e) {
+    }
   }
 
   @Test
@@ -221,6 +227,12 @@ public class ScheduleTest {
     Assert.assertEquals(3, handle.describe().getInfo().getNumActions());
     // Cleanup schedule
     handle.delete();
+    // Try to trigger a deleted schedule
+    try {
+      handle.trigger();
+      Assert.fail();
+    } catch (ScheduleException e) {
+    }
   }
 
   @Test
@@ -253,6 +265,15 @@ public class ScheduleTest {
     waitForActions(handle, 15);
     // Cleanup schedule
     handle.delete();
+    // Try to backfill a deleted schedule
+    try {
+      handle.backfill(
+          Arrays.asList(
+              new ScheduleBackfill(now.minusMillis(5500), now.minusMillis(2500)),
+              new ScheduleBackfill(now.minusMillis(2500), now)));
+      Assert.fail();
+    } catch (ScheduleException e) {
+    }
   }
 
   @Test
@@ -356,6 +377,12 @@ public class ScheduleTest {
     Assert.assertEquals(schedule.getState(), description.getSchedule().getState());
     // Cleanup schedule
     handle.delete();
+    // Try to describe a deleted schedule
+    try {
+      handle.describe();
+      Assert.fail();
+    } catch (ScheduleException e) {
+    }
   }
 
   @Test
