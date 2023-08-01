@@ -21,6 +21,8 @@ def jacocoExclusions = [
         '**/io/temporal/internal/docker/RegisterTestNamespace**'
 ]
 
+def jacocoSubprojects = (subprojects- project(':temporal-bom'))
+
 reporting {
     reports {
         testCodeCoverageReport(JacocoCoverageReport) {
@@ -36,18 +38,21 @@ testCodeCoverageReport {
     }
 
     getClassDirectories().setFrom(files(
-            subprojects.collect {it.fileTree(dir: "${it.buildDir}/classes", exclude: jacocoExclusions)}
+            jacocoSubprojects.collect {it.fileTree(dir: "${it.buildDir}/classes", exclude: jacocoExclusions)}
     ))
 }
 
 coverallsJacoco {
     reportPath = "build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml"
-    reportSourceSets = subprojects.sourceSets.main.allSource.srcDirs.flatten()
+    reportSourceSets = jacocoSubprojects.sourceSets.main.allSource.srcDirs.flatten()
 }
 
 tasks.coverallsJacoco.dependsOn(testCodeCoverageReport)
 
 subprojects {
+    if (name == 'temporal-bom') {
+        return
+    }
     apply plugin: 'jacoco'
 
     jacoco {
