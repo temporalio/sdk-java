@@ -12,3 +12,5 @@ frontend.workerVersioningWorkflowAPIs:
   - value: true
 frontend.workerVersioningDataAPIs:
   - value: true
+history.MaxBufferedQueryCount:
+  - value: 100000 
