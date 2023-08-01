@@ -1,0 +1,23 @@
+# Highlights
+
+## Bugfixes
+
+- Fixes an issue with versioning in signal handlers leading to non determinism.
+- Fixes an issue with ScheduleClient not throwing an exception on a failed create
+
+## Readonly Protection
+
+Added protection in the SDK against running mutating workflow functions in a read only context.
+A read only context is a query handler, update validator, side effect, or mutable side effect.
+Previously, in some cases, the SDK would seem to allow it but silently generate an invalid workflow history.
+This change allows developers to quickly catch their mistake and prevents generating invalid workflow histories
+
+# Changeset
+
+2023-07-17 - 3be060ba - ScheduleClient for SpringBoot (#1816)
+2023-07-17 - 6054c315 - Make GetVersion more deterministic (#1807)
+2023-07-17 - c5cf7bb9 - fix(schedule): try catch clause and rethrow StatusRuntimeException that does not match status c… (#1818)
+2023-07-21 - 16755a1b - Block mutating workflow state in a read only context (#1821)
+2023-07-21 - c2b941a0 - Add unit test for concurrent WFT (#1822)
+2023-08-01 - 3ffe2945 - Increase MaxBufferedQueryCount (#1829)
+2023-08-01 - bf6ae4b2 - Fix jacoco code coverage (#1828)
