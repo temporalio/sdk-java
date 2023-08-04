@@ -50,7 +50,7 @@ jobs:
         if: steps.check_release.outputs.already_exists == 'false'
         uses: actions/checkout@v3
         with:
-          ref: $INPUT_REF
+          ref: ${{ env.INPUT_REF }}
 
       - name: Create release
         if: steps.check_release.outputs.already_exists == 'false'
@@ -61,7 +61,7 @@ jobs:
           --repo "$GITHUB_REPOSITORY"
           --title "$INPUT_TAG"
           --target "$INPUT_REF"
-          --notes-file 'releases/$INPUT_TAG'
+          --notes-file releases/"$INPUT_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
@@ -74,7 +74,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-          ref: $INPUT_REF
+          ref: ${{ env.INPUT_REF }}
           
       # Our custom gradle version sniffing builds the maven release artifact
       # names out of the git tag ... but the repo isn't tagged (yet) so add a
@@ -141,7 +141,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-          ref: $INPUT_REF
+          ref: ${{ env.INPUT_REF }}
 
       # See comment on temporary tag above. tldr: this is a local tag; never
       # gets pushed
