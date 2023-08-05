@@ -29,6 +29,7 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkerOptionsCustomizer;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,7 @@ public class OptionsCustomizersTest {
   @Test
   @Timeout(value = 10)
   public void testCustomizersGotCalled() {
-    assertEquals(4, customizers.size());
+    assertEquals(5, customizers.size());
     customizers.forEach(c -> verify(c).customize(any()));
     verify(workerCustomizer).customize(any(), eq("UnitTest"), eq("UnitTest"));
   }
@@ -83,6 +84,12 @@ public class OptionsCustomizersTest {
 
     @Bean
     public TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer() {
+      return getReturningMock();
+    }
+
+    @Bean
+    public TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+        WorkflowImplementationCustomizer() {
       return getReturningMock();
     }
 

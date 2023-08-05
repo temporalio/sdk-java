@@ -25,6 +25,8 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
+
 import javax.annotation.Nonnull;
 
 /**
@@ -36,7 +38,7 @@ import javax.annotation.Nonnull;
  * @param <T> Temporal Options Builder to customize. Respected types: {@link
  *     WorkflowServiceStubsOptions.Builder}, {@link WorkflowClientOptions.Builder}, {@link
  *     TestEnvironmentOptions.Builder}, {@link WorkerOptions.Builder}, {@link
- *     WorkerFactoryOptions.Builder}
+ *     WorkerFactoryOptions.Builder}, {@link WorkflowImplementationOptions.Builder}
  * @see WorkerOptionsCustomizer to get access to a name and task queue of a worker that's being
  *     customized
  */
