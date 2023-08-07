@@ -7,27 +7,27 @@ on:
     inputs:
       tag:
         type: string
-        description: 'Release version tag (e.g. v1.2.3)'
+        description: "Release version tag (e.g. v1.2.3)"
         required: true
       ref:
         type: string
-        description: 'Git ref from which to release'
+        description: "Git ref from which to release"
         required: true
-        default: 'master'
+        default: "master"
       do_build_native_images:
         type: boolean
-        description: 'Native Test Server'
+        description: "Native Test Server"
         required: true
-        default: 'true'
+        default: "true"
       do_publish_jars:
         type: boolean
-        description: 'Publish Java Artifacts'
+        description: "Publish Java Artifacts"
         required: true
-        default: 'true'
+        default: "true"
 env:
   INPUT_REF: ${{ github.event.inputs.ref }}
   INPUT_TAG: ${{ github.event.inputs.tag }}
-  
+
 jobs:
   create_draft_release:
     name: Create Github draft release
@@ -64,7 +64,7 @@ jobs:
           --notes-file releases/"$INPUT_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
   publish_java_artifacts:
     name: Publish Java Artifacts
     if: github.event.inputs.do_publish_jars == 'true'
@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ env.INPUT_REF }}
-          
+
       # Our custom gradle version sniffing builds the maven release artifact
       # names out of the git tag ... but the repo isn't tagged (yet) so add a
       # tag to the _local_ clone just to get the right jar names. This tag
@@ -84,13 +84,13 @@ jobs:
       # release creates the tag.
       - name: Temporary tag
         run: git tag "$INPUT_TAG"
-        
+
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
-          distribution: 'temurin'
-          
+          java-version: "11"
+          distribution: "temurin"
+
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
 
@@ -98,7 +98,7 @@ jobs:
         run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
         env:
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
-      
+
       # Prefer env variables here rather than inline ${{ secrets.FOO }} to
       # decrease the likelihood that secrets end up printed to stdout.
       - name: Set up secret gradle properties
@@ -116,10 +116,10 @@ jobs:
           KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
           RH_USER: ${{ secrets.RH_USER }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
-        
+
       - name: Publish
         run: ./gradlew publishToSonatype
-         
+
   build_native_images:
     name: Build native test server
     needs: create_draft_release
@@ -127,16 +127,16 @@ jobs:
     strategy:
       matrix:
         include:
-          - dist: ubuntu-latest
+          - runner: buildjet-2vcpu-ubuntu-1804
             os_family: linux
             arch: amd64
-          - dist: macos-latest
+          - runner: macos-latest
             os_family: macOS
             arch: amd64
-          - dist: windows-2019
+          - runner: windows-2019
             os_family: windows
             arch: amd64
-    runs-on: ${{ matrix.dist }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -147,19 +147,19 @@ jobs:
       # gets pushed
       - name: Temporary tag
         run: git tag "$INPUT_TAG"
-        
+
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
-          distribution: 'temurin'
-          
+          java-version: "11"
+          distribution: "temurin"
+
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
-        
+
       - name: Build native test server
         run: ./gradlew :temporal-test-server:build
-      
+
       # path ends in a wildcard because on windows the file ends in '.exe'
       # path excludes *.txt because native-image also writes a build manifest txt file
       - name: Upload executable to workflow
@@ -171,7 +171,7 @@ jobs:
             !temporal-test-server/build/graal/*.txt
           if-no-files-found: error
           retention-days: 1
-          
+
   attach_to_release:
     name: Attach native executables to release
     needs: build_native_images
@@ -183,21 +183,21 @@ jobs:
       # when no artifact is specified, all artifacts are downloaded and expanded into CWD
       - name: Fetch executables
         uses: actions/download-artifact@v3
-        
+
       # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
-      # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and 
+      # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and
       # the root directory of the contents of the archive.
       - name: Rename dirs
         run: |
           version="$(sed 's/^v//'<<<"$INPUT_TAG")"
-          for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done        
-      
+          for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done
+
       - name: Tar (linux, macOS)
         run: for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
-        
+
       - name: Zip (windows)
         run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
-        
+
       - name: Upload release archives
         uses: actions/upload-artifact@v3
         with:
@@ -210,10 +210,10 @@ jobs:
 
       - name: Upload
         run: |
-         until gh release upload --clobber --repo $GITHUB_REPOSITORY "$INPUT_TAG" *.zip *.tar.gz; do
-           echo "Attempt $((++attempts)) to upload release artifacts failed. Will retry in 20s"
-           sleep 20
-         done
+          until gh release upload --clobber --repo $GITHUB_REPOSITORY "$INPUT_TAG" *.zip *.tar.gz; do
+            echo "Attempt $((++attempts)) to upload release artifacts failed. Will retry in 20s"
+            sleep 20
+          done
         timeout-minutes: 10
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
