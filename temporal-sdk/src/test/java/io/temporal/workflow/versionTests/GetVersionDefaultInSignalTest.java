@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
@@ -49,35 +50,41 @@ public class GetVersionDefaultInSignalTest {
           .build();
 
   @Test
-  public void testGetVersionOutOfOrderFail() {
+  public void testGetVersionDefaultInSignal() throws InterruptedException {
     TestWorkflows.TestSignaledWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestSignaledWorkflow.class);
     WorkflowClient.start(workflow::execute);
 
     WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
-    workflow.signal("");
-    workflow.signal("");
+
+    workflow.signal(testWorkflowRule.getTaskQueue());
+    workflow.signal(testWorkflowRule.getTaskQueue());
     testWorkflowRule.invalidateWorkflowCache();
-    workflow.signal("");
+    workflow.signal(testWorkflowRule.getTaskQueue());
 
     String result = workflowStub.getResult(String.class);
     assertEquals("1", result);
   }
 
   public static class TestGetVersionWorkflowImpl implements TestWorkflows.TestSignaledWorkflow {
+    int signalCounter = 0;
+
     @Override
     public String execute() {
       int version =
           io.temporal.workflow.Workflow.getVersion(
               "testMarker", io.temporal.workflow.Workflow.DEFAULT_VERSION, 1);
-      Workflow.sleep(5_000);
-      return new Integer(version).toString();
+      Workflow.await(() -> signalCounter >= 3);
+      return String.valueOf(version);
     }
 
     @Override
-    public void signal(String arg) {
-      VariousTestActivities testActivities = Workflow.newActivityStub(VariousTestActivities.class);
+    public void signal(String taskQueue) {
+      VariousTestActivities testActivities =
+          Workflow.newActivityStub(
+              VariousTestActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
       int version =
           io.temporal.workflow.Workflow.getVersion(
@@ -87,6 +94,7 @@ public class GetVersionDefaultInSignalTest {
       } else {
         testActivities.activity();
       }
+      signalCounter++;
     }
   }
 }
