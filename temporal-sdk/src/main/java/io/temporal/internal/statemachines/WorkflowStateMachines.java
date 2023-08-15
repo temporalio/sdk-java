@@ -926,18 +926,16 @@ public final class WorkflowStateMachines {
               return VersionStateMachine.newInstance(
                   changeId, this::isReplaying, commandSink, stateMachineSink);
             });
-    VersionStateMachine.State state =
-        stateMachine.getVersion(
-            minSupported,
-            maxSupported,
-            (v, e) -> {
-              callback.apply(v, e);
-              // without this getVersion call will trigger the end of WFT,
-              // instead we want to prepare subsequent commands and unblock the execution one more
-              // time.
-              eventLoop();
-            });
-    return state != VersionStateMachine.State.SKIPPED_REPLAYING;
+    return stateMachine.getVersion(
+        minSupported,
+        maxSupported,
+        (v, e) -> {
+          callback.apply(v, e);
+          // without this getVersion call will trigger the end of WFT,
+          // instead we want to prepare subsequent commands and unblock the execution one more
+          // time.
+          eventLoop();
+        });
   }
 
   public List<ExecuteLocalActivityParameters> takeLocalActivityRequests() {
