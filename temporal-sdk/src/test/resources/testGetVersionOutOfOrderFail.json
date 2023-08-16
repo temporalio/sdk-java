@@ -1,0 +1,204 @@
+{
+ "events": [
+  {
+   "eventId": "1",
+   "eventTime": "2023-08-15T16:20:36.157005589Z",
+   "eventType": "WorkflowExecutionStarted",
+   "taskId": "1056562",
+   "workflowExecutionStartedEventAttributes": {
+    "workflowType": {
+     "name": "TestWorkflow1"
+    },
+    "taskQueue": {
+     "name": "WorkflowTest-testGetVersionOutOfOrderFail-ac421c1b-c3e8-4631-9095-5252fc072fe9",
+     "kind": "Normal"
+    },
+    "input": {
+     "payloads": [
+      {
+       "metadata": {
+        "encoding": "anNvbi9wbGFpbg=="
+       },
+       "data": "IldvcmtmbG93VGVzdC10ZXN0R2V0VmVyc2lvbk91dE9mT3JkZXJGYWlsLWFjNDIxYzFiLWMzZTgtNDYzMS05MDk1LTUyNTJmYzA3MmZlOSI="
+      }
+     ]
+    },
+    "workflowExecutionTimeout": "0s",
+    "workflowRunTimeout": "200s",
+    "workflowTaskTimeout": "5s",
+    "originalExecutionRunId": "fa94156b-634c-4558-8d32-827ef8743d68",
+    "identity": "62122@Quinn-Klassens-MacBook-Pro.local",
+    "firstExecutionRunId": "fa94156b-634c-4558-8d32-827ef8743d68",
+    "attempt": 1,
+    "firstWorkflowTaskBackoff": "0s",
+    "header": {
+
+    }
+   }
+  },
+  {
+   "eventId": "2",
+   "eventTime": "2023-08-15T16:20:36.157096756Z",
+   "eventType": "WorkflowTaskScheduled",
+   "taskId": "1056563",
+   "workflowTaskScheduledEventAttributes": {
+    "taskQueue": {
+     "name": "WorkflowTest-testGetVersionOutOfOrderFail-ac421c1b-c3e8-4631-9095-5252fc072fe9",
+     "kind": "Normal"
+    },
+    "startToCloseTimeout": "5s",
+    "attempt": 1
+   }
+  },
+  {
+   "eventId": "3",
+   "eventTime": "2023-08-15T16:20:36.185117047Z",
+   "eventType": "WorkflowTaskStarted",
+   "taskId": "1056569",
+   "workflowTaskStartedEventAttributes": {
+    "scheduledEventId": "2",
+    "identity": "62122@Quinn-Klassens-MacBook-Pro.local",
+    "requestId": "bc978856-1bfb-4863-94f8-7fd718fd957a",
+    "historySizeBytes": "490"
+   }
+  },
+  {
+   "eventId": "4",
+   "eventTime": "2023-08-15T16:20:36.444703464Z",
+   "eventType": "WorkflowTaskCompleted",
+   "taskId": "1056573",
+   "workflowTaskCompletedEventAttributes": {
+    "scheduledEventId": "2",
+    "startedEventId": "3",
+    "identity": "62122@Quinn-Klassens-MacBook-Pro.local",
+    "meteringMetadata": {
+
+    }
+   }
+  },
+  {
+   "eventId": "5",
+   "eventTime": "2023-08-15T16:20:36.444729464Z",
+   "eventType": "TimerStarted",
+   "taskId": "1056574",
+   "timerStartedEventAttributes": {
+    "timerId": "2e092005-ee14-3e7d-9642-e583ce5e47fe",
+    "startToFireTimeout": "5s",
+    "workflowTaskCompletedEventId": "4"
+   }
+  },
+  {
+   "eventId": "6",
+   "eventTime": "2023-08-15T16:20:36.444747131Z",
+   "eventType": "MarkerRecorded",
+   "taskId": "1056575",
+   "markerRecordedEventAttributes": {
+    "markerName": "Version",
+    "details": {
+     "changeId": {
+      "payloads": [
+       {
+        "metadata": {
+         "encoding": "anNvbi9wbGFpbg=="
+        },
+        "data": "ImNoYW5nZUlkIg=="
+       }
+      ]
+     },
+     "version": {
+      "payloads": [
+       {
+        "metadata": {
+         "encoding": "anNvbi9wbGFpbg=="
+        },
+        "data": "MQ=="
+       }
+      ]
+     }
+    },
+    "workflowTaskCompletedEventId": "4"
+   }
+  },
+  {
+   "eventId": "7",
+   "eventTime": "2023-08-15T16:20:41.448042925Z",
+   "eventType": "TimerFired",
+   "taskId": "1056578",
+   "timerFiredEventAttributes": {
+    "timerId": "2e092005-ee14-3e7d-9642-e583ce5e47fe",
+    "startedEventId": "5"
+   }
+  },
+  {
+   "eventId": "8",
+   "eventTime": "2023-08-15T16:20:41.448077092Z",
+   "eventType": "WorkflowTaskScheduled",
+   "taskId": "1056579",
+   "workflowTaskScheduledEventAttributes": {
+    "taskQueue": {
+     "name": "WorkflowTest-testGetVersionOutOfOrderFail-ac421c1b-c3e8-4631-9095-5252fc072fe9",
+     "kind": "Normal"
+    },
+    "startToCloseTimeout": "5s",
+    "attempt": 1
+   }
+  },
+  {
+   "eventId": "9",
+   "eventTime": "2023-08-15T16:20:41.474595967Z",
+   "eventType": "WorkflowTaskStarted",
+   "taskId": "1056582",
+   "workflowTaskStartedEventAttributes": {
+    "scheduledEventId": "8",
+    "identity": "62122@Quinn-Klassens-MacBook-Pro.local",
+    "requestId": "e866c946-80e1-4d7b-896b-2b5f55f950c8",
+    "historySizeBytes": "1057"
+   }
+  },
+  {
+   "eventId": "10",
+   "eventTime": "2023-08-15T16:20:41.555594092Z",
+   "eventType": "WorkflowTaskCompleted",
+   "taskId": "1056586",
+   "workflowTaskCompletedEventAttributes": {
+    "scheduledEventId": "8",
+    "startedEventId": "9",
+    "identity": "62122@Quinn-Klassens-MacBook-Pro.local"
+   }
+  },
+  {
+   "eventId": "11",
+   "eventTime": "2023-08-15T16:20:41.555605008Z",
+   "eventType": "WorkflowExecutionFailed",
+   "taskId": "1056587",
+   "workflowExecutionFailedEventAttributes": {
+    "failure": {
+     "message": "Failure handling event 5 of type 'EVENT_TYPE_TIMER_STARTED' during replay. {WorkflowTaskStartedEventId=9, CurrentStartedEventId=3}",
+     "source": "JavaSDK",
+     "stackTrace": "io.temporal.internal.statemachines.WorkflowStateMachines.createEventProcessingException(WorkflowStateMachines.java:314)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleEventsBatch(WorkflowStateMachines.java:275)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleEvent(WorkflowStateMachines.java:221)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.applyServerHistory(ReplayWorkflowRunTaskHandler.java:234)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTaskImpl(ReplayWorkflowRunTaskHandler.java:218)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTask(ReplayWorkflowRunTaskHandler.java:158)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTaskWithQuery(ReplayWorkflowTaskHandler.java:132)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTask(ReplayWorkflowTaskHandler.java:97)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handleTask(WorkflowWorker.java:415)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:319)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:261)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:105)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\njava.base/java.lang.Thread.run(Thread.java:829)\n",
+     "cause": {
+      "message": "Version: failure executing RESULT_NOTIFIED_REPLAYING-\u003eNON_MATCHING_EVENT, transition history is [CREATED-\u003eCHECK_EXECUTION_STATE, REPLAYING-\u003eSCHEDULE, MARKER_COMMAND_CREATED_REPLAYING-\u003eRECORD_MARKER]",
+      "source": "JavaSDK",
+      "stackTrace": "io.temporal.internal.statemachines.StateMachine.executeTransition(StateMachine.java:163)\nio.temporal.internal.statemachines.StateMachine.handleExplicitEvent(StateMachine.java:93)\nio.temporal.internal.statemachines.EntityStateMachineBase.explicitEvent(EntityStateMachineBase.java:95)\nio.temporal.internal.statemachines.VersionStateMachine$InvocationStateMachine.handleEvent(VersionStateMachine.java:167)\nio.temporal.internal.statemachines.CancellableCommand.handleEvent(CancellableCommand.java:73)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleCommandEvent(WorkflowStateMachines.java:415)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleSingleEvent(WorkflowStateMachines.java:346)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleEventsBatch(WorkflowStateMachines.java:273)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleEvent(WorkflowStateMachines.java:221)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.applyServerHistory(ReplayWorkflowRunTaskHandler.java:234)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTaskImpl(ReplayWorkflowRunTaskHandler.java:218)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTask(ReplayWorkflowRunTaskHandler.java:158)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTaskWithQuery(ReplayWorkflowTaskHandler.java:132)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTask(ReplayWorkflowTaskHandler.java:97)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handleTask(WorkflowWorker.java:415)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:319)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:261)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:105)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\njava.base/java.lang.Thread.run(Thread.java:829)\n",
+      "cause": {
+       "message": "getVersion call before the existing version marker event. The most probable cause is retroactive addition of a getVersion call with an existing 'changeId'",
+       "source": "JavaSDK",
+       "stackTrace": "io.temporal.internal.statemachines.VersionStateMachine$InvocationStateMachine.missingMarkerReplaying(VersionStateMachine.java:316)\nio.temporal.internal.statemachines.FixedTransitionAction.apply(FixedTransitionAction.java:46)\nio.temporal.internal.statemachines.StateMachine.executeTransition(StateMachine.java:159)\nio.temporal.internal.statemachines.StateMachine.handleExplicitEvent(StateMachine.java:93)\nio.temporal.internal.statemachines.EntityStateMachineBase.explicitEvent(EntityStateMachineBase.java:95)\nio.temporal.internal.statemachines.VersionStateMachine$InvocationStateMachine.handleEvent(VersionStateMachine.java:167)\nio.temporal.internal.statemachines.CancellableCommand.handleEvent(CancellableCommand.java:73)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleCommandEvent(WorkflowStateMachines.java:415)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleSingleEvent(WorkflowStateMachines.java:346)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleEventsBatch(WorkflowStateMachines.java:273)\nio.temporal.internal.statemachines.WorkflowStateMachines.handleEvent(WorkflowStateMachines.java:221)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.applyServerHistory(ReplayWorkflowRunTaskHandler.java:234)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTaskImpl(ReplayWorkflowRunTaskHandler.java:218)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTask(ReplayWorkflowRunTaskHandler.java:158)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTaskWithQuery(ReplayWorkflowTaskHandler.java:132)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTask(ReplayWorkflowTaskHandler.java:97)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handleTask(WorkflowWorker.java:415)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:319)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:261)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:105)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\njava.base/java.lang.Thread.run(Thread.java:829)\n",
+       "applicationFailureInfo": {
+        "type": "io.temporal.worker.NonDeterministicException"
+       }
+      },
+      "applicationFailureInfo": {
+       "type": "java.lang.RuntimeException"
+      }
+     },
+     "applicationFailureInfo": {
+      "type": "io.temporal.internal.statemachines.InternalWorkflowTaskException"
+     }
+    },
+    "retryState": "RetryPolicyNotSet",
+    "workflowTaskCompletedEventId": "10"
+   }
+  }
+ ]
+}
