@@ -368,13 +368,26 @@ final class VersionStateMachine {
     this.commandSink = Objects.requireNonNull(commandSink);
     this.stateMachineSink = stateMachineSink;
   }
-
-  public State getVersion(
+  /**
+   * Get the version for this state machine.
+   *
+   * @param minSupported min version supported for the change
+   * @param maxSupported max version supported for the change
+   * @param callback used to return version
+   * @return True if the identifier is not present in history
+   */
+  public boolean getVersion(
       int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism = new InvocationStateMachine(minSupported, maxSupported, callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
-    return ism.getState();
+    //  If the state is SKIPPED_REPLAYING that means we:
+    //    1. Are replaying
+    //    2. We don't have a preloadedVersion
+    // This means either this version marker did not exist in the original execution or
+    // the version marker did exist, but was in an earlier WFT. If the version marker was in a
+    // previous WFT then the version field should have a value.
+    return !(ism.getState() == VersionStateMachine.State.SKIPPED_REPLAYING && version == null);
   }
 
   public void handleNonMatchingEvent(HistoryEvent event) {
