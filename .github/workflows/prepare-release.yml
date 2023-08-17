@@ -211,7 +211,7 @@ jobs:
       - name: Upload
         run: |
           until gh release upload --clobber --repo $GITHUB_REPOSITORY "$INPUT_TAG" *.zip *.tar.gz; do
-            echo "Attempt $((++attempts)) to upload release artifacts failed. Will retry in 20s"
+            echo "Failed to upload release artifacts. Will retry in 20s"
             sleep 20
           done
         timeout-minutes: 10
