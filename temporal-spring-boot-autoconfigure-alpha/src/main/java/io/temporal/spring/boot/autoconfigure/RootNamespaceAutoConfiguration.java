@@ -33,10 +33,7 @@ import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.*;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -90,7 +87,10 @@ public class RootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomize) {
+          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+              workflowImplementationCustomizer) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
@@ -103,7 +103,8 @@ public class RootNamespaceAutoConfiguration {
         workerFactoryCustomizer,
         workerCustomizer,
         clientCustomizer,
-        scheduleCustomize);
+        scheduleCustomizer,
+        workflowImplementationCustomizer);
   }
 
   /** Client */
