@@ -20,6 +20,8 @@
 
 package io.temporal.client.schedules;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.schedule.v1.ScheduleAction;
@@ -38,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -53,7 +56,6 @@ public class ScheduleWithTypedSearchAttributesTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ScheduleWithTypedSearchAttributesTest.QuickWorkflowImpl.class)
-          .setUseExternalService(true)
           .build();
 
   private ScheduleClient createScheduleClient() {
@@ -94,10 +96,10 @@ public class ScheduleWithTypedSearchAttributesTest {
                 .build());
   }
 
-  //  @Before
-  //  public void checkRealServer() {
-  //    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  //  }
+  @Before
+  public void checkRealServer() {
+    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+  }
 
   @Test
   @SuppressWarnings("deprecation")
