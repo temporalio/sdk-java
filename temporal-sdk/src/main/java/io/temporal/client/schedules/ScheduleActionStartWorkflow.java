@@ -72,8 +72,8 @@ public final class ScheduleActionStartWorkflow extends ScheduleAction {
      * Set the workflow options to use when starting a workflow action.
      *
      * @note ID and TaskQueue are required. Some options like ID reuse policy, cron schedule, and
-     *     start signal cannot be set or an error will occur. Schedules requires the use of typed search attributes
-     *     and untyped search attributes will be ignored.
+     *     start signal cannot be set or an error will occur. Schedules requires the use of typed
+     *     search attributes and untyped search attributes will be ignored.
      */
     public Builder setOptions(WorkflowOptions options) {
       this.options = options;
