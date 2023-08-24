@@ -20,6 +20,7 @@
 
 package io.temporal.client.schedules;
 
+import io.temporal.common.SearchAttributes;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +39,7 @@ public final class ScheduleOptions {
     private List<ScheduleBackfill> backfills;
     private Map<String, Object> memo;
     private Map<String, ?> searchAttributes;
+    private SearchAttributes typedSearchAttributes;
 
     private Builder() {}
 
@@ -49,6 +51,7 @@ public final class ScheduleOptions {
       this.backfills = options.backfills;
       this.memo = options.memo;
       this.searchAttributes = options.searchAttributes;
+      this.typedSearchAttributes = options.typedSearchAttributes;
     }
 
     /** Set if the schedule will be triggered immediately upon creation. */
@@ -69,14 +72,25 @@ public final class ScheduleOptions {
       return this;
     }
 
-    /** Set the search attributes for the schedule. */
+    /**
+     * Set the search attributes for the schedule.
+     *
+     * @deprecated use {@link ScheduleOptions.Builder#setTypedSearchAttributes} instead.
+     */
     public Builder setSearchAttributes(Map<String, ?> searchAttributes) {
       this.searchAttributes = searchAttributes;
       return this;
     }
 
+    /** Set the search attributes for the schedule. */
+    public Builder setTypedSearchAttributes(SearchAttributes searchAttributes) {
+      this.typedSearchAttributes = searchAttributes;
+      return this;
+    }
+
     public ScheduleOptions build() {
-      return new ScheduleOptions(triggerImmediately, backfills, memo, searchAttributes);
+      return new ScheduleOptions(
+          triggerImmediately, backfills, memo, searchAttributes, typedSearchAttributes);
     }
   }
 
@@ -84,16 +98,19 @@ public final class ScheduleOptions {
   private final List<ScheduleBackfill> backfills;
   private final Map<String, Object> memo;
   private final Map<String, ?> searchAttributes;
+  private final SearchAttributes typedSearchAttributes;
 
   private ScheduleOptions(
       boolean triggerImmediately,
       List<ScheduleBackfill> backfills,
       Map<String, Object> memo,
-      Map<String, ?> searchAttributes) {
+      Map<String, ?> searchAttributes,
+      SearchAttributes typedSearchAttributes) {
     this.triggerImmediately = triggerImmediately;
     this.backfills = backfills;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.typedSearchAttributes = typedSearchAttributes;
   }
 
   /**
@@ -127,8 +144,18 @@ public final class ScheduleOptions {
    * Get the search attributes for the schedule.
    *
    * @return search attributes for the schedule
+   * @deprecated use {@link ScheduleOptions#getTypedSearchAttributes()} instead.
    */
   public Map<String, ?> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  /**
+   * Get the search attributes for the schedule.
+   *
+   * @return search attributes for the schedule
+   */
+  public SearchAttributes getTypedSearchAttributes() {
+    return typedSearchAttributes;
   }
 }

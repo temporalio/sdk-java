@@ -56,6 +56,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public void createSchedule(CreateScheduleInput input) {
 
     CreateScheduleRequest.Builder request =
@@ -75,8 +76,15 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     if (input.getOptions().getSearchAttributes() != null
         && !input.getOptions().getSearchAttributes().isEmpty()) {
+      if (input.getOptions().getTypedSearchAttributes() != null) {
+        throw new IllegalArgumentException(
+            "Cannot have search attributes and typed search attributes");
+      }
       request.setSearchAttributes(
           SearchAttributesUtil.encode(input.getOptions().getSearchAttributes()));
+    } else if (input.getOptions().getTypedSearchAttributes() != null) {
+      request.setSearchAttributes(
+          SearchAttributesUtil.encodeTyped(input.getOptions().getTypedSearchAttributes()));
     }
 
     if (input.getOptions().isTriggerImmediately()
@@ -194,6 +202,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
               scheduleRequestHeader.protoToSchedule(response.getSchedule()),
               Collections.unmodifiableMap(
                   SearchAttributesUtil.decode(response.getSearchAttributes())),
+              SearchAttributesUtil.decodeTyped(response.getSearchAttributes()),
               response.getMemo().getFieldsMap(),
               clientOptions.getDataConverter()));
     } catch (Exception e) {

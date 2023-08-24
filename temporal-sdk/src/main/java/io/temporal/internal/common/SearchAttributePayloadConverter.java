@@ -48,6 +48,10 @@ final class SearchAttributePayloadConverter {
       new SearchAttributePayloadConverter();
 
   public Payload encodeTyped(SearchAttributeKey<?> key, @Nullable Object value) {
+    if (key.getValueType() == IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED) {
+      // If we don't have the type we should just leave the payload as is
+      return (Payload) value;
+    }
     // We can encode as-is because we know it's strictly typed to expected key value. We
     // accept a null value because updates for unset can be null.
     return DefaultDataConverter.STANDARD_INSTANCE.toPayload(value).get().toBuilder()
@@ -62,6 +66,13 @@ final class SearchAttributePayloadConverter {
     // Get key type
     SearchAttributeKey key;
     IndexedValueType indexType = getIndexType(payload.getMetadataMap().get(METADATA_TYPE_KEY));
+    if (indexType == null) {
+      // If the server didn't write the type metadata we
+      // don't know how to decode this search attribute
+      key = SearchAttributeKey.forUntyped(name);
+      builder.set(key, payload);
+      return;
+    }
     switch (indexType) {
       case INDEXED_VALUE_TYPE_TEXT:
         key = SearchAttributeKey.forText(name);

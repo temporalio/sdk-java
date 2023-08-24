@@ -21,6 +21,7 @@
 package io.temporal.common;
 
 import com.google.common.reflect.TypeToken;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.IndexedValueType;
 import java.lang.reflect.Type;
 import java.time.OffsetDateTime;
@@ -71,6 +72,17 @@ public class SearchAttributeKey<T> implements Comparable<SearchAttributeKey<T>> 
         IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD_LIST,
         List.class,
         KEYWORD_LIST_REFLECT_TYPE);
+  }
+
+  /**
+   * Create a search attribute key for an untyped attribute type.
+   *
+   * <p>This should only be used when the server can return untyped search attributes, for example,
+   * when describing a schedule workflow action.
+   */
+  public static SearchAttributeKey<Payload> forUntyped(String name) {
+    return new SearchAttributeKey<>(
+        name, IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED, Payload.class);
   }
 
   private final String name;
