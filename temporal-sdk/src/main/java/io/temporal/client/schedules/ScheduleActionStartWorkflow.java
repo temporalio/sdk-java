@@ -100,7 +100,10 @@ public final class ScheduleActionStartWorkflow extends ScheduleAction {
 
     public ScheduleActionStartWorkflow build() {
       return new ScheduleActionStartWorkflow(
-          workflowType, options, header == null ? Header.empty() : header, arguments);
+          workflowType,
+          options,
+          header == null ? Header.empty() : header,
+          arguments == null ? new EncodedValues() : arguments);
     }
   }
 
