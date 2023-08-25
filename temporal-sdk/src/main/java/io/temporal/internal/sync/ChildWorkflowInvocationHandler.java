@@ -30,6 +30,7 @@ import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
+import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Optional;
@@ -43,7 +44,8 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
-      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor,
+      Functions.Proc1<String> assertReadOnly) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
@@ -61,7 +63,10 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
             .validateAndBuildWithDefaults();
     this.stub =
         new ChildWorkflowStubImpl(
-            workflowMethodMetadata.get().getName(), merged, outboundCallsInterceptor);
+            workflowMethodMetadata.get().getName(),
+            merged,
+            outboundCallsInterceptor,
+            assertReadOnly);
   }
 
   @Override

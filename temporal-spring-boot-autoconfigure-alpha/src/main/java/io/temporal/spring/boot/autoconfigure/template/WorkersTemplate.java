@@ -66,6 +66,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       workerFactoryCustomizer;
 
   private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
+  private final @Nullable TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+      workflowImplementationCustomizer;
 
   private ConfigurableListableBeanFactory beanFactory;
   private Environment environment;
@@ -80,7 +82,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer) {
+      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
+      @Nullable
+          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+              workflowImplementationCustomizer) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.tracer = tracer;
@@ -89,6 +94,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
     this.workerFactoryCustomizer = workerFactoryCustomizer;
     this.workerCustomizer = workerCustomizer;
+    this.workflowImplementationCustomizer = workflowImplementationCustomizer;
   }
 
   public WorkerFactory getWorkerFactory() {
@@ -363,10 +369,15 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               + clazz);
     }
 
+    WorkflowImplementationOptions workflowImplementationOptions =
+        new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+            .createWorkflowImplementationOptions();
+
     for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
-          () -> (T) beanFactory.createBean(clazz));
+          () -> (T) beanFactory.createBean(clazz),
+          workflowImplementationOptions);
     }
   }
 

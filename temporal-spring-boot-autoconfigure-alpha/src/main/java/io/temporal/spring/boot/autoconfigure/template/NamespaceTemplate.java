@@ -22,6 +22,7 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -29,6 +30,7 @@ import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -44,6 +46,10 @@ public class NamespaceTemplate {
       workerFactoryCustomizer;
   private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
   private final @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer;
+  private final @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder>
+      scheduleCustomizer;
+  private final @Nullable TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+      workflowImplementationCustomizer;
 
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
@@ -57,7 +63,11 @@ public class NamespaceTemplate {
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
       @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer) {
+      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+      @Nullable
+          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+              workflowImplementationCustomizer) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
@@ -68,6 +78,8 @@ public class NamespaceTemplate {
     this.workerFactoryCustomizer = workerFactoryCustomizer;
     this.workerCustomizer = workerCustomizer;
     this.clientCustomizer = clientCustomizer;
+    this.scheduleCustomizer = scheduleCustomizer;
+    this.workflowImplementationCustomizer = workflowImplementationCustomizer;
   }
 
   public ClientTemplate getClientTemplate() {
@@ -79,7 +91,8 @@ public class NamespaceTemplate {
               tracer,
               workflowServiceStubs,
               testWorkflowEnvironment,
-              clientCustomizer);
+              clientCustomizer,
+              scheduleCustomizer);
     }
     return clientTemplate;
   }
@@ -94,7 +107,8 @@ public class NamespaceTemplate {
               tracer,
               testWorkflowEnvironment,
               workerFactoryCustomizer,
-              workerCustomizer);
+              workerCustomizer,
+              workflowImplementationCustomizer);
     }
     return this.workersTemplate;
   }

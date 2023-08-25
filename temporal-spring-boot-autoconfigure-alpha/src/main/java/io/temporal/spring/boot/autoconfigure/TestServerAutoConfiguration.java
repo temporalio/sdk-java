@@ -23,6 +23,7 @@ package io.temporal.spring.boot.autoconfigure;
 import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -80,6 +81,8 @@ public class TestServerAutoConfiguration {
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
       @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+      @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
               workflowServiceStubsCustomizer) {
     DataConverter chosenDataConverter =
@@ -94,7 +97,11 @@ public class TestServerAutoConfiguration {
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(
                 new WorkflowClientOptionsTemplate(
-                        properties.getNamespace(), chosenDataConverter, otTracer, clientCustomizer)
+                        properties.getNamespace(),
+                        chosenDataConverter,
+                        otTracer,
+                        clientCustomizer,
+                        scheduleCustomizer)
                     .createWorkflowClientOptions());
 
     if (metricsScope != null) {

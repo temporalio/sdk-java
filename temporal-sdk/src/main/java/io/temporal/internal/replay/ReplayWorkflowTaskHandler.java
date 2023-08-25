@@ -36,6 +36,7 @@ import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.sdk.v1.WorkflowTaskCompletedMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
@@ -235,6 +236,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       completedRequest.setStickyAttributes(attributes);
     }
+    if (!result.getSdkFlags().isEmpty()) {
+      completedRequest =
+          completedRequest.setSdkMetadata(
+              WorkflowTaskCompletedMetadata.newBuilder()
+                  .addAllLangUsedFlags(result.getSdkFlags())
+                  .build());
+    }
     return new Result(
         workflowType,
         completedRequest.build(),
@@ -383,7 +391,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType, workflowExecution);
     return new ReplayWorkflowRunTaskHandler(
-        namespace, workflow, workflowTask, options, metricsScope, localActivityDispatcher);
+        namespace,
+        workflow,
+        workflowTask,
+        options,
+        metricsScope,
+        localActivityDispatcher,
+        service.getServerCapabilities().get());
   }
 
   private void resetStickyTaskQueue(WorkflowExecution execution) {

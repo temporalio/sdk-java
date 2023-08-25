@@ -25,6 +25,7 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
+import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -36,26 +37,30 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
   private final LocalActivityOptions options;
   private final Map<String, LocalActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
+  private final Functions.Proc assertReadOnly;
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
       Class<?> activityInterface,
       LocalActivityOptions options,
       Map<String, LocalActivityOptions> methodOptions,
-      WorkflowOutboundCallsInterceptor activityExecutor) {
+      WorkflowOutboundCallsInterceptor activityExecutor,
+      Functions.Proc assertReadOnly) {
     return new LocalActivityInvocationHandler(
-        activityInterface, activityExecutor, options, methodOptions);
+        activityInterface, activityExecutor, options, methodOptions, assertReadOnly);
   }
 
   private LocalActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
       LocalActivityOptions options,
-      Map<String, LocalActivityOptions> methodOptions) {
+      Map<String, LocalActivityOptions> methodOptions,
+      Functions.Proc assertReadOnly) {
     super(activityInterface);
     this.options = options;
     this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
+    this.assertReadOnly = assertReadOnly;
   }
 
   @VisibleForTesting
@@ -68,7 +73,8 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
             .mergeActivityOptions(activityMethodOptions.get(activityName))
             .setMethodRetry(methodRetry)
             .build();
-    ActivityStub stub = LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor);
+    ActivityStub stub =
+        LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor, assertReadOnly);
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
     return function;

@@ -33,6 +33,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
@@ -102,7 +103,8 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
             wft,
             SingleWorkerOptions.newBuilder().build(),
             new NoopScope(),
-            mock(LocalActivityDispatcher.class));
+            mock(LocalActivityDispatcher.class),
+            GetSystemInfoResponse.Capabilities.newBuilder().build());
 
     stateMachines = handler.getWorkflowStateMachines();
     QueryResult queryResult =

@@ -23,10 +23,7 @@ package io.temporal.internal.sync;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.workflow.CancelExternalWorkflowException;
-import io.temporal.workflow.ExternalWorkflowStub;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.SignalExternalWorkflowException;
+import io.temporal.workflow.*;
 import java.util.Objects;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
@@ -34,11 +31,15 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final WorkflowExecution execution;
+  private Functions.Proc1<String> assertReadOnly;
 
   public ExternalWorkflowStubImpl(
-      WorkflowExecution execution, WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+      WorkflowExecution execution,
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor,
+      Functions.Proc1<String> assertReadOnly) {
     this.outboundCallsInterceptor = Objects.requireNonNull(outboundCallsInterceptor);
     this.execution = Objects.requireNonNull(execution);
+    this.assertReadOnly = assertReadOnly;
   }
 
   @Override
@@ -48,6 +49,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    assertReadOnly.apply("signal external workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
             .signalExternalWorkflow(
@@ -70,6 +72,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
+    assertReadOnly.apply("cancel external workflow");
     Promise<Void> cancelRequested =
         outboundCallsInterceptor
             .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))

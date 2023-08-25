@@ -23,6 +23,8 @@ package io.temporal.spring.boot.autoconfigure;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClient;
+import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -31,10 +33,7 @@ import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.*;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -86,7 +85,12 @@ public class RootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer) {
+          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+              workflowImplementationCustomizer) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
@@ -98,7 +102,9 @@ public class RootNamespaceAutoConfiguration {
         testWorkflowEnvironment,
         workerFactoryCustomizer,
         workerCustomizer,
-        clientCustomizer);
+        clientCustomizer,
+        scheduleCustomizer,
+        workflowImplementationCustomizer);
   }
 
   /** Client */
@@ -111,6 +117,11 @@ public class RootNamespaceAutoConfiguration {
   @Bean(name = "temporalWorkflowClient")
   public WorkflowClient client(ClientTemplate clientTemplate) {
     return clientTemplate.getWorkflowClient();
+  }
+
+  @Bean(name = "temporalScheduleClient")
+  public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
+    return clientTemplate.getScheduleClient();
   }
 
   /** Workers */

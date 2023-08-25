@@ -101,13 +101,14 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     try {
       genericClient.createSchedule(request.build());
-    } catch (Exception e) {
-      if (e instanceof StatusRuntimeException) {
-        StatusRuntimeException sre = (StatusRuntimeException) e;
-        if (Status.Code.ALREADY_EXISTS.equals(sre.getStatus().getCode())) {
-          throw new ScheduleAlreadyRunningException(sre);
-        }
+    } catch (StatusRuntimeException e) {
+      if (Status.Code.ALREADY_EXISTS.equals(e.getStatus().getCode())) {
+        throw new ScheduleAlreadyRunningException(e);
+      } else {
+        throw new ScheduleException(e);
       }
+    } catch (Exception e) {
+      throw new ScheduleException(e);
     }
   }
 
@@ -154,7 +155,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -165,7 +170,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setNamespace(clientOptions.getNamespace())
             .setScheduleId(input.getScheduleId())
             .build();
-    genericClient.deleteSchedule(request);
+    try {
+      genericClient.deleteSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -176,16 +185,20 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .build();
 
-    DescribeScheduleResponse response = genericClient.describeSchedule(request);
-    return new DescribeScheduleOutput(
-        new ScheduleDescription(
-            input.getScheduleId(),
-            scheduleRequestHeader.protoToScheduleInfo(response.getInfo()),
-            scheduleRequestHeader.protoToSchedule(response.getSchedule()),
-            Collections.unmodifiableMap(
-                SearchAttributesUtil.decode(response.getSearchAttributes())),
-            response.getMemo().getFieldsMap(),
-            clientOptions.getDataConverter()));
+    try {
+      DescribeScheduleResponse response = genericClient.describeSchedule(request);
+      return new DescribeScheduleOutput(
+          new ScheduleDescription(
+              input.getScheduleId(),
+              scheduleRequestHeader.protoToScheduleInfo(response.getInfo()),
+              scheduleRequestHeader.protoToSchedule(response.getSchedule()),
+              Collections.unmodifiableMap(
+                  SearchAttributesUtil.decode(response.getSearchAttributes())),
+              response.getMemo().getFieldsMap(),
+              clientOptions.getDataConverter()));
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -199,8 +212,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -217,7 +233,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -231,7 +251,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
-    genericClient.patchSchedule(request);
+    try {
+      genericClient.patchSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 
   @Override
@@ -250,6 +274,10 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setRequestId(UUID.randomUUID().toString())
             .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()))
             .build();
-    genericClient.updateSchedule(request);
+    try {
+      genericClient.updateSchedule(request);
+    } catch (Exception e) {
+      throw new ScheduleException(e);
+    }
   }
 }

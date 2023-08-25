@@ -25,6 +25,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.workflow.ExternalWorkflowStub;
+import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
@@ -37,9 +38,11 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
   public ExternalWorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowExecution execution,
-      WorkflowOutboundCallsInterceptor workflowOutboundCallsInterceptor) {
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
-    stub = new ExternalWorkflowStubImpl(execution, workflowOutboundCallsInterceptor);
+      WorkflowOutboundCallsInterceptor workflowOutboundCallsInterceptor,
+      Functions.Proc1<String> assertReadOnly) {
+    this.workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    this.stub =
+        new ExternalWorkflowStubImpl(execution, workflowOutboundCallsInterceptor, assertReadOnly);
   }
 
   @Override

@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
+import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -58,6 +59,7 @@ import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -121,6 +123,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, ActivityOptions> activityOptionsMap;
   private LocalActivityOptions defaultLocalActivityOptions = null;
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
+  private boolean readOnly = false;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -850,8 +853,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
           () -> {
-            R r = func.apply();
-            return dataConverterWithCurrentWorkflowContext.toPayloads(r);
+            try {
+              readOnly = true;
+              R r = func.apply();
+              return dataConverterWithCurrentWorkflowContext.toPayloads(r);
+            } finally {
+              readOnly = false;
+            }
           },
           (p) ->
               runner.executeInWorkflowThread(
@@ -889,13 +897,19 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   (b) ->
                       dataConverterWithCurrentWorkflowContext.fromPayloads(
                           0, Optional.of(b), resultClass, resultType));
-          R funcResult =
-              Objects.requireNonNull(func.apply(), "mutableSideEffect function " + "returned null");
-          if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
-            unserializedResult.set(funcResult);
-            return dataConverterWithCurrentWorkflowContext.toPayloads(funcResult);
+          try {
+            readOnly = true;
+            R funcResult =
+                Objects.requireNonNull(
+                    func.apply(), "mutableSideEffect function " + "returned null");
+            if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
+              unserializedResult.set(funcResult);
+              return dataConverterWithCurrentWorkflowContext.toPayloads(funcResult);
+            }
+            return Optional.empty(); // returned only when value doesn't need to be updated
+          } finally {
+            readOnly = false;
           }
-          return Optional.empty(); // returned only when value doesn't need to be updated
         },
         (p) ->
             runner.executeInWorkflowThread(
@@ -916,20 +930,33 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
     CompletablePromise<Integer> result = Workflow.newPromise();
-    replayContext.getVersion(
-        changeId,
-        minSupported,
-        maxSupported,
-        (v, e) ->
-            runner.executeInWorkflowThread(
-                "version-callback",
-                () -> {
-                  if (v != null) {
-                    result.complete(v);
-                  } else {
-                    result.completeExceptionally(e);
-                  }
-                }));
+    boolean markerExists =
+        replayContext.getVersion(
+            changeId,
+            minSupported,
+            maxSupported,
+            (v, e) ->
+                runner.executeInWorkflowThread(
+                    "version-callback",
+                    () -> {
+                      if (v != null) {
+                        result.complete(v);
+                      } else {
+                        result.completeExceptionally(e);
+                      }
+                    }));
+    /*
+     * If we are replaying a workflow and encounter a getVersion call it is possible that this call did not exist
+     * on the original execution. If the call did not exist on the original execution then we cannot block on results
+     * because it can lead to non-deterministic scheduling.
+     * */
+    if (replayContext.isReplaying()
+        && !markerExists
+        && replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION)
+        && minSupported == DEFAULT_VERSION) {
+      return DEFAULT_VERSION;
+    }
+
     try {
       return result.get();
     } catch (UnsupportedVersion.UnsupportedVersionException ex) {
@@ -983,6 +1010,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   boolean isReplaying() {
     return replayContext.isReplaying();
+  }
+
+  boolean isReadOnly() {
+    return readOnly;
+  }
+
+  void setReadOnly(boolean readOnly) {
+    this.readOnly = readOnly;
   }
 
   @Override

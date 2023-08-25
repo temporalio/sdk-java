@@ -190,7 +190,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .build();
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, null, new TestActivityExecutor());
+            activityInterface, options, null, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -206,7 +206,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, null, new TestActivityExecutor());
+            activityInterface, options, null, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -226,7 +226,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       Map<String, LocalActivityOptions> activityMethodOptions) {
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
-            activityInterface, options, activityMethodOptions, new TestActivityExecutor());
+            activityInterface,
+            options,
+            activityMethodOptions,
+            new TestActivityExecutor(),
+            () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);

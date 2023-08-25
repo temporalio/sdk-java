@@ -153,6 +153,7 @@ Where `OptionsType` may be one of:
 - `WorkflowClientOption.Builder`
 - `WorkerFactoryOptions.Builder`
 - `WorkerOptions.Builder`
+- `WorkflowImplementationOptions.Builder`
 - `TestEnvironmentOptions.Builder`
 
 `io.temporal.spring.boot.WorkerOptionsCustomizer` may be used instead of `TemporalOptionsCustomizer<WorkerOptions.Builder>`

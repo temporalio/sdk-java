@@ -124,7 +124,7 @@ public class ChildWorkflowRetryTest {
    * compatible with the client that supports the server side retry.
    */
   @Test
-  public void testChildWorkflowRetry_replay() throws Exception {
+  public void testChildWorkflowRetryReplay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
   }
