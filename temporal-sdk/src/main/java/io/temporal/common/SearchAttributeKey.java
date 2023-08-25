@@ -127,11 +127,17 @@ public class SearchAttributeKey<T> implements Comparable<SearchAttributeKey<T>> 
 
   /** Create an update that sets a value for this key. */
   public SearchAttributeUpdate<T> valueSet(@Nonnull T value) {
+    if (valueType == IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED) {
+      throw new IllegalStateException("untyped keys should not be used in workflows");
+    }
     return SearchAttributeUpdate.valueSet(this, value);
   }
 
   /** Create an update that unsets a value for this key. */
   public SearchAttributeUpdate<T> valueUnset() {
+    if (valueType == IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED) {
+      throw new IllegalStateException("untyped keys should not be used in workflows");
+    }
     return SearchAttributeUpdate.valueUnset(this);
   }
 
