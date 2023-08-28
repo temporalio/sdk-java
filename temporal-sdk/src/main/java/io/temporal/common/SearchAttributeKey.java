@@ -21,6 +21,7 @@
 package io.temporal.common;
 
 import com.google.common.reflect.TypeToken;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.IndexedValueType;
 import java.lang.reflect.Type;
 import java.time.OffsetDateTime;
@@ -73,6 +74,17 @@ public class SearchAttributeKey<T> implements Comparable<SearchAttributeKey<T>> 
         KEYWORD_LIST_REFLECT_TYPE);
   }
 
+  /**
+   * Create a search attribute key for an untyped attribute type.
+   *
+   * <p>This should only be used when the server can return untyped search attributes, for example,
+   * when describing a schedule workflow action.
+   */
+  public static SearchAttributeKey<Payload> forUntyped(String name) {
+    return new SearchAttributeKey<>(
+        name, IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED, Payload.class);
+  }
+
   private final String name;
   private final IndexedValueType valueType;
   private final Class<? super T> valueClass;
@@ -115,11 +127,17 @@ public class SearchAttributeKey<T> implements Comparable<SearchAttributeKey<T>> 
 
   /** Create an update that sets a value for this key. */
   public SearchAttributeUpdate<T> valueSet(@Nonnull T value) {
+    if (valueType == IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED) {
+      throw new IllegalStateException("untyped keys should not be used in workflows");
+    }
     return SearchAttributeUpdate.valueSet(this, value);
   }
 
   /** Create an update that unsets a value for this key. */
   public SearchAttributeUpdate<T> valueUnset() {
+    if (valueType == IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED) {
+      throw new IllegalStateException("untyped keys should not be used in workflows");
+    }
     return SearchAttributeUpdate.valueUnset(this);
   }
 
