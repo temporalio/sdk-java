@@ -81,6 +81,10 @@ public final class WorkflowStateMachines {
   /** EventId of the last WorkflowTaskStarted event handled by these state machines. */
   private long currentStartedEventId;
 
+  private long historySize;
+
+  private boolean isContinueAsNewSuggested;
+
   /**
    * EventId of the last event seen by these state machines. Events earlier than this one will be
    * discarded.
@@ -203,6 +207,14 @@ public final class WorkflowStateMachines {
 
   public long getCurrentStartedEventId() {
     return currentStartedEventId;
+  }
+
+  public long getHistorySize() {
+    return historySize;
+  }
+
+  public boolean isContinueAsNewSuggested() {
+    return isContinueAsNewSuggested;
   }
 
   public void setReplaying(boolean replaying) {
@@ -1126,7 +1138,11 @@ public final class WorkflowStateMachines {
   private class WorkflowTaskCommandsListener implements WorkflowTaskStateMachine.Listener {
     @Override
     public void workflowTaskStarted(
-        long startedEventId, long currentTimeMillis, boolean nonProcessedWorkflowTask) {
+        long startedEventId,
+        long currentTimeMillis,
+        boolean nonProcessedWorkflowTask,
+        long historySize,
+        boolean isContinueAsNewSuggested) {
       setCurrentTimeMillis(currentTimeMillis);
       for (CancellableCommand cancellableCommand : commands) {
         cancellableCommand.handleWorkflowTaskStarted();
@@ -1140,6 +1156,8 @@ public final class WorkflowStateMachines {
         }
       }
       WorkflowStateMachines.this.currentStartedEventId = startedEventId;
+      WorkflowStateMachines.this.historySize = historySize;
+      WorkflowStateMachines.this.isContinueAsNewSuggested = isContinueAsNewSuggested;
 
       eventLoop();
     }

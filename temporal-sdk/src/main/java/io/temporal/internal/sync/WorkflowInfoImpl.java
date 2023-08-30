@@ -134,6 +134,16 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  public long getHistorySize() {
+    return context.getHistorySize();
+  }
+
+  @Override
+  public boolean isContinueAsNewSuggested() {
+    return context.isContinueAsNewSuggested();
+  }
+
+  @Override
   public String toString() {
     return "WorkflowInfo{"
         + "namespace="
