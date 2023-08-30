@@ -55,7 +55,7 @@ import org.junit.Test;
 /** Typed attribute translation of {@link SearchAttributesTest} */
 public class TypedSearchAttributesTest {
   private static final SearchAttributeKey<List<String>> TEST_NEW_KEY =
-      SearchAttributeKey.forKeywordList("NewKey");
+      SearchAttributeKey.forKeywordList("NewKeyList");
   private static final List<String> TEST_NEW_VALUE = Arrays.asList("foo", "bar");
   private static final SearchAttributeKey<String> TEST_UNKNOWN_KEY =
       SearchAttributeKey.forText("UnknownKey");
