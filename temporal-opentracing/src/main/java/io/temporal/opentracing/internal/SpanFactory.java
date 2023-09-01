@@ -33,9 +33,10 @@ import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardTagNames;
+
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public class SpanFactory {
   // Inspired by convention used in JAX-RS2 OpenTracing implementation:
@@ -86,7 +87,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, null, References.CHILD_OF);
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createWorkflowSignalSpan(
@@ -190,7 +191,7 @@ public class SpanFactory {
       String updateName,
       String workflowId,
       String runId,
-      SpanContext workflowSignalSpanContext) {
+      SpanContext workflowUpdateSpanContext) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.HANDLE_UPDATE)
@@ -198,7 +199,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, workflowUpdateSpanContext, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createWorkflowQuerySpan(
@@ -214,13 +215,13 @@ public class SpanFactory {
   }
 
   public Tracer.SpanBuilder createWorkflowHandleQuerySpan(
-      Tracer tracer, String queryName, SpanContext workflowSignalSpanContext) {
+      Tracer tracer, String queryName, SpanContext workflowQuerySpanContext) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.HANDLE_QUERY)
             .setActionName(queryName)
             .build();
-    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, workflowQuerySpanContext, References.FOLLOWS_FROM);
   }
 
   @SuppressWarnings("deprecation")
