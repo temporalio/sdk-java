@@ -121,14 +121,14 @@ public class SignalWithStartTest {
     assertEquals(clientSpan.context().spanId(), workflowStartSpan.parentId());
     assertEquals("SignalWithStartWorkflow:TestWorkflow", workflowStartSpan.operationName());
 
-    List<MockSpan> workflowRunSpans = spansHelper.getByParentSpan(workflowStartSpan);
-    assertEquals(2, workflowRunSpans.size());
+    List<MockSpan> workflowSpans = spansHelper.getByParentSpan(workflowStartSpan);
+    assertEquals(2, workflowSpans.size());
 
-    MockSpan workflowSignalSpan = workflowRunSpans.get(0);
+    MockSpan workflowSignalSpan = workflowSpans.get(0);
     assertEquals(workflowStartSpan.context().spanId(), workflowSignalSpan.parentId());
     assertEquals("HandleSignal:signal", workflowSignalSpan.operationName());
 
-    MockSpan workflowRunSpan = workflowRunSpans.get(1);
+    MockSpan workflowRunSpan = workflowSpans.get(1);
     assertEquals(workflowStartSpan.context().spanId(), workflowRunSpan.parentId());
     assertEquals("RunWorkflow:TestWorkflow", workflowRunSpan.operationName());
   }
