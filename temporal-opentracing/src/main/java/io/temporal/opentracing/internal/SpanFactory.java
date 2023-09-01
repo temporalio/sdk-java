@@ -33,10 +33,9 @@ import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardTagNames;
-
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public class SpanFactory {
   // Inspired by convention used in JAX-RS2 OpenTracing implementation:
