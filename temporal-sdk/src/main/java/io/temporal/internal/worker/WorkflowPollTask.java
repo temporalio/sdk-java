@@ -144,7 +144,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     } finally {
       if (!isSuccessful) {
         workflowTaskExecutorSemaphore.release();
-        stickyQueueBalancer.finishPoll(taskQueueKind);
+        stickyQueueBalancer.finishPoll(taskQueueKind, 0);
       }
     }
   }
