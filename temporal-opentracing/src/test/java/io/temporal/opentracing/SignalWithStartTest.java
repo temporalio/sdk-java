@@ -121,15 +121,24 @@ public class SignalWithStartTest {
     assertEquals(clientSpan.context().spanId(), workflowStartSpan.parentId());
     assertEquals("SignalWithStartWorkflow:TestWorkflow", workflowStartSpan.operationName());
 
-    List<MockSpan> workflowSpans = spansHelper.getByParentSpan(workflowStartSpan);
-    assertEquals(2, workflowSpans.size());
+    if (SDKTestWorkflowRule.useExternalService) {
+      List<MockSpan> workflowSpans = spansHelper.getByParentSpan(workflowStartSpan);
+      assertEquals(2, workflowSpans.size());
 
-    MockSpan workflowSignalSpan = workflowSpans.get(0);
-    assertEquals(workflowStartSpan.context().spanId(), workflowSignalSpan.parentId());
-    assertEquals("HandleSignal:signal", workflowSignalSpan.operationName());
+      MockSpan workflowSignalSpan = workflowSpans.get(0);
+      assertEquals(workflowStartSpan.context().spanId(), workflowSignalSpan.parentId());
+      assertEquals("HandleSignal:signal", workflowSignalSpan.operationName());
 
-    MockSpan workflowRunSpan = workflowSpans.get(1);
-    assertEquals(workflowStartSpan.context().spanId(), workflowRunSpan.parentId());
-    assertEquals("RunWorkflow:TestWorkflow", workflowRunSpan.operationName());
+      MockSpan workflowRunSpan = workflowSpans.get(1);
+      assertEquals(workflowStartSpan.context().spanId(), workflowRunSpan.parentId());
+      assertEquals("RunWorkflow:TestWorkflow", workflowRunSpan.operationName());
+    } else {
+      List<MockSpan> workflowRunSpans = spansHelper.getByParentSpan(workflowStartSpan);
+      assertEquals(1, workflowRunSpans.size());
+
+      MockSpan workflowRunSpan = workflowRunSpans.get(0);
+      assertEquals(workflowStartSpan.context().spanId(), workflowRunSpan.parentId());
+      assertEquals("RunWorkflow:TestWorkflow", workflowRunSpan.operationName());
+    }
   }
 }
