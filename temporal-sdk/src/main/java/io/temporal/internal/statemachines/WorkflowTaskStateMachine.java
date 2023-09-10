@@ -44,9 +44,15 @@ final class WorkflowTaskStateMachine
      *     workflow execution this is the last event in the history. During replay (due to query for
      *     example) the last workflow task still can return false if it is followed by other events
      *     like WorkflowExecutionCompleted.
+     * @param historySize current size, in bytes, of the workflow history.
+     * @param isContinueAsNewSuggested true if the server suggests this workflow to continue as new.
      */
     void workflowTaskStarted(
-        long startEventId, long currentTimeMillis, boolean nonProcessedWorkflowTask);
+        long startEventId,
+        long currentTimeMillis,
+        boolean nonProcessedWorkflowTask,
+        long historySize,
+        boolean isContinueAsNewSuggested);
 
     void updateRunId(String currentRunId);
   }
@@ -58,6 +64,8 @@ final class WorkflowTaskStateMachine
   // TODO write a comment describing the difference between workflowTaskStartedEventId and
   // startedEventId
   private long startedEventId;
+  private long historySize;
+  private boolean isContinueAsNewSuggested;
 
   public static WorkflowTaskStateMachine newInstance(
       long workflowTaskStartedEventId, Listener listener) {
@@ -112,6 +120,10 @@ final class WorkflowTaskStateMachine
   private void handleStarted() {
     eventTimeOfTheLastWorkflowStartTask = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
+    historySize = currentEvent.getWorkflowTaskStartedEventAttributes().getHistorySizeBytes();
+    isContinueAsNewSuggested =
+        currentEvent.getWorkflowTaskStartedEventAttributes().getSuggestContinueAsNew();
+
     // The last started event in the history. So no completed is expected.
     if (currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent) {
       handleCompleted();
@@ -125,7 +137,11 @@ final class WorkflowTaskStateMachine
     // If the workflow task has FAILED or other unsuccessful finish event, we don't replay such
     // workflow tasks
     listener.workflowTaskStarted(
-        startedEventId, eventTimeOfTheLastWorkflowStartTask, lastTaskInHistory);
+        startedEventId,
+        eventTimeOfTheLastWorkflowStartTask,
+        lastTaskInHistory,
+        historySize,
+        isContinueAsNewSuggested);
   }
 
   private void handleFailed() {

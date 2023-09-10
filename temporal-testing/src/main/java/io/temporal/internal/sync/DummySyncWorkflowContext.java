@@ -349,5 +349,15 @@ public class DummySyncWorkflowContext {
     public long getCurrentWorkflowTaskStartedEventId() {
       return 0;
     }
+
+    @Override
+    public long getHistorySize() {
+      return 0;
+    }
+
+    @Override
+    public boolean isContinueAsNewSuggested() {
+      return false;
+    }
   }
 }

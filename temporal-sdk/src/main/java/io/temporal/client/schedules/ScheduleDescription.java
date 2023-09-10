@@ -21,6 +21,7 @@
 package io.temporal.client.schedules;
 
 import io.temporal.api.common.v1.Payload;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -35,6 +36,7 @@ public final class ScheduleDescription {
   private final ScheduleInfo info;
   private final Schedule schedule;
   private final Map<String, List<?>> searchAttributes;
+  private final SearchAttributes typedSearchAttributes;
   private final Map<String, Payload> memo;
   private final DataConverter dataConverter;
 
@@ -43,12 +45,14 @@ public final class ScheduleDescription {
       ScheduleInfo info,
       Schedule schedule,
       Map<String, List<?>> searchAttributes,
+      SearchAttributes typedSearchAttributes,
       Map<String, Payload> memo,
       DataConverter dataConverter) {
     this.id = id;
     this.info = info;
     this.schedule = schedule;
     this.searchAttributes = searchAttributes;
+    this.typedSearchAttributes = typedSearchAttributes;
     this.memo = memo;
     this.dataConverter = dataConverter;
   }
@@ -84,10 +88,21 @@ public final class ScheduleDescription {
    * Gets the search attributes on the schedule.
    *
    * @return search attributes
+   * @deprecated use {@link ScheduleDescription#getTypedSearchAttributes} instead.
    */
   @Nonnull
   public Map<String, List<?>> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  /**
+   * Gets the search attributes on the schedule.
+   *
+   * @return search attributes
+   */
+  @Nonnull
+  public SearchAttributes getTypedSearchAttributes() {
+    return typedSearchAttributes;
   }
 
   @Nullable
@@ -113,12 +128,13 @@ public final class ScheduleDescription {
         && Objects.equals(info, that.info)
         && Objects.equals(schedule, that.schedule)
         && Objects.equals(searchAttributes, that.searchAttributes)
+        && Objects.equals(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equals(memo, that.memo);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, info, schedule, searchAttributes, memo);
+    return Objects.hash(id, info, schedule, searchAttributes, typedSearchAttributes, memo);
   }
 
   @Override
@@ -133,6 +149,8 @@ public final class ScheduleDescription {
         + schedule
         + ", searchAttributes="
         + searchAttributes
+        + ", typedSearchAttributes="
+        + typedSearchAttributes
         + ", memo="
         + memo
         + '}';

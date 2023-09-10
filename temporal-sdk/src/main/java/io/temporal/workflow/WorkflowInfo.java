@@ -148,4 +148,16 @@ public interface WorkflowInfo {
    *     call {@link Workflow#continueAsNew(Object...)}.
    */
   long getHistoryLength();
+
+  /**
+   * @return size of Workflow history in bytes up until the current moment of execution. This value
+   *     changes during the lifetime of a Workflow Execution.
+   */
+  long getHistorySize();
+
+  /**
+   * @return true if the server is configured to suggest continue as new and it is suggested. This
+   *     value changes during the lifetime of a Workflow Execution.
+   */
+  boolean isContinueAsNewSuggested();
 }

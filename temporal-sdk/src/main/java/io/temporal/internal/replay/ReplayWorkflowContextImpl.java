@@ -353,6 +353,16 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     return workflowStateMachines.getCurrentStartedEventId();
   }
 
+  @Override
+  public long getHistorySize() {
+    return workflowStateMachines.getHistorySize();
+  }
+
+  @Override
+  public boolean isContinueAsNewSuggested() {
+    return workflowStateMachines.isContinueAsNewSuggested();
+  }
+
   /*
    * MUTABLE STATE OPERATIONS
    */
