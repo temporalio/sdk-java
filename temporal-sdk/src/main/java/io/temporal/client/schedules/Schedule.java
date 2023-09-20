@@ -73,9 +73,9 @@ public final class Schedule {
     }
 
     /**
-     * Set the spec for this schedule
+     * Set the policy for this schedule
      *
-     * @see ScheduleSpec
+     * @see SchedulePolicy
      */
     public Builder setPolicy(SchedulePolicy policy) {
       this.policy = policy;

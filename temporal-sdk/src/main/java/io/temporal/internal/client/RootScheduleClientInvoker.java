@@ -98,10 +98,11 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       }
 
       if (input.getOptions().isTriggerImmediately()) {
-        patchBuilder.setTriggerImmediately(
-            TriggerImmediatelyRequest.newBuilder()
-                .setOverlapPolicy(input.getSchedule().getPolicy().getOverlap())
-                .build());
+        TriggerImmediatelyRequest.Builder triggerRequest = TriggerImmediatelyRequest.newBuilder();
+        if (input.getSchedule().getPolicy() != null) {
+          triggerRequest.setOverlapPolicy(input.getSchedule().getPolicy().getOverlap());
+        }
+        patchBuilder.setTriggerImmediately(triggerRequest.build());
       }
 
       request.setInitialPatch(patchBuilder.build());

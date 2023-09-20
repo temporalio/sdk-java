@@ -236,6 +236,20 @@ public class ScheduleTest {
   }
 
   @Test
+  public void triggerScheduleNoPolicy() {
+    ScheduleClient client = createScheduleClient();
+    // Create schedule
+    ScheduleOptions options = ScheduleOptions.newBuilder().setTriggerImmediately(true).build();
+    String scheduleId = UUID.randomUUID().toString();
+    Schedule schedule =
+        createTestSchedule().setState(ScheduleState.newBuilder().setPaused(true).build()).build();
+    ScheduleHandle handle = client.createSchedule(scheduleId, schedule, options);
+    waitForActions(handle, 1);
+    // Cleanup schedule
+    handle.delete();
+  }
+
+  @Test
   public void backfillSchedules() {
     // assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
     Instant now = Instant.now();
