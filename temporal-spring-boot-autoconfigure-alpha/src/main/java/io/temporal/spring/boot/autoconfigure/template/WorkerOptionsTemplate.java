@@ -72,8 +72,16 @@ class WorkerOptionsTemplate {
         Optional.ofNullable(rateLimitConfiguration.getMaxTaskQueueActivitiesPerSecond())
             .ifPresent(options::setMaxTaskQueueActivitiesPerSecond);
       }
-    }
 
+      WorkerProperties.BuildIdConfigurationProperties buildIdConfigurations =
+          workerProperties.getBuildId();
+      if (buildIdConfigurations != null) {
+        Optional.ofNullable(buildIdConfigurations.getWorkerBuildId())
+            .ifPresent(options::setBuildId);
+        Optional.ofNullable(buildIdConfigurations.getEnabledWorkerVersioning())
+            .ifPresent(options::setUseBuildIdForVersioning);
+      }
+    }
     if (customizer != null) {
       options = customizer.customize(options);
       if (customizer instanceof WorkerOptionsCustomizer) {

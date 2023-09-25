@@ -92,6 +92,9 @@ spring:
         rate-limits:
           max-worker-activities-per-second: 1.0
           max-task-queue-activities-per-second: 1.0
+        build-id:
+          worker-build-id: "1.0.0"
+          enabled-worker-versioning: true
     workflow-cache:
       max-instances: 10
       max-threads: 10
