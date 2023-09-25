@@ -579,7 +579,7 @@ public final class WorkerOptions {
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
         && disableEagerExecution == that.disableEagerExecution
         && useBuildIdForVersioning == that.useBuildIdForVersioning
-        && buildId.equals(that.buildId);
+        && Objects.equals(that.buildId, buildId);
   }
 
   @Override

@@ -40,4 +40,11 @@ public class WorkerOptionsTest {
     assertEquals(10, options.getMaxConcurrentActivityExecutionSize());
     assertEquals(11, options.getMaxConcurrentLocalActivityExecutionSize());
   }
+
+  @Test
+  public void verifyWorkerOptionsEquality() {
+    WorkerOptions w1 = WorkerOptions.newBuilder().build();
+    WorkerOptions w2 = WorkerOptions.newBuilder().build();
+    assertEquals(w1, w2);
+  }
 }
