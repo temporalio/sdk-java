@@ -144,7 +144,8 @@ final class ReplayWorkflowExecutor {
     }
     Optional<Payloads> input =
         signalAttributes.hasInput() ? Optional.of(signalAttributes.getInput()) : Optional.empty();
-    this.workflow.handleSignal(signalAttributes.getSignalName(), input, event.getEventId());
+    this.workflow.handleSignal(
+        signalAttributes.getSignalName(), input, event.getEventId(), signalAttributes.getHeader());
   }
 
   public void handleWorkflowExecutionUpdated(UpdateMessage updateMessage) {
@@ -157,7 +158,11 @@ final class ReplayWorkflowExecutor {
       Input input = update.getInput();
       Optional<Payloads> args = Optional.ofNullable(input.getArgs());
       this.workflow.handleUpdate(
-          input.getName(), args, protocolMessage.getEventId(), updateMessage.getCallbacks());
+          input.getName(),
+          args,
+          protocolMessage.getEventId(),
+          input.getHeader(),
+          updateMessage.getCallbacks());
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException("Message is not an update.");
     }

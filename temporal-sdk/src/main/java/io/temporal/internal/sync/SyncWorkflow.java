@@ -20,6 +20,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
@@ -140,14 +141,20 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+  public void handleSignal(
+      String signalName, Optional<Payloads> input, long eventId, Header header) {
     runner.executeInWorkflowThread(
-        "signal " + signalName, () -> workflowProc.handleSignal(signalName, input, eventId));
+        "signal " + signalName,
+        () -> workflowProc.handleSignal(signalName, input, eventId, header));
   }
 
   @Override
   public void handleUpdate(
-      String updateName, Optional<Payloads> input, long eventId, UpdateProtocolCallback callbacks) {
+      String updateName,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      UpdateProtocolCallback callbacks) {
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
@@ -158,7 +165,7 @@ class SyncWorkflow implements ReplayWorkflow {
               // should not just be run
               // in a workflow thread
               workflowContext.setReadOnly(true);
-              workflowProc.handleValidateUpdate(updateName, input, eventId);
+              workflowProc.handleValidateUpdate(updateName, input, eventId, header);
             } catch (Exception e) {
               callbacks.reject(this.dataConverter.exceptionToFailure(e));
               return;
@@ -169,7 +176,7 @@ class SyncWorkflow implements ReplayWorkflow {
           callbacks.accept();
           try {
             Optional<Payloads> result =
-                workflowProc.handleExecuteUpdate(updateName, input, eventId);
+                workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
             callbacks.complete(result, null);
           } catch (WorkflowExecutionException e) {
             callbacks.complete(Optional.empty(), e.getFailure());
@@ -215,7 +222,7 @@ class SyncWorkflow implements ReplayWorkflow {
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
-    return workflowProc.handleQuery(query.getQueryType(), args);
+    return workflowProc.handleQuery(query.getQueryType(), query.getHeader(), args);
   }
 
   @Override

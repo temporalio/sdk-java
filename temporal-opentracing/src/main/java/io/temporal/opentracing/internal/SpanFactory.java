@@ -77,6 +77,46 @@ public class SpanFactory {
     return createSpan(context, tracer, null, References.CHILD_OF);
   }
 
+  public Tracer.SpanBuilder createExternalWorkflowSignalSpan(
+      Tracer tracer, String signalName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.SIGNAL_EXTERNAL_WORKFLOW)
+            .setActionName(signalName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowSignalSpan(
+      Tracer tracer, String signalName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.SIGNAL_WORKFLOW)
+            .setActionName(signalName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowHandleSignalSpan(
+      Tracer tracer,
+      String signalName,
+      String workflowId,
+      String runId,
+      SpanContext workflowSignalSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.HANDLE_SIGNAL)
+            .setActionName(signalName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, workflowSignalSpanContext, References.FOLLOWS_FROM);
+  }
+
   public Tracer.SpanBuilder createContinueAsNewWorkflowStartSpan(
       Tracer tracer, String continueAsNewWorkflowType, String workflowId, String parentRunId) {
     SpanCreationContext context =
@@ -131,6 +171,56 @@ public class SpanFactory {
             .setRunId(runId)
             .build();
     return createSpan(context, tracer, activityStartSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowStartUpdateSpan(
+      Tracer tracer, String updateName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.UPDATE_WORKFLOW)
+            .setActionName(updateName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowExecuteUpdateSpan(
+      Tracer tracer,
+      String updateName,
+      String workflowId,
+      String runId,
+      SpanContext workflowUpdateSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.HANDLE_UPDATE)
+            .setActionName(updateName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, workflowUpdateSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowQuerySpan(
+      Tracer tracer, String updateName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.QUERY_WORKFLOW)
+            .setActionName(updateName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createWorkflowHandleQuerySpan(
+      Tracer tracer, String queryName, SpanContext workflowQuerySpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.HANDLE_QUERY)
+            .setActionName(queryName)
+            .build();
+    return createSpan(context, tracer, workflowQuerySpanContext, References.FOLLOWS_FROM);
   }
 
   @SuppressWarnings("deprecation")

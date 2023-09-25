@@ -59,6 +59,27 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
   }
 
   @Override
+  public WorkflowSignalOutput signal(WorkflowSignalInput input) {
+    Span workflowSignalSpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createWorkflowSignalSpan(
+                        tracer,
+                        input.getSignalName(),
+                        input.getWorkflowExecution().getWorkflowId(),
+                        input.getWorkflowExecution().getRunId())
+                    .start(),
+            input.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowSignalSpan)) {
+      return super.signal(input);
+    } finally {
+      workflowSignalSpan.finish();
+    }
+  }
+
+  @Override
   public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
     WorkflowStartInput workflowStartInput = input.getWorkflowStartInput();
     Span workflowStartSpan =
@@ -73,6 +94,48 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
       return super.signalWithStart(input);
     } finally {
       workflowStartSpan.finish();
+    }
+  }
+
+  @Override
+  public <R> QueryOutput<R> query(QueryInput<R> input) {
+    Span workflowQuerySpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createWorkflowQuerySpan(
+                        tracer,
+                        input.getQueryType(),
+                        input.getWorkflowExecution().getWorkflowId(),
+                        input.getWorkflowExecution().getRunId())
+                    .start(),
+            input.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowQuerySpan)) {
+      return super.query(input);
+    } finally {
+      workflowQuerySpan.finish();
+    }
+  }
+
+  @Override
+  public <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input) {
+    Span workflowStartUpdateSpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createWorkflowStartUpdateSpan(
+                        tracer,
+                        input.getUpdateName(),
+                        input.getWorkflowExecution().getWorkflowId(),
+                        input.getWorkflowExecution().getRunId())
+                    .start(),
+            input.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowStartUpdateSpan)) {
+      return super.startUpdate(input);
+    } finally {
+      workflowStartUpdateSpan.finish();
     }
   }
 

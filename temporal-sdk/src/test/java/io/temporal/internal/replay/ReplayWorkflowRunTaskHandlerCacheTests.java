@@ -32,6 +32,7 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -292,13 +293,15 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
           public void start(HistoryEvent event, ReplayWorkflowContext context) {}
 
           @Override
-          public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {}
+          public void handleSignal(
+              String signalName, Optional<Payloads> input, long eventId, Header header) {}
 
           @Override
           public void handleUpdate(
               String updateName,
               Optional<Payloads> input,
               long eventId,
+              Header header,
               UpdateProtocolCallback callbacks) {}
 
           @Override

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import java.lang.reflect.Type;
@@ -67,7 +68,8 @@ public class QueryDispatcherTest {
     dispatcher.setInboundCallsInterceptor(mockInterceptor);
 
     // Invoke functionality under test, expect no exceptions for an existing query.
-    Optional<Payloads> queryResult = dispatcher.handleQuery("QueryB", Optional.empty());
+    Optional<Payloads> queryResult =
+        dispatcher.handleQuery("QueryB", Header.empty(), Optional.empty());
     assertTrue(queryResult.isPresent());
   }
 
@@ -79,7 +81,7 @@ public class QueryDispatcherTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> {
-              dispatcher.handleQuery("QueryC", null);
+              dispatcher.handleQuery("QueryC", Header.empty(), null);
             });
     assertEquals("Unknown query type: QueryC, knownTypes=[QueryA, QueryB]", exception.getMessage());
   }

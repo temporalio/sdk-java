@@ -81,11 +81,13 @@ public interface WorkflowInboundCallsInterceptor {
     private final String signalName;
     private final Object[] arguments;
     private final long EventId;
+    private final Header header;
 
-    public SignalInput(String signalName, Object[] arguments, long eventId) {
+    public SignalInput(String signalName, Object[] arguments, long eventId, Header header) {
       this.signalName = signalName;
       this.arguments = arguments;
       EventId = eventId;
+      this.header = header;
     }
 
     public String getSignalName() {
@@ -99,19 +101,29 @@ public interface WorkflowInboundCallsInterceptor {
     public long getEventId() {
       return EventId;
     }
+
+    public Header getHeader() {
+      return header;
+    }
   }
 
   final class QueryInput {
     private final String queryName;
+    private final Header header;
     private final Object[] arguments;
 
-    public QueryInput(String signalName, Object[] arguments) {
-      this.queryName = signalName;
+    public QueryInput(String queryName, Header header, Object[] arguments) {
+      this.queryName = queryName;
+      this.header = header;
       this.arguments = arguments;
     }
 
     public String getQueryName() {
       return queryName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArguments() {
@@ -134,15 +146,21 @@ public interface WorkflowInboundCallsInterceptor {
   @Experimental
   final class UpdateInput {
     private final String updateName;
+    private final Header header;
     private final Object[] arguments;
 
-    public UpdateInput(String updateName, Object[] arguments) {
+    public UpdateInput(String updateName, Header header, Object[] arguments) {
       this.updateName = updateName;
+      this.header = header;
       this.arguments = arguments;
     }
 
     public String getUpdateName() {
       return updateName;
+    }
+
+    public Header getHeader() {
+      return header;
     }
 
     public Object[] getArguments() {

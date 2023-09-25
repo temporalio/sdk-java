@@ -56,6 +56,7 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.*;
 import io.temporal.internal.common.ActivityOptionUtils;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
@@ -315,17 +316,19 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     signalDispatcher.handleInterceptedSignal(input);
   }
 
-  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
-    signalDispatcher.handleSignal(signalName, input, eventId);
+  public void handleSignal(
+      String signalName, Optional<Payloads> input, long eventId, Header header) {
+    signalDispatcher.handleSignal(signalName, input, eventId, header);
   }
 
-  public void handleValidateUpdate(String updateName, Optional<Payloads> input, long eventId) {
-    updateDispatcher.handleValidateUpdate(updateName, input, eventId);
+  public void handleValidateUpdate(
+      String updateName, Optional<Payloads> input, long eventId, Header header) {
+    updateDispatcher.handleValidateUpdate(updateName, input, eventId, header);
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, Optional<Payloads> input, long eventId) {
-    return updateDispatcher.handleExecuteUpdate(updateName, input, eventId);
+      String updateName, Optional<Payloads> input, long eventId, Header header) {
+    return updateDispatcher.handleExecuteUpdate(updateName, input, eventId, header);
   }
 
   public void handleInterceptedValidateUpdate(WorkflowInboundCallsInterceptor.UpdateInput input) {
@@ -342,8 +345,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return queryDispatcher.handleInterceptedQuery(input);
   }
 
-  public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
-    return queryDispatcher.handleQuery(queryName, input);
+  public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
+    return queryDispatcher.handleQuery(queryName, header, input);
   }
 
   private class ActivityCallback {
@@ -1033,6 +1036,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
     attributes.setSignalName(input.getSignalName());
     attributes.setExecution(childExecution);
+    attributes.setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
     Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
     CompletablePromise<Void> result = Workflow.newPromise();

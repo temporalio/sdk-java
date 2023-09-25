@@ -20,6 +20,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
@@ -35,11 +36,15 @@ public interface ReplayWorkflow {
   void start(HistoryEvent event, ReplayWorkflowContext context);
 
   /** Handle an external signal event. */
-  void handleSignal(String signalName, Optional<Payloads> input, long eventId);
+  void handleSignal(String signalName, Optional<Payloads> input, long eventId, Header header);
 
   /** Handle an update workflow execution event */
   void handleUpdate(
-      String updateName, Optional<Payloads> input, long eventId, UpdateProtocolCallback callbacks);
+      String updateName,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      UpdateProtocolCallback callbacks);
 
   /**
    * @return true if the execution of the workflow method is finished or an exit was explicitly

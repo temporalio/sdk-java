@@ -87,30 +87,42 @@ class WorkflowExecutionHandler {
 
   public void close() {}
 
-  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+  public void handleSignal(
+      String signalName,
+      Optional<Payloads> input,
+      long eventId,
+      io.temporal.api.common.v1.Header header) {
     try {
-      context.handleSignal(signalName, input, eventId);
+      context.handleSignal(signalName, input, eventId, new Header(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
   }
 
-  public Optional<Payloads> handleQuery(String type, Optional<Payloads> args) {
-    return context.handleQuery(type, args);
+  public Optional<Payloads> handleQuery(
+      String type, io.temporal.api.common.v1.Header header, Optional<Payloads> args) {
+    return context.handleQuery(type, new Header(header), args);
   }
 
-  public void handleValidateUpdate(String updateName, Optional<Payloads> input, long eventId) {
+  public void handleValidateUpdate(
+      String updateName,
+      Optional<Payloads> input,
+      long eventId,
+      io.temporal.api.common.v1.Header header) {
     try {
-      context.handleValidateUpdate(updateName, input, eventId);
+      context.handleValidateUpdate(updateName, input, eventId, new Header(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, Optional<Payloads> input, long eventId) {
+      String updateName,
+      Optional<Payloads> input,
+      long eventId,
+      io.temporal.api.common.v1.Header header) {
     try {
-      return context.handleExecuteUpdate(updateName, input, eventId);
+      return context.handleExecuteUpdate(updateName, input, eventId, new Header(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }

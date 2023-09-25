@@ -36,6 +36,7 @@ import io.temporal.client.WorkflowUpdateException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.lang.reflect.Type;
@@ -133,7 +134,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setSignalName(input.getSignalName())
             .setWorkflowExecution(input.getWorkflowExecution())
             .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace());
+            .setNamespace(clientOptions.getNamespace())
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
 
     DataConverter dataConverterWitSignalContext =
         clientOptions
@@ -253,7 +255,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public <R> QueryOutput<R> query(QueryInput<R> input) {
-    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(input.getQueryType());
+    WorkflowQuery.Builder query =
+        WorkflowQuery.newBuilder()
+            .setQueryType(input.getQueryType())
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
     DataConverter dataConverterWithWorkflowContext =
         clientOptions
             .getDataConverter()
@@ -303,7 +308,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     Optional<Payloads> inputArgs =
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
-    Input.Builder updateInput = Input.newBuilder().setName(input.getUpdateName());
+    Input.Builder updateInput =
+        Input.newBuilder()
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null))
+            .setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
 
     Request request =
