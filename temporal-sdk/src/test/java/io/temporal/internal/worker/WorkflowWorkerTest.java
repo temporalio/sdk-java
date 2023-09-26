@@ -189,7 +189,7 @@ public class WorkflowWorkerTest {
         ImmutableMap.of("worker_type", "WorkflowWorker"),
         100.0);
     // Cleanup
-    worker.shutdown(new ShutdownManager(), true).get();
+    worker.shutdown(new ShutdownManager(), false).get();
     // Verify we only handled two tasks
     verify(taskHandler, times(2)).handleWorkflowTask(any());
   }
