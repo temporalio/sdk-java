@@ -329,10 +329,10 @@ public class ServiceStubsOptions {
     private Consumer<ManagedChannelBuilder<?>> channelInitializer;
     private Duration healthCheckAttemptTimeout;
     private Duration healthCheckTimeout;
-    private boolean enableKeepAlive;
-    private Duration keepAliveTime;
-    private Duration keepAliveTimeout;
-    private boolean keepAlivePermitWithoutStream;
+    private boolean enableKeepAlive = true;
+    private Duration keepAliveTime = Duration.ofSeconds(30);
+    private Duration keepAliveTimeout = Duration.ofSeconds(15);
+    private boolean keepAlivePermitWithoutStream = true;
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
@@ -607,6 +607,8 @@ public class ServiceStubsOptions {
      * Enables keep alive ping from client to the server, which can help drop abruptly closed
      * connections faster.
      *
+     * <p>Default is true
+     *
      * @return {@code this}
      */
     public T setEnableKeepAlive(boolean enableKeepAlive) {
@@ -619,6 +621,8 @@ public class ServiceStubsOptions {
      * see if the transport is still alive. If set below 10s, a minimum value of 10s will be used
      * instead.
      *
+     * <p>Default is 30s
+     *
      * @return {@code this}
      */
     public T setKeepAliveTime(Duration keepAliveTime) {
@@ -630,6 +634,8 @@ public class ServiceStubsOptions {
      * After having pinged for keepalive check, the client waits for a duration of Timeout and if no
      * activity is seen even after that the connection is closed.
      *
+     * <p>Default is 15s
+     *
      * @return {@code this}
      */
     public T setKeepAliveTimeout(Duration keepAliveTimeout) {
@@ -640,6 +646,8 @@ public class ServiceStubsOptions {
     /**
      * If true, client sends keepalive pings even with no active RPCs. If false, when there are no
      * active RPCs, Time and Timeout will be ignored and no keepalive pings will be sent. * @return
+     *
+     * <p>Default is true
      *
      * @return {@code this}
      */
