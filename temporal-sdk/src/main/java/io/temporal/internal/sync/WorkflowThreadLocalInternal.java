@@ -25,24 +25,25 @@ import java.util.function.Supplier;
 
 public final class WorkflowThreadLocalInternal<T> {
 
-  private T supplierResult = null;
-  private boolean supplierCalled = false;
+  private final boolean useCaching;
 
-  Optional<T> invokeSupplier(Supplier<? extends T> supplier) {
-    if (!supplierCalled) {
-      T result = supplier.get();
-      supplierCalled = true;
-      supplierResult = result;
-      return Optional.ofNullable(result);
-    } else {
-      return Optional.ofNullable(supplierResult);
-    }
+  public WorkflowThreadLocalInternal() {
+    this(false);
+  }
+
+  public WorkflowThreadLocalInternal(boolean useCaching) {
+    this.useCaching = useCaching;
   }
 
   public T get(Supplier<? extends T> supplier) {
     Optional<Optional<T>> result =
         DeterministicRunnerImpl.currentThreadInternal().getThreadLocal(this);
-    return result.orElseGet(() -> invokeSupplier(supplier)).orElse(null);
+    T out = result.orElseGet(() -> Optional.ofNullable(supplier.get())).orElse(null);
+    if (!result.isPresent() && useCaching) {
+      // This is the first time we've tried fetching this, and caching is enabled. Store it.
+      set(out);
+    }
+    return out;
   }
 
   public void set(T value) {

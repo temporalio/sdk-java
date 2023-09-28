@@ -32,7 +32,7 @@ import java.util.function.Supplier;
 public class ContextThreadLocal {
 
   private static final WorkflowThreadLocal<List<ContextPropagator>> contextPropagators =
-      WorkflowThreadLocal.withInitial(
+      WorkflowThreadLocal.withCachedInitial(
           new Supplier<List<ContextPropagator>>() {
             @Override
             public List<ContextPropagator> get() {
