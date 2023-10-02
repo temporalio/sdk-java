@@ -32,6 +32,7 @@ public class WorkerProperties {
   private final @Nullable Collection<String> activityBeans;
   private final @Nullable CapacityConfigurationProperties capacity;
   private final @Nullable RateLimitsConfigurationProperties rateLimits;
+  private final @Nullable BuildIdConfigurationProperties buildId;
 
   @ConstructorBinding
   public WorkerProperties(
@@ -40,13 +41,15 @@ public class WorkerProperties {
       @Nullable Collection<Class<?>> workflowClasses,
       @Nullable Collection<String> activityBeans,
       @Nullable CapacityConfigurationProperties capacity,
-      @Nullable RateLimitsConfigurationProperties rateLimits) {
+      @Nullable RateLimitsConfigurationProperties rateLimits,
+      @Nullable BuildIdConfigurationProperties buildId) {
     this.name = name;
     this.taskQueue = taskQueue;
     this.workflowClasses = workflowClasses;
     this.activityBeans = activityBeans;
     this.capacity = capacity;
     this.rateLimits = rateLimits;
+    this.buildId = buildId;
   }
 
   @Nonnull
@@ -77,6 +80,11 @@ public class WorkerProperties {
   @Nullable
   public RateLimitsConfigurationProperties getRateLimits() {
     return rateLimits;
+  }
+
+  @Nullable
+  public BuildIdConfigurationProperties getBuildId() {
+    return buildId;
   }
 
   public static class CapacityConfigurationProperties {
@@ -164,6 +172,34 @@ public class WorkerProperties {
     @Nullable
     public Double getMaxTaskQueueActivitiesPerSecond() {
       return maxTaskQueueActivitiesPerSecond;
+    }
+  }
+
+  public static class BuildIdConfigurationProperties {
+    private final @Nullable String workerBuildId;
+    private final @Nullable boolean enabledWorkerVersioning;
+
+    /**
+     * @param workerBuildId defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setBuildId(String)}}
+     * @param enabledWorkerVersioning defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setUseBuildIdForVersioning(boolean)}
+     */
+    @ConstructorBinding
+    public BuildIdConfigurationProperties(
+        @Nullable String workerBuildId, @Nullable boolean enabledWorkerVersioning) {
+      this.workerBuildId = workerBuildId;
+      this.enabledWorkerVersioning = enabledWorkerVersioning;
+    }
+
+    @Nullable
+    public String getWorkerBuildId() {
+      return workerBuildId;
+    }
+
+    @Nullable
+    public boolean getEnabledWorkerVersioning() {
+      return enabledWorkerVersioning;
     }
   }
 }

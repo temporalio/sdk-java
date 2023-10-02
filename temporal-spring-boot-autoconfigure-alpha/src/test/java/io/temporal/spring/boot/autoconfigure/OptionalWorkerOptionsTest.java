@@ -131,6 +131,13 @@ public class OptionalWorkerOptionsTest {
                 1.0,
                 options.getMaxTaskQueueActivitiesPerSecond(),
                 "Values from the Spring Config should be respected");
+
+            assertEquals(
+                "1.0.0", options.getBuildId(), "Values from the Spring Config should be respected");
+            assertEquals(
+                true,
+                options.isUsingBuildIdForVersioning(),
+                "Values from the Spring Config should be respected");
             return optionsBuilder;
           };
       return mock(TemporalOptionsCustomizer.class, delegatesTo(customizer));
