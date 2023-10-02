@@ -945,14 +945,14 @@ public class DeterministicRunnerTest {
   }
 
   @Test
-  public void testSupplierCalledOnce() {
+  public void testSupplierCalledOnceWithCaching() {
     AtomicInteger supplierCalls = new AtomicInteger();
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
-              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>();
+              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>(true);
               runnerLocalInternal.get(getStringSupplier(supplierCalls));
               runnerLocalInternal.get(getStringSupplier(supplierCalls));
               runnerLocalInternal.get(getStringSupplier(supplierCalls));
@@ -960,6 +960,26 @@ public class DeterministicRunnerTest {
                   "supplier default value",
                   runnerLocalInternal.get(getStringSupplier(supplierCalls)));
               assertEquals(1, supplierCalls.get());
+            });
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+  }
+
+  @Test
+  public void testSupplierCalledMultipleWithoutCaching() {
+    AtomicInteger supplierCalls = new AtomicInteger();
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              RunnerLocalInternal<String> runnerLocalInternal = new RunnerLocalInternal<>(false);
+              runnerLocalInternal.get(getStringSupplier(supplierCalls));
+              runnerLocalInternal.get(getStringSupplier(supplierCalls));
+              runnerLocalInternal.get(getStringSupplier(supplierCalls));
+              assertEquals(
+                  "supplier default value",
+                  runnerLocalInternal.get(getStringSupplier(supplierCalls)));
+              assertEquals(4, supplierCalls.get());
             });
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
   }
