@@ -14,7 +14,7 @@ subprojects {
 
     compileJava {
         options.encoding = 'UTF-8'
-        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror' << '-parameters'
         if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest")) {
             // https://stackoverflow.com/a/43103115/525203
             options.compilerArgs.addAll(['--release', '8'])
@@ -23,7 +23,7 @@ subprojects {
 
     compileTestJava {
         options.encoding = 'UTF-8'
-        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror' << '-parameters'
         if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest")) {
             // https://stackoverflow.com/a/43103115/525203
             options.compilerArgs.addAll(['--release', '8'])
