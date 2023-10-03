@@ -105,7 +105,7 @@ public final class WorkflowOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    private boolean disableEagerExecution;
+    private boolean disableEagerExecution = true;
 
     private Builder() {}
 
@@ -330,6 +330,11 @@ public final class WorkflowOptions {
      * and such a {@link WorkflowClient} is used to start a workflow, then the first workflow task
      * could be dispatched on this local worker with the response to the start call if Server
      * supports it. This option can be used to disable this mechanism.
+     *
+     * <p>Default is true
+     *
+     * <p>WARNING: Eager start does not respect worker versioning. An eagerly started workflow may
+     * run on any available local worker even if that worker is not in the default build ID set.
      *
      * @param disableEagerExecution if true, an eager local execution of the workflow task will
      *     never be requested even if it is possible.
