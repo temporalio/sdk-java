@@ -23,8 +23,10 @@ package io.temporal.workflow.updateTest;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowUpdateException;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -89,6 +91,45 @@ public class UpdateWithSignalAndQuery {
         workflow.execute());
   }
 
+  @Test
+  public void testSpeculativeUpdateWithSignal() {
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setWorkflowId(workflowId)
+            .build();
+    TestWorkflows.WorkflowWithUpdateAndSignal workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdateAndSignal.class, options);
+    // To execute workflow client.execute() would do. But we want to start workflow and immediately
+    // return.
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+
+    assertEquals(workflowId, execution.getWorkflowId());
+
+    SDKTestWorkflowRule.waitForOKQuery(workflow);
+    assertEquals("initial", workflow.getState());
+
+    for (int i = 0; i < 5; i++) {
+      assertThrows(WorkflowUpdateException.class, () -> workflow.update(""));
+    }
+
+    workflow.getState();
+
+    workflow.signal("signal 1");
+
+    assertEquals("update 1", workflow.update("update 1"));
+
+    workflow.signal("signal 2");
+
+    workflow.complete();
+
+    assertEquals(Arrays.asList("signal 1", "update 1", "signal 2"), workflow.execute());
+    SDKTestWorkflowRule.assertNoHistoryEvent(
+        workflowClient.fetchHistory(execution.getWorkflowId()).getHistory(),
+        EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+  }
+
   public static class TestUpdateWithSignalWorkflowImpl
       implements TestWorkflows.WorkflowWithUpdateAndSignal {
     String state = "initial";
@@ -116,8 +157,16 @@ public class UpdateWithSignalAndQuery {
 
     @Override
     public String update(String value) {
+      Workflow.sleep(100);
       updatesAndSignals.add(value);
       return value;
+    }
+
+    @Override
+    public void validator(String value) {
+      if (value.isEmpty()) {
+        throw new RuntimeException("Empty value");
+      }
     }
 
     @Override
