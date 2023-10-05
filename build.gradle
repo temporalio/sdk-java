@@ -56,7 +56,7 @@ ext {
 
     // Spring Boot 3 requires Java 17, java-sdk builds against 2.x version because we support Java 8.
     // We do test compatibility with Spring Boot 3 in integration tests.
-    springBootVersion = project.hasProperty("edgeDepsTest") ? '3.0.4' : '2.7.9'// [2.4.0,)
+    springBootVersion = project.hasProperty("edgeDepsTest") ? '3.0.4' : '2.7.12'// [2.4.0,)
 
     // test scoped
     // we don't upgrade to 1.3 and 1.4 because they require slf4j 2.x
