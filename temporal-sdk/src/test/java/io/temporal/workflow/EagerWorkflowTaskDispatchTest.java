@@ -98,7 +98,10 @@ public class EagerWorkflowTaskDispatchTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflows.NoArgsWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
     workflowStub1.execute();
     assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager);
     TestWorkflows.NoArgsWorkflow workflowStub2 =
@@ -106,7 +109,10 @@ public class EagerWorkflowTaskDispatchTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflows.NoArgsWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
     workflowStub2.execute();
     assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager);
 
@@ -151,7 +157,10 @@ public class EagerWorkflowTaskDispatchTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflows.NoArgsWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
     workflowStub.execute();
     assertFalse(
         "Eager dispatch shouldn't be requested for activity-only worker",
@@ -181,7 +190,10 @@ public class EagerWorkflowTaskDispatchTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflows.NoArgsWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
     workflowStub.execute();
     assertFalse(
         "Eager dispatch shouldn't be requested for a not started worker",
@@ -212,7 +224,10 @@ public class EagerWorkflowTaskDispatchTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflows.NoArgsWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
     workflowStub.execute();
     assertFalse(
         "Eager dispatch shouldn't be requested for a suspended worker",
@@ -233,10 +248,7 @@ public class EagerWorkflowTaskDispatchTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflows.NoArgsWorkflow.class,
-                WorkflowOptions.newBuilder()
-                    .setTaskQueue(testWorkflowRule.getTaskQueue())
-                    .setDisableEagerExecution(true)
-                    .build());
+                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
     workflowStub.execute();
     assertFalse(START_CALL_INTERCEPTOR.wasLastStartEager);
 
