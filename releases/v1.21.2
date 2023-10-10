@@ -1,0 +1,12 @@
+# Highlights
+
+## Bugfixes
+
+Fixes a bug where after a server failure a worker could end up only polling on the sticky task queue and 
+never poll on the normal task queue
+
+# Changeset
+
+2023-09-27 - 67a5afb3 - Remove unbound variable (#1846)
+2023-09-27 - d4671e3e - Reset sticky queue backlog on empty response (#1859)
+2023-09-27 - d8091d15 - Release WF slot on UnableToAcquireLockException (#1871)
