@@ -196,8 +196,8 @@ public class WorkflowWorkerTest {
 
   @Test
   public void respondWorkflowTaskFailureMetricTest() throws Exception {
-    // Test that if the server sends multiple concurrent workflow tasks for the same workflow the
-    // SDK holds the lock during all processing.
+    // Test that if the SDK gets a failure on RespondWorkflowTaskCompleted it does not increment
+    // workflow_task_execution_failed.
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
