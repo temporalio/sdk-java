@@ -360,7 +360,6 @@ final class WorkflowWorker implements SuspendableWorker {
             }
           } catch (Exception e) {
             logExceptionDuringResultReporting(e, currentTask, result);
-            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
             // if we failed to report the workflow task completion back to the server,
             // our cached version of the workflow may be more advanced than the server is aware of.
             // We should discard this execution and perform a clean replay based on what server
@@ -370,8 +369,6 @@ final class WorkflowWorker implements SuspendableWorker {
             throw e;
           }
 
-          // this should be after sendReply, otherwise we may log
-          // WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER twice if sendReply throws
           if (result.getTaskFailed() != null) {
             // we don't trigger the counter in case of the legacy query
             // (which never has taskFailed set)
