@@ -72,24 +72,27 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   }
 
   // Returns true if more history events are available.
-  // Server can return page tokens that point to empty pages.
-  // We need to verify that page is valid before returning true.
-  // Otherwise next() method would throw NoSuchElementException after hasNext() returning true.
   @Override
   public boolean hasNext() {
     if (current.hasNext()) {
       return true;
     }
-    if (nextPageToken.isEmpty()) {
-      return false;
+    while (!nextPageToken.isEmpty()) {
+      // Server can return page tokens that point to empty pages.
+      // We need to verify that page is valid before returning true.
+      // Otherwise, next() method would throw NoSuchElementException after hasNext() returning
+      // true.
+      GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
+
+      current = response.getHistory().getEventsList().iterator();
+      nextPageToken = response.getNextPageToken();
+      // Server can return an empty page, but a valid nextPageToken that contains
+      // more events.
+      if (current.hasNext()) {
+        return true;
+      }
     }
-
-    GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
-
-    current = response.getHistory().getEventsList().iterator();
-    nextPageToken = response.getNextPageToken();
-
-    return current.hasNext();
+    return false;
   }
 
   @Override
