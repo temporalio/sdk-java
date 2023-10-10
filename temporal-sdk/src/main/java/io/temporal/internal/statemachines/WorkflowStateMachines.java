@@ -202,7 +202,16 @@ public final class WorkflowStateMachines {
   }
 
   public void setCurrentStartedEventId(long eventId) {
+    // We have to drop any state machines (which should only be one workflow task machine)
+    // created when handling the speculative workflow task
+    for (long i = this.lastHandledEventId; i > eventId; i--) {
+      stateMachines.remove(i);
+    }
     this.currentStartedEventId = eventId;
+    // When we reset the event ID on a speculative WFT we need to move this counter back
+    // to the last WFT completed to allow new tasks to be processed. Assume the WFT complete
+    // always follows the WFT started.
+    this.lastHandledEventId = eventId + 1;
   }
 
   public long getCurrentStartedEventId() {

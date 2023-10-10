@@ -214,6 +214,9 @@ public class TestWorkflows {
     @UpdateMethod()
     String update(String value);
 
+    @UpdateValidatorMethod(updateName = "update")
+    void validator(String value);
+
     @UpdateMethod
     void complete();
   }
