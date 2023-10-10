@@ -1,0 +1,40 @@
+# Highlights
+
+## Tracing improvements
+
+Improved tracing support in signals, queries, and update.
+
+## Bugfixes
+- Fixes a bug where after a server failure a worker could end up only polling on the sticky task queue and 
+never poll on the normal task queue
+- Fix caching in WorkflowLocal/WorkflowThreadLocal to match behavior of ThreadLocal
+- Fixes a bug where the SDK would receive a workflow task, but may not run the users Workflow code.
+
+Migration note for SpringBoot users:
+
+Changed the SDK from using `ContextStartedEvent` to `ApplicationReadyEvent` to avoid the need to start
+application context again after it is already started. See https://github.com/temporalio/sdk-java/issues/1837
+for more details.
+
+# Changeset
+
+2023-08-16 - f922c065 - Fix bug in VersionStateMachine causing wrong version to get returned (#1841)
+2023-08-17 - 0f372971 - Remove unbound variable (#1846)
+2023-08-19 - c0123572 - add WorkflowImplementationOptions customizer (#1835)
+2023-08-28 - 4298dadb - Reconcile typed search attributes with schedules (#1848)
+2023-08-30 - ac474fa2 - Add new workflow info fields (#1853)
+2023-09-07 - 18162b71 - Reset sticky queue backlog on empty response (#1859)
+2023-09-25 - 456da328 - Fix null pointer on trigger immediately (#1865)
+2023-09-25 - d50d2746 - Tracing support improvements (#1819)
+2023-09-26 - 717ee05a - Release WF slot on UnableToAcquireLockException (#1871)
+2023-09-26 - aa5cb419 - Fix workflow options equality (#1868)
+2023-10-02 - 198c7801 - Fix caching in WorkflowLocal/WorkflowThreadLocal (#1876) (#1878)
+2023-10-02 - 751a0b61 - Expose worker versioning via spring boot autoconfig (#1869)
+2023-10-03 - 3670bce6 - Support Spring Boot 3 native image build (#1877)
+2023-10-05 - b083a707 - Disable eager start by default (#1879)
+2023-10-10 - 1606de5a - Update Spring Boot to v2.7.12 (#1884)
+2023-10-10 - 1fb089f9 - Avoid incrementing WFT failure metric on respond failure (#1887)
+2023-10-10 - 24758388 - Reset lastHandledEventId on speculative WFT (#1881)
+2023-10-10 - 720a9cb3 - Only rely on next page token for pagination (#1886)
+2023-10-10 - d5d96f84 - Use ApplicationReadyEvent to start spring workers (#1882)
+2023-10-10 - dac53bee - Fix build for Linux for aarch64 (#1891)
