@@ -484,6 +484,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     TerminateWorkflowExecutionRequest.Builder request =
         TerminateWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
             .setWorkflowExecution(input.getWorkflowExecution());
     if (input.getReason() != null) {
       request.setReason(input.getReason());
