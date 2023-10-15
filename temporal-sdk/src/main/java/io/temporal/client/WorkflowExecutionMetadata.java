@@ -29,6 +29,7 @@ import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Collections;
@@ -123,7 +124,11 @@ public class WorkflowExecutionMetadata {
     if (memo == null) {
       return null;
     }
-    return dataConverter.fromPayload(memo, valueClass, genericType);
+    return dataConverter
+        .withContext(
+            new WorkflowSerializationContext(
+                info.getParentNamespaceId(), info.getExecution().getWorkflowId()))
+        .fromPayload(memo, valueClass, genericType);
   }
 
   @Nonnull
