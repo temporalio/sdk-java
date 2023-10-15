@@ -23,6 +23,7 @@ package io.temporal.client;
 import com.google.common.base.Objects;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
+import io.temporal.common.Experimental;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributes;
@@ -76,6 +77,7 @@ public final class WorkflowOptions {
         .setTypedSearchAttributes(o.getTypedSearchAttributes())
         .setContextPropagators(o.getContextPropagators())
         .setDisableEagerExecution(o.isDisableEagerExecution())
+        .setStartDelay(o.getStartDelay())
         .validateBuildWithDefaults();
   }
 
@@ -107,6 +109,8 @@ public final class WorkflowOptions {
 
     private boolean disableEagerExecution = true;
 
+    private Duration startDelay;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -126,6 +130,7 @@ public final class WorkflowOptions {
       this.typedSearchAttributes = options.typedSearchAttributes;
       this.contextPropagators = options.contextPropagators;
       this.disableEagerExecution = options.disableEagerExecution;
+      this.startDelay = options.startDelay;
     }
 
     /**
@@ -344,6 +349,18 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * Time to wait before dispatching the first workflow task. If the workflow gets a signal before
+     * the delay, a workflow task will be dispatched and the rest of the delay will be ignored. A
+     * signal from signal with start will not trigger a workflow task. Cannot be set the same time
+     * as a CronSchedule.
+     */
+    @Experimental
+    public Builder setStartDelay(Duration startDelay) {
+      this.startDelay = startDelay;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -358,7 +375,8 @@ public final class WorkflowOptions {
           searchAttributes,
           typedSearchAttributes,
           contextPropagators,
-          disableEagerExecution);
+          disableEagerExecution,
+          startDelay);
     }
 
     /**
@@ -378,7 +396,8 @@ public final class WorkflowOptions {
           searchAttributes,
           typedSearchAttributes,
           contextPropagators,
-          disableEagerExecution);
+          disableEagerExecution,
+          startDelay);
     }
   }
 
@@ -408,6 +427,8 @@ public final class WorkflowOptions {
 
   private final boolean disableEagerExecution;
 
+  private final Duration startDelay;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -421,7 +442,8 @@ public final class WorkflowOptions {
       Map<String, ?> searchAttributes,
       SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
-      boolean disableEagerExecution) {
+      boolean disableEagerExecution,
+      Duration startDelay) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -435,6 +457,7 @@ public final class WorkflowOptions {
     this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
     this.disableEagerExecution = disableEagerExecution;
+    this.startDelay = startDelay;
   }
 
   public String getWorkflowId() {
@@ -498,6 +521,10 @@ public final class WorkflowOptions {
     return disableEagerExecution;
   }
 
+  public @Nullable Duration getStartDelay() {
+    return startDelay;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -519,7 +546,8 @@ public final class WorkflowOptions {
         && Objects.equal(searchAttributes, that.searchAttributes)
         && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equal(contextPropagators, that.contextPropagators)
-        && Objects.equal(disableEagerExecution, that.disableEagerExecution);
+        && Objects.equal(disableEagerExecution, that.disableEagerExecution)
+        && Objects.equal(startDelay, that.startDelay);
   }
 
   @Override
@@ -537,7 +565,8 @@ public final class WorkflowOptions {
         searchAttributes,
         typedSearchAttributes,
         contextPropagators,
-        disableEagerExecution);
+        disableEagerExecution,
+        startDelay);
   }
 
   @Override
@@ -572,6 +601,8 @@ public final class WorkflowOptions {
         + contextPropagators
         + ", disableEagerExecution="
         + disableEagerExecution
+        + ", startDelay="
+        + startDelay
         + '}';
   }
 }

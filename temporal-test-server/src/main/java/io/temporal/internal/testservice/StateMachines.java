@@ -841,6 +841,11 @@ class StateMachines {
           .withDescription("negative workflowTaskTimeoutSeconds")
           .asRuntimeException();
     }
+    if (request.hasWorkflowStartDelay() && !request.getCronSchedule().trim().isEmpty()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("CronSchedule and WorkflowStartDelay may not be used together.")
+          .asRuntimeException();
+    }
 
     WorkflowExecutionStartedEventAttributes.Builder a =
         WorkflowExecutionStartedEventAttributes.newBuilder()
@@ -859,6 +864,9 @@ class StateMachines {
     data.continuedExecutionRunId.ifPresent(a::setContinuedExecutionRunId);
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
+    }
+    if (request.hasWorkflowStartDelay()) {
+      a.setFirstWorkflowTaskBackoff(request.getWorkflowStartDelay());
     }
     data.lastFailure.ifPresent(a::setContinuedFailure);
     if (request.hasMemo()) {

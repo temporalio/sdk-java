@@ -100,6 +100,10 @@ final class WorkflowClientRequestFactory {
       request.setMemo(memo);
     }
 
+    if (options.getStartDelay() != null) {
+      request.setWorkflowStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
+    }
+
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {
       if (options.getTypedSearchAttributes() != null) {
         throw new IllegalArgumentException(
@@ -168,6 +172,10 @@ final class WorkflowClientRequestFactory {
 
     if (startParameters.hasHeader()) {
       request.setHeader(startParameters.getHeader());
+    }
+
+    if (startParameters.hasWorkflowStartDelay()) {
+      request.setWorkflowStartDelay(startParameters.getWorkflowStartDelay());
     }
 
     return request;
