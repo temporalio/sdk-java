@@ -1,0 +1,22 @@
+# Highlights
+
+## Bugfixes
+
+Add `WorkflowContext` more consistently in the SDK. `WorkflowContext` will now also be added in:
+
+* Memo
+* Last failure
+* Schedules (Note: The `workflowId` in `WorkflowContext` may differ on serialization and deserialization.)
+
+## (Experimental) Start delay
+
+Added `StartDelay` option to `WorkflowOptions`. `StartDelay` will cause Temporal to wait before dispatching the first workflow task.
+If the workflow gets a signal before the delay, a workflow task will be dispatched and the rest
+of the delay will be ignored.
+
+# Changeset
+
+
+2023-10-11 - 06ef0df6 - Add identity to Terminate call (#1894)
+2023-10-16 - 4fe296e1 - Add start delay (#1897)
+2023-10-16 - 538508be - Apply data converter context in more places (#1896)
