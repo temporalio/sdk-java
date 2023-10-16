@@ -41,6 +41,8 @@ public interface HasWorkflowSerializationContext extends SerializationContext {
    * @return workflowId of the Workflow Execution the Serialization Target belongs to. If the Target
    *     is a Workflow itself, this method will return the Target's Workflow ID (not the ID of the
    *     parent workflow).
+   *     <p>WARNING: When used in the context of a schedule workflow the workflowId may differ on
+   *     serialization and deserialization.
    */
   String getWorkflowId();
 }

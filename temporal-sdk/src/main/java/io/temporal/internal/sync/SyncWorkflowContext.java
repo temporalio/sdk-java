@@ -1008,6 +1008,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return dataConverter;
   }
 
+  public DataConverter getDataConverterWithCurrentWorkflowContext() {
+    return dataConverterWithCurrentWorkflowContext;
+  }
+
   boolean isReplaying() {
     return replayContext.isReplaying();
   }

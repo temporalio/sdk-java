@@ -21,34 +21,39 @@
 package io.temporal.functional.serialization;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.*;
 import io.temporal.api.common.v1.Payload;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.converter.CodecDataConverter;
-import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.common.converter.EncodingKeys;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.*;
+import io.temporal.client.schedules.*;
+import io.temporal.common.converter.*;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.HasWorkflowSerializationContext;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 /**
  * This test emulates a scenario when users may be using WorkflowId in their encoding to sign every
@@ -58,6 +63,9 @@ import org.junit.Test;
  * explode on decoding.
  */
 public class WorkflowIdSignedPayloadsTest {
+  private static final String MEMO_KEY = "testKey";
+  private static final String MEMO_VALUE = "testValue";
+  private static final Map<String, Object> MEMO = ImmutableMap.of(MEMO_KEY, MEMO_VALUE);
   private final SimpleActivity heartbeatingActivity = new HeartbeatingIfNotLocalActivityImpl();
   private final ManualCompletionActivity manualCompletionActivity =
       new ManualCompletionActivityImpl();
@@ -70,17 +78,88 @@ public class WorkflowIdSignedPayloadsTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(SimpleWorkflowWithAnActivity.class)
+          .setWorkflowTypes(
+              SimpleWorkflowWithAnActivity.class, TestWorkflowWithCronScheduleImpl.class)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setDataConverter(codecDataConverter).build())
           .setActivityImplementations(heartbeatingActivity, manualCompletionActivity)
           .build();
+
+  @Rule public TestName testName = new TestName();
 
   @Test
   public void testSimpleWorkflowWithAnActivity() {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     assertEquals("result", workflowStub.execute("input"));
+  }
+
+  @Test
+  public void testSimpleWorkflowWithMemo() throws InterruptedException {
+    assumeTrue(
+        "skipping as test server does not support list", SDKTestWorkflowRule.useExternalService);
+
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+    options = WorkflowOptions.newBuilder(options).setMemo(MEMO).build();
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    assertEquals("result", workflowStub.execute("input"));
+    WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
+    String workflowId = execution.getWorkflowId();
+    String runId = execution.getRunId();
+
+    // listWorkflowExecutions is Visibility API
+    // Temporal Visibility has latency and is not transactional with the Server API call
+    Thread.sleep(4_000);
+
+    List<WorkflowExecutionMetadata> executions =
+        testWorkflowRule
+            .getWorkflowClient()
+            .listExecutions("WorkflowId = '" + workflowId + "' AND " + " RunId = '" + runId + "'")
+            .collect(Collectors.toList());
+    assertEquals(1, executions.size());
+    assertEquals(MEMO_VALUE, executions.get(0).getMemo(MEMO_KEY, String.class));
+  }
+
+  @Test
+  public void testSimpleCronWorkflow() {
+    assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
+
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+    options =
+        WorkflowOptions.newBuilder(options)
+            .setWorkflowRunTimeout(Duration.ofHours(1))
+            .setCronSchedule("0 */6 * * *")
+            .build();
+    TestWorkflows.TestWorkflowWithCronSchedule workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.TestWorkflowWithCronSchedule.class, options);
+
+    testWorkflowRule.registerDelayedCallback(
+        Duration.ofDays(1), WorkflowStub.fromTyped(workflow)::cancel);
+    WorkflowClient.start(workflow::execute, testName.getMethodName());
+
+    try {
+      workflow.execute(testName.getMethodName());
+      fail("unreachable");
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
+    }
+
+    Map<Integer, String> lastCompletionResults =
+        TestWorkflowWithCronScheduleImpl.lastCompletionResults.get(testName.getMethodName());
+    assertEquals(4, lastCompletionResults.size());
+    // Run 3 failed. So on run 4 we get the last completion result from run 2.
+    assertEquals("run 2", lastCompletionResults.get(4));
+    // The last failure ought to be the one from run 3
+    assertTrue(TestWorkflowWithCronScheduleImpl.lastFail.isPresent());
+    assertTrue(
+        TestWorkflowWithCronScheduleImpl.lastFail.get().getMessage().contains("simulated error"));
   }
 
   @ActivityInterface
@@ -159,14 +238,21 @@ public class WorkflowIdSignedPayloadsTest {
       assertEquals("result", result);
       // Child Workflow
       if (!Workflow.getInfo().getParentWorkflowId().isPresent()) {
+        ChildWorkflowOptions childOptions = ChildWorkflowOptions.newBuilder().setMemo(MEMO).build();
         TestWorkflows.TestWorkflow1 child =
-            Workflow.newChildWorkflowStub(TestWorkflows.TestWorkflow1.class);
+            Workflow.newChildWorkflowStub(TestWorkflows.TestWorkflow1.class, childOptions);
         result = child.execute(input);
         assertEquals("result", result);
       }
+      // Memo
+      String memoValue = (String) Workflow.getMemo(MEMO_KEY, String.class);
+      if (memoValue != null) {
+        assertEquals(MEMO_VALUE, memoValue);
+      }
       // continueAsNew
       if (!Workflow.getInfo().getContinuedExecutionRunId().isPresent()) {
-        Workflow.continueAsNew(input);
+        ContinueAsNewOptions casOptions = ContinueAsNewOptions.newBuilder().setMemo(MEMO).build();
+        Workflow.continueAsNew(casOptions, input);
       }
       return result;
     }

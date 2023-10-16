@@ -37,11 +37,13 @@ import io.temporal.api.workflow.v1.NewWorkflowExecutionInfo;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.*;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -82,6 +84,13 @@ public class ScheduleProtoUtil {
   public ScheduleAction actionToProto(io.temporal.client.schedules.ScheduleAction action) {
     if (action instanceof ScheduleActionStartWorkflow) {
       ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
+      DataConverter dataConverterWithWorkflowContext =
+          clientOptions
+              .getDataConverter()
+              .withContext(
+                  new WorkflowSerializationContext(
+                      clientOptions.getNamespace(),
+                      startWorkflowAction.getOptions().getWorkflowId()));
 
       WorkflowOptions wfOptions = startWorkflowAction.getOptions();
       // Disallow some options
@@ -113,7 +122,7 @@ public class ScheduleProtoUtil {
                   ProtobufTimeUtils.toProtoDuration(wfOptions.getWorkflowTaskTimeout()))
               .setTaskQueue(TaskQueue.newBuilder().setName(wfOptions.getTaskQueue()).build());
 
-      startWorkflowAction.getArguments().setDataConverter(clientOptions.getDataConverter());
+      startWorkflowAction.getArguments().setDataConverter(dataConverterWithWorkflowContext);
       Optional<Payloads> inputArgs = startWorkflowAction.getArguments().toPayloads();
       if (inputArgs.isPresent()) {
         workflowRequest.setInput(inputArgs.get());
@@ -128,7 +137,7 @@ public class ScheduleProtoUtil {
                 item.getKey(), ((EncodedValues) item.getValue()).toPayloads().get().getPayloads(0));
           } else {
             memo.put(
-                item.getKey(), clientOptions.getDataConverter().toPayload(item.getValue()).get());
+                item.getKey(), dataConverterWithWorkflowContext.toPayload(item.getValue()).get());
           }
         }
         workflowRequest.setMemo(Memo.newBuilder().putAllFields(memo).build());
@@ -388,12 +397,19 @@ public class ScheduleProtoUtil {
     Objects.requireNonNull(action);
     if (action.hasStartWorkflow()) {
       NewWorkflowExecutionInfo startWfAction = action.getStartWorkflow();
+      DataConverter dataConverterWithWorkflowContext =
+          clientOptions
+              .getDataConverter()
+              .withContext(
+                  new WorkflowSerializationContext(
+                      clientOptions.getNamespace(), startWfAction.getWorkflowId()));
+
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());
 
       builder.setRawArguments(
           new EncodedValues(
-              Optional.of(startWfAction.getInput()), clientOptions.getDataConverter()));
+              Optional.of(startWfAction.getInput()), dataConverterWithWorkflowContext));
 
       WorkflowOptions.Builder wfOptionsBuilder = WorkflowOptions.newBuilder();
       // set required options
@@ -420,7 +436,7 @@ public class ScheduleProtoUtil {
           EncodedValues encodedMemo =
               new EncodedValues(
                   Optional.of(Payloads.newBuilder().addPayloads(memo.getValue()).build()),
-                  clientOptions.getDataConverter());
+                  dataConverterWithWorkflowContext);
           memos.put(memo.getKey(), encodedMemo);
         }
         wfOptionsBuilder.setMemo(memos);

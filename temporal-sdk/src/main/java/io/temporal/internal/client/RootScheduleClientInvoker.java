@@ -68,6 +68,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule()));
 
     if (input.getOptions().getMemo() != null) {
+      // TODO we don't have a workflow context here, maybe we need a schedule context?
       request.setMemo(
           Memo.newBuilder()
               .putAllFields(

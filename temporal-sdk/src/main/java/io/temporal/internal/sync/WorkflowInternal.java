@@ -555,7 +555,7 @@ public final class WorkflowInternal {
       return null;
     }
 
-    return getDataConverter().fromPayload(memo, valueClass, genericType);
+    return getDataConverterWithCurrentWorkflowContext().fromPayload(memo, valueClass, genericType);
   }
 
   public static <R> R retry(
@@ -693,18 +693,22 @@ public final class WorkflowInternal {
   }
 
   public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
-    assertNotReadOnly("upset search attribute");
+    assertNotReadOnly("upsert search attribute");
     getWorkflowOutboundInterceptor().upsertSearchAttributes(searchAttributes);
   }
 
   public static void upsertTypedSearchAttributes(
       SearchAttributeUpdate<?>... searchAttributeUpdates) {
-    assertNotReadOnly("upset search attribute");
+    assertNotReadOnly("upsert search attribute");
     getWorkflowOutboundInterceptor().upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
   public static DataConverter getDataConverter() {
     return getRootWorkflowContext().getDataConverter();
+  }
+
+  static DataConverter getDataConverterWithCurrentWorkflowContext() {
+    return getRootWorkflowContext().getDataConverterWithCurrentWorkflowContext();
   }
 
   /**
@@ -723,7 +727,7 @@ public final class WorkflowInternal {
     return Optional.ofNullable(getRootWorkflowContext().getReplayContext().getPreviousRunFailure())
         // Temporal Failure Values are additional user payload and serialized using user data
         // converter
-        .map(f -> getDataConverter().failureToException(f));
+        .map(f -> getDataConverterWithCurrentWorkflowContext().failureToException(f));
   }
 
   private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {

@@ -83,7 +83,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         (input.getOptions().getMemo() != null)
             ? Memo.newBuilder()
                 .putAllFields(
-                    intoPayloadMap(clientOptions.getDataConverter(), input.getOptions().getMemo()))
+                    intoPayloadMap(dataConverterWithWorkflowContext, input.getOptions().getMemo()))
                 .build()
             : null;
 
@@ -169,7 +169,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             ? Memo.newBuilder()
                 .putAllFields(
                     intoPayloadMap(
-                        clientOptions.getDataConverter(),
+                        dataConverterWithWorkflowContext,
                         workflowStartInput.getOptions().getMemo()))
                 .build()
             : null;
