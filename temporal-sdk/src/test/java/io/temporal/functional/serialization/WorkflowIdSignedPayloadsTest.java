@@ -202,14 +202,6 @@ public class WorkflowIdSignedPayloadsTest {
     }
   }
 
-  public static class SimpleCronWorkflow implements TestWorkflows.TestWorkflowReturnString {
-
-    @Override
-    public String execute() {
-      return null;
-    }
-  }
-
   public static class SimpleWorkflowWithAnActivity implements TestWorkflows.TestWorkflow1 {
 
     private final SimpleActivity activity =
