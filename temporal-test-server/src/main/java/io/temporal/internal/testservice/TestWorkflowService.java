@@ -883,6 +883,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (r.hasSearchAttributes()) {
         startRequest.setSearchAttributes(r.getSearchAttributes());
       }
+      if (r.hasWorkflowStartDelay()) {
+        startRequest.setWorkflowStartDelay(r.getWorkflowStartDelay());
+      }
+
       StartWorkflowExecutionResponse startResult =
           startWorkflowExecutionImpl(
               startRequest.build(),
