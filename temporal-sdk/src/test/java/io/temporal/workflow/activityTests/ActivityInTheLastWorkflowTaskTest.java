@@ -37,7 +37,6 @@ public class ActivityInTheLastWorkflowTaskTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
-          .setUseExternalService(true)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .build();
 
