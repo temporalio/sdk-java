@@ -4,7 +4,7 @@ steps:
       queue: "default"
       docker: "*"
     command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest"
-    timeout_in_minutes: 15
+    timeout_in_minutes: 20
     plugins:
       - docker-compose#v3.8.0:
           run: unit-test-test-service-edge
@@ -15,7 +15,7 @@ steps:
       queue: "default"
       docker: "*"
     command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava"
-    timeout_in_minutes: 15
+    timeout_in_minutes: 20
     plugins:
       - docker-compose#v3.8.0:
           run: unit-test-docker-jdk8
@@ -26,7 +26,7 @@ steps:
       queue: "default"
       docker: "*"
     command: "./gradlew --no-daemon checkLicenseMain checkLicenses spotlessCheck"
-    timeout_in_minutes: 15
+    timeout_in_minutes: 20
     plugins:
       - docker-compose#v3.8.0:
           run: jdk11
