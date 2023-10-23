@@ -25,33 +25,36 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
+@RunWith(JUnitParamsRunner.class)
 public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestSimpleWorkflowWithUpdateImpl.class)
+          .setWorkflowTypes(WorkflowWithUpdateImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .build();
 
   @Test
-  public void testUpdateWithLocalActivityInTheLastWorkflowTask() throws InterruptedException {
-    TestWorkflows.SimpleWorkflowWithUpdate client =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.SimpleWorkflowWithUpdate.class);
+  @Parameters({"true", "false"})
+  public void testUpdateWithLocalActivityInTheLastWorkflowTask(Boolean waitOnLA)
+      throws InterruptedException {
+    WorkflowWithUpdate client = testWorkflowRule.newWorkflowStub(WorkflowWithUpdate.class);
 
     WorkflowStub.fromTyped(client).start();
     Thread asyncUpdate =
         new Thread(
             () -> {
               try {
-                System.out.println("Sending update");
-                client.update("Update");
+                client.update(waitOnLA);
               } catch (Exception e) {
               }
             });
@@ -60,8 +63,17 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
     asyncUpdate.interrupt();
   }
 
-  public static class TestSimpleWorkflowWithUpdateImpl
-      implements TestWorkflows.SimpleWorkflowWithUpdate {
+  @WorkflowInterface
+  public interface WorkflowWithUpdate {
+
+    @WorkflowMethod
+    String execute();
+
+    @UpdateMethod
+    String update(Boolean waitOnLA);
+  }
+
+  public static class WorkflowWithUpdateImpl implements WorkflowWithUpdate {
     Boolean finish = false;
 
     private final TestActivities.VariousTestActivities activities =
@@ -78,7 +90,12 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
     }
 
     @Override
-    public String update(String value) {
+    public String update(Boolean waitOnLA) {
+      if (waitOnLA) {
+        Promise promise = Async.procedure(activities::sleepActivity, (long) 100, 0);
+        Async.procedure(activities::sleepActivity, (long) 1000, 0);
+        promise.get();
+      }
       finish = true;
       activities.sleepActivity(1000, 0);
       return "update";

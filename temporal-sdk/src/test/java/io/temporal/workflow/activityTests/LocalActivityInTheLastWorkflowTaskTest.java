@@ -24,14 +24,16 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.Async;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
+@RunWith(JUnitParamsRunner.class)
 public class LocalActivityInTheLastWorkflowTaskTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -41,13 +43,19 @@ public class LocalActivityInTheLastWorkflowTaskTest {
           .build();
 
   @Test
-  public void testLocalActivityInTheLastWorkflowTask() {
-    TestWorkflows.TestWorkflowReturnString client =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class);
-    assertEquals("done", client.execute());
+  @Parameters({"true", "false"})
+  public void testLocalActivityInTheLastWorkflowTask(boolean blockOnLA) {
+    TestWorkflow client = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
+    assertEquals("done", client.execute(blockOnLA));
   }
 
-  public static class TestWorkflowImpl implements TestWorkflows.TestWorkflowReturnString {
+  @WorkflowInterface
+  public interface TestWorkflow {
+    @WorkflowMethod
+    String execute(boolean blockOnLA);
+  }
+
+  public static class TestWorkflowImpl implements TestWorkflow {
 
     private final TestActivities.VariousTestActivities activities =
         Workflow.newLocalActivityStub(
@@ -57,7 +65,12 @@ public class LocalActivityInTheLastWorkflowTaskTest {
                 .build());
 
     @Override
-    public String execute() {
+    public String execute(boolean blockOnLA) {
+      if (blockOnLA) {
+        Promise promise = Async.procedure(activities::sleepActivity, (long) 100, 0);
+        Async.procedure(activities::sleepActivity, (long) 1000, 0);
+        promise.get();
+      }
       Async.procedure(activities::sleepActivity, (long) 1000, 0);
       return "done";
     }

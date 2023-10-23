@@ -25,13 +25,16 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
+@RunWith(JUnitParamsRunner.class)
 public class SignalWithLocalActivityInTheLastWorkflowTaskTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -41,15 +44,25 @@ public class SignalWithLocalActivityInTheLastWorkflowTaskTest {
           .build();
 
   @Test
-  public void testSignalWithLocalActivityInTheLastWorkflowTask() {
-    TestWorkflows.TestSignaledWorkflow client =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.TestSignaledWorkflow.class);
+  @Parameters({"true", "false"})
+  public void testSignalWithLocalActivityInTheLastWorkflowTask(Boolean waitOnLA) {
+    TestSignaledWorkflow client = testWorkflowRule.newWorkflowStub(TestSignaledWorkflow.class);
     WorkflowStub.fromTyped(client)
-        .signalWithStart("testSignal", new String[] {"signalValue"}, new String[] {});
+        .signalWithStart("testSignal", new String[] {"signalValue"}, new Boolean[] {waitOnLA});
     assertEquals("done", client.execute());
   }
 
-  public static class TestSignalWorkflowImpl implements TestWorkflows.TestSignaledWorkflow {
+  @WorkflowInterface
+  public interface TestSignaledWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @SignalMethod
+    void signal(boolean waitOnLA);
+  }
+
+  public static class TestSignalWorkflowImpl implements TestSignaledWorkflow {
 
     private final TestActivities.VariousTestActivities activities =
         Workflow.newLocalActivityStub(
@@ -64,7 +77,13 @@ public class SignalWithLocalActivityInTheLastWorkflowTaskTest {
     }
 
     @Override
-    public void signal(String arg) {
+    public void signal(boolean waitOnLA) {
+      if (waitOnLA) {
+        Promise promise = Async.procedure(activities::sleepActivity, (long) 100, 0);
+        Async.procedure(activities::sleepActivity, (long) 1000, 0);
+        promise.get();
+      }
+
       activities.sleepActivity(1000, 0);
     }
   }

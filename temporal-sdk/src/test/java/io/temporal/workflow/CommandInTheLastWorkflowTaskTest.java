@@ -53,7 +53,6 @@ public class CommandInTheLastWorkflowTaskTest {
             Workflow.mutableSideEffect(
                 "id1", Integer.class, (o, n) -> Objects.equals(n, o), () -> 0);
           });
-
       return "done";
     }
   }
