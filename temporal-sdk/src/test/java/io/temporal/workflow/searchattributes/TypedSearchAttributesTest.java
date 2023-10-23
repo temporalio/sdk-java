@@ -67,6 +67,7 @@ public class TypedSearchAttributesTest {
           .set(SearchAttributeKey.forDouble("CustomDoubleField"), 1.23)
           .set(SearchAttributeKey.forBoolean("CustomBoolField"), true)
           .set(SearchAttributeKey.forOffsetDateTime("CustomDatetimeField"), OffsetDateTime.now())
+          .set(SearchAttributeKey.forKeywordList("TemporalChangeVersion"), Arrays.asList("version"))
           .build();
 
   @Rule

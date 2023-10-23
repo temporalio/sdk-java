@@ -28,7 +28,6 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
@@ -42,6 +41,7 @@ class TestVisibilityStoreImpl implements TestVisibilityStore {
   private static final String DEFAULT_KEY_DATE_TIME = "CustomDatetimeField";
   private static final String DEFAULT_KEY_DOUBLE = "CustomDoubleField";
   private static final String DEFAULT_KEY_BOOL = "CustomBoolField";
+  private static final String TEMPORAL_CHANGE_VERSION = "TemporalChangeVersion";
 
   private final Map<String, IndexedValueType> searchAttributes =
       new ConcurrentHashMap<>(
@@ -53,9 +53,11 @@ class TestVisibilityStoreImpl implements TestVisibilityStore {
               .put(DEFAULT_KEY_DOUBLE, IndexedValueType.INDEXED_VALUE_TYPE_DOUBLE)
               .put(DEFAULT_KEY_BOOL, IndexedValueType.INDEXED_VALUE_TYPE_BOOL)
               .put(DEFAULT_KEY_DATE_TIME, IndexedValueType.INDEXED_VALUE_TYPE_DATETIME)
+              .put(TEMPORAL_CHANGE_VERSION, IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD_LIST)
               .build());
 
-  private final Map<ExecutionId, SearchAttributes> executionSearchAttributes = new HashMap<>();
+  private final Map<ExecutionId, SearchAttributes> executionSearchAttributes =
+      new ConcurrentHashMap<>();
 
   @Override
   public void addSearchAttribute(String name, IndexedValueType type) {
