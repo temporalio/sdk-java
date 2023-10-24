@@ -164,7 +164,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
       handleWorkflowTaskImpl(workflowTask, historyIterator);
       processLocalActivityRequests(wftHearbeatDeadline);
-
       List<Command> commands = workflowStateMachines.takeCommands();
       List<Message> messages = workflowStateMachines.takeMessages();
       EnumSet<SdkFlag> newFlags = workflowStateMachines.takeNewSdkFlags();
