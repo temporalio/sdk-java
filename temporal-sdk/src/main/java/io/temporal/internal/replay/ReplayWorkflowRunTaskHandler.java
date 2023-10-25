@@ -311,6 +311,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       throws InterruptedException, Throwable {
 
     while (true) {
+      // Scheduling or handling any local activities after the workflow method has returned
+      // can result in commands being generated after the CompleteWorkflowExecution command
+      // which the server does not allow.
+      if (context.isWorkflowMethodCompleted()) {
+        break;
+      }
       List<ExecuteLocalActivityParameters> laRequests =
           workflowStateMachines.takeLocalActivityRequests();
       localActivityTaskCount += laRequests.size();
@@ -361,7 +367,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     // it's safe to call and discard the result of takeLocalActivityRequests() here, because if it's
     // not empty - we are in trouble anyway
     Preconditions.checkState(
-        workflowStateMachines.takeLocalActivityRequests().isEmpty(),
+        workflowStateMachines.takeLocalActivityRequests().isEmpty()
+            || context.isWorkflowMethodCompleted(),
         "[BUG] Local activities requests from the last event loop were not drained "
             + "and accounted in the outstanding local activities counter");
   }

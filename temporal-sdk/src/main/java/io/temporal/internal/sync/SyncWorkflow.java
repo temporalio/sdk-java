@@ -161,9 +161,6 @@ class SyncWorkflow implements ReplayWorkflow {
           // Skip validator on replay
           if (!callbacks.isReplaying()) {
             try {
-              // TODO(https://github.com/temporalio/sdk-java/issues/1748) handleValidateUpdate
-              // should not just be run
-              // in a workflow thread
               workflowContext.setReadOnly(true);
               workflowProc.handleValidateUpdate(updateName, input, eventId, header);
             } catch (Exception e) {
