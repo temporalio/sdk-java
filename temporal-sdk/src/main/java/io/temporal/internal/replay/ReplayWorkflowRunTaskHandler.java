@@ -283,7 +283,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   // It is possible for the server to send fewer events than required if we are reading history from
   // a stale node.
   private void verifyAllEventsProcessed(long lastEventId, long processedEventId) {
-    if (lastEventId > 0 && processedEventId < lastEventId) {
+    if (lastEventId != Long.MAX_VALUE && lastEventId > 0 && processedEventId < lastEventId) {
       throw new IllegalStateException(
           String.format(
               "Premature end of stream, expectedLastEventID=%d but no more events after eventID=%d",
