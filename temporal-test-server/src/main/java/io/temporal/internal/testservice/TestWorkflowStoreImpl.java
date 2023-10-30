@@ -329,7 +329,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       List<HistoryEvent> events = new ArrayList<>(historyStore.getEventsLocked());
       History.Builder history = History.newBuilder();
       PeekingIterator<HistoryEvent> iterator = Iterators.peekingIterator(events.iterator());
-      long startedEventId = 0;
       long previousStaredEventId = 0;
       while (iterator.hasNext()) {
         HistoryEvent event = iterator.next();
@@ -337,10 +336,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           if (!iterator.hasNext()
               || iterator.peek().getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
             previousStaredEventId = event.getEventId();
-            startedEventId = previousStaredEventId;
           }
         } else if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-          startedEventId = 0;
           if (iterator.hasNext()) {
             throw Status.INTERNAL
                 .withDescription("Unexpected event after the completion event: " + iterator.peek())
@@ -351,7 +348,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       task.setPreviousStartedEventId(previousStaredEventId);
       // it's not a real workflow task and the server sends 0 for startedEventId for such a workflow
       // task
-      task.setStartedEventId(startedEventId);
+      task.setStartedEventId(0);
       if (taskQueue.getTaskQueueName().equals(task.getWorkflowExecutionTaskQueue().getName())) {
         history.addAllEvents(events);
       } else {
