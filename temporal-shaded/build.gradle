@@ -20,7 +20,7 @@ dependencies {
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
 
-    //test server
+    // test server
     implementation "com.cronutils:cron-utils:${cronUtilsVersion}"
 
     // grpc wants perfmark and we don't want to shade it
@@ -54,6 +54,7 @@ dependencies {
     shadow "io.grpc:grpc-stub:$grpcVersion"
     shadow "io.grpc:grpc-netty-shaded:$grpcVersion"
     shadow "io.grpc:grpc-services:$grpcVersion"
+    shadow "com.google.api.grpc:proto-google-common-protos:2.9.0"
 }
 
 // to have a fine grain control, we spell out what we include
@@ -64,7 +65,8 @@ configurations.shadow {
 shadowJar {
     configurations = [project.configurations.shadow]
 
-    relocate 'gogoproto', 'io.temporal.shaded.gogoproto' //protobuf
+    relocate 'gogoproto', 'io.temporal.shaded.gogoproto' // protobuf
+    relocate 'com.google.rpc', 'io.temporal.shaded.com.google.rpc' // StatusUtils
     relocate 'com.google.protobuf', 'io.temporal.shaded.com.google.protobuf'
     relocate 'com.google.common', 'io.temporal.shaded.com.google.common' // guava
     relocate 'com.google.thirdparty', 'io.temporal.shaded.com.google.thirdparty' // guava
