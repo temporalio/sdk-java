@@ -49,7 +49,6 @@ public class UpdateBadValidator {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setUseExternalService(true)
           .setWorkflowTypes(TestUpdateWithBadValidatorWorkflowImpl.class)
           .build();
 
