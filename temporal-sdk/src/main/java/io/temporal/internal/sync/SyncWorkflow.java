@@ -163,6 +163,9 @@ class SyncWorkflow implements ReplayWorkflow {
             try {
               workflowContext.setReadOnly(true);
               workflowProc.handleValidateUpdate(updateName, input, eventId, header);
+            } catch (ReadOnlyException r) {
+              // Rethrow instead on rejecting the update to fail the WFT
+              throw r;
             } catch (Exception e) {
               callbacks.reject(this.dataConverter.exceptionToFailure(e));
               return;

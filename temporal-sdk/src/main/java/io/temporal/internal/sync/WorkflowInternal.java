@@ -744,7 +744,7 @@ public final class WorkflowInternal {
 
   static void assertNotReadOnly(String action) {
     if (isReadOnly()) {
-      throw new IllegalStateException("While in read-only function, action attempted:" + action);
+      throw new ReadOnlyException(action);
     }
   }
 

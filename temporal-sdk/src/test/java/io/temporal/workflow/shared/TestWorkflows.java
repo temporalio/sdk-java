@@ -285,7 +285,7 @@ public class TestWorkflows {
     }
   }
 
-  public static String[] illegalCallCases = {
+  public static final String[] illegalCallCases = {
     "start_activity",
     "start_local_activity",
     "upsert_search_attribute",
@@ -312,7 +312,7 @@ public class TestWorkflows {
         Workflow.newLocalActivityStub(
                 TestActivities.TestActivity1.class,
                 LocalActivityOptions.newBuilder()
-                    .setScheduleToStartTimeout(Duration.ofHours(1))
+                    .setScheduleToCloseTimeout(Duration.ofHours(1))
                     .build())
             .execute("test");
         break;
