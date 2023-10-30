@@ -236,7 +236,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     historyIterator.initDeadline(Deadline.after(expiration.toMillis(), TimeUnit.MILLISECONDS));
 
     boolean timerStopped = false;
-    boolean replayFailed = false;
     Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
     long currentEventId = 0;
     try {
@@ -249,7 +248,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         try {
           workflowStateMachines.handleEvent(event, hasNext);
         } catch (Throwable e) {
-          replayFailed = true;
           // Fail workflow if exception is of the specified type
           WorkflowImplementationOptions implementationOptions =
               workflow.getWorkflowContext().getWorkflowImplementationOptions();
@@ -268,9 +266,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           timerStopped = true;
         }
       }
-      if (!replayFailed) {
-        verifyAllEventsProcessed(lastEventId, currentEventId);
-      }
+      verifyAllEventsProcessed(lastEventId, currentEventId);
     } finally {
       if (!timerStopped) {
         sw.stop();
