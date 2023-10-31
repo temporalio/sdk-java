@@ -85,4 +85,7 @@ public interface GenericWorkflowClient {
   @Experimental
   GetWorkerBuildIdCompatibilityResponse getWorkerBuildIdCompatability(
       GetWorkerBuildIdCompatibilityRequest req);
+
+  @Experimental
+  GetWorkerTaskReachabilityResponse GetWorkerTaskReachability(GetWorkerTaskReachabilityRequest req);
 }

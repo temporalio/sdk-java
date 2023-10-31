@@ -28,11 +28,10 @@ import com.google.common.collect.Iterators;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.TaskReachability;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkerBuildIdCompatibilityRequest;
-import io.temporal.api.workflowservice.v1.GetWorkerBuildIdCompatibilityResponse;
-import io.temporal.api.workflowservice.v1.UpdateWorkerBuildIdCompatibilityRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
@@ -335,6 +334,22 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .build();
     GetWorkerBuildIdCompatibilityResponse resp = genericClient.getWorkerBuildIdCompatability(req);
     return new WorkerBuildIdVersionSets(resp);
+  }
+
+  @Override
+  public WorkerTaskReachability getWorkerTaskReachability(
+      @Nonnull Iterable<String> buildIds,
+      @Nonnull Iterable<String> taskQueues,
+      TaskReachability reachability) {
+    GetWorkerTaskReachabilityRequest req =
+        GetWorkerTaskReachabilityRequest.newBuilder()
+            .setNamespace(options.getNamespace())
+            .addAllBuildIds(buildIds)
+            .addAllTaskQueues(taskQueues)
+            .setReachability(reachability)
+            .build();
+    GetWorkerTaskReachabilityResponse resp = genericClient.GetWorkerTaskReachability(req);
+    return new WorkerTaskReachability(resp);
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
