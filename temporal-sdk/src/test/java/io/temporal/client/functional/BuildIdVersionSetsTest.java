@@ -46,8 +46,8 @@ public class BuildIdVersionSetsTest {
 
   @Before
   public void checkRealServer() {
-        assumeTrue(
-            "Test Server doesn't support versioning yet", SDKTestWorkflowRule.useExternalService);
+    assumeTrue(
+        "Test Server doesn't support versioning yet", SDKTestWorkflowRule.useExternalService);
   }
 
   @Test
