@@ -24,15 +24,16 @@ import io.temporal.api.enums.v1.TaskReachability;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Contains information about the reachability of a specific Build ID. */
 public class BuildIdReachability {
   private final Map<String, List<TaskReachability>> taskQueueReachability;
-  private final List<String> unretrievedTaskQueues;
+  private final Set<String> unretrievedTaskQueues;
 
   public BuildIdReachability(
       Map<String, List<TaskReachability>> taskQueueReachability,
-      List<String> unretrievedTaskQueues) {
+      Set<String> unretrievedTaskQueues) {
     this.taskQueueReachability = taskQueueReachability;
     this.unretrievedTaskQueues = unretrievedTaskQueues;
   }
@@ -49,7 +50,7 @@ public class BuildIdReachability {
    * @return a list of any Task Queues that could not be retrieved because the server limits the
    *     number that can be queried at once.
    */
-  public List<String> getUnretrievedTaskQueues() {
-    return Collections.unmodifiableList(unretrievedTaskQueues);
+  public Set<String> getUnretrievedTaskQueues() {
+    return Collections.unmodifiableSet(unretrievedTaskQueues);
   }
 }

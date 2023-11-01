@@ -28,12 +28,13 @@ import java.util.*;
 /** Contains information about the reachability of some Build IDs. */
 @Experimental
 public class WorkerTaskReachability {
-  final Map<String, BuildIdReachability> buildIdReachability = new HashMap<>();
+  private final Map<String, BuildIdReachability> buildIdReachability;
 
-  WorkerTaskReachability(GetWorkerTaskReachabilityResponse reachabilityResponse) {
+  public WorkerTaskReachability(GetWorkerTaskReachabilityResponse reachabilityResponse) {
+    buildIdReachability = new HashMap<>(reachabilityResponse.getBuildIdReachabilityList().size());
     for (io.temporal.api.taskqueue.v1.BuildIdReachability BuildReachability :
         reachabilityResponse.getBuildIdReachabilityList()) {
-      List<String> unretrievedTaskQueues = new ArrayList<>();
+      Set<String> unretrievedTaskQueues = new HashSet<>();
       Map<String, List<TaskReachability>> retrievedTaskQueues = new HashMap<>();
       for (io.temporal.api.taskqueue.v1.TaskQueueReachability taskQueueReachability :
           BuildReachability.getTaskQueueReachabilityList()) {
@@ -56,6 +57,6 @@ public class WorkerTaskReachability {
    * @return Returns a map of Build IDs to information about their reachability.
    */
   public Map<String, BuildIdReachability> getBuildIdReachability() {
-    return buildIdReachability;
+    return Collections.unmodifiableMap(buildIdReachability);
   }
 }
