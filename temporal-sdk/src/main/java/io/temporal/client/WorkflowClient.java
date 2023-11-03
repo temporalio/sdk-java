@@ -23,6 +23,7 @@ package io.temporal.client;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.TaskReachability;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -325,6 +326,25 @@ public interface WorkflowClient {
    */
   @Experimental
   WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue);
+
+  /**
+   * Determine if some Build IDs for certain Task Queues could have tasks dispatched to them.
+   *
+   * @param buildIds The Build IDs to query the reachability of. At least one must be specified.
+   * @param taskQueues Task Queues to restrict the query to. If not specified, all Task Queues will
+   *     be searched. When requesting a large number of task queues or all task queues associated
+   *     with the given Build IDs in a namespace, all Task Queues will be listed in the response but
+   *     some of them may not contain reachability information due to a server enforced limit.
+   * @param reachability The kind of reachability this request is concerned with.
+   * @return The reachability information.
+   * @throws WorkflowServiceException for any failures including networking and service availability
+   *     issues.
+   */
+  @Experimental
+  WorkerTaskReachability getWorkerTaskReachability(
+      @Nonnull Iterable<String> buildIds,
+      @Nonnull Iterable<String> taskQueues,
+      TaskReachability reachability);
 
   /**
    * Executes zero argument workflow with void return type

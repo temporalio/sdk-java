@@ -13,4 +13,8 @@ frontend.workerVersioningWorkflowAPIs:
 frontend.workerVersioningDataAPIs:
   - value: true
 history.MaxBufferedQueryCount:
-  - value: 100000 
+  - value: 100000
+worker.buildIdScavengerEnabled:
+    - value: true
+worker.removableBuildIdDurationSinceDefault:
+    - value: 1

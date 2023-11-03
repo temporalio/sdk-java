@@ -374,4 +374,16 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .getWorkerBuildIdCompatibility(req),
         grpcRetryerOptions);
   }
+
+  @Override
+  public GetWorkerTaskReachabilityResponse GetWorkerTaskReachability(
+      GetWorkerTaskReachabilityRequest req) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .getWorkerTaskReachability(req),
+        grpcRetryerOptions);
+  }
 }
