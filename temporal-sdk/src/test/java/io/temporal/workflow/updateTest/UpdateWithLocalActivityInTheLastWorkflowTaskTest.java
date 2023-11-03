@@ -97,7 +97,7 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
         Async.procedure(activities::sleepActivity, (long) 10000, 0);
         promise.get();
       }
-      
+
       if (continueAsNew) {
         Workflow.continueAsNew(false);
       }
