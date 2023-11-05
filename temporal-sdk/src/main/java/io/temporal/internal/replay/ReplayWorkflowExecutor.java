@@ -38,6 +38,7 @@ import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.NonDeterministicException;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -140,7 +141,8 @@ final class ReplayWorkflowExecutor {
     WorkflowExecutionSignaledEventAttributes signalAttributes =
         event.getWorkflowExecutionSignaledEventAttributes();
     if (context.isWorkflowMethodCompleted()) {
-      throw new IllegalStateException("Signal received after workflow is closed.");
+      throw new NonDeterministicException(
+          "Signal received after workflow is completed. Typically this is caused by a nondeterministic code change in a workflow or a change is what payloads data converters can handle");
     }
     Optional<Payloads> input =
         signalAttributes.hasInput() ? Optional.of(signalAttributes.getInput()) : Optional.empty();
@@ -150,7 +152,7 @@ final class ReplayWorkflowExecutor {
 
   public void handleWorkflowExecutionUpdated(UpdateMessage updateMessage) {
     if (context.isWorkflowMethodCompleted()) {
-      throw new IllegalStateException("Update received after workflow is closed.");
+      throw new NonDeterministicException("Update received after workflow is completed.");
     }
     try {
       Message protocolMessage = updateMessage.getMessage();
