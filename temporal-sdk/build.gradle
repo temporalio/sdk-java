@@ -26,6 +26,9 @@ dependencies {
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation 'pl.pragmatists:JUnitParams:1.1.1'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+    if (project.hasProperty("edgeDepsTest")) {
+        implementation "io.grpc:grpc-inprocess:$grpcVersion"
+    }
 }
 
 task registerNamespace(type: JavaExec) {
