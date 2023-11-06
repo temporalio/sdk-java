@@ -1,0 +1,16 @@
+# Highlights
+
+## Bugfixes
+- Fixes a rare bug that could cause the SDK to not fully replay histories on server version pre 1.21
+- Fixes a bug causing workflow task failure if a local activity was scheduled on the same workflow task
+the workflow tried to continue as new. 
+
+# Changeset
+
+2023-10-25 - 8b3be3bb - Don't schedule local activities on a completed workflow (#1908)
+2023-10-30 - 2f5fdf1a - Test continue as new in an update (#1917)
+2023-10-30 - 503cae76 - Verify history is replayed up to StartedEventId (#1916)
+2023-10-30 - 8af4a264 - ReadOnly Exception in update validator fail WFT (#1918)
+2023-10-30 - abb1deb8 - Add proto-google-common-protos to temporal-shaded (#1912)
+2023-11-03 - 7077b54f - Add getWorkerTaskReachability API (#1919)
+2023-11-06 - 5d1bbbe3 - Test continue as new with local activities (#1922)
