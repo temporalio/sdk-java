@@ -44,25 +44,27 @@ public class SignalWithLocalActivityInTheLastWorkflowTaskTest {
           .build();
 
   @Test
-  @Parameters({"true", "false"})
-  public void testSignalWithLocalActivityInTheLastWorkflowTask(Boolean waitOnLA) {
+  @Parameters({"true, true", "false, true", "true, false", "false, false"})
+  public void testSignalWithLocalActivityInTheLastWorkflowTask(
+      Boolean waitOnLA, Boolean continueAsNew) {
     TestSignaledWorkflow client = testWorkflowRule.newWorkflowStub(TestSignaledWorkflow.class);
     WorkflowStub.fromTyped(client)
-        .signalWithStart("testSignal", new String[] {"signalValue"}, new Boolean[] {waitOnLA});
-    assertEquals("done", client.execute());
+        .signalWithStart("signal", new Boolean[] {waitOnLA, continueAsNew}, new Boolean[] {true});
+    assertEquals("done", client.execute(true));
   }
 
   @WorkflowInterface
   public interface TestSignaledWorkflow {
 
     @WorkflowMethod
-    String execute();
+    String execute(Boolean wait);
 
     @SignalMethod
-    void signal(boolean waitOnLA);
+    void signal(boolean waitOnLA, boolean continueAsNew);
   }
 
   public static class TestSignalWorkflowImpl implements TestSignaledWorkflow {
+    boolean finish = false;
 
     private final TestActivities.VariousTestActivities activities =
         Workflow.newLocalActivityStub(
@@ -72,18 +74,25 @@ public class SignalWithLocalActivityInTheLastWorkflowTaskTest {
                 .build());
 
     @Override
-    public String execute() {
+    public String execute(Boolean wait) {
+      if (wait) {
+        Workflow.await(() -> finish);
+      }
       return "done";
     }
 
     @Override
-    public void signal(boolean waitOnLA) {
+    public void signal(boolean waitOnLA, boolean continueAsNew) {
       if (waitOnLA) {
         Promise promise = Async.procedure(activities::sleepActivity, (long) 100, 0);
-        Async.procedure(activities::sleepActivity, (long) 1000, 0);
+        Async.procedure(activities::sleepActivity, (long) 10000, 0);
         promise.get();
       }
 
+      if (continueAsNew) {
+        Workflow.continueAsNew(false);
+      }
+      finish = true;
       activities.sleepActivity(1000, 0);
     }
   }

@@ -44,22 +44,22 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
           .build();
 
   @Test
-  @Parameters({"true", "false"})
-  public void testUpdateWithLocalActivityInTheLastWorkflowTask(Boolean waitOnLA)
-      throws InterruptedException {
+  @Parameters({"true, true", "false, true", "true, false", "false, false"})
+  public void testUpdateWithLocalActivityInTheLastWorkflowTask(
+      Boolean waitOnLA, Boolean continueAsNew) {
     WorkflowWithUpdate client = testWorkflowRule.newWorkflowStub(WorkflowWithUpdate.class);
 
-    WorkflowStub.fromTyped(client).start();
+    WorkflowStub.fromTyped(client).start(true);
     Thread asyncUpdate =
         new Thread(
             () -> {
               try {
-                client.update(waitOnLA);
+                client.update(waitOnLA, continueAsNew);
               } catch (Exception e) {
               }
             });
     asyncUpdate.start();
-    assertEquals("done", client.execute());
+    assertEquals("done", client.execute(true));
     asyncUpdate.interrupt();
   }
 
@@ -67,15 +67,14 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
   public interface WorkflowWithUpdate {
 
     @WorkflowMethod
-    String execute();
+    String execute(Boolean finish);
 
     @UpdateMethod
-    String update(Boolean waitOnLA);
+    String update(Boolean waitOnLA, Boolean continueAsNew);
   }
 
   public static class WorkflowWithUpdateImpl implements WorkflowWithUpdate {
-    Boolean finish = false;
-
+    boolean finish = false;
     private final TestActivities.VariousTestActivities activities =
         Workflow.newLocalActivityStub(
             TestActivities.VariousTestActivities.class,
@@ -84,17 +83,23 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
                 .build());
 
     @Override
-    public String execute() {
-      Workflow.await(() -> finish);
+    public String execute(Boolean wait) {
+      if (wait) {
+        Workflow.await(() -> finish);
+      }
       return "done";
     }
 
     @Override
-    public String update(Boolean waitOnLA) {
+    public String update(Boolean waitOnLA, Boolean continueAsNew) {
       if (waitOnLA) {
-        Promise promise = Async.procedure(activities::sleepActivity, (long) 100, 0);
-        Async.procedure(activities::sleepActivity, (long) 1000, 0);
+        Promise promise = Async.procedure(activities::sleepActivity, (long) 10, 0);
+        Async.procedure(activities::sleepActivity, (long) 10000, 0);
         promise.get();
+      }
+
+      if (continueAsNew) {
+        Workflow.continueAsNew(false);
       }
       finish = true;
       activities.sleepActivity(1000, 0);

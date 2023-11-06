@@ -43,16 +43,16 @@ public class LocalActivityInTheLastWorkflowTaskTest {
           .build();
 
   @Test
-  @Parameters({"true", "false"})
-  public void testLocalActivityInTheLastWorkflowTask(boolean blockOnLA) {
+  @Parameters({"true, true", "false, true", "true, false", "false, false"})
+  public void testLocalActivityInTheLastWorkflowTask(boolean blockOnLA, boolean continueAsNew) {
     TestWorkflow client = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
-    assertEquals("done", client.execute(blockOnLA));
+    assertEquals("done", client.execute(blockOnLA, continueAsNew));
   }
 
   @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
-    String execute(boolean blockOnLA);
+    String execute(boolean blockOnLA, boolean continueAsNew);
   }
 
   public static class TestWorkflowImpl implements TestWorkflow {
@@ -65,13 +65,16 @@ public class LocalActivityInTheLastWorkflowTaskTest {
                 .build());
 
     @Override
-    public String execute(boolean blockOnLA) {
+    public String execute(boolean blockOnLA, boolean continueAsNew) {
       if (blockOnLA) {
         Promise promise = Async.procedure(activities::sleepActivity, (long) 100, 0);
         Async.procedure(activities::sleepActivity, (long) 1000, 0);
         promise.get();
       }
       Async.procedure(activities::sleepActivity, (long) 1000, 0);
+      if (continueAsNew) {
+        Workflow.continueAsNew(blockOnLA, false);
+      }
       return "done";
     }
   }
