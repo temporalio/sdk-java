@@ -122,19 +122,13 @@ public final class ChildWorkflowOptions {
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
      * conditions Temporal allows two workflows with the same namespace and workflow id run
      * simultaneously.
-     * <li>
-     *
-     *     <ul>
-     *       AllowDuplicateFailedOnly is a default value. It means that workflow can start if
-     *       previous run failed or was canceled or terminated.
-     * </ul>
      *
      * <ul>
-     *   AllowDuplicate allows new run independently of the previous run closure status.
-     * </ul>
-     *
-     * <ul>
-     *   RejectDuplicate doesn't allow new run independently of the previous run closure status.
+     *   <li>AllowDuplicate is the default value. It allows new run independently of the previous
+     *       run closure status.
+     *   <li>AllowDuplicateFailedOnly means that workflow can start if previous run failed or was
+     *       canceled or terminated.
+     *   <li>RejectDuplicate doesn't allow new run independently of the previous run closure status.
      * </ul>
      */
     public Builder setWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
