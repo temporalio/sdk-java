@@ -20,6 +20,8 @@
 
 package io.temporal.workflow.updateTest;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -45,6 +47,9 @@ public class UpdateContinueAsNewWFTFailure {
 
   @Test
   public void testUpdateContinueAsNewAfterWFTFailure() throws InterruptedException {
+    // TODO(https://github.com/temporalio/sdk-java/issues/1903)
+    assumeTrue("Test Server hangs here", SDKTestWorkflowRule.useExternalService);
+
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
