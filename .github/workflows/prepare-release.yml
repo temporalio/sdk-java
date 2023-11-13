@@ -48,7 +48,7 @@ jobs:
 
       - name: Checkout repo
         if: steps.check_release.outputs.already_exists == 'false'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.INPUT_REF }}
 
@@ -72,7 +72,7 @@ jobs:
     needs: create_draft_release
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.INPUT_REF }}
 
@@ -139,7 +139,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.INPUT_REF }}
 
