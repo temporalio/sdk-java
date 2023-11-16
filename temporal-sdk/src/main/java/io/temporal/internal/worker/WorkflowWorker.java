@@ -21,6 +21,7 @@
 package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.TASK_FAILURE_TYPE;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -30,6 +31,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -370,9 +372,25 @@ final class WorkflowWorker implements SuspendableWorker {
           }
 
           if (result.getTaskFailed() != null) {
+            Scope workflowTaskFailureScope = workflowTypeScope;
+            if (result
+                .getTaskFailed()
+                .getCause()
+                .equals(
+                    WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR)) {
+              workflowTaskFailureScope =
+                  workflowTaskFailureScope.tagged(
+                      ImmutableMap.of(TASK_FAILURE_TYPE, "NonDeterminismError"));
+            } else {
+              workflowTaskFailureScope =
+                  workflowTaskFailureScope.tagged(
+                      ImmutableMap.of(TASK_FAILURE_TYPE, "WorkflowError"));
+            }
             // we don't trigger the counter in case of the legacy query
             // (which never has taskFailed set)
-            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
+            workflowTaskFailureScope
+                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+                .inc(1);
           }
           if (nextWFTResponse.isPresent()) {
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);

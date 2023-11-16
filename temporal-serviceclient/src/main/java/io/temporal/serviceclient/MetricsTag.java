@@ -41,6 +41,7 @@ public class MetricsTag {
   public static final String STATUS_CODE = "status_code";
   public static final String EXCEPTION = "exception";
   public static final String OPERATION_NAME = "operation";
+  public static final String TASK_FAILURE_TYPE = "failure_reason";
 
   /** Used to pass metrics scope to the interceptor */
   public static final CallOptions.Key<Scope> METRICS_TAGS_CALL_OPTIONS_KEY =
