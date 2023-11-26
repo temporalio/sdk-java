@@ -179,14 +179,24 @@ class WorkflowInvocationHandler implements InvocationHandler {
     return Defaults.defaultValue(method.getReturnType());
   }
 
-  private static void startWorkflow(WorkflowStub untyped, Object[] args) {
+  private static void startWorkflow(
+      POJOWorkflowMethodMetadata methodMetadata, WorkflowStub untyped, Object[] args) {
     Optional<WorkflowOptions> options = untyped.getOptions();
     if (untyped.getExecution() == null
         || (options.isPresent()
             && options.get().getWorkflowIdReusePolicy()
                 == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)) {
       try {
-        untyped.start(args);
+        if (methodMetadata.getWorkflowIdParameterIndex().isPresent()) {
+          Object workflowId = args[methodMetadata.getWorkflowIdParameterIndex().get()];
+          if (workflowId == null) {
+            untyped.start(args);
+          } else {
+            untyped.startWithId(workflowId.toString(), args);
+          }
+        } else {
+          untyped.start(args);
+        }
       } catch (WorkflowExecutionAlreadyStarted e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
@@ -264,7 +274,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
       WorkflowMethodType type = methodMetadata.getType();
       if (type == WorkflowMethodType.WORKFLOW) {
-        result = startWorkflow(untyped, method, args);
+        result = startWorkflow(methodMetadata, untyped, method, args);
       } else if (type == WorkflowMethodType.QUERY) {
         result = queryWorkflow(methodMetadata, untyped, method, args);
       } else if (type == WorkflowMethodType.SIGNAL) {
@@ -318,8 +328,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
-    private Object startWorkflow(WorkflowStub untyped, Method method, Object[] args) {
-      WorkflowInvocationHandler.startWorkflow(untyped, args);
+    private Object startWorkflow(
+        POJOWorkflowMethodMetadata methodMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+      WorkflowInvocationHandler.startWorkflow(methodMetadata, untyped, args);
       return untyped.getResult(method.getReturnType(), method.getGenericReturnType());
     }
   }
@@ -344,7 +358,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException(
             "WorkflowClient.execute can be called only on a method annotated with @WorkflowMethod");
       }
-      WorkflowInvocationHandler.startWorkflow(untyped, args);
+      WorkflowInvocationHandler.startWorkflow(
+          workflowMetadata.getMethodMetadata(method), untyped, args);
       result = untyped.getResultAsync(method.getReturnType(), method.getGenericReturnType());
     }
 

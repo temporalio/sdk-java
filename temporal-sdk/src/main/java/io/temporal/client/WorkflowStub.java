@@ -144,6 +144,8 @@ public interface WorkflowStub {
 
   WorkflowExecution start(Object... args);
 
+  WorkflowExecution startWithId(String workflowId, Object... args);
+
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
   Optional<String> getWorkflowType();

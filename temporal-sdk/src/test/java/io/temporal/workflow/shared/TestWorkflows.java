@@ -95,6 +95,12 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestWorkflowIdArg {
+    @WorkflowMethod
+    String execute(@WorkflowId String arg1, String arg2);
+  }
+
+  @WorkflowInterface
   public interface TestWorkflowWithCronSchedule {
     @WorkflowMethod
     @CronSchedule("0 * * * *")

@@ -38,6 +38,7 @@ import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -55,6 +56,7 @@ import io.temporal.workflow.shared.TestActivities.TestActivity1;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowIdArg;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -108,6 +110,49 @@ public class WorkflowTestingTest {
     TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
     String result = workflow.execute("input1");
     assertEquals("TestWorkflow1-input1", result);
+  }
+
+  @Test
+  public void testWorkflowStartWithId() {
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(WorkflowIdImpl.class);
+    testEnvironment.start();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowId("not-workflow-id")
+            .setTaskQueue(TASK_QUEUE)
+            .build();
+    WorkflowStub workflow =
+        client.newUntypedWorkflowStub(TestWorkflowIdArg.class.getSimpleName(), options);
+    workflow.startWithId("workflow-id", "input2");
+    String workflowId = workflow.getResult(String.class);
+    assertEquals("workflow-id", workflowId);
+  }
+
+  @Test
+  public void testWorkflowIdParameter() {
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(WorkflowIdImpl.class);
+    testEnvironment.start();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    TestWorkflowIdArg workflow = client.newWorkflowStub(TestWorkflowIdArg.class, options);
+    String workflowId = workflow.execute("workflow-id", "input2");
+    assertEquals("workflow-id", workflowId);
+  }
+
+  @Test
+  public void testWorkflowIdNullParameter() {
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(WorkflowIdImpl.class);
+    testEnvironment.start();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder().setWorkflowId("workflow-id").setTaskQueue(TASK_QUEUE).build();
+    TestWorkflowIdArg workflow = client.newWorkflowStub(TestWorkflowIdArg.class, options);
+    String workflowId = workflow.execute(null, "input2");
+    assertEquals("workflow-id", workflowId);
   }
 
   @Test
@@ -421,6 +466,15 @@ public class WorkflowTestingTest {
     public String execute(String input) {
       Workflow.sleep(Duration.ofMinutes(5)); // test time skipping
       return Workflow.getInfo().getWorkflowType() + "-" + input;
+    }
+  }
+
+  public static class WorkflowIdImpl implements TestWorkflowIdArg {
+
+    @Override
+    public String execute(String workflowId, String anotherArg) {
+      Workflow.sleep(Duration.ofMinutes(5)); // test time skipping
+      return Workflow.getInfo().getWorkflowId();
     }
   }
 

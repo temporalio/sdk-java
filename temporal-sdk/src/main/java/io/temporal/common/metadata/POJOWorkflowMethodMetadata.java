@@ -70,6 +70,10 @@ public final class POJOWorkflowMethodMetadata {
     return workflowInterface;
   }
 
+  public Optional<Integer> getWorkflowIdParameterIndex() {
+    return workflowMethod.getWorkflowIdParameterIndex();
+  }
+
   /** Compare and hash based on method and the interface type only. */
   @Override
   public boolean equals(Object o) {

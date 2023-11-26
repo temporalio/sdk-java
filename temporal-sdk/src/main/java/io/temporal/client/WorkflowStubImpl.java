@@ -129,6 +129,16 @@ class WorkflowStubImpl implements WorkflowStub {
     return startWithOptions(WorkflowOptions.merge(null, null, options), args);
   }
 
+  @Override
+  public WorkflowExecution startWithId(String workflowId, Object... args) {
+    if (options == null) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder(options).setWorkflowId(workflowId).build();
+    return startWithOptions(WorkflowOptions.merge(null, null, workflowOptions), args);
+  }
+
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     checkExecutionIsNotStarted();

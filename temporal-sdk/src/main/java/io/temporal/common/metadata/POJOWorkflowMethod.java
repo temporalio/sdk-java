@@ -22,6 +22,7 @@ package io.temporal.common.metadata;
 
 import com.google.common.base.Strings;
 import io.temporal.workflow.*;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
@@ -31,6 +32,8 @@ final class POJOWorkflowMethod {
   private final WorkflowMethodType type;
   private final Method method;
   private final Optional<String> nameFromAnnotation;
+
+  private final Optional<Integer> workflowIdParameterIndex;
 
   POJOWorkflowMethod(Method method) {
     this.method = Objects.requireNonNull(method);
@@ -94,6 +97,12 @@ final class POJOWorkflowMethod {
       this.nameFromAnnotation = Optional.of(name);
     }
     this.type = Objects.requireNonNull(type);
+
+    if (this.type == WorkflowMethodType.WORKFLOW) {
+      this.workflowIdParameterIndex = findWorkflowIdParameterIndex(method);
+    } else {
+      this.workflowIdParameterIndex = Optional.empty();
+    }
   }
 
   public WorkflowMethodType getType() {
@@ -106,6 +115,10 @@ final class POJOWorkflowMethod {
 
   public Optional<String> getNameFromAnnotation() {
     return nameFromAnnotation;
+  }
+
+  public Optional<Integer> getWorkflowIdParameterIndex() {
+    return workflowIdParameterIndex;
   }
 
   /** Compare and hash on method only. */
@@ -121,5 +134,17 @@ final class POJOWorkflowMethod {
   @Override
   public int hashCode() {
     return com.google.common.base.Objects.hashCode(method);
+  }
+
+  private Optional<Integer> findWorkflowIdParameterIndex(Method method) {
+    Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+    for (int i = 0; i < parameterAnnotations.length; i++) {
+      for (Annotation annotation : parameterAnnotations[i]) {
+        if (annotation.annotationType().equals(WorkflowId.class)) {
+          return Optional.of(i);
+        }
+      }
+    }
+    return Optional.empty();
   }
 }
