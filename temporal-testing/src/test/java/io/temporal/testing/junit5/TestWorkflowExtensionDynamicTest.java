@@ -49,7 +49,7 @@ public class TestWorkflowExtensionDynamicTest {
   @RegisterExtension
   public static final TestWorkflowExtension testWorkflow =
       TestWorkflowExtension.newBuilder()
-          .setWorkflowTypes(HelloDynamicWorkflowImpl.class)
+          .registerWorkflowImplementationTypes(HelloDynamicWorkflowImpl.class)
           .setActivityImplementations(new HelloDynamicActivityImpl())
           .build();
 
