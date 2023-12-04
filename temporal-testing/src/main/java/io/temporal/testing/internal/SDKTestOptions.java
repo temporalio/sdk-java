@@ -23,21 +23,12 @@ package io.temporal.testing.internal;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Duration;
 
 public class SDKTestOptions {
   // When set to true increases test, activity and workflow timeouts to large values to support
   // stepping through code in a debugger without timing out.
   private static final boolean DEBUGGER_TIMEOUTS = false;
-
-  public static WorkflowImplementationOptions
-      newWorkflowImplementationOptionsWithDefaultStartToCloseTimeout() {
-    return WorkflowImplementationOptions.newBuilder()
-        .setDefaultActivityOptions(
-            ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofMinutes(1)).build())
-        .build();
-  }
 
   public static WorkflowOptions newWorkflowOptionsForTaskQueue200sTimeout(String taskQueue) {
     return WorkflowOptions.newBuilder()

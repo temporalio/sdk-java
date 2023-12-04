@@ -18,17 +18,16 @@
  * limitations under the License.
  */
 
-package io.temporal.testing.junit5.workflowImplementationOptions;
+package io.temporal.testing.junit5.testWorkflowImplementationOptions;
 
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityInfo;
-import io.temporal.activity.ActivityInterface;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 
+@Timeout(value = 30, unit = TimeUnit.SECONDS)
 public class TestWorkflowImplementationOptionsCommon {
 
   @WorkflowInterface
@@ -38,21 +37,10 @@ public class TestWorkflowImplementationOptionsCommon {
     String sayHello(String name);
   }
 
-  @ActivityInterface
-  public interface HelloActivity {
-    String buildGreeting(String name);
-  }
-
-  public static class HelloActivityImpl implements HelloActivity {
-    @Override
-    public String buildGreeting(String name) {
-      ActivityInfo activityInfo = Activity.getExecutionContext().getInfo();
-      return String.format(
-          "Hello %s from activity %s and workflow %s with %s startToCloseTimeout",
-          name,
-          activityInfo.getActivityType(),
-          activityInfo.getWorkflowType(),
-          activityInfo.getStartToCloseTimeout());
+  /* No full Exceptionimplementation. Just for testing TestWorkflowExtension::registerWorkflowImplementationTypes*/
+  public static class TestException extends RuntimeException {
+    public TestException(String message) {
+      super(message);
     }
   }
 
@@ -60,14 +48,10 @@ public class TestWorkflowImplementationOptionsCommon {
 
     private static final Logger logger = Workflow.getLogger(HelloWorkflowImpl.class);
 
-    // There is no startToCloseTimeout set and no WorkflowImplementationOptions
-    private final HelloActivity helloActivity = Workflow.newActivityStub(HelloActivity.class);
-
     @Override
     public String sayHello(String name) {
       logger.info("Hello, {}", name);
-      Workflow.sleep(Duration.ofHours(1));
-      return helloActivity.buildGreeting(name);
+      throw new TestException("Hello World");
     }
   }
 }
