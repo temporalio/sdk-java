@@ -31,10 +31,12 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -91,7 +93,7 @@ public class TestWorkflowExtension
   private final WorkerOptions workerOptions;
   private final WorkflowClientOptions workflowClientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
-  private final Class<?>[] workflowTypes;
+  private final Map<Class<?>, WorkflowImplementationOptions> workflowTypes;
   private final Object[] activityImplementations;
   private final boolean useExternalService;
   private final String target;
@@ -128,7 +130,7 @@ public class TestWorkflowExtension
     supportedParameterTypes.add(WorkflowOptions.class);
     supportedParameterTypes.add(Worker.class);
 
-    for (Class<?> workflowType : workflowTypes) {
+    for (Class<?> workflowType : workflowTypes.keySet()) {
       if (DynamicWorkflow.class.isAssignableFrom(workflowType)) {
         includesDynamicWorkflow = true;
         continue;
@@ -211,7 +213,7 @@ public class TestWorkflowExtension
     String taskQueue =
         String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
-    worker.registerWorkflowImplementationTypes(workflowTypes);
+    workflowTypes.forEach((wft, o) -> worker.registerWorkflowImplementationTypes(o, wft));
     worker.registerActivitiesImplementations(activityImplementations);
 
     if (!doNotStart) {
@@ -281,14 +283,13 @@ public class TestWorkflowExtension
 
   public static class Builder {
 
-    private static final Class<?>[] NO_WORKFLOWS = new Class<?>[0];
     private static final Object[] NO_ACTIVITIES = new Object[0];
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
     private WorkflowClientOptions workflowClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
     private String namespace = "UnitTest";
-    private Class<?>[] workflowTypes = NO_WORKFLOWS;
+    private Map<Class<?>, WorkflowImplementationOptions> workflowTypes = new HashMap<>();
     private Object[] activityImplementations = NO_ACTIVITIES;
     private boolean useExternalService = false;
     private String target = null;
@@ -345,9 +346,33 @@ public class TestWorkflowExtension
      *
      * @see Worker#registerWorkflowImplementationTypes(Class[])
      */
-    public Builder setWorkflowTypes(Class<?>... workflowTypes) {
-      this.workflowTypes = workflowTypes;
+    public Builder registerWorkflowImplementationTypes(Class<?>... workflowTypes) {
+      WorkflowImplementationOptions defaultOptions =
+          WorkflowImplementationOptions.newBuilder().build();
+      Arrays.stream(workflowTypes).forEach(wf -> this.workflowTypes.put(wf, defaultOptions));
       return this;
+    }
+
+    /**
+     * Specify workflow implementation types to register with the Temporal worker.
+     *
+     * @see Worker#registerWorkflowImplementationTypes(Class[])
+     */
+    public Builder registerWorkflowImplementationTypes(
+        WorkflowImplementationOptions options, Class<?>... workflowTypes) {
+      Arrays.stream(workflowTypes).forEach(wf -> this.workflowTypes.put(wf, options));
+      return this;
+    }
+
+    /**
+     * Specify workflow implementation types to register with the Temporal worker.
+     *
+     * @see Worker#registerWorkflowImplementationTypes(Class[])
+     * @deprecated use registerWorkflowImplementationTypes instead
+     */
+    @Deprecated
+    public Builder setWorkflowTypes(Class<?>... workflowTypes) {
+      return this.registerWorkflowImplementationTypes(workflowTypes);
     }
 
     /**
