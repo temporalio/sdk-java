@@ -25,28 +25,33 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ProtobufTimeUtils {
+
+  /**
+   * Converts a Protobuf Duration to a Java Duration with millisecond precision. Null inputs are
+   * treated as zero.
+   */
   @Nonnull
-  public static Duration toJavaDuration(com.google.protobuf.Duration d) {
-    // TODO we should refactor an implicit conversion of empty values into ZERO and rename the
-    // current method into toJavaDurationSafe, toJavaDurationOrDefault or something like that
-    if (d == null) {
+  public static Duration toJavaDuration(@Nullable com.google.protobuf.Duration d) {
+    if (Objects.isNull(d)) {
       return Duration.ZERO;
     }
-
     return Duration.ofMillis(Durations.toMillis(d));
   }
 
-  public static com.google.protobuf.Duration toProtoDuration(Duration d) {
-    // TODO we should refactor an implicit conversion of empty values into ZERO and rename the
-    // current method into toJavaDurationSafe, toJavaDurationOrDefault or something like that
-    if (d == null) {
+  /**
+   * Converts a Java Duration to a Protobuf Duration with millisecond precision. Null inputs are
+   * treated as zero.
+   */
+  @Nonnull
+  public static com.google.protobuf.Duration toProtoDuration(@Nullable Duration d) {
+    if (Objects.isNull(d)) {
       return Durations.ZERO;
     }
-
     return Durations.fromMillis(d.toMillis());
   }
 
