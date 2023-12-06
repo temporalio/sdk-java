@@ -53,7 +53,7 @@ public class TestWorkflowExtensionTest {
   @RegisterExtension
   public static final TestWorkflowExtension testWorkflow =
       TestWorkflowExtension.newBuilder()
-          .setWorkflowTypes(HelloWorkflowImpl.class)
+          .registerWorkflowImplementationTypes(HelloWorkflowImpl.class)
           .setActivityImplementations(new HelloActivityImpl())
           .setInitialTime(Instant.parse("2021-10-10T10:01:00Z"))
           .build();
