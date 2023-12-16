@@ -363,16 +363,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       localActivity));
 
       try {
-        // 10 seconds is just a "reasonable" wait to not make an infinite waiting
-        return activityFuture.get(10, TimeUnit.SECONDS);
+        return activityFuture.get();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       } catch (ExecutionException e) {
         log.error("Exception during processing of activity task");
-        throw new RuntimeException(e);
-      } catch (TimeoutException e) {
-        log.error("Timeout trying execute activity task {}", activityTask);
         throw new RuntimeException(e);
       }
     }
