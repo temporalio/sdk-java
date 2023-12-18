@@ -5,6 +5,10 @@ It should be trivial to adjust if your application uses .properties configuratio
 Your application should be a `@SpringBootApplication` 
 and have `io.temporal:temporal-spring-boot-starter-alpha:${temporalVersion}` added as a dependency.
 
+# Samples
+
+The [Java SDK Samples repo](https://github.com/temporalio/samples-java) contains a number of [Spring Boot samples](https://github.com/temporalio/samples-java/tree/main/springboot) that use this module.
+
 # Connection setup
 
 The following configuration connects to a locally started Temporal Server 
@@ -25,6 +29,16 @@ This will be enough to be able to autowire a `WorkflowClient` in your SpringBoot
 class App {
   @Autowire
   private WorkflowClient workflowClient;
+}
+```
+
+If you are working with schedules, you can also autowire `ScheduleClient` in your SpringBoot app:
+
+```java
+@SpringBootApplication
+class App {
+  @Autowire
+  private ScheduleClient scheduleClient;
 }
 ```
 
@@ -100,6 +114,8 @@ spring.temporal:
         # rate-limits:
           # max-worker-activities-per-second: 5.0
           # max-task-queue-activities-per-second: 5.0
+        # build-id:
+          # worker-build-id: "1.0.0"
     # workflow-cache:
       # max-instances: 600
       # max-threads: 600
