@@ -7,7 +7,7 @@ and have `io.temporal:temporal-spring-boot-starter-alpha:${temporalVersion}` add
 
 # Samples
 
-The [Java SDK Samples repo](https://github.com/temporalio/samples-java) contains a number of [Spring Boot samples](https://github.com/temporalio/samples-java/tree/main/springboot) that use this module.
+The [Java SDK samples repo](https://github.com/temporalio/samples-java) contains a number of [Spring Boot samples](https://github.com/temporalio/samples-java/tree/main/springboot) that use this module.
 
 # Connection setup
 
