@@ -857,6 +857,9 @@ class StateMachines {
             .setInput(request.getInput())
             .setTaskQueue(request.getTaskQueue())
             .setAttempt(1);
+    if (request.hasRetryPolicy()) {
+      a.setRetryPolicy(request.getRetryPolicy());
+    }
     data.retryState.ifPresent(
         testServiceRetryState -> a.setAttempt(testServiceRetryState.getAttempt()));
     a.setFirstExecutionRunId(data.firstExecutionRunId);

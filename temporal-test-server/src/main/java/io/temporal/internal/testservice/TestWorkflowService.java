@@ -30,6 +30,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
@@ -41,7 +42,6 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
@@ -940,7 +940,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    */
   public String continueAsNew(
       StartWorkflowExecutionRequest previousRunStartRequest,
-      WorkflowExecutionContinuedAsNewEventAttributes a,
+      ContinueAsNewWorkflowExecutionCommandAttributes a,
+      String newExecutionRunId,
       Optional<TestServiceRetryState> retryState,
       String identity,
       ExecutionId continuedExecutionId,
@@ -959,8 +960,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
-    if (previousRunStartRequest.hasRetryPolicy()) {
-      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    // TODO: Service doesn't perform this copy.
+    // See https://github.com/temporalio/temporal/issues/5249
+    //    if (previousRunStartRequest.hasRetryPolicy()) {
+    //      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    //    }
+    if (a.hasRetryPolicy()) {
+      startRequestBuilder.setRetryPolicy(a.getRetryPolicy());
     }
     if (a.hasInput()) {
       startRequestBuilder.setInput(a.getInput());
@@ -978,7 +984,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
-              a.getNewExecutionRunId(),
+              newExecutionRunId,
               firstExecutionRunId,
               Optional.of(continuedExecutionId.getExecution().getRunId()),
               retryState,

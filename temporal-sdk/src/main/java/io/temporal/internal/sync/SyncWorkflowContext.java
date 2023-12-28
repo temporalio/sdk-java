@@ -34,13 +34,7 @@ import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttribute
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.ActivityType;
-import io.temporal.api.common.v1.Memo;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -1107,6 +1101,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       }
       if (options.getTaskQueue() != null && !options.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()));
+      }
+      if (options.getRetryOptions() != null) {
+        attributes.setRetryPolicy(toRetryPolicy(options.getRetryOptions()));
       }
       Map<String, Object> searchAttributes = options.getSearchAttributes();
       if (searchAttributes != null && !searchAttributes.isEmpty()) {

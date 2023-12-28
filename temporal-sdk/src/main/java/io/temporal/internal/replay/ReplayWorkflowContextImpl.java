@@ -30,6 +30,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.common.RetryOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
@@ -139,6 +140,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public String getTaskQueue() {
     return basicWorkflowContext.getTaskQueue();
+  }
+
+  @Nullable
+  @Override
+  public RetryOptions getRetryOptions() {
+    return basicWorkflowContext.getRetryOptions();
   }
 
   @Override

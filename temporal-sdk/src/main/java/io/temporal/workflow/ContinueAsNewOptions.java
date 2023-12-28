@@ -20,6 +20,7 @@
 
 package io.temporal.workflow;
 
+import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.VersioningIntent;
 import io.temporal.common.context.ContextPropagator;
@@ -56,6 +57,7 @@ public final class ContinueAsNewOptions {
 
     private Duration workflowRunTimeout;
     private String taskQueue;
+    private RetryOptions retryOptions;
     private Duration workflowTaskTimeout;
     private Map<String, Object> memo;
     private Map<String, Object> searchAttributes;
@@ -71,6 +73,7 @@ public final class ContinueAsNewOptions {
       }
       this.workflowRunTimeout = options.workflowRunTimeout;
       this.taskQueue = options.taskQueue;
+      this.retryOptions = options.retryOptions;
       this.workflowTaskTimeout = options.workflowTaskTimeout;
       this.memo = options.getMemo();
       this.searchAttributes = options.getSearchAttributes();
@@ -86,6 +89,11 @@ public final class ContinueAsNewOptions {
 
     public Builder setTaskQueue(String taskQueue) {
       this.taskQueue = taskQueue;
+      return this;
+    }
+
+    public Builder setRetryOptions(RetryOptions retryOptions) {
+      this.retryOptions = retryOptions;
       return this;
     }
 
@@ -143,6 +151,7 @@ public final class ContinueAsNewOptions {
       return new ContinueAsNewOptions(
           workflowRunTimeout,
           taskQueue,
+          retryOptions,
           workflowTaskTimeout,
           memo,
           searchAttributes,
@@ -154,6 +163,7 @@ public final class ContinueAsNewOptions {
 
   private final @Nullable Duration workflowRunTimeout;
   private final @Nullable String taskQueue;
+  private final @Nullable RetryOptions retryOptions;
   private final @Nullable Duration workflowTaskTimeout;
   private final @Nullable Map<String, Object> memo;
   private final @Nullable Map<String, Object> searchAttributes;
@@ -164,6 +174,7 @@ public final class ContinueAsNewOptions {
   public ContinueAsNewOptions(
       @Nullable Duration workflowRunTimeout,
       @Nullable String taskQueue,
+      @Nullable RetryOptions retryOptions,
       @Nullable Duration workflowTaskTimeout,
       @Nullable Map<String, Object> memo,
       @Nullable Map<String, Object> searchAttributes,
@@ -172,6 +183,7 @@ public final class ContinueAsNewOptions {
       @Nullable VersioningIntent versioningIntent) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
+    this.retryOptions = retryOptions;
     this.workflowTaskTimeout = workflowTaskTimeout;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
@@ -186,6 +198,11 @@ public final class ContinueAsNewOptions {
 
   public @Nullable String getTaskQueue() {
     return taskQueue;
+  }
+
+  @Nullable
+  public RetryOptions getRetryOptions() {
+    return retryOptions;
   }
 
   public @Nullable Duration getWorkflowTaskTimeout() {

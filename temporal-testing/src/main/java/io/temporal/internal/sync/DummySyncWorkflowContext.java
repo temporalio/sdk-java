@@ -30,6 +30,7 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.SdkFlag;
@@ -116,6 +117,12 @@ public class DummySyncWorkflowContext {
     @Override
     public String getTaskQueue() {
       return "dummy-task-queue";
+    }
+
+    @Nullable
+    @Override
+    public RetryOptions getRetryOptions() {
+      return null;
     }
 
     @Override

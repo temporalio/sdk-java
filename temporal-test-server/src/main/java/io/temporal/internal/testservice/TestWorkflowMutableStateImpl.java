@@ -212,7 +212,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private StartWorkflowExecutionRequest overrideStartWorkflowExecutionRequest(
       StartWorkflowExecutionRequest r) {
     StartWorkflowExecutionRequest.Builder request =
-        validateStartWorkflowExecutionRequest(r).toBuilder();
+        validateStartWorkflowExecutionRequest(r.toBuilder());
     long executionTimeoutMillis = Durations.toMillis(request.getWorkflowExecutionTimeout());
     if (executionTimeoutMillis == 0) {
       executionTimeoutMillis = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
@@ -248,8 +248,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   /** Based on validateStartWorkflowExecutionRequest from historyEngine.go */
-  private StartWorkflowExecutionRequest validateStartWorkflowExecutionRequest(
-      StartWorkflowExecutionRequest request) {
+  private StartWorkflowExecutionRequest.Builder validateStartWorkflowExecutionRequest(
+      StartWorkflowExecutionRequest.Builder request) {
 
     if (request.getRequestId().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription("Missing request ID.").asRuntimeException();
@@ -276,7 +276,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
     }
     if (request.hasRetryPolicy()) {
-      validateAndOverrideRetryPolicy(request.getRetryPolicy());
+      request.setRetryPolicy(validateAndOverrideRetryPolicy(request.getRetryPolicy()));
     }
     return request;
   }
@@ -1331,8 +1331,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         if (startRequest.hasMemo()) {
           continueAsNewAttr.setMemo(startRequest.getMemo());
         }
-        workflow.action(
-            Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr.build(), workflowTaskCompletedId);
+        ContinueAsNewWorkflowExecutionCommandAttributes coninueAsNewCommand =
+            continueAsNewAttr.build();
+        workflow.action(Action.CONTINUE_AS_NEW, ctx, coninueAsNewCommand, workflowTaskCompletedId);
         workflowTaskStateMachine.getData().workflowCompleted = true;
         HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
@@ -1342,7 +1343,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             Optional.of(rs.getNextAttempt(Optional.of(failure)));
         service.continueAsNew(
             startRequest,
-            continuedAsNewEventAttributes,
+            coninueAsNewCommand,
+            continuedAsNewEventAttributes.getNewExecutionRunId(),
             continuedRetryState,
             identity,
             getExecutionId(),
@@ -1471,7 +1473,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         event.getWorkflowExecutionContinuedAsNewEventAttributes();
     service.continueAsNew(
         startRequest,
-        continuedAsNewEventAttributes,
+        continueAsNewAttr,
+        continuedAsNewEventAttributes.getNewExecutionRunId(),
         Optional.empty(),
         identity,
         getExecutionId(),
@@ -1526,7 +1529,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     service.continueAsNew(
         startRequest,
-        event.getWorkflowExecutionContinuedAsNewEventAttributes(),
+        d,
+        event.getWorkflowExecutionContinuedAsNewEventAttributes().getNewExecutionRunId(),
         workflow.getData().retryState,
         identity,
         getExecutionId(),

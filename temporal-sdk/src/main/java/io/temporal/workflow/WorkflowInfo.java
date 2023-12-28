@@ -21,6 +21,7 @@
 package io.temporal.workflow;
 
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -88,6 +89,9 @@ public interface WorkflowInfo {
    * @return Workflow Task Queue name
    */
   String getTaskQueue();
+
+  @Nullable
+  RetryOptions getRetryOptions();
 
   /**
    * @return Timeout for a Workflow Run specified during Workflow start in {@link
