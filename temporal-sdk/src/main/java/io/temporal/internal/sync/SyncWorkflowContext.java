@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.base.MoreObjects;

@@ -21,7 +21,7 @@
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;

@@ -20,7 +20,7 @@
 
 package io.temporal.internal.common;
 
-import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.api.common.v1.RetryPolicy;
