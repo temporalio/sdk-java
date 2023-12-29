@@ -86,7 +86,7 @@ public class ContinueAsNewTest {
     @Override
     public int execute(int count, String continueAsNewTaskQueue) {
       String taskQueue = Workflow.getInfo().getTaskQueue();
-      if (count == INITIAL_COUNT) {
+      if (count >= INITIAL_COUNT - 2) {
         assertEquals(10, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
       } else {
         assertEquals(5, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
@@ -97,7 +97,12 @@ public class ContinueAsNewTest {
       }
       Map<String, Object> memo = new HashMap<>();
       memo.put("myKey", "MyValue");
-      RetryOptions retryOptions = RetryOptions.newBuilder().setMaximumAttempts(5).build();
+      RetryOptions retryOptions = null;
+      // don't specify retryOptions on the first continue-as-new to test that they are copied from
+      // the previous run.
+      if (count < INITIAL_COUNT - 1) {
+        retryOptions = RetryOptions.newBuilder().setMaximumAttempts(5).build();
+      }
       SearchAttributes searchAttributes =
           SearchAttributes.newBuilder()
               .set(SearchAttributeKey.forKeyword("CustomKeywordField"), "foo1")

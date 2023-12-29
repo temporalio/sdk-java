@@ -150,6 +150,7 @@ final class BasicWorkflowContext {
     return previousRunFailure;
   }
 
+  @Nullable
   public RetryOptions getRetryOptions() {
     if (!startedAttributes.hasRetryPolicy()) {
       return null;
