@@ -1331,6 +1331,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         if (startRequest.hasMemo()) {
           continueAsNewAttr.setMemo(startRequest.getMemo());
         }
+        // TODO
         ContinueAsNewWorkflowExecutionCommandAttributes coninueAsNewCommand =
             continueAsNewAttr.build();
         workflow.action(Action.CONTINUE_AS_NEW, ctx, coninueAsNewCommand, workflowTaskCompletedId);
@@ -1344,7 +1345,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         service.continueAsNew(
             startRequest,
             coninueAsNewCommand,
-            continuedAsNewEventAttributes.getNewExecutionRunId(),
+            continuedAsNewEventAttributes,
             continuedRetryState,
             identity,
             getExecutionId(),
@@ -1465,16 +1466,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setRetryPolicy(startRequest.getRetryPolicy())
             .setLastCompletionResult(lastCompletionResult);
     lastFailure.ifPresent(builder::setFailure);
-    ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr = builder.build();
-    workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, workflowTaskCompletedId);
+    ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewCommandAttr = builder.build();
+    workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewCommandAttr, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
         event.getWorkflowExecutionContinuedAsNewEventAttributes();
     service.continueAsNew(
         startRequest,
-        continueAsNewAttr,
-        continuedAsNewEventAttributes.getNewExecutionRunId(),
+        continueAsNewCommandAttr,
+        continuedAsNewEventAttributes,
         Optional.empty(),
         identity,
         getExecutionId(),
@@ -1530,7 +1531,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     service.continueAsNew(
         startRequest,
         d,
-        event.getWorkflowExecutionContinuedAsNewEventAttributes().getNewExecutionRunId(),
+        event.getWorkflowExecutionContinuedAsNewEventAttributes(),
         workflow.getData().retryState,
         identity,
         getExecutionId(),
