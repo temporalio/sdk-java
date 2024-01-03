@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.base.MoreObjects;
@@ -1108,6 +1108,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       if (options.getTaskQueue() != null && !options.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()));
       }
+      if (options.getRetryOptions() != null) {
+        attributes.setRetryPolicy(toRetryPolicy(options.getRetryOptions()));
+      } else if (replayContext.getRetryOptions() != null) {
+        attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
+      }
       Map<String, Object> searchAttributes = options.getSearchAttributes();
       if (searchAttributes != null && !searchAttributes.isEmpty()) {
         if (options.getTypedSearchAttributes() != null) {
@@ -1132,6 +1137,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
+    } else if (replayContext.getRetryOptions() != null) {
+      // Have to copy retry options as server doesn't copy them.
+      attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
     }
 
     List<ContextPropagator> propagators =

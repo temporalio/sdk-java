@@ -177,11 +177,11 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   }
 
   private Tracer.SpanBuilder createContinueAsNewWorkflowStartSpanBuilder(ContinueAsNewInput input) {
-    WorkflowInfo parentWorkflowInfo = Workflow.getInfo();
+    WorkflowInfo continuedWorkflowInfo = Workflow.getInfo();
     return spanFactory.createContinueAsNewWorkflowStartSpan(
         tracer,
-        MoreObjects.firstNonNull(input.getWorkflowType(), parentWorkflowInfo.getWorkflowType()),
-        parentWorkflowInfo.getWorkflowId(),
-        parentWorkflowInfo.getRunId());
+        MoreObjects.firstNonNull(input.getWorkflowType(), continuedWorkflowInfo.getWorkflowType()),
+        continuedWorkflowInfo.getWorkflowId(),
+        continuedWorkflowInfo.getRunId());
   }
 }

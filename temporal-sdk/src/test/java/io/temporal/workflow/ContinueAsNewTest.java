@@ -22,8 +22,11 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.client.WorkflowOptions;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
+import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
 import java.util.HashMap;
@@ -34,15 +37,23 @@ import org.junit.Test;
 
 public class ContinueAsNewTest {
 
+  public static final int INITIAL_COUNT = 4;
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestContinueAsNewImpl.class).build();
 
   @Test
   public void testContinueAsNew() {
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+    options =
+        WorkflowOptions.newBuilder(options)
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(10).build())
+            .build();
     TestContinueAsNew client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestContinueAsNew.class);
-    int result = client.execute(4, testWorkflowRule.getTaskQueue());
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestContinueAsNew.class, options);
+    int result = client.execute(INITIAL_COUNT, testWorkflowRule.getTaskQueue());
     Assert.assertEquals(111, result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
@@ -75,12 +86,30 @@ public class ContinueAsNewTest {
     @Override
     public int execute(int count, String continueAsNewTaskQueue) {
       String taskQueue = Workflow.getInfo().getTaskQueue();
+      if (count >= INITIAL_COUNT - 2) {
+        assertEquals(10, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
+      } else {
+        assertEquals(5, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
+      }
       if (count == 0) {
         assertEquals(continueAsNewTaskQueue, taskQueue);
         return 111;
       }
       Map<String, Object> memo = new HashMap<>();
       memo.put("myKey", "MyValue");
+      RetryOptions retryOptions = null;
+      // don't specify ContinueAsNewOptions on the first continue-as-new to test that RetryOptions
+      // are copied from the previous run.
+      if (count == INITIAL_COUNT) {
+        TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class);
+        next.execute(count - 1, continueAsNewTaskQueue);
+        throw new RuntimeException("unreachable");
+      }
+      // don't specify RetryOptions on the second continue-as-new to test that they are copied from
+      // the previous run.
+      if (count < INITIAL_COUNT - 1) {
+        retryOptions = RetryOptions.newBuilder().setMaximumAttempts(5).build();
+      }
       SearchAttributes searchAttributes =
           SearchAttributes.newBuilder()
               .set(SearchAttributeKey.forKeyword("CustomKeywordField"), "foo1")
@@ -88,6 +117,7 @@ public class ContinueAsNewTest {
       ContinueAsNewOptions options =
           ContinueAsNewOptions.newBuilder()
               .setTaskQueue(continueAsNewTaskQueue)
+              .setRetryOptions(retryOptions)
               .setMemo(memo)
               .setTypedSearchAttributes(searchAttributes)
               .build();

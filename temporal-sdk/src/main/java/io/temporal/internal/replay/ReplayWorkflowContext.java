@@ -26,6 +26,7 @@ import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttribut
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.statemachines.ExecuteActivityParameters;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
@@ -116,6 +117,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   /** Workflow task queue name. */
   String getTaskQueue();
+
+  @Nullable
+  RetryOptions getRetryOptions();
 
   /** Workflow namespace. */
   String getNamespace();

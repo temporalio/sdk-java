@@ -27,6 +27,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -94,5 +95,22 @@ public class RetryOptionsUtils {
             .toArray(new String[retryPolicy.getNonRetryableErrorTypesCount()]));
 
     return roBuilder.validateBuildWithDefaults();
+  }
+
+  public static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
+    RetryPolicy.Builder builder =
+        RetryPolicy.newBuilder()
+            .setInitialInterval(
+                ProtobufTimeUtils.toProtoDuration(retryOptions.getInitialInterval()))
+            .setMaximumInterval(
+                ProtobufTimeUtils.toProtoDuration(retryOptions.getMaximumInterval()))
+            .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+            .setMaximumAttempts(retryOptions.getMaximumAttempts());
+
+    if (retryOptions.getDoNotRetry() != null) {
+      builder = builder.addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
+    }
+
+    return builder;
   }
 }

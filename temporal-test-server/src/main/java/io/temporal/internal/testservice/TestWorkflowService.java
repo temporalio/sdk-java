@@ -30,6 +30,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
@@ -940,7 +941,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    */
   public String continueAsNew(
       StartWorkflowExecutionRequest previousRunStartRequest,
-      WorkflowExecutionContinuedAsNewEventAttributes a,
+      ContinueAsNewWorkflowExecutionCommandAttributes ca,
+      WorkflowExecutionContinuedAsNewEventAttributes ea,
       Optional<TestServiceRetryState> retryState,
       String identity,
       ExecutionId continuedExecutionId,
@@ -950,40 +952,45 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
         StartWorkflowExecutionRequest.newBuilder()
             .setRequestId(UUID.randomUUID().toString())
-            .setWorkflowType(a.getWorkflowType())
-            .setWorkflowRunTimeout(a.getWorkflowRunTimeout())
-            .setWorkflowTaskTimeout(a.getWorkflowTaskTimeout())
+            .setWorkflowType(ea.getWorkflowType())
+            .setWorkflowRunTimeout(ea.getWorkflowRunTimeout())
+            .setWorkflowTaskTimeout(ea.getWorkflowTaskTimeout())
             .setNamespace(continuedExecutionId.getNamespace())
-            .setTaskQueue(a.getTaskQueue())
+            .setTaskQueue(ea.getTaskQueue())
             .setWorkflowId(continuedExecutionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
-    if (previousRunStartRequest.hasRetryPolicy()) {
-      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    // TODO: Service doesn't perform this copy.
+    // See https://github.com/temporalio/temporal/issues/5249
+    //    if (previousRunStartRequest.hasRetryPolicy()) {
+    //      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    //    }
+    if (ca.hasRetryPolicy()) {
+      startRequestBuilder.setRetryPolicy(ca.getRetryPolicy());
     }
-    if (a.hasInput()) {
-      startRequestBuilder.setInput(a.getInput());
+    if (ea.hasInput()) {
+      startRequestBuilder.setInput(ea.getInput());
     }
-    if (a.hasHeader()) {
-      startRequestBuilder.setHeader(a.getHeader());
+    if (ea.hasHeader()) {
+      startRequestBuilder.setHeader(ea.getHeader());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
     Optional<Failure> lastFail =
-        a.hasFailure()
-            ? Optional.of(a.getFailure())
+        ea.hasFailure()
+            ? Optional.of(ea.getFailure())
             : retryState.flatMap(TestServiceRetryState::getPreviousRunFailure);
     try {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
-              a.getNewExecutionRunId(),
+              ea.getNewExecutionRunId(),
               firstExecutionRunId,
               Optional.of(continuedExecutionId.getExecution().getRunId()),
               retryState,
-              ProtobufTimeUtils.toJavaDuration(a.getBackoffStartInterval()),
-              a.getLastCompletionResult(),
+              ProtobufTimeUtils.toJavaDuration(ea.getBackoffStartInterval()),
+              ea.getLastCompletionResult(),
               lastFail,
               parent,
               parentChildInitiatedEventId,

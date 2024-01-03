@@ -20,11 +20,14 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryOptions;
+
 import com.google.common.base.Preconditions;
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import java.util.Map;
@@ -145,5 +148,13 @@ final class BasicWorkflowContext {
   @Nullable
   public Failure getPreviousRunFailure() {
     return previousRunFailure;
+  }
+
+  @Nullable
+  public RetryOptions getRetryOptions() {
+    if (!startedAttributes.hasRetryPolicy()) {
+      return null;
+    }
+    return toRetryOptions(startedAttributes.getRetryPolicy());
   }
 }
