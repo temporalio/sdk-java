@@ -98,7 +98,14 @@ public class ContinueAsNewTest {
       Map<String, Object> memo = new HashMap<>();
       memo.put("myKey", "MyValue");
       RetryOptions retryOptions = null;
-      // don't specify retryOptions on the first continue-as-new to test that they are copied from
+      // don't specify ContinueAsNewOptions on the first continue-as-new to test that RetryOptions
+      // are copied from the previous run.
+      if (count == INITIAL_COUNT) {
+        TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class);
+        next.execute(count - 1, continueAsNewTaskQueue);
+        throw new RuntimeException("unreachable");
+      }
+      // don't specify RetryOptions on the second continue-as-new to test that they are copied from
       // the previous run.
       if (count < INITIAL_COUNT - 1) {
         retryOptions = RetryOptions.newBuilder().setMaximumAttempts(5).build();

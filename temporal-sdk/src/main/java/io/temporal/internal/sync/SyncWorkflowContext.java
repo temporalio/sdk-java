@@ -1137,6 +1137,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
+    } else if (replayContext.getRetryOptions() != null) {
+      // Have to copy retry options as server doesn't copy them.
+      attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
     }
 
     List<ContextPropagator> propagators =
