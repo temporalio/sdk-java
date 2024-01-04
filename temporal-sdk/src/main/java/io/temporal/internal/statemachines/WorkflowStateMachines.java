@@ -49,6 +49,7 @@ import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import javax.annotation.Nullable;
 
 public final class WorkflowStateMachines {
 
@@ -80,6 +81,9 @@ public final class WorkflowStateMachines {
 
   /** EventId of the last WorkflowTaskStarted event handled by these state machines. */
   private long currentStartedEventId;
+
+  /** The Build ID used in the current WFT if already completed and set (may be null) */
+  private String currentTaskBuildId;
 
   private long historySize;
 
@@ -222,6 +226,11 @@ public final class WorkflowStateMachines {
     return historySize;
   }
 
+  @Nullable
+  public String getCurrentTaskBuildId() {
+    return currentTaskBuildId;
+  }
+
   public boolean isContinueAsNewSuggested() {
     return isContinueAsNewSuggested;
   }
@@ -329,6 +338,10 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
         WorkflowTaskCompletedEventAttributes completedEvent =
             event.getWorkflowTaskCompletedEventAttributes();
+        String maybeBuildId = completedEvent.getWorkerVersion().getBuildId();
+        if (!maybeBuildId.isEmpty()) {
+          currentTaskBuildId = maybeBuildId;
+        }
         for (Integer flag : completedEvent.getSdkMetadata().getLangUsedFlagsList()) {
           SdkFlag sdkFlag = SdkFlag.getValue(flag);
           if (sdkFlag.equals(SdkFlag.UNKNOWN)) {

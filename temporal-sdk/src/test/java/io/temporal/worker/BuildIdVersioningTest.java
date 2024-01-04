@@ -27,15 +27,15 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.client.BuildIdOperation;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.WorkflowQueue;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.UUID;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -120,6 +120,62 @@ public class BuildIdVersioningTest {
     w2F.shutdown();
   }
 
+  private static final Signal ACTIVITY_RAN = new Signal();
+
+  @Test
+  public void testCurrentBuildIDSetProperly() throws InterruptedException {
+    assumeTrue(
+        "Test Server doesn't support versioning yet", SDKTestWorkflowRule.useExternalService);
+
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    // Add 1.0 to the queue
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newIdInNewDefaultSet("1.0"));
+
+    // Now start the worker (to avoid poll timeout while queue is unversioned)
+    testWorkflowRule.getTestEnvironment().start();
+
+    // Start a workflow
+    String workflowId = "build-id-versioning-1.0-" + UUID.randomUUID();
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(taskQueue).toBuilder()
+            .setWorkflowId(workflowId)
+            .build();
+    TestWorkflows.QueryableWorkflow wf1 =
+        workflowClient.newWorkflowStub(TestWorkflows.QueryableWorkflow.class, options);
+    WorkflowClient.start(wf1::execute);
+
+    Assert.assertEquals("1.0", wf1.getState());
+
+    // Wait for activity to run
+    ACTIVITY_RAN.waitForSignal();
+    Assert.assertEquals("1.0", wf1.getState());
+    testWorkflowRule.getTestEnvironment().shutdown();
+
+    // Add 1.1 to the queue
+    workflowClient.updateWorkerBuildIdCompatability(
+        taskQueue, BuildIdOperation.newCompatibleVersion("1.1", "1.0"));
+
+    WorkerFactory w11F =
+        WorkerFactory.newInstance(workflowClient, testWorkflowRule.getWorkerFactoryOptions());
+    Worker w11 =
+        w11F.newWorker(
+            taskQueue,
+            WorkerOptions.newBuilder().setBuildId("1.1").setUseBuildIdForVersioning(true).build());
+    w11.registerWorkflowImplementationTypes(BuildIdVersioningTest.TestVersioningWorkflowImpl.class);
+    w11.registerActivitiesImplementations(new BuildIdVersioningTest.ActivityImpl());
+    w11F.start();
+
+    Assert.assertEquals("1.0", wf1.getState());
+    wf1.mySignal("finish");
+
+    Assert.assertEquals("1.1", wf1.getState());
+
+    w11F.shutdown();
+  }
+
   public static class TestVersioningWorkflowImpl implements TestWorkflows.QueryableWorkflow {
     WorkflowQueue<String> sigQueue = Workflow.newWorkflowQueue(1);
     private final TestActivities.TestActivity1 activity =
@@ -154,6 +210,35 @@ public class BuildIdVersioningTest {
     @Override
     public String execute(String input) {
       return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
+    }
+  }
+
+  public static class TestCurrentBuildIdWorkflow implements TestWorkflows.QueryableWorkflow {
+    private final TestActivities.TestActivity1 activity =
+        Workflow.newActivityStub(
+            TestActivities.TestActivity1.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(10)).build());
+    private boolean doFinish = false;
+
+    @WorkflowMethod
+    public String execute() {
+      Workflow.sleep(1);
+      if (Workflow.getInfo().getCurrentBuildId().orElse("").equals("1.0")) {
+        activity.execute("foo");
+        ACTIVITY_RAN.signal();
+      }
+      Workflow.await(() -> doFinish);
+      return "Yay done";
+    }
+
+    @Override
+    public void mySignal(String arg) {
+      doFinish = true;
+    }
+
+    @Override
+    public String getState() {
+      return Workflow.getInfo().getCurrentBuildId().orElse("");
     }
   }
 }

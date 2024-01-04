@@ -254,6 +254,18 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public Optional<String> getCurrentBuildId() {
+    String curTaskBID = workflowStateMachines.getCurrentTaskBuildId();
+    // The current task started id == 0 check is to avoid setting the build id to this worker's ID
+    // in the
+    // event we're servicing a query, in which case we do want to use the ID from history.
+    if (!workflowStateMachines.isReplaying() && getCurrentWorkflowTaskStartedEventId() != 0) {
+      curTaskBID = workerOptions.getBuildId();
+    }
+    return Optional.ofNullable(curTaskBID);
+  }
+
+  @Override
   public Functions.Proc1<RuntimeException> newTimer(
       Duration delay, Functions.Proc1<RuntimeException> callback) {
     if (delay.compareTo(Duration.ZERO) <= 0) {

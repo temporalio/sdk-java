@@ -151,6 +151,11 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  public Optional<String> getCurrentBuildId() {
+    return context.getCurrentBuildId();
+  }
+
+  @Override
   public String toString() {
     return "WorkflowInfo{"
         + "namespace="
