@@ -18,22 +18,16 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.kotlin.interceptors
 
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.Functions;
+import io.temporal.common.interceptors.ActivityInboundCallsInterceptor
 
-public interface ReplayWorkflowFactory {
-  ReplayWorkflow getWorkflow(WorkflowType workflowType, WorkflowExecution workflowExecution)
-      throws Exception;
+class WorkerInterceptorBase : KotlinWorkerInterceptor {
+  override fun interceptWorkflow(next: WorkflowInboundCallsInterceptor): WorkflowInboundCallsInterceptor {
+    return next
+  }
 
-  boolean isAnyTypeSupported();
-
-  void registerWorkflowImplementationTypes(
-      WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes);
-
-  <R> void addWorkflowImplementationFactory(
-      WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory);
+  override fun interceptActivity(next: ActivityInboundCallsInterceptor): ActivityInboundCallsInterceptor {
+    return next
+  }
 }

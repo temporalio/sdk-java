@@ -21,8 +21,8 @@
 package io.temporal.internal.client;
 
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
+import io.temporal.worker.BaseWorkerFactory;
 import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import javax.annotation.Nullable;
 
@@ -36,7 +36,7 @@ class EagerWorkflowTaskDispatcher {
   @Nullable
   public WorkflowTaskDispatchHandle tryGetLocalDispatchHandler(
       WorkflowClientCallsInterceptor.WorkflowStartInput workflowStartInput) {
-    for (WorkerFactory workerFactory : workerFactories.workerFactoriesRandomOrder()) {
+    for (BaseWorkerFactory workerFactory : workerFactories.workerFactoriesRandomOrder()) {
       Worker worker = workerFactory.tryGetWorker(workflowStartInput.getOptions().getTaskQueue());
       if (worker != null) {
         WorkflowTaskDispatchHandle workflowTaskDispatchHandle = worker.reserveWorkflowExecutor();

@@ -31,8 +31,8 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.SyncActivityWorker;
 import io.temporal.internal.worker.SyncWorkflowWorker;
@@ -75,7 +75,7 @@ public final class Worker {
    *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @param useStickyTaskQueue if sticky task queue should be used
-   * @param workflowThreadExecutor workflow methods thread executor
+   * @param workflowFactory factory that creates workflow implementations
    */
   Worker(
       WorkflowClient client,
@@ -86,15 +86,14 @@ public final class Worker {
       @Nonnull WorkflowRunLockManager runLocks,
       @Nonnull WorkflowExecutorCache cache,
       boolean useStickyTaskQueue,
-      WorkflowThreadExecutor workflowThreadExecutor,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      ReplayWorkflowFactory workflowFactory) {
 
     Objects.requireNonNull(client, "client should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
-    this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
-    factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
+    this.options = options;
     WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
@@ -142,8 +141,8 @@ public final class Worker {
             runLocks,
             cache,
             useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
-            workflowThreadExecutor,
-            eagerActivityDispatcher);
+            eagerActivityDispatcher,
+            workflowFactory);
   }
 
   /**

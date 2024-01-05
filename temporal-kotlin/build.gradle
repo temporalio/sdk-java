@@ -21,7 +21,8 @@ dependencies {
     // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
     compileOnly project(':temporal-sdk')
 
-    implementation "org.jetbrains.kotlin:kotlin-reflect"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:1.8.20"
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"

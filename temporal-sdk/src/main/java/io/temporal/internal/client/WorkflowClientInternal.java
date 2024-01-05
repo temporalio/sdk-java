@@ -21,7 +21,7 @@
 package io.temporal.internal.client;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.BaseWorkerFactory;
 
 /**
  * From OOP point of view, there is no reason for this interface not to extend {@link
@@ -32,7 +32,7 @@ import io.temporal.worker.WorkerFactory;
  * {@link WorkflowClient#getInternal()} is used only for internal functionality.
  */
 public interface WorkflowClientInternal {
-  void registerWorkerFactory(WorkerFactory workerFactory);
+  void registerWorkerFactory(BaseWorkerFactory workerFactory);
 
-  void deregisterWorkerFactory(WorkerFactory workerFactory);
+  void deregisterWorkerFactory(BaseWorkerFactory workerFactory);
 }

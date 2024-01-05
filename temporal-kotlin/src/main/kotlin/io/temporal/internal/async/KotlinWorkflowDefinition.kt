@@ -18,22 +18,15 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.internal.async
 
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.Functions;
+import io.temporal.api.common.v1.Payloads
+import io.temporal.common.interceptors.Header
 
-public interface ReplayWorkflowFactory {
-  ReplayWorkflow getWorkflow(WorkflowType workflowType, WorkflowExecution workflowExecution)
-      throws Exception;
+interface KotlinWorkflowDefinition {
 
-  boolean isAnyTypeSupported();
+  /** Always called first.  */
+  suspend fun initialize()
 
-  void registerWorkflowImplementationTypes(
-      WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes);
-
-  <R> void addWorkflowImplementationFactory(
-      WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory);
+  suspend fun execute(header: Header?, input: Payloads?): Payloads?
 }

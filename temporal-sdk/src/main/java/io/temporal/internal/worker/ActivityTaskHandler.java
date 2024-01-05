@@ -113,6 +113,8 @@ public interface ActivityTaskHandler {
     }
   }
 
+  void registerActivityImplementations(Object[] activitiesImplementation);
+
   /**
    * The implementation should be called when a polling activity worker receives a new activity
    * task. This method shouldn't throw any Throwables unless there is a need to not reply to the

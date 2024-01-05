@@ -46,7 +46,7 @@ import io.temporal.internal.client.external.ManualActivityCompletionClientFactor
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.BaseWorkerFactory;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
@@ -557,12 +557,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
-  public void registerWorkerFactory(WorkerFactory workerFactory) {
+  public void registerWorkerFactory(BaseWorkerFactory workerFactory) {
     workerFactoryRegistry.register(workerFactory);
   }
 
   @Override
-  public void deregisterWorkerFactory(WorkerFactory workerFactory) {
+  public void deregisterWorkerFactory(BaseWorkerFactory workerFactory) {
     workerFactoryRegistry.deregister(workerFactory);
   }
 }

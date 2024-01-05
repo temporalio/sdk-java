@@ -18,22 +18,21 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.workflow
 
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.Functions;
+import io.temporal.activity.ActivityOptions
+import io.temporal.internal.async.KotlinActivityStub
+import io.temporal.internal.async.KotlinWorkflowInternal
 
-public interface ReplayWorkflowFactory {
-  ReplayWorkflow getWorkflow(WorkflowType workflowType, WorkflowExecution workflowExecution)
-      throws Exception;
-
-  boolean isAnyTypeSupported();
-
-  void registerWorkflowImplementationTypes(
-      WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes);
-
-  <R> void addWorkflowImplementationFactory(
-      WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory);
+class KotlinWorkflow {
+  companion object {
+    /**
+     * Creates non typed client stub to activities. Allows executing activities by their string name.
+     *
+     * @param options specify the activity invocation parameters.
+     */
+    suspend fun newUntypedActivityStub(options: ActivityOptions?): KotlinActivityStub {
+      return KotlinWorkflowInternal.newUntypedActivityStub(options)
+    }
+  }
 }

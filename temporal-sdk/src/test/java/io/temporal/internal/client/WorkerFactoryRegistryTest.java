@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 import io.temporal.client.WorkflowClient;
+import io.temporal.worker.BaseWorkerFactory;
 import io.temporal.worker.WorkerFactory;
 import java.util.Iterator;
 import org.junit.Test;
@@ -53,11 +54,12 @@ public class WorkerFactoryRegistryTest {
     int thirdFactoryFirst = 0;
 
     for (int i = 0; i < TOTAL_COUNT; i++) {
-      Iterable<WorkerFactory> workerFactories = workerFactoryRegistry.workerFactoriesRandomOrder();
-      Iterator<WorkerFactory> iterator = workerFactories.iterator();
-      WorkerFactory first = iterator.next();
-      WorkerFactory second = iterator.next();
-      WorkerFactory third = iterator.next();
+      Iterable<BaseWorkerFactory> workerFactories =
+          workerFactoryRegistry.workerFactoriesRandomOrder();
+      Iterator<BaseWorkerFactory> iterator = workerFactories.iterator();
+      BaseWorkerFactory first = iterator.next();
+      BaseWorkerFactory second = iterator.next();
+      BaseWorkerFactory third = iterator.next();
 
       assertFalse(iterator.hasNext());
       assertNotEquals(first, second);
