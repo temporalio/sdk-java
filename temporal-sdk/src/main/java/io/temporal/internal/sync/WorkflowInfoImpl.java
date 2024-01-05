@@ -137,7 +137,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
 
   @Override
   public long getHistoryLength() {
-    return context.getCurrentWorkflowTaskStartedEventId();
+    return context.getLastWorkflowTaskStartedEventId();
   }
 
   @Override
@@ -148,6 +148,11 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   @Override
   public boolean isContinueAsNewSuggested() {
     return context.isContinueAsNewSuggested();
+  }
+
+  @Override
+  public Optional<String> getCurrentBuildId() {
+    return context.getCurrentBuildId();
   }
 
   @Override

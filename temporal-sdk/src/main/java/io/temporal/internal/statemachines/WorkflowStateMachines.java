@@ -49,6 +49,7 @@ import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import javax.annotation.Nullable;
 
 public final class WorkflowStateMachines {
 
@@ -79,7 +80,10 @@ public final class WorkflowStateMachines {
   private long workflowTaskStartedEventId;
 
   /** EventId of the last WorkflowTaskStarted event handled by these state machines. */
-  private long currentStartedEventId;
+  private long lastWFTStartedEventId;
+
+  /** The Build ID used in the current WFT if already completed and set (may be null) */
+  private String currentTaskBuildId;
 
   private long historySize;
 
@@ -201,25 +205,34 @@ public final class WorkflowStateMachines {
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
   }
 
-  public void setCurrentStartedEventId(long eventId) {
+  public void setLastWFTStartedEventId(long eventId) {
     // We have to drop any state machines (which should only be one workflow task machine)
     // created when handling the speculative workflow task
     for (long i = this.lastHandledEventId; i > eventId; i--) {
       stateMachines.remove(i);
     }
-    this.currentStartedEventId = eventId;
+    this.lastWFTStartedEventId = eventId;
     // When we reset the event ID on a speculative WFT we need to move this counter back
     // to the last WFT completed to allow new tasks to be processed. Assume the WFT complete
     // always follows the WFT started.
     this.lastHandledEventId = eventId + 1;
   }
 
-  public long getCurrentStartedEventId() {
-    return currentStartedEventId;
+  public long getLastWFTStartedEventId() {
+    return lastWFTStartedEventId;
+  }
+
+  public long getCurrentWFTStartedEventId() {
+    return workflowTaskStartedEventId;
   }
 
   public long getHistorySize() {
     return historySize;
+  }
+
+  @Nullable
+  public String getCurrentTaskBuildId() {
+    return currentTaskBuildId;
   }
 
   public boolean isContinueAsNewSuggested() {
@@ -329,6 +342,10 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
         WorkflowTaskCompletedEventAttributes completedEvent =
             event.getWorkflowTaskCompletedEventAttributes();
+        String maybeBuildId = completedEvent.getWorkerVersion().getBuildId();
+        if (!maybeBuildId.isEmpty()) {
+          currentTaskBuildId = maybeBuildId;
+        }
         for (Integer flag : completedEvent.getSdkMetadata().getLangUsedFlagsList()) {
           SdkFlag sdkFlag = SdkFlag.getValue(flag);
           if (sdkFlag.equals(SdkFlag.UNKNOWN)) {
@@ -703,7 +720,7 @@ public final class WorkflowStateMachines {
   }
 
   public long getLastStartedEventId() {
-    return currentStartedEventId;
+    return lastWFTStartedEventId;
   }
 
   /**
@@ -1164,7 +1181,7 @@ public final class WorkflowStateMachines {
           value.nonReplayWorkflowTaskStarted();
         }
       }
-      WorkflowStateMachines.this.currentStartedEventId = startedEventId;
+      WorkflowStateMachines.this.lastWFTStartedEventId = startedEventId;
       WorkflowStateMachines.this.historySize = historySize;
       WorkflowStateMachines.this.isContinueAsNewSuggested = isContinueAsNewSuggested;
 
@@ -1282,6 +1299,6 @@ public final class WorkflowStateMachines {
   private String createShortCurrentStateMessagePostfix() {
     return String.format(
         "{WorkflowTaskStartedEventId=%s, CurrentStartedEventId=%s}",
-        this.workflowTaskStartedEventId, this.currentStartedEventId);
+        this.workflowTaskStartedEventId, this.lastWFTStartedEventId);
   }
 }

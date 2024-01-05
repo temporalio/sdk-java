@@ -320,6 +320,11 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public Optional<String> getCurrentBuildId() {
+      return Optional.empty();
+    }
+
+    @Override
     public int getAttempt() {
       return 1;
     }
@@ -353,7 +358,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public long getCurrentWorkflowTaskStartedEventId() {
+    public long getLastWorkflowTaskStartedEventId() {
       return 0;
     }
 
