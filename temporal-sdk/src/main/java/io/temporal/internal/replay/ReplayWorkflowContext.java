@@ -338,7 +338,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /**
    * @return eventId of the last / currently active workflow task of this workflow
    */
-  long getCurrentWorkflowTaskStartedEventId();
+  long getLastWorkflowTaskStartedEventId();
 
   /**
    * @return size of Workflow history in bytes up until the current moment of execution. This value

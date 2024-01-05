@@ -137,7 +137,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
 
   @Override
   public long getHistoryLength() {
-    return context.getCurrentWorkflowTaskStartedEventId();
+    return context.getLastWorkflowTaskStartedEventId();
   }
 
   @Override

@@ -150,7 +150,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
               TimeUnit.NANOSECONDS);
 
       if (workflowTask.getPreviousStartedEventId()
-          < workflowStateMachines.getCurrentStartedEventId()) {
+          < workflowStateMachines.getLastWFTStartedEventId()) {
         // if previousStartedEventId < currentStartedEventId - the last workflow task handled by
         // these state machines is ahead of the last handled workflow task known by the server.
         // Something is off, the server lost progress.
@@ -219,7 +219,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   @Override
   public void setCurrentStartedEvenId(Long eventId) {
-    workflowStateMachines.setCurrentStartedEventId(eventId);
+    workflowStateMachines.setLastWFTStartedEventId(eventId);
   }
 
   private void handleWorkflowTaskImpl(

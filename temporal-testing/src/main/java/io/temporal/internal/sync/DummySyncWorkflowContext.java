@@ -358,7 +358,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public long getCurrentWorkflowTaskStartedEventId() {
+    public long getLastWorkflowTaskStartedEventId() {
       return 0;
     }
 

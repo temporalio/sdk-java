@@ -24,6 +24,7 @@ import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.BuildIdOperation;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -45,7 +46,6 @@ public class BuildIdVersioningTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(
               WorkerOptions.newBuilder().setBuildId("1.0").setUseBuildIdForVersioning(true).build())
-          .setWorkflowTypes(BuildIdVersioningTest.TestVersioningWorkflowImpl.class)
           .setActivityImplementations(new BuildIdVersioningTest.ActivityImpl())
           .setDoNotStart(true)
           .build();
@@ -57,6 +57,10 @@ public class BuildIdVersioningTest {
 
     String taskQueue = testWorkflowRule.getTaskQueue();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    testWorkflowRule
+        .getWorker()
+        .registerWorkflowImplementationTypes(
+            BuildIdVersioningTest.TestVersioningWorkflowImpl.class);
 
     // Add 1.0 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
@@ -129,6 +133,10 @@ public class BuildIdVersioningTest {
 
     String taskQueue = testWorkflowRule.getTaskQueue();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    testWorkflowRule
+        .getWorker()
+        .registerWorkflowImplementationTypes(
+            BuildIdVersioningTest.TestCurrentBuildIdWorkflow.class);
 
     // Add 1.0 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
@@ -152,7 +160,16 @@ public class BuildIdVersioningTest {
     // Wait for activity to run
     ACTIVITY_RAN.waitForSignal();
     Assert.assertEquals("1.0", wf1.getState());
+
     testWorkflowRule.getTestEnvironment().shutdown();
+    workflowClient
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .resetStickyTaskQueue(
+            io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest.newBuilder()
+                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).build())
+                .build());
 
     // Add 1.1 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
@@ -164,7 +181,7 @@ public class BuildIdVersioningTest {
         w11F.newWorker(
             taskQueue,
             WorkerOptions.newBuilder().setBuildId("1.1").setUseBuildIdForVersioning(true).build());
-    w11.registerWorkflowImplementationTypes(BuildIdVersioningTest.TestVersioningWorkflowImpl.class);
+    w11.registerWorkflowImplementationTypes(BuildIdVersioningTest.TestCurrentBuildIdWorkflow.class);
     w11.registerActivitiesImplementations(new BuildIdVersioningTest.ActivityImpl());
     w11F.start();
 
@@ -219,16 +236,25 @@ public class BuildIdVersioningTest {
             TestActivities.TestActivity1.class,
             ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(10)).build());
     private boolean doFinish = false;
+    private String lastBuildId;
 
     @WorkflowMethod
     public String execute() {
+      updateBuildId();
       Workflow.sleep(1);
+      updateBuildId();
       if (Workflow.getInfo().getCurrentBuildId().orElse("").equals("1.0")) {
         activity.execute("foo");
+        updateBuildId();
         ACTIVITY_RAN.signal();
       }
       Workflow.await(() -> doFinish);
+      updateBuildId();
       return "Yay done";
+    }
+
+    private void updateBuildId() {
+      lastBuildId = Workflow.getInfo().getCurrentBuildId().orElse("");
     }
 
     @Override
@@ -238,7 +264,8 @@ public class BuildIdVersioningTest {
 
     @Override
     public String getState() {
-      return Workflow.getInfo().getCurrentBuildId().orElse("");
+      // Workflow.getInfo isn't accessible in queries, so we do this
+      return lastBuildId;
     }
   }
 }
