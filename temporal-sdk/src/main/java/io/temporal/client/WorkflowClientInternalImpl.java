@@ -47,10 +47,7 @@ import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkerFactory;
-import io.temporal.workflow.Functions;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -175,7 +172,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Override
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
-    checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class, SignalMethod.class);
+    checkAnnotation(
+        workflowInterface,
+        WorkflowMethod.class,
+        QueryMethod.class,
+        SignalMethod.class,
+        UpdateMethod.class);
     if (Strings.isNullOrEmpty(workflowId)) {
       throw new IllegalArgumentException("workflowId is null or empty");
     }
