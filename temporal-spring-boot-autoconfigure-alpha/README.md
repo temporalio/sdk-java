@@ -119,7 +119,7 @@ spring.temporal:
     # workflow-cache:
       # max-instances: 600
       # max-threads: 600
-    # start-workers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
+    # startWorkers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
 ```
 </details>
 
@@ -235,4 +235,8 @@ public class Test {
 }
 ```
 
-
+If you wish to mock a child workflow you may need to:
+- exclude its package from the auto discovery configuration
+- disallow the workers from automatically starting on the test startup by setting `spring.temporal.startWorkers` to `false`.
+- in your test, you can register the mock instance to the worker the same as you would do it regularly: `worker.registerWorkflowImplementationFactory(IChildWorkflow.class, () -> mockChildWorkflowInstance);`
+- then start the workers
