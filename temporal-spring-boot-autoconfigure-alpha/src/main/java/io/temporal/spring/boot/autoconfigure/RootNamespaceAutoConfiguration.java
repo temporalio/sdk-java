@@ -152,7 +152,7 @@ public class RootNamespaceAutoConfiguration {
     return workers;
   }
 
-  @ConditionalOnProperty(prefix = "spring.temporal", name = "startWorkers", matchIfMissing = true)
+  @ConditionalOnProperty(prefix = "spring.temporal", name = "start-workers", matchIfMissing = true)
   @Conditional(WorkersPresentCondition.class)
   @Bean
   public WorkerFactoryStarter workerFactoryStarter(WorkerFactory workerFactory) {
