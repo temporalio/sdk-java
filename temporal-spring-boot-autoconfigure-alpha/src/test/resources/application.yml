@@ -99,3 +99,14 @@ spring:
       max-instances: 10
       max-threads: 10
 
+---
+spring:
+  config:
+    activate:
+      on-profile: disable-start-workers
+  temporal:
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.bytaskqueue
+    start-workers: false
+
