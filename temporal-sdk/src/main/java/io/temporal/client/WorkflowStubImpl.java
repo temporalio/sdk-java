@@ -304,7 +304,10 @@ class WorkflowStubImpl implements WorkflowStub {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } catch (ExecutionException e) {
-      throw new RuntimeException(e);
+      Throwable cause = e.getCause();
+      throw (cause instanceof RuntimeException
+          ? (RuntimeException) cause
+          : new RuntimeException(cause));
     }
   }
 
