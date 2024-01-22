@@ -50,7 +50,7 @@ public class PotentialDeadlockException extends RuntimeException {
   PotentialDeadlockException(
       String threadName, WorkflowThreadContext workflowThreadContext, long detectionTimestamp) {
     super(
-        "Potential deadlock detected. Workflow thread \""
+        "[TMPRL1101] Potential deadlock detected. Workflow thread \""
             + threadName
             + "\" didn't yield control for over a second.");
     this.workflowThreadContext = workflowThreadContext;
