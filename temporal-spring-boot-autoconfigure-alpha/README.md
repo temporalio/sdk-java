@@ -18,6 +18,7 @@ The following configuration connects to a locally started Temporal Server
 spring.temporal:
   connection:
     target: local # you can specify a host:port here for a remote connection
+    # specifying local is equivalent to WorkflowServiceStubs.newLocalServiceStubs() so all other connection options are ignored. 
     # enable-https: true
   # namespace: default # you can specify a custom namespace that you are using
 ```
