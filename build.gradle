@@ -45,7 +45,7 @@ ext {
     // Which leads to build failure because of -Werror.
     protoVersion = '3.22.0'
     annotationApiVersion = '1.3.2'
-    guavaVersion = '31.1-jre' // [10.0,)
+    guavaVersion = '32.0.1-jre' // [10.0,)
     tallyVersion = '0.13.0' // [0.4.0,)
 
     gsonVersion = '2.10.1' // [2.0,)
