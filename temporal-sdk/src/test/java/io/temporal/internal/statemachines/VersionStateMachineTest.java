@@ -1315,7 +1315,8 @@ public class VersionStateMachineTest {
             e.getCause()
                 .getCause()
                 .getMessage()
-                .startsWith("getVersion call before the existing version marker event."));
+                .startsWith(
+                    "[TMPRL1100] getVersion call before the existing version marker event."));
       }
     }
   }

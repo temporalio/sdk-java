@@ -32,10 +32,10 @@ package io.temporal.worker;
  */
 public class NonDeterministicException extends IllegalStateException {
   public NonDeterministicException(String message, Throwable cause) {
-    super(message, cause);
+    super("[TMPRL1100] " + message, cause);
   }
 
   public NonDeterministicException(String message) {
-    super(message);
+    super("[TMPRL1100] " + message);
   }
 }
