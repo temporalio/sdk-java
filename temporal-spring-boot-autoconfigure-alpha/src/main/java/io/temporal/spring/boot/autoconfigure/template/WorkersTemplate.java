@@ -74,6 +74,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   private WorkerFactory workerFactory;
   private Collection<Worker> workers;
+  private final Map<String, RegisteredInfo> registeredInfo = new HashMap<>();
 
   public WorkersTemplate(
       @Nonnull TemporalProperties properties,
@@ -109,6 +110,13 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       this.workers = createWorkers(getWorkerFactory());
     }
     return workers;
+  }
+
+  public Map<String, RegisteredInfo> getRegisteredInfo() {
+    if (workers == null) {
+      this.workers = createWorkers(getWorkerFactory());
+    }
+    return registeredInfo;
   }
 
   WorkerFactory createWorkerFactory(WorkflowClient workflowClient) {
@@ -170,7 +178,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           worker = createNewWorker(taskQueue, null, workers);
         }
 
-        configureWorkflowImplementationAutoDiscovery(worker, clazz, null);
+        configureWorkflowImplementationAutoDiscovery(worker, clazz, null, workers);
       }
     }
   }
@@ -197,7 +205,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               }
 
               configureActivityImplementationAutoDiscovery(
-                  worker, bean, beanName, targetClass, null);
+                  worker, bean, beanName, targetClass, null, workers);
             }
           }
         });
@@ -218,7 +226,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                   + clazz);
         }
 
-        configureWorkflowImplementationAutoDiscovery(worker, clazz, workerName);
+        configureWorkflowImplementationAutoDiscovery(worker, clazz, workerName, workers);
       }
     }
   }
@@ -241,7 +249,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               }
 
               configureActivityImplementationAutoDiscovery(
-                  worker, bean, beanName, targetClass, workerName);
+                  worker, bean, beanName, targetClass, workerName, workers);
             }
           }
         });
@@ -303,14 +311,21 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 AopUtils.getTargetClass(bean),
                 taskQueue);
             worker.registerActivitiesImplementations(bean);
+            addRegisteredActivityImpl(worker, bean.getClass().getName());
           });
     }
   }
 
   private void configureActivityImplementationAutoDiscovery(
-      Worker worker, Object bean, String beanName, Class<?> targetClass, String byWorkerName) {
+      Worker worker,
+      Object bean,
+      String beanName,
+      Class<?> targetClass,
+      String byWorkerName,
+      Workers workers) {
     try {
       worker.registerActivitiesImplementations(bean);
+      addRegisteredActivityImpl(worker, bean.getClass().getName());
       if (log.isInfoEnabled()) {
         log.info(
             "Registering auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'",
@@ -334,7 +349,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   }
 
   private void configureWorkflowImplementationAutoDiscovery(
-      Worker worker, Class<?> clazz, String byWorkerName) {
+      Worker worker, Class<?> clazz, String byWorkerName, Workers workers) {
     try {
       configureWorkflowImplementation(worker, clazz);
       if (log.isInfoEnabled()) {
@@ -378,6 +393,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           (Class<T>) workflowMethod.getWorkflowInterface(),
           () -> (T) beanFactory.createBean(clazz),
           workflowImplementationOptions);
+      addRegisteredWorkflowImpl(worker, workflowMethod.getWorkflowInterface().getName());
     }
   }
 
@@ -408,6 +424,47 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
     workers.addWorker(workerName, worker);
     return worker;
+  }
+
+  private void addRegisteredWorkflowImpl(Worker worker, String workflowClass) {
+    if (!registeredInfo.containsKey(worker.getTaskQueue())) {
+      registeredInfo.put(
+          worker.getTaskQueue(), new RegisteredInfo().addWorkflowInfo(workflowClass));
+    } else {
+      registeredInfo.get(worker.getTaskQueue()).getRegisteredWorkflowInfo().add(workflowClass);
+    }
+  }
+
+  private void addRegisteredActivityImpl(Worker worker, String activityClass) {
+    if (!registeredInfo.containsKey(worker.getTaskQueue())) {
+      registeredInfo.put(
+          worker.getTaskQueue(), new RegisteredInfo().addActivityInfo(activityClass));
+    } else {
+      registeredInfo.get(worker.getTaskQueue()).getRegisteredActivityInfo().add(activityClass);
+    }
+  }
+
+  public static class RegisteredInfo {
+    private final List<String> registeredActivityInfo = new ArrayList<>();
+    private final List<String> registeredWorkflowInfo = new ArrayList<>();
+
+    public RegisteredInfo addActivityInfo(String activityClass) {
+      registeredActivityInfo.add(activityClass);
+      return this;
+    }
+
+    public RegisteredInfo addWorkflowInfo(String workflowClass) {
+      registeredWorkflowInfo.add(workflowClass);
+      return this;
+    }
+
+    public List<String> getRegisteredActivityInfo() {
+      return registeredActivityInfo;
+    }
+
+    public List<String> getRegisteredWorkflowInfo() {
+      return registeredWorkflowInfo;
+    }
   }
 
   private static class Workers {
