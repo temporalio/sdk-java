@@ -230,7 +230,10 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     if (factory == null) {
       if (dynamicWorkflowImplementationFactory != null) {
         return new DynamicSyncWorkflowDefinition(
-            dynamicWorkflowImplementationFactory, workerInterceptors, dataConverter);
+            dynamicWorkflowImplementationFactory,
+            workerInterceptors,
+            dataConverter.withContext(
+                new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId())));
       }
       // throw Error to abort the workflow task, not fail the workflow
       throw new Error(

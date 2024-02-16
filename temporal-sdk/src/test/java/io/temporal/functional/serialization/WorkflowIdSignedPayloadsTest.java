@@ -40,9 +40,7 @@ import io.temporal.payload.context.HasWorkflowSerializationContext;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
@@ -79,10 +77,13 @@ public class WorkflowIdSignedPayloadsTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
-              SimpleWorkflowWithAnActivity.class, TestWorkflowWithCronScheduleImpl.class)
+              SimpleWorkflowWithAnActivity.class,
+              TestWorkflowWithCronScheduleImpl.class,
+              DynamicWorkflowImpl.class)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setDataConverter(codecDataConverter).build())
-          .setActivityImplementations(heartbeatingActivity, manualCompletionActivity)
+          .setActivityImplementations(
+              heartbeatingActivity, manualCompletionActivity, new DynamicActivityImpl())
           .build();
 
   @Rule public TestName testName = new TestName();
@@ -160,6 +161,16 @@ public class WorkflowIdSignedPayloadsTest {
     assertTrue(TestWorkflowWithCronScheduleImpl.lastFail.isPresent());
     assertTrue(
         TestWorkflowWithCronScheduleImpl.lastFail.get().getMessage().contains("simulated error"));
+  }
+
+  @Test
+  public void testDynamicWorkflow() {
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+    WorkflowStub workflow =
+        testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", options);
+    workflow.start("World");
+    assertEquals("Hello World", workflow.getResult(String.class));
   }
 
   @ActivityInterface
@@ -255,6 +266,24 @@ public class WorkflowIdSignedPayloadsTest {
         Workflow.continueAsNew(casOptions, input);
       }
       return result;
+    }
+  }
+
+  public static class DynamicWorkflowImpl implements DynamicWorkflow {
+    @Override
+    public Object execute(EncodedValues args) {
+      String input = args.get(0, String.class);
+      ActivityStub activity =
+          Workflow.newUntypedActivityStub(
+              ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
+      return activity.execute("dynamicActivity", String.class, input);
+    }
+  }
+
+  public static class DynamicActivityImpl implements DynamicActivity {
+    @Override
+    public Object execute(EncodedValues args) {
+      return "Hello " + args.get(0, String.class);
     }
   }
 
