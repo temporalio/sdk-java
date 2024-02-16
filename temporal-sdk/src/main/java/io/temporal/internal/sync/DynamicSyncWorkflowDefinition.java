@@ -36,16 +36,17 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   private final Functions.Func<? extends DynamicWorkflow> factory;
   private final WorkerInterceptor[] workerInterceptors;
-  private final DataConverter dataConverter;
+  // don't pass it down to other classes, it's a "cached" instance for internal usage only
+  private final DataConverter dataConverterWithWorkflowContext;
   private WorkflowInboundCallsInterceptor workflowInvoker;
 
   public DynamicSyncWorkflowDefinition(
       Functions.Func<? extends DynamicWorkflow> factory,
       WorkerInterceptor[] workerInterceptors,
-      DataConverter dataConverter) {
+      DataConverter dataConverterWithWorkflowContext) {
     this.factory = factory;
     this.workerInterceptors = workerInterceptors;
-    this.dataConverter = dataConverter;
+    this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
   }
 
   @Override
@@ -61,11 +62,11 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   @Override
   public Optional<Payloads> execute(Header header, Optional<Payloads> input) {
-    Values args = new EncodedValues(input, dataConverter);
+    Values args = new EncodedValues(input, dataConverterWithWorkflowContext);
     WorkflowInboundCallsInterceptor.WorkflowOutput result =
         workflowInvoker.execute(
             new WorkflowInboundCallsInterceptor.WorkflowInput(header, new Object[] {args}));
-    return dataConverter.toPayloads(result.getResult());
+    return dataConverterWithWorkflowContext.toPayloads(result.getResult());
   }
 
   class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {
