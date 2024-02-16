@@ -112,6 +112,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     return workers;
   }
 
+  /** Return information on registered workflow and activity types per task queue */
   public Map<String, RegisteredInfo> getRegisteredInfo() {
     if (workers == null) {
       this.workers = createWorkers(getWorkerFactory());
