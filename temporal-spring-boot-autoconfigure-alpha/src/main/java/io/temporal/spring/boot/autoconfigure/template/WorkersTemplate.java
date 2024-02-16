@@ -311,7 +311,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 AopUtils.getTargetClass(bean),
                 taskQueue);
             worker.registerActivitiesImplementations(bean);
-            addRegisteredActivityImpl(worker, bean.getClass().getName());
+            addRegisteredActivityImpl(worker, beanName, bean.getClass().getName());
           });
     }
   }
@@ -325,7 +325,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       Workers workers) {
     try {
       worker.registerActivitiesImplementations(bean);
-      addRegisteredActivityImpl(worker, bean.getClass().getName());
+      addRegisteredActivityImpl(worker, beanName, bean.getClass().getName());
       if (log.isInfoEnabled()) {
         log.info(
             "Registering auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'",
@@ -429,41 +429,88 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private void addRegisteredWorkflowImpl(Worker worker, String workflowClass) {
     if (!registeredInfo.containsKey(worker.getTaskQueue())) {
       registeredInfo.put(
-          worker.getTaskQueue(), new RegisteredInfo().addWorkflowInfo(workflowClass));
+          worker.getTaskQueue(),
+          new RegisteredInfo()
+              .addWorkflowInfo(new RegisteredWorkflowInfo().addClassName(workflowClass)));
     } else {
-      registeredInfo.get(worker.getTaskQueue()).getRegisteredWorkflowInfo().add(workflowClass);
+      registeredInfo
+          .get(worker.getTaskQueue())
+          .getRegisteredWorkflowInfo()
+          .add(new RegisteredWorkflowInfo().addClassName(workflowClass));
     }
   }
 
-  private void addRegisteredActivityImpl(Worker worker, String activityClass) {
+  private void addRegisteredActivityImpl(Worker worker, String beanName, String beanClass) {
     if (!registeredInfo.containsKey(worker.getTaskQueue())) {
       registeredInfo.put(
-          worker.getTaskQueue(), new RegisteredInfo().addActivityInfo(activityClass));
+          worker.getTaskQueue(),
+          new RegisteredInfo()
+              .addActivityInfo(
+                  new RegisteredActivityInfo().addBeanName(beanName).addClassName(beanClass)));
     } else {
-      registeredInfo.get(worker.getTaskQueue()).getRegisteredActivityInfo().add(activityClass);
+      registeredInfo
+          .get(worker.getTaskQueue())
+          .getRegisteredActivityInfo()
+          .add(new RegisteredActivityInfo().addBeanName(beanName).addClassName(beanClass));
     }
   }
 
   public static class RegisteredInfo {
-    private final List<String> registeredActivityInfo = new ArrayList<>();
-    private final List<String> registeredWorkflowInfo = new ArrayList<>();
+    private final List<RegisteredActivityInfo> registeredActivityInfo = new ArrayList<>();
+    private final List<RegisteredWorkflowInfo> registeredWorkflowInfo = new ArrayList<>();
 
-    public RegisteredInfo addActivityInfo(String activityClass) {
-      registeredActivityInfo.add(activityClass);
+    public RegisteredInfo addActivityInfo(RegisteredActivityInfo activityInfo) {
+      registeredActivityInfo.add(activityInfo);
       return this;
     }
 
-    public RegisteredInfo addWorkflowInfo(String workflowClass) {
-      registeredWorkflowInfo.add(workflowClass);
+    public RegisteredInfo addWorkflowInfo(RegisteredWorkflowInfo workflowInfo) {
+      registeredWorkflowInfo.add(workflowInfo);
       return this;
     }
 
-    public List<String> getRegisteredActivityInfo() {
+    public List<RegisteredActivityInfo> getRegisteredActivityInfo() {
       return registeredActivityInfo;
     }
 
-    public List<String> getRegisteredWorkflowInfo() {
+    public List<RegisteredWorkflowInfo> getRegisteredWorkflowInfo() {
       return registeredWorkflowInfo;
+    }
+  }
+
+  public static class RegisteredActivityInfo {
+    private String beanName;
+    private String className;
+
+    public RegisteredActivityInfo addClassName(String className) {
+      this.className = className;
+      return this;
+    }
+
+    public RegisteredActivityInfo addBeanName(String beanName) {
+      this.beanName = beanName;
+      return this;
+    }
+
+    public String getClassName() {
+      return className;
+    }
+
+    public String getBeanName() {
+      return beanName;
+    }
+  }
+
+  public static class RegisteredWorkflowInfo {
+    private String className;
+
+    public RegisteredWorkflowInfo addClassName(String className) {
+      this.className = className;
+      return this;
+    }
+
+    public String getClassName() {
+      return className;
     }
   }
 
