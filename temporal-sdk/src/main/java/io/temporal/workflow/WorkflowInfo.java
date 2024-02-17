@@ -90,6 +90,12 @@ public interface WorkflowInfo {
    */
   String getTaskQueue();
 
+  /*
+  * @return Workflow Retry Options
+  * */
+  @Nullable
+  RetryOptions getRetryOptions();
+
   @Nullable
   RetryOptions getRetryOptions();
 

@@ -87,6 +87,12 @@ final class WorkflowInfoImpl implements WorkflowInfo {
     return context.getRetryOptions();
   }
 
+  @Nullable
+  @Override
+  public RetryOptions getRetryOptions() {
+    return context.getRetryOptions();
+  }
+
   @Override
   public Duration getWorkflowRunTimeout() {
     return context.getWorkflowRunTimeout();
