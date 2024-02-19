@@ -23,6 +23,7 @@ package io.temporal.spring.boot.autoconfigure.template;
 import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.spring.boot.ActivityImpl;
@@ -113,6 +114,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   }
 
   /** Return information on registered workflow and activity types per task queue */
+  @Experimental
   public Map<String, RegisteredInfo> getRegisteredInfo() {
     if (workers == null) {
       this.workers = createWorkers(getWorkerFactory());
