@@ -42,14 +42,11 @@ public class DefaultStubLongPollRpcRetryOptions {
   }
 
   private static RpcRetryOptions.Builder getBuilder() {
-    RpcRetryOptions.Builder roBuilder =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(INITIAL_INTERVAL)
-            .setCongestionInitialInterval(CONGESTION_INITIAL_INTERVAL)
-            .setBackoffCoefficient(BACKOFF)
-            .setMaximumInterval(MAXIMUM_INTERVAL)
-            .setMaximumJitterCoefficient(MAXIMUM_JITTER_COEFFICIENT);
-
-    return roBuilder;
+    return RpcRetryOptions.newBuilder()
+        .setInitialInterval(INITIAL_INTERVAL)
+        .setCongestionInitialInterval(CONGESTION_INITIAL_INTERVAL)
+        .setBackoffCoefficient(BACKOFF)
+        .setMaximumInterval(MAXIMUM_INTERVAL)
+        .setMaximumJitterCoefficient(MAXIMUM_JITTER_COEFFICIENT);
   }
 }

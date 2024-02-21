@@ -208,8 +208,8 @@ public final class RpcRetryOptions {
      * is the cap of the increase. <br>
      * Default is 50x of initial interval. Can't be less than {@link #setInitialInterval(Duration)}
      *
-     * @param maximumInterval the maximum interval value. Defaults to 50x initial interval, which
-     *     is used if set to {@code null}.
+     * @param maximumInterval the maximum interval value. Defaults to 50x initial interval, which is
+     *     used if set to {@code null}.
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
       if (isInvalidDuration(maximumInterval)) {
