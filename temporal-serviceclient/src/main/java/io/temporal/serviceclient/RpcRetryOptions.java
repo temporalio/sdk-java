@@ -385,7 +385,7 @@ public final class RpcRetryOptions {
 
     private static boolean isInvalidDuration(Duration d) {
       if (d == null) {
-        return true;
+        return false;
       }
       return d.isNegative() || d.isZero();
     }
