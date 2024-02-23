@@ -20,6 +20,8 @@
 
 package io.temporal.internal.retryer;
 
+import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.CONGESTION_INITIAL_INTERVAL;
+import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.MAXIMUM_JITTER_COEFFICIENT;
 import static org.junit.Assert.*;
 
 import io.grpc.Context;
@@ -101,8 +103,9 @@ public class GrpcSyncRetryerTest {
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
-            if (attempts.incrementAndGet() > 1)
+            if (attempts.incrementAndGet() > 1) {
               fail("We should not retry on exception that we specified to don't retry");
+            }
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -130,7 +133,9 @@ public class GrpcSyncRetryerTest {
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
-            if (attempts.incrementAndGet() > 1) fail("We should not retry on InterruptedException");
+            if (attempts.incrementAndGet() > 1) {
+              fail("We should not retry on InterruptedException");
+            }
             throw new InterruptedException();
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -156,8 +161,9 @@ public class GrpcSyncRetryerTest {
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
-            if (attempts.incrementAndGet() > 1)
+            if (attempts.incrementAndGet() > 1) {
               fail("We should not retry if the exception is not StatusRuntimeException");
+            }
             throw new IllegalArgumentException("simulated");
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -335,7 +341,7 @@ public class GrpcSyncRetryerTest {
     assertEquals(3, options.getMaximumAttempts());
 
     // The following were added latter; they must silently use default values if unspecified
-    assertEquals(Duration.ofMillis(1000), options.getCongestionInitialInterval());
-    assertEquals(0.1, options.getMaximumJitterCoefficient(), 0.01);
+    assertEquals(CONGESTION_INITIAL_INTERVAL, options.getCongestionInitialInterval());
+    assertEquals(MAXIMUM_JITTER_COEFFICIENT, options.getMaximumJitterCoefficient(), 0.01);
   }
 }

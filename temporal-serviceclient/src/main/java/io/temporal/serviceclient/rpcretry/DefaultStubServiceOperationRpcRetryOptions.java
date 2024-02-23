@@ -29,22 +29,19 @@ import java.time.Duration;
  * finishing).
  */
 public class DefaultStubServiceOperationRpcRetryOptions {
-  public static final Duration INITIAL_INTERVAL = Duration.ofMillis(50);
+
+  public static final Duration INITIAL_INTERVAL = Duration.ofMillis(100);
   public static final Duration CONGESTION_INITIAL_INTERVAL = Duration.ofMillis(1000);
   public static final Duration EXPIRATION_INTERVAL = Duration.ofMinutes(1);
-  public static final Duration MAXIMUM_INTERVAL;
-  public static final double BACKOFF = 2;
-  public static final double MAXIMUM_JITTER_COEFFICIENT = 0.1;
+  public static final int MAXIMUM_INTERVAL_MULTIPLIER = 50;
+  public static final Duration MAXIMUM_INTERVAL =
+      INITIAL_INTERVAL.multipliedBy(MAXIMUM_INTERVAL_MULTIPLIER);
+  public static final double BACKOFF = 1.7;
+  public static final double MAXIMUM_JITTER_COEFFICIENT = 0.2;
 
   public static final RpcRetryOptions INSTANCE;
 
   static {
-    Duration maxInterval = EXPIRATION_INTERVAL.dividedBy(10);
-    if (maxInterval.compareTo(INITIAL_INTERVAL) < 0) {
-      maxInterval = INITIAL_INTERVAL;
-    }
-    MAXIMUM_INTERVAL = maxInterval;
-
     INSTANCE = getBuilder().validateBuildWithDefaults();
   }
 
