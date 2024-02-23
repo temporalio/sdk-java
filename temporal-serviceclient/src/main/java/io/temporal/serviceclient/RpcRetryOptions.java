@@ -20,11 +20,7 @@
 
 package io.temporal.serviceclient;
 
-import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.BACKOFF;
-import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.CONGESTION_INITIAL_INTERVAL;
-import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.EXPIRATION_INTERVAL;
-import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.INITIAL_INTERVAL;
-import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.MAXIMUM_JITTER_COEFFICIENT;
+import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.*;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -362,7 +358,7 @@ public final class RpcRetryOptions {
       }
       Duration maximumInterval = this.maximumInterval;
       if (maximumInterval == null && maximumAttempts == 0) {
-        maximumInterval = initialInterval.multipliedBy(50);
+        maximumInterval = initialInterval.multipliedBy(MAXIMUM_INTERVAL_MULTIPLIER);
       }
       double maximumJitterCoefficient = this.maximumJitterCoefficient;
       if (maximumJitterCoefficient < 0) {
