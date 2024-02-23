@@ -24,11 +24,14 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @Experimental
 public class ActivitySerializationContext implements HasWorkflowSerializationContext {
   private final @Nonnull String namespace;
   private final @Nonnull String workflowId;
+
+  private final @Nullable String runId;
   private final @Nonnull String workflowType;
   private final @Nonnull String activityType;
   private final @Nonnull String activityTaskQueue;
@@ -37,12 +40,14 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
   public ActivitySerializationContext(
       @Nonnull String namespace,
       @Nonnull String workflowId,
+      @Nonnull String runId,
       @Nonnull String workflowType,
       @Nonnull String activityType,
       @Nonnull String activityTaskQueue,
       boolean local) {
     this.namespace = Objects.requireNonNull(namespace);
     this.workflowId = Objects.requireNonNull(workflowId);
+    this.runId = runId;
     this.workflowType = Objects.requireNonNull(workflowType);
     this.activityType = Objects.requireNonNull(activityType);
     this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
@@ -53,6 +58,7 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
     this(
         info.getNamespace(),
         info.getWorkflowId(),
+        info.getRunId(),
         info.getWorkflowType(),
         info.getActivityType(),
         info.getActivityTaskQueue(),
@@ -88,5 +94,11 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
 
   public boolean isLocal() {
     return local;
+  }
+
+  @Override
+  @Nullable
+  public String getRunId() {
+    return runId;
   }
 }

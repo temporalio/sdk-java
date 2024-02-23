@@ -138,7 +138,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     this.dataConverter = dataConverter;
     this.dataConverterWithCurrentWorkflowContext =
         dataConverter.withContext(
-            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));
+            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId(), workflowExecution.getRunId()));
     this.contextPropagators = contextPropagators;
     this.signalDispatcher = signalDispatcher;
     this.queryDispatcher = queryDispatcher;
@@ -626,10 +626,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     CompletablePromise<WorkflowExecution> executionPromise = Workflow.newPromise();
     CompletablePromise<Optional<Payloads>> resultPromise = Workflow.newPromise();
-
     DataConverter dataConverterWithChildWorkflowContext =
         dataConverter.withContext(
-            new WorkflowSerializationContext(replayContext.getNamespace(), input.getWorkflowId()));
+            new WorkflowSerializationContext(replayContext.getNamespace(), input.getWorkflowId(), workflowExecution.getRunId()));
     Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
 
     @Nullable
@@ -1028,7 +1027,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     DataConverter dataConverterWithChildWorkflowContext =
         dataConverter.withContext(
             new WorkflowSerializationContext(
-                replayContext.getNamespace(), childExecution.getWorkflowId()));
+                replayContext.getNamespace(), childExecution.getWorkflowId(), childExecution.getRunId()));
     SignalExternalWorkflowExecutionCommandAttributes.Builder attributes =
         SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
     attributes.setSignalName(input.getSignalName());

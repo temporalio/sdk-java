@@ -22,11 +22,13 @@ package io.temporal.payload.context;
 
 import io.temporal.common.Experimental;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @Experimental
 public class WorkflowSerializationContext implements HasWorkflowSerializationContext {
   private final @Nonnull String namespace;
   private final @Nonnull String workflowId;
+  private final @Nullable String runId;
   // We can't currently reliably and consistency provide workflowType to the DataConverter.
   // 1. Signals and queries don't know workflowType when they are sent.
   // 2. WorkflowStub#getResult call is not aware of the workflowType, workflowType is an optional
@@ -36,6 +38,13 @@ public class WorkflowSerializationContext implements HasWorkflowSerializationCon
   public WorkflowSerializationContext(@Nonnull String namespace, @Nonnull String workflowId) {
     this.namespace = namespace;
     this.workflowId = workflowId;
+    this.runId = null;
+  }
+
+  public WorkflowSerializationContext(@Nonnull String namespace, @Nonnull String workflowId, @Nullable String runId) {
+    this.namespace = namespace;
+    this.workflowId = workflowId;
+    this.runId = runId;
   }
 
   @Override
@@ -49,4 +58,11 @@ public class WorkflowSerializationContext implements HasWorkflowSerializationCon
   public String getWorkflowId() {
     return workflowId;
   }
+
+  @Override
+  @Nullable
+  public String getRunId() {
+    return runId;
+  }
+
 }
