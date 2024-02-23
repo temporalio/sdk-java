@@ -82,6 +82,7 @@ final class ActivityTaskExecutors {
           new ActivitySerializationContext(
               activityInfo.getNamespace(),
               activityInfo.getWorkflowId(),
+              activityInfo.getRunId(),
               activityInfo.getWorkflowType(),
               activityInfo.getActivityType(),
               activityInfo.getActivityTaskQueue(),

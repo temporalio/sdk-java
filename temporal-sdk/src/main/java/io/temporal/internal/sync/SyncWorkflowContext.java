@@ -138,7 +138,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     this.dataConverter = dataConverter;
     this.dataConverterWithCurrentWorkflowContext =
         dataConverter.withContext(
-            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId(), workflowExecution.getRunId()));
+            new WorkflowSerializationContext(
+                namespace, workflowExecution.getWorkflowId(), workflowExecution.getRunId()));
     this.contextPropagators = contextPropagators;
     this.signalDispatcher = signalDispatcher;
     this.queryDispatcher = queryDispatcher;
@@ -262,6 +263,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         new ActivitySerializationContext(
             replayContext.getNamespace(),
             replayContext.getWorkflowId(),
+            replayContext.getRunId(),
             replayContext.getWorkflowType().getName(),
             input.getActivityName(),
             // input.getOptions().getTaskQueue() may be not specified, workflow task queue is used
@@ -382,6 +384,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         new ActivitySerializationContext(
             replayContext.getNamespace(),
             replayContext.getWorkflowId(),
+            replayContext.getRunId(),
             replayContext.getWorkflowType().getName(),
             input.getActivityName(),
             replayContext.getTaskQueue(),
@@ -628,7 +631,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Optional<Payloads>> resultPromise = Workflow.newPromise();
     DataConverter dataConverterWithChildWorkflowContext =
         dataConverter.withContext(
-            new WorkflowSerializationContext(replayContext.getNamespace(), input.getWorkflowId(), workflowExecution.getRunId()));
+            new WorkflowSerializationContext(
+                replayContext.getNamespace(), input.getWorkflowId(), workflowExecution.getRunId()));
     Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
 
     @Nullable
@@ -1027,7 +1031,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     DataConverter dataConverterWithChildWorkflowContext =
         dataConverter.withContext(
             new WorkflowSerializationContext(
-                replayContext.getNamespace(), childExecution.getWorkflowId(), childExecution.getRunId()));
+                replayContext.getNamespace(),
+                childExecution.getWorkflowId(),
+                childExecution.getRunId()));
     SignalExternalWorkflowExecutionCommandAttributes.Builder attributes =
         SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
     attributes.setSignalName(input.getSignalName());

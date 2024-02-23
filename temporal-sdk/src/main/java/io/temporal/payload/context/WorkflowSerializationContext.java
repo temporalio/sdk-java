@@ -41,7 +41,8 @@ public class WorkflowSerializationContext implements HasWorkflowSerializationCon
     this.runId = null;
   }
 
-  public WorkflowSerializationContext(@Nonnull String namespace, @Nonnull String workflowId, @Nullable String runId) {
+  public WorkflowSerializationContext(
+      @Nonnull String namespace, @Nonnull String workflowId, @Nullable String runId) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.runId = runId;
@@ -64,5 +65,4 @@ public class WorkflowSerializationContext implements HasWorkflowSerializationCon
   public String getRunId() {
     return runId;
   }
-
 }

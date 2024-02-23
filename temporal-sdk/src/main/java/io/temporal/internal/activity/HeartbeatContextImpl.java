@@ -89,6 +89,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
             new ActivitySerializationContext(
                 namespace,
                 info.getWorkflowId(),
+                info.getRunId(),
                 info.getWorkflowType(),
                 info.getActivityType(),
                 info.getActivityTaskQueue(),

@@ -45,10 +45,9 @@ public interface HasWorkflowSerializationContext extends SerializationContext {
   String getWorkflowId();
 
   /**
-   * @return runId of the Workflow Execution the Serialization Target belongs to, if available. If the Target
-   *     is a Workflow itself, this method will return the Target's Run ID (not the RunID of the
-   *     parent workflow).
+   * @return runId of the Workflow Execution the Serialization Target belongs to, if available. If
+   *     the Target is a Workflow itself, this method will return the Target's Run ID (not the RunID
+   *     of the parent workflow).
    */
   String getRunId();
-
 }

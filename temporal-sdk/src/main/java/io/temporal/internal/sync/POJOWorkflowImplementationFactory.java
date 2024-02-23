@@ -162,7 +162,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
                       clazz,
                       methodMetadata.getWorkflowMethod(),
                       dataConverter.withContext(
-                          new WorkflowSerializationContext(namespace, execution.getWorkflowId(), execution.getRunId()))));
+                          new WorkflowSerializationContext(
+                              namespace, execution.getWorkflowId(), execution.getRunId()))));
           implementationOptions.put(typeName, options);
           break;
         case SIGNAL:
@@ -212,7 +213,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
                   workflowImplementationClass,
                   method,
                   dataConverter.withContext(
-                      new WorkflowSerializationContext(namespace, execution.getWorkflowId(), execution.getRunId())));
+                      new WorkflowSerializationContext(
+                          namespace, execution.getWorkflowId(), execution.getRunId())));
 
       if (workflowDefinitions.containsKey(workflowName)) {
         throw new IllegalStateException(
@@ -254,7 +256,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         implementationOptions.get(workflowType.getName());
     DataConverter dataConverterWithWorkflowContext =
         dataConverter.withContext(
-            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId(), workflowExecution.getRunId()));
+            new WorkflowSerializationContext(
+                namespace, workflowExecution.getWorkflowId(), workflowExecution.getRunId()));
     return new SyncWorkflow(
         namespace,
         workflowExecution,
