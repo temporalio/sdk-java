@@ -36,7 +36,7 @@ public class DefaultStubServiceOperationRpcRetryOptions {
   public static final int MAXIMUM_INTERVAL_MULTIPLIER = 50;
   public static final Duration MAXIMUM_INTERVAL = INITIAL_INTERVAL.multipliedBy(
       MAXIMUM_INTERVAL_MULTIPLIER);
-  public static final double BACKOFF = 1.5;
+  public static final double BACKOFF = 1.7;
   public static final double MAXIMUM_JITTER_COEFFICIENT = 0.2;
 
   public static final RpcRetryOptions INSTANCE;
