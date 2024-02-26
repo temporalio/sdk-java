@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
+import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.spring.boot.ActivityImpl;
@@ -314,7 +315,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 AopUtils.getTargetClass(bean),
                 taskQueue);
             worker.registerActivitiesImplementations(bean);
-            addRegisteredActivityImpl(worker, beanName, bean.getClass().getName());
+            POJOActivityImplMetadata activityImplMetadata =
+                POJOActivityImplMetadata.newInstance(AopUtils.getTargetClass(bean));
+            addRegisteredActivityImpl(
+                worker, beanName, bean.getClass().getName(), activityImplMetadata);
           });
     }
   }
@@ -328,7 +332,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       Workers workers) {
     try {
       worker.registerActivitiesImplementations(bean);
-      addRegisteredActivityImpl(worker, beanName, bean.getClass().getName());
+      POJOActivityImplMetadata activityImplMetadata =
+          POJOActivityImplMetadata.newInstance(AopUtils.getTargetClass(bean));
+      addRegisteredActivityImpl(worker, beanName, bean.getClass().getName(), activityImplMetadata);
       if (log.isInfoEnabled()) {
         log.info(
             "Registering auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'",
@@ -396,7 +402,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           (Class<T>) workflowMethod.getWorkflowInterface(),
           () -> (T) beanFactory.createBean(clazz),
           workflowImplementationOptions);
-      addRegisteredWorkflowImpl(worker, workflowMethod.getWorkflowInterface().getName());
+      addRegisteredWorkflowImpl(
+          worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
     }
   }
 
@@ -429,32 +436,42 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     return worker;
   }
 
-  private void addRegisteredWorkflowImpl(Worker worker, String workflowClass) {
+  private void addRegisteredWorkflowImpl(
+      Worker worker, String workflowClass, POJOWorkflowImplMetadata metadata) {
     if (!registeredInfo.containsKey(worker.getTaskQueue())) {
       registeredInfo.put(
           worker.getTaskQueue(),
           new RegisteredInfo()
-              .addWorkflowInfo(new RegisteredWorkflowInfo().addClassName(workflowClass)));
+              .addWorkflowInfo(
+                  new RegisteredWorkflowInfo().addClassName(workflowClass).addMetadata(metadata)));
     } else {
       registeredInfo
           .get(worker.getTaskQueue())
           .getRegisteredWorkflowInfo()
-          .add(new RegisteredWorkflowInfo().addClassName(workflowClass));
+          .add(new RegisteredWorkflowInfo().addClassName(workflowClass).addMetadata(metadata));
     }
   }
 
-  private void addRegisteredActivityImpl(Worker worker, String beanName, String beanClass) {
+  private void addRegisteredActivityImpl(
+      Worker worker, String beanName, String beanClass, POJOActivityImplMetadata metadata) {
     if (!registeredInfo.containsKey(worker.getTaskQueue())) {
       registeredInfo.put(
           worker.getTaskQueue(),
           new RegisteredInfo()
               .addActivityInfo(
-                  new RegisteredActivityInfo().addBeanName(beanName).addClassName(beanClass)));
+                  new RegisteredActivityInfo()
+                      .addBeanName(beanName)
+                      .addClassName(beanClass)
+                      .addMetadata(metadata)));
     } else {
       registeredInfo
           .get(worker.getTaskQueue())
           .getRegisteredActivityInfo()
-          .add(new RegisteredActivityInfo().addBeanName(beanName).addClassName(beanClass));
+          .add(
+              new RegisteredActivityInfo()
+                  .addBeanName(beanName)
+                  .addClassName(beanClass)
+                  .addMetadata(metadata));
     }
   }
 
@@ -484,6 +501,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   public static class RegisteredActivityInfo {
     private String beanName;
     private String className;
+    private POJOActivityImplMetadata metadata;
 
     public RegisteredActivityInfo addClassName(String className) {
       this.className = className;
@@ -495,6 +513,11 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       return this;
     }
 
+    public RegisteredActivityInfo addMetadata(POJOActivityImplMetadata metadata) {
+      this.metadata = metadata;
+      return this;
+    }
+
     public String getClassName() {
       return className;
     }
@@ -502,18 +525,32 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     public String getBeanName() {
       return beanName;
     }
+
+    public POJOActivityImplMetadata getMetadata() {
+      return metadata;
+    }
   }
 
   public static class RegisteredWorkflowInfo {
     private String className;
+    private POJOWorkflowImplMetadata metadata;
 
     public RegisteredWorkflowInfo addClassName(String className) {
       this.className = className;
       return this;
     }
 
+    public RegisteredWorkflowInfo addMetadata(POJOWorkflowImplMetadata metadata) {
+      this.metadata = metadata;
+      return this;
+    }
+
     public String getClassName() {
       return className;
+    }
+
+    public POJOWorkflowImplMetadata getMetadata() {
+      return metadata;
     }
   }
 
