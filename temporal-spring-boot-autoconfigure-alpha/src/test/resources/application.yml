@@ -110,3 +110,17 @@ spring:
         - io.temporal.spring.boot.autoconfigure.bytaskqueue
     start-workers: false
 
+---
+spring:
+  config:
+    activate:
+      on-profile: mtls-with-server-name-override
+  temporal:
+    connection:
+      mtls:
+        key-file: classpath:pkcs8-pk.pem
+        cert-chain-file: classpath:pkcs8-crt-chain.pem
+        server-name: myservername
+      target: 127.0.0.1:7233
+    test-server:
+      enabled: false

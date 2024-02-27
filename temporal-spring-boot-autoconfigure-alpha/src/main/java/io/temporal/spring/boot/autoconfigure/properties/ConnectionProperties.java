@@ -74,6 +74,7 @@ public class ConnectionProperties {
     private final @Nullable String certChainFile;
     private final @Nullable String keyPassword;
     private final @Nullable Boolean insecureTrustManager;
+    private final @Nullable String serverName;
 
     /**
      * @param pkcs number of PKCS standard to use (8 and 12 are supported). Selects if {@link
@@ -96,7 +97,8 @@ public class ConnectionProperties {
         @Nullable String keyFile,
         @Nullable String certChainFile,
         @Nullable String keyPassword,
-        @Nullable Boolean insecureTrustManager) {
+        @Nullable Boolean insecureTrustManager,
+        @Nullable String serverName) {
       this.pkcs = pkcs;
       this.key = key;
       this.certChain = certChain;
@@ -104,6 +106,7 @@ public class ConnectionProperties {
       this.certChainFile = certChainFile;
       this.keyPassword = keyPassword;
       this.insecureTrustManager = insecureTrustManager;
+      this.serverName = serverName;
     }
 
     @Nullable
@@ -139,6 +142,11 @@ public class ConnectionProperties {
     @Nullable
     public Boolean getInsecureTrustManager() {
       return insecureTrustManager;
+    }
+
+    @Nullable
+    public String getServerName() {
+      return serverName;
     }
   }
 }

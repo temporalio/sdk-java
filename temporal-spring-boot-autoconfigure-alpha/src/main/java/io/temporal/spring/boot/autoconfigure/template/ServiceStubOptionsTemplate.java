@@ -151,6 +151,12 @@ public class ServiceStubOptionsTemplate {
         throw new BeanCreationException("Failure reading PKCS12 mTLS cert key file", e);
       }
     }
+
+    String serverName = mtlsProperties.getServerName();
+    if (serverName != null) {
+      stubsOptionsBuilder.setChannelInitializer(
+          channelBuilder -> channelBuilder.overrideAuthority(serverName));
+    }
   }
 
   private void applyMTLSProperties(
