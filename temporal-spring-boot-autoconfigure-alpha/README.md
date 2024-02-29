@@ -56,6 +56,7 @@ spring.temporal:
       cert-chain-file: /path/to/cert.pem # If you use PKCS12 (.pkcs12, .pfx or .p12), you don't need to set it because certificates chain is bundled into the key file
       # key-password: <password_for_the_key>
       # insecure-trust-manager: true # or add ca.pem to java default truststore
+      # server-name: <server_name_override> # optional server name overrider, used as authority of ManagedChannelBuilder
 ```
 
 Alternatively with PKCS8 you can pass the content of the key and certificates chain as strings, which allows to pass them from the environment variable for example:
