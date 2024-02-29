@@ -30,9 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Any;
 import io.temporal.api.command.v1.*;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
@@ -430,7 +428,11 @@ public final class WorkflowStateMachines {
       replaying = false;
     }
 
-    Long initialCommandEventId = getInitialCommandEventId(event);
+    final long initialCommandEventId = getInitialCommandEventId(event);
+    if (initialCommandEventId < 0L) {
+      return;
+    }
+
     EntityStateMachine c = stateMachines.get(initialCommandEventId);
     if (c != null) {
       c.handleEvent(event, hasNextEvent);
@@ -1267,11 +1269,13 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
         return event.getEventId();
-      case UNRECOGNIZED:
-      case EVENT_TYPE_UNSPECIFIED:
+
+      default:
+        if (event.getWorkerMayIgnore()) {
+          return -1L;
+        }
         throw new IllegalArgumentException("Unexpected event type: " + event.getEventType());
     }
-    throw new IllegalStateException("unreachable");
   }
 
   /**
