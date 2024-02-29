@@ -48,8 +48,7 @@ public class UnknownHistoryEventReplayerTest {
   public static final String RES_MAY_IGNORE = "testUnknownHistoryEventMayIgnore.json";
   public static final String RES_MAY_NOT_IGNORE = "testUnknownHistoryEventMayNotIgnore.json";
 
-  @Rule
-  public Timeout testTimeout = Timeout.seconds(10);
+  @Rule public Timeout testTimeout = Timeout.seconds(10);
 
   private TestWorkflowEnvironment testEnvironment;
   private Worker worker;
@@ -128,7 +127,6 @@ public class UnknownHistoryEventReplayerTest {
   public static class MyActivityImpl implements MyActivity {
 
     @Override
-    public void execute() {
-    }
+    public void execute() {}
   }
 }
