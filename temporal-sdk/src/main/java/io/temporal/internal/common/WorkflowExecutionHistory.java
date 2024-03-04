@@ -84,20 +84,33 @@ public class WorkflowExecutionHistory {
   }
 
   /**
-   * @return full json that can be used for replay and which is compatible with tctl
+   * @param prettyPrint Whether to pretty print the JSON.
+   * @return Full json that can be used for replay.
    */
   public String toJson(boolean prettyPrint) {
+    return toJson(prettyPrint, false);
+  }
+
+  /**
+   * @param prettyPrint Whether to pretty print the JSON.
+   * @param legacyFormat If true, will use the older-style protobuf enum formatting as done by
+   *     Temporal tooling in the past. This is not recommended.
+   * @return Full JSON that can be used for replay.
+   */
+  public String toJson(boolean prettyPrint, boolean legacyFormat) {
     JsonFormat.Printer printer = JsonFormat.printer();
     try {
       String protoJson = printer.print(history);
-      String historyFormatJson = HistoryJsonUtils.protoJsonToHistoryFormatJson(protoJson);
+      if (legacyFormat) {
+        protoJson = HistoryJsonUtils.protoJsonToHistoryFormatJson(protoJson);
+      }
 
       if (prettyPrint) {
         @SuppressWarnings("deprecation")
-        JsonElement je = GSON_PARSER.parse(historyFormatJson);
+        JsonElement je = GSON_PARSER.parse(protoJson);
         return GSON_PRETTY_PRINTER.toJson(je);
       } else {
-        return historyFormatJson;
+        return protoJson;
       }
     } catch (InvalidProtocolBufferException e) {
       throw new DataConverterException(e);

@@ -21,7 +21,7 @@
 package io.temporal.internal.common;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import com.google.common.io.CharStreams;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -62,6 +62,7 @@ public class WorkflowExecutionHistoryTest {
   }
 
   public void deserializeAndSerializeBack(String resourceName) throws IOException {
+    // Load legacy-format history
     ClassLoader classLoader = WorkflowExecutionUtils.class.getClassLoader();
     URL resource = classLoader.getResource(resourceName);
     String historyUrl = resource.getFile();
@@ -70,10 +71,30 @@ public class WorkflowExecutionHistoryTest {
     try (Reader reader = Files.newBufferedReader(historyFile.toPath(), UTF_8)) {
       originalSerializedJsonHistory = CharStreams.toString(reader);
     }
+    originalSerializedJsonHistory = originalSerializedJsonHistory.replace("\r\n", "\n");
+
+    // Confirm original history is legacy format
+    assertTrue(
+        originalSerializedJsonHistory.contains("\"eventType\": \"WorkflowExecutionStarted\""));
+    assertFalse(
+        originalSerializedJsonHistory.contains(
+            "\"eventType\": \"EVENT_TYPE_WORKFLOW_EXECUTION_STARTED\""));
 
     WorkflowExecutionHistory history = WorkflowHistoryLoader.readHistoryFromResource(resourceName);
 
-    String serializedHistory = history.toJson(true);
-    assertEquals(originalSerializedJsonHistory, serializedHistory);
+    // Confirm serialized to old matches char-for-char
+    assertEquals(originalSerializedJsonHistory, history.toJson(true, true));
+
+    // Confirm can convert to new-format
+    String newFormatSerializedHistory = history.toJson(true);
+    assertFalse(newFormatSerializedHistory.contains("\"eventType\": \"WorkflowExecutionStarted\""));
+    assertTrue(
+        newFormatSerializedHistory.contains(
+            "\"eventType\": \"EVENT_TYPE_WORKFLOW_EXECUTION_STARTED\""));
+
+    // And that new format is parsed correctly
+    WorkflowExecutionHistory newFormatHistory =
+        WorkflowExecutionHistory.fromJson(newFormatSerializedHistory);
+    assertEquals(history.getHistory(), newFormatHistory.getHistory());
   }
 }
