@@ -1,0 +1,119 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2024-02-29T20:38:37.858Z",
+      "eventType": "WorkflowExecutionStarted",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "MyWorkflow"
+        },
+        "taskQueue": {
+          "name": "unknown-history-event"
+        },
+        "input": {},
+        "workflowExecutionTimeout": "315360000s",
+        "workflowRunTimeout": "315360000s",
+        "workflowTaskTimeout": "10s",
+        "originalExecutionRunId": "447c6032-30a1-4dd7-8f7b-f965ba68715c",
+        "identity": "2732293@aten",
+        "firstExecutionRunId": "447c6032-30a1-4dd7-8f7b-f965ba68715c",
+        "attempt": 1,
+        "header": {}
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2024-02-29T20:38:37.858Z",
+      "eventType": "WorkflowTaskScheduled",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "unknown-history-event"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2024-02-29T20:38:37.867Z",
+      "eventType": "WorkflowTaskStarted",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "2732293@aten"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2024-02-29T20:38:38.001Z",
+      "eventType": "WorkflowTaskCompleted",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "2732293@aten",
+        "sdkMetadata": {
+          "langUsedFlags": [
+            1
+          ]
+        },
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2024-02-29T20:38:38.001Z",
+      "eventType": "MarkerRecorded",
+      "markerRecordedEventAttributes": {
+        "markerName": "LocalActivity",
+        "details": {
+          "activityId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IjdjMzMxNzJkLTFhMGUtM2UxMS1iYTM4LTliNjY4ZTFkNzg5NyI\u003d"
+              }
+            ]
+          },
+          "input": {},
+          "meta": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "eyJmaXJzdFNrZCI6MTcwOTIzOTExNzkzMywiYXRwdCI6MSwiYmFja29mZiI6bnVsbH0\u003d"
+              }
+            ]
+          },
+          "time": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MTcwOTIzOTExNzg4NQ\u003d\u003d"
+              }
+            ]
+          },
+          "type": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IkV4ZWN1dGUi"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "3"
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2024-02-29T20:38:38.001Z",
+      "eventType": "Unknown"
+    }
+  ]
+}
