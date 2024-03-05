@@ -65,7 +65,15 @@ public final class HistoryJsonUtils {
   }
 
   public static String historyFormatJsonToProtoJson(String historyFormatJson) {
-    return convertEnumValues(historyFormatJson, ProtoEnumNameUtils::simplifiedToUniqueName);
+    return convertEnumValues(
+        historyFormatJson,
+        (enumName, prefix) -> {
+          // Only convert if the enum name isn't already converted
+          if (enumName.indexOf('_') >= 0) {
+            return enumName;
+          }
+          return ProtoEnumNameUtils.simplifiedToUniqueName(enumName, prefix);
+        });
   }
 
   private static String convertEnumValues(

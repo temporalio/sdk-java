@@ -83,7 +83,8 @@ public final class WorkflowExecutionHistory
   }
 
   /**
-   * @return full json that can be used for replay and which is compatible with tctl
+   * @param prettyPrint Whether to pretty print the JSON.
+   * @return Full json that can be used for replay.
    */
   public String toJson(boolean prettyPrint) {
     return super.toJson(prettyPrint);
