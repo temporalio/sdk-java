@@ -13,6 +13,8 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
       with:
+        fetch-depth: 0
+        submodules: recursive
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
@@ -28,7 +30,8 @@ jobs:
     - name: Start containerized server and dependencies
       run: |
         docker compose \
-          up -d unit-test-test-service-edge
+          -f ./docker/buildkite/docker-compose.yaml \
+          up -d temporal-server cassandra elasticsearch
     
     - name: Run unit tests
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest"
@@ -40,6 +43,8 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
       with:
+        fetch-depth: 0
+        submodules: recursive
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
