@@ -31,7 +31,7 @@ jobs:
       run: |
         docker compose \
           -f ./docker/buildkite/docker-compose.yaml \
-          up -d temporal-server cassandra elasticsearch
+          up -d unit-test-docker-jdk8
     
     - name: Run unit tests
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest"
@@ -44,7 +44,7 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-        submodules: recursive
+        submodules: recursiv
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
