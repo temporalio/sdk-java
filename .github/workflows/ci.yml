@@ -1,0 +1,55 @@
+name: Continuous Integration
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  unit_test:
+    name: Unit test with in-memory test service (Edge)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: "11"
+        distribution: "temurin"
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    
+    - name: Start containerized server and dependencies
+      run: |
+        docker compose \
+          up -d unit-test-test-service-edge
+    
+    - name: Run unit tests
+      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest"
+
+  copyright:
+    name:  Copyright and code format
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: "11"
+        distribution: "temurin"
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v3
+    
+    - name: Run copyright and code format checks
+      run: ./gradlew --no-daemon checkLicenseMain checkLicenses spotlessCheck
