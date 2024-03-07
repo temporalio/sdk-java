@@ -34,7 +34,7 @@ jobs:
           up -d unit-test-docker-jdk8
     
     - name: Run unit tests
-      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest"
+      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
   copyright:
     name:  Copyright and code format
