@@ -6,9 +6,10 @@ on:
       - master
 
 jobs:
-  unit_test:
+  unit_test_edge:
     name: Unit test with in-memory test service (Edge)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - name: Checkout repo
       uses: actions/checkout@v3
@@ -36,9 +37,41 @@ jobs:
     - name: Run unit tests
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
+  unit_test_jdk8:
+    name: Unit test with docker service (JDK8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        submodules: recursive
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: "11"
+        distribution: "temurin"
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    
+    - name: Start containerized server and dependencies
+      run: |
+        docker compose \
+          -f ./docker/buildkite/docker-compose.yaml \
+          up -d unit-test-docker-jdk8
+    
+    - name: Run unit tests
+      run: gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
+
   copyright:
     name:  Copyright and code format
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - name: Checkout repo
       uses: actions/checkout@v3
