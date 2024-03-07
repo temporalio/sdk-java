@@ -1,0 +1,57 @@
+# Highlights
+
+## Breaking Changes
+
+### Workflow execution history default format changes
+
+WorkflowExecutionHistory.toJson method now emit proper protobuf JSON fields in SCREAMING_SNAKE_CASE rather
+than PascalCase. Older versions of the Java SDK will not understand this format.
+Users can revert to the old format by setting legacyFormat to true.
+
+See also: https://github.com/temporalio/sdk-java/pull/2001
+
+### HTTP/2 Keep Alive
+
+HTTP/2 Keep alive is now enabled by default. This should help avoid request timeouts on previously idle connections.
+If users want to revert to the old behavior they can set ServiceStubOptions.setEnableKeepAlive to false.
+
+See also: https://github.com/temporalio/sdk-java/pull/1873
+
+### Connection Options
+
+Default retry options have been updated to match the core based SDKs. This should help with consistency across the SDKs.
+
+See also: https://github.com/temporalio/sdk-java/pull/1989
+
+## Bugfixes
+
+* Dynamic workflows now consistently use context aware data converters.
+* Workflow retry policy is now propagated during continue-as-new and to ContinueAsNewOptions.
+
+# Changeset
+
+2023-11-08 - 237ea64b - Update Workflow ID reuse policy java doc (#1930)
+2023-11-08 - 4f0119fb - Treat signal after workflow complete as NonDeterministicException (#1923)
+2023-11-16 - 499593f4 - Enable TCP keep alive by default (#1873)
+2023-11-16 - a2c8a2b7 - Tag workflow_task_execution_failed with error type (#1932)
+2023-11-17 - 9cd9dca5 - Delete .github/workflows/semgrep.yml (#1934)
+2023-12-05 - a411b521 - Switch to temporalio/auto-setup (#1949)
+2023-12-06 - bb43d375 - Allow WorkflowImplementationOptions to be passed in TestWorkflowExten… (#1948)
+2023-12-14 - 7ee8f968 - Fix ArithmeticException in toJavaDuration. (#1950)
+2023-12-18 - 440965b1 - Removed heardcoded 10 second timeout for an activity under test (#1957)
+2024-01-01 - 0bb0782d - Small update to Spring Boot Readme (#1958)
+2024-01-02 - 91743979 - Added workflow retry policy propagation during continue-as-new and to ContinueAsNewOptions. (#1961)
+2024-01-05 - 1f7a59c7 - Add build id to workflow info (#1964)
+2024-01-11 - 10db5e36 - Remove gogoproto junk (#1968)
+2024-01-12 - 201240a4 - Allow creating a stub of an update only interface (#1967)
+2024-01-16 - 806eab71 - Fix start-workers config (#1972)
+2024-01-22 - 3c4be9df - Unwrap ExecutionException on sync update (#1974)
+2024-01-22 - 4c1bf9f0 - Clarify local connection option (#1976)
+2024-02-01 - 72ebff1d - Prefix some errors with rule identifiers (#1975)
+2024-02-16 - 4da45917 - Update Guava to v32.0.1 (#1979)
+2024-02-16 - f4a572a9 - Apply serialization context to Dynamic Workflows (#1992)
+2024-02-20 - 78e37a60 - SpringBoot - Add registered workflow and activity impl info to workers template (#1986)
+2024-02-23 - 2b05f073 - Update Java SDK retry options for poll operations to match Core SDK. (#1989)
+2024-02-29 - ad1dabcb - SpringBoot - add server-name to mtls config options (#1998)
+2024-03-04 - b182d784 - Ignore history events with worker_may_ignore: true. (#2000)
+2024-03-05 - 0e4ef158 - Support newer JSON history format (#2001)
