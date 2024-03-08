@@ -55,7 +55,7 @@ jobs:
     - name: Start containerized server and dependencies
       run: |
         docker compose \
-          -f ./docker/docker/docker-compose.yaml \
+          -f ./docker/github/docker-compose.yaml \
           up -d temporal
     
     - name: Run unit tests
