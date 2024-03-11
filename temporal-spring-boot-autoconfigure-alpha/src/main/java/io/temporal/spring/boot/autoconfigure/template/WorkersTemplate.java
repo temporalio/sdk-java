@@ -498,6 +498,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     }
   }
 
+  @Experimental
   public static class RegisteredActivityInfo {
     private String beanName;
     private String className;
@@ -531,6 +532,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     }
   }
 
+  @Experimental
   public static class RegisteredWorkflowInfo {
     private String className;
     private POJOWorkflowImplMetadata metadata;
