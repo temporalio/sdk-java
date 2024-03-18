@@ -163,7 +163,7 @@ jobs:
       # path ends in a wildcard because on windows the file ends in '.exe'
       # path excludes *.txt because native-image also writes a build manifest txt file
       - name: Upload executable to workflow
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_family }}_${{ matrix.arch }}
           path: |
@@ -199,7 +199,7 @@ jobs:
         run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
 
       - name: Upload release archives
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-archives
           path: |
