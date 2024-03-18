@@ -39,7 +39,7 @@ jobs:
           distribution: 'temurin'
           
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
 
       # Prefer env variables here rather than inline ${{ secrets.FOO }} to
       # decrease the likelihood that secrets end up printed to stdout.
