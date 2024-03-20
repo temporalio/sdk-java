@@ -41,7 +41,8 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.concurrent.Semaphore;
+import io.temporal.worker.tuning.FixedSizeSlotSupplier;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -72,7 +73,8 @@ public class StickyQueueBacklogTest {
     when(client.blockingStub()).thenReturn(blockingStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
-    Semaphore executorSlotsSemaphore = new Semaphore(10);
+    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
+        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(10));
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(2, true);
 
     Scope metricsScope =
@@ -88,7 +90,7 @@ public class StickyQueueBacklogTest {
             "",
             "",
             false,
-            executorSlotsSemaphore,
+            slotSupplier,
             stickyQueueBalancer,
             metricsScope,
             () -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -130,8 +132,10 @@ public class StickyQueueBacklogTest {
     } else {
       assertNull(poller.poll());
     }
-    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_STICKY, stickyQueueBalancer.makePoll());
+    TaskQueueKind nextKind = stickyQueueBalancer.nextPollKind();
+    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_STICKY, nextKind);
+    stickyQueueBalancer.startPoll(nextKind);
     // If the backlog was not reset this would be a sticky task
-    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_NORMAL, stickyQueueBalancer.makePoll());
+    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_NORMAL, stickyQueueBalancer.nextPollKind());
   }
 }

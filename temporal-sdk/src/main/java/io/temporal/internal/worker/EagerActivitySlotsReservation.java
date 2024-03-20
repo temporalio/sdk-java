@@ -28,14 +28,18 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 import io.temporal.internal.Config;
+import io.temporal.worker.tuning.SlotPermit;
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /** This class is not thread safe and shouldn't leave the boundaries of one activity executor */
 @NotThreadSafe
 class EagerActivitySlotsReservation implements Closeable {
   private final EagerActivityDispatcher eagerActivityDispatcher;
-  private int outstandingReservationSlotsCount = 0;
+  private final List<SlotPermit> reservedSlots = new ArrayList<>();
 
   EagerActivitySlotsReservation(EagerActivityDispatcher eagerActivityDispatcher) {
     this.eagerActivityDispatcher = eagerActivityDispatcher;
@@ -49,10 +53,14 @@ class EagerActivitySlotsReservation implements Closeable {
       ScheduleActivityTaskCommandAttributes commandAttributes =
           command.getScheduleActivityTaskCommandAttributes();
       if (!commandAttributes.getRequestEagerExecution()) continue;
+      boolean atLimit = this.reservedSlots.size() >= Config.EAGER_ACTIVITIES_LIMIT;
+      Optional<SlotPermit> permit = Optional.empty();
+      if (!atLimit) {
+        permit = this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes);
+      }
 
-      if (this.outstandingReservationSlotsCount < Config.EAGER_ACTIVITIES_LIMIT
-          && this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes)) {
-        this.outstandingReservationSlotsCount++;
+      if (permit.isPresent()) {
+        this.reservedSlots.add(permit.get());
       } else {
         mutableRequest.setCommands(
             i,
@@ -66,34 +74,43 @@ class EagerActivitySlotsReservation implements Closeable {
   public void handleResponse(RespondWorkflowTaskCompletedResponse serverResponse) {
     int activityTasksCount = serverResponse.getActivityTasksCount();
     Preconditions.checkArgument(
-        activityTasksCount <= this.outstandingReservationSlotsCount,
+        activityTasksCount <= this.reservedSlots.size(),
         "Unexpectedly received %s eager activities though we only requested %s",
         activityTasksCount,
-        this.outstandingReservationSlotsCount);
+        this.reservedSlots.size());
 
-    releaseSlots(this.outstandingReservationSlotsCount - activityTasksCount);
+    // Release any slots that we won't be using
+    releaseSlots(this.reservedSlots.size() - activityTasksCount);
 
     for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList()) {
       // don't release slots here, instead the semaphore release reference is passed to the activity
       // worker to release when the activity is done
-      this.eagerActivityDispatcher.dispatchActivity(act);
+      SlotPermit permit = this.reservedSlots.remove(0);
+      this.eagerActivityDispatcher.dispatchActivity(act, permit);
     }
 
-    this.outstandingReservationSlotsCount = 0;
+    this.reservedSlots.clear();
   }
 
   @Override
   public void close() {
-    if (this.outstandingReservationSlotsCount > 0)
-      releaseSlots(this.outstandingReservationSlotsCount);
+    if (!this.reservedSlots.isEmpty()) {
+      releaseSlots(this.reservedSlots.size());
+    }
   }
 
   private void releaseSlots(int slotsToRelease) {
-    if (slotsToRelease > this.outstandingReservationSlotsCount)
+    if (slotsToRelease <= 0) return;
+    if (slotsToRelease > this.reservedSlots.size())
       throw new IllegalStateException(
           "Trying to release more activity slots than outstanding reservations");
 
-    this.eagerActivityDispatcher.releaseActivitySlotReservations(slotsToRelease);
-    this.outstandingReservationSlotsCount -= slotsToRelease;
+    List<SlotPermit> slotsToReleaseList = this.reservedSlots.subList(0, slotsToRelease);
+    try {
+      this.eagerActivityDispatcher.releaseActivitySlotReservations(slotsToReleaseList);
+    } finally {
+      // Actually remove the permits from the class-level storage
+      slotsToReleaseList.clear();
+    }
   }
 }
