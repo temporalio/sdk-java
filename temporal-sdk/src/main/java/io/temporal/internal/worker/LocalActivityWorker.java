@@ -423,6 +423,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
           scheduleToStartFuture != null && !scheduleToStartFuture.cancel(false);
 
       LocalActivityExecutionContext executionContext = attemptTask.getExecutionContext();
+      executionContext.newAttempt();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
 
       // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
