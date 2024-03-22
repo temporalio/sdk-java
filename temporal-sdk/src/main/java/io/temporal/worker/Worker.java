@@ -39,6 +39,7 @@ import io.temporal.internal.worker.SyncWorkflowWorker;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.slotsupplier.*;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
@@ -107,13 +108,19 @@ public final class Worker {
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
+      // TODO: Get real supplier from worker options
+      TrackingSlotSupplier<ActivitySlotInfo> fsss =
+          new TrackingSlotSupplier<>(
+              new FixedSizeSlotSupplier<>(options.getMaxConcurrentActivityExecutionSize()));
+
       activityWorker =
           new SyncActivityWorker(
               service,
               namespace,
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
-              activityOptions);
+              activityOptions,
+              fsss);
     }
 
     EagerActivityDispatcher eagerActivityDispatcher =
@@ -132,6 +139,14 @@ public final class Worker {
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
             factoryOptions, this.options, clientOptions, contextPropagators, this.metricsScope);
+
+    // TODO: Get real suppliers from worker options
+    TrackingSlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
+        new TrackingSlotSupplier<>(
+            new FixedSizeSlotSupplier<>(options.getMaxConcurrentWorkflowTaskExecutionSize()));
+    TrackingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+        new TrackingSlotSupplier<>(
+            new FixedSizeSlotSupplier<>(options.getMaxConcurrentLocalActivityExecutionSize()));
     workflowWorker =
         new SyncWorkflowWorker(
             service,
@@ -143,7 +158,9 @@ public final class Worker {
             cache,
             useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
             workflowThreadExecutor,
-            eagerActivityDispatcher);
+            eagerActivityDispatcher,
+            workflowSlotSupplier,
+            localActivitySlotSupplier);
   }
 
   /**
@@ -508,7 +525,6 @@ public final class Worker {
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
                 .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
                 .build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(metricsScope)
         .build();
   }
@@ -541,7 +557,6 @@ public final class Worker {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder().setPollThreadCount(maxConcurrentWorkflowTaskPollers).build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
         .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
         .setMetricsScope(metricsScope.tagged(tags))
@@ -556,7 +571,6 @@ public final class Worker {
       Scope metricsScope) {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
         .setMetricsScope(metricsScope)
         .build();
   }

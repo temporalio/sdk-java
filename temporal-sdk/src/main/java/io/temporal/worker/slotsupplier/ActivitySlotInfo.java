@@ -1,14 +1,14 @@
 package io.temporal.worker.slotsupplier;
 
 public class ActivitySlotInfo {
-  private final String activityType;
+  private final String activityTypeName;
 
   public ActivitySlotInfo(String workflowType) {
-    this.activityType = workflowType;
+    this.activityTypeName = workflowType;
   }
 
-  public String getActivityType() {
-    return activityType;
+  public String getActivityTypeName() {
+    return activityTypeName;
   }
 
   @Override
@@ -18,16 +18,16 @@ public class ActivitySlotInfo {
 
     ActivitySlotInfo that = (ActivitySlotInfo) o;
 
-    return activityType.equals(that.activityType);
+    return activityTypeName.equals(that.activityTypeName);
   }
 
   @Override
   public int hashCode() {
-    return activityType.hashCode();
+    return activityTypeName.hashCode();
   }
 
   @Override
   public String toString() {
-    return "WorkflowSlotInfo{" + "activityType='" + activityType + "'}";
+    return "WorkflowSlotInfo{" + "activityType='" + activityTypeName + "'}";
   }
 }

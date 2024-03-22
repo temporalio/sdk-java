@@ -35,8 +35,8 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.slotsupplier.*;
 import java.util.Objects;
-import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowPollTask.class);
 
-  private final Semaphore workflowTaskExecutorSemaphore;
+  private final SlotSupplier<WorkflowSlotInfo> slotSupplier;
   private final StickyQueueBalancer stickyQueueBalancer;
   private final Scope metricsScope;
   private final Scope stickyMetricsScope;
@@ -62,11 +62,11 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       @Nonnull String identity,
       @Nullable String buildId,
       boolean useBuildIdForVersioning,
-      @Nonnull Semaphore workflowTaskExecutorSemaphore,
+      @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
       @Nonnull Scope workerMetricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
-    this.workflowTaskExecutorSemaphore = Objects.requireNonNull(workflowTaskExecutorSemaphore);
+    this.slotSupplier = Objects.requireNonNull(slotSupplier);
     this.stickyQueueBalancer = Objects.requireNonNull(stickyQueueBalancer);
     this.metricsScope = Objects.requireNonNull(workerMetricsScope);
     this.stickyMetricsScope =
@@ -120,13 +120,17 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   @Override
   public WorkflowTask poll() {
     boolean isSuccessful = false;
+    SlotPermit permit;
     try {
-      workflowTaskExecutorSemaphore.acquire();
+      permit =
+          slotSupplier.reserveSlot(
+              new SlotReservationData(pollRequest.getTaskQueue().getName(), false));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;
     }
 
+    // TODO: Needs to move above the slot reservation. Make sure this doesn't break stuff
     TaskQueueKind taskQueueKind = stickyQueueBalancer.makePoll();
     boolean isSticky = TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind);
     PollWorkflowTaskQueueRequest request = isSticky ? stickyPollRequest : pollRequest;
@@ -140,10 +144,11 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       }
       isSuccessful = true;
       stickyQueueBalancer.finishPoll(taskQueueKind, response.getBacklogCountHint());
-      return new WorkflowTask(response, workflowTaskExecutorSemaphore::release);
+      return new WorkflowTask(
+          response, () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {
       if (!isSuccessful) {
-        workflowTaskExecutorSemaphore.release();
+        slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
         stickyQueueBalancer.finishPoll(taskQueueKind, 0);
       }
     }

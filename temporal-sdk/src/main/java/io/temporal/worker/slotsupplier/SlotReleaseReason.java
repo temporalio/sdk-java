@@ -2,15 +2,15 @@ package io.temporal.worker.slotsupplier;
 
 public abstract class SlotReleaseReason {
 
-  static SlotReleaseReason taskComplete() {
+  public static SlotReleaseReason taskComplete() {
     return new TaskComplete();
   }
 
-  static SlotReleaseReason neverUsed() {
+  public static SlotReleaseReason neverUsed() {
     return new NeverUsed();
   }
 
-  static SlotReleaseReason error(Exception exception) {
+  public static SlotReleaseReason error(Exception exception) {
     return new Error(exception);
   }
 
@@ -22,11 +22,11 @@ public abstract class SlotReleaseReason {
     return null;
   }
 
-  private static class TaskComplete extends SlotReleaseReason {}
+  public static class TaskComplete extends SlotReleaseReason {}
 
-  private static class NeverUsed extends SlotReleaseReason {}
+  public static class NeverUsed extends SlotReleaseReason {}
 
-  private static class Error extends SlotReleaseReason {
+  public static class Error extends SlotReleaseReason {
     private final Exception exception;
 
     private Error(Exception exception) {

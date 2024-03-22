@@ -43,9 +43,11 @@ import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
+import io.temporal.worker.slotsupplier.*;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,16 +71,19 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   private ScheduledExecutorService scheduledExecutor;
   private PollTaskExecutor<LocalActivityAttemptTask> activityAttemptTaskExecutor;
+  private final SlotSupplier<LocalActivitySlotInfo> slotSupplier;
 
   public LocalActivityWorker(
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull SingleWorkerOptions options,
-      @Nonnull ActivityTaskHandler handler) {
+      @Nonnull ActivityTaskHandler handler,
+      @Nonnull SlotSupplier<LocalActivitySlotInfo> slotSupplier) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
-    this.laScheduler = new LocalActivityDispatcherImpl(2 * options.getTaskExecutorThreadPoolSize());
+    this.slotSupplier = Objects.requireNonNull(slotSupplier);
+    this.laScheduler = new LocalActivityDispatcherImpl(slotSupplier);
     this.options = Objects.requireNonNull(options);
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
@@ -193,13 +198,13 @@ final class LocalActivityWorker implements Startable, Shutdownable {
      * Retries always get a green light, but we have a backpressure for new tasks if the queue fills
      * up with not picked up new executions
      */
-    private final Semaphore newExecutionsBackpressureSemaphore;
+    private final SlotSupplier<LocalActivitySlotInfo> slotSupplier;
 
-    public LocalActivityDispatcherImpl(int semaphorePermits) {
-      // number of permits for this semaphore is not that important, because we allow submitter to
-      // block and wait till the workflow task heartbeat to allow the worker to tolerate spikes of
-      // short local activity executions.
-      this.newExecutionsBackpressureSemaphore = new Semaphore(semaphorePermits);
+    public LocalActivityDispatcherImpl(SlotSupplier<LocalActivitySlotInfo> slotSupplier) {
+      // we allow submitters to block and wait till the workflow task heartbeat to allow the worker
+      // to tolerate spikes
+      // of short local activity executions.
+      this.slotSupplier = slotSupplier;
     }
 
     @Override
@@ -256,20 +261,18 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
         @Nullable Deadline acceptanceDeadline) {
       try {
-        boolean accepted;
+        SlotPermit permit = null;
+        SlotReservationData reservationCtx = new SlotReservationData(taskQueue, false);
         if (acceptanceDeadline == null) {
-          newExecutionsBackpressureSemaphore.acquire();
-          accepted = true;
+          permit = slotSupplier.reserveSlot(reservationCtx);
         } else {
           long acceptanceTimeoutMs = acceptanceDeadline.timeRemaining(TimeUnit.MILLISECONDS);
-          if (acceptanceTimeoutMs > 0) {
-            accepted =
-                newExecutionsBackpressureSemaphore.tryAcquire(
-                    acceptanceTimeoutMs, TimeUnit.MILLISECONDS);
-          } else {
-            accepted = newExecutionsBackpressureSemaphore.tryAcquire();
+          // todo: use (acceptanceTimeoutMs, TimeUnit.MILLISECONDS)
+          Optional<SlotPermit> maybePermit = slotSupplier.tryReserveSlot(reservationCtx);
+          if (maybePermit.isPresent()) {
+            permit = maybePermit.get();
           }
-          if (!accepted) {
+          if (permit == null) {
             log.warn(
                 "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
                 activityTask.getActivityId(),
@@ -277,7 +280,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
           }
         }
 
-        if (accepted) {
+        if (permit != null) {
           // we should publish scheduleToClose before submission, so the handlers always see a full
           // state of executionContext
           @Nullable
@@ -291,11 +294,17 @@ final class LocalActivityWorker implements Startable, Shutdownable {
                     TimeUnit.MILLISECONDS);
             executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
           }
+          // TODO: This "taken from queue" callback appears to mark slots as released once the
+          //   attempt _starts_ rather than when it _finishes_, this seems wrong.
+          final SlotPermit captured_permit = permit;
           submitAttempt(
-              executionContext, activityTask, newExecutionsBackpressureSemaphore::release);
+              executionContext,
+              activityTask,
+              () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), captured_permit));
           log.trace("LocalActivity queued: {}", activityTask.getActivityId());
         }
-        return accepted;
+        // TODO: Probably return permit
+        return permit != null;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return false;
@@ -675,7 +684,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               options.getIdentity(),
               new AttemptTaskHandlerImpl(handler),
               pollerOptions,
-              options.getTaskExecutorThreadPoolSize(),
+              slotSupplier.maximumSlots(),
               workerMetricsScope,
               false);
 

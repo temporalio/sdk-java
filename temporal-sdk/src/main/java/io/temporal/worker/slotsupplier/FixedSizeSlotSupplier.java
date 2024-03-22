@@ -3,10 +3,12 @@ package io.temporal.worker.slotsupplier;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
-public class FixedSizeSlotSupplier<SlotInfo> implements SlotSupplier<SlotInfo> {
+public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
+  private final int numSlots;
   private final Semaphore executorSlotsSemaphore;
 
   public FixedSizeSlotSupplier(int numSlots) {
+    this.numSlots = numSlots;
     executorSlotsSemaphore = new Semaphore(numSlots);
   }
 
@@ -26,8 +28,15 @@ public class FixedSizeSlotSupplier<SlotInfo> implements SlotSupplier<SlotInfo> {
   }
 
   @Override
-  public void markSlotUsed(SlotInfo slotInfo, SlotPermit permit) {}
+  public void markSlotUsed(T slotInfo, SlotPermit permit) {}
 
   @Override
-  public void releaseSlot(SlotReleaseReason reason, SlotPermit permit) {}
+  public void releaseSlot(SlotReleaseReason reason, SlotPermit permit) {
+    executorSlotsSemaphore.release();
+  }
+
+  @Override
+  public int maximumSlots() {
+    return numSlots;
+  }
 }
