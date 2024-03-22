@@ -144,6 +144,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       }
       isSuccessful = true;
       stickyQueueBalancer.finishPoll(taskQueueKind, response.getBacklogCountHint());
+      slotSupplier.markSlotUsed(new WorkflowSlotInfo(response), permit);
       return new WorkflowTask(
           response, () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {

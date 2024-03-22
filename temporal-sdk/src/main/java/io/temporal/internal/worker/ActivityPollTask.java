@@ -121,6 +121,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               ProtobufTimeUtils.toM3Duration(
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
+      slotSupplier.markSlotUsed(new ActivitySlotInfo(response), permit);
       return new ActivityTask(
           response, () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {

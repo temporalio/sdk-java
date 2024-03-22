@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Temporal Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
  *
  * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Temporal Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
  *
  * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -20,11 +20,17 @@
 
 package io.temporal.worker.slotsupplier;
 
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+
 public class WorkflowSlotInfo {
   private final String workflowType;
 
   public WorkflowSlotInfo(String workflowType) {
     this.workflowType = workflowType;
+  }
+
+  public WorkflowSlotInfo(PollWorkflowTaskQueueResponse response) {
+    this(response.getWorkflowType().getName());
   }
 
   public String getWorkflowType() {

@@ -94,13 +94,12 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   private void submitRetry(
       @Nonnull LocalActivityExecutionContext executionContext,
       @Nonnull PollActivityTaskQueueResponse.Builder activityTask) {
-    submitAttempt(executionContext, activityTask, null);
+    submitAttempt(executionContext, activityTask);
   }
 
   private void submitAttempt(
       @Nonnull LocalActivityExecutionContext executionContext,
-      @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
-      @Nullable Functions.Proc leftQueueCallback) {
+      @Nonnull PollActivityTaskQueueResponse.Builder activityTask) {
     @Nullable Duration scheduleToStartTimeout = executionContext.getScheduleToStartTimeout();
     @Nullable ScheduledFuture<?> scheduleToStartFuture = null;
     if (scheduleToStartTimeout != null) {
@@ -113,8 +112,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
     activityTask.setCurrentAttemptScheduledTime(ProtobufTimeUtils.getCurrentProtoTime());
     LocalActivityAttemptTask task =
-        new LocalActivityAttemptTask(
-            executionContext, activityTask, leftQueueCallback, scheduleToStartFuture);
+        new LocalActivityAttemptTask(executionContext, activityTask, scheduleToStartFuture);
     activityAttemptTaskExecutor.process(task);
   }
 
@@ -178,6 +176,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   /**
    * @param executionContext execution context of the activity
+   * @param permit the slot permit for this LA execution
    * @param backoff delay time in milliseconds to the next attempt
    * @param failure if supplied, it will be used to override {@link
    *     LocalActivityExecutionContext#getLastAttemptFailure()}
@@ -243,7 +242,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       }
 
       LocalActivityExecutionContext executionContext =
-          new LocalActivityExecutionContext(params, resultCallback, scheduleToCloseDeadline);
+          new LocalActivityExecutionContext(
+              params, resultCallback, scheduleToCloseDeadline, slotSupplier);
 
       PollActivityTaskQueueResponse.Builder activityTask = executionContext.getInitialTask();
 
@@ -281,6 +281,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         }
 
         if (permit != null) {
+          executionContext.setPermit(permit);
           // we should publish scheduleToClose before submission, so the handlers always see a full
           // state of executionContext
           @Nullable
@@ -294,16 +295,9 @@ final class LocalActivityWorker implements Startable, Shutdownable {
                     TimeUnit.MILLISECONDS);
             executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
           }
-          // TODO: This "taken from queue" callback appears to mark slots as released once the
-          //   attempt _starts_ rather than when it _finishes_, this seems wrong.
-          final SlotPermit captured_permit = permit;
-          submitAttempt(
-              executionContext,
-              activityTask,
-              () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), captured_permit));
+          submitAttempt(executionContext, activityTask);
           log.trace("LocalActivity queued: {}", activityTask.getActivityId());
         }
-        // TODO: Probably return permit
         return permit != null;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -423,8 +417,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
     @Override
     public void handle(LocalActivityAttemptTask attemptTask) throws Exception {
-      attemptTask.markAsTakenFromQueue();
-
       // cancel scheduleToStart timeout if not already fired
       @Nullable ScheduledFuture<?> scheduleToStartFuture = attemptTask.getScheduleToStartFuture();
       boolean scheduleToStartFired =
@@ -456,6 +448,10 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+
+      slotSupplier.markSlotUsed(
+          new LocalActivitySlotInfo(activityTask), executionContext.getPermit());
+
       try {
         ScheduledFuture<?> startToCloseTimeoutFuture = null;
 
