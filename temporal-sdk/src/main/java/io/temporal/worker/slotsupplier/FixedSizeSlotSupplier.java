@@ -1,5 +1,6 @@
 package io.temporal.worker.slotsupplier;
 
+import com.google.common.base.Preconditions;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
@@ -8,6 +9,7 @@ public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
   private final Semaphore executorSlotsSemaphore;
 
   public FixedSizeSlotSupplier(int numSlots) {
+    Preconditions.checkArgument(numSlots > 0, "FixedSizeSlotSupplier must have at least one slot");
     this.numSlots = numSlots;
     executorSlotsSemaphore = new Semaphore(numSlots);
   }

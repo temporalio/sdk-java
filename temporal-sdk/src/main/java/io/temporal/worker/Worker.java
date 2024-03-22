@@ -109,9 +109,9 @@ public final class Worker {
       activityWorker = null;
     } else {
       // TODO: Get real supplier from worker options
-      TrackingSlotSupplier<ActivitySlotInfo> fsss =
+      TrackingSlotSupplier<ActivitySlotInfo> activitySlotSupplier =
           new TrackingSlotSupplier<>(
-              new FixedSizeSlotSupplier<>(options.getMaxConcurrentActivityExecutionSize()));
+              new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentActivityExecutionSize()));
 
       activityWorker =
           new SyncActivityWorker(
@@ -120,7 +120,7 @@ public final class Worker {
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
               activityOptions,
-              fsss);
+              activitySlotSupplier);
     }
 
     EagerActivityDispatcher eagerActivityDispatcher =
@@ -143,10 +143,10 @@ public final class Worker {
     // TODO: Get real suppliers from worker options
     TrackingSlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
         new TrackingSlotSupplier<>(
-            new FixedSizeSlotSupplier<>(options.getMaxConcurrentWorkflowTaskExecutionSize()));
+            new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentWorkflowTaskExecutionSize()));
     TrackingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
         new TrackingSlotSupplier<>(
-            new FixedSizeSlotSupplier<>(options.getMaxConcurrentLocalActivityExecutionSize()));
+            new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentLocalActivityExecutionSize()));
     workflowWorker =
         new SyncWorkflowWorker(
             service,
