@@ -23,7 +23,6 @@ package io.temporal.client;
 import com.google.common.base.Objects;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
-import io.temporal.common.Experimental;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributes;
@@ -355,7 +354,6 @@ public final class WorkflowOptions {
      * signal from signal with start will not trigger a workflow task. Cannot be set the same time
      * as a CronSchedule.
      */
-    @Experimental
     public Builder setStartDelay(Duration startDelay) {
       this.startDelay = startDelay;
       return this;
