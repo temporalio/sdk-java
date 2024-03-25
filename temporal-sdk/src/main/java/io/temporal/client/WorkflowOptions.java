@@ -355,7 +355,6 @@ public final class WorkflowOptions {
      * signal from signal with start will not trigger a workflow task. Cannot be set the same time
      * as a CronSchedule.
      */
-    @Experimental
     public Builder setStartDelay(Duration startDelay) {
       this.startDelay = startDelay;
       return this;
