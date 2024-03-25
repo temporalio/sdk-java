@@ -21,10 +21,10 @@
 package io.temporal.worker.slotsupplier;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public interface SlotSupplier<SlotInfo> {
-  // TODO: Needs to be cancellable
-  SlotPermit reserveSlot(SlotReservationContext ctx) throws InterruptedException;
+  CompletableFuture<SlotPermit> reserveSlot(SlotReservationContext ctx);
 
   Optional<SlotPermit> tryReserveSlot(SlotReservationContext ctx);
 

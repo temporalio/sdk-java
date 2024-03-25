@@ -22,6 +22,7 @@ package io.temporal.worker.slotsupplier;
 
 import com.google.common.base.Preconditions;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 
 public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
@@ -35,9 +36,16 @@ public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReservationContext ctx) throws InterruptedException {
-    executorSlotsSemaphore.acquire();
-    return new SlotPermit();
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReservationContext ctx) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            executorSlotsSemaphore.acquire();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          return new SlotPermit();
+        });
   }
 
   @Override

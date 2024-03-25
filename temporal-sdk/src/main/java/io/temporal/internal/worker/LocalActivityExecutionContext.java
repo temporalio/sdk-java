@@ -162,6 +162,7 @@ class LocalActivityExecutionContext {
     if (scheduleToCloseFuture != null) {
       scheduleToCloseFuture.cancel(false);
     }
+    // TODO: Inspect result and apply different reasons
     slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit);
     return executionResult.complete(result);
   }
@@ -174,7 +175,7 @@ class LocalActivityExecutionContext {
     executionParams.getOnNewAttemptCallback().apply();
   }
 
-  public void setPermit(@Nonnull SlotPermit permit) {
+  public void setPermit(SlotPermit permit) {
     this.permit = permit;
   }
 

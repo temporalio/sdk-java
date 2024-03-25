@@ -35,6 +35,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.slotsupplier.*;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -97,10 +98,14 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
 
     try {
       permit =
-          slotSupplier.reserveSlot(
-              new SlotReservationData(pollRequest.getTaskQueue().getName(), false));
+          slotSupplier
+              .reserveSlot(new SlotReservationData(pollRequest.getTaskQueue().getName(), false))
+              .get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      return null;
+    } catch (ExecutionException e) {
+      log.warn("Error while trying to reserve a slot for an activity", e.getCause());
       return null;
     }
 

@@ -47,7 +47,6 @@ import io.temporal.worker.slotsupplier.*;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -176,7 +175,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   /**
    * @param executionContext execution context of the activity
-   * @param permit the slot permit for this LA execution
    * @param backoff delay time in milliseconds to the next attempt
    * @param failure if supplied, it will be used to override {@link
    *     LocalActivityExecutionContext#getLastAttemptFailure()}
@@ -259,48 +257,66 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     private boolean submitANewExecution(
         @Nonnull LocalActivityExecutionContext executionContext,
         @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
-        @Nullable Deadline acceptanceDeadline) {
+        @Nullable Deadline heartbeatDeadline) {
+      long acceptanceTimeoutMs = 0;
+      boolean timeoutIsScheduleToStart = false;
+      if (heartbeatDeadline != null) {
+        acceptanceTimeoutMs = heartbeatDeadline.timeRemaining(TimeUnit.MILLISECONDS);
+      }
+      Duration scheduleToStartTimeout = executionContext.getScheduleToStartTimeout();
+      if (scheduleToStartTimeout != null) {
+        long scheduleToStartTimeoutMs = scheduleToStartTimeout.toMillis();
+        if (scheduleToStartTimeoutMs > 0 && scheduleToStartTimeoutMs < acceptanceTimeoutMs) {
+          acceptanceTimeoutMs = scheduleToStartTimeoutMs;
+          timeoutIsScheduleToStart = true;
+        }
+      }
       try {
         SlotPermit permit = null;
         SlotReservationData reservationCtx = new SlotReservationData(taskQueue, false);
-        if (acceptanceDeadline == null) {
-          permit = slotSupplier.reserveSlot(reservationCtx);
+        if (acceptanceTimeoutMs <= 0) {
+          permit = slotSupplier.reserveSlot(reservationCtx).get();
         } else {
-          long acceptanceTimeoutMs = acceptanceDeadline.timeRemaining(TimeUnit.MILLISECONDS);
-          // todo: use (acceptanceTimeoutMs, TimeUnit.MILLISECONDS)
-          Optional<SlotPermit> maybePermit = slotSupplier.tryReserveSlot(reservationCtx);
-          if (maybePermit.isPresent()) {
-            permit = maybePermit.get();
-          }
-          if (permit == null) {
-            log.warn(
-                "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
-                activityTask.getActivityId(),
-                acceptanceTimeoutMs);
+          try {
+            permit =
+                slotSupplier
+                    .reserveSlot(reservationCtx)
+                    .get(acceptanceTimeoutMs, TimeUnit.MILLISECONDS);
+          } catch (TimeoutException e) {
+            // In the event that we timed out waiting for a permit *because of schedule to start* we
+            // still want to proceed with the "attempt" with a null permit, which will then
+            // immediately fail with the s2s timeout.
+            if (!timeoutIsScheduleToStart) {
+              log.warn(
+                  "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
+                  activityTask.getActivityId(),
+                  acceptanceTimeoutMs);
+              return false;
+            }
           }
         }
 
-        if (permit != null) {
-          executionContext.setPermit(permit);
-          // we should publish scheduleToClose before submission, so the handlers always see a full
-          // state of executionContext
-          @Nullable
-          Deadline scheduleToCloseDeadline = executionContext.getScheduleToCloseDeadline();
-          if (scheduleToCloseDeadline != null) {
-            ScheduledFuture<?> scheduleToCloseFuture =
-                scheduledExecutor.schedule(
-                    new FinalTimeoutHandler(
-                        TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext),
-                    scheduleToCloseDeadline.timeRemaining(TimeUnit.MILLISECONDS),
-                    TimeUnit.MILLISECONDS);
-            executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
-          }
-          submitAttempt(executionContext, activityTask);
-          log.trace("LocalActivity queued: {}", activityTask.getActivityId());
+        executionContext.setPermit(permit);
+        // we should publish scheduleToClose before submission, so the handlers always see a full
+        // state of executionContext
+        @Nullable Deadline scheduleToCloseDeadline = executionContext.getScheduleToCloseDeadline();
+        if (scheduleToCloseDeadline != null) {
+          ScheduledFuture<?> scheduleToCloseFuture =
+              scheduledExecutor.schedule(
+                  new FinalTimeoutHandler(
+                      TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext),
+                  scheduleToCloseDeadline.timeRemaining(TimeUnit.MILLISECONDS),
+                  TimeUnit.MILLISECONDS);
+          executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
         }
-        return permit != null;
+        submitAttempt(executionContext, activityTask);
+        log.warn("LocalActivity queued: {}", activityTask.getActivityId());
+        return true;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        return false;
+      } catch (ExecutionException e) {
+        log.warn("Error while trying to reserve a slot for local activity", e.getCause());
         return false;
       }
     }
