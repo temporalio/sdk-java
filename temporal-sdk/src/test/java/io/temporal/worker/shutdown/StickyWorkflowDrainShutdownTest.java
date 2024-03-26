@@ -41,8 +41,8 @@ public class StickyWorkflowDrainShutdownTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setUseExternalService(true)
           .setWorkflowTypes(TestWorkflowImpl.class)
+          .setUseTimeskipping(false)
           .setWorkerOptions(
               WorkerOptions.newBuilder().setStickyTaskQueueDrainTimeout(DRAIN_TIME).build())
           .setWorkflowServiceStubsOptions(
