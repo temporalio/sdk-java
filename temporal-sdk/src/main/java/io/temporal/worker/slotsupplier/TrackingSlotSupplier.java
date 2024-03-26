@@ -54,14 +54,12 @@ public class TrackingSlotSupplier<SlotInfo> implements SlotSupplier<SlotInfo> {
 
   @Override
   public void markSlotUsed(SlotInfo slotInfo, SlotPermit permit) {
-    System.out.println("Marking slot used: " + slotInfo + " With permit: " + permit);
     inner.markSlotUsed(slotInfo, permit);
     usedSlots.put(permit, slotInfo);
   }
 
   @Override
   public void releaseSlot(SlotReleaseReason reason, SlotPermit permit) {
-    System.out.println("Releasing slot: " + permit);
     inner.releaseSlot(reason, permit);
     issuedSlots.decrementAndGet();
     usedSlots.remove(permit);

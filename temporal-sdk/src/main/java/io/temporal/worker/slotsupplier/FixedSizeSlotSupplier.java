@@ -22,17 +22,18 @@ package io.temporal.worker.slotsupplier;
 
 import com.google.common.base.Preconditions;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 
 public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
   private final int numSlots;
   private final Semaphore executorSlotsSemaphore;
+  private final Executor exe;
 
   public FixedSizeSlotSupplier(int numSlots) {
     Preconditions.checkArgument(numSlots > 0, "FixedSizeSlotSupplier must have at least one slot");
     this.numSlots = numSlots;
     executorSlotsSemaphore = new Semaphore(numSlots);
+    exe = Executors.newFixedThreadPool(1);
   }
 
   @Override
@@ -45,7 +46,8 @@ public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
             throw new RuntimeException(e);
           }
           return new SlotPermit();
-        });
+        },
+        exe);
   }
 
   @Override
