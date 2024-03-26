@@ -24,6 +24,9 @@ import static java.lang.Double.compare;
 
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
+import io.temporal.worker.slotsupplier.FixedSizeSlotSupplier;
+import io.temporal.worker.slotsupplier.SlotSupplier;
+import io.temporal.worker.slotsupplier.WorkflowSlotInfo;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -493,6 +496,10 @@ public final class WorkerOptions {
 
   public int getMaxConcurrentWorkflowTaskExecutionSize() {
     return maxConcurrentWorkflowTaskExecutionSize;
+  }
+
+  public SlotSupplier<WorkflowSlotInfo> getWorkflowTaskSlotSupplier() {
+    return new FixedSizeSlotSupplier<>(maxConcurrentWorkflowTaskExecutionSize);
   }
 
   public int getMaxConcurrentLocalActivityExecutionSize() {

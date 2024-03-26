@@ -1,0 +1,74 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.temporal.worker.slotsupplier;
+
+import com.google.common.base.Preconditions;
+import java.util.Optional;
+import java.util.concurrent.*;
+
+public class FixedSizeSlotSupplier<T> implements SlotSupplier<T> {
+  private final int numSlots;
+  private final Semaphore executorSlotsSemaphore;
+  private final Executor exe;
+
+  public FixedSizeSlotSupplier(int numSlots) {
+    Preconditions.checkArgument(numSlots > 0, "FixedSizeSlotSupplier must have at least one slot");
+    this.numSlots = numSlots;
+    executorSlotsSemaphore = new Semaphore(numSlots);
+    exe = Executors.newFixedThreadPool(1);
+  }
+
+  @Override
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReservationContext ctx) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            executorSlotsSemaphore.acquire();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          return new SlotPermit();
+        },
+        exe);
+  }
+
+  @Override
+  public Optional<SlotPermit> tryReserveSlot(SlotReservationContext ctx) {
+    boolean gotOne = executorSlotsSemaphore.tryAcquire();
+    if (gotOne) {
+      return Optional.of(new SlotPermit());
+    }
+    return Optional.empty();
+  }
+
+  @Override
+  public void markSlotUsed(T slotInfo, SlotPermit permit) {}
+
+  @Override
+  public void releaseSlot(SlotReleaseReason reason, SlotPermit permit) {
+    executorSlotsSemaphore.release();
+  }
+
+  @Override
+  public int maximumSlots() {
+    return numSlots;
+  }
+}

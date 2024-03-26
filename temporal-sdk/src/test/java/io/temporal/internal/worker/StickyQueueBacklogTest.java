@@ -41,7 +41,9 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.concurrent.Semaphore;
+import io.temporal.worker.slotsupplier.FixedSizeSlotSupplier;
+import io.temporal.worker.slotsupplier.TrackingSlotSupplier;
+import io.temporal.worker.slotsupplier.WorkflowSlotInfo;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -72,7 +74,8 @@ public class StickyQueueBacklogTest {
     when(client.blockingStub()).thenReturn(blockingStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
-    Semaphore executorSlotsSemaphore = new Semaphore(10);
+    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
+        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(10));
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(2, true);
 
     Scope metricsScope =
@@ -88,7 +91,7 @@ public class StickyQueueBacklogTest {
             "",
             "",
             false,
-            executorSlotsSemaphore,
+            slotSupplier,
             stickyQueueBalancer,
             metricsScope,
             () -> GetSystemInfoResponse.Capabilities.newBuilder().build());

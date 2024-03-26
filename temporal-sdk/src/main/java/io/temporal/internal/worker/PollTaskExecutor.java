@@ -97,6 +97,8 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     Preconditions.checkNotNull(task, "task");
     taskExecutor.execute(
         () -> {
+          // TODO: Unclear if we want to keep this metric here, since users might define
+          //   arbitrary/useless slot limits
           availableTaskSlots.decrementAndGet();
           publishSlotsMetric();
           try {
