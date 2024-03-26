@@ -98,7 +98,7 @@ public class SyncActivityWorker implements SuspendableWorker {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     return shutdownManager
-        // we want to shutdown heartbeatExecutor before activity worker, so in-flight activities
+        // we want to shut down heartbeatExecutor before activity worker, so in-flight activities
         // could get an ActivityWorkerShutdownException from their heartbeat
         .shutdownExecutor(heartbeatExecutor, this + "#heartbeatExecutor", Duration.ofSeconds(5))
         .thenCompose(r -> worker.shutdown(shutdownManager, interruptTasks))

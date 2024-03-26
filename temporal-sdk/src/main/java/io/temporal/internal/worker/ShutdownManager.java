@@ -78,6 +78,23 @@ public class ShutdownManager implements Closeable {
   }
 
   /**
+   * waitForStickyQueueBalancer -&gt; disableNormalPoll -&gt; timed wait for graceful completion of
+   * sticky workflows
+   */
+  public CompletableFuture<Void> waitForStickyQueueBalancer(
+      StickyQueueBalancer balancer, Duration timeout) {
+    CompletableFuture<Void> future = new CompletableFuture<>();
+    balancer.disableNormalPoll();
+    scheduledExecutorService.schedule(
+        () -> {
+          future.complete(null);
+        },
+        timeout.toMillis(),
+        TimeUnit.MILLISECONDS);
+    return future;
+  }
+
+  /**
    * Wait for {@code executorToShutdown} to terminate. Only completes the returned CompletableFuture
    * when the executor is terminated.
    */

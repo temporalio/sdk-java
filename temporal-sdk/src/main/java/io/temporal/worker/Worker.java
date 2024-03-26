@@ -543,6 +543,7 @@ public final class Worker {
             PollerOptions.newBuilder().setPollThreadCount(maxConcurrentWorkflowTaskPollers).build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
+        .setStickyTaskQueueDrainTimeout(options.getStickyTaskQueueDrainTimeout())
         .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
         .setMetricsScope(metricsScope.tagged(tags))
         .build();

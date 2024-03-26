@@ -58,6 +58,7 @@ public final class SingleWorkerOptions {
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
     private Duration defaultHeartbeatThrottleInterval;
+    private Duration drainStickyTaskQueueTimeout;
 
     private Builder() {}
 
@@ -80,6 +81,7 @@ public final class SingleWorkerOptions {
       this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
       this.buildId = options.getBuildId();
       this.useBuildIdForVersioning = options.isUsingBuildIdForVersioning();
+      this.drainStickyTaskQueueTimeout = options.getDrainStickyTaskQueueTimeout();
     }
 
     public Builder setIdentity(String identity) {
@@ -161,6 +163,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setStickyTaskQueueDrainTimeout(Duration drainStickyTaskQueueTimeout) {
+      this.drainStickyTaskQueueTimeout = drainStickyTaskQueueTimeout;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -175,6 +182,11 @@ public final class SingleWorkerOptions {
       Scope metricsScope = this.metricsScope;
       if (metricsScope == null) {
         metricsScope = new NoopScope();
+      }
+
+      Duration drainStickyTaskQueueTimeout = this.drainStickyTaskQueueTimeout;
+      if (drainStickyTaskQueueTimeout == null) {
+        drainStickyTaskQueueTimeout = Duration.ofSeconds(0);
       }
 
       return new SingleWorkerOptions(
@@ -192,7 +204,8 @@ public final class SingleWorkerOptions {
           this.stickyQueueScheduleToStartTimeout,
           this.defaultDeadlockDetectionTimeout,
           this.maxHeartbeatThrottleInterval,
-          this.defaultHeartbeatThrottleInterval);
+          this.defaultHeartbeatThrottleInterval,
+          drainStickyTaskQueueTimeout);
     }
   }
 
@@ -211,6 +224,7 @@ public final class SingleWorkerOptions {
   private final long defaultDeadlockDetectionTimeout;
   private final Duration maxHeartbeatThrottleInterval;
   private final Duration defaultHeartbeatThrottleInterval;
+  private final Duration drainStickyTaskQueueTimeout;
 
   private SingleWorkerOptions(
       String identity,
@@ -227,7 +241,8 @@ public final class SingleWorkerOptions {
       Duration stickyQueueScheduleToStartTimeout,
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
-      Duration defaultHeartbeatThrottleInterval) {
+      Duration defaultHeartbeatThrottleInterval,
+      Duration drainStickyTaskQueueTimeout) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -243,6 +258,7 @@ public final class SingleWorkerOptions {
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
+    this.drainStickyTaskQueueTimeout = drainStickyTaskQueueTimeout;
   }
 
   public String getIdentity() {
@@ -263,6 +279,10 @@ public final class SingleWorkerOptions {
 
   public boolean isUsingBuildIdForVersioning() {
     return useBuildIdForVersioning;
+  }
+
+  public Duration getDrainStickyTaskQueueTimeout() {
+    return drainStickyTaskQueueTimeout;
   }
 
   public DataConverter getDataConverter() {
