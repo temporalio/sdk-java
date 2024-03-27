@@ -355,12 +355,12 @@ public final class WorkerOptions {
     }
 
     /**
-     * During graceful shutdown, like calling {@link WorkerFactory#shutdown()}, if "sticky worker"
-     * is enabled, this timeout controls how long to wait for the sticky task queue to drain before
-     * shutting down the worker. If set the worker will stop making new poll requests on the normal
-     * task queue, but will continue to poll the sticky task queue until the timeout is reached.
-     * This value should always be greater than clients rpc long poll timeout, which can be set via
-     * {@link WorkflowServiceStubsOptions.Builder#setRpcLongPollTimeout(Duration)}.
+     * During graceful shutdown, as when calling {@link WorkerFactory#shutdown()}, if the workflow
+     * cache is enabled, this timeout controls how long to wait for the sticky task queue to drain
+     * before shutting down the worker. If set the worker will stop making new poll requests on the
+     * normal task queue, but will continue to poll the sticky task queue until the timeout is
+     * reached. This value should always be greater than clients rpc long poll timeout, which can be
+     * set via {@link WorkflowServiceStubsOptions.Builder#setRpcLongPollTimeout(Duration)}.
      *
      * <p>Default is not to wait.
      */
