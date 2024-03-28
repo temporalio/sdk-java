@@ -78,6 +78,8 @@ final class WorkflowWorker implements SuspendableWorker {
   //  Currently the implementation looks safe without volatile, but it's brittle.
   @Nonnull private SuspendableWorker poller = new NoopWorker();
 
+  private StickyQueueBalancer stickyQueueBalancer;
+
   public WorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
@@ -118,7 +120,7 @@ final class WorkflowWorker implements SuspendableWorker {
               options.getTaskExecutorThreadPoolSize(),
               workerMetricsScope,
               true);
-      StickyQueueBalancer stickyQueueBalancer =
+      stickyQueueBalancer =
           new StickyQueueBalancer(
               options.getPollerOptions().getPollThreadCount(), stickyTaskQueueName != null);
 
@@ -153,8 +155,21 @@ final class WorkflowWorker implements SuspendableWorker {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     String semaphoreName = this + "#executorSlotsSemaphore";
-    return poller
-        .shutdown(shutdownManager, interruptTasks)
+
+    boolean stickyQueueBalancerDrainEnabled =
+        !interruptTasks
+            && !options.getDrainStickyTaskQueueTimeout().isZero()
+            && stickyTaskQueueName != null
+            && stickyQueueBalancer != null;
+
+    return CompletableFuture.completedFuture(null)
+        .thenCompose(
+            ignore ->
+                stickyQueueBalancerDrainEnabled
+                    ? shutdownManager.waitForStickyQueueBalancer(
+                        stickyQueueBalancer, options.getDrainStickyTaskQueueTimeout())
+                    : CompletableFuture.completedFuture(null))
+        .thenCompose(ignore -> poller.shutdown(shutdownManager, interruptTasks))
         .thenCompose(
             ignore ->
                 !interruptTasks

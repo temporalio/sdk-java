@@ -24,6 +24,7 @@ import static java.lang.Double.compare;
 
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -44,6 +45,8 @@ public final class WorkerOptions {
   }
 
   static final Duration DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT = Duration.ofSeconds(5);
+
+  static final Duration DEFAULT_STICKY_TASK_QUEUE_DRAIN_TIMEOUT = Duration.ofSeconds(0);
 
   private static final WorkerOptions DEFAULT_INSTANCE;
 
@@ -78,6 +81,7 @@ public final class WorkerOptions {
     private boolean disableEagerExecution;
     private String buildId;
     private boolean useBuildIdForVersioning;
+    private Duration stickyTaskQueueDrainTimeout;
 
     private Builder() {}
 
@@ -100,6 +104,7 @@ public final class WorkerOptions {
       this.disableEagerExecution = o.disableEagerExecution;
       this.useBuildIdForVersioning = o.useBuildIdForVersioning;
       this.buildId = o.buildId;
+      this.stickyTaskQueueDrainTimeout = o.stickyTaskQueueDrainTimeout;
     }
 
     /**
@@ -349,6 +354,22 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * During graceful shutdown, as when calling {@link WorkerFactory#shutdown()}, if the workflow
+     * cache is enabled, this timeout controls how long to wait for the sticky task queue to drain
+     * before shutting down the worker. If set the worker will stop making new poll requests on the
+     * normal task queue, but will continue to poll the sticky task queue until the timeout is
+     * reached. This value should always be greater than clients rpc long poll timeout, which can be
+     * set via {@link WorkflowServiceStubsOptions.Builder#setRpcLongPollTimeout(Duration)}.
+     *
+     * <p>Default is not to wait.
+     */
+    @Experimental
+    public Builder setStickyTaskQueueDrainTimeout(Duration stickyTaskQueueDrainTimeout) {
+      this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -365,7 +386,8 @@ public final class WorkerOptions {
           stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
           useBuildIdForVersioning,
-          buildId);
+          buildId,
+          stickyTaskQueueDrainTimeout);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -396,6 +418,9 @@ public final class WorkerOptions {
             buildId != null && !buildId.isEmpty(),
             "buildId must be set non-empty if useBuildIdForVersioning is set true");
       }
+      Preconditions.checkState(
+          stickyTaskQueueDrainTimeout == null || !stickyTaskQueueDrainTimeout.isNegative(),
+          "negative stickyTaskQueueDrainTimeout");
 
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -430,7 +455,10 @@ public final class WorkerOptions {
               : stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
           useBuildIdForVersioning,
-          buildId);
+          buildId,
+          stickyTaskQueueDrainTimeout == null
+              ? DEFAULT_STICKY_TASK_QUEUE_DRAIN_TIMEOUT
+              : stickyTaskQueueDrainTimeout);
     }
   }
 
@@ -449,6 +477,7 @@ public final class WorkerOptions {
   private final boolean disableEagerExecution;
   private final boolean useBuildIdForVersioning;
   private final String buildId;
+  private final Duration stickyTaskQueueDrainTimeout;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -465,7 +494,8 @@ public final class WorkerOptions {
       @Nonnull Duration stickyQueueScheduleToStartTimeout,
       boolean disableEagerExecution,
       boolean useBuildIdForVersioning,
-      String buildId) {
+      String buildId,
+      Duration stickyTaskQueueDrainTimeout) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -481,6 +511,7 @@ public final class WorkerOptions {
     this.disableEagerExecution = disableEagerExecution;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.buildId = buildId;
+    this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -560,6 +591,10 @@ public final class WorkerOptions {
     return buildId;
   }
 
+  public Duration getStickyTaskQueueDrainTimeout() {
+    return stickyTaskQueueDrainTimeout;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -579,7 +614,8 @@ public final class WorkerOptions {
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
         && disableEagerExecution == that.disableEagerExecution
         && useBuildIdForVersioning == that.useBuildIdForVersioning
-        && Objects.equals(that.buildId, buildId);
+        && Objects.equals(that.buildId, buildId)
+        && Objects.equals(stickyTaskQueueDrainTimeout, that.stickyTaskQueueDrainTimeout);
   }
 
   @Override
@@ -599,7 +635,8 @@ public final class WorkerOptions {
         stickyQueueScheduleToStartTimeout,
         disableEagerExecution,
         useBuildIdForVersioning,
-        buildId);
+        buildId,
+        stickyTaskQueueDrainTimeout);
   }
 
   @Override
@@ -635,6 +672,8 @@ public final class WorkerOptions {
         + useBuildIdForVersioning
         + ", buildId='"
         + buildId
+        + ", stickyTaskQueueDrainTimeout='"
+        + stickyTaskQueueDrainTimeout
         + '}';
   }
 }
