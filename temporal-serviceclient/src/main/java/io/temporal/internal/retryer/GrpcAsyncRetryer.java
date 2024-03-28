@@ -20,18 +20,13 @@
 
 package io.temporal.internal.retryer;
 
-import io.grpc.Context;
-import io.grpc.Deadline;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse.Capabilities;
 import io.temporal.internal.BackoffThrottler;
+import io.temporal.internal.retryer.GrpcRetryer.GrpcRetryerOptions;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,25 +35,34 @@ class GrpcAsyncRetryer<R> {
   private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
   private final ScheduledExecutorService executor;
-  private final GrpcRetryer.GrpcRetryerOptions options;
-  private final GetSystemInfoResponse.Capabilities serverCapabilities;
+  private final Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities;
   private final Supplier<CompletableFuture<R>> function;
+  private final GrpcRetryer.GrpcRetryerOptions options;
   private final BackoffThrottler throttler;
   private final Deadline retriesExpirationDeadline;
   private StatusRuntimeException lastMeaningfulException = null;
 
-  public GrpcAsyncRetryer(
+  public static <R> CompletableFuture<R> retry(
       ScheduledExecutorService asyncThrottlerExecutor,
+      Supplier<Capabilities> serverCapabilities,
       Supplier<CompletableFuture<R>> function,
-      GrpcRetryer.GrpcRetryerOptions options,
-      GetSystemInfoResponse.Capabilities serverCapabilities) {
+      GrpcRetryerOptions options) {
+    return new GrpcAsyncRetryer<>(asyncThrottlerExecutor, serverCapabilities, function, options)
+        .retry();
+  }
+
+  private GrpcAsyncRetryer(
+      ScheduledExecutorService asyncThrottlerExecutor,
+      Supplier<Capabilities> serverCapabilities,
+      Supplier<CompletableFuture<R>> function,
+      GrpcRetryerOptions options) {
 
     options.validate();
 
     this.executor = asyncThrottlerExecutor;
-    this.options = options;
     this.serverCapabilities = serverCapabilities;
     this.function = function;
+    this.options = options;
 
     RpcRetryOptions rpcOptions = options.getOptions();
     this.retriesExpirationDeadline =

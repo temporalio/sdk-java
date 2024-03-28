@@ -20,13 +20,14 @@
 
 package io.temporal.internal.retryer;
 
-import io.grpc.Context;
-import io.grpc.Deadline;
-import io.grpc.StatusRuntimeException;
-import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.grpc.*;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse.Capabilities;
 import io.temporal.internal.BackoffThrottler;
+import io.temporal.internal.retryer.GrpcRetryer.GrpcRetryerOptions;
+import io.temporal.internal.retryer.GrpcRetryer.RetryableFunc;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CancellationException;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +35,12 @@ import org.slf4j.LoggerFactory;
 class GrpcSyncRetryer {
   private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
-  public <R, T extends Throwable> R retry(
-      GrpcRetryer.RetryableFunc<R, T> r,
-      GrpcRetryer.GrpcRetryerOptions options,
-      GetSystemInfoResponse.Capabilities serverCapabilities)
+  private GrpcSyncRetryer() {}
+
+  public static <R, T extends Throwable> R retry(
+      Supplier<Capabilities> serverCapabilities,
+      RetryableFunc<R, T> func,
+      GrpcRetryerOptions options)
       throws T {
     options.validate();
     RpcRetryOptions rpcOptions = options.getOptions();
@@ -66,7 +69,7 @@ class GrpcSyncRetryer {
         if (lastMeaningfulException != null) {
           log.debug("Retrying after failure", lastMeaningfulException);
         }
-        R result = r.apply();
+        R result = func.apply();
         throttler.success();
         return result;
       } catch (InterruptedException e) {

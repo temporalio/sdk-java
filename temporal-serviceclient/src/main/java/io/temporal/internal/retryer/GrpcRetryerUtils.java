@@ -22,15 +22,14 @@ package io.temporal.internal.retryer;
 
 import static io.grpc.Status.Code.DEADLINE_EXCEEDED;
 
-import io.grpc.Deadline;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -48,7 +47,7 @@ class GrpcRetryerUtils {
   static @Nullable RuntimeException createFinalExceptionIfNotRetryable(
       @Nonnull StatusRuntimeException currentException,
       @Nonnull RpcRetryOptions options,
-      GetSystemInfoResponse.Capabilities serverCapabilities) {
+      Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
     Status.Code code = currentException.getStatus().getCode();
 
     switch (code) {
@@ -67,8 +66,14 @@ class GrpcRetryerUtils {
         // never retry these codes
         return currentException;
       case INTERNAL:
+        GetSystemInfoResponse.Capabilities capabilities;
+        try {
+          capabilities = serverCapabilities.get();
+        } catch (Exception ignored) {
+          capabilities = GetSystemInfoResponse.Capabilities.getDefaultInstance();
+        }
         // false and unset is the same for this flag, no need for has* check
-        if (serverCapabilities.getInternalErrorDifferentiation()) {
+        if (capabilities.getInternalErrorDifferentiation()) {
           return currentException;
         }
         break;

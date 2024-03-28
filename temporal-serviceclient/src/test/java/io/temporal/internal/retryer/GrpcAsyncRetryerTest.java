@@ -22,18 +22,14 @@ package io.temporal.internal.retryer;
 
 import static org.junit.Assert.*;
 
-import io.grpc.Context;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 
 public class GrpcAsyncRetryerTest {
 
@@ -63,15 +59,49 @@ public class GrpcAsyncRetryerTest {
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
     try {
-      new GrpcAsyncRetryer<>(
+      GrpcAsyncRetryer.retry(
               scheduledExecutor,
+              GetSystemInfoResponse.Capabilities::getDefaultInstance,
               () -> {
                 attempts.incrementAndGet();
                 throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null),
-              GetSystemInfoResponse.Capabilities.getDefaultInstance())
-          .retry()
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
+          .get();
+      fail("unreachable");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
+      assertEquals(STATUS_CODE, ((StatusRuntimeException) e.getCause()).getStatus().getCode());
+    }
+
+    assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
+    assertTrue(System.currentTimeMillis() - start >= 500);
+  }
+
+  @Test
+  public void testExpirationButGetSystemInfoThrowsAsync() throws InterruptedException {
+    final Status.Code STATUS_CODE = Status.Code.DATA_LOSS;
+
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(10))
+            .setMaximumInterval(Duration.ofMillis(100))
+            .setExpiration(Duration.ofMillis(500))
+            .setMaximumJitterCoefficient(0)
+            .validateBuildWithDefaults();
+    long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
+    try {
+      GrpcAsyncRetryer.retry(
+              scheduledExecutor,
+              () -> {
+                throw new StatusRuntimeException(Status.UNAVAILABLE);
+              },
+              () -> {
+                attempts.incrementAndGet();
+                throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -97,8 +127,9 @@ public class GrpcAsyncRetryerTest {
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
     try {
-      new GrpcAsyncRetryer<>(
+      GrpcAsyncRetryer.retry(
               scheduledExecutor,
+              GetSystemInfoResponse.Capabilities::getDefaultInstance,
               () -> {
                 attempts.incrementAndGet();
                 CompletableFuture<Void> result = new CompletableFuture<>();
@@ -106,9 +137,7 @@ public class GrpcAsyncRetryerTest {
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null),
-              GetSystemInfoResponse.Capabilities.getDefaultInstance())
-          .retry()
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -134,8 +163,9 @@ public class GrpcAsyncRetryerTest {
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
     try {
-      new GrpcAsyncRetryer<>(
+      GrpcAsyncRetryer.retry(
               scheduledExecutor,
+              GetSystemInfoResponse.Capabilities::getDefaultInstance,
               () -> {
                 if (attempts.incrementAndGet() > 1)
                   fail("We should not retry on exception that we specified to don't retry");
@@ -144,9 +174,7 @@ public class GrpcAsyncRetryerTest {
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null),
-              GetSystemInfoResponse.Capabilities.getDefaultInstance())
-          .retry()
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -169,8 +197,9 @@ public class GrpcAsyncRetryerTest {
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
     try {
-      new GrpcAsyncRetryer<>(
+      GrpcAsyncRetryer.retry(
               scheduledExecutor,
+              GetSystemInfoResponse.Capabilities::getDefaultInstance,
               () -> {
                 if (attempts.incrementAndGet() > 1)
                   fail("We should not retry on InterruptedException");
@@ -178,9 +207,7 @@ public class GrpcAsyncRetryerTest {
                 result.completeExceptionally(new InterruptedException("simulated"));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null),
-              GetSystemInfoResponse.Capabilities.getDefaultInstance())
-          .retry()
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -202,8 +229,9 @@ public class GrpcAsyncRetryerTest {
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
     try {
-      new GrpcAsyncRetryer<>(
+      GrpcAsyncRetryer.retry(
               scheduledExecutor,
+              GetSystemInfoResponse.Capabilities::getDefaultInstance,
               () -> {
                 if (attempts.incrementAndGet() > 1)
                   fail("We should not retry if the exception is not StatusRuntimeException");
@@ -211,9 +239,7 @@ public class GrpcAsyncRetryerTest {
                 result.completeExceptionally(new IllegalArgumentException("simulated"));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null),
-              GetSystemInfoResponse.Capabilities.getDefaultInstance())
-          .retry()
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -242,8 +268,9 @@ public class GrpcAsyncRetryerTest {
             StatusRuntimeException.class,
             () -> {
               try {
-                new GrpcAsyncRetryer<>(
+                GrpcAsyncRetryer.retry(
                         scheduledExecutor,
+                        GetSystemInfoResponse.Capabilities::getDefaultInstance,
                         () -> {
                           attempts.incrementAndGet();
                           CompletableFuture<?> future = new CompletableFuture<>();
@@ -252,9 +279,7 @@ public class GrpcAsyncRetryerTest {
                                   Status.fromCode(Status.Code.DEADLINE_EXCEEDED)));
                           return future;
                         },
-                        new GrpcRetryer.GrpcRetryerOptions(options, null),
-                        GetSystemInfoResponse.Capabilities.getDefaultInstance())
-                    .retry()
+                        new GrpcRetryer.GrpcRetryerOptions(options, null))
                     .get();
               } catch (ExecutionException ex) {
                 throw ex.getCause();
@@ -294,8 +319,9 @@ public class GrpcAsyncRetryerTest {
                         StatusRuntimeException.class,
                         () -> {
                           try {
-                            new GrpcAsyncRetryer<>(
+                            GrpcAsyncRetryer.retry(
                                     scheduledExecutor,
+                                    GetSystemInfoResponse.Capabilities::getDefaultInstance,
                                     () -> {
                                       attempts.incrementAndGet();
                                       CompletableFuture<?> future = new CompletableFuture<>();
@@ -304,9 +330,7 @@ public class GrpcAsyncRetryerTest {
                                               Status.fromCode(Status.Code.DATA_LOSS)));
                                       return future;
                                     },
-                                    new GrpcRetryer.GrpcRetryerOptions(options, null),
-                                    GetSystemInfoResponse.Capabilities.getDefaultInstance())
-                                .retry()
+                                    new GrpcRetryer.GrpcRetryerOptions(options, null))
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();
@@ -342,8 +366,9 @@ public class GrpcAsyncRetryerTest {
                         StatusRuntimeException.class,
                         () -> {
                           try {
-                            new GrpcAsyncRetryer<>(
+                            GrpcAsyncRetryer.retry(
                                     scheduledExecutor,
+                                    GetSystemInfoResponse.Capabilities::getDefaultInstance,
                                     () -> {
                                       if (Context.current().getDeadline().isExpired()) {
                                         throw new StatusRuntimeException(
@@ -353,9 +378,7 @@ public class GrpcAsyncRetryerTest {
                                             Status.fromCode(Status.Code.DATA_LOSS));
                                       }
                                     },
-                                    new GrpcRetryer.GrpcRetryerOptions(options, null),
-                                    GetSystemInfoResponse.Capabilities.getDefaultInstance())
-                                .retry()
+                                    new GrpcRetryer.GrpcRetryerOptions(options, null))
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();
@@ -382,8 +405,9 @@ public class GrpcAsyncRetryerTest {
     final AtomicInteger attempts = new AtomicInteger();
 
     try {
-      new GrpcAsyncRetryer<>(
+      GrpcAsyncRetryer.retry(
               scheduledExecutor,
+              GetSystemInfoResponse.Capabilities::getDefaultInstance,
               () -> {
                 attempts.incrementAndGet();
                 CompletableFuture<?> future = new CompletableFuture<>();
@@ -391,9 +415,7 @@ public class GrpcAsyncRetryerTest {
                     new StatusRuntimeException(Status.fromCode(Status.Code.RESOURCE_EXHAUSTED)));
                 return future;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null),
-              GetSystemInfoResponse.Capabilities.getDefaultInstance())
-          .retry()
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {

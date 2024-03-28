@@ -56,17 +56,15 @@ public final class GrpcRetryer {
   }
 
   public <R, T extends Throwable> R retryWithResult(
-      RetryableFunc<R, T> r, GrpcRetryerOptions options) throws T {
-    return new GrpcSyncRetryer().retry(r, options, serverCapabilities.get());
+      RetryableFunc<R, T> func, GrpcRetryerOptions options) throws T {
+    return GrpcSyncRetryer.retry(serverCapabilities, func, options);
   }
 
   public <R> CompletableFuture<R> retryWithResultAsync(
       ScheduledExecutorService asyncThrottlerExecutor,
       Supplier<CompletableFuture<R>> function,
       GrpcRetryerOptions options) {
-    return new GrpcAsyncRetryer<>(
-            asyncThrottlerExecutor, function, options, serverCapabilities.get())
-        .retry();
+    return GrpcAsyncRetryer.retry(asyncThrottlerExecutor, serverCapabilities, function, options);
   }
 
   public static class GrpcRetryerOptions {
