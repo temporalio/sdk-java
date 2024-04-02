@@ -29,8 +29,8 @@ import com.google.protobuf.ByteString;
 import io.temporal.activity.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.*;
-import io.temporal.client.schedules.*;
 import io.temporal.common.converter.*;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.payload.codec.PayloadCodec;
@@ -46,6 +46,7 @@ import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -71,7 +72,8 @@ public class WorkflowIdSignedPayloadsTest {
   private static final DataConverter codecDataConverter =
       new CodecDataConverter(
           DefaultDataConverter.STANDARD_INSTANCE,
-          Collections.singletonList(new PayloadEncoderWithWorkflowIdSignature()));
+          Collections.singletonList(new PayloadEncoderWithWorkflowIdSignature()),
+          true);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -79,7 +81,8 @@ public class WorkflowIdSignedPayloadsTest {
           .setWorkflowTypes(
               SimpleWorkflowWithAnActivity.class,
               TestWorkflowWithCronScheduleImpl.class,
-              DynamicWorkflowImpl.class)
+              DynamicWorkflowImpl.class,
+              WorkflowWithQuery.class)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setDataConverter(codecDataConverter).build())
           .setActivityImplementations(
@@ -173,6 +176,26 @@ public class WorkflowIdSignedPayloadsTest {
     assertEquals("Hello World", workflow.getResult(String.class));
   }
 
+  @Test
+  public void testWorkflowWithTaskFailure() {
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+    TestWorkflows.TestWorkflowReturnString workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class, options);
+    assertEquals("Hello World", workflow.execute());
+    // Test that the task failure is recorded in the history
+    // if the serialization fails the workflow task will timeout.
+    assertEquals(
+        1,
+        testWorkflowRule
+            .getHistoryEvents(
+                WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId(),
+                EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
+            .size());
+  }
+
   @ActivityInterface
   public interface SimpleActivity {
     @ActivityMethod(name = "simple")
@@ -210,6 +233,18 @@ public class WorkflowIdSignedPayloadsTest {
           Activity.getExecutionContext().useLocalManualCompletion();
       manualActivityCompletionClient.complete("result");
       return null;
+    }
+  }
+
+  public static class WorkflowWithQuery implements TestWorkflows.TestWorkflowReturnString {
+    static AtomicInteger taskRetryCount = new AtomicInteger();
+
+    @Override
+    public String execute() {
+      if (taskRetryCount.incrementAndGet() == 1) {
+        throw new RuntimeException("test");
+      }
+      return "Hello World";
     }
   }
 

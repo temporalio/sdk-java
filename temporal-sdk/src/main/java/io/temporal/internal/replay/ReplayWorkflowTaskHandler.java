@@ -40,9 +40,11 @@ import io.temporal.api.sdk.v1.WorkflowTaskCompletedMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.worker.*;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.NonDeterministicException;
@@ -173,7 +175,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         return createDirectQueryResult(workflowTask, null, e);
       } else {
         // this call rethrows an exception in some scenarios
-        return failureToWFTResult(workflowTask, e);
+        DataConverter dataConverterWithWorkflowContext =
+            options
+                .getDataConverter()
+                .withContext(
+                    new WorkflowSerializationContext(namespace, execution.getWorkflowId()));
+        return failureToWFTResult(workflowTask, e, dataConverterWithWorkflowContext);
       }
     } finally {
       if (!useCache && workflowRunTaskHandler != null) {
@@ -254,7 +261,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   }
 
   private Result failureToWFTResult(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, Throwable e) throws Exception {
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, Throwable e, DataConverter dc)
+      throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
     if (e instanceof WorkflowExecutionException) {
       RespondWorkflowTaskCompletedRequest response =
@@ -299,7 +307,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       throw (Exception) e;
     }
 
-    Failure failure = options.getDataConverter().exceptionToFailure(e);
+    Failure failure = dc.exceptionToFailure(e);
     RespondWorkflowTaskFailedRequest.Builder failedRequest =
         RespondWorkflowTaskFailedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())

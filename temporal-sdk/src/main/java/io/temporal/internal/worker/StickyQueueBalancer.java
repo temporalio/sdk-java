@@ -21,6 +21,7 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.enums.v1.TaskQueueKind;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -30,6 +31,7 @@ public class StickyQueueBalancer {
   private final boolean stickyQueueEnabled;
   private final AtomicInteger stickyPollers = new AtomicInteger(0);
   private final AtomicInteger normalPollers = new AtomicInteger(0);
+  private final AtomicBoolean disableNormalPoll = new AtomicBoolean(false);
 
   private volatile long stickyBacklogSize = 0;
 
@@ -43,6 +45,10 @@ public class StickyQueueBalancer {
    */
   public TaskQueueKind makePoll() {
     if (stickyQueueEnabled) {
+      if (disableNormalPoll.get()) {
+        stickyPollers.incrementAndGet();
+        return TaskQueueKind.TASK_QUEUE_KIND_STICKY;
+      }
       // If pollersCount >= stickyBacklogSize > 0 we want to go back to a normal ratio to avoid a
       // situation that too many pollers (all of them in the worst case) will open only sticky queue
       // polls observing a stickyBacklogSize == 1 for example (which actually can be 0 already at
@@ -82,5 +88,13 @@ public class StickyQueueBalancer {
     if (TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind)) {
       stickyBacklogSize = backlogSize;
     }
+  }
+
+  public void disableNormalPoll() {
+    disableNormalPoll.set(true);
+  }
+
+  public int getNormalPollerCount() {
+    return normalPollers.get();
   }
 }
