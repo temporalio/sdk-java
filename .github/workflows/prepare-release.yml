@@ -92,7 +92,7 @@ jobs:
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
 
       - name: Set up signing key
         run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
@@ -155,7 +155,7 @@ jobs:
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
 
       - name: Build native test server
         run: ./gradlew :temporal-test-server:build
