@@ -182,7 +182,7 @@ jobs:
 
       # when no artifact is specified, all artifacts are downloaded and expanded into CWD
       - name: Fetch executables
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
       # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and
