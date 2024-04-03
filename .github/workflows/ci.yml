@@ -28,6 +28,9 @@ jobs:
       uses: gradle/actions/setup-gradle@v3
     
     - name: Run unit tests
+      env:
+        USER: unittest
+        USE_DOCKER_SERVICE: false
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
   unit_test_jdk8:
@@ -59,6 +62,10 @@ jobs:
           up -d temporal
     
     - name: Run unit tests
+      env:
+        USER: unittest
+        TEMPORAL_SERVICE_ADDRESS: temporal:7233
+        USE_DOCKER_SERVICE: true
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
 
   copyright:
