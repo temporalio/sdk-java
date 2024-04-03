@@ -64,7 +64,7 @@ jobs:
     - name: Run unit tests
       env:
         USER: unittest
-        TEMPORAL_SERVICE_ADDRESS: temporal:7233
+        TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
 
