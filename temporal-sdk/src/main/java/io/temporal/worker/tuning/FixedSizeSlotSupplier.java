@@ -24,6 +24,12 @@ import com.google.common.base.Preconditions;
 import java.util.Optional;
 import java.util.concurrent.*;
 
+/**
+ * This implementation of {@link SlotSupplier} provides a fixed number of slots backed by a
+ * semaphore, and is the default behavior when a custom supplier is not explicitly specified.
+ *
+ * @param <SI> The slot info type for this supplier.
+ */
 public class FixedSizeSlotSupplier<SI> implements SlotSupplier<SI> {
   private final int numSlots;
   private final Semaphore executorSlotsSemaphore;
@@ -60,5 +66,10 @@ public class FixedSizeSlotSupplier<SI> implements SlotSupplier<SI> {
   @Override
   public int maximumSlots() {
     return numSlots;
+  }
+
+  @Override
+  public String toString() {
+    return "FixedSizeSlotSupplier{" + "numSlots=" + numSlots + '}';
   }
 }

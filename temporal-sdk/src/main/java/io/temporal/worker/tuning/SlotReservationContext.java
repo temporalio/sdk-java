@@ -23,15 +23,18 @@ package io.temporal.worker.tuning;
 import java.util.Map;
 
 public interface SlotReservationContext<SI> {
-  /*
-   * @return the task queue for which this reservation request is associated.
+  /**
+   * @return the Task Queue for which this reservation request is associated.
    */
   String getTaskQueue();
 
-  /*
+  /**
    * @return true if the reservation request is for polling on a sticky workflow task queue.
    */
   boolean isSticky();
 
+  /**
+   * @return A mapping of slot permits to the information associated with the in-use slot.
+   */
   Map<SlotPermit, SI> usedSlots();
 }

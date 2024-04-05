@@ -107,10 +107,8 @@ public final class Worker {
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
-      // TODO: Get real supplier from worker options
       TrackingSlotSupplier<ActivitySlotInfo> activitySlotSupplier =
-          new TrackingSlotSupplier<>(
-              new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentActivityExecutionSize()));
+          new TrackingSlotSupplier<>(this.options.getActivitySlotSupplier());
 
       activityWorker =
           new SyncActivityWorker(
@@ -139,13 +137,10 @@ public final class Worker {
         toLocalActivityOptions(
             factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
 
-    // TODO: Get real suppliers from worker options
     TrackingSlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
-        new TrackingSlotSupplier<>(
-            new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentWorkflowTaskExecutionSize()));
+        new TrackingSlotSupplier<>(this.options.getWorkflowSlotSupplier());
     TrackingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new TrackingSlotSupplier<>(
-            new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentLocalActivityExecutionSize()));
+        new TrackingSlotSupplier<>(this.options.getLocalActivitySlotSupplier());
     workflowWorker =
         new SyncWorkflowWorker(
             service,

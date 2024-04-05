@@ -23,6 +23,11 @@ package io.temporal.worker.tuning;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * This class is handed out by implementations of {@link SlotSupplier}. Permits are held until the
+ * tasks they are associated with (if any) are finished processing, or if the reservation is no
+ * longer needed. Your supplier implementation may store additional data in the permit, if desired.
+ */
 public class SlotPermit {
   public final long id;
   public final Object userData;

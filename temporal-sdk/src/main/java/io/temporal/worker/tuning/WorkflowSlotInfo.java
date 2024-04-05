@@ -25,6 +25,7 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
+/** Contains information about a slot that is being used to execute a workflow task. */
 public class WorkflowSlotInfo {
   private final String workflowType;
   private final String taskQueue;
