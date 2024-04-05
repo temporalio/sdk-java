@@ -96,6 +96,10 @@ public class TrackingSlotSupplier<SI> {
     this.metricsScope = metricsScope;
   }
 
+  Map<SlotPermit, SI> getUsedSlots() {
+    return usedSlots;
+  }
+
   private void publishSlotsMetric() {
     this.metricsScope
         .gauge(MetricsType.WORKER_TASK_SLOTS_AVAILABLE)

@@ -245,7 +245,6 @@ final class WorkflowWorker implements SuspendableWorker {
       return null;
     }
     return slotSupplier
-        // Eager workflow tasks are always sticky by definition
         .tryReserveSlot(new SlotReservationData(taskQueue))
         .map(
             slotPermit ->
