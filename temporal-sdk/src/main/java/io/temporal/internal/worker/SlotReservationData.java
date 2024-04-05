@@ -22,18 +22,12 @@ package io.temporal.internal.worker;
 
 public class SlotReservationData {
   private final String taskQueue;
-  private final boolean sticky;
 
-  public SlotReservationData(String taskQueue, boolean sticky) {
+  public SlotReservationData(String taskQueue) {
     this.taskQueue = taskQueue;
-    this.sticky = sticky;
   }
 
   public String getTaskQueue() {
     return taskQueue;
-  }
-
-  public boolean isSticky() {
-    return sticky;
   }
 }

@@ -121,13 +121,9 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   public WorkflowTask poll() {
     boolean isSuccessful = false;
     SlotPermit permit;
-    TaskQueueKind taskQueueKind = stickyQueueBalancer.nextPollKind();
     try {
       permit =
-          slotSupplier.reserveSlot(
-              new SlotReservationData(
-                  pollRequest.getTaskQueue().getName(),
-                  taskQueueKind == TaskQueueKind.TASK_QUEUE_KIND_STICKY));
+          slotSupplier.reserveSlot(new SlotReservationData(pollRequest.getTaskQueue().getName()));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;
@@ -136,12 +132,12 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       return null;
     }
 
-    stickyQueueBalancer.startPoll(taskQueueKind);
+    TaskQueueKind taskQueueKind = stickyQueueBalancer.makePoll();
     boolean isSticky = TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind);
     PollWorkflowTaskQueueRequest request = isSticky ? stickyPollRequest : pollRequest;
     Scope scope = isSticky ? stickyMetricsScope : metricsScope;
 
-    log.trace("poll request begin: {}", request);
+    log.info("poll request begin: {}", request);
     try {
       PollWorkflowTaskQueueResponse response = doPoll(request, scope);
       if (response == null) {

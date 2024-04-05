@@ -276,7 +276,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       }
       try {
         SlotPermit permit = null;
-        SlotReservationData reservationCtx = new SlotReservationData(taskQueue, false);
+        SlotReservationData reservationCtx = new SlotReservationData(taskQueue);
         if (acceptanceTimeoutMs <= 0) {
           permit = slotSupplier.reserveSlot(reservationCtx);
         } else {

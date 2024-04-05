@@ -132,10 +132,8 @@ public class StickyQueueBacklogTest {
     } else {
       assertNull(poller.poll());
     }
-    TaskQueueKind nextKind = stickyQueueBalancer.nextPollKind();
-    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_STICKY, nextKind);
-    stickyQueueBalancer.startPoll(nextKind);
+    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_STICKY, stickyQueueBalancer.makePoll());
     // If the backlog was not reset this would be a sticky task
-    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_NORMAL, stickyQueueBalancer.nextPollKind());
+    assertEquals(TaskQueueKind.TASK_QUEUE_KIND_NORMAL, stickyQueueBalancer.makePoll());
   }
 }

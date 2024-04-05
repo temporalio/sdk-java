@@ -103,29 +103,21 @@ public class TrackingSlotSupplier<SI> {
   }
 
   private SlotReservationContext<SI> createCtx(SlotReservationData dat) {
-    return new SlotResCtx(
-        dat.getTaskQueue(), dat.isSticky(), Collections.unmodifiableMap(usedSlots));
+    return new SlotResCtx(dat.getTaskQueue(), Collections.unmodifiableMap(usedSlots));
   }
 
   private class SlotResCtx implements SlotReservationContext<SI> {
     private final String taskQueue;
-    private final boolean sticky;
     private final Map<SlotPermit, SI> usedSlots;
 
-    private SlotResCtx(String taskQueue, boolean sticky, Map<SlotPermit, SI> usedSlots) {
+    private SlotResCtx(String taskQueue, Map<SlotPermit, SI> usedSlots) {
       this.taskQueue = taskQueue;
-      this.sticky = sticky;
       this.usedSlots = usedSlots;
     }
 
     @Override
     public String getTaskQueue() {
       return taskQueue;
-    }
-
-    @Override
-    public boolean isSticky() {
-      return sticky;
     }
 
     @Override

@@ -61,7 +61,7 @@ public interface SlotSupplier<SI> {
    * This function is called once a slot is actually being used to process some task, which may be
    * some time after the slot was reserved originally. For example, if there is no work for a
    * worker, a number of slots equal to the number of active pollers may already be reserved, but
-   * none of them are being used yet.
+   * none of them are being used yet. This call should be non-blocking.
    *
    * @param info The information about the task that will now be processed
    * @param permit The permit that this implementation gave out when a slot was reserved.
@@ -71,7 +71,7 @@ public interface SlotSupplier<SI> {
   /**
    * This function is called once a permit is no longer needed. This could be because the task has
    * finished, whether successfully or not, or because the slot was no longer needed (ex: the number
-   * of active pollers decreased).
+   * of active pollers decreased). This call should be non-blocking.
    *
    * @param reason The reason the slot is being released.
    * @param permit The permit that was given out when the slot was reserved.

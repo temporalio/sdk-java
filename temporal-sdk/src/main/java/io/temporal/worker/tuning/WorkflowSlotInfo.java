@@ -20,6 +20,7 @@
 
 package io.temporal.worker.tuning;
 
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import java.util.Objects;
@@ -33,32 +34,18 @@ public class WorkflowSlotInfo {
   private final String runId;
   private final String workerIdentity;
   private final String workerBuildId;
-
-  public WorkflowSlotInfo(
-      String workflowType,
-      String taskQueue,
-      String workflowId,
-      String runId,
-      String workerIdentity,
-      String workerBuildId) {
-    this.workflowType = workflowType;
-    this.taskQueue = taskQueue;
-    this.workflowId = workflowId;
-    this.runId = runId;
-    this.workerIdentity = workerIdentity;
-    this.workerBuildId = workerBuildId;
-  }
+  private final boolean fromStickyQueue;
 
   public WorkflowSlotInfo(
       @Nonnull PollWorkflowTaskQueueResponse response,
       @Nonnull PollWorkflowTaskQueueRequest request) {
-    this(
-        response.getWorkflowType().getName(),
-        request.getTaskQueue().getNormalName(),
-        response.getWorkflowExecution().getWorkflowId(),
-        response.getWorkflowExecution().getRunId(),
-        request.getIdentity(),
-        request.getWorkerVersionCapabilities().getBuildId());
+    this.workflowType = response.getWorkflowType().getName();
+    this.taskQueue = request.getTaskQueue().getNormalName();
+    this.workflowId = response.getWorkflowExecution().getWorkflowId();
+    this.runId = response.getWorkflowExecution().getRunId();
+    this.workerIdentity = request.getIdentity();
+    this.workerBuildId = request.getWorkerVersionCapabilities().getBuildId();
+    this.fromStickyQueue = request.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_STICKY;
   }
 
   public String getWorkflowType() {
@@ -85,12 +72,17 @@ public class WorkflowSlotInfo {
     return workerBuildId;
   }
 
+  public boolean isFromStickyQueue() {
+    return fromStickyQueue;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowSlotInfo that = (WorkflowSlotInfo) o;
-    return Objects.equals(workflowType, that.workflowType)
+    return fromStickyQueue == that.fromStickyQueue
+        && Objects.equals(workflowType, that.workflowType)
         && Objects.equals(taskQueue, that.taskQueue)
         && Objects.equals(workflowId, that.workflowId)
         && Objects.equals(runId, that.runId)
@@ -100,7 +92,8 @@ public class WorkflowSlotInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(workflowType, taskQueue, workflowId, runId, workerIdentity, workerBuildId);
+    return Objects.hash(
+        workflowType, taskQueue, workflowId, runId, workerIdentity, workerBuildId, fromStickyQueue);
   }
 
   @Override
@@ -124,6 +117,8 @@ public class WorkflowSlotInfo {
         + ", workerBuildId='"
         + workerBuildId
         + '\''
+        + ", fromStickyQueue="
+        + fromStickyQueue
         + '}';
   }
 }

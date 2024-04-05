@@ -29,11 +29,6 @@ public interface SlotReservationContext<SI> {
   String getTaskQueue();
 
   /**
-   * @return true if the reservation request is for polling on a sticky workflow task queue.
-   */
-  boolean isSticky();
-
-  /**
    * @return A mapping of slot permits to the information associated with the in-use slot.
    */
   Map<SlotPermit, SI> usedSlots();
