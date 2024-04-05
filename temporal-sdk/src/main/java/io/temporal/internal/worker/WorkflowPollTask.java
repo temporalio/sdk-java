@@ -137,7 +137,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     PollWorkflowTaskQueueRequest request = isSticky ? stickyPollRequest : pollRequest;
     Scope scope = isSticky ? stickyMetricsScope : metricsScope;
 
-    log.info("poll request begin: {}", request);
+    log.trace("poll request begin: {}", request);
     try {
       PollWorkflowTaskQueueResponse response = doPoll(request, scope);
       if (response == null) {
