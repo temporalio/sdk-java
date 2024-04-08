@@ -18,16 +18,16 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.worker;
+package io.temporal.worker.tuning;
 
-public class SlotReservationData {
-  public final String taskQueue;
-  public final String workerIdentity;
-  public final String workerBuildId;
+public interface SlotMarkUsedContext<SI extends SlotInfo> {
+  /**
+   * @return The information associated with the slot that is being marked as used.
+   */
+  SI getSlotInfo();
 
-  public SlotReservationData(String taskQueue, String workerIdentity, String workerBuildId) {
-    this.taskQueue = taskQueue;
-    this.workerIdentity = workerIdentity;
-    this.workerBuildId = workerBuildId;
-  }
+  /**
+   * @return The previously reserved permit that is being used with this slot.
+   */
+  SlotPermit getSlotPermit();
 }

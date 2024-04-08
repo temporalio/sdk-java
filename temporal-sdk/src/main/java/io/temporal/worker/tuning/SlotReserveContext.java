@@ -18,16 +18,30 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.worker;
+package io.temporal.worker.tuning;
 
-public class SlotReservationData {
-  public final String taskQueue;
-  public final String workerIdentity;
-  public final String workerBuildId;
+import java.util.Map;
 
-  public SlotReservationData(String taskQueue, String workerIdentity, String workerBuildId) {
-    this.taskQueue = taskQueue;
-    this.workerIdentity = workerIdentity;
-    this.workerBuildId = workerBuildId;
-  }
+public interface SlotReserveContext<SI extends SlotInfo> {
+  /**
+   * @return the Task Queue for which this reservation request is associated.
+   */
+  String getTaskQueue();
+
+  /**
+   * @return A read-only & safe for concurrent access mapping of slot permits to the information
+   *     associated with the in-use slot. This map is changed internally any time new slots are
+   *     used.
+   */
+  Map<SlotPermit, SI> getUsedSlots();
+
+  /**
+   * @return The worker's identity that is associated with this reservation request.
+   */
+  String getWorkerIdentity();
+
+  /**
+   * @return The worker's build ID that is associated with this reservation request.
+   */
+  String getWorkerBuildId();
 }

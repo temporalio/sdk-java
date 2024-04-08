@@ -24,13 +24,13 @@ import io.temporal.activity.ActivityInfo;
 import java.util.Objects;
 
 /** Contains information about a slot that is being used to execute an activity task. */
-public class ActivitySlotInfo {
+public class ActivitySlotInfo extends SlotInfo {
   private final ActivityInfo activityInfo;
   private final String workerIdentity;
   private final String workerBuildId;
 
-  public ActivitySlotInfo(ActivityInfo info, String workerIdentity, String workerBuildId) {
-    this.activityInfo = info;
+  public ActivitySlotInfo(ActivityInfo activityInfo, String workerIdentity, String workerBuildId) {
+    this.activityInfo = activityInfo;
     this.workerIdentity = workerIdentity;
     this.workerBuildId = workerBuildId;
   }

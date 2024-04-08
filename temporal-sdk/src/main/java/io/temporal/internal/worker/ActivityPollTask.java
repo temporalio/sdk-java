@@ -98,7 +98,11 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
 
     try {
       permit =
-          slotSupplier.reserveSlot(new SlotReservationData(pollRequest.getTaskQueue().getName()));
+          slotSupplier.reserveSlot(
+              new SlotReservationData(
+                  pollRequest.getTaskQueue().getName(),
+                  pollRequest.getIdentity(),
+                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;

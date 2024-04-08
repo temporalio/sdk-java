@@ -73,7 +73,7 @@ public class SlotSupplierTest {
     when(mockSupplier.reserveSlot(
             argThat(
                 src -> {
-                  usedSlotsWhenCalled.set(src.usedSlots().size());
+                  usedSlotsWhenCalled.set(src.getUsedSlots().size());
                   return true;
                 })))
         .thenReturn(new SlotPermit());
@@ -118,7 +118,7 @@ public class SlotSupplierTest {
     if (throwOnPoll) {
       assertThrows(RuntimeException.class, () -> poller.poll());
       verify(mockSupplier, times(1)).reserveSlot(any());
-      verify(mockSupplier, times(1)).releaseSlot(any(), any());
+      verify(mockSupplier, times(1)).releaseSlot(any());
       assertEquals(0, trackingSS.getUsedSlots().size());
     } else {
       WorkflowTask task = poller.poll();
@@ -128,7 +128,7 @@ public class SlotSupplierTest {
       assertEquals(0, usedSlotsWhenCalled.get());
       verify(mockSupplier, times(1))
           .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
-      verify(mockSupplier, times(0)).releaseSlot(any(), any());
+      verify(mockSupplier, times(0)).releaseSlot(any());
       assertEquals(1, trackingSS.getUsedSlots().size());
     }
   }

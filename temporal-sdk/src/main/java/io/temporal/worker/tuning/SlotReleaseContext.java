@@ -20,16 +20,23 @@
 
 package io.temporal.worker.tuning;
 
-import java.util.Map;
+import javax.annotation.Nullable;
 
-public interface SlotReservationContext<SI> {
+public interface SlotReleaseContext<SI extends SlotInfo> {
   /**
-   * @return the Task Queue for which this reservation request is associated.
+   * @return The reason the slot is being released.
    */
-  String getTaskQueue();
+  SlotReleaseReason getSlotReleaseReason();
 
   /**
-   * @return A mapping of slot permits to the information associated with the in-use slot.
+   * @return The permit the slot was using that is now being released.
    */
-  Map<SlotPermit, SI> usedSlots();
+  SlotPermit getSlotPermit();
+
+  /**
+   * @return The information associated with the slot that is being released. May be null if the
+   *     slot was never marked as used.
+   */
+  @Nullable
+  SI getSlotInfo();
 }

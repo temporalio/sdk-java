@@ -123,7 +123,11 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     SlotPermit permit;
     try {
       permit =
-          slotSupplier.reserveSlot(new SlotReservationData(pollRequest.getTaskQueue().getName()));
+          slotSupplier.reserveSlot(
+              new SlotReservationData(
+                  pollRequest.getTaskQueue().getName(),
+                  pollRequest.getIdentity(),
+                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;

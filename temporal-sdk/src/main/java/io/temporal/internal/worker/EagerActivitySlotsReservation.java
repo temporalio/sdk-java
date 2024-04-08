@@ -100,7 +100,9 @@ class EagerActivitySlotsReservation implements Closeable {
   }
 
   private void releaseSlots(int slotsToRelease) {
-    if (slotsToRelease <= 0) return;
+    if (slotsToRelease == 0) return;
+    if (slotsToRelease < 0)
+      throw new IllegalArgumentException("Trying to release a negative number of activity slots");
     if (slotsToRelease > this.reservedSlots.size())
       throw new IllegalStateException(
           "Trying to release more activity slots than outstanding reservations");

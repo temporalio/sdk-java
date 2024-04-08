@@ -33,7 +33,7 @@ import java.util.Optional;
  *     {@link WorkflowSlotInfo}, {@link ActivitySlotInfo}, and {@link LocalActivitySlotInfo}.
  */
 @Experimental
-public interface SlotSupplier<SI> {
+public interface SlotSupplier<SI extends SlotInfo> {
   /**
    * This function is called before polling for new tasks. Your implementation should block until a
    * slot is available, then return a permit to use that slot.
@@ -44,7 +44,7 @@ public interface SlotSupplier<SI> {
    *     the reservation, or during shutdown. You may perform cleanup, and then should rethrow the
    *     exception.
    */
-  SlotPermit reserveSlot(SlotReservationContext<SI> ctx) throws InterruptedException;
+  SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException;
 
   /**
    * This function is called when trying to reserve slots for "eager" workflow and activity tasks.
@@ -55,7 +55,7 @@ public interface SlotSupplier<SI> {
    * @param ctx The context for slot reservation.
    * @return Maybe a permit to use the slot which may be populated with your own data.
    */
-  Optional<SlotPermit> tryReserveSlot(SlotReservationContext<SI> ctx);
+  Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx);
 
   /**
    * This function is called once a slot is actually being used to process some task, which may be
@@ -63,27 +63,31 @@ public interface SlotSupplier<SI> {
    * worker, a number of slots equal to the number of active pollers may already be reserved, but
    * none of them are being used yet. This call should be non-blocking.
    *
-   * @param info The information about the task that will now be processed
-   * @param permit The permit that this implementation gave out when a slot was reserved.
+   * @param ctx The context for marking a slot as used.
    */
-  void markSlotUsed(SI info, SlotPermit permit);
+  void markSlotUsed(SlotMarkUsedContext<SI> ctx);
 
   /**
    * This function is called once a permit is no longer needed. This could be because the task has
    * finished, whether successfully or not, or because the slot was no longer needed (ex: the number
    * of active pollers decreased). This call should be non-blocking.
    *
-   * @param reason The reason the slot is being released.
-   * @param permit The permit that was given out when the slot was reserved.
+   * @param ctx The context for releasing a slot.
    */
-  void releaseSlot(SlotReleaseReason reason, SlotPermit permit);
+  void releaseSlot(SlotReleaseContext<SI> ctx);
 
   /**
    * Because we currently use thread pools to execute tasks, there must be *some* defined
-   * upper-limit on the size of the thread pool for each kind of task, and your implementation must
-   * provide this number. You must not hand out more permits than this number.
+   * upper-limit on the size of the thread pool for each kind of task. You must not hand out more
+   * permits than this number. If unspecified, the default is {@link Integer#MAX_VALUE}. Be aware
+   * that if your implementation hands out unreasonable numbers of permits, you could easily
+   * oversubscribe the worker, and cause it to run out of resources.
+   *
+   * <p>This value should never change during the lifetime of the supplier.
    *
    * @return the maximum number of slots that can ever be in use at one type for this slot type.
    */
-  int maximumSlots();
+  default int maximumSlots() {
+    return Integer.MAX_VALUE;
+  }
 }

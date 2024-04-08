@@ -245,7 +245,8 @@ final class WorkflowWorker implements SuspendableWorker {
       return null;
     }
     return slotSupplier
-        .tryReserveSlot(new SlotReservationData(taskQueue))
+        .tryReserveSlot(
+            new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId()))
         .map(
             slotPermit ->
                 new WorkflowTaskDispatchHandle(

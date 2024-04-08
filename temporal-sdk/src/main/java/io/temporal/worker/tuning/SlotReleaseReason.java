@@ -20,7 +20,10 @@
 
 package io.temporal.worker.tuning;
 
+import javax.annotation.Nullable;
+
 public abstract class SlotReleaseReason {
+  SlotReleaseReason() {}
 
   public static SlotReleaseReason taskComplete() {
     return new TaskComplete();
@@ -42,7 +45,7 @@ public abstract class SlotReleaseReason {
    * @return the exception that caused the slot to be released, if this is a reason of type {@link
    *     Error}.
    */
-  public Exception getException() {
+  public @Nullable Exception getException() {
     return null;
   }
 

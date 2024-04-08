@@ -30,7 +30,7 @@ import java.util.concurrent.*;
  *
  * @param <SI> The slot info type for this supplier.
  */
-public class FixedSizeSlotSupplier<SI> implements SlotSupplier<SI> {
+public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<SI> {
   private final int numSlots;
   private final Semaphore executorSlotsSemaphore;
 
@@ -41,13 +41,13 @@ public class FixedSizeSlotSupplier<SI> implements SlotSupplier<SI> {
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReservationContext<SI> ctx) throws InterruptedException {
+  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
     executorSlotsSemaphore.acquire();
     return new SlotPermit();
   }
 
   @Override
-  public Optional<SlotPermit> tryReserveSlot(SlotReservationContext<SI> ctx) {
+  public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx) {
     boolean gotOne = executorSlotsSemaphore.tryAcquire();
     if (gotOne) {
       return Optional.of(new SlotPermit());
@@ -56,10 +56,10 @@ public class FixedSizeSlotSupplier<SI> implements SlotSupplier<SI> {
   }
 
   @Override
-  public void markSlotUsed(SI slotInfo, SlotPermit permit) {}
+  public void markSlotUsed(SlotMarkUsedContext<SI> ctx) {}
 
   @Override
-  public void releaseSlot(SlotReleaseReason reason, SlotPermit permit) {
+  public void releaseSlot(SlotReleaseContext<SI> ctx) {
     executorSlotsSemaphore.release();
   }
 

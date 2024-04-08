@@ -27,7 +27,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /** Contains information about a slot that is being used to execute a workflow task. */
-public class WorkflowSlotInfo {
+public class WorkflowSlotInfo extends SlotInfo {
   private final String workflowType;
   private final String taskQueue;
   private final String workflowId;
@@ -36,6 +36,7 @@ public class WorkflowSlotInfo {
   private final String workerBuildId;
   private final boolean fromStickyQueue;
 
+  /** Don't rely on this constructor. It is for internal use by the SDK. */
   public WorkflowSlotInfo(
       @Nonnull PollWorkflowTaskQueueResponse response,
       @Nonnull PollWorkflowTaskQueueRequest request) {

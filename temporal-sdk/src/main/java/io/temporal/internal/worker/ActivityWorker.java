@@ -424,7 +424,8 @@ final class ActivityWorker implements SuspendableWorker {
         return Optional.empty();
       }
       return ActivityWorker.this.slotSupplier.tryReserveSlot(
-          new SlotReservationData(ActivityWorker.this.taskQueue));
+          new SlotReservationData(
+              ActivityWorker.this.taskQueue, options.getIdentity(), options.getBuildId()));
     }
 
     @Override

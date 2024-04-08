@@ -23,10 +23,7 @@ package io.temporal.internal.worker;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.tuning.SlotPermit;
-import io.temporal.worker.tuning.SlotReleaseReason;
-import io.temporal.worker.tuning.SlotReservationContext;
-import io.temporal.worker.tuning.SlotSupplier;
+import io.temporal.worker.tuning.*;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @param <SI> The slot info type
  */
-public class TrackingSlotSupplier<SI> {
+public class TrackingSlotSupplier<SI extends SlotInfo> {
   private final SlotSupplier<SI> inner;
   private final AtomicInteger issuedSlots = new AtomicInteger();
   private final Map<SlotPermit, SI> usedSlots = new ConcurrentHashMap<>();
@@ -69,7 +66,7 @@ public class TrackingSlotSupplier<SI> {
     if (permit == null) {
       return;
     }
-    inner.markSlotUsed(slotInfo, permit);
+    inner.markSlotUsed(new SlotMarkUsedContextImpl(slotInfo, permit));
     usedSlots.put(permit, slotInfo);
     publishSlotsMetric();
   }
@@ -78,7 +75,8 @@ public class TrackingSlotSupplier<SI> {
     if (permit == null) {
       return;
     }
-    inner.releaseSlot(reason, permit);
+    SI slotInfo = usedSlots.get(permit);
+    inner.releaseSlot(new SlotReleaseContextImpl(reason, permit, slotInfo));
     issuedSlots.decrementAndGet();
     usedSlots.remove(permit);
     publishSlotsMetric();
@@ -106,17 +104,29 @@ public class TrackingSlotSupplier<SI> {
         .update(maximumSlots() - usedSlots.size());
   }
 
-  private SlotReservationContext<SI> createCtx(SlotReservationData dat) {
-    return new SlotResCtx(dat.getTaskQueue(), Collections.unmodifiableMap(usedSlots));
+  private SlotReserveContext<SI> createCtx(SlotReservationData dat) {
+    return new SlotReserveContextImpl(
+        dat.taskQueue,
+        Collections.unmodifiableMap(usedSlots),
+        dat.workerIdentity,
+        dat.workerBuildId);
   }
 
-  private class SlotResCtx implements SlotReservationContext<SI> {
+  private class SlotReserveContextImpl implements SlotReserveContext<SI> {
     private final String taskQueue;
     private final Map<SlotPermit, SI> usedSlots;
+    private final String workerIdentity;
+    private final String workerBuildId;
 
-    private SlotResCtx(String taskQueue, Map<SlotPermit, SI> usedSlots) {
+    private SlotReserveContextImpl(
+        String taskQueue,
+        Map<SlotPermit, SI> usedSlots,
+        String workerIdentity,
+        String workerBuildId) {
       this.taskQueue = taskQueue;
       this.usedSlots = usedSlots;
+      this.workerIdentity = workerIdentity;
+      this.workerBuildId = workerBuildId;
     }
 
     @Override
@@ -125,8 +135,65 @@ public class TrackingSlotSupplier<SI> {
     }
 
     @Override
-    public Map<SlotPermit, SI> usedSlots() {
+    public Map<SlotPermit, SI> getUsedSlots() {
       return usedSlots;
+    }
+
+    @Override
+    public String getWorkerIdentity() {
+      return workerIdentity;
+    }
+
+    @Override
+    public String getWorkerBuildId() {
+      return workerBuildId;
+    }
+  }
+
+  private class SlotMarkUsedContextImpl implements SlotMarkUsedContext<SI> {
+    private final SI slotInfo;
+    private final SlotPermit slotPermit;
+
+    protected SlotMarkUsedContextImpl(SI slotInfo, SlotPermit slotPermit) {
+      this.slotInfo = slotInfo;
+      this.slotPermit = slotPermit;
+    }
+
+    @Override
+    public SI getSlotInfo() {
+      return slotInfo;
+    }
+
+    @Override
+    public SlotPermit getSlotPermit() {
+      return slotPermit;
+    }
+  }
+
+  private class SlotReleaseContextImpl implements SlotReleaseContext<SI> {
+    private final SlotPermit slotPermit;
+    private final SlotReleaseReason reason;
+    private final SI slotInfo;
+
+    protected SlotReleaseContextImpl(SlotReleaseReason reason, SlotPermit slotPermit, SI slotInfo) {
+      this.slotPermit = slotPermit;
+      this.reason = reason;
+      this.slotInfo = slotInfo;
+    }
+
+    @Override
+    public SlotReleaseReason getSlotReleaseReason() {
+      return reason;
+    }
+
+    @Override
+    public SlotPermit getSlotPermit() {
+      return slotPermit;
+    }
+
+    @Override
+    public SI getSlotInfo() {
+      return slotInfo;
     }
   }
 }
