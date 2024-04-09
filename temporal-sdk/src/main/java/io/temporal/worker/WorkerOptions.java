@@ -68,6 +68,9 @@ public final class WorkerOptions {
         Duration.ofSeconds(30);
 
     private double maxWorkerActivitiesPerSecond;
+    private int maxConcurrentActivityExecutionSize;
+    private int maxConcurrentWorkflowTaskExecutionSize;
+    private int maxConcurrentLocalActivityExecutionSize;
     private double maxTaskQueueActivitiesPerSecond;
     private int maxConcurrentWorkflowTaskPollers;
     private int maxConcurrentActivityTaskPollers;
@@ -131,7 +134,7 @@ public final class WorkerOptions {
      * @param maxConcurrentActivityExecutionSize Maximum number of activities executed in parallel.
      *     Default is 200, which is chosen if set to zero.
      * @return {@code this}
-     *     <p>Note that calling this will overwrite any supplier previous set with {@link
+     *     <p>Note setting is mutually exclusive with {@link
      *     #setActivitySlotSupplier(SlotSupplier)}.
      */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
@@ -140,7 +143,7 @@ public final class WorkerOptions {
             "Negative maxConcurrentActivityExecutionSize value: "
                 + maxConcurrentActivityExecutionSize);
       }
-      this.activitySlotSupplier = new FixedSizeSlotSupplier<>(maxConcurrentActivityExecutionSize);
+      this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
       return this;
     }
 
@@ -150,8 +153,7 @@ public final class WorkerOptions {
      * @return {@code this}
      *     <p>Note that this is not related to the total number of open workflows which do not need
      *     to be loaded in a worker when they are not making state transitions.
-     *     <p>Note that calling this will overwrite any supplier previous set with {@link
-     *     #setWorkflowSlotSupplier(SlotSupplier)}
+     *     <p>Note setting is mutually exclusive with {@link #setWorkflowSlotSupplier(SlotSupplier)}
      */
     public Builder setMaxConcurrentWorkflowTaskExecutionSize(
         int maxConcurrentWorkflowTaskExecutionSize) {
@@ -160,8 +162,7 @@ public final class WorkerOptions {
             "Negative maxConcurrentWorkflowTaskExecutionSize value: "
                 + maxConcurrentWorkflowTaskExecutionSize);
       }
-      this.workflowSlotSupplier =
-          new FixedSizeSlotSupplier<>(maxConcurrentWorkflowTaskExecutionSize);
+      this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
       return this;
     }
 
@@ -169,7 +170,7 @@ public final class WorkerOptions {
      * @param maxConcurrentLocalActivityExecutionSize Maximum number of local activities executed in
      *     parallel. Default is 200, which is chosen if set to zero.
      * @return {@code this}
-     *     <p>Note that calling this will overwrite any supplier previous set with {@link
+     *     <p>Note setting is mutually exclusive with {@link
      *     #setLocalActivitySlotSupplier(SlotSupplier)}
      */
     public Builder setMaxConcurrentLocalActivityExecutionSize(
@@ -179,8 +180,7 @@ public final class WorkerOptions {
             "Negative maxConcurrentLocalActivityExecutionSize value: "
                 + maxConcurrentLocalActivityExecutionSize);
       }
-      this.localActivitySlotSupplier =
-          new FixedSizeSlotSupplier<>(maxConcurrentLocalActivityExecutionSize);
+      this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
       return this;
     }
 
@@ -380,8 +380,10 @@ public final class WorkerOptions {
     }
 
     /**
-     * Set the {@link SlotSupplier} for workflow tasks. If you have already used {@link
-     * #setMaxConcurrentWorkflowTaskExecutionSize(int)}, this will override that.
+     * Set the {@link SlotSupplier} for workflow tasks.
+     *
+     * <p>Note that this setting is mutually exclusive with {@link
+     * #setMaxConcurrentWorkflowTaskExecutionSize(int)}.
      */
     @Experimental
     public void setWorkflowSlotSupplier(SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier) {
@@ -389,8 +391,10 @@ public final class WorkerOptions {
     }
 
     /**
-     * Set the {@link SlotSupplier} for activity tasks. If you have already used {@link
-     * #setMaxConcurrentActivityExecutionSize(int)}, this will override that.
+     * Set the {@link SlotSupplier} for activity tasks.
+     *
+     * <p>Note that this setting is mutually exclusive with {@link
+     * #setMaxConcurrentActivityExecutionSize(int)}.
      */
     @Experimental
     public void setActivitySlotSupplier(SlotSupplier<ActivitySlotInfo> activitySlotSupplier) {
@@ -398,8 +402,10 @@ public final class WorkerOptions {
     }
 
     /**
-     * Set the {@link SlotSupplier} for local activity tasks. If you have already used {@link
-     * #setMaxConcurrentLocalActivityExecutionSize(int)}, this will override that.
+     * Set the {@link SlotSupplier} for local activity tasks.
+     *
+     * <p>Note that this setting is mutually exclusive with {@link
+     * #setMaxConcurrentLocalActivityExecutionSize(int)}.
      */
     @Experimental
     public void setLocalActivitySlotSupplier(
@@ -430,6 +436,47 @@ public final class WorkerOptions {
     public WorkerOptions validateAndBuildWithDefaults() {
       Preconditions.checkState(
           maxWorkerActivitiesPerSecond >= 0, "negative maxActivitiesPerSecond");
+      Preconditions.checkState(
+          maxConcurrentActivityExecutionSize >= 0, "negative maxConcurrentActivityExecutionSize");
+      Preconditions.checkState(
+          maxConcurrentWorkflowTaskExecutionSize >= 0,
+          "negative maxConcurrentWorkflowTaskExecutionSize");
+      Preconditions.checkState(
+          maxConcurrentLocalActivityExecutionSize >= 0,
+          "negative maxConcurrentLocalActivityExecutionSize");
+      if (activitySlotSupplier != null) {
+        Preconditions.checkState(
+            maxConcurrentActivityExecutionSize == 0,
+            "maxConcurrentActivityExecutionSize must not be set if activitySlotSupplier is set");
+      } else {
+        activitySlotSupplier =
+            new FixedSizeSlotSupplier<>(
+                maxConcurrentActivityExecutionSize == 0
+                    ? DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE
+                    : maxConcurrentActivityExecutionSize);
+      }
+      if (workflowSlotSupplier != null) {
+        Preconditions.checkState(
+            maxConcurrentWorkflowTaskExecutionSize == 0,
+            "maxConcurrentWorkflowTaskExecutionSize must not be set if workflowSlotSupplier is set");
+      } else {
+        workflowSlotSupplier =
+            new FixedSizeSlotSupplier<>(
+                maxConcurrentWorkflowTaskExecutionSize == 0
+                    ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE
+                    : maxConcurrentWorkflowTaskExecutionSize);
+      }
+      if (localActivitySlotSupplier != null) {
+        Preconditions.checkState(
+            maxConcurrentLocalActivityExecutionSize == 0,
+            "maxConcurrentLocalActivityExecutionSize must not be set if localActivitySlotSupplier is set");
+      } else {
+        localActivitySlotSupplier =
+            new FixedSizeSlotSupplier<>(
+                maxConcurrentLocalActivityExecutionSize == 0
+                    ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
+                    : maxConcurrentLocalActivityExecutionSize);
+      }
       Preconditions.checkState(
           maxTaskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
       Preconditions.checkState(
@@ -492,9 +539,9 @@ public final class WorkerOptions {
   }
 
   private final double maxWorkerActivitiesPerSecond;
-  private SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier;
-  private SlotSupplier<ActivitySlotInfo> activitySlotSupplier;
-  private SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
+  private final SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier;
+  private final SlotSupplier<ActivitySlotInfo> activitySlotSupplier;
+  private final SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
   private final double maxTaskQueueActivitiesPerSecond;
   private final int maxConcurrentWorkflowTaskPollers;
   private final int maxConcurrentActivityTaskPollers;
