@@ -51,6 +51,24 @@ public class WorkflowSlotInfo extends SlotInfo {
     this.fromStickyQueue = request.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_STICKY;
   }
 
+  /** Don't rely on this constructor. It is for internal use by the SDK. */
+  public WorkflowSlotInfo(
+      String workflowType,
+      String taskQueue,
+      String workflowId,
+      String runId,
+      String workerIdentity,
+      String workerBuildId,
+      boolean fromStickyQueue) {
+    this.workflowType = workflowType;
+    this.taskQueue = taskQueue;
+    this.workflowId = workflowId;
+    this.runId = runId;
+    this.workerIdentity = workerIdentity;
+    this.workerBuildId = workerBuildId;
+    this.fromStickyQueue = fromStickyQueue;
+  }
+
   public String getWorkflowType() {
     return workflowType;
   }
