@@ -23,10 +23,12 @@ package io.temporal.worker.tuning;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /** Contains information about a slot that is being used to execute a workflow task. */
+@Experimental
 public class WorkflowSlotInfo extends SlotInfo {
   private final String workflowType;
   private final String taskQueue;

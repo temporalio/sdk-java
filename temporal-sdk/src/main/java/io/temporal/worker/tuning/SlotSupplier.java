@@ -87,7 +87,7 @@ public interface SlotSupplier<SI extends SlotInfo> {
    *
    * @return the maximum number of slots that can ever be in use at one type for this slot type.
    */
-  default int maximumSlots() {
+  default int getMaximumSlots() {
     return Integer.MAX_VALUE;
   }
 }

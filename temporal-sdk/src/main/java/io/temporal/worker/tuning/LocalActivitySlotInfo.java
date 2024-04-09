@@ -21,9 +21,11 @@
 package io.temporal.worker.tuning;
 
 import io.temporal.activity.ActivityInfo;
+import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /** Contains information about a slot that is being used to execute a local activity. */
+@Experimental
 public class LocalActivitySlotInfo extends SlotInfo {
   private final ActivityInfo activityInfo;
   private final String workerIdentity;

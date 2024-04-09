@@ -20,8 +20,10 @@
 
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
 import java.util.Map;
 
+@Experimental
 public interface SlotReserveContext<SI extends SlotInfo> {
   /**
    * @return the Task Queue for which this reservation request is associated.

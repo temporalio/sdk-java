@@ -548,15 +548,15 @@ public final class WorkerOptions {
   }
 
   public int getMaxConcurrentActivityExecutionSize() {
-    return activitySlotSupplier.maximumSlots();
+    return activitySlotSupplier.getMaximumSlots();
   }
 
   public int getMaxConcurrentWorkflowTaskExecutionSize() {
-    return workflowSlotSupplier.maximumSlots();
+    return workflowSlotSupplier.getMaximumSlots();
   }
 
   public int getMaxConcurrentLocalActivityExecutionSize() {
-    return localActivitySlotSupplier.maximumSlots();
+    return localActivitySlotSupplier.getMaximumSlots();
   }
 
   public double getMaxTaskQueueActivitiesPerSecond() {

@@ -20,8 +20,10 @@
 
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
+@Experimental
 public abstract class SlotReleaseReason {
   SlotReleaseReason() {}
 

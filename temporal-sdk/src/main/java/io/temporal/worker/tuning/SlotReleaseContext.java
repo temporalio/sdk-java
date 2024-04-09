@@ -20,8 +20,10 @@
 
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
+@Experimental
 public interface SlotReleaseContext<SI extends SlotInfo> {
   /**
    * @return The reason the slot is being released.

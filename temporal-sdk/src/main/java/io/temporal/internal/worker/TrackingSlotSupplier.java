@@ -83,7 +83,7 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
   }
 
   public int maximumSlots() {
-    return inner.maximumSlots();
+    return inner.getMaximumSlots();
   }
 
   public int getIssuedSlots() {

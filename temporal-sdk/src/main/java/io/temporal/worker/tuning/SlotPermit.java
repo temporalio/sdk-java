@@ -20,40 +20,25 @@
 
 package io.temporal.worker.tuning;
 
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
+import io.temporal.common.Experimental;
 
 /**
  * This class is handed out by implementations of {@link SlotSupplier}. Permits are held until the
  * tasks they are associated with (if any) are finished processing, or if the reservation is no
  * longer needed. Your supplier implementation may store additional data in the permit, if desired.
+ *
+ * <p>When {@link SlotSupplier#releaseSlot(SlotReleaseContext)} is called, the exact same instance
+ * of the permit is passed back to the supplier.
  */
-public class SlotPermit {
-  public final long id;
+@Experimental
+public final class SlotPermit {
   public final Object userData;
 
-  private static final AtomicLong nextId = new AtomicLong(0);
-
   public SlotPermit() {
-    id = nextId.getAndIncrement();
     this.userData = null;
   }
 
   public SlotPermit(Object userData) {
-    id = nextId.getAndIncrement();
     this.userData = userData;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    SlotPermit that = (SlotPermit) o;
-    return id == that.id;
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(id);
   }
 }
