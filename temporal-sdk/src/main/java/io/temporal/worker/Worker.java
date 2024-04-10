@@ -108,7 +108,11 @@ public final class Worker {
       activityWorker = null;
     } else {
       TrackingSlotSupplier<ActivitySlotInfo> activitySlotSupplier =
-          new TrackingSlotSupplier<>(this.options.getActivitySlotSupplier());
+          new TrackingSlotSupplier<>(
+              this.options.getActivitySlotSupplier() == null
+                  ? new FixedSizeSlotSupplier<>(
+                      this.options.getMaxConcurrentActivityExecutionSize())
+                  : this.options.getActivitySlotSupplier());
 
       activityWorker =
           new SyncActivityWorker(
@@ -138,9 +142,17 @@ public final class Worker {
             factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
 
     TrackingSlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
-        new TrackingSlotSupplier<>(this.options.getWorkflowSlotSupplier());
+        new TrackingSlotSupplier<>(
+            this.options.getWorkflowSlotSupplier() == null
+                ? new FixedSizeSlotSupplier<>(
+                    this.options.getMaxConcurrentWorkflowTaskExecutionSize())
+                : this.options.getWorkflowSlotSupplier());
     TrackingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new TrackingSlotSupplier<>(this.options.getLocalActivitySlotSupplier());
+        new TrackingSlotSupplier<>(
+            this.options.getLocalActivitySlotSupplier() == null
+                ? new FixedSizeSlotSupplier<>(
+                    this.options.getMaxConcurrentLocalActivityExecutionSize())
+                : this.options.getLocalActivitySlotSupplier());
     workflowWorker =
         new SyncWorkflowWorker(
             service,

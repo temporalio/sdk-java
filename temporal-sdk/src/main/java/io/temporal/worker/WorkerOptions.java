@@ -94,6 +94,9 @@ public final class WorkerOptions {
         return;
       }
       this.maxWorkerActivitiesPerSecond = o.maxWorkerActivitiesPerSecond;
+      this.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
+      this.maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
+      this.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
       this.workflowSlotSupplier = o.workflowSlotSupplier;
       this.activitySlotSupplier = o.activitySlotSupplier;
       this.localActivitySlotSupplier = o.localActivitySlotSupplier;
@@ -416,6 +419,9 @@ public final class WorkerOptions {
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
+          maxConcurrentActivityExecutionSize,
+          maxConcurrentWorkflowTaskExecutionSize,
+          maxConcurrentLocalActivityExecutionSize,
           workflowSlotSupplier,
           activitySlotSupplier,
           localActivitySlotSupplier,
@@ -448,34 +454,16 @@ public final class WorkerOptions {
         Preconditions.checkState(
             maxConcurrentActivityExecutionSize == 0,
             "maxConcurrentActivityExecutionSize must not be set if activitySlotSupplier is set");
-      } else {
-        activitySlotSupplier =
-            new FixedSizeSlotSupplier<>(
-                maxConcurrentActivityExecutionSize == 0
-                    ? DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE
-                    : maxConcurrentActivityExecutionSize);
       }
       if (workflowSlotSupplier != null) {
         Preconditions.checkState(
             maxConcurrentWorkflowTaskExecutionSize == 0,
             "maxConcurrentWorkflowTaskExecutionSize must not be set if workflowSlotSupplier is set");
-      } else {
-        workflowSlotSupplier =
-            new FixedSizeSlotSupplier<>(
-                maxConcurrentWorkflowTaskExecutionSize == 0
-                    ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE
-                    : maxConcurrentWorkflowTaskExecutionSize);
       }
       if (localActivitySlotSupplier != null) {
         Preconditions.checkState(
             maxConcurrentLocalActivityExecutionSize == 0,
             "maxConcurrentLocalActivityExecutionSize must not be set if localActivitySlotSupplier is set");
-      } else {
-        localActivitySlotSupplier =
-            new FixedSizeSlotSupplier<>(
-                maxConcurrentLocalActivityExecutionSize == 0
-                    ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
-                    : maxConcurrentLocalActivityExecutionSize);
       }
       Preconditions.checkState(
           maxTaskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
@@ -500,15 +488,18 @@ public final class WorkerOptions {
 
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
-          workflowSlotSupplier == null
-              ? new FixedSizeSlotSupplier<>(DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE)
-              : workflowSlotSupplier,
-          activitySlotSupplier == null
-              ? new FixedSizeSlotSupplier<>(DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE)
-              : activitySlotSupplier,
-          localActivitySlotSupplier == null
-              ? new FixedSizeSlotSupplier<>(DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE)
-              : localActivitySlotSupplier,
+          maxConcurrentActivityExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE
+              : maxConcurrentActivityExecutionSize,
+          maxConcurrentWorkflowTaskExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE
+              : maxConcurrentWorkflowTaskExecutionSize,
+          maxConcurrentLocalActivityExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
+              : maxConcurrentLocalActivityExecutionSize,
+          workflowSlotSupplier,
+          activitySlotSupplier,
+          localActivitySlotSupplier,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
               ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
@@ -539,6 +530,9 @@ public final class WorkerOptions {
   }
 
   private final double maxWorkerActivitiesPerSecond;
+  private final int maxConcurrentActivityExecutionSize;
+  private final int maxConcurrentWorkflowTaskExecutionSize;
+  private final int maxConcurrentLocalActivityExecutionSize;
   private final SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier;
   private final SlotSupplier<ActivitySlotInfo> activitySlotSupplier;
   private final SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
@@ -557,6 +551,9 @@ public final class WorkerOptions {
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
+      int maxConcurrentActivityExecutionSize,
+      int maxConcurrentWorkflowTaskExecutionSize,
+      int maxConcurrentLocalActivityExecutionSize,
       SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier,
       SlotSupplier<ActivitySlotInfo> activitySlotSupplier,
       SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier,
@@ -573,6 +570,9 @@ public final class WorkerOptions {
       String buildId,
       Duration stickyTaskQueueDrainTimeout) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
+    this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
+    this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
+    this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
     this.workflowSlotSupplier = workflowSlotSupplier;
     this.activitySlotSupplier = activitySlotSupplier;
     this.localActivitySlotSupplier = localActivitySlotSupplier;
@@ -595,15 +595,15 @@ public final class WorkerOptions {
   }
 
   public int getMaxConcurrentActivityExecutionSize() {
-    return activitySlotSupplier.getMaximumSlots();
+    return maxConcurrentActivityExecutionSize;
   }
 
   public int getMaxConcurrentWorkflowTaskExecutionSize() {
-    return workflowSlotSupplier.getMaximumSlots();
+    return maxConcurrentWorkflowTaskExecutionSize;
   }
 
   public int getMaxConcurrentLocalActivityExecutionSize() {
-    return localActivitySlotSupplier.getMaximumSlots();
+    return maxConcurrentLocalActivityExecutionSize;
   }
 
   public double getMaxTaskQueueActivitiesPerSecond() {
@@ -689,6 +689,9 @@ public final class WorkerOptions {
     if (o == null || getClass() != o.getClass()) return false;
     WorkerOptions that = (WorkerOptions) o;
     return compare(maxWorkerActivitiesPerSecond, that.maxWorkerActivitiesPerSecond) == 0
+        && maxConcurrentActivityExecutionSize == that.maxConcurrentActivityExecutionSize
+        && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
+        && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
         && compare(maxTaskQueueActivitiesPerSecond, that.maxTaskQueueActivitiesPerSecond) == 0
         && maxConcurrentWorkflowTaskPollers == that.maxConcurrentWorkflowTaskPollers
         && maxConcurrentActivityTaskPollers == that.maxConcurrentActivityTaskPollers
@@ -710,6 +713,9 @@ public final class WorkerOptions {
   public int hashCode() {
     return Objects.hash(
         maxWorkerActivitiesPerSecond,
+        maxConcurrentActivityExecutionSize,
+        maxConcurrentWorkflowTaskExecutionSize,
+        maxConcurrentLocalActivityExecutionSize,
         workflowSlotSupplier,
         activitySlotSupplier,
         localActivitySlotSupplier,
@@ -732,6 +738,12 @@ public final class WorkerOptions {
     return "WorkerOptions{"
         + "maxWorkerActivitiesPerSecond="
         + maxWorkerActivitiesPerSecond
+        + ", maxConcurrentActivityExecutionSize="
+        + maxConcurrentActivityExecutionSize
+        + ", maxConcurrentWorkflowTaskExecutionSize="
+        + maxConcurrentWorkflowTaskExecutionSize
+        + ", maxConcurrentLocalActivityExecutionSize="
+        + maxConcurrentLocalActivityExecutionSize
         + ", workflowSlotSupplier="
         + workflowSlotSupplier
         + ", activitySlotSupplier="
