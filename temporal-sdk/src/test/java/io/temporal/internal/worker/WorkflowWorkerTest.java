@@ -36,6 +36,8 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.tuning.FixedSizeSlotSupplier;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.UUID;
 import java.util.concurrent.*;
 import org.junit.Test;
@@ -64,6 +66,8 @@ public class WorkflowWorkerTest {
         new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
+        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(100));
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
 
     WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
@@ -85,7 +89,8 @@ public class WorkflowWorkerTest {
             runLockManager,
             cache,
             taskHandler,
-            eagerActivityDispatcher);
+            eagerActivityDispatcher,
+            slotSupplier);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
@@ -209,6 +214,8 @@ public class WorkflowWorkerTest {
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
+    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
+        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(10));
 
     WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
     when(taskHandler.isAnyTypeSupported()).thenReturn(true);
@@ -229,7 +236,8 @@ public class WorkflowWorkerTest {
             runLockManager,
             cache,
             taskHandler,
-            eagerActivityDispatcher);
+            eagerActivityDispatcher,
+            slotSupplier);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);

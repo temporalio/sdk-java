@@ -25,6 +25,7 @@ import static java.lang.Double.compare;
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.tuning.*;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -82,6 +83,9 @@ public final class WorkerOptions {
     private String buildId;
     private boolean useBuildIdForVersioning;
     private Duration stickyTaskQueueDrainTimeout;
+    private SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier;
+    private SlotSupplier<ActivitySlotInfo> activitySlotSupplier;
+    private SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
 
     private Builder() {}
 
@@ -93,6 +97,9 @@ public final class WorkerOptions {
       this.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
       this.maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
       this.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
+      this.workflowSlotSupplier = o.workflowSlotSupplier;
+      this.activitySlotSupplier = o.activitySlotSupplier;
+      this.localActivitySlotSupplier = o.localActivitySlotSupplier;
       this.maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
       this.maxConcurrentWorkflowTaskPollers = o.maxConcurrentWorkflowTaskPollers;
       this.maxConcurrentActivityTaskPollers = o.maxConcurrentActivityTaskPollers;
@@ -130,6 +137,8 @@ public final class WorkerOptions {
      * @param maxConcurrentActivityExecutionSize Maximum number of activities executed in parallel.
      *     Default is 200, which is chosen if set to zero.
      * @return {@code this}
+     *     <p>Note setting is mutually exclusive with {@link
+     *     #setActivitySlotSupplier(SlotSupplier)}.
      */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
       if (maxConcurrentActivityExecutionSize < 0) {
@@ -147,6 +156,7 @@ public final class WorkerOptions {
      * @return {@code this}
      *     <p>Note that this is not related to the total number of open workflows which do not need
      *     to be loaded in a worker when they are not making state transitions.
+     *     <p>Note setting is mutually exclusive with {@link #setWorkflowSlotSupplier(SlotSupplier)}
      */
     public Builder setMaxConcurrentWorkflowTaskExecutionSize(
         int maxConcurrentWorkflowTaskExecutionSize) {
@@ -163,6 +173,8 @@ public final class WorkerOptions {
      * @param maxConcurrentLocalActivityExecutionSize Maximum number of local activities executed in
      *     parallel. Default is 200, which is chosen if set to zero.
      * @return {@code this}
+     *     <p>Note setting is mutually exclusive with {@link
+     *     #setLocalActivitySlotSupplier(SlotSupplier)}
      */
     public Builder setMaxConcurrentLocalActivityExecutionSize(
         int maxConcurrentLocalActivityExecutionSize) {
@@ -370,12 +382,49 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Set the {@link SlotSupplier} for workflow tasks.
+     *
+     * <p>Note that this setting is mutually exclusive with {@link
+     * #setMaxConcurrentWorkflowTaskExecutionSize(int)}.
+     */
+    @Experimental
+    public void setWorkflowSlotSupplier(SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier) {
+      this.workflowSlotSupplier = workflowSlotSupplier;
+    }
+
+    /**
+     * Set the {@link SlotSupplier} for activity tasks.
+     *
+     * <p>Note that this setting is mutually exclusive with {@link
+     * #setMaxConcurrentActivityExecutionSize(int)}.
+     */
+    @Experimental
+    public void setActivitySlotSupplier(SlotSupplier<ActivitySlotInfo> activitySlotSupplier) {
+      this.activitySlotSupplier = activitySlotSupplier;
+    }
+
+    /**
+     * Set the {@link SlotSupplier} for local activity tasks.
+     *
+     * <p>Note that this setting is mutually exclusive with {@link
+     * #setMaxConcurrentLocalActivityExecutionSize(int)}.
+     */
+    @Experimental
+    public void setLocalActivitySlotSupplier(
+        SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier) {
+      this.localActivitySlotSupplier = localActivitySlotSupplier;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowTaskExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
+          workflowSlotSupplier,
+          activitySlotSupplier,
+          localActivitySlotSupplier,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers,
@@ -401,6 +450,21 @@ public final class WorkerOptions {
       Preconditions.checkState(
           maxConcurrentLocalActivityExecutionSize >= 0,
           "negative maxConcurrentLocalActivityExecutionSize");
+      if (activitySlotSupplier != null) {
+        Preconditions.checkState(
+            maxConcurrentActivityExecutionSize == 0,
+            "maxConcurrentActivityExecutionSize must not be set if activitySlotSupplier is set");
+      }
+      if (workflowSlotSupplier != null) {
+        Preconditions.checkState(
+            maxConcurrentWorkflowTaskExecutionSize == 0,
+            "maxConcurrentWorkflowTaskExecutionSize must not be set if workflowSlotSupplier is set");
+      }
+      if (localActivitySlotSupplier != null) {
+        Preconditions.checkState(
+            maxConcurrentLocalActivityExecutionSize == 0,
+            "maxConcurrentLocalActivityExecutionSize must not be set if localActivitySlotSupplier is set");
+      }
       Preconditions.checkState(
           maxTaskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
       Preconditions.checkState(
@@ -433,6 +497,9 @@ public final class WorkerOptions {
           maxConcurrentLocalActivityExecutionSize == 0
               ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
               : maxConcurrentLocalActivityExecutionSize,
+          workflowSlotSupplier,
+          activitySlotSupplier,
+          localActivitySlotSupplier,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
               ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
@@ -466,6 +533,9 @@ public final class WorkerOptions {
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowTaskExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
+  private final SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier;
+  private final SlotSupplier<ActivitySlotInfo> activitySlotSupplier;
+  private final SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
   private final double maxTaskQueueActivitiesPerSecond;
   private final int maxConcurrentWorkflowTaskPollers;
   private final int maxConcurrentActivityTaskPollers;
@@ -482,8 +552,11 @@ public final class WorkerOptions {
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
       int maxConcurrentActivityExecutionSize,
-      int maxConcurrentWorkflowExecutionSize,
+      int maxConcurrentWorkflowTaskExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
+      SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier,
+      SlotSupplier<ActivitySlotInfo> activitySlotSupplier,
+      SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier,
       double maxTaskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
       int activityPollThreadCount,
@@ -498,8 +571,11 @@ public final class WorkerOptions {
       Duration stickyTaskQueueDrainTimeout) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
-    this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
+    this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
+    this.workflowSlotSupplier = workflowSlotSupplier;
+    this.activitySlotSupplier = activitySlotSupplier;
+    this.localActivitySlotSupplier = localActivitySlotSupplier;
     this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
     this.maxConcurrentWorkflowTaskPollers = workflowPollThreadCount;
     this.maxConcurrentActivityTaskPollers = activityPollThreadCount;
@@ -595,26 +671,41 @@ public final class WorkerOptions {
     return stickyTaskQueueDrainTimeout;
   }
 
+  public SlotSupplier<WorkflowSlotInfo> getWorkflowSlotSupplier() {
+    return workflowSlotSupplier;
+  }
+
+  public SlotSupplier<ActivitySlotInfo> getActivitySlotSupplier() {
+    return activitySlotSupplier;
+  }
+
+  public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
+    return localActivitySlotSupplier;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkerOptions that = (WorkerOptions) o;
-    return compare(that.maxWorkerActivitiesPerSecond, maxWorkerActivitiesPerSecond) == 0
+    return compare(maxWorkerActivitiesPerSecond, that.maxWorkerActivitiesPerSecond) == 0
         && maxConcurrentActivityExecutionSize == that.maxConcurrentActivityExecutionSize
         && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
         && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
-        && compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond) == 0
+        && compare(maxTaskQueueActivitiesPerSecond, that.maxTaskQueueActivitiesPerSecond) == 0
         && maxConcurrentWorkflowTaskPollers == that.maxConcurrentWorkflowTaskPollers
         && maxConcurrentActivityTaskPollers == that.maxConcurrentActivityTaskPollers
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
+        && disableEagerExecution == that.disableEagerExecution
+        && useBuildIdForVersioning == that.useBuildIdForVersioning
+        && Objects.equals(workflowSlotSupplier, that.workflowSlotSupplier)
+        && Objects.equals(activitySlotSupplier, that.activitySlotSupplier)
+        && Objects.equals(localActivitySlotSupplier, that.localActivitySlotSupplier)
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
         && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval)
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
-        && disableEagerExecution == that.disableEagerExecution
-        && useBuildIdForVersioning == that.useBuildIdForVersioning
-        && Objects.equals(that.buildId, buildId)
+        && Objects.equals(buildId, that.buildId)
         && Objects.equals(stickyTaskQueueDrainTimeout, that.stickyTaskQueueDrainTimeout);
   }
 
@@ -625,6 +716,9 @@ public final class WorkerOptions {
         maxConcurrentActivityExecutionSize,
         maxConcurrentWorkflowTaskExecutionSize,
         maxConcurrentLocalActivityExecutionSize,
+        workflowSlotSupplier,
+        activitySlotSupplier,
+        localActivitySlotSupplier,
         maxTaskQueueActivitiesPerSecond,
         maxConcurrentWorkflowTaskPollers,
         maxConcurrentActivityTaskPollers,
@@ -650,6 +744,12 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowTaskExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
+        + ", workflowSlotSupplier="
+        + workflowSlotSupplier
+        + ", activitySlotSupplier="
+        + activitySlotSupplier
+        + ", localActivitySlotSupplier="
+        + localActivitySlotSupplier
         + ", maxTaskQueueActivitiesPerSecond="
         + maxTaskQueueActivitiesPerSecond
         + ", maxConcurrentWorkflowTaskPollers="
@@ -672,7 +772,8 @@ public final class WorkerOptions {
         + useBuildIdForVersioning
         + ", buildId='"
         + buildId
-        + ", stickyTaskQueueDrainTimeout='"
+        + '\''
+        + ", stickyTaskQueueDrainTimeout="
         + stickyTaskQueueDrainTimeout
         + '}';
   }
