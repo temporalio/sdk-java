@@ -79,40 +79,27 @@ class EagerActivitySlotsReservation implements Closeable {
         activityTasksCount,
         this.reservedSlots.size());
 
-    // Release any slots that we won't be using
-    releaseSlots(this.reservedSlots.size() - activityTasksCount);
-
     for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList()) {
-      // don't release slots here, instead the semaphore release reference is passed to the activity
-      // worker to release when the activity is done
+      // don't release slots here, instead the release function is called in the activity worker to
+      // release when the activity is done
       SlotPermit permit = this.reservedSlots.remove(0);
       this.eagerActivityDispatcher.dispatchActivity(act, permit);
     }
 
-    this.reservedSlots.clear();
+    // Release any remaining that we won't be using
+    try {
+      this.eagerActivityDispatcher.releaseActivitySlotReservations(this.reservedSlots);
+    } finally {
+      this.reservedSlots.clear();
+    }
   }
 
   @Override
   public void close() {
     if (!this.reservedSlots.isEmpty()) {
-      releaseSlots(this.reservedSlots.size());
-    }
-  }
-
-  private void releaseSlots(int slotsToRelease) {
-    if (slotsToRelease == 0) return;
-    if (slotsToRelease < 0)
-      throw new IllegalArgumentException("Trying to release a negative number of activity slots");
-    if (slotsToRelease > this.reservedSlots.size())
-      throw new IllegalStateException(
-          "Trying to release more activity slots than outstanding reservations");
-
-    List<SlotPermit> slotsToReleaseList = this.reservedSlots.subList(0, slotsToRelease);
-    try {
-      this.eagerActivityDispatcher.releaseActivitySlotReservations(slotsToReleaseList);
-    } finally {
-      // Actually remove the permits from the class-level storage
-      slotsToReleaseList.clear();
+      // Release all slots
+      this.eagerActivityDispatcher.releaseActivitySlotReservations(this.reservedSlots);
+      this.reservedSlots.clear();
     }
   }
 }
