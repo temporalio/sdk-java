@@ -21,9 +21,12 @@
 package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.*;
+import static io.temporal.internal.statemachines.SideEffectStateMachine.SIDE_EFFECT_MARKER_NAME;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
@@ -32,6 +35,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.update.v1.Input;
+import io.temporal.api.update.v1.Meta;
 import io.temporal.api.update.v1.Outcome;
 import io.temporal.api.update.v1.Request;
 import io.temporal.common.converter.DataConverter;
@@ -287,8 +291,8 @@ public class UpdateProtocolStateMachineTest {
         2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
         3: EVENT_TYPE_WORKFLOW_TASK_STARTED
         4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
-        5: EVENT_TYPE_WORKFLOW_EXECUTION_ACCEPTED
-        6: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        5: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED
         7: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
     */
 
@@ -393,6 +397,488 @@ public class UpdateProtocolStateMachineTest {
                     .build(),
               }));
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+      assertEquals(0, commands.size());
+    }
+  }
+
+  @Test
+  public void testUpdateAdmittedAndCompletedImmediately() {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {}
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .add(
+                (r) -> {
+                  message.getCallbacks().accept();
+                })
+            .add(
+                (r) -> {
+                  message.getCallbacks().complete(converter.toPayloads("update result"), null);
+                })
+            .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED
+        3: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        4: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        5: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED
+        7: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED
+        8: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED,
+          WorkflowExecutionUpdateAdmittedEventAttributes.newBuilder()
+              .setRequest(
+                  Request.newBuilder()
+                      .setMeta(Meta.newBuilder().setUpdateId("protocol_id").build())
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+          WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
+              .setProtocolInstanceId("protocol_id")
+              .setAcceptedRequestMessageId("id")
+              .setAcceptedRequestSequencingEventId(2));
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
+          WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
+              .setOutcome(
+                  Outcome.newBuilder().setSuccess(converter.toPayloads("m2Arg1").get()).build()));
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0);
+      assertEquals(0, commands.size());
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0, 1);
+      assertEquals(3, commands.size());
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertEquals(0, commands.size());
+    }
+  }
+
+  @Test
+  public void testUpdateAdmittedAndMessage() {
+    // Test a mix of update accepted events and messages
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder.add(
+            (r) -> {
+              stateMachines.setMessages(
+                  Arrays.asList(
+                      Message.newBuilder()
+                          .setProtocolInstanceId("message_updateID")
+                          .setId("message_updateID/request")
+                          .setEventId(6)
+                          .setBody(
+                              Any.pack(
+                                  Request.newBuilder()
+                                      .setInput(Input.newBuilder().setName("updateName").build())
+                                      .build()))
+                          .build()));
+            });
+      }
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Optional<Payloads>>add1(
+                (v, c) -> {
+                  message.getCallbacks().accept();
+                  stateMachines.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c);
+                })
+            .add(
+                (r) -> {
+                  message.getCallbacks().complete(converter.toPayloads("update result"), null);
+                });
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED,
+          WorkflowExecutionUpdateAdmittedEventAttributes.newBuilder()
+              .setRequest(
+                  Request.newBuilder()
+                      .setMeta(Meta.newBuilder().setUpdateId("admitted_updateID").build())
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.addWorkflowTaskScheduled();
+      h.addWorkflowTaskStarted();
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0, 2);
+      assertEquals(6, commands.size());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(0).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(1).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(2).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(3).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(4).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(5).getCommandType());
+      List<Message> messages = stateMachines.takeMessages();
+      assertEquals(4, messages.size());
+    }
+  }
+
+  @Test
+  public void testUpdateAdmittedButRejected() {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {}
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder.add(
+            (r) -> {
+              message
+                  .getCallbacks()
+                  .reject(converter.exceptionToFailure(new RuntimeException("test failure")));
+            });
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED
+        3: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        4: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        5: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+    */
+
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED,
+          WorkflowExecutionUpdateAdmittedEventAttributes.newBuilder()
+              .setRequest(
+                  Request.newBuilder()
+                      .setMeta(Meta.newBuilder().setUpdateId("admitted_updateID").build())
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.addWorkflowTask();
+      h.addWorkflowTask();
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+      assertEquals(0, commands.size());
+      // Verify rejection message
+      List<Message> messages = stateMachines.takeMessages();
+      assertEquals(1, messages.size());
+      assertEquals("admitted_updateID/request/reject", messages.get(0).getId());
+      assertEquals(
+          "type.googleapis.com/temporal.api.update.v1.Rejection",
+          messages.get(0).getBody().getTypeUrl());
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1, 2);
+      assertEquals(0, commands.size());
+      assertEquals(0, stateMachines.takeMessages().size());
+    }
+  }
+
+  @Test
+  public void testUpdateAdmittedReplay() {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {}
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .add(
+                (r) -> {
+                  assertEquals(
+                      message.getMessage().getBody().getTypeUrl(),
+                      "type.googleapis.com/temporal.api.update.v1.Request");
+                  Request update = null;
+                  try {
+                    update = message.getMessage().getBody().unpack(Request.class);
+                  } catch (InvalidProtocolBufferException e) {
+                    assertTrue(false);
+                  }
+                  assertEquals("updateName", update.getInput().getName());
+                  message.getCallbacks().accept();
+                })
+            .add(
+                (r) -> {
+                  message.getCallbacks().complete(converter.toPayloads("update result"), null);
+                })
+            .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        9: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED
+        10: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED
+        11: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED,
+          WorkflowExecutionUpdateAdmittedEventAttributes.newBuilder()
+              .setRequest(
+                  Request.newBuilder()
+                      .setMeta(Meta.newBuilder().setUpdateId("protocol_id").build())
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+          WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
+              .setProtocolInstanceId("protocol_id")
+              .setAcceptedRequestMessageId("id")
+              .setAcceptedRequestSequencingEventId(2));
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
+          WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
+              .setOutcome(
+                  Outcome.newBuilder().setSuccess(converter.toPayloads("m2Arg1").get()).build()));
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
+      assertEquals(3, commands.size());
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertEquals(0, commands.size());
+    }
+  }
+
+  @Test
+  public void testUpdateSignalSandwichAdmittedMessage() {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {}
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.<Optional<Payloads>>add1(
+            (r, c) -> {
+              stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
+            });
+      }
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .add(
+                (r) -> {
+                  message.getCallbacks().accept();
+                })
+            .add(
+                (r) -> {
+                  message.getCallbacks().complete(converter.toPayloads("update result"), null);
+                });
+        if (message.getMessage().getProtocolInstanceId() == "message_update") {
+          builder.add((r) -> stateMachines.completeWorkflow(Optional.empty()));
+        }
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        9: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED
+        10: EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED
+        11: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED,
+          WorkflowExecutionUpdateAdmittedEventAttributes.newBuilder()
+              .setRequest(
+                  Request.newBuilder()
+                      .setMeta(Meta.newBuilder().setUpdateId("admitted_update").build())
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+          WorkflowExecutionSignaledEventAttributes.newBuilder()
+              .setSignalName("signal1")
+              .setInput(converter.toPayloads("signal1Arg").get()));
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+          WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
+              .setProtocolInstanceId("admitted_update")
+              .setAcceptedRequestMessageId("admitted_update/request/accept")
+              .setAcceptedRequestSequencingEventId(5));
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
+          WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
+              .setOutcome(
+                  Outcome.newBuilder().setSuccess(converter.toPayloads("m2Arg1").get()).build()));
+      h.add(
+          EventType.EVENT_TYPE_MARKER_RECORDED,
+          MarkerRecordedEventAttributes.newBuilder()
+              .setMarkerName(SIDE_EFFECT_MARKER_NAME)
+              .putDetails(MARKER_DATA_KEY, converter.toPayloads("m2Arg1").get())
+              .build());
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED,
+          WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
+              .setProtocolInstanceId("message_update")
+              .setAcceptedRequestMessageId("message_update/request/accept")
+              .setAcceptedRequestSequencingEventId(7)
+              .setAcceptedRequest(
+                  Request.newBuilder()
+                      .setInput(
+                          Input.newBuilder()
+                              .setName("updateName")
+                              .setArgs(converter.toPayloads("arg").get()))));
+      h.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
+          WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()
+              .setOutcome(
+                  Outcome.newBuilder().setSuccess(converter.toPayloads("m2Arg1").get()).build()));
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    }
+
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      stateMachines.setMessages(
+          Arrays.asList(
+              Message.newBuilder()
+                  .setProtocolInstanceId("message_update")
+                  .setId("message_update/request")
+                  .setEventId(7)
+                  .setBody(
+                      Any.pack(
+                          Request.newBuilder()
+                              .setInput(Input.newBuilder().setName("updateName").build())
+                              .build()))
+                  .build()));
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1, 2);
+      assertEquals(6, commands.size());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(0).getCommandType());
+      assertEquals(
+          "admitted_update/request/accept",
+          commands.get(0).getProtocolMessageCommandAttributes().getMessageId());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(1).getCommandType());
+      assertEquals(
+          "admitted_update/request/complete",
+          commands.get(1).getProtocolMessageCommandAttributes().getMessageId());
+      assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(2).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(3).getCommandType());
+      assertEquals(
+          "message_update/request/accept",
+          commands.get(3).getProtocolMessageCommandAttributes().getMessageId());
+      assertEquals(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE, commands.get(4).getCommandType());
+      assertEquals(
+          "message_update/request/complete",
+          commands.get(4).getProtocolMessageCommandAttributes().getMessageId());
+      assertEquals(
+          CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands.get(5).getCommandType());
+      List<Message> messages = stateMachines.takeMessages();
+      assertEquals(4, messages.size());
+    }
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertEquals(0, commands.size());
     }
   }

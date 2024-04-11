@@ -537,6 +537,10 @@ class TestHistoryBuilder {
           result.setChildWorkflowExecutionTerminatedEventAttributes(
               (ChildWorkflowExecutionTerminatedEventAttributes) attributes);
           break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED:
+          result.setWorkflowExecutionUpdateAdmittedEventAttributes(
+              (WorkflowExecutionUpdateAdmittedEventAttributes) attributes);
+          break;
         case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
           result.setWorkflowExecutionUpdateAcceptedEventAttributes(
               (WorkflowExecutionUpdateAcceptedEventAttributes) attributes);

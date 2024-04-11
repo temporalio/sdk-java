@@ -113,6 +113,7 @@ public final class WorkflowStateMachines {
 
   private final Map<Long, EntityStateMachine> stateMachines = new HashMap<>();
 
+  /** Key is the protocol instance id */
   private final Map<String, EntityStateMachine> protocolStateMachines = new HashMap<>();
 
   private final Queue<Message> messageOutbox = new ArrayDeque<>();
@@ -159,6 +160,9 @@ public final class WorkflowStateMachines {
   private final WFTBuffer wftBuffer = new WFTBuffer();
 
   private List<Message> messages = new ArrayList<>();
+
+  /** Set of accepted admitted updates by update id */
+  private final Set<String> acceptedUpdates = new HashSet<>();
 
   private final SdkFlags flags;
 
@@ -277,18 +281,19 @@ public final class WorkflowStateMachines {
    * Handle an events batch for one workflow task. Events that are related to one workflow task
    * during replay should be prefetched and supplied in one batch.
    *
-   * @param events events belong to one workflow task
+   * @param eventBatch events belong to one workflow task
    * @param hasNextEvent true if there are more events in the history follow this batch, false if
    *     this batch contains the last events of the history
    */
-  private void handleEventsBatch(List<HistoryEvent> events, boolean hasNextEvent) {
+  private void handleEventsBatch(WFTBuffer.EventBatch eventBatch, boolean hasNextEvent) {
+    List<HistoryEvent> events = eventBatch.getEvents();
     if (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.equals(events.get(0).getEventType())) {
       for (SdkFlag flag : initialFlags) {
         flags.tryUseSdkFlag(flag);
       }
     }
 
-    if (EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED.equals(events.get(0).getEventType())) {
+    if (eventBatch.getWorkflowTaskCompletedEvent().isPresent()) {
       for (HistoryEvent event : events) {
         handleSingleEventLookahead(event);
       }
@@ -304,7 +309,10 @@ public final class WorkflowStateMachines {
       }
 
       try {
-        handleSingleEvent(event, iterator.hasNext() || hasNextEvent);
+        handleSingleEvent(
+            event,
+            !hasNextEvent && !eventBatch.getWorkflowTaskCompletedEvent().isPresent(),
+            iterator.hasNext() || hasNextEvent);
       } catch (RuntimeException e) {
         throw createEventProcessingException(e, event);
       }
@@ -330,13 +338,20 @@ public final class WorkflowStateMachines {
         // Look ahead to infer protocol messages
         WorkflowExecutionUpdateAcceptedEventAttributes updateEvent =
             event.getWorkflowExecutionUpdateAcceptedEventAttributes();
-        this.messages.add(
-            Message.newBuilder()
-                .setId(updateEvent.getAcceptedRequestMessageId())
-                .setProtocolInstanceId(updateEvent.getProtocolInstanceId())
-                .setEventId(updateEvent.getAcceptedRequestSequencingEventId())
-                .setBody(Any.pack(updateEvent.getAcceptedRequest()))
-                .build());
+        // If an EXECUTION_UPDATE_ACCEPTED event does not have an accepted request, then it
+        // must be from an admitted update. This is the only way to infer an admitted update was
+        // accepted.
+        if (!updateEvent.hasAcceptedRequest()) {
+          acceptedUpdates.add(updateEvent.getProtocolInstanceId());
+        } else {
+          messages.add(
+              Message.newBuilder()
+                  .setId(updateEvent.getAcceptedRequestMessageId())
+                  .setProtocolInstanceId(updateEvent.getProtocolInstanceId())
+                  .setEventId(updateEvent.getAcceptedRequestSequencingEventId())
+                  .setBody(Any.pack(updateEvent.getAcceptedRequest()))
+                  .build());
+        }
         break;
       case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
         WorkflowTaskCompletedEventAttributes completedEvent =
@@ -352,6 +367,10 @@ public final class WorkflowStateMachines {
           }
           flags.setSdkFlag(sdkFlag);
         }
+        // Remove any finished update protocol state machines. We can't remove them on an event like
+        // other state machines
+        // because a rejected update produces no event in history.
+        protocolStateMachines.entrySet().removeIf(entry -> entry.getValue().isFinalState());
         break;
     }
   }
@@ -416,16 +435,28 @@ public final class WorkflowStateMachines {
     stateMachine.handleMessage(message);
   }
 
-  private void handleSingleEvent(HistoryEvent event, boolean hasNextEvent) {
+  private void handleSingleEvent(HistoryEvent event, boolean lastTask, boolean hasNextEvent) {
     if (isCommandEvent(event)) {
       handleCommandEvent(event);
       return;
     }
 
+    // This definition of replaying here is that we are no longer replaying as soon as we
+    // see new events that have never been seen or produced by the SDK.
+    //
+    // Specifically, replay ends once we have seen any non-command event (IE: events that
+    // aren't a result of something we produced in the SDK) on a WFT which has the final
+    // event in history (meaning we are processing the most recent WFT and there are no
+    // more subsequent WFTs). WFT Completed in this case does not count as a non-command
+    // event, because that will typically show up as the first event in an incremental
+    // history, and we want to ignore it and its associated commands since we "produced"
+    // them.
+    //
+    // We don't explicitly check if the event is a command event here because it's already handled
+    // above.
     if (replaying
-        && !hasNextEvent
-        && (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED
-            || WorkflowExecutionUtils.isWorkflowTaskClosedEvent(event))) {
+        && lastTask
+        && event.getEventType() != EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
       replaying = false;
     }
 
@@ -704,6 +735,20 @@ public final class WorkflowStateMachines {
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         callbacks.cancel(event);
+        break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED:
+        WorkflowExecutionUpdateAdmittedEventAttributes admittedEvent =
+            event.getWorkflowExecutionUpdateAdmittedEventAttributes();
+        Message msg =
+            Message.newBuilder()
+                .setId(admittedEvent.getRequest().getMeta().getUpdateId() + "/request")
+                .setProtocolInstanceId(admittedEvent.getRequest().getMeta().getUpdateId())
+                .setEventId(event.getEventId())
+                .setBody(Any.pack(admittedEvent.getRequest()))
+                .build();
+        if (replaying && acceptedUpdates.remove(msg.getProtocolInstanceId()) || !replaying) {
+          messages.add(msg);
+        }
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
       case UNRECOGNIZED:
@@ -1028,9 +1073,6 @@ public final class WorkflowStateMachines {
 
   /** Validates that command matches the event during replay. */
   private void validateCommand(Command command, HistoryEvent event) {
-    // TODO(maxim): Add more thorough validation logic. For example check if activity IDs are
-    // matching.
-
     // ProtocolMessageCommand is different from other commands because it can be associated with
     // multiple types of events
     // TODO(#1781) Validate protocol message is expected type.
@@ -1291,6 +1333,7 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED:
         return OptionalLong.of(event.getEventId());
 
       default:

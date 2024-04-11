@@ -20,13 +20,13 @@
 
 package io.temporal.internal.statemachines;
 
-import com.google.common.base.Preconditions;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * This class buffers events between WorkflowTaskStarted events and return them in one chunk so any
@@ -42,9 +42,29 @@ public class WFTBuffer {
     Closed,
   }
 
+  public static class EventBatch {
+    private final List<HistoryEvent> events;
+    private final Optional<HistoryEvent> workflowTaskCompletedEvent;
+
+    public EventBatch(
+        Optional<HistoryEvent> workflowTaskCompletedEvent, List<HistoryEvent> events) {
+      this.workflowTaskCompletedEvent = workflowTaskCompletedEvent;
+      this.events = events;
+    }
+
+    public List<HistoryEvent> getEvents() {
+      return events;
+    }
+
+    public Optional<HistoryEvent> getWorkflowTaskCompletedEvent() {
+      return workflowTaskCompletedEvent;
+    }
+  }
+
   private WFTState wftSequenceState = WFTState.None;
 
   private final List<HistoryEvent> wftBuffer = new ArrayList<>();
+  private Optional<HistoryEvent> workflowTaskCompletedEvent = Optional.empty();
   private final List<HistoryEvent> readyToFetch = new ArrayList<>();
 
   /**
@@ -73,9 +93,7 @@ public class WFTBuffer {
     // This is the only way to enter into the WFT sequence -
     // any WorkflowTaskStarted event that it not the last in the history
     if (EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED.equals(event.getEventType())) {
-      // if there is something in wftBuffer, let's flush it
-      flushBuffer();
-      // and init a new sequence
+      // Init a new sequence
       wftSequenceState = WFTState.Started;
       addToBuffer(event);
       return;
@@ -83,7 +101,12 @@ public class WFTBuffer {
 
     if (WFTState.Started.equals(wftSequenceState)
         && WorkflowExecutionUtils.isWorkflowTaskClosedEvent(event)) {
-      wftSequenceState = WFTState.Closed;
+      if (event.getEventType().equals(EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED)) {
+        workflowTaskCompletedEvent = Optional.of(event);
+        wftSequenceState = WFTState.Closed;
+      } else {
+        wftSequenceState = WFTState.None;
+      }
       addToBuffer(event);
       return;
     }
@@ -94,14 +117,19 @@ public class WFTBuffer {
       // If event is WFT_STARTED or any of the Closing events, it's handled by if statements
       // earlier, so it's safe to switch to None here, we are not inside WFT sequence
       wftSequenceState = WFTState.None;
-      // no open WFT sequence, can't add to buffer, it's ok to add directly to readyToFetch, this
-      // event can't be EVENT_TYPE_WORKFLOW_TASK_STARTED because we checked it above.
-      readyToFetch.add(event);
+
+      addToBuffer(event);
+      return;
+    }
+    if (WFTState.Closed.equals(wftSequenceState) && WorkflowExecutionUtils.isCommandEvent(event)) {
+      // we are inside a closed WFT sequence, we can add to buffer
+      addToBuffer(event);
       return;
     }
 
-    if (WFTState.None.equals(wftSequenceState)) {
-      // we should be returning the events one by one, we are not inside a WFT sequence
+    if (WorkflowExecutionUtils.isCommandEvent(event)
+        || WorkflowExecutionUtils.isWorkflowTaskClosedEvent(event)) {
+      flushBuffer();
       readyToFetch.add(event);
     } else {
       addToBuffer(event);
@@ -114,21 +142,22 @@ public class WFTBuffer {
   }
 
   private void addToBuffer(HistoryEvent event) {
-    Preconditions.checkState(
-        !WFTState.None.equals(wftSequenceState),
-        "We should be inside an open WFT sequence to add to the buffer");
     wftBuffer.add(event);
   }
 
-  public List<HistoryEvent> fetch() {
+  public EventBatch fetch() {
     if (readyToFetch.size() == 1) {
       HistoryEvent event = readyToFetch.get(0);
+      Optional<HistoryEvent> wftStarted = workflowTaskCompletedEvent;
+      workflowTaskCompletedEvent = Optional.empty();
       readyToFetch.clear();
-      return Collections.singletonList(event);
+      return new EventBatch(wftStarted, Collections.singletonList(event));
     } else {
       List<HistoryEvent> result = new ArrayList<>(readyToFetch);
+      Optional<HistoryEvent> wftStarted = workflowTaskCompletedEvent;
+      workflowTaskCompletedEvent = Optional.empty();
       readyToFetch.clear();
-      return result;
+      return new EventBatch(wftStarted, result);
     }
   }
 }
