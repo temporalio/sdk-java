@@ -110,7 +110,8 @@ public class SystemInfoInterceptor implements ClientInterceptor {
           Deadline computedDeadline = deadline;
           RpcRetryOptions rpcRetryOptions =
               RpcRetryOptions.newBuilder()
-                  .setExpiration(Duration.ofMillis(computedDeadline.timeRemaining(TimeUnit.MILLISECONDS)))
+                  .setExpiration(
+                      Duration.ofMillis(computedDeadline.timeRemaining(TimeUnit.MILLISECONDS)))
                   .validateBuildWithDefaults();
           GrpcRetryerOptions grpcRetryerOptions =
               new GrpcRetryerOptions(rpcRetryOptions, computedDeadline);
