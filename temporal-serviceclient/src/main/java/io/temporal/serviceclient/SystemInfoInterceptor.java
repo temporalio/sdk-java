@@ -21,7 +21,6 @@
 package io.temporal.serviceclient;
 
 import io.grpc.*;
-import io.grpc.health.v1.HealthGrpc;
 import io.temporal.api.workflowservice.v1.GetSystemInfoRequest;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse.Capabilities;
@@ -75,8 +74,6 @@ public class SystemInfoInterceptor implements ClientInterceptor {
                     super.onClose(status, trailers);
                   }
                 };
-          } else if (method == HealthGrpc.getCheckMethod()) {
-            // do nothing
           } else {
             // Need to reach system capabilities, so make a getSystemInfo call in a blocking manner.
             // We don't try to squash into one and optimize the several getSystemInfo calls that may
@@ -85,8 +82,8 @@ public class SystemInfoInterceptor implements ClientInterceptor {
             // If a server is able to take the load of the requests, it should be able to serve some
             // additional lightweight static getSystemInfo calls that are serialized with the actual
             // calls.
-            getServerCapabilitiesWithRetryOrThrow(
-                serverCapabilitiesFuture, next, callOptions.getDeadline());
+            serverCapabilitiesFuture.complete(
+                getServerCapabilitiesOrThrow(next, callOptions.getDeadline()));
           }
         }
 
