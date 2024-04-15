@@ -21,6 +21,7 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
+import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
 import javax.annotation.Nullable;
@@ -121,6 +122,15 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+
+    /**
+     * Enable the use of Virtual Threads for workflow execution across all workers created by
+     * this factory. This includes cached workflows. This option is only supported for JDK >= 21.
+     * If set then {@link #setMaxWorkflowThreadCount(int)} is ignored.
+     *
+     * <p>Default is false
+     */
+    @Experimental
     public Builder setEnableVirtualThreads(boolean enableVirtualThreads) {
       this.enableVirtualThreads = enableVirtualThreads;
       return this;
@@ -208,6 +218,7 @@ public class WorkerFactoryOptions {
     return maxWorkflowThreadCount;
   }
 
+  @Experimental
   public boolean isEnableVirtualThreads() {
     return enableVirtualThreads;
   }
