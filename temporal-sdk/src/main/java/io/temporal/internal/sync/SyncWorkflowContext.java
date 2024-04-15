@@ -552,7 +552,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     attributes.setHeader(grpcHeader);
 
     if (options.getVersioningIntent() != null) {
-      attributes.setUseCompatibleVersion(
+      attributes.setUseWorkflowBuildId(
           options
               .getVersioningIntent()
               .determineUseCompatibleFlag(
@@ -765,7 +765,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
 
     if (options.getVersioningIntent() != null) {
-      attributes.setUseCompatibleVersion(
+      attributes.setInheritBuildId(
           options
               .getVersioningIntent()
               .determineUseCompatibleFlag(
@@ -1131,7 +1131,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo)));
       }
       if (options.getVersioningIntent() != null) {
-        attributes.setUseCompatibleVersion(
+        attributes.setInheritBuildId(
             options
                 .getVersioningIntent()
                 .determineUseCompatibleFlag(
