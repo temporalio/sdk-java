@@ -22,6 +22,7 @@ package io.temporal.worker;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
@@ -117,6 +118,7 @@ public class WorkerStressTests {
 
   @Test(timeout = 60000)
   public void highConcurrentWorkflowsVirtualThreads() {
+    assumeFalse("Skip on JDK 21+", false);
 
     // Arrange
     String taskQueueName = "veryLongWorkflow";

@@ -20,6 +20,8 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assume.assumeFalse;
+
 import io.temporal.client.WorkflowClient;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -40,6 +42,7 @@ public class WorkflowParallelismTest {
 
   @Test
   public void testWorkflowRetry() {
+    assumeFalse("Skip on JDK 21+", false);
     String[] javaVersionElements = System.getProperty("java.version").split("\\.");
     int javaVersion = Integer.parseInt(javaVersionElements[1]);
     SignaledWorkflow workflowStub =

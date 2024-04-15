@@ -1,5 +1,9 @@
 /*
- * Copyright (C) 2024 Temporal Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this material except in compliance with the License.
@@ -19,8 +23,6 @@ package io.temporal.internal.task;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
-
-
 
 /**
  * Internal delegate for virtual thread handling on JDK 21.
