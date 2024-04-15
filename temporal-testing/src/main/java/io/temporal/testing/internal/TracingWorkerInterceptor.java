@@ -342,7 +342,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("registerDynamicUpdateHandler");
       }
-      this.registerDynamicUpdateHandler(input);
+      next.registerDynamicUpdateHandler(input);
     }
 
     @Override
