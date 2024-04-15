@@ -1,7 +1,7 @@
 buildscript {
     ext {
         palantirGitVersionVersion = "${JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11) ? '0.15.0' : '0.13.0'}"
-        kotlinVersion = "${project.hasProperty("edgeDepsTest") ? '1.8.20' : '1.6.20' }"
+        kotlinVersion = "${project.hasProperty("edgeDepsTest") ? '1.9.23' : '1.6.20' }"
     }
 }
 
