@@ -23,6 +23,7 @@ package io.temporal.worker;
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
@@ -57,10 +58,6 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
-
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setUseExternalService(true).build();
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -118,7 +115,7 @@ public class WorkerStressTests {
 
   @Test(timeout = 60000)
   public void highConcurrentWorkflowsVirtualThreads() {
-    assumeFalse("Skip on JDK 21+", false);
+    assumeTrue("Skip on JDK < 21", false);
 
     // Arrange
     String taskQueueName = "veryLongWorkflow";

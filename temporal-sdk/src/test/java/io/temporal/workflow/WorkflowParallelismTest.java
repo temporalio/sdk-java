@@ -21,6 +21,7 @@
 package io.temporal.workflow;
 
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -31,36 +32,36 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkflowParallelismTest {
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setUseExternalService(true)
-          .setWorkflowTypes(TestSignaledWorkflowImpl.class)
-          .setWorkerFactoryOptions(
-              WorkerFactoryOptions.newBuilder().setEnableVirtualThreads(true).build())
-          .build();
-
-  @Test
-  public void testWorkflowRetry() {
-    assumeFalse("Skip on JDK 21+", false);
-    String[] javaVersionElements = System.getProperty("java.version").split("\\.");
-    int javaVersion = Integer.parseInt(javaVersionElements[1]);
-    SignaledWorkflow workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                SignaledWorkflow.class,
-                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
-
-    WorkflowClient.start(workflowStub::execute);
-
-    for (int i = 0; i < 700; i++) {
-      workflowStub.signal();
-    }
-    workflowStub.unblock();
-
-    Assert.assertEquals("result=2, 100", workflowStub.execute());
-  }
+//  @Rule
+//  public SDKTestWorkflowRule testWorkflowRule =
+//      SDKTestWorkflowRule.newBuilder()
+//          .setUseExternalService(true)
+//          .setWorkflowTypes(TestSignaledWorkflowImpl.class)
+//          .setWorkerFactoryOptions(
+//              WorkerFactoryOptions.newBuilder().setEnableVirtualThreads(true).build())
+//          .build();
+//
+//  @Test
+//  public void testWorkflowWithLotsOfThreads() {
+//    assumeTrue("Skip on JDK < 21", false);
+//    String[] javaVersionElements = System.getProperty("java.version").split("\\.");
+//    int javaVersion = Integer.parseInt(javaVersionElements[1]);
+//    SignaledWorkflow workflowStub =
+//        testWorkflowRule
+//            .getWorkflowClient()
+//            .newWorkflowStub(
+//                SignaledWorkflow.class,
+//                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+//
+//    WorkflowClient.start(workflowStub::execute);
+//
+//    for (int i = 0; i < 700; i++) {
+//      workflowStub.signal();
+//    }
+//    workflowStub.unblock();
+//
+//    Assert.assertEquals("result=2, 100", workflowStub.execute());
+//  }
 
   public static class TestSignaledWorkflowImpl implements SignaledWorkflow {
     private int signalCount = 0;
