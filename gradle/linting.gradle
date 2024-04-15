@@ -9,7 +9,7 @@ subprojects {
             target 'src/*/java/**/*.java'
             targetExclude '**/generated/*'
             targetExclude '**/.idea/**'
-            googleJavaFormat('1.16.0')
+            googleJavaFormat('1.17.0')
         }
 
         kotlin {

@@ -27,6 +27,7 @@ import javax.annotation.Nonnull;
 public class WorkflowSerializationContext implements HasWorkflowSerializationContext {
   private final @Nonnull String namespace;
   private final @Nonnull String workflowId;
+
   // We can't currently reliably and consistency provide workflowType to the DataConverter.
   // 1. Signals and queries don't know workflowType when they are sent.
   // 2. WorkflowStub#getResult call is not aware of the workflowType, workflowType is an optional

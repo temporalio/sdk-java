@@ -22,6 +22,7 @@ package io.temporal.worker;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,11 +35,11 @@ import javax.annotation.Nonnull;
  * reasons. {@link ThreadPoolExecutor#getActiveCount()} take a pool-wide lock.
  */
 class ActiveThreadReportingExecutor implements WorkflowThreadExecutor {
-  private final ThreadPoolExecutor workflowThreadPool;
+  private final ExecutorService workflowThreadPool;
   private final Scope metricsScope;
   private final AtomicInteger tasksInFlight = new AtomicInteger();
 
-  ActiveThreadReportingExecutor(ThreadPoolExecutor workflowThreadPool, Scope metricsScope) {
+  ActiveThreadReportingExecutor(ExecutorService workflowThreadPool, Scope metricsScope) {
     this.workflowThreadPool = workflowThreadPool;
     this.metricsScope = metricsScope;
   }

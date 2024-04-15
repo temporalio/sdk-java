@@ -34,6 +34,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -55,6 +56,10 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
+
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder().setUseExternalService(true).build();
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -103,6 +108,43 @@ public class WorkerStressTests {
     w.ChainSequence = 50;
     w.ConcurrentCount = 50;
     w.PayloadSizeBytes = 10000;
+    w.TaskQueueName = taskQueueName;
+
+    workflow.start(w);
+    assertEquals("I'm done", workflow.getResult(String.class));
+    wrapper.close();
+  }
+
+  @Test(timeout = 60000)
+  public void highConcurrentWorkflowsVirtualThreads() {
+
+    // Arrange
+    String taskQueueName = "veryLongWorkflow";
+
+    TestEnvironmentWrapper wrapper =
+        new TestEnvironmentWrapper(
+            WorkerFactoryOptions.newBuilder().setEnableVirtualThreads(true).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
+    worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new ActivitiesImpl());
+    factory.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(taskQueueName)
+            .setWorkflowRunTimeout(Duration.ofSeconds(250))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
+            .build();
+    WorkflowStub workflow =
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
+
+    // Act
+    WorkflowParams w = new WorkflowParams();
+    w.TemporalSleepSeconds = 0;
+    w.ChainSequence = 1;
+    w.ConcurrentCount = 800;
+    w.PayloadSizeBytes = 100;
     w.TaskQueueName = taskQueueName;
 
     workflow.start(w);

@@ -64,6 +64,7 @@ final class LocalActivityStateMachine
 
   private ExecuteLocalActivityParameters localActivityParameters;
   private final Functions.Func<Boolean> replaying;
+
   /** Accepts proposed current time. Returns accepted current time. */
   private final Functions.Func1<Long, Long> setCurrentTimeCallback;
 
@@ -74,6 +75,7 @@ final class LocalActivityStateMachine
 
   /** Workflow timestamp when the LA state machine is initialized */
   private final long workflowTimeMillisWhenStarted;
+
   /**
    * System.nanoTime result at the moment of LA state machine initialization. May be used to
    * calculate elapsed time

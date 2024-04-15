@@ -29,16 +29,13 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
+import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.internal.worker.*;
-import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -55,7 +52,7 @@ public final class WorkerFactory {
 
   private final Map<String, Worker> workers = new HashMap<>();
   private final WorkflowClient workflowClient;
-  private final ThreadPoolExecutor workflowThreadPool;
+  private final ExecutorService workflowThreadPool;
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
@@ -98,15 +95,24 @@ public final class WorkerFactory {
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(namespace));
 
-    this.workflowThreadPool =
-        new ThreadPoolExecutor(
-            0,
-            this.factoryOptions.getMaxWorkflowThreadCount(),
-            1,
-            TimeUnit.MINUTES,
-            new SynchronousQueue<>());
-    this.workflowThreadPool.setThreadFactory(
-        r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
+    if (this.factoryOptions.isEnableVirtualThreads()) {
+      this.workflowThreadPool =
+          new VirtualThreadDelegate()
+              .newVirtualThreadExecutor(
+                  (t) -> t.setName("workflow-thread-" + workflowThreadCounter.incrementAndGet()));
+    } else {
+      ThreadPoolExecutor workflowThreadPoolExecutor =
+          new ThreadPoolExecutor(
+              0,
+              this.factoryOptions.getMaxWorkflowThreadCount(),
+              1,
+              TimeUnit.MINUTES,
+              new SynchronousQueue<>());
+      workflowThreadPoolExecutor.setThreadFactory(
+          r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
+      this.workflowThreadPool = workflowThreadPoolExecutor;
+    }
+
     this.workflowThreadExecutor =
         new ActiveThreadReportingExecutor(this.workflowThreadPool, this.metricsScope);
 

@@ -39,6 +39,7 @@ public interface LocalActivityCallback
   class LocalActivityFailedException extends RuntimeException {
     private final @Nonnull Failure failure;
     private final int lastAttempt;
+
     /**
      * If this is not null, code that processes this exception will schedule a workflow timer to
      * continue retrying the execution

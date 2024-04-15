@@ -28,6 +28,34 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
 
+if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
+    sourceSets {
+        java21 {
+            java {
+                srcDirs = ['src/main/java21']
+            }
+        }
+    }
+
+    dependencies {
+        java21Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
+    }
+
+    compileJava21Java {
+        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_21
+    }
+
+    jar {
+        into('META-INF/versions/21') {
+            from sourceSets.java21.output
+        }
+        manifest.attributes(
+                'Multi-Release': 'true'
+        )
+    }
+}
+
 task registerNamespace(type: JavaExec) {
     getMainClass().set('io.temporal.internal.docker.RegisterTestNamespace')
     classpath = sourceSets.test.runtimeClasspath

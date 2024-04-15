@@ -85,9 +85,11 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   /** Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance. */
   private final Map<String, Functions.Func1<WorkflowExecution, SyncWorkflowDefinition>>
       workflowDefinitions = Collections.synchronizedMap(new HashMap<>());
+
   /** Factories providing instances of workflow classes. */
   private final Map<Class<?>, Functions.Func<?>> workflowInstanceFactories =
       Collections.synchronizedMap(new HashMap<>());
+
   /** If present then it is called for any unknown workflow type. */
   private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
 
