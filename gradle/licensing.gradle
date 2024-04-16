@@ -5,7 +5,7 @@ subprojects {
     apply plugin: 'org.cadixdev.licenser'
     license {
         header rootProject.file('LICENSE.header')
-        exclude '**/*.puml', 'io/temporal/api', 'gogoproto/Gogo.java'
+        exclude '**/*.puml', 'io/temporal/api', 'com/google/protobuf', 'com/google/api','gogoproto/Gogo.java'
 
     }
     tasks.check.dependsOn('checkLicenseMain')

@@ -26,6 +26,9 @@ import io.temporal.api.workflow.v1.PendingActivityInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.worker.tuning.LocalActivitySlotInfo;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
@@ -44,16 +47,20 @@ class LocalActivityExecutionContext {
   private @Nullable ScheduledFuture<?> scheduleToCloseFuture;
   private final @Nonnull CompletableFuture<LocalActivityResult> executionResult =
       new CompletableFuture<>();
+  private @Nullable SlotPermit permit;
+  private final TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier;
 
   public LocalActivityExecutionContext(
       @Nonnull ExecuteLocalActivityParameters executionParams,
       @Nonnull Functions.Proc1<LocalActivityResult> resultCallback,
-      @Nullable Deadline scheduleToCloseDeadline) {
+      @Nullable Deadline scheduleToCloseDeadline,
+      TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier) {
     this.executionParams = Objects.requireNonNull(executionParams, "executionParams");
     this.executionResult.thenAccept(
         Objects.requireNonNull(resultCallback, "resultCallback")::apply);
     this.scheduleToCloseDeadline = scheduleToCloseDeadline;
     this.currentAttempt = new AtomicInteger(executionParams.getInitialAttempt());
+    this.slotSupplier = slotSupplier;
     Failure previousExecutionFailure = executionParams.getPreviousLocalExecutionFailure();
     if (previousExecutionFailure != null) {
       if (previousExecutionFailure.hasTimeoutFailureInfo() && previousExecutionFailure.hasCause()) {
@@ -154,6 +161,11 @@ class LocalActivityExecutionContext {
     if (scheduleToCloseFuture != null) {
       scheduleToCloseFuture.cancel(false);
     }
+    SlotReleaseReason reason = SlotReleaseReason.taskComplete();
+    if (result.getProcessingError() != null) {
+      reason = SlotReleaseReason.error(new Exception(result.getProcessingError().getThrowable()));
+    }
+    slotSupplier.releaseSlot(reason, permit);
     return executionResult.complete(result);
   }
 
@@ -163,5 +175,14 @@ class LocalActivityExecutionContext {
 
   public void newAttempt() {
     executionParams.getOnNewAttemptCallback().apply();
+  }
+
+  public void setPermit(SlotPermit permit) {
+    this.permit = permit;
+  }
+
+  @Nullable
+  public SlotPermit getPermit() {
+    return permit;
   }
 }

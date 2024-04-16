@@ -24,6 +24,8 @@ import static io.temporal.internal.worker.LocalActivityResult.failed;
 import static io.temporal.internal.worker.LocalActivityResult.processingFailed;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.SimpleTimeLimiter;
+import com.google.common.util.concurrent.TimeLimiter;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
@@ -36,6 +38,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.logging.LoggerTag;
@@ -43,6 +46,7 @@ import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
+import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
@@ -69,33 +73,36 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   private ScheduledExecutorService scheduledExecutor;
   private PollTaskExecutor<LocalActivityAttemptTask> activityAttemptTaskExecutor;
+  private final TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier;
 
   public LocalActivityWorker(
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull SingleWorkerOptions options,
-      @Nonnull ActivityTaskHandler handler) {
+      @Nonnull ActivityTaskHandler handler,
+      @Nonnull TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
-    this.laScheduler = new LocalActivityDispatcherImpl(2 * options.getTaskExecutorThreadPoolSize());
+    this.slotSupplier = Objects.requireNonNull(slotSupplier);
+    this.laScheduler = new LocalActivityDispatcherImpl(slotSupplier);
     this.options = Objects.requireNonNull(options);
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(
             options.getMetricsScope(), WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER);
+    this.slotSupplier.setMetricsScope(this.workerMetricsScope);
   }
 
   private void submitRetry(
       @Nonnull LocalActivityExecutionContext executionContext,
       @Nonnull PollActivityTaskQueueResponse.Builder activityTask) {
-    submitAttempt(executionContext, activityTask, null);
+    submitAttempt(executionContext, activityTask);
   }
 
   private void submitAttempt(
       @Nonnull LocalActivityExecutionContext executionContext,
-      @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
-      @Nullable Functions.Proc leftQueueCallback) {
+      @Nonnull PollActivityTaskQueueResponse.Builder activityTask) {
     @Nullable Duration scheduleToStartTimeout = executionContext.getScheduleToStartTimeout();
     @Nullable ScheduledFuture<?> scheduleToStartFuture = null;
     if (scheduleToStartTimeout != null) {
@@ -108,8 +115,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
     activityTask.setCurrentAttemptScheduledTime(ProtobufTimeUtils.getCurrentProtoTime());
     LocalActivityAttemptTask task =
-        new LocalActivityAttemptTask(
-            executionContext, activityTask, leftQueueCallback, scheduleToStartFuture);
+        new LocalActivityAttemptTask(executionContext, activityTask, scheduleToStartFuture);
     activityAttemptTaskExecutor.process(task);
   }
 
@@ -193,13 +199,12 @@ final class LocalActivityWorker implements Startable, Shutdownable {
      * Retries always get a green light, but we have a backpressure for new tasks if the queue fills
      * up with not picked up new executions
      */
-    private final Semaphore newExecutionsBackpressureSemaphore;
+    private final TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier;
 
-    public LocalActivityDispatcherImpl(int semaphorePermits) {
-      // number of permits for this semaphore is not that important, because we allow submitter to
-      // block and wait till the workflow task heartbeat to allow the worker to tolerate spikes of
-      // short local activity executions.
-      this.newExecutionsBackpressureSemaphore = new Semaphore(semaphorePermits);
+    public LocalActivityDispatcherImpl(TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier) {
+      // we allow submitters to block and wait till the workflow task heartbeat to allow the worker
+      // to tolerate spikes of short local activity executions.
+      this.slotSupplier = slotSupplier;
     }
 
     @Override
@@ -238,7 +243,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       }
 
       LocalActivityExecutionContext executionContext =
-          new LocalActivityExecutionContext(params, resultCallback, scheduleToCloseDeadline);
+          new LocalActivityExecutionContext(
+              params, resultCallback, scheduleToCloseDeadline, slotSupplier);
 
       PollActivityTaskQueueResponse.Builder activityTask = executionContext.getInitialTask();
 
@@ -254,50 +260,68 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     private boolean submitANewExecution(
         @Nonnull LocalActivityExecutionContext executionContext,
         @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
-        @Nullable Deadline acceptanceDeadline) {
+        @Nullable Deadline heartbeatDeadline) {
+      long acceptanceTimeoutMs = 0;
+      boolean timeoutIsScheduleToStart = false;
+      if (heartbeatDeadline != null) {
+        acceptanceTimeoutMs = heartbeatDeadline.timeRemaining(TimeUnit.MILLISECONDS);
+      }
+      Duration scheduleToStartTimeout = executionContext.getScheduleToStartTimeout();
+      if (scheduleToStartTimeout != null) {
+        long scheduleToStartTimeoutMs = scheduleToStartTimeout.toMillis();
+        if (scheduleToStartTimeoutMs > 0 && scheduleToStartTimeoutMs < acceptanceTimeoutMs) {
+          acceptanceTimeoutMs = scheduleToStartTimeoutMs;
+          timeoutIsScheduleToStart = true;
+        }
+      }
       try {
-        boolean accepted;
-        if (acceptanceDeadline == null) {
-          newExecutionsBackpressureSemaphore.acquire();
-          accepted = true;
+        SlotPermit permit = null;
+        SlotReservationData reservationCtx =
+            new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId());
+        if (acceptanceTimeoutMs <= 0) {
+          permit = slotSupplier.reserveSlot(reservationCtx);
         } else {
-          long acceptanceTimeoutMs = acceptanceDeadline.timeRemaining(TimeUnit.MILLISECONDS);
-          if (acceptanceTimeoutMs > 0) {
-            accepted =
-                newExecutionsBackpressureSemaphore.tryAcquire(
-                    acceptanceTimeoutMs, TimeUnit.MILLISECONDS);
-          } else {
-            accepted = newExecutionsBackpressureSemaphore.tryAcquire();
-          }
-          if (!accepted) {
-            log.warn(
-                "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
-                activityTask.getActivityId(),
-                acceptanceTimeoutMs);
+          try {
+            TimeLimiter timeLimiter = SimpleTimeLimiter.create(Executors.newCachedThreadPool());
+            timeLimiter.callWithTimeout(
+                () -> slotSupplier.reserveSlot(reservationCtx),
+                acceptanceTimeoutMs,
+                TimeUnit.MILLISECONDS);
+          } catch (TimeoutException e) {
+            // In the event that we timed out waiting for a permit *because of schedule to start* we
+            // still want to proceed with the "attempt" with a null permit, which will then
+            // immediately fail with the s2s timeout.
+            if (!timeoutIsScheduleToStart) {
+              log.warn(
+                  "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
+                  activityTask.getActivityId(),
+                  acceptanceTimeoutMs);
+              return false;
+            }
           }
         }
 
-        if (accepted) {
-          // we should publish scheduleToClose before submission, so the handlers always see a full
-          // state of executionContext
-          @Nullable
-          Deadline scheduleToCloseDeadline = executionContext.getScheduleToCloseDeadline();
-          if (scheduleToCloseDeadline != null) {
-            ScheduledFuture<?> scheduleToCloseFuture =
-                scheduledExecutor.schedule(
-                    new FinalTimeoutHandler(
-                        TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext),
-                    scheduleToCloseDeadline.timeRemaining(TimeUnit.MILLISECONDS),
-                    TimeUnit.MILLISECONDS);
-            executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
-          }
-          submitAttempt(
-              executionContext, activityTask, newExecutionsBackpressureSemaphore::release);
-          log.trace("LocalActivity queued: {}", activityTask.getActivityId());
+        executionContext.setPermit(permit);
+        // we should publish scheduleToClose before submission, so the handlers always see a full
+        // state of executionContext
+        @Nullable Deadline scheduleToCloseDeadline = executionContext.getScheduleToCloseDeadline();
+        if (scheduleToCloseDeadline != null) {
+          ScheduledFuture<?> scheduleToCloseFuture =
+              scheduledExecutor.schedule(
+                  new FinalTimeoutHandler(
+                      TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext),
+                  scheduleToCloseDeadline.timeRemaining(TimeUnit.MILLISECONDS),
+                  TimeUnit.MILLISECONDS);
+          executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
         }
-        return accepted;
+        submitAttempt(executionContext, activityTask);
+        log.trace("LocalActivity queued: {}", activityTask.getActivityId());
+        return true;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        return false;
+      } catch (Exception e) {
+        log.warn("Error while trying to reserve a slot for local activity", e.getCause());
         return false;
       }
     }
@@ -414,14 +438,13 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
     @Override
     public void handle(LocalActivityAttemptTask attemptTask) throws Exception {
-      attemptTask.markAsTakenFromQueue();
-
       // cancel scheduleToStart timeout if not already fired
       @Nullable ScheduledFuture<?> scheduleToStartFuture = attemptTask.getScheduleToStartFuture();
       boolean scheduleToStartFired =
           scheduleToStartFuture != null && !scheduleToStartFuture.cancel(false);
 
       LocalActivityExecutionContext executionContext = attemptTask.getExecutionContext();
+      executionContext.newAttempt();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
 
       // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
@@ -447,6 +470,15 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+
+      slotSupplier.markSlotUsed(
+          new LocalActivitySlotInfo(
+              ActivityPollResponseToInfo.toActivityInfoImpl(
+                  activityTask, namespace, taskQueue, true),
+              options.getIdentity(),
+              options.getBuildId()),
+          executionContext.getPermit());
+
       try {
         ScheduledFuture<?> startToCloseTimeoutFuture = null;
 
@@ -675,8 +707,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               options.getIdentity(),
               new AttemptTaskHandlerImpl(handler),
               pollerOptions,
-              options.getTaskExecutorThreadPoolSize(),
-              workerMetricsScope,
+              slotSupplier.maximumSlots(),
               false);
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);

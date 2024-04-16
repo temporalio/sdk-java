@@ -42,6 +42,37 @@ or to *build.gradle*:
 
 We'd love your help in improving the Temporal Java SDK. Please review our [contribution guidelines](CONTRIBUTING.md).
 
+## Snapshot release
+
+We also publish snapshot releases during SDK development often under the version `1.x.0-SNAPSHOT`. This allows users to test out new SDK features before an official SDK release.
+
+[Snapshot releases](https://oss.sonatype.org/content/repositories/snapshots/io/temporal/temporal-sdk/) Find the latest snapsphot release.
+
+To add Sonatype snapshot repository to your *pom.xml*:
+
+    <repositories>
+        <repository>
+            <id>oss-sonatype</id>
+            <name>oss-sonatype</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+Or to *build.gradle*:
+
+    repositories {
+        maven {
+            url "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
+      ...
+    }
+
+Note: Snapshot releases are not official release and normal backwards compatibility, stability or support
+does not apply
+
 ## License
 
 Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
