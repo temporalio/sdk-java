@@ -311,22 +311,24 @@ final class ChannelManager {
    */
   public HealthCheckResponse healthCheck(
       String healthCheckServiceName, @Nullable Duration timeout) {
-    HealthGrpc.HealthBlockingStub stub;
-    if (timeout != null) {
-      stub =
-          this.healthBlockingStub.withDeadline(
-              Deadline.after(
-                  options.getHealthCheckAttemptTimeout().toMillis(), TimeUnit.MILLISECONDS));
-    } else {
-      stub = this.healthBlockingStub;
+    if (timeout == null) {
+      timeout = options.getHealthCheckAttemptTimeout();
     }
-    return stub.check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
+    return this.healthBlockingStub
+        .withDeadline(deadlineFrom(timeout))
+        .check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
   }
 
   public Supplier<Capabilities> getServerCapabilities() {
     return () ->
         SystemInfoInterceptor.getServerCapabilitiesWithRetryOrThrow(
-            serverCapabilitiesFuture, interceptedChannel, null);
+            serverCapabilitiesFuture,
+            interceptedChannel,
+            deadlineFrom(options.getHealthCheckAttemptTimeout()));
+  }
+
+  private static Deadline deadlineFrom(Duration duration) {
+    return Deadline.after(duration.toMillis(), TimeUnit.MILLISECONDS);
   }
 
   public void shutdown() {

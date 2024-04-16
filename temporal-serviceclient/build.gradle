@@ -24,6 +24,7 @@ dependencies {
     api "org.slf4j:slf4j-api:$slf4jVersion"
 
     testImplementation project(':temporal-testing')
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
     testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
 
