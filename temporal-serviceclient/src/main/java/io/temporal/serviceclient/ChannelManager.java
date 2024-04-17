@@ -27,8 +27,9 @@ import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
-import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse.Capabilities;
 import io.temporal.internal.retryer.GrpcRetryer;
+import io.temporal.internal.retryer.GrpcRetryer.GrpcRetryerOptions;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -87,7 +88,7 @@ final class ChannelManager {
   private final Channel interceptedChannel;
   private final HealthGrpc.HealthBlockingStub healthBlockingStub;
 
-  private final CompletableFuture<GetSystemInfoResponse.Capabilities> serverCapabilitiesFuture =
+  private final CompletableFuture<Capabilities> serverCapabilitiesFuture =
       new CompletableFuture<>();
 
   public ChannelManager(
@@ -289,8 +290,8 @@ final class ChannelManager {
     if (timeout == null) {
       timeout = options.getRpcTimeout();
     }
-    GrpcRetryer.GrpcRetryerOptions grpcRetryerOptions =
-        new GrpcRetryer.GrpcRetryerOptions(
+    GrpcRetryerOptions grpcRetryerOptions =
+        new GrpcRetryerOptions(
             RpcRetryOptions.newBuilder().setExpiration(timeout).validateBuildWithDefaults(), null);
 
     new GrpcRetryer(getServerCapabilities())
@@ -310,30 +311,24 @@ final class ChannelManager {
    */
   public HealthCheckResponse healthCheck(
       String healthCheckServiceName, @Nullable Duration timeout) {
-    HealthGrpc.HealthBlockingStub stub;
-    if (timeout != null) {
-      stub =
-          this.healthBlockingStub.withDeadline(
-              Deadline.after(
-                  options.getHealthCheckAttemptTimeout().toMillis(), TimeUnit.MILLISECONDS));
-    } else {
-      stub = this.healthBlockingStub;
+    if (timeout == null) {
+      timeout = options.getHealthCheckAttemptTimeout();
     }
-    return stub.check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
+    return this.healthBlockingStub
+        .withDeadline(deadlineFrom(timeout))
+        .check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
   }
 
-  public Supplier<GetSystemInfoResponse.Capabilities> getServerCapabilities() {
-    return () -> {
-      synchronized (serverCapabilitiesFuture) {
-        GetSystemInfoResponse.Capabilities capabilities = serverCapabilitiesFuture.getNow(null);
-        if (capabilities == null) {
-          serverCapabilitiesFuture.complete(
-              SystemInfoInterceptor.getServerCapabilitiesOrThrow(interceptedChannel, null));
-          capabilities = serverCapabilitiesFuture.getNow(null);
-        }
-        return capabilities;
-      }
-    };
+  public Supplier<Capabilities> getServerCapabilities() {
+    return () ->
+        SystemInfoInterceptor.getServerCapabilitiesWithRetryOrThrow(
+            serverCapabilitiesFuture,
+            interceptedChannel,
+            deadlineFrom(options.getHealthCheckAttemptTimeout()));
+  }
+
+  private static Deadline deadlineFrom(Duration duration) {
+    return Deadline.after(duration.toMillis(), TimeUnit.MILLISECONDS);
   }
 
   public void shutdown() {

@@ -23,16 +23,22 @@ package io.temporal.serviceclient;
 import io.grpc.*;
 import io.temporal.api.workflowservice.v1.GetSystemInfoRequest;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse.Capabilities;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.internal.retryer.GrpcRetryer;
+import io.temporal.internal.retryer.GrpcRetryer.GrpcRetryerOptions;
+import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SystemInfoInterceptor implements ClientInterceptor {
 
-  private final CompletableFuture<GetSystemInfoResponse.Capabilities> serverCapabilitiesFuture;
+  private final CompletableFuture<Capabilities> serverCapabilitiesFuture;
 
-  public SystemInfoInterceptor(
-      CompletableFuture<GetSystemInfoResponse.Capabilities> serverCapabilitiesFuture) {
+  public SystemInfoInterceptor(CompletableFuture<Capabilities> serverCapabilitiesFuture) {
     this.serverCapabilitiesFuture = serverCapabilitiesFuture;
   }
 
@@ -63,8 +69,7 @@ public class SystemInfoInterceptor implements ClientInterceptor {
                   @Override
                   public void onClose(Status status, Metadata trailers) {
                     if (Status.UNIMPLEMENTED.getCode().equals(status.getCode())) {
-                      serverCapabilitiesFuture.complete(
-                          GetSystemInfoResponse.Capabilities.getDefaultInstance());
+                      serverCapabilitiesFuture.complete(Capabilities.getDefaultInstance());
                     }
                     super.onClose(status, trailers);
                   }
@@ -87,7 +92,39 @@ public class SystemInfoInterceptor implements ClientInterceptor {
     };
   }
 
-  public static GetSystemInfoResponse.Capabilities getServerCapabilitiesOrThrow(
+  public static Capabilities getServerCapabilitiesWithRetryOrThrow(
+      @Nonnull CompletableFuture<Capabilities> future,
+      @Nonnull Channel channel,
+      @Nullable Deadline deadline) {
+    Capabilities capabilities = future.getNow(null);
+    if (capabilities == null) {
+      synchronized (Objects.requireNonNull(future)) {
+        capabilities = future.getNow(null);
+        if (capabilities == null) {
+          if (deadline == null) {
+            deadline = Deadline.after(30, TimeUnit.SECONDS);
+          }
+          Deadline computedDeadline = deadline;
+          RpcRetryOptions rpcRetryOptions =
+              RpcRetryOptions.newBuilder()
+                  .setExpiration(
+                      Duration.ofMillis(computedDeadline.timeRemaining(TimeUnit.MILLISECONDS)))
+                  .validateBuildWithDefaults();
+          GrpcRetryerOptions grpcRetryerOptions =
+              new GrpcRetryerOptions(rpcRetryOptions, computedDeadline);
+          capabilities =
+              new GrpcRetryer(Capabilities::getDefaultInstance)
+                  .retryWithResult(
+                      () -> getServerCapabilitiesOrThrow(channel, computedDeadline),
+                      grpcRetryerOptions);
+          future.complete(capabilities);
+        }
+      }
+    }
+    return capabilities;
+  }
+
+  public static Capabilities getServerCapabilitiesOrThrow(
       Channel channel, @Nullable Deadline deadline) {
     try {
       return WorkflowServiceGrpc.newBlockingStub(channel)
@@ -96,7 +133,7 @@ public class SystemInfoInterceptor implements ClientInterceptor {
           .getCapabilities();
     } catch (StatusRuntimeException ex) {
       if (Status.Code.UNIMPLEMENTED.equals(ex.getStatus().getCode())) {
-        return GetSystemInfoResponse.Capabilities.getDefaultInstance();
+        return Capabilities.getDefaultInstance();
       }
       throw ex;
     }
