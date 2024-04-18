@@ -48,7 +48,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
-import io.temporal.internal.common.ActivityOptionsWithDefault;
+import io.temporal.internal.common.MergedActivityOptions;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
@@ -189,11 +189,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .setScheduleToCloseTimeout(Duration.ofDays(1))
             .setHeartbeatTimeout(Duration.ofSeconds(1))
             .build();
-    ActivityOptionsWithDefault optionsWithDefault =
-        new ActivityOptionsWithDefault(null, options, null);
+    MergedActivityOptions activityOptions = new MergedActivityOptions(null, options, null);
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, optionsWithDefault, new TestActivityExecutor(), () -> {});
+            activityInterface, activityOptions, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -207,12 +206,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    */
   @Override
   public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    ActivityOptionsWithDefault optionsWithDefault =
-        new ActivityOptionsWithDefault(null, options, null);
+    MergedActivityOptions activityOptions = new MergedActivityOptions(null, options, null);
 
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, optionsWithDefault, new TestActivityExecutor(), () -> {});
+            activityInterface, activityOptions, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);

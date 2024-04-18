@@ -4,15 +4,31 @@ import io.temporal.activity.ActivityOptions;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class ActivityOptionsWithDefault {
+/**
+ * The chain of ActivityOptions and per type options maps. Used to merge options specified at the
+ * following layers:
+ *
+ * <pre>
+ *     * WorkflowImplementationOptions
+ *     * Workflow
+ *     * ActivityStub
+ * </pre>
+ *
+ * Each next layer overrides specific options specified at the previous layer.
+ */
+public final class MergedActivityOptions {
+
+  /** Common options across all activity types. */
   private ActivityOptions defaultOptions;
 
+  /** Per activity type options. These override defaultOptions. */
   private Map<String, ActivityOptions> optionsMap;
 
-  private final ActivityOptionsWithDefault overridden;
+  /** The options specified at the previous layer. They are overriden by this object. */
+  private final MergedActivityOptions overridden;
 
-  public ActivityOptionsWithDefault(
-      ActivityOptionsWithDefault overridden,
+  public MergedActivityOptions(
+      MergedActivityOptions overridden,
       ActivityOptions defaultOptions,
       Map<String, ActivityOptions> optionsMap) {
     this.overridden = overridden;
@@ -20,7 +36,7 @@ public final class ActivityOptionsWithDefault {
     this.optionsMap = new HashMap<>(optionsMap);
   }
 
-  public ActivityOptionsWithDefault(ActivityOptionsWithDefault overridden) {
+  public MergedActivityOptions(MergedActivityOptions overridden) {
     this.overridden = overridden;
     defaultOptions = null;
     optionsMap = null;
@@ -34,6 +50,7 @@ public final class ActivityOptionsWithDefault {
     this.optionsMap = optionsMap;
   }
 
+  /** Get merged options for the given activityType. */
   public ActivityOptions getMergedOptions(String activityType) {
     ActivityOptions overrideOptions = overridden.getMergedOptions(activityType);
     return merge(overrideOptions, defaultOptions, optionsMap.get(activityType));

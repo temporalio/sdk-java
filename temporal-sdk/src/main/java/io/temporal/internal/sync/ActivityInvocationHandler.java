@@ -24,7 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.internal.common.ActivityOptionsWithDefault;
+import io.temporal.internal.common.MergedActivityOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
@@ -33,14 +33,14 @@ import java.util.function.Function;
 
 @VisibleForTesting
 public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
-  private final ActivityOptionsWithDefault options;
+  private final MergedActivityOptions options;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
   private final Functions.Proc assertReadOnly;
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
       Class<?> activityInterface,
-      ActivityOptionsWithDefault options,
+      MergedActivityOptions options,
       WorkflowOutboundCallsInterceptor activityExecutor,
       Functions.Proc assertReadOnly) {
     return new ActivityInvocationHandler(
@@ -50,7 +50,7 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private ActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
-      ActivityOptionsWithDefault options,
+      MergedActivityOptions options,
       Functions.Proc assertReadOnly) {
     super(activityInterface);
     this.options = options;

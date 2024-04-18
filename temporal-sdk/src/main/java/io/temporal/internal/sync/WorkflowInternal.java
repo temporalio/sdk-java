@@ -42,7 +42,7 @@ import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
-import io.temporal.internal.common.ActivityOptionsWithDefault;
+import io.temporal.internal.common.MergedActivityOptions;
 import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
@@ -301,14 +301,13 @@ public final class WorkflowInternal {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
     SyncWorkflowContext context = getRootWorkflowContext();
-    ActivityOptionsWithDefault optionsWithDefault =
-        new ActivityOptionsWithDefault(
-            context.getActivityOptions(), options, activityMethodOptions);
+    MergedActivityOptions activityOptions =
+        new MergedActivityOptions(context.getActivityOptions(), options, activityMethodOptions);
 
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface,
-            optionsWithDefault,
+            activityOptions,
             context.getWorkflowOutboundInterceptor(),
             () -> assertNotReadOnly("schedule activity"));
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
