@@ -42,6 +42,7 @@ import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
+import io.temporal.internal.common.ActivityOptionsWithDefault;
 import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
@@ -300,29 +301,14 @@ public final class WorkflowInternal {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
     SyncWorkflowContext context = getRootWorkflowContext();
-    options = (options == null) ? context.getDefaultActivityOptions() : options;
-
-    Map<String, ActivityOptions> mergedActivityOptionsMap;
-    @Nonnull Map<String, ActivityOptions> predefinedActivityOptions = context.getActivityOptions();
-    if (activityMethodOptions != null
-        && !activityMethodOptions.isEmpty()
-        && predefinedActivityOptions.isEmpty()) {
-      // we need to merge only in this case
-      mergedActivityOptionsMap = new HashMap<>(predefinedActivityOptions);
-      ActivityOptionUtils.mergePredefinedActivityOptions(
-          mergedActivityOptionsMap, activityMethodOptions);
-    } else {
-      mergedActivityOptionsMap =
-          MoreObjects.firstNonNull(
-              activityMethodOptions,
-              MoreObjects.firstNonNull(predefinedActivityOptions, Collections.emptyMap()));
-    }
+    ActivityOptionsWithDefault optionsWithDefault =
+        new ActivityOptionsWithDefault(
+            context.getActivityOptions(), options, activityMethodOptions);
 
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface,
-            options,
-            mergedActivityOptionsMap,
+            optionsWithDefault,
             context.getWorkflowOutboundInterceptor(),
             () -> assertNotReadOnly("schedule activity"));
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);

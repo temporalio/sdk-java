@@ -48,6 +48,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.common.ActivityOptionsWithDefault;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
@@ -188,9 +189,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .setScheduleToCloseTimeout(Duration.ofDays(1))
             .setHeartbeatTimeout(Duration.ofSeconds(1))
             .build();
+    ActivityOptionsWithDefault optionsWithDefault =
+        new ActivityOptionsWithDefault(null, options, null);
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, null, new TestActivityExecutor(), () -> {});
+            activityInterface, optionsWithDefault, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -204,9 +207,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    */
   @Override
   public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
+    ActivityOptionsWithDefault optionsWithDefault =
+        new ActivityOptionsWithDefault(null, options, null);
+
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, null, new TestActivityExecutor(), () -> {});
+            activityInterface, optionsWithDefault, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);

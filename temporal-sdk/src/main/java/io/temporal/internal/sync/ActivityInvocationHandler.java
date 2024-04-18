@@ -24,41 +24,36 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.internal.common.ActivityOptionsWithDefault;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 @VisibleForTesting
 public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
-  private final ActivityOptions options;
-  private final Map<String, ActivityOptions> activityMethodOptions;
+  private final ActivityOptionsWithDefault options;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
   private final Functions.Proc assertReadOnly;
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
       Class<?> activityInterface,
-      ActivityOptions options,
-      Map<String, ActivityOptions> methodOptions,
+      ActivityOptionsWithDefault options,
       WorkflowOutboundCallsInterceptor activityExecutor,
       Functions.Proc assertReadOnly) {
     return new ActivityInvocationHandler(
-        activityInterface, activityExecutor, options, methodOptions, assertReadOnly);
+        activityInterface, activityExecutor, options, assertReadOnly);
   }
 
   private ActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
-      ActivityOptions options,
-      Map<String, ActivityOptions> methodOptions,
+      ActivityOptionsWithDefault options,
       Functions.Proc assertReadOnly) {
     super(activityInterface);
     this.options = options;
-    this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
     this.assertReadOnly = assertReadOnly;
   }
@@ -67,11 +62,7 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
-    ActivityOptions merged =
-        ActivityOptions.newBuilder(options)
-            .mergeActivityOptions(this.activityMethodOptions.get(activityName))
-            .mergeMethodRetry(methodRetry)
-            .build();
+    ActivityOptions merged = options.getMergedOptions(activityName);
     if (merged.getStartToCloseTimeout() == null && merged.getScheduleToCloseTimeout() == null) {
       throw new IllegalArgumentException(
           "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for "
