@@ -1,3 +1,23 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.temporal.internal.common;
 
 import io.temporal.activity.ActivityOptions;
@@ -22,7 +42,7 @@ public final class MergedActivityOptions {
   private ActivityOptions defaultOptions;
 
   /** Per activity type options. These override defaultOptions. */
-  private Map<String, ActivityOptions> optionsMap;
+  private final Map<String, ActivityOptions> optionsMap = new HashMap<>();
 
   /** The options specified at the previous layer. They are overriden by this object. */
   private final MergedActivityOptions overridden;
@@ -33,26 +53,32 @@ public final class MergedActivityOptions {
       Map<String, ActivityOptions> optionsMap) {
     this.overridden = overridden;
     this.defaultOptions = defaultOptions;
-    this.optionsMap = new HashMap<>(optionsMap);
+    if (optionsMap != null) {
+      this.optionsMap.putAll(optionsMap);
+    }
   }
 
   public MergedActivityOptions(MergedActivityOptions overridden) {
     this.overridden = overridden;
     defaultOptions = null;
-    optionsMap = null;
   }
 
   public void setDefaultOptions(ActivityOptions defaultOptions) {
     this.defaultOptions = defaultOptions;
   }
 
-  public void setOptionsMap(Map<String, ActivityOptions> optionsMap) {
-    this.optionsMap = optionsMap;
+  public void applyOptionsMap(Map<String, ActivityOptions> optionsMap) {
+    if (optionsMap != null) {
+      this.optionsMap.putAll(optionsMap);
+    }
   }
 
   /** Get merged options for the given activityType. */
   public ActivityOptions getMergedOptions(String activityType) {
-    ActivityOptions overrideOptions = overridden.getMergedOptions(activityType);
+    ActivityOptions overrideOptions = null;
+    if (overridden != null) {
+      overrideOptions = overridden.getMergedOptions(activityType);
+    }
     return merge(overrideOptions, defaultOptions, optionsMap.get(activityType));
   }
 
@@ -63,7 +89,11 @@ public final class MergedActivityOptions {
     }
     ActivityOptions result = options[0];
     for (int i = 1; i < options.length; i++) {
-      result = result.toBuilder().mergeActivityOptions(options[i]).build();
+      if (result == null) {
+        result = options[i];
+      } else {
+        result = result.toBuilder().mergeActivityOptions(options[i]).build();
+      }
     }
     return result;
   }

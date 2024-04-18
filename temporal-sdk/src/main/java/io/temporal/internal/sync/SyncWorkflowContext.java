@@ -226,7 +226,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public void applyActivityOptions(Map<String, ActivityOptions> activityTypeToOption) {
-    activityOptions.setOptionsMap(activityTypeToOption);
+    activityOptions.applyOptionsMap(activityTypeToOption);
   }
 
   public void setDefaultLocalActivityOptions(LocalActivityOptions defaultLocalActivityOptions) {
