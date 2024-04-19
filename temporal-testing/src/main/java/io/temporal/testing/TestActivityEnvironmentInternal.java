@@ -49,6 +49,7 @@ import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.common.MergedActivityOptions;
+import io.temporal.internal.common.MergedLocalActivityOptions;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
@@ -206,7 +207,16 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    */
   @Override
   public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    MergedActivityOptions activityOptions = new MergedActivityOptions(null, options, null);
+    return newActivityStub(activityInterface, options, null);
+  }
+
+  @Override
+  public <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions) {
+    MergedActivityOptions activityOptions =
+        new MergedActivityOptions(null, options, activityMethodOptions);
 
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
@@ -228,13 +238,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       Class<T> activityInterface,
       LocalActivityOptions options,
       Map<String, LocalActivityOptions> activityMethodOptions) {
+    MergedLocalActivityOptions activityOptions =
+        new MergedLocalActivityOptions(null, options, activityMethodOptions);
+
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
-            activityInterface,
-            options,
-            activityMethodOptions,
-            new TestActivityExecutor(),
-            () -> {});
+            activityInterface, activityOptions, new TestActivityExecutor(), () -> {});
     invocationHandler =
         new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);

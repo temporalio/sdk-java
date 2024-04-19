@@ -27,11 +27,13 @@ import static org.junit.Assert.fail;
 
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.internal.common.MergedActivityOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.*;
 import org.junit.rules.Timeout;
@@ -86,6 +88,76 @@ public class ActivityOptionsTest {
   }
 
   @Test
+  public void testMergedActivityOptions() {
+    MergedActivityOptions options0 = new MergedActivityOptions(null, null, null);
+
+    ActivityOptions a1 =
+        ActivityOptions.newBuilder()
+            .setScheduleToStartTimeout(Duration.ofMillis(10))
+            .setScheduleToCloseTimeout(Duration.ofDays(10))
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(10).build())
+            .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+            .build();
+
+    Map<String, ActivityOptions> map1 = new HashMap<>();
+    map1.put(
+        "Activity1",
+        ActivityOptions.newBuilder()
+            .setScheduleToStartTimeout(Duration.ofMillis(11))
+            .setScheduleToCloseTimeout(Duration.ofDays(11))
+            .setStartToCloseTimeout(Duration.ofSeconds(11))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(11).build())
+            .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
+            .build());
+    map1.put(
+        "Activity2",
+        ActivityOptions.newBuilder()
+            .setScheduleToStartTimeout(Duration.ofMillis(12))
+            .setStartToCloseTimeout(Duration.ofSeconds(12))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(12).build())
+            .setCancellationType(ActivityCancellationType.ABANDON)
+            .build());
+
+    MergedActivityOptions options1 = new MergedActivityOptions(options0, a1, map1);
+
+    ActivityOptions a2 =
+        ActivityOptions.newBuilder()
+            .setScheduleToStartTimeout(Duration.ofMillis(20))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(20).build())
+            .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+            .build();
+
+    MergedActivityOptions options2 = new MergedActivityOptions(options1, a2, null);
+
+    Map<String, ActivityOptions> map3 = new HashMap<>();
+    map3.put(
+        "Activity1",
+        ActivityOptions.newBuilder()
+            .setScheduleToStartTimeout(Duration.ofMillis(31))
+            .setScheduleToCloseTimeout(Duration.ofDays(31))
+            .setStartToCloseTimeout(Duration.ofSeconds(31))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(31).build())
+            .build());
+
+    MergedActivityOptions options3 = new MergedActivityOptions(options2, null, map3);
+
+    // From a1
+    Assert.assertEquals(
+        Duration.ofDays(10), options3.getMergedOptions("Activity2").getScheduleToCloseTimeout());
+    // From map1
+    Assert.assertEquals(
+        Duration.ofSeconds(12), options3.getMergedOptions("Activity2").getStartToCloseTimeout());
+    // From a2
+    assertEquals(
+        ActivityCancellationType.TRY_CANCEL,
+        options3.getMergedOptions("Activity2").getCancellationType());
+    // From map3
+    assertEquals(
+        Duration.ofMillis(31), options3.getMergedOptions("Activity1").getScheduleToStartTimeout());
+  }
+
+  @Test
   public void testActivityOptionsDefaultInstance() {
     testEnv.registerActivitiesImplementations(new TestActivityImpl());
     TestActivity activity =
@@ -101,7 +173,6 @@ public class ActivityOptionsTest {
   @Test
   public void testOnlyAnnotationsPresent() throws NoSuchMethodException {
     Method method = ActivityOptionsTest.class.getMethod("activityAndRetryOptions");
-    ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     ActivityOptions o = ActivityOptions.newBuilder().build();
     ActivityOptions merged = ActivityOptions.newBuilder(o).mergeMethodRetry(r).build();
