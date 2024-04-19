@@ -21,7 +21,9 @@ jobs:
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
-        java-version: "21"
+        java-version: |
+          21
+          19
         distribution: "temurin"
 
     - name: Set up Gradle
@@ -54,7 +56,9 @@ jobs:
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
-        java-version: "11"
+        java-version: |
+          21
+          11
         distribution: "temurin"
 
     - name: Set up Gradle
