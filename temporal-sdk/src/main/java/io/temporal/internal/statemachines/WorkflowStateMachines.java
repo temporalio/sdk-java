@@ -282,10 +282,10 @@ public final class WorkflowStateMachines {
    * during replay should be prefetched and supplied in one batch.
    *
    * @param eventBatch events belong to one workflow task
-   * @param hasNextEvent true if there are more events in the history follow this batch, false if
+   * @param hasNextBatch true if there are more events in the history follow this batch, false if
    *     this batch contains the last events of the history
    */
-  private void handleEventsBatch(WFTBuffer.EventBatch eventBatch, boolean hasNextEvent) {
+  private void handleEventsBatch(WFTBuffer.EventBatch eventBatch, boolean hasNextBatch) {
     List<HistoryEvent> events = eventBatch.getEvents();
     if (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.equals(events.get(0).getEventType())) {
       for (SdkFlag flag : initialFlags) {
@@ -309,10 +309,10 @@ public final class WorkflowStateMachines {
       }
 
       try {
-        handleSingleEvent(
-            event,
-            !hasNextEvent && !eventBatch.getWorkflowTaskCompletedEvent().isPresent(),
-            iterator.hasNext() || hasNextEvent);
+        boolean isLastTask =
+            !hasNextBatch && !eventBatch.getWorkflowTaskCompletedEvent().isPresent();
+        boolean hasNextEvent = iterator.hasNext() || hasNextBatch;
+        handleSingleEvent(event, isLastTask, hasNextEvent);
       } catch (RuntimeException e) {
         throw createEventProcessingException(e, event);
       }
@@ -368,8 +368,7 @@ public final class WorkflowStateMachines {
           flags.setSdkFlag(sdkFlag);
         }
         // Remove any finished update protocol state machines. We can't remove them on an event like
-        // other state machines
-        // because a rejected update produces no event in history.
+        // other state machines because a rejected update produces no event in history.
         protocolStateMachines.entrySet().removeIf(entry -> entry.getValue().isFinalState());
         break;
     }
