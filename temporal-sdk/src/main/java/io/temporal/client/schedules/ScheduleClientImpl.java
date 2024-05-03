@@ -24,12 +24,14 @@ import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread
 
 import com.uber.m3.tally.Scope;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.RootScheduleClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.util.List;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -39,6 +41,7 @@ final class ScheduleClientImpl implements ScheduleClient {
   private final GenericWorkflowClient genericClient;
   private final Scope metricsScope;
   private final ScheduleClientCallsInterceptor scheduleClientCallsInvoker;
+  private final List<ScheduleClientInterceptor> interceptors;
 
   /**
    * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
@@ -65,7 +68,18 @@ final class ScheduleClientImpl implements ScheduleClient {
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
-    this.scheduleClientCallsInvoker = new RootScheduleClientInvoker(genericClient, options);
+    this.interceptors = options.getInterceptors();
+    this.scheduleClientCallsInvoker = initializeClientInvoker();
+  }
+
+  private ScheduleClientCallsInterceptor initializeClientInvoker() {
+    ScheduleClientCallsInterceptor scheduleClientInvoker =
+        new RootScheduleClientInvoker(genericClient, options);
+    for (ScheduleClientInterceptor clientInterceptor : interceptors) {
+      scheduleClientInvoker =
+          clientInterceptor.scheduleClientCallsInterceptor(scheduleClientInvoker);
+    }
+    return scheduleClientInvoker;
   }
 
   @Override

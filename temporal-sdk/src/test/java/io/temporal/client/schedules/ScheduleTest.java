@@ -25,6 +25,7 @@ import static org.junit.Assume.assumeTrue;
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -47,13 +48,14 @@ public class ScheduleTest {
           .setWorkflowTypes(ScheduleTest.QuickWorkflowImpl.class)
           .build();
 
-  private ScheduleClient createScheduleClient() {
+  private ScheduleClient createScheduleClient(ScheduleClientInterceptor... interceptors) {
     return new ScheduleClientImpl(
         testWorkflowRule.getWorkflowServiceStubs(),
         ScheduleClientOptions.newBuilder()
             .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
             .setIdentity(testWorkflowRule.getWorkflowClient().getOptions().getIdentity())
             .setDataConverter(testWorkflowRule.getWorkflowClient().getOptions().getDataConverter())
+            .setInterceptors(Arrays.asList(interceptors))
             .build());
   }
 
@@ -542,6 +544,49 @@ public class ScheduleTest {
             s -> {
               client.getHandle(s.getScheduleId()).delete();
             });
+  }
+
+  @Test
+  public void testInterceptors() {
+    TracingScheduleInterceptor.FilteredTrace ft = new TracingScheduleInterceptor.FilteredTrace();
+    String scheduleId = UUID.randomUUID().toString();
+    TracingScheduleInterceptor interceptor = new TracingScheduleInterceptor(ft);
+    interceptor.setExpected(
+        "createSchedule: " + scheduleId,
+        "listSchedules",
+        "describeSchedule: " + scheduleId,
+        "pauseSchedule: " + scheduleId,
+        "unpauseSchedule: " + scheduleId,
+        "triggerSchedule: " + scheduleId,
+        "backfillSchedule: " + scheduleId,
+        "describeSchedule: " + scheduleId, // Updating a schedule implicitly calls describe.
+        "updateSchedule: " + scheduleId,
+        "deleteSchedule: " + scheduleId);
+    ScheduleClient client = createScheduleClient(interceptor);
+    ScheduleHandle handle =
+        client.createSchedule(
+            scheduleId, createTestSchedule().build(), ScheduleOptions.newBuilder().build());
+    try {
+      // Add delay for schedule to appear
+      testWorkflowRule.sleep(Duration.ofSeconds(2));
+      // List all schedules and filter
+      Stream<ScheduleListDescription> scheduleStream = client.listSchedules();
+      List<ScheduleListDescription> listedSchedules =
+          scheduleStream
+              .filter(s -> s.getScheduleId().equals(scheduleId))
+              .collect(Collectors.toList());
+      Assert.assertEquals(1, listedSchedules.size());
+      // Verify the schedule description
+      handle.describe();
+      handle.pause();
+      handle.unpause();
+      handle.trigger();
+      handle.backfill(Arrays.asList(new ScheduleBackfill(Instant.now(), Instant.now())));
+      handle.update(input -> new ScheduleUpdate(createTestSchedule().build()));
+    } finally {
+      handle.delete();
+    }
+    interceptor.assertExpected();
   }
 
   public static class QuickWorkflowImpl implements TestWorkflows.TestWorkflow1 {
