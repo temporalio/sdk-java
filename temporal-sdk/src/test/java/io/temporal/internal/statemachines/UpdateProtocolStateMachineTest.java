@@ -706,7 +706,7 @@ public class UpdateProtocolStateMachineTest {
           WorkflowExecutionUpdateAcceptedEventAttributes.newBuilder()
               .setProtocolInstanceId("protocol_id")
               .setAcceptedRequestMessageId("id")
-              .setAcceptedRequestSequencingEventId(2));
+              .setAcceptedRequestSequencingEventId(5));
       h.add(
           EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED,
           WorkflowExecutionUpdateCompletedEventAttributes.newBuilder()

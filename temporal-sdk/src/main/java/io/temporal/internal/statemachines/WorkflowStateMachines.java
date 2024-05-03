@@ -127,9 +127,19 @@ public final class WorkflowStateMachines {
   private final Queue<CancellableCommand> cancellableCommands = new ArrayDeque<>();
 
   /**
-   * Is workflow executing new code or replaying from the history. Note that this flag ALWAYS flips
-   * to true for the time when we apply events from the server even if the commands were created by
-   * an actual execution with replaying=false.
+   * Is workflow executing new code or replaying from the history. The definition of replaying here
+   * is that we are no longer replaying as soon as we see new events that have never been seen or
+   * produced by the SDK.
+   *
+   * <p>Specifically, replay ends once we have seen any non-command event (IE: events that aren't a
+   * result of something we produced in the SDK) on a WFT which has the final event in history
+   * (meaning we are processing the most recent WFT and there are no more subsequent WFTs). WFT
+   * Completed in this case does not count as a non-command event, because that will typically show
+   * up as the first event in an incremental history, and we want to ignore it and its associated
+   * commands since we "produced" them.
+   *
+   * <p>Note: that this flag ALWAYS flips to true for the time when we apply events from the server
+   * even if the commands were created by an actual execution with replaying=false.
    */
   private boolean replaying;
 
@@ -161,7 +171,10 @@ public final class WorkflowStateMachines {
 
   private List<Message> messages = new ArrayList<>();
 
-  /** Set of accepted admitted updates by update id */
+  /**
+   * Set of accepted durably admitted updates by update id a "durably admitted" update is one with
+   * an UPDATE_ADMITTED event.
+   */
   private final Set<String> acceptedUpdates = new HashSet<>();
 
   private final SdkFlags flags;
@@ -440,17 +453,6 @@ public final class WorkflowStateMachines {
       return;
     }
 
-    // This definition of replaying here is that we are no longer replaying as soon as we
-    // see new events that have never been seen or produced by the SDK.
-    //
-    // Specifically, replay ends once we have seen any non-command event (IE: events that
-    // aren't a result of something we produced in the SDK) on a WFT which has the final
-    // event in history (meaning we are processing the most recent WFT and there are no
-    // more subsequent WFTs). WFT Completed in this case does not count as a non-command
-    // event, because that will typically show up as the first event in an incremental
-    // history, and we want to ignore it and its associated commands since we "produced"
-    // them.
-    //
     // We don't explicitly check if the event is a command event here because it's already handled
     // above.
     if (replaying
