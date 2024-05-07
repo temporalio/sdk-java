@@ -36,10 +36,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.NamespaceState;
-import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
@@ -218,6 +215,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String namespace = requireNotNull("Namespace", startRequest.getNamespace());
     WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
+    WorkflowIdReusePolicy reusePolicy = startRequest.getWorkflowIdReusePolicy();
+    WorkflowIdConflictPolicy conflictPolicy = startRequest.getWorkflowIdConflictPolicy();
+    if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
+        && reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+      throw createInvalidArgument(
+          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
+    }
+
     TestWorkflowMutableState existing;
     lock.lock();
     try {
@@ -225,10 +230,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
-        WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
 
         if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            && policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+            && (reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+                || conflictPolicy
+                    == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING)) {
           existing.terminateWorkflowExecution(
               TerminateWorkflowExecutionRequest.newBuilder()
                   .setNamespace(startRequest.getNamespace())
@@ -246,9 +252,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                           .build())
                   .build());
         } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            || policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
+            && conflictPolicy
+                == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
+          return StartWorkflowExecutionResponse.newBuilder()
+              .setStarted(false)
+              .setRunId(existing.getExecutionId().getExecution().getRunId())
+              .build();
+        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
+            || reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
           return throwDuplicatedWorkflow(startRequest, existing);
-        } else if (policy
+        } else if (reusePolicy
                 == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
             && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
                 || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
@@ -364,7 +377,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             signalWithStartSignal,
             eagerWorkflowTaskPollRequest);
     StartWorkflowExecutionResponse.Builder response =
-        StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId());
+        StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).setStarted(true);
     if (eagerWorkflowTask != null) {
       response.setEagerWorkflowTask(eagerWorkflowTask);
     }
