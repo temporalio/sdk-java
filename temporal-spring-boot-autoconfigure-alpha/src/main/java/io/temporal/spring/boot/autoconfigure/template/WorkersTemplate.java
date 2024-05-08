@@ -337,7 +337,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       addRegisteredActivityImpl(worker, beanName, bean.getClass().getName(), activityImplMetadata);
       if (log.isInfoEnabled()) {
         log.info(
-            "Registering auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'",
+            "Registering auto-discovered activity bean '{}' of class {} on a worker {} with a task queue '{}'",
             beanName,
             targetClass,
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
@@ -346,7 +346,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     } catch (TypeAlreadyRegisteredException registeredEx) {
       if (log.isInfoEnabled()) {
         log.info(
-            "Skipping auto-discovered activity bean '{}' of class {} on a worker {}with a task queue '{}'"
+            "Skipping auto-discovered activity bean '{}' of class {} on a worker {} with a task queue '{}'"
                 + " as activity type '{}' is already registered on the worker",
             beanName,
             targetClass,
