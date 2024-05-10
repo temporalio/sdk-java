@@ -260,7 +260,7 @@ public final class WorkflowStateMachines {
   }
 
   public void setMessages(List<Message> messages) {
-    this.messages = messages;
+    this.messages = new ArrayList<>(messages);
   }
 
   /**
