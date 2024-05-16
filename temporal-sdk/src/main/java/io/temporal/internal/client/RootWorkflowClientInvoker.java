@@ -334,8 +334,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setRequest(request)
             .build();
     Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
-    UpdateWorkflowExecutionResponse result =
-        genericClient.update(updateRequest, pollTimeoutDeadline);
+
+    // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
+    // by the user.
+    UpdateWorkflowExecutionResponse result;
+    do {
+      result = genericClient.update(updateRequest, pollTimeoutDeadline);
+    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
+        && result.getStage().getNumber()
+            < UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
+                .getNumber());
 
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {

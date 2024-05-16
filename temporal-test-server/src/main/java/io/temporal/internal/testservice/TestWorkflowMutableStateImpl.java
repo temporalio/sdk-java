@@ -2157,7 +2157,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .setOutcome(completionResponse.getOutcome())
           .build();
     } catch (TimeoutException e) {
-      return PollWorkflowExecutionUpdateResponse.getDefaultInstance();
+      PollWorkflowExecutionUpdateResponse resp =
+          PollWorkflowExecutionUpdateResponse.getDefaultInstance();
+      // Set stage to admitted
+      return resp.toBuilder()
+          .setStage(
+              UpdateWorkflowExecutionLifecycleStage
+                  .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED)
+          .build();
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       if (cause instanceof StatusRuntimeException) {

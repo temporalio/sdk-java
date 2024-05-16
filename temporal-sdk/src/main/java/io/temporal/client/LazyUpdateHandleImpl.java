@@ -72,7 +72,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   @Override
   public CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit) {
-    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput output =
+    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> output =
         workflowClientInvoker.pollWorkflowUpdate(
             new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
                 execution, updateName, id, resultClass, resultType, timeout, unit));
