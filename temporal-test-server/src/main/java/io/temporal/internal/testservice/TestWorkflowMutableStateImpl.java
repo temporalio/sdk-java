@@ -1625,6 +1625,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     .setUpdateId(rejection.getRejectedRequest().getMeta().getUpdateId())
                     .setWorkflowExecution(ctx.getExecution()))
             .setOutcome(Outcome.newBuilder().setFailure(rejection.getFailure()).build())
+            .setStage(
+                UpdateWorkflowExecutionLifecycleStage
+                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
             .build();
     u.getAcceptance().complete(response);
   }
@@ -2159,7 +2162,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (TimeoutException e) {
       PollWorkflowExecutionUpdateResponse resp =
           PollWorkflowExecutionUpdateResponse.getDefaultInstance();
-      // Set stage to admitted
       return resp.toBuilder()
           .setStage(
               UpdateWorkflowExecutionLifecycleStage
