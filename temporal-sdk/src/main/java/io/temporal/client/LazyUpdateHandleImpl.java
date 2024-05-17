@@ -27,7 +27,6 @@ import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Type;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
