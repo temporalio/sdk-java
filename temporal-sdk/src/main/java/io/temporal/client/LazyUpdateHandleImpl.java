@@ -42,7 +42,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   private final WorkflowExecution execution;
   private final Class<T> resultClass;
   private final Type resultType;
-  private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> previousPollCall;
+  private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> waitCompletedPollCall;
 
   LazyUpdateHandleImpl(
       WorkflowClientCallsInterceptor workflowClientInvoker,
@@ -73,13 +73,21 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   @Override
   public CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit) {
-    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> pollCall;
-    if (previousPollCall == null) {
-      pollUntilComplete(timeout, unit);
+
+    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> pollCall = null;
+    boolean setFromWaitCompleted = false;
+
+    // If waitCompleted was called, use the result from that call.
+    synchronized (this) {
+      if (waitCompletedPollCall != null) {
+        pollCall = waitCompletedPollCall;
+        waitCompletedPollCall = null;
+      }
     }
-    pollCall = previousPollCall;
-    // Get result may be called more than once for non-complete wait policies, so reset it here.
-    previousPollCall = null;
+
+    if (!setFromWaitCompleted) {
+      pollCall = pollUntilComplete(timeout, unit);
+    }
 
     return pollCall
         .getResult()
@@ -114,10 +122,16 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
     return this.getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
   }
 
-  void pollUntilComplete(long timeout, TimeUnit unit) {
-    previousPollCall =
-        workflowClientInvoker.pollWorkflowUpdate(
-            new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
-                execution, updateName, id, resultClass, resultType, timeout, unit));
+  // Can be called immediately after initialization to wait for the update to be completed, but
+  // still have the result be returned by getResultAsync.
+  void waitCompleted() {
+    waitCompletedPollCall = pollUntilComplete(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+  }
+
+  private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> pollUntilComplete(
+      long timeout, TimeUnit unit) {
+    return workflowClientInvoker.pollWorkflowUpdate(
+        new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
+            execution, updateName, id, resultClass, resultType, timeout, unit));
   }
 }

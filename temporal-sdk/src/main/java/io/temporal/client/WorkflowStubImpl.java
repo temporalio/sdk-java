@@ -362,7 +362,7 @@ class WorkflowStubImpl implements WorkflowStub {
                 options.getResultType());
         if (options.getWaitPolicy() == WorkflowUpdateStage.COMPLETED) {
           // Don't return the handle until completed, since that's what's been asked for
-          handle.pollUntilComplete(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+          handle.waitCompleted();
         }
         return handle;
       }
