@@ -22,7 +22,7 @@ package io.temporal.client;
 
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 
-public enum UpdateWaitPolicy {
+public enum WorkflowUpdateStage {
   /**
    * Update request waits for the update to be until the update request has been admitted by the
    * server - it may be the case that due to a considerations like load or resource limits that an
@@ -45,7 +45,7 @@ public enum UpdateWaitPolicy {
 
   private final UpdateWorkflowExecutionLifecycleStage policy;
 
-  UpdateWaitPolicy(UpdateWorkflowExecutionLifecycleStage policy) {
+  WorkflowUpdateStage(UpdateWorkflowExecutionLifecycleStage policy) {
     this.policy = policy;
   }
 
