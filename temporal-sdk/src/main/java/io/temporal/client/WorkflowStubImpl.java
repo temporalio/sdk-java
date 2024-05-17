@@ -351,14 +351,20 @@ class WorkflowStubImpl implements WorkflowStub {
             result.getReference().getWorkflowExecution(),
             result.getResult());
       } else {
-        return new LazyUpdateHandleImpl<>(
-            workflowClientInvoker,
-            workflowType.orElse(null),
-            options.getUpdateName(),
-            result.getReference().getUpdateId(),
-            result.getReference().getWorkflowExecution(),
-            options.getResultClass(),
-            options.getResultType());
+        LazyUpdateHandleImpl<R> handle =
+            new LazyUpdateHandleImpl<>(
+                workflowClientInvoker,
+                workflowType.orElse(null),
+                options.getUpdateName(),
+                result.getReference().getUpdateId(),
+                result.getReference().getWorkflowExecution(),
+                options.getResultClass(),
+                options.getResultType());
+        if (options.getWaitPolicy() == UpdateWaitPolicy.COMPLETED) {
+          // Don't return the handle until completed, since that's what's been asked for
+          handle.pollUntilComplete(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+        }
+        return handle;
       }
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);

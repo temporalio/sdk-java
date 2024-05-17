@@ -27,6 +27,7 @@ import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Type;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   private final WorkflowExecution execution;
   private final Class<T> resultClass;
   private final Type resultType;
+  private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> previousPollCall;
 
   LazyUpdateHandleImpl(
       WorkflowClientCallsInterceptor workflowClientInvoker,
@@ -72,12 +74,11 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   @Override
   public CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit) {
-    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> output =
-        workflowClientInvoker.pollWorkflowUpdate(
-            new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
-                execution, updateName, id, resultClass, resultType, timeout, unit));
+    if (previousPollCall == null) {
+      pollUntilComplete(timeout, unit);
+    }
 
-    return output
+    return previousPollCall
         .getResult()
         .exceptionally(
             failure -> {
@@ -108,5 +109,12 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   @Override
   public CompletableFuture<T> getResultAsync() {
     return this.getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+  }
+
+  void pollUntilComplete(long timeout, TimeUnit unit) {
+    previousPollCall =
+        workflowClientInvoker.pollWorkflowUpdate(
+            new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
+                execution, updateName, id, resultClass, resultType, timeout, unit));
   }
 }

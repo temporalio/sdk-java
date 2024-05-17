@@ -107,7 +107,8 @@ public interface WorkflowStub {
 
   /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a
-   * handle to the update request.
+   * handle to the update request. If {@link UpdateWaitPolicy#COMPLETED} is specified, in the
+   * options, the handle will not be returned until the update is completed.
    *
    * @param options options that will be used to configure and start a new update request.
    * @param args update method arguments
