@@ -445,11 +445,14 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         .pollUpdateAsync(request, deadline)
         .whenComplete(
             (r, e) -> {
+              if (e == null && !r.hasOutcome()) {
+                pollWorkflowUpdateHelper(resultCF, request, deadline);
+                return;
+              }
               if ((e instanceof StatusRuntimeException
                       && ((StatusRuntimeException) e).getStatus().getCode()
                           == Status.Code.DEADLINE_EXCEEDED)
-                  || deadline.isExpired()
-                  || (e == null && !r.hasOutcome())) {
+                  || deadline.isExpired()) {
                 resultCF.completeExceptionally(
                     new TimeoutException(
                         "WorkflowId="
