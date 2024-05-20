@@ -29,9 +29,14 @@ class KotlinObjectMapperFactory {
     fun new(): ObjectMapper {
       val mapper = JacksonJsonPayloadConverter.newDefaultObjectMapper()
 
-      // use deprecated constructor instead of builder to maintain compatibility with old jackson versions
-      @Suppress("deprecation")
-      val km = KotlinModule()
+      val km = try {
+        KotlinModule.Builder()
+          .build()
+      } catch (e: NoClassDefFoundError) {
+        // use deprecated constructor as fallback
+        @Suppress("deprecation")
+        KotlinModule()
+      }
       mapper.registerModule(km)
       return mapper
     }
