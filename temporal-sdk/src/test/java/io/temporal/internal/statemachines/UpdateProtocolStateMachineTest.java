@@ -23,7 +23,6 @@ package io.temporal.internal.statemachines;
 import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.*;
 import static io.temporal.internal.statemachines.SideEffectStateMachine.SIDE_EFFECT_MARKER_NAME;
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -34,10 +33,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
-import io.temporal.api.update.v1.Input;
-import io.temporal.api.update.v1.Meta;
-import io.temporal.api.update.v1.Outcome;
-import io.temporal.api.update.v1.Request;
+import io.temporal.api.update.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -84,7 +80,7 @@ public class UpdateProtocolStateMachineTest {
   }
 
   @Test
-  public void testUpdateAccept() {
+  public void testUpdateAccept() throws InvalidProtocolBufferException {
     class TestUpdateListener extends TestEntityManagerListenerBase {
 
       @Override
@@ -173,8 +169,31 @@ public class UpdateProtocolStateMachineTest {
     {
       TestEntityManagerListenerBase listener = new TestUpdateListener();
       stateMachines = newStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 0);
-      assertEquals(0, commands.size());
+      Request request =
+          Request.newBuilder()
+              .setInput(
+                  Input.newBuilder()
+                      .setName("updateName")
+                      .setArgs(converter.toPayloads("arg").get()))
+              .build();
+      stateMachines.setMessages(
+          Collections.unmodifiableList(
+              Arrays.asList(
+                  new Message[] {
+                    Message.newBuilder()
+                        .setProtocolInstanceId("protocol_id")
+                        .setId("id")
+                        .setEventId(0)
+                        .setBody(Any.pack(request))
+                        .build(),
+                  })));
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+      assertEquals(2, commands.size());
+      List<Message> messages = stateMachines.takeMessages();
+      assertEquals(1, messages.size());
+      Acceptance acceptance = messages.get(0).getBody().unpack(Acceptance.class);
+      assertNotNull(acceptance);
+      assertEquals(request, acceptance.getAcceptedRequest());
     }
     {
       TestEntityManagerListenerBase listener = new TestUpdateListener();
@@ -369,7 +388,7 @@ public class UpdateProtocolStateMachineTest {
   }
 
   @Test
-  public void testUpdateRejected() {
+  public void testUpdateRejected() throws InvalidProtocolBufferException {
     class TestUpdateListener extends TestEntityManagerListenerBase {
 
       @Override
@@ -404,14 +423,13 @@ public class UpdateProtocolStateMachineTest {
       // Full replay
       TestEntityManagerListenerBase listener = new TestUpdateListener();
       stateMachines = newStateMachines(listener);
-      Any messageBody =
-          Any.pack(
-              Request.newBuilder()
-                  .setInput(
-                      Input.newBuilder()
-                          .setName("updateName")
-                          .setArgs(converter.toPayloads("arg").get()))
-                  .build());
+      Request request =
+          Request.newBuilder()
+              .setInput(
+                  Input.newBuilder()
+                      .setName("updateName")
+                      .setArgs(converter.toPayloads("arg").get()))
+              .build();
       stateMachines.setMessages(
           Collections.unmodifiableList(
               Arrays.asList(
@@ -420,11 +438,16 @@ public class UpdateProtocolStateMachineTest {
                         .setProtocolInstanceId("protocol_id")
                         .setId("id")
                         .setEventId(0)
-                        .setBody(messageBody)
+                        .setBody(Any.pack(request))
                         .build(),
                   })));
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertEquals(0, commands.size());
+      List<Message> messages = stateMachines.takeMessages();
+      assertEquals(1, messages.size());
+      Rejection rejection = messages.get(0).getBody().unpack(Rejection.class);
+      assertNotNull(rejection);
+      assertEquals(request, rejection.getRejectedRequest());
     }
   }
 
