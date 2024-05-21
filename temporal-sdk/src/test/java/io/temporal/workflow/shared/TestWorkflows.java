@@ -178,16 +178,6 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
-  public interface SimpleWorkflowWithUpdate {
-
-    @WorkflowMethod
-    String execute();
-
-    @UpdateMethod
-    String update(String value);
-  }
-
-  @WorkflowInterface
   public interface WorkflowWithUpdate {
 
     @WorkflowMethod

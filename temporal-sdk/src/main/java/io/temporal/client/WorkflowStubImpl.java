@@ -297,7 +297,7 @@ class WorkflowStubImpl implements WorkflowStub {
       UpdateOptions<R> options =
           UpdateOptions.<R>newBuilder()
               .setUpdateName(updateName)
-              .setWaitPolicy(UpdateWaitPolicy.COMPLETED)
+              .setWaitPolicy(WorkflowUpdateStage.COMPLETED)
               .setResultClass(resultClass)
               .build();
       return startUpdate(options, args).getResultAsync().get();
@@ -316,7 +316,7 @@ class WorkflowStubImpl implements WorkflowStub {
     UpdateOptions<R> options =
         UpdateOptions.<R>newBuilder()
             .setUpdateName(updateName)
-            .setWaitPolicy(UpdateWaitPolicy.ACCEPTED)
+            .setWaitPolicy(WorkflowUpdateStage.ACCEPTED)
             .setResultClass(resultClass)
             .setResultType(resultClass)
             .build();
@@ -351,14 +351,20 @@ class WorkflowStubImpl implements WorkflowStub {
             result.getReference().getWorkflowExecution(),
             result.getResult());
       } else {
-        return new LazyUpdateHandleImpl<>(
-            workflowClientInvoker,
-            workflowType.orElse(null),
-            options.getUpdateName(),
-            result.getReference().getUpdateId(),
-            result.getReference().getWorkflowExecution(),
-            options.getResultClass(),
-            options.getResultType());
+        LazyUpdateHandleImpl<R> handle =
+            new LazyUpdateHandleImpl<>(
+                workflowClientInvoker,
+                workflowType.orElse(null),
+                options.getUpdateName(),
+                result.getReference().getUpdateId(),
+                result.getReference().getWorkflowExecution(),
+                options.getResultClass(),
+                options.getResultType());
+        if (options.getWaitPolicy() == WorkflowUpdateStage.COMPLETED) {
+          // Don't return the handle until completed, since that's what's been asked for
+          handle.waitCompleted();
+        }
+        return handle;
       }
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);

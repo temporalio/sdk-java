@@ -42,6 +42,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   private final WorkflowExecution execution;
   private final Class<T> resultClass;
   private final Type resultType;
+  private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> waitCompletedPollCall;
 
   LazyUpdateHandleImpl(
       WorkflowClientCallsInterceptor workflowClientInvoker,
@@ -72,12 +73,23 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   @Override
   public CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit) {
-    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput output =
-        workflowClientInvoker.pollWorkflowUpdate(
-            new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
-                execution, updateName, id, resultClass, resultType, timeout, unit));
 
-    return output
+    WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> pollCall = null;
+    boolean setFromWaitCompleted = false;
+
+    // If waitCompleted was called, use the result from that call.
+    synchronized (this) {
+      if (waitCompletedPollCall != null) {
+        pollCall = waitCompletedPollCall;
+        waitCompletedPollCall = null;
+      }
+    }
+
+    if (!setFromWaitCompleted) {
+      pollCall = pollUntilComplete(timeout, unit);
+    }
+
+    return pollCall
         .getResult()
         .exceptionally(
             failure -> {
@@ -108,5 +120,18 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   @Override
   public CompletableFuture<T> getResultAsync() {
     return this.getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+  }
+
+  // Can be called immediately after initialization to wait for the update to be completed, but
+  // still have the result be returned by getResultAsync.
+  void waitCompleted() {
+    waitCompletedPollCall = pollUntilComplete(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+  }
+
+  private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> pollUntilComplete(
+      long timeout, TimeUnit unit) {
+    return workflowClientInvoker.pollWorkflowUpdate(
+        new WorkflowClientCallsInterceptor.PollWorkflowUpdateInput<>(
+            execution, updateName, id, resultClass, resultType, timeout, unit));
   }
 }

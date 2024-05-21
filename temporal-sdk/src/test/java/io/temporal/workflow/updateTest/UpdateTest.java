@@ -40,6 +40,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -53,7 +56,7 @@ public class UpdateTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setWorkflowTypes(TestUpdateWorkflowImpl.class)
+          .setWorkflowTypes(TestUpdateWorkflowImpl.class, TestWaitingUpdate.class)
           .setActivityImplementations(new ActivityImpl())
           .build();
 
@@ -107,7 +110,7 @@ public class UpdateTest {
             workflowType,
             SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
 
-    WorkflowExecution execution = workflowStub.start();
+    workflowStub.start();
 
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
     assertEquals("initial", workflowStub.query("getState", String.class));
@@ -115,7 +118,7 @@ public class UpdateTest {
     // send an update through the sync path
     assertEquals("Execute-Hello", workflowStub.update("update", String.class, 0, "Hello"));
     // send an update through the async path
-    UpdateHandle updateRef = workflowStub.startUpdate("update", String.class, 0, "World");
+    UpdateHandle<String> updateRef = workflowStub.startUpdate("update", String.class, 0, "World");
     assertEquals("Execute-World", updateRef.getResultAsync().get());
     // send a bad update that will be rejected through the sync path
     assertThrows(
@@ -135,6 +138,48 @@ public class UpdateTest {
     workflowStub.update("complete", void.class);
 
     assertEquals("Execute-Hello Execute-World", workflowStub.getResult(String.class));
+  }
+
+  @Test
+  public void testUpdateHandleNotReturnedUntilCompleteWhenAsked()
+      throws ExecutionException, InterruptedException {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowType = TestWorkflows.WorkflowWithUpdateAndSignal.class.getSimpleName();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+
+    workflowStub.start();
+
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+    assertEquals("initial", workflowStub.query("getState", String.class));
+
+    // Start the update but verify it does not return the handle until the update is complete
+    AtomicBoolean updateCompletedLast = new AtomicBoolean(false);
+    Future<?> asyncUpdate =
+        Executors.newSingleThreadExecutor()
+            .submit(
+                () -> {
+                  UpdateHandle<String> handle =
+                      workflowStub.startUpdate(
+                          UpdateOptions.newBuilder(String.class).setUpdateName("update").build(),
+                          "Enchi");
+                  updateCompletedLast.set(true);
+                  try {
+                    assertEquals("Enchi", handle.getResultAsync().get());
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                });
+
+    workflowStub.signal("signal", "whatever");
+    updateCompletedLast.set(false);
+
+    asyncUpdate.get();
+    assertTrue(updateCompletedLast.get());
+    workflowStub.update("complete", void.class);
+    workflowStub.getResult(List.class);
   }
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
@@ -201,6 +246,47 @@ public class UpdateTest {
     @Override
     public String execute(String input) {
       return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
+    }
+  }
+
+  public static class TestWaitingUpdate implements TestWorkflows.WorkflowWithUpdateAndSignal {
+    String state = "initial";
+    List<String> updates = new ArrayList<>();
+    CompletablePromise<Void> signalled = Workflow.newPromise();
+    CompletablePromise<Void> promise = Workflow.newPromise();
+    private final TestActivities.TestActivity1 activity =
+        Workflow.newActivityStub(
+            TestActivities.TestActivity1.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
+
+    @Override
+    public List<String> execute() {
+      promise.get();
+      return updates;
+    }
+
+    @Override
+    public String getState() {
+      return state;
+    }
+
+    @Override
+    public void signal(String value) {
+      signalled.complete(null);
+    }
+
+    @Override
+    public String update(String value) {
+      Workflow.await(() -> signalled.isCompleted());
+      return value;
+    }
+
+    @Override
+    public void validator(String value) {}
+
+    @Override
+    public void complete() {
+      promise.complete(null);
     }
   }
 }
