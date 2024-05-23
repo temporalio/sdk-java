@@ -21,7 +21,7 @@
 package io.temporal.common.converter
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
 class KotlinObjectMapperFactory {
   companion object {
@@ -29,16 +29,7 @@ class KotlinObjectMapperFactory {
     fun new(): ObjectMapper {
       val mapper = JacksonJsonPayloadConverter.newDefaultObjectMapper()
 
-      val km = try {
-        KotlinModule.Builder()
-          .build()
-      } catch (e: NoClassDefFoundError) {
-        // use deprecated constructor as fallback
-        @Suppress("deprecation")
-        KotlinModule()
-      }
-      mapper.registerModule(km)
-      return mapper
+      return mapper.registerKotlinModule()
     }
   }
 }
