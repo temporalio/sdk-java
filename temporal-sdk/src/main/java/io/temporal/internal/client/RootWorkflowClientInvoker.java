@@ -333,9 +333,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setFirstExecutionRunId(input.getFirstExecutionRunId())
             .setRequest(request)
             .build();
-    Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
-    UpdateWorkflowExecutionResponse result =
-        genericClient.update(updateRequest, pollTimeoutDeadline);
+
+    // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
+    // by the user.
+    UpdateWorkflowExecutionResponse result;
+    do {
+      Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
+      result = genericClient.update(updateRequest, pollTimeoutDeadline);
+    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
+        && result.getStage().getNumber()
+            < UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
+                .getNumber());
 
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {
@@ -399,20 +408,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     Deadline pollTimeoutDeadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     pollWorkflowUpdateHelper(future, pollUpdateRequest, pollTimeoutDeadline);
-    return new PollWorkflowUpdateOutput(
+    return new PollWorkflowUpdateOutput<>(
         future.thenApply(
             (result) -> {
               if (result.hasOutcome()) {
                 switch (result.getOutcome().getValueCase()) {
                   case SUCCESS:
                     Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
-                    R resultValue =
-                        convertResultPayloads(
-                            updateResult,
-                            input.getResultClass(),
-                            input.getResultType(),
-                            dataConverterWithWorkflowContext);
-                    return resultValue;
+                    return convertResultPayloads(
+                        updateResult,
+                        input.getResultClass(),
+                        input.getResultType(),
+                        dataConverterWithWorkflowContext);
                   case FAILURE:
                     throw new WorkflowUpdateException(
                         input.getWorkflowExecution(),
@@ -434,31 +441,26 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       CompletableFuture<PollWorkflowExecutionUpdateResponse> resultCF,
       PollWorkflowExecutionUpdateRequest request,
       Deadline deadline) {
-
-    Deadline pollTimeoutDeadline =
-        Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS).minimum(deadline);
     genericClient
-        .pollUpdateAsync(request, pollTimeoutDeadline)
+        .pollUpdateAsync(request, deadline)
         .whenComplete(
             (r, e) -> {
+              if (e == null && !r.hasOutcome()) {
+                pollWorkflowUpdateHelper(resultCF, request, deadline);
+                return;
+              }
               if ((e instanceof StatusRuntimeException
                       && ((StatusRuntimeException) e).getStatus().getCode()
                           == Status.Code.DEADLINE_EXCEEDED)
-                  || pollTimeoutDeadline.isExpired()
-                  || (e == null && !r.hasOutcome())) {
-                // if the request has timed out, stop retrying
-                if (!deadline.isExpired()) {
-                  pollWorkflowUpdateHelper(resultCF, request, deadline);
-                } else {
-                  resultCF.completeExceptionally(
-                      new TimeoutException(
-                          "WorkflowId="
-                              + request.getUpdateRef().getWorkflowExecution().getWorkflowId()
-                              + ", runId="
-                              + request.getUpdateRef().getWorkflowExecution().getRunId()
-                              + ", updateId="
-                              + request.getUpdateRef().getUpdateId()));
-                }
+                  || deadline.isExpired()) {
+                resultCF.completeExceptionally(
+                    new TimeoutException(
+                        "WorkflowId="
+                            + request.getUpdateRef().getWorkflowExecution().getWorkflowId()
+                            + ", runId="
+                            + request.getUpdateRef().getWorkflowExecution().getRunId()
+                            + ", updateId="
+                            + request.getUpdateRef().getUpdateId()));
               } else if (e != null) {
                 resultCF.completeExceptionally(e);
               } else {

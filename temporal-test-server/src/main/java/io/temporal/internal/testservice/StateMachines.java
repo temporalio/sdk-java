@@ -66,12 +66,7 @@ import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.CancelExternalWorkflowExecutionFailedCause;
-import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.RetryState;
-import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.api.enums.v1.StartChildWorkflowExecutionFailedCause;
-import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
@@ -1810,6 +1805,9 @@ class StateMachines {
                   UpdateRef.newBuilder()
                       .setWorkflowExecution(ctx.getExecution())
                       .setUpdateId(data.id))
+              .setStage(
+                  UpdateWorkflowExecutionLifecycleStage
+                      .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED)
               .build();
 
       data.acceptance.complete(response);
@@ -1852,6 +1850,9 @@ class StateMachines {
                       .setWorkflowExecution(ctx.getExecution())
                       .setUpdateId(data.id))
               .setOutcome(response.getOutcome())
+              .setStage(
+                  UpdateWorkflowExecutionLifecycleStage
+                      .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
               .build();
 
       data.complete.complete(updateResponse);

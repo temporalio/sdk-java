@@ -161,11 +161,13 @@ public class ScheduleProtoUtil {
   }
 
   public SchedulePolicies policyToProto(SchedulePolicy policy) {
-    return SchedulePolicies.newBuilder()
-        .setCatchupWindow(ProtobufTimeUtils.toProtoDuration(policy.getCatchupWindow()))
-        .setPauseOnFailure(policy.isPauseOnFailure())
-        .setOverlapPolicy(policy.getOverlap())
-        .build();
+    SchedulePolicies.Builder builder = SchedulePolicies.newBuilder();
+    if (policy.getCatchupWindow() != null) {
+      builder.setCatchupWindow(ProtobufTimeUtils.toProtoDuration(policy.getCatchupWindow()));
+    }
+    builder.setPauseOnFailure(policy.isPauseOnFailure());
+    builder.setOverlapPolicy(policy.getOverlap());
+    return builder.build();
   }
 
   public List<Range> scheduleRangeToProto(List<ScheduleRange> scheduleRanges) {

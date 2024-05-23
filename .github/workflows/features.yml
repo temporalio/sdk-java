@@ -3,8 +3,9 @@ on: [push, pull_request]
 
 jobs:
   features-test:
-    uses: temporalio/features/.github/workflows/java.yaml@main
+    uses: temporalio/features/.github/workflows/java.yaml@java-breaking-update
     with:
       java-repo-path: ${{github.event.pull_request.head.repo.full_name}}
       version: ${{github.event.pull_request.head.ref}}
       version-is-repo-ref: true
+      features-repo-ref: java-breaking-update

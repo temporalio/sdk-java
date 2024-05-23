@@ -50,7 +50,7 @@ public final class UpdateOptions<T> {
   private final String updateName;
   private final String updateId;
   private final String firstExecutionRunId;
-  private final UpdateWaitPolicy waitPolicy;
+  private final WorkflowUpdateStage waitPolicy;
   private final Class<T> resultClass;
   private final Type resultType;
 
@@ -58,7 +58,7 @@ public final class UpdateOptions<T> {
       String updateName,
       String updateId,
       String firstExecutionRunId,
-      UpdateWaitPolicy waitPolicy,
+      WorkflowUpdateStage waitPolicy,
       Class<T> resultClass,
       Type resultType) {
     this.updateName = updateName;
@@ -81,7 +81,7 @@ public final class UpdateOptions<T> {
     return firstExecutionRunId;
   }
 
-  public UpdateWaitPolicy getWaitPolicy() {
+  public WorkflowUpdateStage getWaitPolicy() {
     return waitPolicy;
   }
 
@@ -152,7 +152,7 @@ public final class UpdateOptions<T> {
     private String updateName;
     private String updateId;
     private String firstExecutionRunId;
-    private UpdateWaitPolicy waitPolicy;
+    private WorkflowUpdateStage waitPolicy;
     private Class<T> resultClass;
     private Type resultType;
 
@@ -208,7 +208,7 @@ public final class UpdateOptions<T> {
      *   <li><b>Completed</b> Wait for the update to be completed by the workflow.
      * </ul>
      */
-    public Builder<T> setWaitPolicy(UpdateWaitPolicy waitPolicy) {
+    public Builder<T> setWaitPolicy(WorkflowUpdateStage waitPolicy) {
       this.waitPolicy = waitPolicy;
       return this;
     }
@@ -239,7 +239,7 @@ public final class UpdateOptions<T> {
           updateName,
           updateId,
           firstExecutionRunId == null ? "" : firstExecutionRunId,
-          waitPolicy == null ? UpdateWaitPolicy.ACCEPTED : waitPolicy,
+          waitPolicy == null ? WorkflowUpdateStage.ACCEPTED : waitPolicy,
           resultClass,
           resultType == null ? resultClass : resultType);
     }

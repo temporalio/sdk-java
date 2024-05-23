@@ -79,6 +79,7 @@ final class UpdateProtocolStateMachine
   private String requestMsgId;
   private long requestSeqID;
   private Meta meta;
+  private Optional<Request> originalRequest = Optional.empty();
   private String messageId;
 
   public static final StateMachineDefinition<State, ExplicitEvent, UpdateProtocolStateMachine>
@@ -175,7 +176,8 @@ final class UpdateProtocolStateMachine
     requestMsgId = this.currentMessage.getId();
     requestSeqID = this.currentMessage.getEventId();
     try {
-      meta = this.currentMessage.getBody().unpack(Request.class).getMeta();
+      originalRequest = Optional.of(this.currentMessage.getBody().unpack(Request.class));
+      meta = originalRequest.get().getMeta();
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException("Current message not an update:" + this.currentMessage);
     }
@@ -199,8 +201,10 @@ final class UpdateProtocolStateMachine
         Acceptance.newBuilder()
             .setAcceptedRequestMessageId(requestMsgId)
             .setAcceptedRequestSequencingEventId(requestSeqID)
+            .setAcceptedRequest(originalRequest.get())
             .build();
-
+    // Clear the original request to allow GC to reclaim the memory.
+    originalRequest = Optional.empty();
     messageId = requestMsgId + "/accept";
     sendHandle.apply(
         Message.newBuilder()
@@ -217,6 +221,7 @@ final class UpdateProtocolStateMachine
             .setRejectedRequestMessageId(requestMsgId)
             .setRejectedRequestSequencingEventId(requestSeqID)
             .setFailure(failure)
+            .setRejectedRequest(originalRequest.get())
             .build();
 
     String messageId = requestMsgId + "/reject";
