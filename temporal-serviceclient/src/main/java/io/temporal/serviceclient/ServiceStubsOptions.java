@@ -25,6 +25,8 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.grpc.*;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.temporal.authorization.AuthorizationGrpcMetadataProvider;
+import io.temporal.authorization.AuthorizationTokenSupplier;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -505,6 +507,23 @@ public class ServiceStubsOptions {
         this.grpcMetadataProviders = new ArrayList<>();
       }
       this.grpcMetadataProviders.add(grpcMetadataProvider);
+      return self();
+    }
+
+    /**
+     * Add a {@link AuthorizationGrpcMetadataProvider} to the gRPC metadata providers that supplies
+     * an authentication token on each gRPC request.
+     *
+     * @param apiKey authentication token supplier to be called on each gRPC request. SDK will
+     *     automatically add the "Bearer " prefix.
+     * @return {@code this}
+     */
+    public T addApiKey(AuthorizationTokenSupplier apiKey) {
+      addGrpcMetadataProvider(
+          new AuthorizationGrpcMetadataProvider(
+              () -> {
+                return "Bearer " + apiKey.supply();
+              }));
       return self();
     }
 
