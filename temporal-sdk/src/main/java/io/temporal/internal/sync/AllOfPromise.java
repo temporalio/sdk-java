@@ -26,17 +26,18 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class AllOfPromise implements Promise<Void> {
 
   private final CompletablePromise<Void> impl = Workflow.newPromise();
-  private int notReadyCount;
+  private final AtomicInteger notReadyCount = new AtomicInteger();
 
   AllOfPromise(Promise<?>[] promises) {
     for (Promise<?> f : promises) {
       addPromise(f);
     }
-    if (notReadyCount == 0) {
+    if (notReadyCount.get() == 0) {
       impl.complete(null);
     }
   }
@@ -45,17 +46,17 @@ class AllOfPromise implements Promise<Void> {
     for (Promise<?> f : promises) {
       addPromise(f);
     }
-    if (notReadyCount == 0) {
+    if (notReadyCount.get() == 0) {
       impl.complete(null);
     }
   }
 
   private void addPromise(Promise<?> f) {
     if (!f.isCompleted()) {
-      notReadyCount++;
+      notReadyCount.incrementAndGet();
       f.handle(
           (r, e) -> {
-            if (notReadyCount == 0) {
+            if (notReadyCount.get() == 0) {
               throw new Error("Unexpected 0 count");
             }
             if (impl.isCompleted()) {
@@ -64,7 +65,7 @@ class AllOfPromise implements Promise<Void> {
             if (e != null) {
               impl.completeExceptionally(e);
             }
-            if (--notReadyCount == 0) {
+            if (notReadyCount.decrementAndGet() == 0) {
               impl.complete(null);
             }
             return null;
