@@ -21,6 +21,7 @@
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -36,6 +37,7 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflow.v1.NewWorkflowExecutionInfo;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.*;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -126,6 +128,11 @@ public class ScheduleProtoUtil {
       Optional<Payloads> inputArgs = startWorkflowAction.getArguments().toPayloads();
       if (inputArgs.isPresent()) {
         workflowRequest.setInput(inputArgs.get());
+      }
+
+      RetryOptions retryOptions = wfOptions.getRetryOptions();
+      if (retryOptions != null) {
+        workflowRequest.setRetryPolicy(toRetryPolicy(retryOptions));
       }
 
       if (startWorkflowAction.getOptions().getMemo() != null) {

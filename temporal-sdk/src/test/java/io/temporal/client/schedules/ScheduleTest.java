@@ -24,6 +24,7 @@ import static org.junit.Assume.assumeTrue;
 
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -301,10 +302,12 @@ public class ScheduleTest {
             .setMemo(Collections.singletonMap("memokey2", "memoval2"))
             .build();
     String scheduleId = UUID.randomUUID().toString();
+    RetryOptions retryOptions = RetryOptions.newBuilder().setMaximumAttempts(1).build();
     WorkflowOptions wfOptions =
         WorkflowOptions.newBuilder()
             .setWorkflowId("test")
             .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setRetryOptions(retryOptions)
             .setMemo(Collections.singletonMap("memokey1", "memoval1"))
             .build();
 
@@ -360,7 +363,7 @@ public class ScheduleTest {
     //
     Assert.assertEquals(scheduleId, description.getId());
     Assert.assertEquals("memoval2", description.getMemo("memokey2", String.class));
-    //
+    // Assert action
     Assert.assertEquals(
         ScheduleActionStartWorkflow.class, description.getSchedule().getAction().getClass());
     ScheduleActionStartWorkflow startWfAction =
@@ -372,6 +375,7 @@ public class ScheduleTest {
         (EncodedValues) startWfAction.getOptions().getMemo().get("memokey1");
     String memoValue = encodedMemo.get(0, String.class);
     Assert.assertEquals("memoval1", memoValue);
+    Assert.assertEquals(startWfAction.getOptions().getRetryOptions(), retryOptions);
     //
     Assert.assertEquals(
         ScheduleSpec.newBuilder(description.getSchedule().getSpec())
