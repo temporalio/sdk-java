@@ -50,6 +50,7 @@ import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -160,8 +161,9 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       return new RetryDecision(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED, null);
     }
 
+    Optional<Duration> nextRetryDelay = getNextRetryDelay(attemptThrowable);
     long sleepMillis = retryOptions.calculateSleepTime(currentAttempt);
-    Duration sleep = Duration.ofMillis(sleepMillis);
+    Duration sleep = nextRetryDelay.orElse(Duration.ofMillis(sleepMillis));
     if (RetryOptionsUtils.isDeadlineReached(
         executionContext.getScheduleToCloseDeadline(), sleepMillis)) {
       return new RetryDecision(RetryState.RETRY_STATE_TIMEOUT, null);
@@ -805,6 +807,13 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   private static boolean isNonRetryableApplicationFailure(@Nullable Throwable executionThrowable) {
     return executionThrowable instanceof ApplicationFailure
         && ((ApplicationFailure) executionThrowable).isNonRetryable();
+  }
+
+  private static Optional<Duration> getNextRetryDelay(@Nullable Throwable executionThrowable) {
+    if (executionThrowable instanceof ApplicationFailure) {
+      return Optional.ofNullable(((ApplicationFailure) executionThrowable).getNextRetryDelay());
+    }
+    return Optional.empty();
   }
 
   private static class RetryDecision {
