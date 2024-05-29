@@ -302,7 +302,8 @@ public class ScheduleTest {
             .setMemo(Collections.singletonMap("memokey2", "memoval2"))
             .build();
     String scheduleId = UUID.randomUUID().toString();
-    RetryOptions retryOptions = RetryOptions.newBuilder().setMaximumAttempts(1).build();
+    RetryOptions retryOptions =
+        RetryOptions.newBuilder().setMaximumAttempts(1).validateBuildWithDefaults();
     WorkflowOptions wfOptions =
         WorkflowOptions.newBuilder()
             .setWorkflowId("test")
@@ -375,7 +376,7 @@ public class ScheduleTest {
         (EncodedValues) startWfAction.getOptions().getMemo().get("memokey1");
     String memoValue = encodedMemo.get(0, String.class);
     Assert.assertEquals("memoval1", memoValue);
-    Assert.assertEquals(startWfAction.getOptions().getRetryOptions(), retryOptions);
+    Assert.assertEquals(retryOptions, startWfAction.getOptions().getRetryOptions());
     //
     Assert.assertEquals(
         ScheduleSpec.newBuilder(description.getSchedule().getSpec())
