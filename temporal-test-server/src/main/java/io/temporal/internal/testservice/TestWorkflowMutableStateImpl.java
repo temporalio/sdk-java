@@ -1297,7 +1297,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
         } else {
           failureType = Optional.of(failureInfo.getType());
-          backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTime());
+          backoffInterval =
+              rs.getBackoffIntervalInSeconds(failureType, store.currentTime(), Optional.empty());
         }
       } else if (failure.hasTerminatedFailureInfo()
           || failure.hasCanceledFailureInfo()
@@ -1307,7 +1308,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
       } else {
         // The failure may be retryable. (E.g. ActivityFailure)
-        backoffInterval = rs.getBackoffIntervalInSeconds(Optional.empty(), store.currentTime());
+        backoffInterval =
+            rs.getBackoffIntervalInSeconds(Optional.empty(), store.currentTime(), Optional.empty());
       }
 
       if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {

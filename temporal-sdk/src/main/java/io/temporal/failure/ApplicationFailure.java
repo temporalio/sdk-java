@@ -24,6 +24,7 @@ import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
+import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -56,6 +57,7 @@ public final class ApplicationFailure extends TemporalFailure {
   private final String type;
   private final Values details;
   private boolean nonRetryable;
+  private Duration nextRetryDelay;
 
   /**
    * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
@@ -90,7 +92,33 @@ public final class ApplicationFailure extends TemporalFailure {
    */
   public static ApplicationFailure newFailureWithCause(
       String message, String type, @Nullable Throwable cause, Object... details) {
-    return new ApplicationFailure(message, type, false, new EncodedValues(details), cause);
+    return new ApplicationFailure(message, type, false, new EncodedValues(details), cause, null);
+  }
+
+  /**
+   * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
+   *
+   * <p>Note that this exception still may not be retried by the service if its type is included in
+   * the doNotRetry property of the correspondent retry policy.
+   *
+   * @param message optional error message
+   * @param type optional error type that is used by {@link
+   *     io.temporal.common.RetryOptions.Builder#setDoNotRetry(String...)}.
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
+   * @param cause failure cause. Each element of the cause chain will be converted to
+   *     ApplicationFailure for network transmission across network if it doesn't extend {@link
+   *     TemporalFailure}
+   * @param nextRetryDelay delay before the next retry attempt.
+   */
+  public static ApplicationFailure newFailureWithCauseAndDelay(
+      String message,
+      String type,
+      @Nullable Throwable cause,
+      Duration nextRetryDelay,
+      Object... details) {
+    return new ApplicationFailure(
+        message, type, false, new EncodedValues(details), cause, nextRetryDelay);
   }
 
   /**
@@ -125,20 +153,31 @@ public final class ApplicationFailure extends TemporalFailure {
    */
   public static ApplicationFailure newNonRetryableFailureWithCause(
       String message, String type, @Nullable Throwable cause, Object... details) {
-    return new ApplicationFailure(message, type, true, new EncodedValues(details), cause);
+    return new ApplicationFailure(message, type, true, new EncodedValues(details), cause, null);
   }
 
   static ApplicationFailure newFromValues(
-      String message, String type, boolean nonRetryable, Values details, Throwable cause) {
-    return new ApplicationFailure(message, type, nonRetryable, details, cause);
+      String message,
+      String type,
+      boolean nonRetryable,
+      Values details,
+      Throwable cause,
+      Duration nextRetryDelay) {
+    return new ApplicationFailure(message, type, nonRetryable, details, cause, nextRetryDelay);
   }
 
   ApplicationFailure(
-      String message, String type, boolean nonRetryable, Values details, Throwable cause) {
+      String message,
+      String type,
+      boolean nonRetryable,
+      Values details,
+      Throwable cause,
+      Duration nextRetryDelay) {
     super(getMessage(message, Objects.requireNonNull(type), nonRetryable), message, cause);
     this.type = type;
     this.details = details;
     this.nonRetryable = nonRetryable;
+    this.nextRetryDelay = nextRetryDelay;
   }
 
   public String getType() {
@@ -147,6 +186,11 @@ public final class ApplicationFailure extends TemporalFailure {
 
   public Values getDetails() {
     return details;
+  }
+
+  @Nullable
+  public Duration getNextRetryDelay() {
+    return nextRetryDelay;
   }
 
   public void setNonRetryable(boolean nonRetryable) {
@@ -160,6 +204,10 @@ public final class ApplicationFailure extends TemporalFailure {
   @Override
   public void setDataConverter(DataConverter converter) {
     ((EncodedValues) details).setDataConverter(converter);
+  }
+
+  public void setNextRetryDelay(Duration nextRetryDelay) {
+    this.nextRetryDelay = nextRetryDelay;
   }
 
   private static String getMessage(String message, String type, boolean nonRetryable) {

@@ -251,7 +251,7 @@ public class ScheduleTest {
     handle.delete();
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void backfillSchedules() {
     // assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
     Instant now = Instant.now();

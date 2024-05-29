@@ -40,6 +40,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.FailureConverter;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.io.PrintWriter;
@@ -106,7 +107,10 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.getType(),
               info.getNonRetryable(),
               new EncodedValues(details, dataConverter),
-              cause);
+              cause,
+              info.hasNextRetryDelay()
+                  ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
+                  : null);
         }
       case TIMEOUT_FAILURE_INFO:
         {
@@ -151,7 +155,8 @@ public final class DefaultFailureConverter implements FailureConverter {
               "ResetWorkflow",
               false,
               new EncodedValues(details, dataConverter),
-              cause);
+              cause,
+              null);
         }
       case ACTIVITY_FAILURE_INFO:
         {
@@ -230,6 +235,9 @@ public final class DefaultFailureConverter implements FailureConverter {
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
+      }
+      if (ae.getNextRetryDelay() != null) {
+        info.setNextRetryDelay(ProtobufTimeUtils.toProtoDuration(ae.getNextRetryDelay()));
       }
       failure.setApplicationFailureInfo(info);
     } else if (throwable instanceof TimeoutFailure) {

@@ -26,7 +26,9 @@ import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -97,7 +99,8 @@ final class TestServiceRetryState {
     return new TestServiceRetryState(retryPolicy, expirationTime, attempt + 1, failure);
   }
 
-  BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, Timestamp currentTime) {
+  BackoffInterval getBackoffIntervalInSeconds(
+      Optional<String> errorType, Timestamp currentTime, Optional<Duration> nextRetryDelay) {
     RetryPolicy retryPolicy = getRetryPolicy();
     // check if error is non-retryable
     List<String> nonRetryableErrorTypes = retryPolicy.getNonRetryableErrorTypesList();
@@ -119,32 +122,38 @@ final class TestServiceRetryState {
       // MaximumAttempts is the total attempts, including initial (non-retry) attempt.
       return new BackoffInterval(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED);
     }
-    long initInterval = Durations.toMillis(retryPolicy.getInitialInterval());
-    long nextInterval =
-        (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt() - 1));
-    long maxInterval = Durations.toMillis(retryPolicy.getMaximumInterval());
-    if (nextInterval <= 0) {
-      // math.Pow() could overflow
-      if (maxInterval > 0) {
+
+    Optional<ApplicationFailureInfo> info = lastFailure.map(Failure::getApplicationFailureInfo);
+    Duration backoffDuration;
+    if (nextRetryDelay.isPresent()) {
+      backoffDuration = nextRetryDelay.get();
+    } else {
+      long initInterval = Durations.toMillis(retryPolicy.getInitialInterval());
+      long nextInterval =
+          (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt() - 1));
+      long maxInterval = Durations.toMillis(retryPolicy.getMaximumInterval());
+      if (nextInterval <= 0) {
+        // math.Pow() could overflow
+        if (maxInterval > 0) {
+          nextInterval = maxInterval;
+        }
+      }
+      if (maxInterval > 0 && nextInterval > maxInterval) {
+        // cap next interval to MaxInterval
         nextInterval = maxInterval;
-      } else {
+      } else if (nextInterval <= 0) {
         return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
       }
+      backoffDuration = Duration.ofMillis(nextInterval);
     }
 
-    if (maxInterval > 0 && nextInterval > maxInterval) {
-      // cap next interval to MaxInterval
-      nextInterval = maxInterval;
-    }
-
-    long backoffInterval = nextInterval;
-    Timestamp nextScheduleTime = Timestamps.add(currentTime, Durations.fromMillis(backoffInterval));
+    Timestamp nextScheduleTime =
+        Timestamps.add(currentTime, ProtobufTimeUtils.toProtoDuration(backoffDuration));
     if (expirationTime.getNanos() != 0
         && Timestamps.compare(nextScheduleTime, expirationTime) > 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
     }
-
-    return new BackoffInterval(Duration.ofMillis(backoffInterval));
+    return new BackoffInterval(backoffDuration);
   }
 
   static RetryPolicy validateAndOverrideRetryPolicy(RetryPolicy p) {
