@@ -86,6 +86,7 @@ public final class WorkerOptions {
     private SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier;
     private SlotSupplier<ActivitySlotInfo> activitySlotSupplier;
     private SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
+    private String identity;
 
     private Builder() {}
 
@@ -416,6 +417,12 @@ public final class WorkerOptions {
       this.localActivitySlotSupplier = localActivitySlotSupplier;
     }
 
+    /** Override identity of the worker primary specified in a WorkflowClient options. */
+    public Builder setIdentity(String identity) {
+      this.identity = identity;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -436,7 +443,8 @@ public final class WorkerOptions {
           disableEagerExecution,
           useBuildIdForVersioning,
           buildId,
-          stickyTaskQueueDrainTimeout);
+          stickyTaskQueueDrainTimeout,
+          identity);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -525,7 +533,8 @@ public final class WorkerOptions {
           buildId,
           stickyTaskQueueDrainTimeout == null
               ? DEFAULT_STICKY_TASK_QUEUE_DRAIN_TIMEOUT
-              : stickyTaskQueueDrainTimeout);
+              : stickyTaskQueueDrainTimeout,
+          identity);
     }
   }
 
@@ -548,6 +557,7 @@ public final class WorkerOptions {
   private final boolean useBuildIdForVersioning;
   private final String buildId;
   private final Duration stickyTaskQueueDrainTimeout;
+  private final String identity;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -568,7 +578,8 @@ public final class WorkerOptions {
       boolean disableEagerExecution,
       boolean useBuildIdForVersioning,
       String buildId,
-      Duration stickyTaskQueueDrainTimeout) {
+      Duration stickyTaskQueueDrainTimeout,
+      String identity) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -588,6 +599,7 @@ public final class WorkerOptions {
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.buildId = buildId;
     this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
+    this.identity = identity;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -683,6 +695,11 @@ public final class WorkerOptions {
     return localActivitySlotSupplier;
   }
 
+  @Nullable
+  public String getIdentity() {
+    return identity;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -706,7 +723,8 @@ public final class WorkerOptions {
         && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval)
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
         && Objects.equals(buildId, that.buildId)
-        && Objects.equals(stickyTaskQueueDrainTimeout, that.stickyTaskQueueDrainTimeout);
+        && Objects.equals(stickyTaskQueueDrainTimeout, that.stickyTaskQueueDrainTimeout)
+        && Objects.equals(identity, that.identity);
   }
 
   @Override
@@ -730,7 +748,8 @@ public final class WorkerOptions {
         disableEagerExecution,
         useBuildIdForVersioning,
         buildId,
-        stickyTaskQueueDrainTimeout);
+        stickyTaskQueueDrainTimeout,
+        identity);
   }
 
   @Override
@@ -775,6 +794,8 @@ public final class WorkerOptions {
         + '\''
         + ", stickyTaskQueueDrainTimeout="
         + stickyTaskQueueDrainTimeout
+        + ", identity="
+        + identity
         + '}';
   }
 }

@@ -594,9 +594,15 @@ public final class Worker {
     } else if (clientOptions.getBinaryChecksum() != null) {
       buildId = clientOptions.getBinaryChecksum();
     }
+
+    String identity = clientOptions.getIdentity();
+    if (options.getIdentity() != null) {
+      identity = options.getIdentity();
+    }
+
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
-        .setIdentity(clientOptions.getIdentity())
+        .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
