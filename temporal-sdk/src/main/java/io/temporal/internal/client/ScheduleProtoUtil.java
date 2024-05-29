@@ -130,7 +130,7 @@ public class ScheduleProtoUtil {
         workflowRequest.setInput(inputArgs.get());
       }
 
-      RetryOptions retryOptions = startWorkflowAction.getOptions().getRetryOptions();
+      RetryOptions retryOptions = wfOptions.getRetryOptions();
       if (retryOptions != null) {
         workflowRequest.setRetryPolicy(toRetryPolicy(retryOptions));
       }
