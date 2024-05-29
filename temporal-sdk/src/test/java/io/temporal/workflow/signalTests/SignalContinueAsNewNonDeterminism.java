@@ -114,7 +114,6 @@ public class SignalContinueAsNewNonDeterminism {
     @Override
     public void signal() throws ExecutionException, InterruptedException {
       // Intentionally introduce non determinism
-      Thread.sleep(500);
       if (continueAsNew.getNow(false)) {
         Workflow.continueAsNew(true);
       }
