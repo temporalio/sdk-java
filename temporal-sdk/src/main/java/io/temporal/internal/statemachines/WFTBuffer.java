@@ -69,7 +69,8 @@ public class WFTBuffer {
 
   /**
    * @return Should the buffer be fetched. true if a whole history for a workflow task is
-   *     accumulated or events can't be attributed to a completed workflow task
+   * accumulated or events can't be attributed to a completed workflow task. The whole history
+   * includes the unprocessed history events before the WorkflowTaskStarted and the command events WorkflowTaskCompleted. 
    */
   public boolean addEvent(HistoryEvent event, boolean hasNextEvent) {
     if (readyToFetch.size() > 0) {
@@ -84,6 +85,12 @@ public class WFTBuffer {
       // flush buffer
       flushBuffer();
 
+      // If the last event in history is a WORKFLOW_TASK_COMPLETED, because say we received a direct query,
+      // we need to return it as a batch.
+      if (WFTState.Started.equals(wftSequenceState)
+          && event.getEventType().equals(EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED)) {
+        workflowTaskCompletedEvent = Optional.of(event);
+      }
       // exit the sequence
       wftSequenceState = WFTState.None;
       readyToFetch.add(event);
@@ -148,16 +155,16 @@ public class WFTBuffer {
   public EventBatch fetch() {
     if (readyToFetch.size() == 1) {
       HistoryEvent event = readyToFetch.get(0);
-      Optional<HistoryEvent> wftStarted = workflowTaskCompletedEvent;
+      Optional<HistoryEvent> wftCompleted = workflowTaskCompletedEvent;
       workflowTaskCompletedEvent = Optional.empty();
       readyToFetch.clear();
-      return new EventBatch(wftStarted, Collections.singletonList(event));
+      return new EventBatch(wftCompleted, Collections.singletonList(event));
     } else {
       List<HistoryEvent> result = new ArrayList<>(readyToFetch);
-      Optional<HistoryEvent> wftStarted = workflowTaskCompletedEvent;
+      Optional<HistoryEvent> wftCompleted = workflowTaskCompletedEvent;
       workflowTaskCompletedEvent = Optional.empty();
       readyToFetch.clear();
-      return new EventBatch(wftStarted, result);
+      return new EventBatch(wftCompleted, result);
     }
   }
 }
