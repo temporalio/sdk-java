@@ -69,9 +69,9 @@ public class WFTBuffer {
 
   /**
    * @return Should the buffer be fetched. true if a whole history for a workflow task is
-   * accumulated or events can't be attributed to a completed workflow task. The whole history
-   * includes the unprocessed history events before the WorkflowTaskStarted and the 
-   * command events after the WorkflowTaskCompleted. 
+   *     accumulated or events can't be attributed to a completed workflow task. The whole history
+   *     includes the unprocessed history events before the WorkflowTaskStarted and the command
+   *     events after the WorkflowTaskCompleted.
    */
   public boolean addEvent(HistoryEvent event, boolean hasNextEvent) {
     if (readyToFetch.size() > 0) {
@@ -86,7 +86,8 @@ public class WFTBuffer {
       // flush buffer
       flushBuffer();
 
-      // If the last event in history is a WORKFLOW_TASK_COMPLETED, because say we received a direct query,
+      // If the last event in history is a WORKFLOW_TASK_COMPLETED, because say we received a direct
+      // query,
       // we need to return it as a batch.
       if (WFTState.Started.equals(wftSequenceState)
           && event.getEventType().equals(EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED)) {
