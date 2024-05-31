@@ -70,7 +70,8 @@ public class WFTBuffer {
   /**
    * @return Should the buffer be fetched. true if a whole history for a workflow task is
    * accumulated or events can't be attributed to a completed workflow task. The whole history
-   * includes the unprocessed history events before the WorkflowTaskStarted and the command events WorkflowTaskCompleted. 
+   * includes the unprocessed history events before the WorkflowTaskStarted and the 
+   * command events after the WorkflowTaskCompleted. 
    */
   public boolean addEvent(HistoryEvent event, boolean hasNextEvent) {
     if (readyToFetch.size() > 0) {
