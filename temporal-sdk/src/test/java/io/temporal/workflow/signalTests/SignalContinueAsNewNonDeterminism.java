@@ -47,7 +47,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalContinueAsNewNonDeterminism {
-  private static final Semaphore workflowTaskProcessed = new Semaphore(1);
+  private static final Semaphore workflowTaskProcessed = new Semaphore(0);
 
   private static final CompletableFuture<Boolean> continueAsNew = new CompletableFuture<>();
 
@@ -78,10 +78,11 @@ public class SignalContinueAsNewNonDeterminism {
 
     WorkflowClient.start(client::execute, false);
     for (int i = 0; i < 5; i++) {
-      workflowTaskProcessed.acquire();
       client.signal();
+      workflowTaskProcessed.acquire();
     }
     continueAsNew.complete(true);
+
     // Force replay, expected to fail with NonDeterministicException
     testWorkflowRule.invalidateWorkflowCache();
     client.signal();
