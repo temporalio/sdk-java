@@ -21,6 +21,7 @@
 package io.temporal.client;
 
 import com.google.common.base.Objects;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
@@ -77,6 +78,7 @@ public final class WorkflowOptions {
         .setContextPropagators(o.getContextPropagators())
         .setDisableEagerExecution(o.isDisableEagerExecution())
         .setStartDelay(o.getStartDelay())
+        .setWorkflowIdConflictPolicy(o.getWorkflowIdConflictPolicy())
         .validateBuildWithDefaults();
   }
 
@@ -110,6 +112,8 @@ public final class WorkflowOptions {
 
     private Duration startDelay;
 
+    private WorkflowIdConflictPolicy workflowIdConflictpolicy;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -130,6 +134,7 @@ public final class WorkflowOptions {
       this.contextPropagators = options.contextPropagators;
       this.disableEagerExecution = options.disableEagerExecution;
       this.startDelay = options.startDelay;
+      this.workflowIdConflictpolicy = options.workflowIdConflictpolicy;
     }
 
     /**
@@ -145,7 +150,8 @@ public final class WorkflowOptions {
     /**
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
      * conditions Temporal allows two workflows with the same namespace and workflow id run
-     * simultaneously.
+     * simultaneously. See {@line setWorkflowIdConflictPolicy} for handling a workflow id
+     * duplication with a <b>Running</b> workflow.
      *
      * <p>Default value if not set: <b>AllowDuplicate</b>
      *
@@ -162,6 +168,25 @@ public final class WorkflowOptions {
      */
     public Builder setWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
       this.workflowIdReusePolicy = workflowIdReusePolicy;
+      return this;
+    }
+
+    /**
+     * Specifies server behavior if a <b>Running</b> workflow with the same id exists. See {@link
+     * #setWorkflowIdReusePolicy} for handling a workflow id duplication with a <b>Closed</b>
+     * workflow. Cannot be set when {@link #getWorkflowIdReusePolicy()} is {@link
+     * WorkflowIdReusePolicy#WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING}.
+     *
+     * <ul>
+     *   <li><b>Fail</b> Don't start a new workflow; instead return {@link
+     *       WorkflowExecutionAlreadyStarted}
+     *   <li><b>UseExisting</b> Don't start a new workflow; instead return the handle for the
+     *       running workflow.
+     *   <li><b>TerminateExisting</b> Terminate the running workflow before starting a new one.
+     * </ul>
+     */
+    public Builder setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy workflowIdConflictpolicy) {
+      this.workflowIdConflictpolicy = workflowIdConflictpolicy;
       return this;
     }
 
@@ -374,7 +399,8 @@ public final class WorkflowOptions {
           typedSearchAttributes,
           contextPropagators,
           disableEagerExecution,
-          startDelay);
+          startDelay,
+          workflowIdConflictpolicy);
     }
 
     /**
@@ -395,7 +421,8 @@ public final class WorkflowOptions {
           typedSearchAttributes,
           contextPropagators,
           disableEagerExecution,
-          startDelay);
+          startDelay,
+          workflowIdConflictpolicy);
     }
   }
 
@@ -427,6 +454,8 @@ public final class WorkflowOptions {
 
   private final Duration startDelay;
 
+  private final WorkflowIdConflictPolicy workflowIdConflictpolicy;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -441,7 +470,8 @@ public final class WorkflowOptions {
       SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
       boolean disableEagerExecution,
-      Duration startDelay) {
+      Duration startDelay,
+      WorkflowIdConflictPolicy workflowIdConflictpolicy) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -456,6 +486,7 @@ public final class WorkflowOptions {
     this.contextPropagators = contextPropagators;
     this.disableEagerExecution = disableEagerExecution;
     this.startDelay = startDelay;
+    this.workflowIdConflictpolicy = workflowIdConflictpolicy;
   }
 
   public String getWorkflowId() {
@@ -523,6 +554,10 @@ public final class WorkflowOptions {
     return startDelay;
   }
 
+  public WorkflowIdConflictPolicy getWorkflowIdConflictPolicy() {
+    return workflowIdConflictpolicy;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -545,7 +580,8 @@ public final class WorkflowOptions {
         && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equal(contextPropagators, that.contextPropagators)
         && Objects.equal(disableEagerExecution, that.disableEagerExecution)
-        && Objects.equal(startDelay, that.startDelay);
+        && Objects.equal(startDelay, that.startDelay)
+        && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy);
   }
 
   @Override
@@ -564,7 +600,8 @@ public final class WorkflowOptions {
         typedSearchAttributes,
         contextPropagators,
         disableEagerExecution,
-        startDelay);
+        startDelay,
+        workflowIdConflictpolicy);
   }
 
   @Override
@@ -601,6 +638,8 @@ public final class WorkflowOptions {
         + disableEagerExecution
         + ", startDelay="
         + startDelay
+        + ", workflowIdConflictpolicy="
+        + workflowIdConflictpolicy
         + '}';
   }
 }

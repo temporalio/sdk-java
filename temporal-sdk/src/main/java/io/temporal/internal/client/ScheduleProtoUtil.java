@@ -103,6 +103,10 @@ public class ScheduleProtoUtil {
       if (wfOptions.getCronSchedule() != null) {
         throw new IllegalArgumentException("Cron schedule cannot be set on scheduled workflow");
       }
+      if (wfOptions.getWorkflowIdConflictPolicy() != null) {
+        throw new IllegalArgumentException(
+            "ID conflict policy cannot change from default for scheduled workflow");
+      }
       // Validate required options
       if (wfOptions.getWorkflowId() == null || wfOptions.getWorkflowId().isEmpty()) {
         throw new IllegalArgumentException("ID required on workflow action");

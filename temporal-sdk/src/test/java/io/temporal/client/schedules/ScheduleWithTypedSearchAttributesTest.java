@@ -22,7 +22,6 @@ package io.temporal.client.schedules;
 
 import static org.junit.Assume.assumeTrue;
 
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.schedule.v1.ScheduleAction;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -137,25 +136,19 @@ public class ScheduleWithTypedSearchAttributesTest {
         (ScheduleActionStartWorkflow) description.getSchedule().getAction();
     Assert.assertEquals(2, readAction.getOptions().getTypedSearchAttributes().size());
 
-    Payload keywordPayload =
-        readAction
-            .getOptions()
-            .getTypedSearchAttributes()
-            .get(SearchAttributeKey.forUntyped("CustomKeywordField"));
     Assert.assertEquals(
         customKeywordFieldValue,
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            keywordPayload, String.class, String.class));
-
-    Payload textPayload =
         readAction
             .getOptions()
             .getTypedSearchAttributes()
-            .get(SearchAttributeKey.forUntyped("CustomStringField"));
+            .get(SearchAttributeKey.forKeyword("CustomKeywordField")));
+
     Assert.assertEquals(
         customStringFieldValue,
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            textPayload, String.class, String.class));
+        readAction
+            .getOptions()
+            .getTypedSearchAttributes()
+            .get(SearchAttributeKey.forText("CustomStringField")));
   }
 
   @Test

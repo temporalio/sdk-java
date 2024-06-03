@@ -82,6 +82,10 @@ final class WorkflowClientRequestFactory {
       request.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     }
 
+    if (options.getWorkflowIdConflictPolicy() != null) {
+      request.setWorkflowIdConflictPolicy(options.getWorkflowIdConflictPolicy());
+    }
+
     String taskQueue = options.getTaskQueue();
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
@@ -138,6 +142,7 @@ final class WorkflowClientRequestFactory {
             .setWorkflowTaskTimeout(startParameters.getWorkflowTaskTimeout())
             .setWorkflowType(startParameters.getWorkflowType())
             .setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy())
+            .setWorkflowIdConflictPolicy(startParameters.getWorkflowIdConflictPolicy())
             .setCronSchedule(startParameters.getCronSchedule());
 
     String workflowId = startParameters.getWorkflowId();

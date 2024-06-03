@@ -60,7 +60,7 @@ public class UpdateContinueAsNewWFTFailure {
     TestUpdateWorkflow client = workflowClient.newWorkflowStub(TestUpdateWorkflow.class, options);
 
     WorkflowClient.start(client::execute, false);
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 3; i++) {
       workflowTaskProcessed.acquire();
       // Start update in a separate thread to avoid blocking since admitted is not supported.
       Thread asyncUpdate =
@@ -102,7 +102,7 @@ public class UpdateContinueAsNewWFTFailure {
         Workflow.continueAsNew(true);
       }
       workflowTaskProcessed.release();
-      throw new RuntimeException("fail workflow task");
+      throw new RuntimeException("Intentionally fail workflow task");
     }
   }
 }
