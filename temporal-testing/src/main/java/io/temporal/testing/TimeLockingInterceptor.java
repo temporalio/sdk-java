@@ -21,10 +21,7 @@
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.UpdateHandle;
-import io.temporal.client.UpdateOptions;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.serviceclient.TestServiceStubs;
 import java.lang.reflect.Type;
@@ -240,8 +237,8 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
 
     @Override
     public <R> UpdateHandle<R> startUpdate(
-        String updateName, Class<R> resultClass, Object... args) {
-      return next.startUpdate(updateName, resultClass, args);
+        String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args) {
+      return next.startUpdate(updateName, waitForStage, resultClass, args);
     }
 
     @Override

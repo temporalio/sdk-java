@@ -297,7 +297,7 @@ class WorkflowStubImpl implements WorkflowStub {
       UpdateOptions<R> options =
           UpdateOptions.<R>newBuilder()
               .setUpdateName(updateName)
-              .setWaitPolicy(WorkflowUpdateStage.COMPLETED)
+              .setWaitForStage(WorkflowUpdateStage.COMPLETED)
               .setResultClass(resultClass)
               .build();
       return startUpdate(options, args).getResultAsync().get();
@@ -312,11 +312,12 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args) {
+  public <R> UpdateHandle<R> startUpdate(
+      String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args) {
     UpdateOptions<R> options =
         UpdateOptions.<R>newBuilder()
             .setUpdateName(updateName)
-            .setWaitPolicy(WorkflowUpdateStage.ACCEPTED)
+            .setWaitForStage(waitForStage)
             .setResultClass(resultClass)
             .setResultType(resultClass)
             .build();
@@ -342,7 +343,7 @@ class WorkflowStubImpl implements WorkflowStub {
                   options.getResultType(),
                   options.getFirstExecutionRunId(),
                   WaitPolicy.newBuilder()
-                      .setLifecycleStage(options.getWaitPolicy().getProto())
+                      .setLifecycleStage(options.getWaitForStage().getProto())
                       .build()));
 
       if (result.hasResult()) {
@@ -360,7 +361,7 @@ class WorkflowStubImpl implements WorkflowStub {
                 result.getReference().getWorkflowExecution(),
                 options.getResultClass(),
                 options.getResultType());
-        if (options.getWaitPolicy() == WorkflowUpdateStage.COMPLETED) {
+        if (options.getWaitForStage() == WorkflowUpdateStage.COMPLETED) {
           // Don't return the handle until completed, since that's what's been asked for
           handle.waitCompleted();
         }

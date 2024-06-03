@@ -70,7 +70,9 @@ public class UpdateTest {
 
     assertThrows(
         WorkflowNotFoundException.class,
-        () -> workflowStub.startUpdate("update", Void.class, "some-value"));
+        () ->
+            workflowStub.startUpdate(
+                "update", WorkflowUpdateStage.ACCEPTED, Void.class, "some-value"));
   }
 
   @Test
@@ -103,7 +105,9 @@ public class UpdateTest {
 
     assertThrows(
         WorkflowNotFoundException.class,
-        () -> workflowStub.startUpdate("update", Void.class, "some-value"));
+        () ->
+            workflowStub.startUpdate(
+                "update", WorkflowUpdateStage.ACCEPTED, Void.class, "some-value"));
   }
 
   @Test
@@ -131,6 +135,7 @@ public class UpdateTest {
                     .setUpdateName("update")
                     .setUpdateId(updateId)
                     .setFirstExecutionRunId(execution.getRunId())
+                    .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
                     .build(),
                 0,
                 "some-value")
@@ -146,6 +151,7 @@ public class UpdateTest {
                     .setUpdateName("update")
                     .setUpdateId(updateId)
                     .setFirstExecutionRunId(execution.getRunId())
+                    .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
                     .build(),
                 "some-other-value")
             .getResultAsync()

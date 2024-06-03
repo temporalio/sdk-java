@@ -118,7 +118,8 @@ public class UpdateTest {
     // send an update through the sync path
     assertEquals("Execute-Hello", workflowStub.update("update", String.class, 0, "Hello"));
     // send an update through the async path
-    UpdateHandle<String> updateRef = workflowStub.startUpdate("update", String.class, 0, "World");
+    UpdateHandle<String> updateRef =
+        workflowStub.startUpdate("update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "World");
     assertEquals("Execute-World", updateRef.getResultAsync().get());
     // send a bad update that will be rejected through the sync path
     assertThrows(
@@ -133,7 +134,9 @@ public class UpdateTest {
     // send a bad update that will be rejected through the sync path
     assertThrows(
         WorkflowUpdateException.class,
-        () -> workflowStub.startUpdate("update", String.class, 0, "Bad Update"));
+        () ->
+            workflowStub.startUpdate(
+                "update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "Bad Update"));
 
     workflowStub.update("complete", void.class);
 
@@ -163,7 +166,10 @@ public class UpdateTest {
                 () -> {
                   UpdateHandle<String> handle =
                       workflowStub.startUpdate(
-                          UpdateOptions.newBuilder(String.class).setUpdateName("update").build(),
+                          UpdateOptions.newBuilder(String.class)
+                              .setUpdateName("update")
+                              .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+                              .build(),
                           "Enchi");
                   updateCompletedLast.set(true);
                   try {
