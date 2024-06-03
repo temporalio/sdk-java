@@ -93,17 +93,20 @@ public interface WorkflowStub {
 
   /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a
-   * handle to the update request. Usually a update handler is a method annotated with {@link
+   * handle to the update request. Usually an update handler is a method annotated with {@link
    * io.temporal.workflow.UpdateMethod}.
    *
    * @param updateName name of the update handler. Usually it is a method name.
+   * @param waitForStage stage to wait for before returning the update handle. Admitted is not
+   *     allowed as a value.
    * @param resultClass class of the update return value
    * @param <R> type of the update return value
    * @param args update method arguments
    * @return update handle that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateHandle<R> startUpdate(String updateName, Class<R> resultClass, Object... args);
+  <R> UpdateHandle<R> startUpdate(
+      String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args);
 
   /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a

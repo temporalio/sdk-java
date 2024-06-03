@@ -33,8 +33,8 @@ public final class UpdateOptions<T> {
     return new UpdateOptions.Builder<T>().setResultClass(resultClass);
   }
 
-  public static UpdateOptions.Builder newBuilder(UpdateOptions options) {
-    return new UpdateOptions.Builder(options);
+  public static <T> UpdateOptions.Builder<T> newBuilder(UpdateOptions<T> options) {
+    return new UpdateOptions.Builder<T>(options);
   }
 
   public static UpdateOptions getDefaultInstance() {
@@ -50,7 +50,7 @@ public final class UpdateOptions<T> {
   private final String updateName;
   private final String updateId;
   private final String firstExecutionRunId;
-  private final WorkflowUpdateStage waitPolicy;
+  private final WorkflowUpdateStage waitForStage;
   private final Class<T> resultClass;
   private final Type resultType;
 
@@ -58,13 +58,13 @@ public final class UpdateOptions<T> {
       String updateName,
       String updateId,
       String firstExecutionRunId,
-      WorkflowUpdateStage waitPolicy,
+      WorkflowUpdateStage waitForStage,
       Class<T> resultClass,
       Type resultType) {
     this.updateName = updateName;
     this.updateId = updateId;
     this.firstExecutionRunId = firstExecutionRunId;
-    this.waitPolicy = waitPolicy;
+    this.waitForStage = waitForStage;
     this.resultClass = resultClass;
     this.resultType = resultType;
   }
@@ -81,8 +81,8 @@ public final class UpdateOptions<T> {
     return firstExecutionRunId;
   }
 
-  public WorkflowUpdateStage getWaitPolicy() {
-    return waitPolicy;
+  public WorkflowUpdateStage getWaitForStage() {
+    return waitForStage;
   }
 
   public Class<T> getResultClass() {
@@ -105,7 +105,7 @@ public final class UpdateOptions<T> {
     return Objects.equal(updateName, that.updateName)
         && updateId == that.updateId
         && firstExecutionRunId == that.firstExecutionRunId
-        && waitPolicy.equals(that.waitPolicy)
+        && waitForStage.equals(that.waitForStage)
         && resultClass.equals(that.resultClass)
         && resultType.equals(that.resultType);
   }
@@ -113,7 +113,7 @@ public final class UpdateOptions<T> {
   @Override
   public int hashCode() {
     return Objects.hashCode(
-        updateName, updateId, firstExecutionRunId, waitPolicy, resultClass, resultType);
+        updateName, updateId, firstExecutionRunId, waitForStage, resultClass, resultType);
   }
 
   @Override
@@ -125,8 +125,8 @@ public final class UpdateOptions<T> {
         + updateId
         + ", firstExecutionRunId="
         + firstExecutionRunId
-        + ", waitPolicy="
-        + waitPolicy
+        + ", waitForStage="
+        + waitForStage
         + ", resultClass="
         + resultClass
         + ", resultType='"
@@ -146,13 +146,19 @@ public final class UpdateOptions<T> {
     if (resultClass == null) {
       throw new IllegalStateException("resultClass must not be null");
     }
+    if (waitForStage == null) {
+      throw new IllegalStateException("waitForStage must not be null");
+    }
+    if (waitForStage.equals(WorkflowUpdateStage.ADMITTED)) {
+      throw new IllegalStateException("waitForStage cannot be ADMITTED");
+    }
   }
 
   public static final class Builder<T> {
     private String updateName;
     private String updateId;
     private String firstExecutionRunId;
-    private WorkflowUpdateStage waitPolicy;
+    private WorkflowUpdateStage waitForStage;
     private Class<T> resultClass;
     private Type resultType;
 
@@ -165,7 +171,7 @@ public final class UpdateOptions<T> {
       this.updateName = options.updateName;
       this.updateId = options.updateId;
       this.firstExecutionRunId = options.firstExecutionRunId;
-      this.waitPolicy = options.waitPolicy;
+      this.waitForStage = options.waitForStage;
       this.resultClass = options.resultClass;
       this.resultType = options.resultType;
     }
@@ -200,16 +206,17 @@ public final class UpdateOptions<T> {
 
     /**
      * Specifies at what point in the update request life cycles this request should return.
-     *
-     * <p>Default value if not set: <b>Accepted</b>
+     * Required to be set to one of the following values:
      *
      * <ul>
      *   <li><b>Accepted</b> Wait for the update to be accepted by the workflow.
      *   <li><b>Completed</b> Wait for the update to be completed by the workflow.
      * </ul>
+     *
+     * Admitted is not allowed as a value.
      */
-    public Builder<T> setWaitPolicy(WorkflowUpdateStage waitPolicy) {
-      this.waitPolicy = waitPolicy;
+    public Builder<T> setWaitForStage(WorkflowUpdateStage waitForStage) {
+      this.waitForStage = waitForStage;
       return this;
     }
 
@@ -239,7 +246,7 @@ public final class UpdateOptions<T> {
           updateName,
           updateId,
           firstExecutionRunId == null ? "" : firstExecutionRunId,
-          waitPolicy == null ? WorkflowUpdateStage.ACCEPTED : waitPolicy,
+          waitForStage,
           resultClass,
           resultType == null ? resultClass : resultType);
     }

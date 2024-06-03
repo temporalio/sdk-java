@@ -30,6 +30,7 @@ import com.google.common.base.Stopwatch;
 import io.temporal.client.UpdateHandle;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -62,7 +63,8 @@ public class UpdateTestTimeout {
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
     // Send an update that is accepted, but will not complete.
     UpdateHandle<String> handle =
-        workflowStub.startUpdate("update", String.class, 10_000, "some-value");
+        workflowStub.startUpdate(
+            "update", WorkflowUpdateStage.ACCEPTED, String.class, 10_000, "some-value");
 
     // Complete workflow, since the update is accepted it will not block completion
     workflowStub.update("complete", void.class);
@@ -81,7 +83,8 @@ public class UpdateTestTimeout {
     workflowStub.start();
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
     UpdateHandle<String> handle =
-        workflowStub.startUpdate("update", String.class, 65_000, "some-value");
+        workflowStub.startUpdate(
+            "update", WorkflowUpdateStage.ACCEPTED, String.class, 65_000, "some-value");
 
     assertEquals("some-value", handle.getResultAsync().get());
     workflowStub.update("complete", void.class);
@@ -101,7 +104,8 @@ public class UpdateTestTimeout {
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
 
     UpdateHandle<String> handle =
-        workflowStub.startUpdate("update", String.class, 10_000, "some-value");
+        workflowStub.startUpdate(
+            "update", WorkflowUpdateStage.ACCEPTED, String.class, 10_000, "some-value");
 
     CompletableFuture<String> result = handle.getResultAsync(2, TimeUnit.SECONDS);
     // Verify get throws the correct exception in around the right amount of time

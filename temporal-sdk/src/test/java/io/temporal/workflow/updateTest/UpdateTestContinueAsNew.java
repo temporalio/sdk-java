@@ -83,7 +83,7 @@ public class UpdateTestContinueAsNew {
 
     // Send an update to continue as new, must be async since the update won't complete
     WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
-    workflowStub.startUpdate("update", String.class, 0, "");
+    workflowStub.startUpdate("update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "");
 
     testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     testWorkflowRule.invalidateWorkflowCache();
