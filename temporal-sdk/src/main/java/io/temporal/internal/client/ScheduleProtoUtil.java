@@ -105,7 +105,7 @@ public class ScheduleProtoUtil {
       }
       if (wfOptions.getWorkflowIdConflictPolicy() != null) {
         throw new IllegalArgumentException(
-                "ID conflict policy cannot change from default for scheduled workflow");
+            "ID conflict policy cannot change from default for scheduled workflow");
       }
       // Validate required options
       if (wfOptions.getWorkflowId() == null || wfOptions.getWorkflowId().isEmpty()) {
