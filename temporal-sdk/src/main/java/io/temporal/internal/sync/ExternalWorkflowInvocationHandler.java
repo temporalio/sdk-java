@@ -66,8 +66,8 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
         break;
       case UPDATE:
         throw new UnsupportedOperationException(
-                "Cannot update a workflow with an external workflow stub "
-                        + "created through Workflow.newExternalWorkflowStub");
+            "Cannot update a workflow with an external workflow stub "
+                + "created through Workflow.newExternalWorkflowStub");
       default:
         throw new IllegalStateException("unreachable");
     }
