@@ -64,8 +64,12 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
       case SIGNAL:
         stub.signal(methodMetadata.getName(), args);
         break;
+      case UPDATE:
+        throw new UnsupportedOperationException(
+                "Cannot update a workflow with an external workflow stub "
+                        + "created through Workflow.newExternalWorkflowStub");
       default:
-        throw new IllegalStateException("unreachale");
+        throw new IllegalStateException("unreachable");
     }
     return null;
   }
