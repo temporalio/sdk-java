@@ -115,6 +115,36 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return rpcRetryOptions;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    WorkflowServiceStubsOptions that = (WorkflowServiceStubsOptions) o;
+    return disableHealthCheck == that.disableHealthCheck
+        && Objects.equals(rpcLongPollTimeout, that.rpcLongPollTimeout)
+        && Objects.equals(rpcQueryTimeout, that.rpcQueryTimeout)
+        && Objects.equals(rpcRetryOptions, that.rpcRetryOptions);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(disableHealthCheck, rpcLongPollTimeout, rpcQueryTimeout, rpcRetryOptions);
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowServiceStubsOptions{"
+        + "disableHealthCheck="
+        + disableHealthCheck
+        + ", rpcLongPollTimeout="
+        + rpcLongPollTimeout
+        + ", rpcQueryTimeout="
+        + rpcQueryTimeout
+        + ", rpcRetryOptions="
+        + rpcRetryOptions
+        + '}';
+  }
+
   /** Builder is the builder for ClientOptions. */
   public static class Builder extends ServiceStubsOptions.Builder<Builder> {
     private boolean disableHealthCheck = true;

@@ -323,6 +323,97 @@ public class ServiceStubsOptions {
     return metricsScope;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ServiceStubsOptions that = (ServiceStubsOptions) o;
+    return enableHttps == that.enableHttps
+        && enableKeepAlive == that.enableKeepAlive
+        && keepAlivePermitWithoutStream == that.keepAlivePermitWithoutStream
+        && Objects.equals(channel, that.channel)
+        && Objects.equals(target, that.target)
+        && Objects.equals(channelInitializer, that.channelInitializer)
+        && Objects.equals(sslContext, that.sslContext)
+        && Objects.equals(healthCheckAttemptTimeout, that.healthCheckAttemptTimeout)
+        && Objects.equals(healthCheckTimeout, that.healthCheckTimeout)
+        && Objects.equals(keepAliveTime, that.keepAliveTime)
+        && Objects.equals(keepAliveTimeout, that.keepAliveTimeout)
+        && Objects.equals(rpcTimeout, that.rpcTimeout)
+        && Objects.equals(connectionBackoffResetFrequency, that.connectionBackoffResetFrequency)
+        && Objects.equals(grpcReconnectFrequency, that.grpcReconnectFrequency)
+        && Objects.equals(headers, that.headers)
+        && Objects.equals(grpcMetadataProviders, that.grpcMetadataProviders)
+        && Objects.equals(grpcClientInterceptors, that.grpcClientInterceptors)
+        && Objects.equals(metricsScope, that.metricsScope);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        channel,
+        target,
+        channelInitializer,
+        enableHttps,
+        sslContext,
+        healthCheckAttemptTimeout,
+        healthCheckTimeout,
+        enableKeepAlive,
+        keepAliveTime,
+        keepAliveTimeout,
+        keepAlivePermitWithoutStream,
+        rpcTimeout,
+        connectionBackoffResetFrequency,
+        grpcReconnectFrequency,
+        headers,
+        grpcMetadataProviders,
+        grpcClientInterceptors,
+        metricsScope);
+  }
+
+  @Override
+  public String toString() {
+    return "ServiceStubsOptions{"
+        + "channel="
+        + channel
+        + ", target='"
+        + target
+        + '\''
+        + ", channelInitializer="
+        + channelInitializer
+        + ", enableHttps="
+        + enableHttps
+        + ", sslContext="
+        + sslContext
+        + ", healthCheckAttemptTimeout="
+        + healthCheckAttemptTimeout
+        + ", healthCheckTimeout="
+        + healthCheckTimeout
+        + ", enableKeepAlive="
+        + enableKeepAlive
+        + ", keepAliveTime="
+        + keepAliveTime
+        + ", keepAliveTimeout="
+        + keepAliveTimeout
+        + ", keepAlivePermitWithoutStream="
+        + keepAlivePermitWithoutStream
+        + ", rpcTimeout="
+        + rpcTimeout
+        + ", connectionBackoffResetFrequency="
+        + connectionBackoffResetFrequency
+        + ", grpcReconnectFrequency="
+        + grpcReconnectFrequency
+        + ", headers="
+        + headers
+        + ", grpcMetadataProviders="
+        + grpcMetadataProviders
+        + ", grpcClientInterceptors="
+        + grpcClientInterceptors
+        + ", metricsScope="
+        + metricsScope
+        + '}';
+  }
+
   public static class Builder<T extends Builder<T>> {
     private ManagedChannel channel;
     private SslContext sslContext;
