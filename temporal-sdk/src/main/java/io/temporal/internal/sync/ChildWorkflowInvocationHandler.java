@@ -90,7 +90,12 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     if (type == WorkflowMethodType.QUERY) {
       throw new UnsupportedOperationException(
           "Query is not supported from workflow to workflow. "
-              + "Use activity that perform the query instead.");
+              + "Use an activity that performs the query instead.");
+    }
+    if (type == WorkflowMethodType.UPDATE) {
+      throw new UnsupportedOperationException(
+          "Update is not supported from workflow to workflow. "
+              + "Use an activity that performs the update instead.");
     }
     throw new IllegalArgumentException("unreachable");
   }
