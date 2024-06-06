@@ -139,7 +139,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 workflowTask.getWorkflowType().getName(),
                 workflowTask,
                 wftResult,
-                workflowRunTaskHandler::setCurrentStartedEvenId);
+                workflowRunTaskHandler::resetStartedEvenId);
       }
 
       if (useCache) {

@@ -217,21 +217,21 @@ public final class WorkflowStateMachines {
    *     and triggered an execution. Used in {@link WorkflowTaskStateMachine} only to understand
    *     that this workflow task will not have a matching closing event and needs to be executed.
    */
-  public void setWorklfowStartedEventId(long workflowTaskStartedEventId) {
+  public void setWorkflowStartedEventId(long workflowTaskStartedEventId) {
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
   }
 
-  public void setLastWFTStartedEventId(long eventId) {
+  public void resetStartedEvenId(long eventId) {
+    // When we reset the event ID on a speculative WFT we need to move this counter back
+    // to account for the speculative WFT.
+    long resetLastHandledEventId = this.lastHandledEventId - 2;
     // We have to drop any state machines (which should only be one workflow task machine)
     // created when handling the speculative workflow task
-    for (long i = this.lastHandledEventId; i > eventId; i--) {
+    for (long i = this.lastHandledEventId; i > resetLastHandledEventId; i--) {
       stateMachines.remove(i);
     }
     this.lastWFTStartedEventId = eventId;
-    // When we reset the event ID on a speculative WFT we need to move this counter back
-    // to the last WFT completed to allow new tasks to be processed. Assume the WFT complete
-    // always follows the WFT started.
-    this.lastHandledEventId = eventId + 1;
+    this.lastHandledEventId = resetLastHandledEventId;
   }
 
   public long getLastWFTStartedEventId() {

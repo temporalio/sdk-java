@@ -41,7 +41,7 @@ public interface WorkflowTaskHandler {
     private final RespondQueryTaskCompletedRequest queryCompleted;
     private final RpcRetryOptions requestRetryOptions;
     private final boolean completionCommand;
-    private final Functions.Proc1<Long> eventIdSetHandle;
+    private final Functions.Proc1<Long> resetEventIdHandle;
 
     public Result(
         String workflowType,
@@ -50,14 +50,14 @@ public interface WorkflowTaskHandler {
         RespondQueryTaskCompletedRequest queryCompleted,
         RpcRetryOptions requestRetryOptions,
         boolean completionCommand,
-        Functions.Proc1<Long> eventIdSetHandle) {
+        Functions.Proc1<Long> resetEventIdHandle) {
       this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
       this.requestRetryOptions = requestRetryOptions;
       this.completionCommand = completionCommand;
-      this.eventIdSetHandle = eventIdSetHandle;
+      this.resetEventIdHandle = resetEventIdHandle;
     }
 
     public RespondWorkflowTaskCompletedRequest getTaskCompleted() {
@@ -80,9 +80,9 @@ public interface WorkflowTaskHandler {
       return completionCommand;
     }
 
-    public Functions.Proc1<Long> getEventIdSetHandle() {
-      if (eventIdSetHandle != null) {
-        return eventIdSetHandle;
+    public Functions.Proc1<Long> getResetEventIdHandle() {
+      if (resetEventIdHandle != null) {
+        return resetEventIdHandle;
       }
       return (arg) -> {};
     }

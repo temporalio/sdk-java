@@ -218,14 +218,14 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public void setCurrentStartedEvenId(Long eventId) {
-    workflowStateMachines.setLastWFTStartedEventId(eventId);
+  public void resetStartedEvenId(Long eventId) {
+    workflowStateMachines.resetStartedEvenId(eventId);
   }
 
   private void handleWorkflowTaskImpl(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       WorkflowHistoryIterator historyIterator) {
-    workflowStateMachines.setWorklfowStartedEventId(workflowTask.getStartedEventId());
+    workflowStateMachines.setWorkflowStartedEventId(workflowTask.getStartedEventId());
     workflowStateMachines.setReplaying(workflowTask.getPreviousStartedEventId() > 0);
     workflowStateMachines.setMessages(workflowTask.getMessagesList());
     applyServerHistory(workflowTask.getStartedEventId(), historyIterator);
