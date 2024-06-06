@@ -75,7 +75,6 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   public CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit) {
 
     WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> pollCall = null;
-    boolean setFromWaitCompleted = false;
 
     // If waitCompleted was called, use the result from that call.
     synchronized (this) {
@@ -85,7 +84,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
       }
     }
 
-    if (!setFromWaitCompleted) {
+    if (pollCall != null) {
       pollCall = pollUntilComplete(timeout, unit);
     }
 
