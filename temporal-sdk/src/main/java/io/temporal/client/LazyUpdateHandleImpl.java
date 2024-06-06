@@ -84,7 +84,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
       }
     }
 
-    if (pollCall != null) {
+    if (pollCall == null) {
       pollCall = pollUntilComplete(timeout, unit);
     }
 
