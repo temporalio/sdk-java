@@ -51,6 +51,10 @@ class TestHistoryBuilder {
     return this;
   }
 
+  History getHistory() {
+    return History.newBuilder().addAllEvents(events).build();
+  }
+
   long addGetEventId(EventType type) {
     return addGetEventId(type, null);
   }

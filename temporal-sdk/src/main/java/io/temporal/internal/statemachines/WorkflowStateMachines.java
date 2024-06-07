@@ -222,8 +222,11 @@ public final class WorkflowStateMachines {
   }
 
   public void resetStartedEvenId(long eventId) {
-    // When we reset the event ID on a speculative WFT we need to move this counter back
-    // to account for the speculative WFT.
+    // We must reset the last event we handled to be after the last WFT we really completed
+    // + any command events (since the SDK "processed" those when it emitted the commands). This
+    // is also equal to what we just processed in the speculative task, minus two, since we
+    // would've just handled the most recent WFT started event, and we need to drop that & the
+    // schedule event just before it.
     long resetLastHandledEventId = this.lastHandledEventId - 2;
     // We have to drop any state machines (which should only be one workflow task machine)
     // created when handling the speculative workflow task
