@@ -51,6 +51,10 @@ class TestHistoryBuilder {
     return this;
   }
 
+  History getHistory() {
+    return History.newBuilder().addAllEvents(events).build();
+  }
+
   long addGetEventId(EventType type) {
     return addGetEventId(type, null);
   }
@@ -293,7 +297,7 @@ class TestHistoryBuilder {
         this.events.subList((int) stateMachines.getLastStartedEventId(), this.events.size());
     PeekingIterator<HistoryEvent> history = Iterators.peekingIterator(events.iterator());
     HistoryInfo info = getHistoryInfo(replayToTaskIndex);
-    stateMachines.setWorklfowStartedEventId(info.getWorkflowTaskStartedEventId());
+    stateMachines.setWorkflowStartedEventId(info.getWorkflowTaskStartedEventId());
     stateMachines.setReplaying(info.getPreviousStartedEventId() > 0);
 
     long wftStartedEventId = -1;

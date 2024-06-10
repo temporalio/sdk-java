@@ -363,7 +363,7 @@ final class WorkflowWorker implements SuspendableWorker {
                 // was dropped by resting out event ID.
                 long resetEventId = response.getResetHistoryEventId();
                 if (resetEventId != 0) {
-                  result.getEventIdSetHandle().apply(resetEventId);
+                  result.getResetEventIdHandle().apply(resetEventId);
                 }
                 nextWFTResponse =
                     response.hasWorkflowTask()

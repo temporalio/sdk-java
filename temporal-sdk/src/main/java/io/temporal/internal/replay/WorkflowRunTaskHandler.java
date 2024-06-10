@@ -57,11 +57,11 @@ public interface WorkflowRunTaskHandler {
       throws Throwable;
 
   /**
-   * Reset the workflow event Id.
+   * Reset the workflow event ID.
    *
-   * @param eventId the event Id to reset the cached state to.
+   * @param eventId the event ID to reset the cached state to.
    */
-  void setCurrentStartedEvenId(Long eventId);
+  void resetStartedEvenId(Long eventId);
 
   void close();
 }

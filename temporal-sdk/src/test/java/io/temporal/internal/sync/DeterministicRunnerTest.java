@@ -809,7 +809,7 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public void setCurrentStartedEvenId(Long event) {}
+    public void resetStartedEvenId(Long event) {}
 
     @Override
     public void close() {

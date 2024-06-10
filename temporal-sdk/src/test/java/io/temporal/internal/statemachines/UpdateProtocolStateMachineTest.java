@@ -452,6 +452,130 @@ public class UpdateProtocolStateMachineTest {
   }
 
   @Test
+  public void testUpdateRejectedAndReset() throws InvalidProtocolBufferException {
+    class TestUpdateListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder.<HistoryEvent>add1(
+            (v, c) ->
+                stateMachines.newTimer(
+                    StartTimerCommandAttributes.newBuilder()
+                        .setTimerId("timer1")
+                        .setStartToFireTimeout(
+                            ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
+                        .build(),
+                    c));
+      }
+
+      @Override
+      protected void update(UpdateMessage message, AsyncWorkflowBuilder<Void> builder) {
+        builder.add(
+            (r) -> {
+              message
+                  .getCallbacks()
+                  .reject(converter.exceptionToFailure(new RuntimeException("test failure")));
+            });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        builder.<HistoryEvent>add1(
+            (v, c) ->
+                stateMachines.newTimer(
+                    StartTimerCommandAttributes.newBuilder()
+                        .setTimerId("timer2")
+                        .setStartToFireTimeout(
+                            ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
+                        .build(),
+                    c));
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_TIMER_STARTED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+
+    TestHistoryBuilder h = new TestHistoryBuilder();
+    {
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      h.addWorkflowTask();
+      h.add(
+          EventType.EVENT_TYPE_TIMER_STARTED,
+          TimerStartedEventAttributes.newBuilder().setTimerId("timer1"));
+      h.addWorkflowTaskScheduled();
+      h.addWorkflowTaskStarted();
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestUpdateListener();
+      stateMachines = newStateMachines(listener);
+      Request request =
+          Request.newBuilder()
+              .setInput(
+                  Input.newBuilder()
+                      .setName("updateName")
+                      .setArgs(converter.toPayloads("arg").get()))
+              .build();
+      stateMachines.setMessages(
+          Collections.unmodifiableList(
+              Arrays.asList(
+                  new Message[] {
+                    Message.newBuilder()
+                        .setProtocolInstanceId("protocol_id")
+                        .setId("id")
+                        .setEventId(6)
+                        .setBody(Any.pack(request))
+                        .build(),
+                  })));
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertEquals(0, commands.size());
+      List<Message> messages = stateMachines.takeMessages();
+      assertEquals(1, messages.size());
+      Rejection rejection = messages.get(0).getBody().unpack(Rejection.class);
+      assertNotNull(rejection);
+      assertEquals(request, rejection.getRejectedRequest());
+      // Simulate the server request to reset the workflow event ID
+      stateMachines.resetStartedEvenId(3);
+      // Create a new history after the reset event ID
+      /*
+          1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+          2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+          3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+          4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+          5: EVENT_TYPE_TIMER_STARTED
+          6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+          7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+          8: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      */
+      TestHistoryBuilder historyAfterReset = new TestHistoryBuilder();
+      historyAfterReset.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+      historyAfterReset.addWorkflowTask();
+      historyAfterReset.add(
+          EventType.EVENT_TYPE_TIMER_STARTED,
+          TimerStartedEventAttributes.newBuilder().setTimerId("timer1"));
+      historyAfterReset.add(
+          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+          WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"));
+      historyAfterReset.addWorkflowTaskScheduled();
+      historyAfterReset.addWorkflowTaskStarted();
+      // Test new history with the old workflow state machines
+      commands = historyAfterReset.handleWorkflowTaskTakeCommands(stateMachines, 1, 2);
+      assertEquals(1, commands.size());
+      messages = stateMachines.takeMessages();
+      assertEquals(0, messages.size());
+    }
+  }
+
+  @Test
   public void testUpdateAdmittedAndCompletedImmediately() {
     class TestUpdateListener extends TestEntityManagerListenerBase {
 

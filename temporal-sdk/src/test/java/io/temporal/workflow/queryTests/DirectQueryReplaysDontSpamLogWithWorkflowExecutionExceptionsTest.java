@@ -108,6 +108,7 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
         workflowCodeExecutionCount.get());
 
     workflow.mySignal("exit");
+    assertEquals("exit", workflow.execute());
     assertEquals("my-state", workflow.getState());
     assertEquals(
         "There was three executions - one original and two full replays for query.",
