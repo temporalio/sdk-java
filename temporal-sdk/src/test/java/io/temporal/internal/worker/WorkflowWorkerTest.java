@@ -403,7 +403,7 @@ public class WorkflowWorkerTest {
     // Assert that the reset event id is received by WorkflowTaskHandler
     assertEquals(Long.valueOf(1), resetEventIdQueue.take());
     // Cleanup
-    worker.shutdown(new ShutdownManager(), false).get();
+    worker.shutdown(new ShutdownManager(), true).get();
   }
 
   private ReplayWorkflowFactory setUpMockWorkflowFactory() throws Throwable {
