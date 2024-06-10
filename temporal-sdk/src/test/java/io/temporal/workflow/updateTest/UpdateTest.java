@@ -21,9 +21,14 @@
 package io.temporal.workflow.updateTest;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.*;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.ResetReapplyExcludeType;
+import io.temporal.api.enums.v1.ResetReapplyType;
+import io.temporal.api.workflowservice.v1.ResetWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.ResetWorkflowExecutionResponse;
 import io.temporal.client.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -35,10 +40,7 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -141,6 +143,53 @@ public class UpdateTest {
     workflowStub.update("complete", void.class);
 
     assertEquals("Execute-Hello Execute-World", workflowStub.getResult(String.class));
+  }
+
+  @Test
+  public void testUpdateResets() {
+    assumeTrue(
+        "Test Server doesn't support reset workflow", SDKTestWorkflowRule.useExternalService);
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setWorkflowId(workflowId)
+            .build();
+    WorkflowWithUpdate workflow = workflowClient.newWorkflowStub(WorkflowWithUpdate.class, options);
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+
+    SDKTestWorkflowRule.waitForOKQuery(workflow);
+    assertEquals("initial", workflow.getState());
+
+    assertEquals(workflowId, execution.getWorkflowId());
+
+    assertEquals("Execute-Hello Update", workflow.update(0, "Hello Update"));
+
+    // Reset the workflow
+    ResetWorkflowExecutionResponse resetResponse =
+        workflowClient
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .resetWorkflowExecution(
+                ResetWorkflowExecutionRequest.newBuilder()
+                    .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                    .setReason("Integration test")
+                    .setWorkflowExecution(execution)
+                    .setWorkflowTaskFinishEventId(4)
+                    .setRequestId(UUID.randomUUID().toString())
+                    .setResetReapplyType(ResetReapplyType.RESET_REAPPLY_TYPE_ALL_ELIGIBLE)
+                    .addAllResetReapplyExcludeTypes(
+                        Collections.singletonList(
+                            ResetReapplyExcludeType.RESET_REAPPLY_EXCLUDE_TYPE_SIGNAL))
+                    .build());
+    // Create a new workflow stub with the new run ID
+    workflow =
+        workflowClient.newWorkflowStub(
+            WorkflowWithUpdate.class, workflowId, Optional.of(resetResponse.getRunId()));
+    assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
+    // Complete would throw an exception if the update was not applied to the reset workflow.
+    workflow.complete();
+    assertEquals("Execute-Hello Update Execute-Hello Update 2", workflow.execute());
   }
 
   @Test
