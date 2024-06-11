@@ -20,16 +20,59 @@
 
 package io.temporal.worker.tuning;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
-public class ResourceBasedSlotsForType<SI extends SlotInfo> implements SlotSupplier<SI> {
+public class ResourceBasedSlotsForType<SI extends SlotInfo, RI extends SystemResourceInfo>
+    implements SlotSupplier<SI> {
+
+  private final ResourceController<RI> resourceController;
+  private final ResourceBasedSlotOptions options;
+  private final Instant lastSlotIssuedAt = Instant.EPOCH;
+
+  public ResourceBasedSlotsForType(
+      ResourceController<RI> resourceController, ResourceBasedSlotOptions options) {
+    this.resourceController = resourceController;
+    this.options = options;
+  }
+
   @Override
   public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    return null;
+    while (true) {
+      if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
+        return new SlotPermit();
+      } else {
+        Duration mustWaitFor;
+        try {
+          mustWaitFor = options.getRampThrottle().minus(timeSinceLastSlotIssued());
+        } catch (ArithmeticException e) {
+          mustWaitFor = Duration.ZERO;
+        }
+        if (mustWaitFor.compareTo(Duration.ZERO) > 0) {
+          Thread.sleep(mustWaitFor.toMillis());
+        }
+
+        Optional<SlotPermit> permit = tryReserveSlot(ctx);
+        if (permit.isPresent()) {
+          return permit.get();
+        } else {
+          Thread.sleep(10);
+        }
+      }
+    }
   }
 
   @Override
   public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx) {
+    int numIssued = ctx.getNumIssuedSlots();
+    if (numIssued < options.getMinimumSlots()
+        || (timeSinceLastSlotIssued().compareTo(options.getRampThrottle()) > 0
+            && numIssued < options.getMaximumSlots()
+            && resourceController.pidDecision()
+            && resourceController.canReserve())) {
+      return Optional.of(new SlotPermit());
+    }
     return Optional.empty();
   }
 
@@ -38,4 +81,8 @@ public class ResourceBasedSlotsForType<SI extends SlotInfo> implements SlotSuppl
 
   @Override
   public void releaseSlot(SlotReleaseContext<SI> ctx) {}
+
+  private Duration timeSinceLastSlotIssued() {
+    return Duration.between(lastSlotIssuedAt, Instant.now());
+  }
 }

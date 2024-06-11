@@ -22,11 +22,11 @@ package io.temporal.worker.tuning;
 
 import com.google.common.base.Preconditions;
 
-public class ResourceBasedSlotsOptions {
+public class ResourceBasedControllerOptions {
 
-  public static ResourceBasedSlotsOptions.Builder newBuilder(
+  public static ResourceBasedControllerOptions.Builder newBuilder(
       double targetMemoryUsage, double targetCPUUsage) {
-    return new ResourceBasedSlotsOptions.Builder()
+    return new ResourceBasedControllerOptions.Builder()
         .setTargetMemoryUsage(targetMemoryUsage)
         .setTargetCPUUsage(targetCPUUsage);
   }
@@ -93,11 +93,11 @@ public class ResourceBasedSlotsOptions {
       return this;
     }
 
-    public ResourceBasedSlotsOptions build() {
+    public ResourceBasedControllerOptions build() {
       Preconditions.checkState(
           targetMemoryUsage > 0, "targetMemoryUsage must be set and greater than 0");
       Preconditions.checkState(targetCPUUsage > 0, "targetCPUUsage must be set and greater than 0");
-      return new ResourceBasedSlotsOptions(this);
+      return new ResourceBasedControllerOptions(this);
     }
   }
 
@@ -114,7 +114,7 @@ public class ResourceBasedSlotsOptions {
   private final double cpuDGain;
   private final double cpuOutputThreshold;
 
-  private ResourceBasedSlotsOptions(Builder builder) {
+  private ResourceBasedControllerOptions(Builder builder) {
     this.targetMemoryUsage = builder.targetMemoryUsage;
     this.targetCPUUsage = builder.targetCPUUsage;
     this.memoryPGain = builder.memoryPGain;
