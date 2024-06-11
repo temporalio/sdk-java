@@ -20,22 +20,24 @@
 
 package io.temporal.worker.tuning;
 
-import java.util.Optional;
+import javax.annotation.Nonnull;
 
-public class ResourceBasedSlotsForType<SI extends SlotInfo> implements SlotSupplier<SI> {
-  @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    return null;
-  }
+public interface WorkerTuner {
+  /**
+   * @return A {@link SlotSupplier} for workflow tasks.
+   */
+  @Nonnull
+  SlotSupplier<WorkflowSlotInfo> getWorkflowTaskSlotSupplier();
 
-  @Override
-  public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx) {
-    return Optional.empty();
-  }
+  /**
+   * @return A {@link SlotSupplier} for activity tasks.
+   */
+  @Nonnull
+  SlotSupplier<ActivitySlotInfo> getActivityTaskSlotSupplier();
 
-  @Override
-  public void markSlotUsed(SlotMarkUsedContext<SI> ctx) {}
-
-  @Override
-  public void releaseSlot(SlotReleaseContext<SI> ctx) {}
+  /**
+   * @return A {@link SlotSupplier} for local activities.
+   */
+  @Nonnull
+  SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier();
 }
