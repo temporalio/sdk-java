@@ -36,11 +36,9 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -79,7 +77,6 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     // Act
     WorkflowTaskHandler.Result result =
         taskHandler.handleWorkflowTask(HistoryUtils.generateWorkflowTaskWithInitialHistory());
-
     // Assert
     assertEquals(0, cache.size());
     assertNotNull(result.getTaskCompleted());
@@ -140,6 +137,41 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assertEquals(
         "Premature end of stream, expectedLastEventID=3 but no more events after eventID=2",
         result.getTaskFailed().getFailure().getMessage());
+  }
+
+  @Test
+  public void localActivityMeteringHelper() {
+    ReplayWorkflowRunTaskHandler.LocalActivityMeteringHelper laMeteringHelper =
+        new ReplayWorkflowRunTaskHandler.LocalActivityMeteringHelper();
+    ExecuteLocalActivityParameters executeLA =
+        new ExecuteLocalActivityParameters(
+            PollActivityTaskQueueResponse.newBuilder().setActivityId("1"),
+            null,
+            0,
+            null,
+            false,
+            null);
+    laMeteringHelper.addNewLocalActivity(executeLA);
+    laMeteringHelper.addNewLocalActivity(
+        new ExecuteLocalActivityParameters(
+            PollActivityTaskQueueResponse.newBuilder().setActivityId("2"),
+            null,
+            0,
+            null,
+            false,
+            null));
+    for (int i = 0; i < 5; i++) {
+      executeLA.getOnNewAttemptCallback().apply();
+    }
+    // Verify retries are not counted for the first task
+    assertEquals(0, laMeteringHelper.getNonfirstAttempts());
+    laMeteringHelper.newWFTStarting();
+    assertEquals(0, laMeteringHelper.getNonfirstAttempts());
+    // Verify retries are counted for the non first task
+    for (int i = 0; i < 5; i++) {
+      executeLA.getOnNewAttemptCallback().apply();
+    }
+    assertEquals(5, laMeteringHelper.getNonfirstAttempts());
   }
 
   @Test
