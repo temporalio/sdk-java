@@ -1,3 +1,23 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.temporal.worker;
 
 import io.temporal.activity.ActivityInterface;
@@ -12,19 +32,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class ResourceBasedTunerTests {
-  ResourceController<JVMSystemResourceInfo> resourceController =
-      ResourceController.newSystemInfoController(
-          ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
-
-  SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier =
-      new ResourceBasedSlotsForType<>(
-          resourceController, new ResourceBasedSlotOptions(2, 500, Duration.ofSeconds(0)));
-  SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
-      new ResourceBasedSlotsForType<>(
-          resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
-  SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-      new ResourceBasedSlotsForType<>(
-          resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -32,10 +39,8 @@ public class ResourceBasedTunerTests {
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setWorkerTuner(
-                      new TunerHolder(
-                          workflowTaskSlotSupplier,
-                          activityTaskSlotSupplier,
-                          localActivitySlotSupplier))
+                      new ResourceBasedTuner(
+                          ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build()))
                   .build())
           .setActivityImplementations(new ActivitiesImpl())
           .setWorkflowTypes(ResourceTunerWorkflowImpl.class)

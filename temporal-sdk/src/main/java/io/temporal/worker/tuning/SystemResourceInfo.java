@@ -20,6 +20,7 @@
 
 package io.temporal.worker.tuning;
 
+/** Implementors determine how resource usage is measured. */
 public interface SystemResourceInfo {
   /**
    * @return System-wide CPU usage as a percentage [0.0, 1.0]

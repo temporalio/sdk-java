@@ -59,10 +59,10 @@ public class WorkerOptionsTest {
 
     SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
     SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
-        new ResourceBasedSlotsForType<>(
+        new ResourceBasedSlotSupplier<>(
             resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
     SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new ResourceBasedSlotsForType<>(
+        new ResourceBasedSlotSupplier<>(
             resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
 
     WorkerOptions.newBuilder()
@@ -83,10 +83,10 @@ public class WorkerOptionsTest {
 
     SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
     SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
-        new ResourceBasedSlotsForType<>(
+        new ResourceBasedSlotSupplier<>(
             resourceController1, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
     SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new ResourceBasedSlotsForType<>(
+        new ResourceBasedSlotSupplier<>(
             resourceController2, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
 
     assertThrows(

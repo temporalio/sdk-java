@@ -24,14 +24,21 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 
-public class ResourceBasedSlotsForType<SI extends SlotInfo, RI extends SystemResourceInfo>
+/** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
+public class ResourceBasedSlotSupplier<SI extends SlotInfo, RI extends SystemResourceInfo>
     implements SlotSupplier<SI> {
 
   private final ResourceController<RI> resourceController;
   private final ResourceBasedSlotOptions options;
   private final Instant lastSlotIssuedAt = Instant.EPOCH;
 
-  public ResourceBasedSlotsForType(
+  /**
+   * Construct a slot supplier with the given resource controller and options.
+   *
+   * <p>The resource controller must be the same among all slot suppliers in a worker. If you want
+   * to use resource-based tuning for all slot suppliers, prefer {@link ResourceBasedTuner}.
+   */
+  public ResourceBasedSlotSupplier(
       ResourceController<RI> resourceController, ResourceBasedSlotOptions options) {
     this.resourceController = resourceController;
     this.options = options;

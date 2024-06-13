@@ -20,6 +20,15 @@
 
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
+
+/**
+ * Is used by {@link ResourceBasedSlotSupplier} and {@link ResourceBasedTuner} to make decisions
+ * about whether slots should be handed out based on system resource usage.
+ *
+ * @param <RI> How this controller obtains system resource information
+ */
+@Experimental
 public class ResourceController<RI extends SystemResourceInfo> {
   public final ResourceBasedControllerOptions options;
 
@@ -27,11 +36,19 @@ public class ResourceController<RI extends SystemResourceInfo> {
   private final PIDController cpuController;
   private final RI systemInfoSupplier;
 
+  /**
+   * Construct a controller with the given options. If you want to use resource-based tuning for all
+   * slot suppliers, prefer {@link ResourceBasedTuner}.
+   */
   public static ResourceController<JVMSystemResourceInfo> newSystemInfoController(
       ResourceBasedControllerOptions options) {
     return new ResourceController<>(options, new JVMSystemResourceInfo());
   }
 
+  /**
+   * Construct a controller with the given options and system info supplier. Users should prefer
+   * {@link #newSystemInfoController(ResourceBasedControllerOptions)}.
+   */
   public ResourceController(ResourceBasedControllerOptions options, RI systemInfoSupplier) {
     this.options = options;
     this.systemInfoSupplier = systemInfoSupplier;

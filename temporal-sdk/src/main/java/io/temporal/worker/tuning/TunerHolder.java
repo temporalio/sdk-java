@@ -20,9 +20,15 @@
 
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
+/**
+ * Can be used to create a {@link WorkerTuner} which uses specific {@link SlotSupplier}s for each
+ * type of slot.
+ */
+@Experimental
 public class TunerHolder implements WorkerTuner {
   private final @Nonnull SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier;
   private final @Nonnull SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier;
@@ -62,12 +68,12 @@ public class TunerHolder implements WorkerTuner {
 
   private <T extends SlotInfo, U extends SlotInfo> void validateResourceController(
       @Nonnull SlotSupplier<T> supplier1, @Nonnull SlotSupplier<U> supplier2) {
-    if (supplier1 instanceof ResourceBasedSlotsForType
-        && supplier2 instanceof ResourceBasedSlotsForType) {
+    if (supplier1 instanceof ResourceBasedSlotSupplier
+        && supplier2 instanceof ResourceBasedSlotSupplier) {
       ResourceController<?> controller1 =
-          ((ResourceBasedSlotsForType<?, ?>) supplier1).getResourceController();
+          ((ResourceBasedSlotSupplier<?, ?>) supplier1).getResourceController();
       ResourceController<?> controller2 =
-          ((ResourceBasedSlotsForType<?, ?>) supplier2).getResourceController();
+          ((ResourceBasedSlotSupplier<?, ?>) supplier2).getResourceController();
       if (controller1 != controller2) {
         throw new IllegalArgumentException(
             "All resource-based slot suppliers must use the same ResourceController");

@@ -27,7 +27,7 @@ package io.temporal.worker.tuning;
  *
  * @author Charles Grassin
  */
-public class PIDController {
+class PIDController {
   // PID coefficients
   private double setPoint;
   private double kP, kI, kD;
@@ -48,7 +48,7 @@ public class PIDController {
    * @param kI The integral gain coefficient.
    * @param kD The derivative gain coefficient.
    */
-  public PIDController(final double setPoint, final double kP, final double kI, final double kD) {
+  PIDController(final double setPoint, final double kP, final double kI, final double kD) {
     this.setSetpoint(setPoint);
     this.kP = kP;
     this.kI = kI;
@@ -63,7 +63,7 @@ public class PIDController {
    * @param currentValue The current, measured value.
    * @return The PID controller output.
    */
-  public double getOutput(final double currentTime, final double currentValue) {
+  double getOutput(final double currentTime, final double currentValue) {
     final double error = setPoint - currentValue;
     final double dt = (!Double.isNaN(previousTime)) ? (currentTime - previousTime) : 0;
 
@@ -79,7 +79,7 @@ public class PIDController {
   }
 
   /** Resets the integral and derivative errors. */
-  public void reset() {
+  void reset() {
     previousTime = 0;
     lastError = 0;
     integralError = 0;
@@ -106,7 +106,7 @@ public class PIDController {
    * @param minLimit The lower limit of the PID output.
    * @param maxLimit The upper limit of the PID output.
    */
-  public void setOuputLimits(final double minLimit, final double maxLimit) {
+  void setOuputLimits(final double minLimit, final double maxLimit) {
     if (minLimit < maxLimit) {
       this.minLimit = minLimit;
       this.maxLimit = maxLimit;
@@ -117,7 +117,7 @@ public class PIDController {
   }
 
   /** Removes the output limits of the PID controller */
-  public void removeOuputLimits() {
+  void removeOuputLimits() {
     this.minLimit = Double.NaN;
     this.maxLimit = Double.NaN;
   }
@@ -132,7 +132,7 @@ public class PIDController {
   /**
    * @param kP the kP parameter to set
    */
-  public void setkP(double kP) {
+  void setkP(double kP) {
     this.kP = kP;
     reset();
   }
@@ -140,14 +140,14 @@ public class PIDController {
   /**
    * @return the kI parameter
    */
-  public double getkI() {
+  double getkI() {
     return kI;
   }
 
   /**
    * @param kI the kI parameter to set
    */
-  public void setkI(double kI) {
+  void setkI(double kI) {
     this.kI = kI;
     reset();
   }
@@ -155,14 +155,14 @@ public class PIDController {
   /**
    * @return the kD parameter
    */
-  public double getkD() {
+  double getkD() {
     return kD;
   }
 
   /**
    * @param kD the kD parameter to set
    */
-  public void setkD(double kD) {
+  void setkD(double kD) {
     this.kD = kD;
     reset();
   }
@@ -170,7 +170,7 @@ public class PIDController {
   /**
    * @return the setPoint
    */
-  public double getSetPoint() {
+  double getSetPoint() {
     return setPoint;
   }
 
@@ -179,7 +179,7 @@ public class PIDController {
    *
    * @param setPoint The new target point.
    */
-  public void setSetpoint(final double setPoint) {
+  void setSetpoint(final double setPoint) {
     reset();
     this.setPoint = setPoint;
   }
