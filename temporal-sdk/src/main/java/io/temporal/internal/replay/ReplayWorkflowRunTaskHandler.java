@@ -422,30 +422,32 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  private static class LocalActivityMeteringHelper {
+  @VisibleForTesting
+  static class LocalActivityMeteringHelper {
     private final Map<String, AtomicInteger> firstWftActivities = new HashMap<>();
     private final Map<String, AtomicInteger> nonFirstWftActivities = new HashMap<>();
     private final Set<String> completed = new HashSet<>();
 
-    private void newWFTStarting() {
+    void newWFTStarting() {
       for (String activityId : firstWftActivities.keySet()) {
-        AtomicInteger removed = firstWftActivities.remove(activityId);
-        removed.set(0);
-        nonFirstWftActivities.put(activityId, removed);
+        AtomicInteger attemptCount = firstWftActivities.get(activityId);
+        attemptCount.set(0);
+        nonFirstWftActivities.put(activityId, attemptCount);
       }
+      firstWftActivities.clear();
     }
 
-    private void addNewLocalActivity(ExecuteLocalActivityParameters params) {
+    void addNewLocalActivity(ExecuteLocalActivityParameters params) {
       AtomicInteger attemptsDuringWFTCounter = new AtomicInteger(0);
       params.setOnNewAttemptCallback(attemptsDuringWFTCounter::incrementAndGet);
       firstWftActivities.put(params.getActivityId(), attemptsDuringWFTCounter);
     }
 
-    private void markLocalActivityComplete(String activityId) {
+    void markLocalActivityComplete(String activityId) {
       completed.add(activityId);
     }
 
-    private int getNonfirstAttempts() {
+    int getNonfirstAttempts() {
       int result =
           nonFirstWftActivities.values().stream()
               .map(ai -> ai.getAndSet(0))
