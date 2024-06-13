@@ -21,7 +21,10 @@
 package io.temporal.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import io.temporal.worker.tuning.*;
+import java.time.Duration;
 import org.junit.Test;
 
 public class WorkerOptionsTest {
@@ -46,5 +49,50 @@ public class WorkerOptionsTest {
     WorkerOptions w1 = WorkerOptions.newBuilder().build();
     WorkerOptions w2 = WorkerOptions.newBuilder().build();
     assertEquals(w1, w2);
+  }
+
+  @Test
+  public void canBuildMixedSlotSupplierTuner() {
+    ResourceController<JVMSystemResourceInfo> resourceController =
+        ResourceController.newSystemInfoController(
+            ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
+
+    SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
+    SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
+        new ResourceBasedSlotsForType<>(
+            resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+    SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+        new ResourceBasedSlotsForType<>(
+            resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+
+    WorkerOptions.newBuilder()
+        .setWorkerTuner(
+            new TunerHolder(
+                workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier))
+        .build();
+  }
+
+  @Test
+  public void throwsIfResourceControllerIsNotSame() {
+    ResourceController<JVMSystemResourceInfo> resourceController1 =
+        ResourceController.newSystemInfoController(
+            ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
+    ResourceController<JVMSystemResourceInfo> resourceController2 =
+        ResourceController.newSystemInfoController(
+            ResourceBasedControllerOptions.newBuilder(0.2, 0.3).build());
+
+    SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
+    SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
+        new ResourceBasedSlotsForType<>(
+            resourceController1, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+    SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+        new ResourceBasedSlotsForType<>(
+            resourceController2, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new TunerHolder(
+                workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier));
   }
 }

@@ -82,6 +82,10 @@ public class ResourceBasedSlotsForType<SI extends SlotInfo, RI extends SystemRes
   @Override
   public void releaseSlot(SlotReleaseContext<SI> ctx) {}
 
+  ResourceController<RI> getResourceController() {
+    return resourceController;
+  }
+
   private Duration timeSinceLastSlotIssued() {
     return Duration.between(lastSlotIssuedAt, Instant.now());
   }

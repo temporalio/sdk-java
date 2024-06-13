@@ -35,6 +35,11 @@ public class TunerHolder implements WorkerTuner {
     this.workflowTaskSlotSupplier = Objects.requireNonNull(workflowTaskSlotSupplier);
     this.activityTaskSlotSupplier = Objects.requireNonNull(activityTaskSlotSupplier);
     this.localActivitySlotSupplier = Objects.requireNonNull(localActivitySlotSupplier);
+
+    // All resource-based slot suppliers must use the same controller
+    validateResourceController(workflowTaskSlotSupplier, activityTaskSlotSupplier);
+    validateResourceController(workflowTaskSlotSupplier, localActivitySlotSupplier);
+    validateResourceController(activityTaskSlotSupplier, localActivitySlotSupplier);
   }
 
   @Nonnull
@@ -53,5 +58,20 @@ public class TunerHolder implements WorkerTuner {
   @Override
   public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
     return localActivitySlotSupplier;
+  }
+
+  private <T extends SlotInfo, U extends SlotInfo> void validateResourceController(
+      @Nonnull SlotSupplier<T> supplier1, @Nonnull SlotSupplier<U> supplier2) {
+    if (supplier1 instanceof ResourceBasedSlotsForType
+        && supplier2 instanceof ResourceBasedSlotsForType) {
+      ResourceController<?> controller1 =
+          ((ResourceBasedSlotsForType<?, ?>) supplier1).getResourceController();
+      ResourceController<?> controller2 =
+          ((ResourceBasedSlotsForType<?, ?>) supplier2).getResourceController();
+      if (controller1 != controller2) {
+        throw new IllegalArgumentException(
+            "All resource-based slot suppliers must use the same ResourceController");
+      }
+    }
   }
 }

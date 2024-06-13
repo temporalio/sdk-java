@@ -44,7 +44,7 @@ public class ResourceBasedTunerTests {
   @Test
   public void canRunWithResourceBasedTuner() {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
-    String result = workflow.execute();
+    workflow.execute();
   }
 
   @WorkflowInterface
