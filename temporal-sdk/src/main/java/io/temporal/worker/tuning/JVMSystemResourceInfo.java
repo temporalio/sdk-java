@@ -21,9 +21,12 @@
 package io.temporal.worker.tuning;
 
 import com.sun.management.OperatingSystemMXBean;
+import io.temporal.common.Experimental;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 
+/** {@link SystemResourceInfo} implementation that uses JVM-specific APIs to get resource usage. */
+@Experimental
 public class JVMSystemResourceInfo implements SystemResourceInfo {
   // As of relatively recent Java versions (including backports), this class will properly deal with
   // containerized environments as well as running on bare metal.
@@ -33,11 +36,13 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
   MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
 
   @Override
+  @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
   public double getCpuUsagePercent() {
     return osBean.getSystemCpuLoad();
   }
 
   @Override
+  @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
   public double getMemoryUsagePercent() {
     long jvmUsedMemory =
         memoryBean.getHeapMemoryUsage().getUsed() + memoryBean.getNonHeapMemoryUsage().getUsed();

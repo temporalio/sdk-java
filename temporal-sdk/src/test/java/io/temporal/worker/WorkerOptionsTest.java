@@ -53,7 +53,7 @@ public class WorkerOptionsTest {
 
   @Test
   public void canBuildMixedSlotSupplierTuner() {
-    ResourceController<JVMSystemResourceInfo> resourceController =
+    ResourceController<?> resourceController =
         ResourceController.newSystemInfoController(
             ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
 
@@ -74,10 +74,10 @@ public class WorkerOptionsTest {
 
   @Test
   public void throwsIfResourceControllerIsNotSame() {
-    ResourceController<JVMSystemResourceInfo> resourceController1 =
+    ResourceController<?> resourceController1 =
         ResourceController.newSystemInfoController(
             ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
-    ResourceController<JVMSystemResourceInfo> resourceController2 =
+    ResourceController<?> resourceController2 =
         ResourceController.newSystemInfoController(
             ResourceBasedControllerOptions.newBuilder(0.2, 0.3).build());
 
