@@ -33,7 +33,6 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
   // See https://bugs.openjdk.org/browse/JDK-8226575 for more details on which versions the fixes
   // have been backported to.
   OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-  MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
 
   @Override
   @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
@@ -44,9 +43,9 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
   @Override
   @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
   public double getMemoryUsagePercent() {
-    long jvmUsedMemory =
-        memoryBean.getHeapMemoryUsage().getUsed() + memoryBean.getNonHeapMemoryUsage().getUsed();
-    long jvmMaxMemory = Runtime.getRuntime().maxMemory();
+    Runtime runtime = Runtime.getRuntime();
+    long jvmUsedMemory = runtime.totalMemory() - runtime.freeMemory();
+    long jvmMaxMemory = runtime.maxMemory();
     long systemTotalMemory = osBean.getTotalPhysicalMemorySize();
     long systemUsedMemory = systemTotalMemory - osBean.getFreePhysicalMemorySize();
 
