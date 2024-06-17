@@ -23,7 +23,6 @@ package io.temporal.worker.tuning;
 import com.sun.management.OperatingSystemMXBean;
 import io.temporal.common.Experimental;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
 
 /** {@link SystemResourceInfo} implementation that uses JVM-specific APIs to get resource usage. */
 @Experimental

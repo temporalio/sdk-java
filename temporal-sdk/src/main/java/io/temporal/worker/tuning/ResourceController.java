@@ -21,6 +21,8 @@
 package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
+import java.time.Instant;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Is used by {@link ResourceBasedSlotSupplier} and {@link ResourceBasedTuner} to make decisions
@@ -32,9 +34,11 @@ import io.temporal.common.Experimental;
 public class ResourceController<RI extends SystemResourceInfo> {
   public final ResourceBasedControllerOptions options;
 
+  private final ReentrantLock decisionLock = new ReentrantLock();
   private final PIDController memoryController;
   private final PIDController cpuController;
   private final RI systemInfoSupplier;
+  private Instant lastPidRefresh = Instant.now();
 
   /**
    * Construct a controller with the given options. If you want to use resource-based tuning for all
@@ -67,22 +71,26 @@ public class ResourceController<RI extends SystemResourceInfo> {
   }
 
   /**
-   * @return True if the PID controllers would increase the number of slots
+   * @return True if the PID controllers & and other constraints would allow another slot
    */
   boolean pidDecision() {
-    double memoryUsage = systemInfoSupplier.getMemoryUsagePercent();
-    double cpuUsage = systemInfoSupplier.getCpuUsagePercent();
-    // TODO: Ensure time interval is correct
-    double memoryOutput = memoryController.getOutput(1, memoryUsage);
-    double cpuOutput = cpuController.getOutput(1, cpuUsage);
-    return memoryOutput > options.getMemoryOutputThreshold()
-        && cpuOutput > options.getCpuOutputThreshold();
+    decisionLock.lock();
+    try {
+      double memoryUsage = systemInfoSupplier.getMemoryUsagePercent();
+      double cpuUsage = systemInfoSupplier.getCpuUsagePercent();
+      double memoryOutput =
+          memoryController.getOutput(lastPidRefresh.getEpochSecond(), memoryUsage);
+      double cpuOutput = cpuController.getOutput(lastPidRefresh.getEpochSecond(), cpuUsage);
+      lastPidRefresh = Instant.now();
+      return memoryOutput > options.getMemoryOutputThreshold()
+          && cpuOutput > options.getCpuOutputThreshold()
+          && canReserve();
+    } finally {
+      decisionLock.unlock();
+    }
   }
 
-  /**
-   * @return True if we are under the memory threshold (regardless of pid controller)
-   */
-  boolean canReserve() {
+  private boolean canReserve() {
     return systemInfoSupplier.getMemoryUsagePercent() < options.getTargetMemoryUsage();
   }
 }

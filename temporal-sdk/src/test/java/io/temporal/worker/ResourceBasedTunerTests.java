@@ -74,7 +74,7 @@ public class ResourceBasedTunerTests {
 
       List<Promise<Void>> promises = new ArrayList<>();
       // Run some activities concurrently
-      for (int j = 0; j < 10; j++) {
+      for (int j = 0; j < 50; j++) {
         Promise<Void> promise = Async.procedure(activity::sleep);
         promises.add(promise);
       }

@@ -78,8 +78,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo, RI extends SystemRes
     if (numIssued < options.getMinimumSlots()
         || (timeSinceLastSlotIssued().compareTo(options.getRampThrottle()) > 0
             && numIssued < options.getMaximumSlots()
-            && resourceController.pidDecision()
-            && resourceController.canReserve())) {
+            && resourceController.pidDecision())) {
       return Optional.of(new SlotPermit());
     }
     return Optional.empty();
