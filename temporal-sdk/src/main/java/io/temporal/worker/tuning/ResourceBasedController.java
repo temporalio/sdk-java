@@ -20,8 +20,12 @@
 
 package io.temporal.worker.tuning;
 
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.temporal.common.Experimental;
+import io.temporal.worker.MetricsType;
 import java.time.Instant;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -37,6 +41,13 @@ public class ResourceBasedController {
   private final PIDController cpuController;
   private final SystemResourceInfo systemInfoSupplier;
   private Instant lastPidRefresh = Instant.now();
+
+  private Scope metricsScope = new NoopScope();
+  private boolean metricsScopeSet = false;
+  private volatile double last_mem_usage = 0;
+  private volatile double last_cpu_usage = 0;
+  private volatile double last_mem_pid_out = 0;
+  private volatile double last_cpu_pid_out = 0;
 
   /**
    * Construct a controller with the given options. If you want to use resource-based tuning for all
@@ -81,6 +92,11 @@ public class ResourceBasedController {
           memoryController.getOutput(lastPidRefresh.getEpochSecond(), memoryUsage);
       double cpuOutput = cpuController.getOutput(lastPidRefresh.getEpochSecond(), cpuUsage);
       lastPidRefresh = Instant.now();
+      last_mem_usage = memoryUsage;
+      last_cpu_usage = cpuUsage;
+      last_mem_pid_out = memoryOutput;
+      last_cpu_pid_out = cpuOutput;
+
       return memoryOutput > options.getMemoryOutputThreshold()
           && cpuOutput > options.getCpuOutputThreshold()
           && canReserve();
@@ -91,5 +107,33 @@ public class ResourceBasedController {
 
   private boolean canReserve() {
     return systemInfoSupplier.getMemoryUsagePercent() < options.getTargetMemoryUsage();
+  }
+
+  /** Visible for internal usage. Can only be set once. */
+  public void setMetricsScope(Scope metricsScope) {
+    synchronized (this) {
+      if (metricsScopeSet) {
+        return;
+      }
+      this.metricsScope = metricsScope;
+      metricsScopeSet = true;
+      // Launch a task to periodically emit the metrics
+      ForkJoinPool.commonPool().execute(this::emitMetrics);
+    }
+  }
+
+  private void emitMetrics() {
+    while (true) {
+      metricsScope.gauge(MetricsType.RESOURCE_MEM_USAGE).update(last_mem_usage * 100);
+      metricsScope.gauge(MetricsType.RESOURCE_CPU_USAGE).update(last_cpu_usage * 100);
+      metricsScope.gauge(MetricsType.RESOURCE_MEM_PID).update(last_mem_pid_out);
+      metricsScope.gauge(MetricsType.RESOURCE_CPU_PID).update(last_cpu_pid_out);
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      }
+    }
   }
 }

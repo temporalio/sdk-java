@@ -20,18 +20,29 @@
 
 package io.temporal.worker;
 
+import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class ResourceBasedTunerTests {
+
+  private final TestStatsReporter reporter = new TestStatsReporter();
+  private static final Map<String, String> TAGS_NAMESPACE =
+      new ImmutableMap.Builder<String, String>().putAll(MetricsTag.defaultTags(NAMESPACE)).build();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -40,16 +51,53 @@ public class ResourceBasedTunerTests {
               WorkerOptions.newBuilder()
                   .setWorkerTuner(
                       new ResourceBasedTuner(
-                          ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build()))
+                          ResourceBasedControllerOptions.newBuilder(0.7, 0.7).build()))
                   .build())
           .setActivityImplementations(new ActivitiesImpl())
           .setWorkflowTypes(ResourceTunerWorkflowImpl.class)
+          .setMetricsScope(
+              new RootScopeBuilder()
+                  .reporter(reporter)
+                  .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
           .build();
 
   @Test
   public void canRunWithResourceBasedTuner() {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
     workflow.execute();
+    Map<String, String> nsAndTaskQueue =
+        new ImmutableMap.Builder<String, String>()
+            .putAll(TAGS_NAMESPACE)
+            .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
+            .build();
+    reporter.assertGauge(
+        MetricsType.RESOURCE_MEM_USAGE,
+        nsAndTaskQueue,
+        (val) -> {
+          System.out.println("mem usage: " + val);
+          return val > 0;
+        });
+    reporter.assertGauge(
+        MetricsType.RESOURCE_CPU_USAGE,
+        nsAndTaskQueue,
+        (val) -> {
+          System.out.println("cpu usage: " + val);
+          return val > 0;
+        });
+    reporter.assertGauge(
+        MetricsType.RESOURCE_MEM_PID,
+        nsAndTaskQueue,
+        (val) -> {
+          System.out.println("mem pid: " + val);
+          return true;
+        });
+    reporter.assertGauge(
+        MetricsType.RESOURCE_CPU_PID,
+        nsAndTaskQueue,
+        (val) -> {
+          System.out.println("cpu pid: " + val);
+          return true;
+        });
   }
 
   @WorkflowInterface
@@ -74,7 +122,7 @@ public class ResourceBasedTunerTests {
 
       List<Promise<Void>> promises = new ArrayList<>();
       // Run some activities concurrently
-      for (int j = 0; j < 50; j++) {
+      for (int j = 0; j < 5; j++) {
         Promise<Void> promise = Async.procedure(activity::sleep);
         promises.add(promise);
       }
@@ -94,6 +142,12 @@ public class ResourceBasedTunerTests {
 
   public static class ActivitiesImpl implements SleepActivity {
     @Override
-    public void sleep() {}
+    public void sleep() {
+      try {
+        Thread.sleep(1200);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 }

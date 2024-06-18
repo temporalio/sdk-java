@@ -89,7 +89,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   @Override
   public void releaseSlot(SlotReleaseContext<SI> ctx) {}
 
-  ResourceBasedController getResourceController() {
+  public ResourceBasedController getResourceController() {
     return resourceController;
   }
 

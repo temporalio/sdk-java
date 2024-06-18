@@ -23,6 +23,8 @@ package io.temporal.worker.tuning;
 import com.sun.management.OperatingSystemMXBean;
 import io.temporal.common.Experimental;
 import java.lang.management.ManagementFactory;
+import java.time.Instant;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** {@link SystemResourceInfo} implementation that uses JVM-specific APIs to get resource usage. */
 @Experimental
@@ -33,27 +35,55 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
   // have been backported to.
   OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 
+  private final ReentrantLock refreshLock = new ReentrantLock();
+  volatile Instant lastRefresh = Instant.EPOCH;
+  volatile double lastMemUsage = Double.NaN;
+  volatile double lastCpuUsage = Double.NaN;
+
   @Override
-  @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
   public double getCPUUsagePercent() {
-    return osBean.getSystemCpuLoad();
+    refresh();
+    return lastCpuUsage;
   }
 
   @Override
-  @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
   public double getMemoryUsagePercent() {
-    Runtime runtime = Runtime.getRuntime();
-    long jvmUsedMemory = runtime.totalMemory() - runtime.freeMemory();
-    long jvmMaxMemory = runtime.maxMemory();
-    long systemTotalMemory = osBean.getTotalPhysicalMemorySize();
-    long systemUsedMemory = systemTotalMemory - osBean.getFreePhysicalMemorySize();
+    refresh();
+    return lastMemUsage;
+  }
 
-    double jvmMemoryUsagePercent = ((double) jvmUsedMemory / jvmMaxMemory);
-    double systemMemoryUsagePercent = ((double) systemUsedMemory / systemTotalMemory);
+  @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
+  private void refresh() {
+    if (Instant.now().isBefore(lastRefresh.plusMillis(100))) {
+      return;
+    }
+    refreshLock.lock();
 
-    // We want to return either the JVM memory usage or the system memory usage, whichever is
-    // higher, since we want to avoid OOMing either the JVM or the system.
-    // TODO: Slightly worried this could thrash back and forth
-    return Math.max(jvmMemoryUsagePercent, systemMemoryUsagePercent);
+    try {
+      lastCpuUsage = osBean.getSystemCpuLoad();
+
+      Runtime runtime = Runtime.getRuntime();
+      long jvmUsedMemory = runtime.totalMemory() - runtime.freeMemory();
+      long jvmMaxMemory = runtime.maxMemory();
+      long systemTotalMemory = osBean.getTotalPhysicalMemorySize();
+      long systemUsedMemory = systemTotalMemory - osBean.getFreePhysicalMemorySize();
+
+      double jvmMemoryUsagePercent = ((double) jvmUsedMemory / jvmMaxMemory);
+      double systemMemoryUsagePercent = ((double) systemUsedMemory / systemTotalMemory);
+
+      System.out.println(
+          "System used memory: "
+              + systemUsedMemory
+              + " / System total memory: "
+              + systemTotalMemory);
+
+      // We want to return either the JVM memory usage or the system memory usage, whichever is
+      // higher, since we want to avoid OOMing either the JVM or the system.
+      // TODO: Slightly worried this could thrash back and forth
+      lastMemUsage = Math.max(jvmMemoryUsagePercent, systemMemoryUsagePercent);
+      lastRefresh = Instant.now();
+    } finally {
+      refreshLock.unlock();
+    }
   }
 }

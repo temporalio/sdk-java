@@ -94,6 +94,16 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     this.metricsScope = metricsScope;
   }
 
+  /**
+   * If any slot supplier is resource-based, we want to attach a metrics scope to the controller
+   * (before it's labelled with the worker type).
+   */
+  public void attachMetricsToResourceController(Scope metricsScope) {
+    if (inner instanceof ResourceBasedSlotSupplier) {
+      ((ResourceBasedSlotSupplier<?>) inner).getResourceController().setMetricsScope(metricsScope);
+    }
+  }
+
   Map<SlotPermit, SI> getUsedSlots() {
     return usedSlots;
   }

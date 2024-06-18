@@ -113,6 +113,7 @@ public final class Worker {
                   ? new FixedSizeSlotSupplier<>(
                       this.options.getMaxConcurrentActivityExecutionSize())
                   : this.options.getWorkerTuner().getActivityTaskSlotSupplier());
+      activitySlotSupplier.attachMetricsToResourceController(taggedScope);
 
       activityWorker =
           new SyncActivityWorker(
@@ -147,12 +148,14 @@ public final class Worker {
                 ? new FixedSizeSlotSupplier<>(
                     this.options.getMaxConcurrentWorkflowTaskExecutionSize())
                 : this.options.getWorkerTuner().getWorkflowTaskSlotSupplier());
+    workflowSlotSupplier.attachMetricsToResourceController(taggedScope);
     TrackingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
         new TrackingSlotSupplier<>(
             this.options.getWorkerTuner() == null
                 ? new FixedSizeSlotSupplier<>(
                     this.options.getMaxConcurrentLocalActivityExecutionSize())
                 : this.options.getWorkerTuner().getLocalActivitySlotSupplier());
+    localActivitySlotSupplier.attachMetricsToResourceController(taggedScope);
     workflowWorker =
         new SyncWorkflowWorker(
             service,
