@@ -3,7 +3,7 @@
 The following Readme assumes that you use Spring Boot yml configuration files (`application.yml`).
 It should be trivial to adjust if your application uses .properties configuration.
 Your application should be a `@SpringBootApplication` 
-and have `io.temporal:temporal-spring-boot-starter-alpha:${temporalVersion}` added as a dependency.
+and have `io.temporal:temporal-spring-boot-starter:${temporalVersion}` added as a dependency.
 
 # Samples
 
@@ -12,7 +12,7 @@ The [Java SDK samples repo](https://github.com/temporalio/samples-java) contains
 # Connection setup
 
 The following configuration connects to a locally started Temporal Server 
-(see [Temporal Docker Compose](https://github.com/temporalio/docker-compose) or [Temporalite](https://github.com/temporalio/temporalite))
+(see [Temporal Docker Compose](https://github.com/temporalio/docker-compose) or [Temporal CLI](https://docs.temporal.io/cli))
 
 ```yml
 spring.temporal:
