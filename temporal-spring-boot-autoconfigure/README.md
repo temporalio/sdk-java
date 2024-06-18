@@ -9,6 +9,10 @@ and have `io.temporal:temporal-spring-boot-starter:${temporalVersion}` added as 
 
 The [Java SDK samples repo](https://github.com/temporalio/samples-java) contains a number of [Spring Boot samples](https://github.com/temporalio/samples-java/tree/main/springboot) that use this module.
 
+# Support
+
+Temporal Spring Boot integration is currently in Public Preview. Users should expect a mostly stable API, but there may be some documentation or features missing.
+
 # Connection setup
 
 The following configuration connects to a locally started Temporal Server 
