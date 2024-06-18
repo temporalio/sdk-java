@@ -9,8 +9,8 @@ dependencies {
     jacocoAggregation project(':temporal-remote-data-encoder')
     jacocoAggregation project(':temporal-sdk')
     jacocoAggregation project(':temporal-serviceclient')
-    jacocoAggregation project(':temporal-spring-boot-autoconfigure-alpha')
-    jacocoAggregation project(':temporal-spring-boot-starter-alpha')
+    jacocoAggregation project(':temporal-spring-boot-autoconfigure')
+    jacocoAggregation project(':temporal-spring-boot-starter')
     jacocoAggregation project(':temporal-test-server')
     jacocoAggregation project(':temporal-testing')
 }
