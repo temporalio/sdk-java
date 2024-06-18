@@ -53,8 +53,8 @@ public class WorkerOptionsTest {
 
   @Test
   public void canBuildMixedSlotSupplierTuner() {
-    ResourceController<?> resourceController =
-        ResourceController.newSystemInfoController(
+    ResourceBasedController resourceController =
+        ResourceBasedController.newSystemInfoController(
             ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
 
     SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
@@ -74,11 +74,11 @@ public class WorkerOptionsTest {
 
   @Test
   public void throwsIfResourceControllerIsNotSame() {
-    ResourceController<?> resourceController1 =
-        ResourceController.newSystemInfoController(
+    ResourceBasedController resourceController1 =
+        ResourceBasedController.newSystemInfoController(
             ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
-    ResourceController<?> resourceController2 =
-        ResourceController.newSystemInfoController(
+    ResourceBasedController resourceController2 =
+        ResourceBasedController.newSystemInfoController(
             ResourceBasedControllerOptions.newBuilder(0.2, 0.3).build());
 
     SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);

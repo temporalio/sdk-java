@@ -27,10 +27,9 @@ import java.util.Optional;
 
 /** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
 @Experimental
-public class ResourceBasedSlotSupplier<SI extends SlotInfo, RI extends SystemResourceInfo>
-    implements SlotSupplier<SI> {
+public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSupplier<SI> {
 
-  private final ResourceController<RI> resourceController;
+  private final ResourceBasedController resourceController;
   private final ResourceBasedSlotOptions options;
   private final Instant lastSlotIssuedAt = Instant.EPOCH;
 
@@ -41,8 +40,8 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo, RI extends SystemRes
    * to use resource-based tuning for all slot suppliers, prefer {@link ResourceBasedTuner}.
    */
   public ResourceBasedSlotSupplier(
-      ResourceController<RI> resourceController, ResourceBasedSlotOptions options) {
-    this.resourceController = resourceController;
+      ResourceBasedController resourceBasedController, ResourceBasedSlotOptions options) {
+    this.resourceController = resourceBasedController;
     this.options = options;
   }
 
@@ -90,7 +89,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo, RI extends SystemRes
   @Override
   public void releaseSlot(SlotReleaseContext<SI> ctx) {}
 
-  ResourceController<RI> getResourceController() {
+  ResourceBasedController getResourceController() {
     return resourceController;
   }
 

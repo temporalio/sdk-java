@@ -32,16 +32,16 @@ public class ResourceBasedTuner implements WorkerTuner {
   public static final ResourceBasedSlotOptions DEFAULT_ACTIVITY_SLOT_OPTIONS =
       new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50));
 
-  private final ResourceController<?> controller;
+  private final ResourceBasedController controller;
   private ResourceBasedSlotOptions workflowSlotOptions;
   private ResourceBasedSlotOptions activitySlotOptions;
   private ResourceBasedSlotOptions localActivitySlotOptions;
 
   /**
-   * @param controllerOptions options for the {@link ResourceController} used by this tuner
+   * @param controllerOptions options for the {@link ResourceBasedController} used by this tuner
    */
   public ResourceBasedTuner(ResourceBasedControllerOptions controllerOptions) {
-    this.controller = ResourceController.newSystemInfoController(controllerOptions);
+    this.controller = ResourceBasedController.newSystemInfoController(controllerOptions);
   }
 
   /**

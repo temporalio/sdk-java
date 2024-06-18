@@ -24,11 +24,11 @@ import io.temporal.common.Experimental;
 
 /** Implementors determine how resource usage is measured. */
 @Experimental
-interface SystemResourceInfo {
+public interface SystemResourceInfo {
   /**
    * @return System-wide CPU usage as a percentage [0.0, 1.0]
    */
-  double getCpuUsagePercent();
+  double getCPUUsagePercent();
 
   /**
    * @return Memory usage as a percentage [0.0, 1.0]. Memory usage should reflect either system-wide

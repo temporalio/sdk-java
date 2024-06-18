@@ -35,7 +35,7 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
 
   @Override
   @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
-  public double getCpuUsagePercent() {
+  public double getCPUUsagePercent() {
     return osBean.getSystemCpuLoad();
   }
 

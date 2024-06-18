@@ -27,33 +27,32 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Is used by {@link ResourceBasedSlotSupplier} and {@link ResourceBasedTuner} to make decisions
  * about whether slots should be handed out based on system resource usage.
- *
- * @param <RI> How this controller obtains system resource information
  */
 @Experimental
-public class ResourceController<RI extends SystemResourceInfo> {
+public class ResourceBasedController {
   public final ResourceBasedControllerOptions options;
 
   private final ReentrantLock decisionLock = new ReentrantLock();
   private final PIDController memoryController;
   private final PIDController cpuController;
-  private final RI systemInfoSupplier;
+  private final SystemResourceInfo systemInfoSupplier;
   private Instant lastPidRefresh = Instant.now();
 
   /**
    * Construct a controller with the given options. If you want to use resource-based tuning for all
    * slot suppliers, prefer {@link ResourceBasedTuner}.
    */
-  public static ResourceController<JVMSystemResourceInfo> newSystemInfoController(
+  public static ResourceBasedController newSystemInfoController(
       ResourceBasedControllerOptions options) {
-    return new ResourceController<>(options, new JVMSystemResourceInfo());
+    return new ResourceBasedController(options, new JVMSystemResourceInfo());
   }
 
   /**
    * Construct a controller with the given options and system info supplier. Users should prefer
    * {@link #newSystemInfoController(ResourceBasedControllerOptions)}.
    */
-  public ResourceController(ResourceBasedControllerOptions options, RI systemInfoSupplier) {
+  public ResourceBasedController(
+      ResourceBasedControllerOptions options, SystemResourceInfo systemInfoSupplier) {
     this.options = options;
     this.systemInfoSupplier = systemInfoSupplier;
     this.memoryController =
@@ -77,7 +76,7 @@ public class ResourceController<RI extends SystemResourceInfo> {
     decisionLock.lock();
     try {
       double memoryUsage = systemInfoSupplier.getMemoryUsagePercent();
-      double cpuUsage = systemInfoSupplier.getCpuUsagePercent();
+      double cpuUsage = systemInfoSupplier.getCPUUsagePercent();
       double memoryOutput =
           memoryController.getOutput(lastPidRefresh.getEpochSecond(), memoryUsage);
       double cpuOutput = cpuController.getOutput(lastPidRefresh.getEpochSecond(), cpuUsage);

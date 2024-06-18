@@ -70,10 +70,10 @@ public class TunerHolder implements WorkerTuner {
       @Nonnull SlotSupplier<T> supplier1, @Nonnull SlotSupplier<U> supplier2) {
     if (supplier1 instanceof ResourceBasedSlotSupplier
         && supplier2 instanceof ResourceBasedSlotSupplier) {
-      ResourceController<?> controller1 =
-          ((ResourceBasedSlotSupplier<?, ?>) supplier1).getResourceController();
-      ResourceController<?> controller2 =
-          ((ResourceBasedSlotSupplier<?, ?>) supplier2).getResourceController();
+      ResourceBasedController controller1 =
+          ((ResourceBasedSlotSupplier<?>) supplier1).getResourceController();
+      ResourceBasedController controller2 =
+          ((ResourceBasedSlotSupplier<?>) supplier2).getResourceController();
       if (controller1 != controller2) {
         throw new IllegalArgumentException(
             "All resource-based slot suppliers must use the same ResourceController");
