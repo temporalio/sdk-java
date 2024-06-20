@@ -24,6 +24,7 @@ import com.sun.management.OperatingSystemMXBean;
 import io.temporal.common.Experimental;
 import java.lang.management.ManagementFactory;
 import java.time.Instant;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** {@link SystemResourceInfo} implementation that uses JVM-specific APIs to get resource usage. */
@@ -35,45 +36,56 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
   // have been backported to.
   OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 
-  private final ReentrantLock refreshLock = new ReentrantLock();
-  volatile Instant lastRefresh = Instant.EPOCH;
-  volatile double lastMemUsage = Double.NaN;
-  volatile double lastCpuUsage = Double.NaN;
+  private final Lock refreshLock = new ReentrantLock();
+  private SystemInfo lastSystemInfo;
 
   @Override
   public double getCPUUsagePercent() {
-    refresh();
-    return lastCpuUsage;
+    return refresh().cpuUsagePercent;
   }
 
   @Override
   public double getMemoryUsagePercent() {
-    refresh();
-    return lastMemUsage;
+    return refresh().memoryUsagePercent;
   }
 
   @SuppressWarnings("deprecation") // deprecated APIs needed since replacements are for Java 14+
-  private void refresh() {
-    if (Instant.now().isBefore(lastRefresh.plusMillis(100))) {
-      return;
-    }
+  private SystemInfo refresh() {
+
     refreshLock.lock();
-
     try {
-      // This can return NaN seemingly when usage is very low
-      lastCpuUsage = osBean.getSystemCpuLoad();
-      if (lastCpuUsage < 0 || Double.isNaN(lastCpuUsage)) {
-        lastCpuUsage = 0;
+      if (lastSystemInfo == null
+          || Instant.now().isAfter(lastSystemInfo.refreshed.plusMillis(100))) {
+        // This can return NaN seemingly when usage is very low
+        double lastCpuUsage = osBean.getSystemCpuLoad();
+        if (lastCpuUsage < 0 || Double.isNaN(lastCpuUsage)) {
+          lastCpuUsage = 0;
+        }
+
+        Runtime runtime = Runtime.getRuntime();
+        long jvmUsedMemory = runtime.totalMemory() - runtime.freeMemory();
+        long jvmMaxMemory = runtime.maxMemory();
+
+        double lastMemUsage = ((double) jvmUsedMemory / jvmMaxMemory);
+        Instant lastRefresh = Instant.now();
+        lastSystemInfo = new SystemInfo(lastRefresh, lastCpuUsage, lastMemUsage);
       }
-
-      Runtime runtime = Runtime.getRuntime();
-      long jvmUsedMemory = runtime.totalMemory() - runtime.freeMemory();
-      long jvmMaxMemory = runtime.maxMemory();
-
-      lastMemUsage = ((double) jvmUsedMemory / jvmMaxMemory);
-      lastRefresh = Instant.now();
     } finally {
       refreshLock.unlock();
+    }
+
+    return lastSystemInfo;
+  }
+
+  private static class SystemInfo {
+    private final Instant refreshed;
+    private final double cpuUsagePercent;
+    private final double memoryUsagePercent;
+
+    private SystemInfo(Instant refreshed, double cpuUsagePercent, double memoryUsagePercent) {
+      this.refreshed = refreshed;
+      this.cpuUsagePercent = cpuUsagePercent;
+      this.memoryUsagePercent = memoryUsagePercent;
     }
   }
 }
