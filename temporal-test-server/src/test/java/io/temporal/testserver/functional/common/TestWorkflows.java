@@ -31,6 +31,12 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface WorkflowTakesBool {
+    @WorkflowMethod
+    void execute(boolean arg);
+  }
+
+  @WorkflowInterface
   public interface WorkflowReturnsString {
     @WorkflowMethod
     String execute();
