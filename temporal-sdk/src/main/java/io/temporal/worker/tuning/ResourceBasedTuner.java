@@ -33,70 +33,97 @@ public class ResourceBasedTuner implements WorkerTuner {
       new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50));
 
   private final ResourceBasedController controller;
-  private ResourceBasedSlotOptions workflowSlotOptions;
-  private ResourceBasedSlotOptions activitySlotOptions;
-  private ResourceBasedSlotOptions localActivitySlotOptions;
+  private final ResourceBasedSlotOptions workflowSlotOptions;
+  private final ResourceBasedSlotOptions activitySlotOptions;
+  private final ResourceBasedSlotOptions localActivitySlotOptions;
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+    private ResourceBasedControllerOptions controllerOptions;
+    private @Nonnull ResourceBasedSlotOptions workflowSlotOptions = DEFAULT_WORKFLOW_SLOT_OPTIONS;
+    private @Nonnull ResourceBasedSlotOptions activitySlotOptions = DEFAULT_ACTIVITY_SLOT_OPTIONS;
+    private @Nonnull ResourceBasedSlotOptions localActivitySlotOptions =
+        DEFAULT_ACTIVITY_SLOT_OPTIONS;
+
+    private Builder() {}
+
+    public Builder setControllerOptions(ResourceBasedControllerOptions controllerOptions) {
+      this.controllerOptions = controllerOptions;
+      return this;
+    }
+
+    /**
+     * Set the slot options for workflow tasks. Has no effect after the worker using this tuner
+     * starts.
+     *
+     * <p>Defaults to minimum 2 slots, maximum 500 slots, and no ramp throttle.
+     */
+    public Builder setWorkflowSlotOptions(@Nonnull ResourceBasedSlotOptions workflowSlotOptions) {
+      this.workflowSlotOptions = workflowSlotOptions;
+      return this;
+    }
+
+    /**
+     * Set the slot options for activity tasks. Has no effect after the worker using this tuner
+     * starts.
+     *
+     * <p>Defaults to minimum 1 slot, maximum 1000 slots, and 50ms ramp throttle.
+     */
+    public Builder setActivitySlotOptions(@Nonnull ResourceBasedSlotOptions activitySlotOptions) {
+      this.activitySlotOptions = activitySlotOptions;
+      return this;
+    }
+
+    /**
+     * Set the slot options for local activity tasks. Has no effect after the worker using this
+     * tuner starts.
+     *
+     * <p>Defaults to minimum 1 slot, maximum 1000 slots, and 50ms ramp throttle.
+     */
+    public Builder setLocalActivitySlotOptions(
+        @Nonnull ResourceBasedSlotOptions localActivitySlotOptions) {
+      this.localActivitySlotOptions = localActivitySlotOptions;
+      return this;
+    }
+
+    public ResourceBasedTuner build() {
+      return new ResourceBasedTuner(
+          controllerOptions, workflowSlotOptions, activitySlotOptions, localActivitySlotOptions);
+    }
+  }
 
   /**
    * @param controllerOptions options for the {@link ResourceBasedController} used by this tuner
    */
-  public ResourceBasedTuner(ResourceBasedControllerOptions controllerOptions) {
+  public ResourceBasedTuner(
+      ResourceBasedControllerOptions controllerOptions,
+      ResourceBasedSlotOptions workflowSlotOptions,
+      ResourceBasedSlotOptions activitySlotOptions,
+      ResourceBasedSlotOptions localActivitySlotOptions) {
     this.controller = ResourceBasedController.newSystemInfoController(controllerOptions);
-  }
-
-  /**
-   * Set the slot options for workflow tasks. Has no effect after the worker using this tuner
-   * starts.
-   *
-   * <p>Defaults to minimum 2 slots, maximum 500 slots, and no ramp throttle.
-   */
-  public void setWorkflowSlotOptions(ResourceBasedSlotOptions workflowSlotOptions) {
     this.workflowSlotOptions = workflowSlotOptions;
-  }
-
-  /**
-   * Set the slot options for activity tasks. Has no effect after the worker using this tuner
-   * starts.
-   *
-   * <p>Defaults to minimum 1 slot, maximum 1000 slots, and 50ms ramp throttle.
-   */
-  public void setActivitySlotOptions(ResourceBasedSlotOptions activitySlotOptions) {
     this.activitySlotOptions = activitySlotOptions;
-  }
-
-  /**
-   * Set the slot options for local activity tasks. Has no effect after the worker using this tuner
-   * starts.
-   *
-   * <p>Defaults to minimum 1 slot, maximum 1000 slots, and 50ms ramp throttle.
-   */
-  public void setLocalActivitySlotOptions(ResourceBasedSlotOptions localActivitySlotOptions) {
     this.localActivitySlotOptions = localActivitySlotOptions;
   }
 
   @Nonnull
   @Override
   public SlotSupplier<WorkflowSlotInfo> getWorkflowTaskSlotSupplier() {
-    return new ResourceBasedSlotSupplier<>(
-        controller,
-        workflowSlotOptions == null ? DEFAULT_WORKFLOW_SLOT_OPTIONS : workflowSlotOptions);
+    return new ResourceBasedSlotSupplier<>(controller, workflowSlotOptions);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<ActivitySlotInfo> getActivityTaskSlotSupplier() {
-    return new ResourceBasedSlotSupplier<>(
-        controller,
-        activitySlotOptions == null ? DEFAULT_ACTIVITY_SLOT_OPTIONS : activitySlotOptions);
+    return new ResourceBasedSlotSupplier<>(controller, activitySlotOptions);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
-    return new ResourceBasedSlotSupplier<>(
-        controller,
-        localActivitySlotOptions == null
-            ? DEFAULT_ACTIVITY_SLOT_OPTIONS
-            : localActivitySlotOptions);
+    return new ResourceBasedSlotSupplier<>(controller, localActivitySlotOptions);
   }
 }

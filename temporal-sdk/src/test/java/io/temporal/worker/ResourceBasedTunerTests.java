@@ -51,8 +51,10 @@ public class ResourceBasedTunerTests {
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setWorkerTuner(
-                      new ResourceBasedTuner(
-                          ResourceBasedControllerOptions.newBuilder(0.7, 0.7).build()))
+                      ResourceBasedTuner.newBuilder()
+                          .setControllerOptions(
+                              ResourceBasedControllerOptions.newBuilder(0.7, 0.7).build())
+                          .build())
                   .build())
           .setActivityImplementations(new ActivitiesImpl())
           .setWorkflowTypes(ResourceTunerWorkflowImpl.class)
