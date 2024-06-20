@@ -60,27 +60,17 @@ public class JVMSystemResourceInfo implements SystemResourceInfo {
     refreshLock.lock();
 
     try {
+      // This can return NaN seemingly when usage is very low
       lastCpuUsage = osBean.getSystemCpuLoad();
+      if (lastCpuUsage < 0 || Double.isNaN(lastCpuUsage)) {
+        lastCpuUsage = 0;
+      }
 
       Runtime runtime = Runtime.getRuntime();
       long jvmUsedMemory = runtime.totalMemory() - runtime.freeMemory();
       long jvmMaxMemory = runtime.maxMemory();
-      long systemTotalMemory = osBean.getTotalPhysicalMemorySize();
-      long systemUsedMemory = systemTotalMemory - osBean.getFreePhysicalMemorySize();
 
-      double jvmMemoryUsagePercent = ((double) jvmUsedMemory / jvmMaxMemory);
-      double systemMemoryUsagePercent = ((double) systemUsedMemory / systemTotalMemory);
-
-      System.out.println(
-          "System used memory: "
-              + systemUsedMemory
-              + " / System total memory: "
-              + systemTotalMemory);
-
-      // We want to return either the JVM memory usage or the system memory usage, whichever is
-      // higher, since we want to avoid OOMing either the JVM or the system.
-      // TODO: Slightly worried this could thrash back and forth
-      lastMemUsage = Math.max(jvmMemoryUsagePercent, systemMemoryUsagePercent);
+      lastMemUsage = ((double) jvmUsedMemory / jvmMaxMemory);
       lastRefresh = Instant.now();
     } finally {
       refreshLock.unlock();

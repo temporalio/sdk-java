@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class ResourceBasedTunerTests {
 
@@ -64,66 +65,51 @@ public class ResourceBasedTunerTests {
   @Test
   public void canRunWithResourceBasedTuner() {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
-    workflow.execute();
+    workflow.execute(10, 1000);
     Map<String, String> nsAndTaskQueue =
         new ImmutableMap.Builder<String, String>()
             .putAll(TAGS_NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
             .build();
-    reporter.assertGauge(
-        MetricsType.RESOURCE_MEM_USAGE,
-        nsAndTaskQueue,
-        (val) -> {
-          System.out.println("mem usage: " + val);
-          return val > 0;
-        });
+    reporter.assertGauge(MetricsType.RESOURCE_MEM_USAGE, nsAndTaskQueue, (val) -> val > 0);
     reporter.assertGauge(
         MetricsType.RESOURCE_CPU_USAGE,
         nsAndTaskQueue,
         (val) -> {
-          System.out.println("cpu usage: " + val);
-          return val > 0;
-        });
-    reporter.assertGauge(
-        MetricsType.RESOURCE_MEM_PID,
-        nsAndTaskQueue,
-        (val) -> {
-          System.out.println("mem pid: " + val);
+          // CPU use can be so low as to be 0, so can't really make any assertion here.
           return true;
         });
-    reporter.assertGauge(
-        MetricsType.RESOURCE_CPU_PID,
-        nsAndTaskQueue,
-        (val) -> {
-          System.out.println("cpu pid: " + val);
-          return true;
-        });
+    reporter.assertGauge(MetricsType.RESOURCE_MEM_PID, nsAndTaskQueue, (val) -> true);
+    reporter.assertGauge(MetricsType.RESOURCE_CPU_PID, nsAndTaskQueue, (val) -> true);
+  }
+
+  @Category(IndependentResourceBasedTests.class)
+  @Test(timeout = 300 * 1000)
+  public void canRunHeavyMemoryWithResourceBasedTuner() {
+    ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
+    workflow.execute(100, 30000000);
   }
 
   @WorkflowInterface
   public interface ResourceTunerWorkflow {
-
     @WorkflowMethod
-    String execute();
+    String execute(int numActivities, int memCeiling);
   }
 
   public static class ResourceTunerWorkflowImpl implements ResourceTunerWorkflow {
-
     @Override
-    public String execute() {
+    public String execute(int numActivities, int memCeiling) {
       SleepActivity activity =
           Workflow.newActivityStub(
               SleepActivity.class,
               ActivityOptions.newBuilder()
-                  .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))
                   .setHeartbeatTimeout(Duration.ofSeconds(20))
                   .build());
 
       List<Promise<Void>> promises = new ArrayList<>();
-      // Run some activities concurrently
-      for (int j = 0; j < 5; j++) {
-        Promise<Void> promise = Async.procedure(activity::sleep);
+      for (int j = 0; j < numActivities; j++) {
+        Promise<Void> promise = Async.procedure(activity::useResources, memCeiling);
         promises.add(promise);
       }
 
@@ -137,14 +123,19 @@ public class ResourceBasedTunerTests {
 
   @ActivityInterface
   public interface SleepActivity {
-    void sleep();
+    void useResources(int memCeiling);
   }
 
   public static class ActivitiesImpl implements SleepActivity {
     @Override
-    public void sleep() {
+    public void useResources(int memCeiling) {
       try {
-        Thread.sleep(1200);
+        int randNumBytes = (int) (Math.random() * memCeiling);
+        @SuppressWarnings("unused")
+        byte[] bytes = new byte[randNumBytes];
+        // Need to wait at least a second to give metrics a chance to be reported
+        // (and also simulate some actual work in the activity)
+        Thread.sleep(1100);
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }

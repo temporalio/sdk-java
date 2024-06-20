@@ -31,7 +31,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
 
   private final ResourceBasedController resourceController;
   private final ResourceBasedSlotOptions options;
-  private final Instant lastSlotIssuedAt = Instant.EPOCH;
+  private Instant lastSlotIssuedAt = Instant.EPOCH;
 
   /**
    * Construct a slot supplier with the given resource controller and options.
@@ -78,6 +78,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
         || (timeSinceLastSlotIssued().compareTo(options.getRampThrottle()) > 0
             && numIssued < options.getMaximumSlots()
             && resourceController.pidDecision())) {
+      lastSlotIssuedAt = Instant.now();
       return Optional.of(new SlotPermit());
     }
     return Optional.empty();
