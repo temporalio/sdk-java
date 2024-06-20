@@ -1527,7 +1527,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ContinueAsNewWorkflowExecutionCommandAttributes d,
       long workflowTaskCompletedId,
       String identity) {
-    System.out.println("Attribute: " + d);
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);

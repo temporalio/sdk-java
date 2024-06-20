@@ -110,7 +110,7 @@ public class ContinueAsNewTest {
       next.continueAsNew(
           new ContinueAsNewInput(
               input.getWorkflowType(),
-              ContinueAsNewOptions.newBuilder(input.getOptions()).setTaskQueue(null).build(),
+              ContinueAsNewOptions.newBuilder(input.getOptions()).setTaskQueue("").build(),
               input.getArgs(),
               input.getHeader()));
     }
