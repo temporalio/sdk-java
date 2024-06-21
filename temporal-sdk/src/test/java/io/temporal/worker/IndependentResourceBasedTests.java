@@ -20,4 +20,4 @@
 
 package io.temporal.worker;
 
-public interface IndependentResourceBasedTests {}
+interface IndependentResourceBasedTests {}
