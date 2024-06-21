@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import io.temporal.worker.tuning.*;
-import java.time.Duration;
 import org.junit.Test;
 
 public class WorkerOptionsTest {
@@ -59,15 +58,15 @@ public class WorkerOptionsTest {
 
     SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
     SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
-        new ResourceBasedSlotSupplier<>(
-            resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+        ResourceBasedSlotSupplier.createForActivity(
+            resourceController, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
     SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new ResourceBasedSlotSupplier<>(
-            resourceController, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+        ResourceBasedSlotSupplier.createForLocalActivity(
+            resourceController, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
 
     WorkerOptions.newBuilder()
         .setWorkerTuner(
-            new TunerHolder(
+            new CompositeTuner(
                 workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier))
         .build();
   }
@@ -83,16 +82,16 @@ public class WorkerOptionsTest {
 
     SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
     SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
-        new ResourceBasedSlotSupplier<>(
-            resourceController1, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+        ResourceBasedSlotSupplier.createForActivity(
+            resourceController1, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
     SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new ResourceBasedSlotSupplier<>(
-            resourceController2, new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50)));
+        ResourceBasedSlotSupplier.createForLocalActivity(
+            resourceController2, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
 
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            new TunerHolder(
+            new CompositeTuner(
                 workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier));
   }
 }

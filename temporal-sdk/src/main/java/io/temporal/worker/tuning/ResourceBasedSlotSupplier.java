@@ -34,15 +34,80 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   private Instant lastSlotIssuedAt = Instant.EPOCH;
 
   /**
-   * Construct a slot supplier with the given resource controller and options.
+   * Construct a slot supplier for workflow tasks with the given resource controller and options.
    *
    * <p>The resource controller must be the same among all slot suppliers in a worker. If you want
    * to use resource-based tuning for all slot suppliers, prefer {@link ResourceBasedTuner}.
    */
-  public ResourceBasedSlotSupplier(
+  public static ResourceBasedSlotSupplier<WorkflowSlotInfo> createForWorkflow(
       ResourceBasedController resourceBasedController, ResourceBasedSlotOptions options) {
+    return new ResourceBasedSlotSupplier<>(
+        WorkflowSlotInfo.class, resourceBasedController, options);
+  }
+
+  /**
+   * Construct a slot supplier for activity tasks with the given resource controller and options.
+   *
+   * <p>The resource controller must be the same among all slot suppliers in a worker. If you want
+   * to use resource-based tuning for all slot suppliers, prefer {@link ResourceBasedTuner}.
+   */
+  public static ResourceBasedSlotSupplier<ActivitySlotInfo> createForActivity(
+      ResourceBasedController resourceBasedController, ResourceBasedSlotOptions options) {
+    return new ResourceBasedSlotSupplier<>(
+        ActivitySlotInfo.class, resourceBasedController, options);
+  }
+
+  /**
+   * Construct a slot supplier for local activities with the given resource controller and options.
+   *
+   * <p>The resource controller must be the same among all slot suppliers in a worker. If you want
+   * to use resource-based tuning for all slot suppliers, prefer {@link ResourceBasedTuner}.
+   */
+  public static ResourceBasedSlotSupplier<LocalActivitySlotInfo> createForLocalActivity(
+      ResourceBasedController resourceBasedController, ResourceBasedSlotOptions options) {
+    return new ResourceBasedSlotSupplier<>(
+        LocalActivitySlotInfo.class, resourceBasedController, options);
+  }
+
+  private ResourceBasedSlotSupplier(
+      Class<SI> clazz,
+      ResourceBasedController resourceBasedController,
+      ResourceBasedSlotOptions options) {
     this.resourceController = resourceBasedController;
-    this.options = options;
+    // Merge default options for any unset fields
+    if (WorkflowSlotInfo.class.isAssignableFrom(clazz)) {
+      this.options =
+          ResourceBasedSlotOptions.newBuilder()
+              .setMinimumSlots(
+                  options.getMinimumSlots() == 0
+                      ? ResourceBasedTuner.DEFAULT_WORKFLOW_SLOT_OPTIONS.getMinimumSlots()
+                      : options.getMinimumSlots())
+              .setMaximumSlots(
+                  options.getMaximumSlots() == 0
+                      ? ResourceBasedTuner.DEFAULT_WORKFLOW_SLOT_OPTIONS.getMaximumSlots()
+                      : options.getMaximumSlots())
+              .setRampThrottle(
+                  options.getRampThrottle() == null
+                      ? ResourceBasedTuner.DEFAULT_WORKFLOW_SLOT_OPTIONS.getRampThrottle()
+                      : options.getRampThrottle())
+              .build();
+    } else {
+      this.options =
+          ResourceBasedSlotOptions.newBuilder()
+              .setMinimumSlots(
+                  options.getMinimumSlots() == 0
+                      ? ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS.getMinimumSlots()
+                      : options.getMinimumSlots())
+              .setMaximumSlots(
+                  options.getMaximumSlots() == 0
+                      ? ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS.getMaximumSlots()
+                      : options.getMaximumSlots())
+              .setRampThrottle(
+                  options.getRampThrottle() == null
+                      ? ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS.getRampThrottle()
+                      : options.getRampThrottle())
+              .build();
+    }
   }
 
   @Override

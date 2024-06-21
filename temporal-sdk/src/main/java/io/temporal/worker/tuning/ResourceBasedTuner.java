@@ -28,9 +28,17 @@ import javax.annotation.Nonnull;
 @Experimental
 public class ResourceBasedTuner implements WorkerTuner {
   public static final ResourceBasedSlotOptions DEFAULT_WORKFLOW_SLOT_OPTIONS =
-      new ResourceBasedSlotOptions(5, 500, Duration.ZERO);
+      ResourceBasedSlotOptions.newBuilder()
+          .setMinimumSlots(5)
+          .setMaximumSlots(500)
+          .setRampThrottle(Duration.ZERO)
+          .build();
   public static final ResourceBasedSlotOptions DEFAULT_ACTIVITY_SLOT_OPTIONS =
-      new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50));
+      ResourceBasedSlotOptions.newBuilder()
+          .setMinimumSlots(1)
+          .setMaximumSlots(1000)
+          .setRampThrottle(Duration.ofMillis(50))
+          .build();
 
   private final ResourceBasedController controller;
   private final ResourceBasedSlotOptions workflowSlotOptions;
@@ -112,18 +120,18 @@ public class ResourceBasedTuner implements WorkerTuner {
   @Nonnull
   @Override
   public SlotSupplier<WorkflowSlotInfo> getWorkflowTaskSlotSupplier() {
-    return new ResourceBasedSlotSupplier<>(controller, workflowSlotOptions);
+    return ResourceBasedSlotSupplier.createForWorkflow(controller, workflowSlotOptions);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<ActivitySlotInfo> getActivityTaskSlotSupplier() {
-    return new ResourceBasedSlotSupplier<>(controller, activitySlotOptions);
+    return ResourceBasedSlotSupplier.createForActivity(controller, activitySlotOptions);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
-    return new ResourceBasedSlotSupplier<>(controller, localActivitySlotOptions);
+    return ResourceBasedSlotSupplier.createForLocalActivity(controller, localActivitySlotOptions);
   }
 }

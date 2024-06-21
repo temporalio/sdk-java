@@ -29,12 +29,12 @@ import javax.annotation.Nonnull;
  * type of slot.
  */
 @Experimental
-public class TunerHolder implements WorkerTuner {
+public class CompositeTuner implements WorkerTuner {
   private final @Nonnull SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier;
   private final @Nonnull SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier;
   private final @Nonnull SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
 
-  public TunerHolder(
+  public CompositeTuner(
       @Nonnull SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier,
       @Nonnull SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier,
       @Nonnull SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier) {
