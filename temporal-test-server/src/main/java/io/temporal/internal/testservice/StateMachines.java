@@ -936,12 +936,12 @@ class StateMachines {
     } else {
       a.setWorkflowRunTimeout(sr.getWorkflowRunTimeout());
     }
-    if (d.hasTaskQueue()) {
+    if (d.hasTaskQueue() && !d.getTaskQueue().getName().isEmpty()) {
       a.setTaskQueue(d.getTaskQueue());
     } else {
       a.setTaskQueue(sr.getTaskQueue());
     }
-    if (d.hasWorkflowType()) {
+    if (d.hasWorkflowType() && !d.getWorkflowType().getName().isEmpty()) {
       a.setWorkflowType(d.getWorkflowType());
     } else {
       a.setWorkflowType(sr.getWorkflowType());
