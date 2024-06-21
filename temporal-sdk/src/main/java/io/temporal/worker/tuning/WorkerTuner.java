@@ -21,34 +21,26 @@
 package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
-import java.util.Map;
+import javax.annotation.Nonnull;
 
+/** WorkerTuners allow for the dynamic customization of some aspects of worker configuration. */
 @Experimental
-public interface SlotReserveContext<SI extends SlotInfo> {
+public interface WorkerTuner {
   /**
-   * @return the Task Queue for which this reservation request is associated.
+   * @return A {@link SlotSupplier} for workflow tasks.
    */
-  String getTaskQueue();
+  @Nonnull
+  SlotSupplier<WorkflowSlotInfo> getWorkflowTaskSlotSupplier();
 
   /**
-   * @return A read-only & safe for concurrent access mapping of slot permits to the information
-   *     associated with the in-use slot. This map is changed internally any time new slots are
-   *     used.
+   * @return A {@link SlotSupplier} for activity tasks.
    */
-  Map<SlotPermit, SI> getUsedSlots();
+  @Nonnull
+  SlotSupplier<ActivitySlotInfo> getActivityTaskSlotSupplier();
 
   /**
-   * @return The worker's identity that is associated with this reservation request.
+   * @return A {@link SlotSupplier} for local activities.
    */
-  String getWorkerIdentity();
-
-  /**
-   * @return The worker's build ID that is associated with this reservation request.
-   */
-  String getWorkerBuildId();
-
-  /**
-   * @return The number of currently outstanding slot permits of this type, whether used or not.
-   */
-  int getNumIssuedSlots();
+  @Nonnull
+  SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier();
 }

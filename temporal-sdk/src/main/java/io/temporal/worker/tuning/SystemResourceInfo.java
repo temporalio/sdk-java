@@ -21,34 +21,19 @@
 package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
-import java.util.Map;
 
+/** Implementors determine how resource usage is measured. */
 @Experimental
-public interface SlotReserveContext<SI extends SlotInfo> {
+public interface SystemResourceInfo {
   /**
-   * @return the Task Queue for which this reservation request is associated.
+   * @return System-wide CPU usage as a percentage [0.0, 1.0]
    */
-  String getTaskQueue();
+  double getCPUUsagePercent();
 
   /**
-   * @return A read-only & safe for concurrent access mapping of slot permits to the information
-   *     associated with the in-use slot. This map is changed internally any time new slots are
-   *     used.
+   * @return Memory usage as a percentage [0.0, 1.0]. Memory usage should reflect either system-wide
+   *     usage or JVM-specific usage, whichever is higher, to avoid running out of memory in either
+   *     way.
    */
-  Map<SlotPermit, SI> getUsedSlots();
-
-  /**
-   * @return The worker's identity that is associated with this reservation request.
-   */
-  String getWorkerIdentity();
-
-  /**
-   * @return The worker's build ID that is associated with this reservation request.
-   */
-  String getWorkerBuildId();
-
-  /**
-   * @return The number of currently outstanding slot permits of this type, whether used or not.
-   */
-  int getNumIssuedSlots();
+  double getMemoryUsagePercent();
 }
