@@ -28,7 +28,7 @@ import javax.annotation.Nonnull;
 @Experimental
 public class ResourceBasedTuner implements WorkerTuner {
   public static final ResourceBasedSlotOptions DEFAULT_WORKFLOW_SLOT_OPTIONS =
-      new ResourceBasedSlotOptions(2, 500, Duration.ZERO);
+      new ResourceBasedSlotOptions(5, 500, Duration.ZERO);
   public static final ResourceBasedSlotOptions DEFAULT_ACTIVITY_SLOT_OPTIONS =
       new ResourceBasedSlotOptions(1, 1000, Duration.ofMillis(50));
 
@@ -59,7 +59,7 @@ public class ResourceBasedTuner implements WorkerTuner {
      * Set the slot options for workflow tasks. Has no effect after the worker using this tuner
      * starts.
      *
-     * <p>Defaults to minimum 2 slots, maximum 500 slots, and no ramp throttle.
+     * <p>Defaults to minimum 5 slots, maximum 500 slots, and no ramp throttle.
      */
     public Builder setWorkflowSlotOptions(@Nonnull ResourceBasedSlotOptions workflowSlotOptions) {
       this.workflowSlotOptions = workflowSlotOptions;

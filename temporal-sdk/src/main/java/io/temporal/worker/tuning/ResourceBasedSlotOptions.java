@@ -35,7 +35,7 @@ public class ResourceBasedSlotOptions {
    * @param maximumSlots maximum number of slots that will ever be issued
    * @param rampThrottle time to wait between slot issuance. This value matters because how many
    *     resources a task will use cannot be determined ahead of time, and thus the system should
-   *     ait to see how much resources are used before issuing more slots.
+   *     wait to see how much resources are used before issuing more slots.
    */
   public ResourceBasedSlotOptions(int minimumSlots, int maximumSlots, Duration rampThrottle) {
     this.minimumSlots = minimumSlots;

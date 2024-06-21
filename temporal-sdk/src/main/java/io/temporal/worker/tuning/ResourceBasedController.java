@@ -42,12 +42,7 @@ public class ResourceBasedController {
   private final SystemResourceInfo systemInfoSupplier;
   private Instant lastPidRefresh = Instant.now();
 
-  private AtomicReference<Metrics> metrics = new AtomicReference<>();
-  private boolean metricsScopeSet;
-  private volatile double lastMemUsage;
-  private volatile double lastCpuUsage;
-  private volatile double lastMemPidOut;
-  private volatile double lastCpuPidOut;
+  private final AtomicReference<Metrics> metrics = new AtomicReference<>();
 
   /**
    * Construct a controller with the given options. If you want to use resource-based tuning for all
@@ -92,10 +87,6 @@ public class ResourceBasedController {
           memoryController.getOutput(lastPidRefresh.getEpochSecond(), memoryUsage);
       double cpuOutput = cpuController.getOutput(lastPidRefresh.getEpochSecond(), cpuUsage);
       lastPidRefresh = Instant.now();
-      lastMemUsage = memoryUsage;
-      lastCpuUsage = cpuUsage;
-      lastMemPidOut = memoryOutput;
-      lastCpuPidOut = cpuOutput;
 
       Metrics metrics = this.metrics.get();
       if (metrics != null) {

@@ -44,5 +44,6 @@ test {
 task testResourceIndependent(type: Test) {
     useJUnit {
         includeCategories 'io.temporal.worker.IndependentResourceBasedTests'
+        maxParallelForks = 1
     }
 }
