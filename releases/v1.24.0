@@ -1,6 +1,6 @@
 # Highlights
 
-## Custom Slot Supplier (Preview)
+## Slot Auto-Tuning (Preview)
 
 Added `WorkerTuner` - this wraps the previously added `SlotSupplier` classes to bring worker tuning options together under one class passed to the WorkerOptions
     * Added `ResourceBasedTuner` and `ResourceBasedSlotSupplier` - these classes can be used to tune the workers slot count based on available memory and cpu resources. 
