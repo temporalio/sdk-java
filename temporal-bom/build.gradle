@@ -12,8 +12,8 @@ dependencies {
         api project(':temporal-sdk')
         api project(':temporal-serviceclient')
         api project(':temporal-shaded')
-        api project(':temporal-spring-boot-autoconfigure-alpha')
-        api project(':temporal-spring-boot-starter-alpha')
+        api project(':temporal-spring-boot-autoconfigure')
+        api project(':temporal-spring-boot-starter')
         api project(':temporal-test-server')
         api project(':temporal-testing')
     }
