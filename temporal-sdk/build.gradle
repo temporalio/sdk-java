@@ -19,7 +19,9 @@ dependencies {
     // It's useful only for unit tests and debugging.
     // For these use-cases Temporal users can add this dep in the classpath temporary or permanently themselves.
     compileOnly "com.jayway.jsonpath:json-path:$jsonPathVersion"
-    testImplementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
+    testImplementation("com.jayway.jsonpath:json-path:$jsonPathVersion"){
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
 
     testImplementation project(':temporal-testing')
     testImplementation "junit:junit:${junitVersion}"

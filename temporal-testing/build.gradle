@@ -20,7 +20,9 @@ dependencies {
     // This dependency is included in temporal-sdk module as optional with compileOnly scope.
     // To make things easier for users, it's helpful for the testing module to bring this dependency
     // transitively as most users work with history jsons in tests.
-    implementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
+    implementation("com.jayway.jsonpath:json-path:$jsonPathVersion"){
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
 
     junit4Api 'junit:junit:4.13.2'
 

@@ -1,7 +1,7 @@
 description = '''Temporal Workflow Java SDK'''
 
 ext {
-    okhttpVersion = '4.10.0'
+    okhttpVersion = '4.11.0'
     servletVersion = '4.0.1'
 }
 
