@@ -1,0 +1,77 @@
+# Highlights
+
+## Slot Auto-Tuning (Preview)
+
+Added `WorkerTuner` - this wraps the previously added `SlotSupplier` classes to bring worker tuning options together under one class passed to the WorkerOptions
+    * Added `ResourceBasedTuner` and `ResourceBasedSlotSupplier` - these classes can be used to tune the workers slot count based on available memory and cpu resources. 
+    Set a memory/cpu target and the worker will automatically try to reach those target usage levels.
+    * Added `CompositeTuner` - this allows you to combine different kinds of `SlotSuppliers` to implement `WorkerTuner`.
+
+Please give the resource based tuning a try and let us know how it works for you (feedback on community slack is welcome)! 
+The easiest thing to do is instantiate and pass a `ResourceBasedTuner` to `WorkerOptions`. 
+It'll work best if the worker is the only thing on your host using significant resources. 
+Try setting the thresholds to a reasonable value like 0.8, and make sure that your `JVM -Xmx` value is set appropriately.
+
+Note: Custom Slot Supplier is currently considered experimental and not intended for production use.
+
+## Breaking Changes
+
+### Workflow Update (Preview)
+
+This release includes some breaking changes to the Workflow Update client API.
+
+* `temporal.client.UpdateOptions.setWaitPolicy` has been changed to `temporal.client.UpdateOptions.setWaitForStage`
+* `WaitForStage` is now a required option in `temporal.client.UpdateOptions` and no longer defaults to `Accepted`
+* `io.temporal.client.WorkflowStub.startUpdate` now requires a `WorkflowUpdateStage`.
+* `io.temporal.client.WorkflowStub.startUpdate` now respects the `WorkflowUpdateStage`.
+    *  Previously `startUpdate` may have returned a handle before the desired `WaitForStage` was reached.
+
+### SpringBoot Integration (Preview)
+
+As part of preparation for Spring Boot Integration GA we have renamed our Spring Boot packages to remove the alpha tag:
+    * `temporal-spring-boot-starter-alpha` -> `temporal-spring-boot-starter`
+    * `temporal-spring-boot-autoconfigure-alpha` -> `temporal-spring-boot-autoconfigure`
+
+Users should update their package names when upgrading the Java SDK. 
+
+Stay tuned for future news about SpringBoot integration GA.
+
+# Changeset
+
+2024-04-02 - e603fd85 - Fix environment variables in CI github action (#2024)
+2024-04-04 - 26a85957 - SpringBoot - add workflow and activity metadata to RegisteredInfo (#1995)
+2024-04-08 - 35689706 - Update github actions (#2027)
+2024-04-08 - 779d90c4 - Make StickyQueueBalancer synchronized (#2025)
+2024-04-10 - 920a3617 - Add note on using snapshot releases (#2032)
+2024-04-10 - d2a06fc6 - Slot supplier interface & fixed-size implementation (#2014)
+2024-04-15 - 81cc6e03 - Update proto API to 1.32.0 (#2039)
+2024-04-15 - c6cceca2 - Fix recursion in TracingWorkerInterceptor (#2040)
+2024-04-17 - ed211fa6 - Fix exception in GrpcRetryer. (#2021)
+2024-05-03 - 00136756 - Add ScheduleClientInterceptor APIs (fixes #2048) (#2050)
+2024-05-08 - a41c64ec - Add support for update admitted event (#2041)
+2024-05-10 - 9cdff7ae - Fix UnsupportedOperationException in handleSingleEventLookahead (#2061)
+2024-05-21 - 5ccb8592 - Send original update request back in accept/reject response (#2074)
+2024-05-21 - 82d5a885 - Don't return update handles until desired stage reached (#2066)
+2024-05-21 - 9a856f30 - Send unset catchupWindow in schedules if not specified (#2067)
+2024-05-23 - 5e5cf0bf - Add shortcut to set API key (#2052)
+2024-05-29 - 0d7ae22f - Add support for nextRetryDelay (#2081)
+2024-05-29 - 0d847a65 - Add identity to WorkflowOptions (#2080)
+2024-05-29 - ae6597ff - Fix schedule workflow action retry policy (#2082)
+2024-05-30 - 0c8073ee - Fix a few issues with the describeSchedules test (#2085)
+2024-05-31 - 08b220c9 - Bump some GH action dependencies (#2083)
+2024-05-31 - 5c464e8f - Fix issue with isReplaying causing direct query to spam logs (#2087)
+2024-05-31 - cde114cf - Fix signal CAN non determinism test (#2084)
+2024-06-03 - 1ad1c04e - Require WaitForStage in StartUpdate (#2088)
+2024-06-03 - 4eda239a - Add setWorkflowIdConflictPolicy (#2055)
+2024-06-04 - 1e795927 - Add exception for calling an update method on a stub (#2095)
+2024-06-05 - 265590d1 - Add toString to ServiceStubOptions (#2089)
+2024-06-06 - 42b98035 - Fix caching in LazyUpdateHandleImpl (#2098)
+2024-06-06 - bf392f5b - Bump some GHA actions back due to glibc compatibility (#2096)
+2024-06-10 - 4f781b3c - Allow SDK to handle speculative workflow task with command events (#2099)
+2024-06-10 - f0a30a67 - Fix flake in resetWorkflowIdFromWorkflowTaskTest (#2105)
+2024-06-11 - 6da11b96 - Add integration test for reset with update (#2104)
+2024-06-13 - ddda99ba - Fix ConcurrentModificationException in LocalActivityMeteringHelper (#2108)
+2024-06-21 - 69769cb2 - Fix empty-string fields on CaN not working (#2120)
+2024-06-21 - 8a2d5cdc - Resource based tuner (#2110)
+2024-06-25 - 43a4aa0d - Remove Spring Boot alpha tag (#2115)
+2024-06-25 - 8872e33e - Update dependencies to address some CVE scans (#2123)
