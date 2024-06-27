@@ -21,7 +21,6 @@
 package io.temporal.activity;
 
 import static org.junit.Assert.*;
-import static org.junit.Assume.assumeFalse;
 
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
