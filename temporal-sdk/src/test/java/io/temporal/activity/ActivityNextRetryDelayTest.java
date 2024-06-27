@@ -46,8 +46,6 @@ public class ActivityNextRetryDelayTest {
 
   @Test
   public void activityNextRetryDelay() {
-    assumeFalse(
-        "Real Server doesn't support next retry delay yet", SDKTestWorkflowRule.useExternalService);
     TestWorkflowReturnDuration workflow =
         testWorkflowRule.newWorkflowStub(TestWorkflowReturnDuration.class);
     Duration result = workflow.execute(false);
