@@ -103,6 +103,20 @@ public interface TestActivityEnvironment {
    * Creates a stub that can be used to invoke activities registered through {@link
    * #registerActivitiesImplementations(Object...)}.
    *
+   * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
+   */
+  <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions);
+
+  /**
+   * Creates a stub that can be used to invoke activities registered through {@link
+   * #registerActivitiesImplementations(Object...)}.
+   *
    * @param <T> Type of the activity interface.
    * @param activityInterface activity interface class that the object under test implements
    * @param options options that specify the activity invocation parameters
