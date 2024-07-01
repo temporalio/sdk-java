@@ -89,6 +89,7 @@ final class RequestContext {
 
   static final class TimerLockChange {
     private final String caller;
+
     /** +1 or -1 */
     private final int change;
 

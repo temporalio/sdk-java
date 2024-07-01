@@ -21,6 +21,7 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
+import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
 import javax.annotation.Nullable;
@@ -55,6 +56,7 @@ public class WorkerFactoryOptions {
     private int maxWorkflowThreadCount;
     private WorkerInterceptor[] workerInterceptors;
     private boolean enableLoggingInReplay;
+    private boolean enableVirtualThreads;
 
     private Builder() {}
 
@@ -68,6 +70,7 @@ public class WorkerFactoryOptions {
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workerInterceptors = options.workerInterceptors;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
+      this.enableVirtualThreads = options.enableVirtualThreads;
     }
 
     /**
@@ -120,6 +123,19 @@ public class WorkerFactoryOptions {
     }
 
     /**
+     * Enable the use of Virtual Threads for workflow execution across all workers created by this
+     * factory. This includes cached workflows. This option is only supported for JDK >= 21. If set
+     * then {@link #setMaxWorkflowThreadCount(int)} is ignored.
+     *
+     * <p>Default is false
+     */
+    @Experimental
+    public Builder setEnableVirtualThreads(boolean enableVirtualThreads) {
+      this.enableVirtualThreads = enableVirtualThreads;
+      return this;
+    }
+
+    /**
      * @deprecated not used anymore by JavaSDK, this value doesn't have any effect
      */
     @Deprecated
@@ -134,6 +150,7 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors,
           enableLoggingInReplay,
+          enableVirtualThreads,
           false);
     }
 
@@ -144,6 +161,7 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors == null ? new WorkerInterceptor[0] : workerInterceptors,
           enableLoggingInReplay,
+          enableVirtualThreads,
           true);
     }
   }
@@ -153,6 +171,7 @@ public class WorkerFactoryOptions {
   private final @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
   private final WorkerInterceptor[] workerInterceptors;
   private final boolean enableLoggingInReplay;
+  private final boolean enableVirtualThreads;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
@@ -160,10 +179,11 @@ public class WorkerFactoryOptions {
       @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout,
       WorkerInterceptor[] workerInterceptors,
       boolean enableLoggingInReplay,
+      boolean enableVirtualThreads,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
-      if (workflowCacheSize <= 0) {
+      if (workflowCacheSize == 0) {
         workflowCacheSize = DEFAULT_WORKFLOW_CACHE_SIZE;
       }
 
@@ -186,6 +206,7 @@ public class WorkerFactoryOptions {
         workflowHostLocalTaskQueueScheduleToStartTimeout;
     this.workerInterceptors = workerInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
+    this.enableVirtualThreads = enableVirtualThreads;
   }
 
   public int getWorkflowCacheSize() {
@@ -194,6 +215,11 @@ public class WorkerFactoryOptions {
 
   public int getMaxWorkflowThreadCount() {
     return maxWorkflowThreadCount;
+  }
+
+  @Experimental
+  public boolean isEnableVirtualThreads() {
+    return enableVirtualThreads;
   }
 
   @Nullable
