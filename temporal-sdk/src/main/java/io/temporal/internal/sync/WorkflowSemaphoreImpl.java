@@ -42,7 +42,7 @@ class WorkflowSemaphoreImpl implements WorkflowSemaphore {
   @Override
   public void acquire(int permits) {
     Preconditions.checkArgument(
-        permits > 0, "WorkflowSemaphore.acquire called with negative permits");
+        permits >= 0, "WorkflowSemaphore.acquire called with negative permits");
     WorkflowInternal.await(
         "WorkflowSemaphore.acquire",
         () -> {
@@ -66,7 +66,7 @@ class WorkflowSemaphoreImpl implements WorkflowSemaphore {
   public boolean tryAcquire(int permits) {
     assertNotReadOnly("WorkflowSemaphore.tryAcquire");
     Preconditions.checkArgument(
-        permits > 0, "WorkflowSemaphore.tryAcquire called with negative permits");
+        permits >= 0, "WorkflowSemaphore.tryAcquire called with negative permits");
     if (currentPermits >= permits) {
       currentPermits -= permits;
       return true;
@@ -77,7 +77,7 @@ class WorkflowSemaphoreImpl implements WorkflowSemaphore {
   @Override
   public boolean tryAcquire(int permits, Duration timeout) {
     Preconditions.checkArgument(
-        permits > 0, "WorkflowSemaphore.tryAcquire called with negative permits");
+        permits >= 0, "WorkflowSemaphore.tryAcquire called with negative permits");
     boolean acquired =
         WorkflowInternal.await(
             timeout,
@@ -101,7 +101,7 @@ class WorkflowSemaphoreImpl implements WorkflowSemaphore {
   public void release(int permits) {
     assertNotReadOnly("WorkflowSemaphore.release");
     Preconditions.checkArgument(
-        permits > 0, "WorkflowSemaphore.release called with negative permits");
+        permits >= 0, "WorkflowSemaphore.release called with negative permits");
     currentPermits += permits;
   }
 }
