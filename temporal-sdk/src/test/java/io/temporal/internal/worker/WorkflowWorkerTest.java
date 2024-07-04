@@ -170,6 +170,11 @@ public class WorkflowWorkerTest {
                 });
 
     assertTrue(worker.start());
+    // All slots should be available
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+        ImmutableMap.of("worker_type", "WorkflowWorker"),
+        100.0);
     // Wait until we have got all the polls
     pollTaskQueueLatch.await();
     // Wait until the worker handles at least one WFT
