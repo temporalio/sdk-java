@@ -21,6 +21,7 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.workflow.Functions;
 import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,14 +29,17 @@ import javax.annotation.Nullable;
 class LocalActivityAttemptTask {
   private final @Nonnull LocalActivityExecutionContext executionContext;
   private final @Nonnull PollActivityTaskQueueResponse.Builder attemptTask;
+  private final @Nullable Functions.Proc takenFromQueueCallback;
   private final @Nullable ScheduledFuture<?> scheduleToStartFuture;
 
   public LocalActivityAttemptTask(
       @Nonnull LocalActivityExecutionContext executionContext,
       @Nonnull PollActivityTaskQueueResponse.Builder attemptTask,
+      @Nullable Functions.Proc takenFromQueueCallback,
       @Nullable ScheduledFuture<?> scheduleToStartFuture) {
     this.executionContext = executionContext;
     this.attemptTask = attemptTask;
+    this.takenFromQueueCallback = takenFromQueueCallback;
     this.scheduleToStartFuture = scheduleToStartFuture;
   }
 
@@ -51,6 +55,13 @@ class LocalActivityAttemptTask {
   @Nonnull
   public PollActivityTaskQueueResponse.Builder getAttemptTask() {
     return attemptTask;
+  }
+
+  public void markAsTakenFromQueue() {
+    executionContext.newAttempt();
+    if (takenFromQueueCallback != null) {
+      takenFromQueueCallback.apply();
+    }
   }
 
   @Nullable

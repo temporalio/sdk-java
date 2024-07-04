@@ -34,8 +34,6 @@ import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
-import io.temporal.worker.tuning.LocalActivitySlotInfo;
-import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -82,9 +80,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
-      @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
-      @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
-      @Nonnull TrackingSlotSupplier<LocalActivitySlotInfo> laSlotSupplier) {
+      @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -108,9 +104,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             laActivityExecutionContextFactory,
             localActivityOptions.getWorkerInterceptors(),
             localActivityOptions.getContextPropagators());
-    laWorker =
-        new LocalActivityWorker(
-            namespace, taskQueue, localActivityOptions, laTaskHandler, laSlotSupplier);
+    laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
     TaskQueue stickyTaskQueue = null;
     if (stickyTaskQueueName != null) {
       stickyTaskQueue = createStickyTaskQueue(stickyTaskQueueName, taskQueue);
@@ -137,8 +131,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             runLocks,
             cache,
             taskHandler,
-            eagerActivityDispatcher,
-            slotSupplier);
+            eagerActivityDispatcher);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache

@@ -28,18 +28,14 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 import io.temporal.internal.Config;
-import io.temporal.worker.tuning.SlotPermit;
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /** This class is not thread safe and shouldn't leave the boundaries of one activity executor */
 @NotThreadSafe
 class EagerActivitySlotsReservation implements Closeable {
   private final EagerActivityDispatcher eagerActivityDispatcher;
-  private final List<SlotPermit> reservedSlots = new ArrayList<>();
+  private int outstandingReservationSlotsCount = 0;
 
   EagerActivitySlotsReservation(EagerActivityDispatcher eagerActivityDispatcher) {
     this.eagerActivityDispatcher = eagerActivityDispatcher;
@@ -53,14 +49,10 @@ class EagerActivitySlotsReservation implements Closeable {
       ScheduleActivityTaskCommandAttributes commandAttributes =
           command.getScheduleActivityTaskCommandAttributes();
       if (!commandAttributes.getRequestEagerExecution()) continue;
-      boolean atLimit = this.reservedSlots.size() >= Config.EAGER_ACTIVITIES_LIMIT;
-      Optional<SlotPermit> permit = Optional.empty();
-      if (!atLimit) {
-        permit = this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes);
-      }
 
-      if (permit.isPresent()) {
-        this.reservedSlots.add(permit.get());
+      if (this.outstandingReservationSlotsCount < Config.EAGER_ACTIVITIES_LIMIT
+          && this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes)) {
+        this.outstandingReservationSlotsCount++;
       } else {
         mutableRequest.setCommands(
             i,
@@ -74,32 +66,34 @@ class EagerActivitySlotsReservation implements Closeable {
   public void handleResponse(RespondWorkflowTaskCompletedResponse serverResponse) {
     int activityTasksCount = serverResponse.getActivityTasksCount();
     Preconditions.checkArgument(
-        activityTasksCount <= this.reservedSlots.size(),
+        activityTasksCount <= this.outstandingReservationSlotsCount,
         "Unexpectedly received %s eager activities though we only requested %s",
         activityTasksCount,
-        this.reservedSlots.size());
+        this.outstandingReservationSlotsCount);
+
+    releaseSlots(this.outstandingReservationSlotsCount - activityTasksCount);
 
     for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList()) {
-      // don't release slots here, instead the release function is called in the activity worker to
-      // release when the activity is done
-      SlotPermit permit = this.reservedSlots.remove(0);
-      this.eagerActivityDispatcher.dispatchActivity(act, permit);
+      // don't release slots here, instead the semaphore release reference is passed to the activity
+      // worker to release when the activity is done
+      this.eagerActivityDispatcher.dispatchActivity(act);
     }
 
-    // Release any remaining that we won't be using
-    try {
-      this.eagerActivityDispatcher.releaseActivitySlotReservations(this.reservedSlots);
-    } finally {
-      this.reservedSlots.clear();
-    }
+    this.outstandingReservationSlotsCount = 0;
   }
 
   @Override
   public void close() {
-    if (!this.reservedSlots.isEmpty()) {
-      // Release all slots
-      this.eagerActivityDispatcher.releaseActivitySlotReservations(this.reservedSlots);
-      this.reservedSlots.clear();
-    }
+    if (this.outstandingReservationSlotsCount > 0)
+      releaseSlots(this.outstandingReservationSlotsCount);
+  }
+
+  private void releaseSlots(int slotsToRelease) {
+    if (slotsToRelease > this.outstandingReservationSlotsCount)
+      throw new IllegalStateException(
+          "Trying to release more activity slots than outstanding reservations");
+
+    this.eagerActivityDispatcher.releaseActivitySlotReservations(slotsToRelease);
+    this.outstandingReservationSlotsCount -= slotsToRelease;
   }
 }
