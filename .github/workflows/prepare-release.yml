@@ -125,12 +125,13 @@ jobs:
     needs: create_draft_release
     if: github.event.inputs.do_build_native_images == 'true'
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runner: buildjet-2vcpu-ubuntu-1804
             os_family: linux
             arch: amd64
-          - runner: macos-latest
+          - runner: macos-13
             os_family: macOS
             arch: amd64
           - runner: windows-2019
