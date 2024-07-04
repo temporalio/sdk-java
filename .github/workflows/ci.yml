@@ -39,7 +39,6 @@ jobs:
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
 
-
   unit_test_jdk8:
     name: Unit test with docker service [JDK8]
     runs-on: ubuntu-latest
@@ -61,7 +60,6 @@ jobs:
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    
     - name: Start containerized server and dependencies
       run: |
         docker compose \
