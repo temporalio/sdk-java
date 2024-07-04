@@ -46,9 +46,4 @@ public interface SlotReserveContext<SI extends SlotInfo> {
    * @return The worker's build ID that is associated with this reservation request.
    */
   String getWorkerBuildId();
-
-  /**
-   * @return The number of currently outstanding slot permits of this type, whether used or not.
-   */
-  int getNumIssuedSlots();
 }

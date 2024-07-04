@@ -94,16 +94,6 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     this.metricsScope = metricsScope;
   }
 
-  /**
-   * If any slot supplier is resource-based, we want to attach a metrics scope to the controller
-   * (before it's labelled with the worker type).
-   */
-  public void attachMetricsToResourceController(Scope metricsScope) {
-    if (inner instanceof ResourceBasedSlotSupplier) {
-      ((ResourceBasedSlotSupplier<?>) inner).getResourceController().setMetricsScope(metricsScope);
-    }
-  }
-
   Map<SlotPermit, SI> getUsedSlots() {
     return usedSlots;
   }
@@ -119,8 +109,7 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
         dat.taskQueue,
         Collections.unmodifiableMap(usedSlots),
         dat.workerIdentity,
-        dat.workerBuildId,
-        issuedSlots);
+        dat.workerBuildId);
   }
 
   private class SlotReserveContextImpl implements SlotReserveContext<SI> {
@@ -128,19 +117,16 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     private final Map<SlotPermit, SI> usedSlots;
     private final String workerIdentity;
     private final String workerBuildId;
-    private final AtomicInteger issuedSlots;
 
     private SlotReserveContextImpl(
         String taskQueue,
         Map<SlotPermit, SI> usedSlots,
         String workerIdentity,
-        String workerBuildId,
-        AtomicInteger issuedSlots) {
+        String workerBuildId) {
       this.taskQueue = taskQueue;
       this.usedSlots = usedSlots;
       this.workerIdentity = workerIdentity;
       this.workerBuildId = workerBuildId;
-      this.issuedSlots = issuedSlots;
     }
 
     @Override
@@ -161,11 +147,6 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     @Override
     public String getWorkerBuildId() {
       return workerBuildId;
-    }
-
-    @Override
-    public int getNumIssuedSlots() {
-      return issuedSlots.get();
     }
   }
 
