@@ -68,10 +68,12 @@ public class ShutdownManager implements Closeable {
     return untimedWait(executorToShutdown, executorName);
   }
 
-  public CompletableFuture<Void> waitForSupplierPermitsReleasedUnlimited(
-      TrackingSlotSupplier<?> slotSupplier, String name) {
+  public CompletableFuture<Void> waitForSemaphorePermitsReleaseUntimed(
+      Semaphore semaphore, int initialSemaphorePermits, String semaphoreName) {
     CompletableFuture<Void> future = new CompletableFuture<>();
-    scheduledExecutorService.submit(new SlotSupplierDelayShutdown(slotSupplier, name, future));
+    scheduledExecutorService.submit(
+        new SemaphoreReportingDelayShutdown(
+            semaphore, initialSemaphorePermits, semaphoreName, future));
     return future;
   }
 
@@ -265,25 +267,30 @@ public class ShutdownManager implements Closeable {
     }
   }
 
-  private class SlotSupplierDelayShutdown extends ReportingDelayShutdown {
-    private final TrackingSlotSupplier<?> slotSupplier;
-    private final String name;
+  private class SemaphoreReportingDelayShutdown extends ReportingDelayShutdown {
+    private final Semaphore semaphore;
+    private final int initialSemaphorePermits;
+    private final String semaphoreName;
 
-    public SlotSupplierDelayShutdown(
-        TrackingSlotSupplier<?> supplier, String name, CompletableFuture<Void> promise) {
+    public SemaphoreReportingDelayShutdown(
+        Semaphore semaphore,
+        int initialSemaphorePermits,
+        String semaphoreName,
+        CompletableFuture<Void> promise) {
       super(promise);
-      this.slotSupplier = supplier;
-      this.name = name;
+      this.semaphore = semaphore;
+      this.initialSemaphorePermits = initialSemaphorePermits;
+      this.semaphoreName = semaphoreName;
     }
 
     @Override
     boolean isTerminated() {
-      return slotSupplier.getIssuedSlots() == 0;
+      return semaphore.availablePermits() == initialSemaphorePermits;
     }
 
     @Override
     void onSlowTermination() {
-      log.warn("Wait for release of slots of {} takes a long time", name);
+      log.warn("Wait for release of slots of {} takes a long time", semaphoreName);
     }
 
     @Override
@@ -291,7 +298,7 @@ public class ShutdownManager implements Closeable {
 
     @Override
     void onSlowSuccessfulTermination() {
-      log.warn("All slots of {} were successfully released", name);
+      log.warn("All slots of {} were successfully released", semaphoreName);
     }
   }
 

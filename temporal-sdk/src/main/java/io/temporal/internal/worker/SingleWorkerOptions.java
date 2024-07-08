@@ -47,11 +47,13 @@ public final class SingleWorkerOptions {
     private String buildId;
     private boolean useBuildIdForVersioning;
     private DataConverter dataConverter;
+    private int taskExecutorThreadPoolSize = 100;
     private PollerOptions pollerOptions;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
     private WorkerInterceptor[] workerInterceptors;
+
     private Duration stickyQueueScheduleToStartTimeout;
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
@@ -68,6 +70,7 @@ public final class SingleWorkerOptions {
       this.binaryChecksum = options.getBinaryChecksum();
       this.dataConverter = options.getDataConverter();
       this.pollerOptions = options.getPollerOptions();
+      this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
@@ -94,6 +97,11 @@ public final class SingleWorkerOptions {
 
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = dataConverter;
+      return this;
+    }
+
+    public Builder setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
+      this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
       return this;
     }
 
@@ -187,6 +195,7 @@ public final class SingleWorkerOptions {
           this.buildId,
           this.useBuildIdForVersioning,
           dataConverter,
+          this.taskExecutorThreadPoolSize,
           pollerOptions,
           metricsScope,
           this.enableLoggingInReplay,
@@ -205,6 +214,7 @@ public final class SingleWorkerOptions {
   private final String buildId;
   private final boolean useBuildIdForVersioning;
   private final DataConverter dataConverter;
+  private final int taskExecutorThreadPoolSize;
   private final PollerOptions pollerOptions;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
@@ -222,6 +232,7 @@ public final class SingleWorkerOptions {
       String buildId,
       boolean useBuildIdForVersioning,
       DataConverter dataConverter,
+      int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
       Scope metricsScope,
       boolean enableLoggingInReplay,
@@ -237,6 +248,7 @@ public final class SingleWorkerOptions {
     this.buildId = buildId;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.dataConverter = dataConverter;
+    this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
@@ -275,6 +287,10 @@ public final class SingleWorkerOptions {
 
   public DataConverter getDataConverter() {
     return dataConverter;
+  }
+
+  public int getTaskExecutorThreadPoolSize() {
+    return taskExecutorThreadPoolSize;
   }
 
   public PollerOptions getPollerOptions() {

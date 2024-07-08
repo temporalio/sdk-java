@@ -39,10 +39,9 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
-import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -65,7 +64,8 @@ final class ActivityWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
-  private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
+  private final int executorSlots;
+  private final Semaphore executorSlotsSemaphore;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -73,8 +73,7 @@ final class ActivityWorker implements SuspendableWorker {
       @Nonnull String taskQueue,
       double taskQueueActivitiesPerSecond,
       @Nonnull SingleWorkerOptions options,
-      @Nonnull ActivityTaskHandler handler,
-      @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier) {
+      @Nonnull ActivityTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -88,8 +87,8 @@ final class ActivityWorker implements SuspendableWorker {
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
-    this.slotSupplier = slotSupplier;
-    this.slotSupplier.setMetricsScope(this.workerMetricsScope);
+    this.executorSlots = options.getTaskExecutorThreadPoolSize();
+    this.executorSlotsSemaphore = new Semaphore(executorSlots);
   }
 
   @Override
@@ -102,7 +101,8 @@ final class ActivityWorker implements SuspendableWorker {
               options.getIdentity(),
               new TaskHandlerImpl(handler),
               pollerOptions,
-              slotSupplier.maximumSlots(),
+              options.getTaskExecutorThreadPoolSize(),
+              workerMetricsScope,
               true);
       poller =
           new Poller<>(
@@ -115,7 +115,7 @@ final class ActivityWorker implements SuspendableWorker {
                   options.getBuildId(),
                   options.isUsingBuildIdForVersioning(),
                   taskQueueActivitiesPerSecond,
-                  this.slotSupplier,
+                  executorSlotsSemaphore,
                   workerMetricsScope,
                   service.getServerCapabilities()),
               this.pollTaskExecutor,
@@ -131,14 +131,14 @@ final class ActivityWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    String supplierName = this + "#executorSlots";
+    String semaphoreName = this + "#executorSlotsSemaphore";
     return poller
         .shutdown(shutdownManager, interruptTasks)
         .thenCompose(
             ignore ->
                 !interruptTasks
-                    ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
-                        slotSupplier, supplierName)
+                    ? shutdownManager.waitForSemaphorePermitsReleaseUntimed(
+                        executorSlotsSemaphore, executorSlots, semaphoreName)
                     : CompletableFuture.completedFuture(null))
         .thenCompose(
             ignore ->
@@ -416,33 +416,23 @@ final class ActivityWorker implements SuspendableWorker {
 
   private final class EagerActivityDispatcherImpl implements EagerActivityDispatcher {
     @Override
-    public Optional<SlotPermit> tryReserveActivitySlot(
+    public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
-      if (!WorkerLifecycleState.ACTIVE.equals(ActivityWorker.this.getLifecycleState())
-          || !Objects.equals(
-              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)) {
-        return Optional.empty();
-      }
-      return ActivityWorker.this.slotSupplier.tryReserveSlot(
-          new SlotReservationData(
-              ActivityWorker.this.taskQueue, options.getIdentity(), options.getBuildId()));
+      return WorkerLifecycleState.ACTIVE.equals(ActivityWorker.this.getLifecycleState())
+          && Objects.equals(
+              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
+          && ActivityWorker.this.executorSlotsSemaphore.tryAcquire();
     }
 
     @Override
-    public void releaseActivitySlotReservations(Iterable<SlotPermit> permits) {
-      for (SlotPermit permit : permits) {
-        ActivityWorker.this.slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
-      }
+    public void releaseActivitySlotReservations(int slotCounts) {
+      ActivityWorker.this.executorSlotsSemaphore.release(slotCounts);
     }
 
     @Override
-    public void dispatchActivity(PollActivityTaskQueueResponse activity, SlotPermit permit) {
+    public void dispatchActivity(PollActivityTaskQueueResponse activity) {
       ActivityWorker.this.pollTaskExecutor.process(
-          new ActivityTask(
-              activity,
-              () ->
-                  ActivityWorker.this.slotSupplier.releaseSlot(
-                      SlotReleaseReason.taskComplete(), permit)));
+          new ActivityTask(activity, ActivityWorker.this.executorSlotsSemaphore::release));
     }
   }
 }

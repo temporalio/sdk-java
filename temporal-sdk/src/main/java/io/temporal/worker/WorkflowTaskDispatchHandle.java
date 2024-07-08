@@ -22,12 +22,9 @@ package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.internal.worker.TrackingSlotSupplier;
 import io.temporal.internal.worker.WorkflowTask;
-import io.temporal.worker.tuning.SlotPermit;
-import io.temporal.worker.tuning.SlotReleaseReason;
-import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.io.Closeable;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -35,20 +32,17 @@ import javax.annotation.Nonnull;
 public class WorkflowTaskDispatchHandle implements Closeable {
   private final AtomicBoolean completed = new AtomicBoolean();
   private final Function<WorkflowTask, Boolean> dispatchCallback;
-  private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
-  private final SlotPermit permit;
+  private final Semaphore executorSlotsSemaphore;
 
   /**
    * @param dispatchCallback callback into a {@code WorkflowWorker} to dispatch a workflow task.
-   * @param slotSupplier slot supplier that was used to reserve a slot for this workflow task
+   * @param executorSlotsSemaphore worker executor slots semaphore that was used to reserve this
+   *     dispatch handle on
    */
   public WorkflowTaskDispatchHandle(
-      DispatchCallback dispatchCallback,
-      TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
-      SlotPermit permit) {
+      DispatchCallback dispatchCallback, Semaphore executorSlotsSemaphore) {
     this.dispatchCallback = dispatchCallback;
-    this.slotSupplier = slotSupplier;
-    this.permit = permit;
+    this.executorSlotsSemaphore = executorSlotsSemaphore;
   }
 
   /**
@@ -61,9 +55,7 @@ public class WorkflowTaskDispatchHandle implements Closeable {
     Preconditions.checkNotNull(workflowTask, "workflowTask");
     if (completed.compareAndSet(false, true)) {
       return dispatchCallback.apply(
-          new WorkflowTask(
-              workflowTask,
-              () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit)));
+          new WorkflowTask(workflowTask, executorSlotsSemaphore::release));
     } else {
       return false;
     }
@@ -72,7 +64,7 @@ public class WorkflowTaskDispatchHandle implements Closeable {
   @Override
   public void close() {
     if (completed.compareAndSet(false, true)) {
-      slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
+      executorSlotsSemaphore.release();
     }
   }
 

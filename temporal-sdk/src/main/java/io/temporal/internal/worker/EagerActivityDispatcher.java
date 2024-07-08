@@ -22,33 +22,30 @@ package io.temporal.internal.worker;
 
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.worker.tuning.SlotPermit;
-import java.util.Optional;
 
 public interface EagerActivityDispatcher {
-  Optional<SlotPermit> tryReserveActivitySlot(
-      ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
+  boolean tryReserveActivitySlot(ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
 
-  void releaseActivitySlotReservations(Iterable<SlotPermit> permits);
+  void releaseActivitySlotReservations(int slotCounts);
 
-  void dispatchActivity(PollActivityTaskQueueResponse activity, SlotPermit permit);
+  void dispatchActivity(PollActivityTaskQueueResponse activity);
 
   class NoopEagerActivityDispatcher implements EagerActivityDispatcher {
     @Override
-    public Optional<SlotPermit> tryReserveActivitySlot(
+    public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
-      return Optional.empty();
+      return false;
     }
 
     @Override
-    public void releaseActivitySlotReservations(Iterable<SlotPermit> permits) {
-      if (permits.iterator().hasNext())
+    public void releaseActivitySlotReservations(int slotCounts) {
+      if (slotCounts > 0)
         throw new IllegalStateException(
             "Trying to release activity slots on a NoopEagerActivityDispatcher");
     }
 
     @Override
-    public void dispatchActivity(PollActivityTaskQueueResponse activity, SlotPermit permit) {
+    public void dispatchActivity(PollActivityTaskQueueResponse activity) {
       throw new IllegalStateException(
           "Trying to dispatch activity on a NoopEagerActivityDispatcher");
     }

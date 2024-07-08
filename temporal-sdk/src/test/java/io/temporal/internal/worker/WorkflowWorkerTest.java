@@ -42,8 +42,6 @@ import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.tuning.FixedSizeSlotSupplier;
-import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -73,8 +71,6 @@ public class WorkflowWorkerTest {
         new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
-    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
-        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(100));
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
 
     WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
@@ -96,8 +92,7 @@ public class WorkflowWorkerTest {
             runLockManager,
             cache,
             taskHandler,
-            eagerActivityDispatcher,
-            slotSupplier);
+            eagerActivityDispatcher);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
@@ -175,6 +170,11 @@ public class WorkflowWorkerTest {
                 });
 
     assertTrue(worker.start());
+    // All slots should be available
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+        ImmutableMap.of("worker_type", "WorkflowWorker"),
+        100.0);
     // Wait until we have got all the polls
     pollTaskQueueLatch.await();
     // Wait until the worker handles at least one WFT
@@ -221,8 +221,6 @@ public class WorkflowWorkerTest {
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
-    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
-        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(10));
 
     WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
     when(taskHandler.isAnyTypeSupported()).thenReturn(true);
@@ -243,8 +241,7 @@ public class WorkflowWorkerTest {
             runLockManager,
             cache,
             taskHandler,
-            eagerActivityDispatcher,
-            slotSupplier);
+            eagerActivityDispatcher);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
@@ -318,9 +315,6 @@ public class WorkflowWorkerTest {
     Scope metricScope = new NoopScope();
     WorkflowExecutorCache cache = new WorkflowExecutorCache(1, runLockManager, metricScope);
 
-    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
-        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(1));
-
     WorkflowTaskHandler rootTaskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",
@@ -375,8 +369,7 @@ public class WorkflowWorkerTest {
             runLockManager,
             cache,
             taskHandler,
-            eagerActivityDispatcher,
-            slotSupplier);
+            eagerActivityDispatcher);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);

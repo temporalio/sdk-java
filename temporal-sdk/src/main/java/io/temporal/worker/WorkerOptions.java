@@ -25,7 +25,6 @@ import static java.lang.Double.compare;
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.worker.tuning.*;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -83,7 +82,6 @@ public final class WorkerOptions {
     private String buildId;
     private boolean useBuildIdForVersioning;
     private Duration stickyTaskQueueDrainTimeout;
-    private WorkerTuner workerTuner;
     private String identity;
 
     private Builder() {}
@@ -96,7 +94,6 @@ public final class WorkerOptions {
       this.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
       this.maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
       this.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
-      this.workerTuner = o.workerTuner;
       this.maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
       this.maxConcurrentWorkflowTaskPollers = o.maxConcurrentWorkflowTaskPollers;
       this.maxConcurrentActivityTaskPollers = o.maxConcurrentActivityTaskPollers;
@@ -134,7 +131,6 @@ public final class WorkerOptions {
      * @param maxConcurrentActivityExecutionSize Maximum number of activities executed in parallel.
      *     Default is 200, which is chosen if set to zero.
      * @return {@code this}
-     *     <p>Note setting is mutually exclusive with {@link #setWorkerTuner(WorkerTuner)}
      */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
       if (maxConcurrentActivityExecutionSize < 0) {
@@ -152,7 +148,6 @@ public final class WorkerOptions {
      * @return {@code this}
      *     <p>Note that this is not related to the total number of open workflows which do not need
      *     to be loaded in a worker when they are not making state transitions.
-     *     <p>Note setting is mutually exclusive with {@link #setWorkerTuner(WorkerTuner)}
      */
     public Builder setMaxConcurrentWorkflowTaskExecutionSize(
         int maxConcurrentWorkflowTaskExecutionSize) {
@@ -169,7 +164,6 @@ public final class WorkerOptions {
      * @param maxConcurrentLocalActivityExecutionSize Maximum number of local activities executed in
      *     parallel. Default is 200, which is chosen if set to zero.
      * @return {@code this}
-     *     <p>Note setting is mutually exclusive with {@link #setWorkerTuner(WorkerTuner)}
      */
     public Builder setMaxConcurrentLocalActivityExecutionSize(
         int maxConcurrentLocalActivityExecutionSize) {
@@ -377,16 +371,6 @@ public final class WorkerOptions {
       return this;
     }
 
-    /**
-     * Set a {@link WorkerTuner} to determine how slots will be allocated for different types of
-     * tasks.
-     */
-    @Experimental
-    public Builder setWorkerTuner(WorkerTuner workerTuner) {
-      this.workerTuner = workerTuner;
-      return this;
-    }
-
     /** Override identity of the worker primary specified in a WorkflowClient options. */
     public Builder setIdentity(String identity) {
       this.identity = identity;
@@ -399,7 +383,6 @@ public final class WorkerOptions {
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowTaskExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
-          workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers,
@@ -426,21 +409,6 @@ public final class WorkerOptions {
       Preconditions.checkState(
           maxConcurrentLocalActivityExecutionSize >= 0,
           "negative maxConcurrentLocalActivityExecutionSize");
-      if (workerTuner != null) {
-        Preconditions.checkState(
-            maxConcurrentActivityExecutionSize == 0,
-            "maxConcurrentActivityExecutionSize must not be set if workerTuner is set");
-      }
-      if (workerTuner != null) {
-        Preconditions.checkState(
-            maxConcurrentWorkflowTaskExecutionSize == 0,
-            "maxConcurrentWorkflowTaskExecutionSize must not be set if workerTuner is set");
-      }
-      if (workerTuner != null) {
-        Preconditions.checkState(
-            maxConcurrentLocalActivityExecutionSize == 0,
-            "maxConcurrentLocalActivityExecutionSize must not be set if workerTuner is set");
-      }
       Preconditions.checkState(
           maxTaskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
       Preconditions.checkState(
@@ -473,7 +441,6 @@ public final class WorkerOptions {
           maxConcurrentLocalActivityExecutionSize == 0
               ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
               : maxConcurrentLocalActivityExecutionSize,
-          workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
               ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
@@ -508,7 +475,6 @@ public final class WorkerOptions {
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowTaskExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
-  private final WorkerTuner workerTuner;
   private final double maxTaskQueueActivitiesPerSecond;
   private final int maxConcurrentWorkflowTaskPollers;
   private final int maxConcurrentActivityTaskPollers;
@@ -526,9 +492,8 @@ public final class WorkerOptions {
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
       int maxConcurrentActivityExecutionSize,
-      int maxConcurrentWorkflowTaskExecutionSize,
+      int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
-      WorkerTuner workerTuner,
       double maxTaskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
       int activityPollThreadCount,
@@ -544,9 +509,8 @@ public final class WorkerOptions {
       String identity) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
-    this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
+    this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
-    this.workerTuner = workerTuner;
     this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
     this.maxConcurrentWorkflowTaskPollers = workflowPollThreadCount;
     this.maxConcurrentActivityTaskPollers = activityPollThreadCount;
@@ -643,10 +607,6 @@ public final class WorkerOptions {
     return stickyTaskQueueDrainTimeout;
   }
 
-  public WorkerTuner getWorkerTuner() {
-    return workerTuner;
-  }
-
   @Nullable
   public String getIdentity() {
     return identity;
@@ -657,22 +617,21 @@ public final class WorkerOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkerOptions that = (WorkerOptions) o;
-    return compare(maxWorkerActivitiesPerSecond, that.maxWorkerActivitiesPerSecond) == 0
+    return compare(that.maxWorkerActivitiesPerSecond, maxWorkerActivitiesPerSecond) == 0
         && maxConcurrentActivityExecutionSize == that.maxConcurrentActivityExecutionSize
         && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
         && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
-        && compare(maxTaskQueueActivitiesPerSecond, that.maxTaskQueueActivitiesPerSecond) == 0
+        && compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond) == 0
         && maxConcurrentWorkflowTaskPollers == that.maxConcurrentWorkflowTaskPollers
         && maxConcurrentActivityTaskPollers == that.maxConcurrentActivityTaskPollers
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
-        && disableEagerExecution == that.disableEagerExecution
-        && useBuildIdForVersioning == that.useBuildIdForVersioning
-        && Objects.equals(workerTuner, that.workerTuner)
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
         && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval)
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
-        && Objects.equals(buildId, that.buildId)
+        && disableEagerExecution == that.disableEagerExecution
+        && useBuildIdForVersioning == that.useBuildIdForVersioning
+        && Objects.equals(that.buildId, buildId)
         && Objects.equals(stickyTaskQueueDrainTimeout, that.stickyTaskQueueDrainTimeout)
         && Objects.equals(identity, that.identity);
   }
@@ -684,7 +643,6 @@ public final class WorkerOptions {
         maxConcurrentActivityExecutionSize,
         maxConcurrentWorkflowTaskExecutionSize,
         maxConcurrentLocalActivityExecutionSize,
-        workerTuner,
         maxTaskQueueActivitiesPerSecond,
         maxConcurrentWorkflowTaskPollers,
         maxConcurrentActivityTaskPollers,
@@ -711,8 +669,6 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowTaskExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
-        + ", workerTuner="
-        + workerTuner
         + ", maxTaskQueueActivitiesPerSecond="
         + maxTaskQueueActivitiesPerSecond
         + ", maxConcurrentWorkflowTaskPollers="
@@ -735,8 +691,7 @@ public final class WorkerOptions {
         + useBuildIdForVersioning
         + ", buildId='"
         + buildId
-        + '\''
-        + ", stickyTaskQueueDrainTimeout="
+        + ", stickyTaskQueueDrainTimeout='"
         + stickyTaskQueueDrainTimeout
         + ", identity="
         + identity

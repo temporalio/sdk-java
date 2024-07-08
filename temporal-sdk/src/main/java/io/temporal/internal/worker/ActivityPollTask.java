@@ -30,12 +30,11 @@ import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.tuning.*;
 import java.util.Objects;
+import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,7 +45,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   private final WorkflowServiceStubs service;
-  private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
+  private final Semaphore pollSemaphore;
   private final Scope metricsScope;
   private final PollActivityTaskQueueRequest pollRequest;
 
@@ -58,11 +57,11 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       @Nullable String buildId,
       boolean useBuildIdForVersioning,
       double activitiesPerSecond,
-      @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
+      Semaphore pollSemaphore,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
     this.service = Objects.requireNonNull(service);
-    this.slotSupplier = slotSupplier;
+    this.pollSemaphore = pollSemaphore;
     this.metricsScope = Objects.requireNonNull(metricsScope);
 
     PollActivityTaskQueueRequest.Builder pollRequest =
@@ -93,21 +92,12 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       log.trace("poll request begin: " + pollRequest);
     }
     PollActivityTaskQueueResponse response;
-    SlotPermit permit;
     boolean isSuccessful = false;
 
     try {
-      permit =
-          slotSupplier.reserveSlot(
-              new SlotReservationData(
-                  pollRequest.getTaskQueue().getName(),
-                  pollRequest.getIdentity(),
-                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
+      pollSemaphore.acquire();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return null;
-    } catch (Exception e) {
-      log.warn("Error while trying to reserve a slot for an activity", e.getCause());
       return null;
     }
 
@@ -128,20 +118,9 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               ProtobufTimeUtils.toM3Duration(
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
-      slotSupplier.markSlotUsed(
-          new ActivitySlotInfo(
-              ActivityPollResponseToInfo.toActivityInfoImpl(
-                  response,
-                  pollRequest.getNamespace(),
-                  pollRequest.getTaskQueue().getNormalName(),
-                  false),
-              pollRequest.getIdentity(),
-              pollRequest.getWorkerVersionCapabilities().getBuildId()),
-          permit);
-      return new ActivityTask(
-          response, () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
+      return new ActivityTask(response, pollSemaphore::release);
     } finally {
-      if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
+      if (!isSuccessful) pollSemaphore.release();
     }
   }
 }
