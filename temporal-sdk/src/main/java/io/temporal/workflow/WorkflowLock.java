@@ -57,4 +57,11 @@ public interface WorkflowLock {
 
   /** Releases the lock. */
   void unlock();
+
+  /**
+   * Checks if a lock is held.
+   *
+   * @return true if the lock is held and false otherwise.
+   */
+  boolean isHeld();
 }

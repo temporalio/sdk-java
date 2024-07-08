@@ -74,4 +74,9 @@ class WorkflowLockImpl implements WorkflowLock {
     Preconditions.checkState(locked, "WorkflowLock.unlock called when not locked");
     locked = false;
   }
+
+  @Override
+  public boolean isHeld() {
+    return locked;
+  }
 }

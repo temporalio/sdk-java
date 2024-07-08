@@ -66,6 +66,8 @@ public class WorkflowInternalLockTest {
               WorkflowLock l2 = WorkflowInternal.newWorkflowLock();
               trace.add("root begin");
               l2.lock();
+              trace.add("l1.isHeld " + l1.isHeld());
+              trace.add("l2.isHeld " + l2.isHeld());
               WorkflowThread.newThread(
                       () -> {
                         trace.add("thread1 begin");
@@ -96,6 +98,8 @@ public class WorkflowInternalLockTest {
     String[] expected =
         new String[] {
           "root begin",
+          "l1.isHeld false",
+          "l2.isHeld true",
           "root done",
           "thread1 begin",
           "thread1 lock 1 success",
