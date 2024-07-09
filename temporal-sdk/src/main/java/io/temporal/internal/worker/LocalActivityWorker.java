@@ -285,10 +285,11 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         } else {
           try {
             TimeLimiter timeLimiter = SimpleTimeLimiter.create(Executors.newCachedThreadPool());
-            timeLimiter.callWithTimeout(
-                () -> slotSupplier.reserveSlot(reservationCtx),
-                acceptanceTimeoutMs,
-                TimeUnit.MILLISECONDS);
+            permit =
+                timeLimiter.callWithTimeout(
+                    () -> slotSupplier.reserveSlot(reservationCtx),
+                    acceptanceTimeoutMs,
+                    TimeUnit.MILLISECONDS);
           } catch (TimeoutException e) {
             // In the event that we timed out waiting for a permit *because of schedule to start* we
             // still want to proceed with the "attempt" with a null permit, which will then

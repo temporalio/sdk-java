@@ -92,6 +92,7 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
 
   public void setMetricsScope(Scope metricsScope) {
     this.metricsScope = metricsScope;
+    publishSlotsMetric();
   }
 
   /**
