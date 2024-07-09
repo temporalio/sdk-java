@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
@@ -60,7 +61,7 @@ public class WorkflowFailedMetricsTests {
                       NonDeterministicException.class, IllegalArgumentException.class)
                   .build())
           .setMetricsScope(metricsScope)
-          .setWorkflowTypes(NonDeterministicWorkflowImpl.class, IllegalArgumentWorkflowImpl.class)
+          .setWorkflowTypes(NonDeterministicWorkflowImpl.class, WorkflowExceptionImpl.class)
           .build();
 
   @Before
@@ -80,7 +81,7 @@ public class WorkflowFailedMetricsTests {
   @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
-    String workflow();
+    String workflow(boolean runtimeException);
   }
 
   public static class NonDeterministicWorkflowImpl implements TestWorkflowWithSignal {
@@ -98,10 +99,14 @@ public class WorkflowFailedMetricsTests {
     public void unblock() {}
   }
 
-  public static class IllegalArgumentWorkflowImpl implements TestWorkflow {
+  public static class WorkflowExceptionImpl implements TestWorkflow {
     @Override
-    public String workflow() {
-      throw new IllegalArgumentException("test exception");
+    public String workflow(boolean runtimeException) {
+      if (runtimeException) {
+        throw new IllegalArgumentException("test exception");
+      } else {
+        throw ApplicationFailure.newFailure("test failure", "test reason");
+      }
     }
   }
 
@@ -146,7 +151,21 @@ public class WorkflowFailedMetricsTests {
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
-    assertThrows(WorkflowFailedException.class, () -> workflow.workflow());
+    assertThrows(WorkflowFailedException.class, () -> workflow.workflow(true));
+    reporter.assertCounter(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1);
+  }
+
+  @Test
+  public void applicationFailureWorkflowFailedMetric() {
+    reporter.assertNoMetric(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"));
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow workflow =
+        client.newWorkflowStub(
+            TestWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .validateBuildWithDefaults());
+    assertThrows(WorkflowFailedException.class, () -> workflow.workflow(false));
     reporter.assertCounter(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1);
   }
 }
