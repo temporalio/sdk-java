@@ -193,7 +193,6 @@ public final class TestStatsReporter implements StatsReporter {
     return name
         + " "
         + tags.entrySet().stream()
-            .filter(e -> e.getValue() != "none")
             .map(Map.Entry::toString)
             .sorted()
             .collect(joining("|", "[", "]"));

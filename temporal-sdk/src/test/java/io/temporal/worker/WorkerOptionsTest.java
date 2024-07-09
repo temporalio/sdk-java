@@ -21,7 +21,9 @@
 package io.temporal.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import io.temporal.worker.tuning.*;
 import org.junit.Test;
 
 public class WorkerOptionsTest {
@@ -46,5 +48,50 @@ public class WorkerOptionsTest {
     WorkerOptions w1 = WorkerOptions.newBuilder().build();
     WorkerOptions w2 = WorkerOptions.newBuilder().build();
     assertEquals(w1, w2);
+  }
+
+  @Test
+  public void canBuildMixedSlotSupplierTuner() {
+    ResourceBasedController resourceController =
+        ResourceBasedController.newSystemInfoController(
+            ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
+
+    SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
+    SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
+        ResourceBasedSlotSupplier.createForActivity(
+            resourceController, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
+    SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+        ResourceBasedSlotSupplier.createForLocalActivity(
+            resourceController, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
+
+    WorkerOptions.newBuilder()
+        .setWorkerTuner(
+            new CompositeTuner(
+                workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier))
+        .build();
+  }
+
+  @Test
+  public void throwsIfResourceControllerIsNotSame() {
+    ResourceBasedController resourceController1 =
+        ResourceBasedController.newSystemInfoController(
+            ResourceBasedControllerOptions.newBuilder(0.5, 0.5).build());
+    ResourceBasedController resourceController2 =
+        ResourceBasedController.newSystemInfoController(
+            ResourceBasedControllerOptions.newBuilder(0.2, 0.3).build());
+
+    SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new FixedSizeSlotSupplier<>(10);
+    SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
+        ResourceBasedSlotSupplier.createForActivity(
+            resourceController1, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
+    SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+        ResourceBasedSlotSupplier.createForLocalActivity(
+            resourceController2, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new CompositeTuner(
+                workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier));
   }
 }
