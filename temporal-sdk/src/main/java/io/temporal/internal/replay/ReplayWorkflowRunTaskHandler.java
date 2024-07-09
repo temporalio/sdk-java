@@ -255,9 +255,13 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
               implementationOptions.getFailWorkflowExceptionTypes();
           for (Class<? extends Throwable> failType : failTypes) {
             if (failType.isAssignableFrom(e.getClass())) {
+              metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
               throw new WorkflowExecutionException(
                   workflow.getWorkflowContext().mapWorkflowExceptionToFailure(e));
             }
+          }
+          if (e instanceof WorkflowExecutionException) {
+            metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
           }
           throw wrap(e);
         }
