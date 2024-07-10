@@ -27,6 +27,7 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -34,10 +35,7 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -52,6 +50,7 @@ public class WorkflowSlotTests {
   private final TestStatsReporter reporter = new TestStatsReporter();
   static CountDownLatch activityBlockLatch = new CountDownLatch(1);
   static CountDownLatch activityRunningLatch = new CountDownLatch(1);
+  static boolean didFail = false;
 
   Scope metricsScope =
       new RootScopeBuilder().reporter(reporter).reportEvery(com.uber.m3.util.Duration.ofMillis(1));
@@ -78,6 +77,7 @@ public class WorkflowSlotTests {
     reporter.flush();
     activityBlockLatch = new CountDownLatch(1);
     activityRunningLatch = new CountDownLatch(1);
+    didFail = false;
   }
 
   private void assertWorkerSlotCount(int worker, int activity, int localActivity) {
@@ -103,7 +103,7 @@ public class WorkflowSlotTests {
   @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
-    String workflow(boolean useLocalActivity);
+    String workflow(String action);
 
     @SignalMethod
     void unblock();
@@ -129,11 +129,14 @@ public class WorkflowSlotTests {
                 .validateAndBuildWithDefaults());
 
     @Override
-    public String workflow(boolean useLocalActivity) {
+    public String workflow(String action) {
       Workflow.await(() -> unblocked);
-      if (useLocalActivity) {
+      if (action.equals("fail") && !didFail) {
+        didFail = true;
+        throw new RuntimeException("fail on purpose");
+      } else if (action.equals("local-activity")) {
         localActivity.activity("test");
-      } else {
+      } else if (action.equals("activity")) {
         activity.activity("test");
       }
       return "ok";
@@ -203,7 +206,7 @@ public class WorkflowSlotTests {
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
-    WorkflowClient.start(workflow::workflow, false);
+    WorkflowExecution wfhandle = WorkflowClient.start(workflow::workflow, "activity");
     workflow.unblock();
     activityRunningLatch.await();
     // The activity slot should be taken and the workflow slot should not be taken
@@ -214,7 +217,7 @@ public class WorkflowSlotTests {
 
     activityBlockLatch.countDown();
     // Wait for the workflow to finish
-    workflow.workflow(false);
+    workflow.workflow("activity");
     // All slots should be available
     assertWorkerSlotCount(
         MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
@@ -232,7 +235,7 @@ public class WorkflowSlotTests {
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
-    WorkflowClient.start(workflow::workflow, true);
+    WorkflowClient.start(workflow::workflow, "local-activity");
     workflow.unblock();
     activityRunningLatch.await();
     // The local activity slot should be taken and the workflow slot should be taken
@@ -242,8 +245,63 @@ public class WorkflowSlotTests {
         MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - 1);
 
     activityBlockLatch.countDown();
-    // Wait for the workflow to finish
-    workflow.workflow(true);
+    workflow.workflow("local-activity");
+    // All slots should be available
+    assertWorkerSlotCount(
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+  }
+
+  @Test
+  public void TestLocalActivityHeartbeat() throws InterruptedException {
+    testWorkflowRule.getTestEnvironment().start();
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow workflow =
+        client.newWorkflowStub(
+            TestWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .setWorkflowTaskTimeout(Duration.ofSeconds(1))
+                .validateBuildWithDefaults());
+    WorkflowClient.start(workflow::workflow, "local-activity");
+    workflow.unblock();
+    activityRunningLatch.await();
+    // The local activity slot should be taken and the workflow slot should be taken
+    assertWorkerSlotCount(
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - 1,
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - 1);
+    // Take long enough to heartbeat
+    Thread.sleep(1000);
+    assertWorkerSlotCount(
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - 1,
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - 1);
+
+    activityBlockLatch.countDown();
+    workflow.workflow("local-activity");
+    // All slots should be available
+    assertWorkerSlotCount(
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+  }
+
+  @Test
+  public void TestWFTFailure() {
+    testWorkflowRule.getTestEnvironment().start();
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow workflow =
+        client.newWorkflowStub(
+            TestWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .setWorkflowTaskTimeout(Duration.ofMillis(500))
+                .validateBuildWithDefaults());
+    WorkflowClient.start(workflow::workflow, "fail");
+    workflow.unblock();
+    workflow.workflow("fail");
     // All slots should be available
     assertWorkerSlotCount(
         MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
