@@ -40,8 +40,8 @@ public interface ReplayWorkflow {
 
   /** Handle an update workflow execution event */
   void handleUpdate(
-      String updateName,
       String updateId,
+      String updateName,
       Optional<Payloads> input,
       long eventId,
       Header header,

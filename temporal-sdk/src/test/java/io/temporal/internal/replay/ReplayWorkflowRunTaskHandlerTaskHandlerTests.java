@@ -47,6 +47,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import org.junit.Rule;
@@ -212,6 +213,11 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     when(mockFactory.getWorkflow(any(), any())).thenReturn(mockWorkflow);
     when(mockWorkflow.eventLoop()).thenReturn(true);
     when(mockWorkflow.getOutput()).thenReturn(Optional.empty());
+
+    WorkflowContext mockWorkflowContext = mock(WorkflowContext.class);
+    when(mockWorkflowContext.getRunningUpdateHandlers()).thenReturn(new HashMap<>());
+    when(mockWorkflowContext.getRunningUpdateHandlers()).thenReturn(new HashMap<>());
+    when(mockWorkflow.getWorkflowContext()).thenReturn(mockWorkflowContext);
     return mockFactory;
   }
 }

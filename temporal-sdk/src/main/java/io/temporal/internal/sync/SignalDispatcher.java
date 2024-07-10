@@ -29,13 +29,9 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.worker.MetricsType;
 import io.temporal.workflow.DynamicSignalHandler;
+import io.temporal.workflow.HandlerUnfinishedPolicy;
 import io.temporal.workflow.Workflow;
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +47,8 @@ class SignalDispatcher {
 
   /** Buffers signals which don't have a registered listener. */
   private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
+
+  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new LinkedHashMap<>();
 
   public SignalDispatcher(DataConverter dataConverterWithWorkflowContext) {
     this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
@@ -77,17 +75,23 @@ class SignalDispatcher {
     }
   }
 
+  public Map<Long, SignalHandlerInfo> getRunningSignalHandlers() {
+    return runningSignalHandlers;
+  }
+
   public void handleSignal(
       String signalName, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
         signalCallbacks.get(signalName);
     Object[] args;
+    HandlerUnfinishedPolicy policy;
     if (handler == null) {
       if (dynamicSignalHandler == null) {
         signalBuffer.add(new SignalData(signalName, input, eventId, header));
         return;
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
+      policy = dynamicSignalHandler.getUnfinishedPolicy();
     } else {
       try {
         args =
@@ -97,9 +101,23 @@ class SignalDispatcher {
         logSerializationException(signalName, eventId, e);
         return;
       }
+      policy = handler.getUnfinishedPolicy();
     }
-    inboundCallsInterceptor.handleSignal(
-        new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId, header));
+    // Track the signal handler
+    boolean threadDestroyed = false;
+    runningSignalHandlers.put(eventId, new SignalHandlerInfo(eventId, signalName, policy));
+    try {
+      inboundCallsInterceptor.handleSignal(
+          new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId, header));
+    } catch (DestroyWorkflowThreadError e) {
+      threadDestroyed = true;
+      throw e;
+    } finally {
+      // If the thread was destroyed the user did not finish the handler
+      if (!threadDestroyed) {
+        runningSignalHandlers.remove(eventId);
+      }
+    }
   }
 
   public void registerSignalHandlers(

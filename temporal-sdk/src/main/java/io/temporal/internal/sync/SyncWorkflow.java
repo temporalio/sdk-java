@@ -144,15 +144,18 @@ class SyncWorkflow implements ReplayWorkflow {
   @Override
   public void handleSignal(
       String signalName, Optional<Payloads> input, long eventId, Header header) {
+    // Signals can trigger completion
     runner.executeInWorkflowThread(
         "signal " + signalName,
-        () -> workflowProc.handleSignal(signalName, input, eventId, header));
+        () -> {
+          workflowProc.handleSignal(signalName, input, eventId, header);
+        });
   }
 
   @Override
   public void handleUpdate(
-      String updateName,
       String updateId,
+      String updateName,
       Optional<Payloads> input,
       long eventId,
       Header header,
@@ -167,7 +170,7 @@ class SyncWorkflow implements ReplayWorkflow {
             if (!callbacks.isReplaying()) {
               try {
                 workflowContext.setReadOnly(true);
-                workflowProc.handleValidateUpdate(updateName, input, eventId, header);
+                workflowProc.handleValidateUpdate(updateName, updateId, input, eventId, header);
               } catch (ReadOnlyException r) {
                 // Rethrow instead on rejecting the update to fail the WFT
                 throw r;
@@ -184,7 +187,7 @@ class SyncWorkflow implements ReplayWorkflow {
             callbacks.accept();
             try {
               Optional<Payloads> result =
-                  workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
+                  workflowProc.handleExecuteUpdate(updateName, updateId, input, eventId, header);
               callbacks.complete(result, null);
             } catch (WorkflowExecutionException e) {
               callbacks.complete(Optional.empty(), e.getFailure());

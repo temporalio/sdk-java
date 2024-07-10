@@ -107,11 +107,12 @@ class WorkflowExecutionHandler {
 
   public void handleValidateUpdate(
       String updateName,
+      String updateId,
       Optional<Payloads> input,
       long eventId,
       io.temporal.api.common.v1.Header header) {
     try {
-      context.handleValidateUpdate(updateName, input, eventId, new Header(header));
+      context.handleValidateUpdate(updateName, updateId, input, eventId, new Header(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
@@ -119,11 +120,12 @@ class WorkflowExecutionHandler {
 
   public Optional<Payloads> handleExecuteUpdate(
       String updateName,
+      String updateId,
       Optional<Payloads> input,
       long eventId,
       io.temporal.api.common.v1.Header header) {
     try {
-      return context.handleExecuteUpdate(updateName, input, eventId, new Header(header));
+      return context.handleExecuteUpdate(updateName, updateId, input, eventId, new Header(header));
     } catch (UnsupportedContinueAsNewRequest e) {
       // Re-throw to fail the workflow task
       throw e;

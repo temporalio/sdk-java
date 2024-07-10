@@ -30,9 +30,8 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor.UpdateOut
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest;
 import io.temporal.workflow.DynamicUpdateHandler;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import io.temporal.workflow.HandlerUnfinishedPolicy;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,10 +40,11 @@ class UpdateDispatcher {
 
   private final DataConverter dataConverterWithWorkflowContext;
   private final Map<String, WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest>
-      updateCallbacks = new HashMap<>();
+      updateCallbacks = new LinkedHashMap<>();
 
   private DynamicUpdateHandler dynamicUpdateHandler;
   private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
+  private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new TreeMap<>();
 
   public UpdateDispatcher(DataConverter dataConverterWithWorkflowContext) {
     this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
@@ -55,48 +55,71 @@ class UpdateDispatcher {
   }
 
   public void handleValidateUpdate(
-      String updateName, Optional<Payloads> input, long eventId, Header header) {
+      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =
         updateCallbacks.get(updateName);
     Object[] args;
+    HandlerUnfinishedPolicy policy;
     if (handler == null) {
       if (dynamicUpdateHandler == null) {
         throw new IllegalArgumentException(
             "Unknown update name: " + updateName + ", knownTypes=" + updateCallbacks.keySet());
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
+      policy = dynamicUpdateHandler.getUnfinishedPolicy();
     } else {
       args =
           dataConverterWithWorkflowContext.fromPayloads(
               input, handler.getArgTypes(), handler.getGenericArgTypes());
+      policy = handler.getUnfinishedPolicy();
     }
-
-    inboundCallsInterceptor.validateUpdate(
-        new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args));
+    runningUpdateHandlers.put(updateId, new UpdateHandlerInfo(updateId, updateName, policy));
+    try {
+      inboundCallsInterceptor.validateUpdate(
+          new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args));
+    } finally {
+      runningUpdateHandlers.remove(updateId);
+    }
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, Optional<Payloads> input, long eventId, Header header) {
+      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =
         updateCallbacks.get(updateName);
     Object[] args;
+    HandlerUnfinishedPolicy policy;
     if (handler == null) {
       if (dynamicUpdateHandler == null) {
         throw new IllegalArgumentException(
             "Unknown update name: " + updateName + ", knownTypes=" + updateCallbacks.keySet());
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
+      policy = dynamicUpdateHandler.getUnfinishedPolicy();
     } else {
       args =
           dataConverterWithWorkflowContext.fromPayloads(
               input, handler.getArgTypes(), handler.getGenericArgTypes());
+      policy = handler.getUnfinishedPolicy();
     }
-    Object result =
-        inboundCallsInterceptor
-            .executeUpdate(
-                new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
-            .getResult();
-    return dataConverterWithWorkflowContext.toPayloads(result);
+
+    runningUpdateHandlers.put(updateId, new UpdateHandlerInfo(updateId, updateName, policy));
+    boolean threadDestroyed = false;
+    try {
+      Object result =
+          inboundCallsInterceptor
+              .executeUpdate(
+                  new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
+              .getResult();
+      return dataConverterWithWorkflowContext.toPayloads(result);
+    } catch (DestroyWorkflowThreadError e) {
+      threadDestroyed = true;
+      throw e;
+    } finally {
+      // If the thread was destroyed the user did not finish the handler
+      if (!threadDestroyed) {
+        runningUpdateHandlers.remove(updateId);
+      }
+    }
   }
 
   public void registerUpdateHandlers(
@@ -145,5 +168,9 @@ class UpdateDispatcher {
       result = handler.getExecuteCallback().apply(args);
     }
     return new WorkflowInboundCallsInterceptor.UpdateOutput(result);
+  }
+
+  public Map<String, UpdateHandlerInfo> getRunningUpdateHandlers() {
+    return runningUpdateHandlers;
   }
 }

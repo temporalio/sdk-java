@@ -18,23 +18,39 @@
  * limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.internal.sync;
 
-import io.temporal.common.converter.EncodedValues;
+import io.temporal.workflow.HandlerUnfinishedPolicy;
 
-/**
- * Use DynamicQueryHandler to process any query dynamically. This is useful for a library level code
- * and implementation of DSLs.
- *
- * <p>Use {@link Workflow#registerListener(Object)} to register an implementation of the
- * DynamicQueryListener. Only one such listener can be registered per workflow execution.
- *
- * <p>When registered any queries which don't have a specific handler will be delivered to it.
- *
- * @see DynamicSignalHandler
- * @see DynamicWorkflow
- * @see DynamicUpdateHandler
- */
-public interface DynamicQueryHandler {
-  Object handle(String queryType, EncodedValues args);
+public class SignalHandlerInfo {
+  private final long eventId;
+  private final String name;
+  private final HandlerUnfinishedPolicy policy;
+
+  public SignalHandlerInfo(long eventId, String name, HandlerUnfinishedPolicy policy) {
+    this.eventId = eventId;
+    this.name = name;
+    this.policy = policy;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public HandlerUnfinishedPolicy getPolicy() {
+    return policy;
+  }
+
+  @Override
+  public String toString() {
+    return "SignalHandlerInfo{"
+        + "eventId="
+        + eventId
+        + ", name='"
+        + name
+        + '\''
+        + ", policy="
+        + policy
+        + '}';
+  }
 }
