@@ -36,13 +36,38 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
+import io.temporal.internal.sync.SignalHandlerInfo;
+import io.temporal.internal.sync.UpdateHandlerInfo;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class ReplayWorkflowExecutor {
+  private static final String unfinishedUpdateHandlesWarnMessage =
+      "Workflow finished while update handlers are still running. This may "
+          + "have interrupted work that the update handler was doing, and the client "
+          + "that sent the update will receive a 'workflow execution already completed' "
+          + "Exception instead of the update result. You can wait for all update and "
+          + "signal handlers to complete by using `await workflow.Await(() -> workflow.isHandlersFinished())`. "
+          + "Alternatively, if both you and the clients sending the update are okay with "
+          + "interrupting running handlers when the workflow finishes, and causing "
+          + "clients to receive errors, then you can disable this warning via the update "
+          + "handler annotations: `@UpdateMethod(unfinishedPolicy = HandlerUnfinishedPolicy.ABANDON)`.";
+
+  private static final String unfinishedSignalHandlesWarnMessage =
+      "Workflow finished while signal handlers are still running. This may "
+          + "have interrupted work that the update handler was doing. You can wait for all update and "
+          + "signal handlers to complete by using `await workflow.Await(() -> workflow.isHandlersFinished())`. "
+          + "Alternatively, if both you  are okay with "
+          + "interrupting running handlers when the workflow finishes, and causing "
+          + "clients to receive errors, then you can disable this warning via the update "
+          + "handler annotations: `@SignalMethod(unfinishedPolicy = HandlerUnfinishedPolicy.ABANDON)`.";
+  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowExecutor.class);
 
   private final ReplayWorkflow workflow;
 
@@ -89,6 +114,18 @@ final class ReplayWorkflowExecutor {
   }
 
   private void completeWorkflow(@Nullable WorkflowExecutionException failure) {
+    Map<Long, SignalHandlerInfo> runningSignalHandlers =
+        workflow.getWorkflowContext().getRunningSignalHandlers();
+    if (!runningSignalHandlers.isEmpty()) {
+      log.warn(unfinishedSignalHandlesWarnMessage);
+    }
+
+    Map<String, UpdateHandlerInfo> runningUpdateHandlers =
+        workflow.getWorkflowContext().getRunningUpdateHandlers();
+    if (!runningUpdateHandlers.isEmpty()) {
+      log.warn(unfinishedUpdateHandlesWarnMessage);
+    }
+
     if (context.isCancelRequested()) {
       workflowStateMachines.cancelWorkflow();
       metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
@@ -160,6 +197,7 @@ final class ReplayWorkflowExecutor {
       Input input = update.getInput();
       Optional<Payloads> args = Optional.ofNullable(input.getArgs());
       this.workflow.handleUpdate(
+          update.getMeta().getUpdateId(),
           input.getName(),
           args,
           protocolMessage.getEventId(),

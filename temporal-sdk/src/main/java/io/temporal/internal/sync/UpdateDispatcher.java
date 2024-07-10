@@ -54,6 +54,18 @@ class UpdateDispatcher {
     this.inboundCallsInterceptor = inboundCallsInterceptor;
   }
 
+  public UpdateHandlerInfo getUpdateHandlerInfo(String updateName) {
+    WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =
+        updateCallbacks.get(updateName);
+    if (handler == null) {
+      if (dynamicUpdateHandler == null) {
+        return null;
+      }
+      return new UpdateHandlerInfo(updateName, dynamicUpdateHandler.getUnfinishedPolicy());
+    }
+    return new UpdateHandlerInfo(updateName, handler.getUnfinishedPolicy());
+  }
+
   public void handleValidateUpdate(
       String updateName, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =

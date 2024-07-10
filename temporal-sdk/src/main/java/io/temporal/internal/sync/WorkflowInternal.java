@@ -173,9 +173,11 @@ public final class WorkflowInternal {
     List<WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> requests = new ArrayList<>();
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getSignalMethods()) {
       Method method = methodMetadata.getWorkflowMethod();
+      SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
       requests.add(
           new WorkflowOutboundCallsInterceptor.SignalRegistrationRequest(
               methodMetadata.getName(),
+              signalMethod.unfinishedPolicy(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
               (args) -> {
@@ -211,6 +213,7 @@ public final class WorkflowInternal {
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateMethods()) {
       Method method = methodMetadata.getWorkflowMethod();
       UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+      // Get the update name, defaulting to the method name if not specified.
       String updateMethodName = updateMethod.name();
       if (updateMethodName.isEmpty()) {
         updateMethodName = method.getName();
@@ -232,6 +235,7 @@ public final class WorkflowInternal {
       updateRequests.add(
           new WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest(
               methodMetadata.getName(),
+              updateMethod.unfinishedPolicy(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
               (args) -> {
@@ -728,6 +732,10 @@ public final class WorkflowInternal {
         // Temporal Failure Values are additional user payload and serialized using user data
         // converter
         .map(f -> getDataConverterWithCurrentWorkflowContext().failureToException(f));
+  }
+
+  public static boolean isAllHandlersFinished() {
+    return getRootWorkflowContext().isAllHandlersFinished();
   }
 
   private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {

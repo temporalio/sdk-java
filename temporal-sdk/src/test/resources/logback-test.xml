@@ -34,7 +34,7 @@
     <!--    <logger name="io.temporal.internal.replay.ReplayWorkflowTaskHandler" level="DEBUG"/>-->
     <!--    <logger name="io.temporal.internal.worker.WorkflowExecutorCache" level="TRACE"/>-->
 
-    <!--    <logger name="io.temporal.internal.statemachines.StateMachine" level="TRACE"/>-->
+    <logger name="io.temporal.internal.replay.ReplayWorkflowExecutor" level="TRACE"/>
 
     <!-- Modify root log level to get more info -->
     <root level="INFO">

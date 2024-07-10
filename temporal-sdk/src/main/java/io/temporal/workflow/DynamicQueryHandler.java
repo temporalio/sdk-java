@@ -33,6 +33,7 @@ import io.temporal.common.converter.EncodedValues;
  *
  * @see DynamicSignalHandler
  * @see DynamicWorkflow
+ * @see DynamicUpdateHandler
  */
 public interface DynamicQueryHandler {
   Object handle(String queryType, EncodedValues args);

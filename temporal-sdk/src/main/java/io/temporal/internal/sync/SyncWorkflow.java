@@ -145,11 +145,20 @@ class SyncWorkflow implements ReplayWorkflow {
       String signalName, Optional<Payloads> input, long eventId, Header header) {
     runner.executeInWorkflowThread(
         "signal " + signalName,
-        () -> workflowProc.handleSignal(signalName, input, eventId, header));
+        () -> {
+          SignalHandlerInfo handlerInfo = workflowProc.getSignalHandlerInfo(signalName);
+          workflowContext.trackSignal(eventId, handlerInfo);
+          try {
+            workflowProc.handleSignal(signalName, input, eventId, header);
+          } finally {
+            workflowContext.removeSignal(eventId);
+          }
+        });
   }
 
   @Override
   public void handleUpdate(
+      String updateId,
       String updateName,
       Optional<Payloads> input,
       long eventId,
@@ -158,31 +167,38 @@ class SyncWorkflow implements ReplayWorkflow {
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
-          // Skip validator on replay
-          if (!callbacks.isReplaying()) {
-            try {
-              workflowContext.setReadOnly(true);
-              workflowProc.handleValidateUpdate(updateName, input, eventId, header);
-            } catch (ReadOnlyException r) {
-              // Rethrow instead on rejecting the update to fail the WFT
-              throw r;
-            } catch (Exception e) {
-              callbacks.reject(
-                  workflowContext
-                      .getDataConverterWithCurrentWorkflowContext()
-                      .exceptionToFailure(e));
-              return;
-            } finally {
-              workflowContext.setReadOnly(false);
-            }
-          }
-          callbacks.accept();
+          // Start tracking the update before calling the handler
+          UpdateHandlerInfo handlerInfo = workflowProc.getUpdateHandlerInfo(updateName);
+          workflowContext.trackUpdate(updateId, handlerInfo);
           try {
-            Optional<Payloads> result =
-                workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
-            callbacks.complete(result, null);
-          } catch (WorkflowExecutionException e) {
-            callbacks.complete(Optional.empty(), e.getFailure());
+            // Skip validator on replay
+            if (!callbacks.isReplaying()) {
+              try {
+                workflowContext.setReadOnly(true);
+                workflowProc.handleValidateUpdate(updateName, input, eventId, header);
+              } catch (ReadOnlyException r) {
+                // Rethrow instead on rejecting the update to fail the WFT
+                throw r;
+              } catch (Exception e) {
+                callbacks.reject(
+                    workflowContext
+                        .getDataConverterWithCurrentWorkflowContext()
+                        .exceptionToFailure(e));
+                return;
+              } finally {
+                workflowContext.setReadOnly(false);
+              }
+            }
+            callbacks.accept();
+            try {
+              Optional<Payloads> result =
+                  workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
+              callbacks.complete(result, null);
+            } catch (WorkflowExecutionException e) {
+              callbacks.complete(Optional.empty(), e.getFailure());
+            }
+          } finally {
+            workflowContext.removeUpdate(updateId);
           }
         });
   }

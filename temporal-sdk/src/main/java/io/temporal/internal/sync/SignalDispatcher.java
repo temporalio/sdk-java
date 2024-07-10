@@ -77,6 +77,18 @@ class SignalDispatcher {
     }
   }
 
+  public SignalHandlerInfo getSignalHandlerInfo(String signalName) {
+    WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
+        signalCallbacks.get(signalName);
+    if (handler == null) {
+      if (dynamicSignalHandler == null) {
+        return null;
+      }
+      return new SignalHandlerInfo(signalName, dynamicSignalHandler.getUnfinishedPolicy());
+    }
+    return new SignalHandlerInfo(signalName, handler.getUnfinishedPolicy());
+  }
+
   public void handleSignal(
       String signalName, Optional<Payloads> input, long eventId, Header header) {
     WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =

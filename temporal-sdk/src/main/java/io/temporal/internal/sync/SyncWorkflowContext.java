@@ -124,6 +124,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private LocalActivityOptions defaultLocalActivityOptions = null;
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
   private boolean readOnly = false;
+  // Map of all running update handlers. Key is the update Id of the update request.
+  private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
+  // Map of all running signal handlers. Key is the event Id of the signal event.
+  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -316,9 +320,17 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     signalDispatcher.handleInterceptedSignal(input);
   }
 
+  public SignalHandlerInfo getSignalHandlerInfo(String signalName) {
+    return signalDispatcher.getSignalHandlerInfo(signalName);
+  }
+
   public void handleSignal(
       String signalName, Optional<Payloads> input, long eventId, Header header) {
     signalDispatcher.handleSignal(signalName, input, eventId, header);
+  }
+
+  public UpdateHandlerInfo getUpdateHandlerInfo(String updateName) {
+    return updateDispatcher.getUpdateHandlerInfo(updateName);
   }
 
   public void handleValidateUpdate(
@@ -347,6 +359,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
     return queryDispatcher.handleQuery(queryName, header, input);
+  }
+
+  public boolean isAllHandlersFinished() {
+    return runningSignalHandlers.isEmpty() && runningUpdateHandlers.isEmpty();
   }
 
   private class ActivityCallback {
@@ -1022,6 +1038,30 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   void setReadOnly(boolean readOnly) {
     this.readOnly = readOnly;
+  }
+
+  void trackUpdate(String updateID, UpdateHandlerInfo handlerInfo) {
+    runningUpdateHandlers.put(updateID, handlerInfo);
+  }
+
+  void removeUpdate(String updateID) {
+    runningUpdateHandlers.remove(updateID);
+  }
+
+  void trackSignal(long eventID, SignalHandlerInfo handlerInfo) {
+    runningSignalHandlers.put(eventID, handlerInfo);
+  }
+
+  void removeSignal(long eventID) {
+    runningSignalHandlers.remove(eventID);
+  }
+
+  public Map<Long, SignalHandlerInfo> getRunningSignalHandlers() {
+    return runningSignalHandlers;
+  }
+
+  public Map<String, UpdateHandlerInfo> getRunningUpdateHandlers() {
+    return runningUpdateHandlers;
   }
 
   @Override
