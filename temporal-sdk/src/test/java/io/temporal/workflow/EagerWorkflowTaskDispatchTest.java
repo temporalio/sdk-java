@@ -31,9 +31,12 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.*;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +47,12 @@ import org.junit.Test;
 
 public class EagerWorkflowTaskDispatchTest {
   private static final StartCallInterceptor START_CALL_INTERCEPTOR = new StartCallInterceptor();
+  private final CountingSlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier =
+      new CountingSlotSupplier<>(100);
+  private final CountingSlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
+      new CountingSlotSupplier<>(100);
+  private final CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+      new CountingSlotSupplier<>(100);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -53,7 +62,7 @@ public class EagerWorkflowTaskDispatchTest {
                   .setGrpcClientInterceptors(Collections.singletonList(START_CALL_INTERCEPTOR))
                   .build())
           .setWorkflowTypes(EagerWorkflowTaskWorkflowImpl.class)
-          // stop built-in worker factory to it's not in our way
+          // stop built-in worker factory so it's not in our way
           .setDoNotStart(true)
           .build();
 
@@ -65,6 +74,13 @@ public class EagerWorkflowTaskDispatchTest {
     this.workerFactories.forEach(wf -> wf.awaitTermination(10, TimeUnit.SECONDS));
     this.workerFactories.clear();
     START_CALL_INTERCEPTOR.clear();
+    assertEquals(
+        workflowTaskSlotSupplier.reservedCount.get(), workflowTaskSlotSupplier.releasedCount.get());
+    assertEquals(
+        activityTaskSlotSupplier.reservedCount.get(), activityTaskSlotSupplier.releasedCount.get());
+    assertEquals(
+        localActivitySlotSupplier.reservedCount.get(),
+        localActivitySlotSupplier.releasedCount.get());
   }
 
   private WorkerFactory setupWorkerFactory(
@@ -78,7 +94,16 @@ public class EagerWorkflowTaskDispatchTest {
     WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
     workerFactories.add(workerFactory);
 
-    Worker worker = workerFactory.newWorker(testWorkflowRule.getTaskQueue());
+    Worker worker =
+        workerFactory.newWorker(
+            testWorkflowRule.getTaskQueue(),
+            WorkerOptions.newBuilder()
+                .setWorkerTuner(
+                    new CompositeTuner(
+                        workflowTaskSlotSupplier,
+                        activityTaskSlotSupplier,
+                        localActivitySlotSupplier))
+                .build());
     if (registerWorkflows) {
       worker.registerWorkflowImplementationTypes(EagerWorkflowTaskWorkflowImpl.class);
     }

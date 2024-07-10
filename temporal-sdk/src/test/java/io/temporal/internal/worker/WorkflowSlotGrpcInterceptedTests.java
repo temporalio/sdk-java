@@ -1,5 +1,7 @@
 package io.temporal.internal.worker;
 
+import static org.junit.Assert.assertEquals;
+
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
@@ -11,15 +13,21 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.ActivitySlotInfo;
+import io.temporal.worker.tuning.CompositeTuner;
+import io.temporal.worker.tuning.LocalActivitySlotInfo;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,6 +36,12 @@ public class WorkflowSlotGrpcInterceptedTests {
   private final int MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 100;
   private final int MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 1000;
   private final int MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 10000;
+  private final CountingSlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier =
+      new CountingSlotSupplier<>(MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE);
+  private final CountingSlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
+      new CountingSlotSupplier<>(MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE);
+  private final CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+      new CountingSlotSupplier<>(MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
   private final TestStatsReporter reporter = new TestStatsReporter();
   private static final MaybeFailWFTResponseInterceptor MAYBE_FAIL_INTERCEPTOR =
       new MaybeFailWFTResponseInterceptor();
@@ -43,11 +57,11 @@ public class WorkflowSlotGrpcInterceptedTests {
                   .build())
           .setWorkerOptions(
               WorkerOptions.newBuilder()
-                  .setMaxConcurrentWorkflowTaskExecutionSize(
-                      MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE)
-                  .setMaxConcurrentActivityExecutionSize(MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE)
-                  .setMaxConcurrentLocalActivityExecutionSize(
-                      MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE)
+                  .setWorkerTuner(
+                      new CompositeTuner(
+                          workflowTaskSlotSupplier,
+                          activityTaskSlotSupplier,
+                          localActivitySlotSupplier))
                   .build())
           .setMetricsScope(metricsScope)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
@@ -59,6 +73,18 @@ public class WorkflowSlotGrpcInterceptedTests {
   public void setup() {
     reporter.flush();
     MAYBE_FAIL_INTERCEPTOR.reset();
+  }
+
+  @After
+  public void tearDown() {
+    testWorkflowRule.getTestEnvironment().close();
+    assertEquals(
+        workflowTaskSlotSupplier.reservedCount.get(), workflowTaskSlotSupplier.releasedCount.get());
+    assertEquals(
+        activityTaskSlotSupplier.reservedCount.get(), activityTaskSlotSupplier.releasedCount.get());
+    assertEquals(
+        localActivitySlotSupplier.reservedCount.get(),
+        localActivitySlotSupplier.releasedCount.get());
   }
 
   public static class UnblockableWorkflow implements TestWorkflows.TestSignaledWorkflow {
