@@ -60,6 +60,7 @@ import org.slf4j.MDC;
 
 final class LocalActivityWorker implements Startable, Shutdownable {
   private static final Logger log = LoggerFactory.getLogger(LocalActivityWorker.class);
+  private static final ExecutorService timeoutThreadPool = Executors.newCachedThreadPool();
 
   private final ActivityTaskHandler handler;
   private final String namespace;
@@ -284,7 +285,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
           permit = slotSupplier.reserveSlot(reservationCtx);
         } else {
           try {
-            TimeLimiter timeLimiter = SimpleTimeLimiter.create(Executors.newCachedThreadPool());
+            TimeLimiter timeLimiter = SimpleTimeLimiter.create(timeoutThreadPool);
             permit =
                 timeLimiter.callWithTimeout(
                     () -> slotSupplier.reserveSlot(reservationCtx),
