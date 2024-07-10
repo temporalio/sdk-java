@@ -30,7 +30,6 @@ import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
@@ -128,18 +127,10 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               ProtobufTimeUtils.toM3Duration(
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
-      slotSupplier.markSlotUsed(
-          new ActivitySlotInfo(
-              ActivityPollResponseToInfo.toActivityInfoImpl(
-                  response,
-                  pollRequest.getNamespace(),
-                  pollRequest.getTaskQueue().getNormalName(),
-                  false),
-              pollRequest.getIdentity(),
-              pollRequest.getWorkerVersionCapabilities().getBuildId()),
-          permit);
       return new ActivityTask(
-          response, () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
+          response,
+          permit,
+          () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {
       if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
     }

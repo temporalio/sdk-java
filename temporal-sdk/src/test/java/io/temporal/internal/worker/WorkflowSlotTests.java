@@ -29,7 +29,6 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -232,7 +231,7 @@ public class WorkflowSlotTests {
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
-    WorkflowExecution wfhandle = WorkflowClient.start(workflow::workflow, "activity");
+    WorkflowClient.start(workflow::workflow, "activity");
     workflow.unblock();
     activityRunningLatch.await();
     // The activity slot should be taken and the workflow slot should not be taken

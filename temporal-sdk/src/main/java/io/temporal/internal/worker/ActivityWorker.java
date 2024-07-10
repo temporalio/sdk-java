@@ -30,6 +30,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -224,6 +225,15 @@ final class ActivityWorker implements SuspendableWorker {
     @Override
     public void handle(ActivityTask task) throws Exception {
       PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
+
+      slotSupplier.markSlotUsed(
+          new ActivitySlotInfo(
+              ActivityPollResponseToInfo.toActivityInfoImpl(
+                  pollResponse, namespace, taskQueue, false),
+              options.getIdentity(),
+              options.getBuildId()),
+          task.getPermit());
+
       Scope metricsScope =
           workerMetricsScope.tagged(
               ImmutableMap.of(
@@ -440,6 +450,7 @@ final class ActivityWorker implements SuspendableWorker {
       ActivityWorker.this.pollTaskExecutor.process(
           new ActivityTask(
               activity,
+              permit,
               () ->
                   ActivityWorker.this.slotSupplier.releaseSlot(
                       SlotReleaseReason.taskComplete(), permit)));
