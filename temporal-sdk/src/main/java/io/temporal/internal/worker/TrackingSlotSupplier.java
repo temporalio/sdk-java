@@ -20,7 +20,6 @@
 
 package io.temporal.internal.worker;
 
-import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.*;
@@ -41,11 +40,12 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
   private final SlotSupplier<SI> inner;
   private final AtomicInteger issuedSlots = new AtomicInteger();
   private final Map<SlotPermit, SI> usedSlots = new ConcurrentHashMap<>();
-  private Scope metricsScope;
+  private final Scope metricsScope;
 
-  public TrackingSlotSupplier(SlotSupplier<SI> inner) {
+  public TrackingSlotSupplier(SlotSupplier<SI> inner, Scope metricsScope) {
     this.inner = inner;
-    metricsScope = new NoopScope();
+    this.metricsScope = metricsScope;
+    publishSlotsMetric();
   }
 
   public SlotPermit reserveSlot(SlotReservationData dat) throws InterruptedException {
@@ -88,21 +88,6 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
 
   public int getIssuedSlots() {
     return issuedSlots.get();
-  }
-
-  public void setMetricsScope(Scope metricsScope) {
-    this.metricsScope = metricsScope;
-    publishSlotsMetric();
-  }
-
-  /**
-   * If any slot supplier is resource-based, we want to attach a metrics scope to the controller
-   * (before it's labelled with the worker type).
-   */
-  public void attachMetricsToResourceController(Scope metricsScope) {
-    if (inner instanceof ResourceBasedSlotSupplier) {
-      ((ResourceBasedSlotSupplier<?>) inner).getResourceController().setMetricsScope(metricsScope);
-    }
   }
 
   Map<SlotPermit, SI> getUsedSlots() {

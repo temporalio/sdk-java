@@ -107,13 +107,11 @@ public final class Worker {
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
-      TrackingSlotSupplier<ActivitySlotInfo> activitySlotSupplier =
-          new TrackingSlotSupplier<>(
-              this.options.getWorkerTuner() == null
-                  ? new FixedSizeSlotSupplier<>(
-                      this.options.getMaxConcurrentActivityExecutionSize())
-                  : this.options.getWorkerTuner().getActivityTaskSlotSupplier());
-      activitySlotSupplier.attachMetricsToResourceController(taggedScope);
+      SlotSupplier<ActivitySlotInfo> activitySlotSupplier =
+          this.options.getWorkerTuner() == null
+              ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentActivityExecutionSize())
+              : this.options.getWorkerTuner().getActivityTaskSlotSupplier();
+      attachMetricsToResourceController(taggedScope, activitySlotSupplier);
 
       activityWorker =
           new SyncActivityWorker(
@@ -142,20 +140,16 @@ public final class Worker {
         toLocalActivityOptions(
             factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
 
-    TrackingSlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
-        new TrackingSlotSupplier<>(
-            this.options.getWorkerTuner() == null
-                ? new FixedSizeSlotSupplier<>(
-                    this.options.getMaxConcurrentWorkflowTaskExecutionSize())
-                : this.options.getWorkerTuner().getWorkflowTaskSlotSupplier());
-    workflowSlotSupplier.attachMetricsToResourceController(taggedScope);
-    TrackingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
-        new TrackingSlotSupplier<>(
-            this.options.getWorkerTuner() == null
-                ? new FixedSizeSlotSupplier<>(
-                    this.options.getMaxConcurrentLocalActivityExecutionSize())
-                : this.options.getWorkerTuner().getLocalActivitySlotSupplier());
-    localActivitySlotSupplier.attachMetricsToResourceController(taggedScope);
+    SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
+        this.options.getWorkerTuner() == null
+            ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentWorkflowTaskExecutionSize())
+            : this.options.getWorkerTuner().getWorkflowTaskSlotSupplier();
+    attachMetricsToResourceController(taggedScope, workflowSlotSupplier);
+    SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+        this.options.getWorkerTuner() == null
+            ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentLocalActivityExecutionSize())
+            : this.options.getWorkerTuner().getLocalActivitySlotSupplier();
+    attachMetricsToResourceController(taggedScope, localActivitySlotSupplier);
     workflowWorker =
         new SyncWorkflowWorker(
             service,
@@ -613,5 +607,18 @@ public final class Worker {
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
         .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
+  }
+
+  /**
+   * If any slot supplier is resource-based, we want to attach a metrics scope to the controller
+   * (before it's labelled with the worker type).
+   */
+  private static void attachMetricsToResourceController(
+      Scope metricsScope, SlotSupplier<?> supplier) {
+    if (supplier instanceof ResourceBasedSlotSupplier) {
+      ((ResourceBasedSlotSupplier<?>) supplier)
+          .getResourceController()
+          .setMetricsScope(metricsScope);
+    }
   }
 }

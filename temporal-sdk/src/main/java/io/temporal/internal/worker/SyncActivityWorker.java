@@ -25,6 +25,7 @@ import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.ActivitySlotInfo;
+import io.temporal.worker.tuning.SlotSupplier;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -51,7 +52,7 @@ public class SyncActivityWorker implements SuspendableWorker {
       String taskQueue,
       double taskQueueActivitiesPerSecond,
       SingleWorkerOptions options,
-      TrackingSlotSupplier<ActivitySlotInfo> slotSupplier) {
+      SlotSupplier<ActivitySlotInfo> slotSupplier) {
     this.identity = options.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;

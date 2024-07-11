@@ -75,7 +75,7 @@ final class ActivityWorker implements SuspendableWorker {
       double taskQueueActivitiesPerSecond,
       @Nonnull SingleWorkerOptions options,
       @Nonnull ActivityTaskHandler handler,
-      @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier) {
+      @Nonnull SlotSupplier<ActivitySlotInfo> slotSupplier) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -89,8 +89,8 @@ final class ActivityWorker implements SuspendableWorker {
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
-    this.slotSupplier = slotSupplier;
-    this.slotSupplier.setMetricsScope(this.workerMetricsScope);
+
+    this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
   }
 
   @Override

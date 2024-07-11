@@ -41,6 +41,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
+import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
 import java.util.Optional;
@@ -89,7 +90,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
-      @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier) {
+      @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -98,13 +99,12 @@ final class WorkflowWorker implements SuspendableWorker {
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
-    slotSupplier.setMetricsScope(workerMetricsScope);
     this.runLocks = Objects.requireNonNull(runLocks);
     this.cache = Objects.requireNonNull(cache);
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.eagerActivityDispatcher = eagerActivityDispatcher;
-    this.slotSupplier = slotSupplier;
+    this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
   }
 
   @Override

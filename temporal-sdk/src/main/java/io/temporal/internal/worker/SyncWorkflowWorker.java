@@ -35,6 +35,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
+import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -83,8 +84,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       String stickyTaskQueueName,
       @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
-      @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
-      @Nonnull TrackingSlotSupplier<LocalActivitySlotInfo> laSlotSupplier) {
+      @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
+      @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;

@@ -78,13 +78,14 @@ public class SlotSupplierTest {
                 })))
         .thenReturn(new SlotPermit());
 
-    TrackingSlotSupplier<WorkflowSlotInfo> trackingSS = new TrackingSlotSupplier<>(mockSupplier);
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(5, true);
-
     Scope metricsScope =
         new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+    TrackingSlotSupplier<WorkflowSlotInfo> trackingSS =
+        new TrackingSlotSupplier<>(mockSupplier, metricsScope);
+
     WorkflowPollTask poller =
         new WorkflowPollTask(
             client,

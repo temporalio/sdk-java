@@ -73,14 +73,14 @@ public class StickyQueueBacklogTest {
     when(client.blockingStub()).thenReturn(blockingStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
-    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
-        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(10));
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(2, true);
-
     Scope metricsScope =
         new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+    TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier =
+        new TrackingSlotSupplier<>(new FixedSizeSlotSupplier<>(10), metricsScope);
+
     WorkflowPollTask poller =
         new WorkflowPollTask(
             client,

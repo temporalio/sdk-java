@@ -82,18 +82,18 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       @Nonnull String taskQueue,
       @Nonnull SingleWorkerOptions options,
       @Nonnull ActivityTaskHandler handler,
-      @Nonnull TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier) {
+      @Nonnull SlotSupplier<LocalActivitySlotInfo> slotSupplier) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
-    this.slotSupplier = Objects.requireNonNull(slotSupplier);
-    this.laScheduler = new LocalActivityDispatcherImpl(slotSupplier);
-    this.options = Objects.requireNonNull(options);
-    this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(
             options.getMetricsScope(), WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER);
-    this.slotSupplier.setMetricsScope(this.workerMetricsScope);
+    this.slotSupplier =
+        new TrackingSlotSupplier<>(Objects.requireNonNull(slotSupplier), this.workerMetricsScope);
+    this.laScheduler = new LocalActivityDispatcherImpl(this.slotSupplier);
+    this.options = Objects.requireNonNull(options);
+    this.pollerOptions = getPollerOptions(options);
   }
 
   private void submitRetry(
