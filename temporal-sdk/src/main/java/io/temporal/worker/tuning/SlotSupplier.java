@@ -83,11 +83,14 @@ public interface SlotSupplier<SI extends SlotInfo> {
    * that if your implementation hands out unreasonable numbers of permits, you could easily
    * oversubscribe the worker, and cause it to run out of resources.
    *
+   * <p>If a non-empty value is returned, it is assumed to be meaningful, and the worker will emit
+   * {@link io.temporal.worker.MetricsType#WORKER_TASK_SLOTS_AVAILABLE} metrics based on this value.
+   *
    * <p>This value should never change during the lifetime of the supplier.
    *
    * @return the maximum number of slots that can ever be in use at one type for this slot type.
    */
-  default int getMaximumSlots() {
-    return Integer.MAX_VALUE;
+  default Optional<Integer> getMaximumSlots() {
+    return Optional.empty();
   }
 }

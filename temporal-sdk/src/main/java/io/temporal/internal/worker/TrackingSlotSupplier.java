@@ -82,7 +82,7 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public int maximumSlots() {
+  public Optional<Integer> maximumSlots() {
     return inner.getMaximumSlots();
   }
 
@@ -95,9 +95,11 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
   }
 
   private void publishSlotsMetric() {
-    this.metricsScope
-        .gauge(MetricsType.WORKER_TASK_SLOTS_AVAILABLE)
-        .update(maximumSlots() - usedSlots.size());
+    if (maximumSlots().isPresent()) {
+      this.metricsScope
+          .gauge(MetricsType.WORKER_TASK_SLOTS_AVAILABLE)
+          .update(maximumSlots().get() - usedSlots.size());
+    }
   }
 
   private SlotReserveContext<SI> createCtx(SlotReservationData dat) {

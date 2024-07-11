@@ -64,8 +64,8 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
   }
 
   @Override
-  public int getMaximumSlots() {
-    return numSlots;
+  public Optional<Integer> getMaximumSlots() {
+    return Optional.of(numSlots);
   }
 
   @Override

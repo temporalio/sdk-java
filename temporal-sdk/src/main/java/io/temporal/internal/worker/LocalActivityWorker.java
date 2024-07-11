@@ -86,14 +86,14 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
+    this.options = Objects.requireNonNull(options);
+    this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(
             options.getMetricsScope(), WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER);
     this.slotSupplier =
         new TrackingSlotSupplier<>(Objects.requireNonNull(slotSupplier), this.workerMetricsScope);
     this.laScheduler = new LocalActivityDispatcherImpl(this.slotSupplier);
-    this.options = Objects.requireNonNull(options);
-    this.pollerOptions = getPollerOptions(options);
   }
 
   private void submitRetry(
@@ -719,7 +719,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               options.getIdentity(),
               new AttemptTaskHandlerImpl(handler),
               pollerOptions,
-              slotSupplier.maximumSlots(),
+              slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
               false);
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);

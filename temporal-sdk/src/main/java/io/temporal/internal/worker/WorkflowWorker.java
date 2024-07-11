@@ -117,7 +117,7 @@ final class WorkflowWorker implements SuspendableWorker {
               options.getIdentity(),
               new TaskHandlerImpl(handler),
               pollerOptions,
-              this.slotSupplier.maximumSlots(),
+              this.slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
               true);
       stickyQueueBalancer =
           new StickyQueueBalancer(

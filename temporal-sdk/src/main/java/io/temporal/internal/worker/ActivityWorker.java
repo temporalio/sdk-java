@@ -103,7 +103,7 @@ final class ActivityWorker implements SuspendableWorker {
               options.getIdentity(),
               new TaskHandlerImpl(handler),
               pollerOptions,
-              slotSupplier.maximumSlots(),
+              slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
               true);
       poller =
           new Poller<>(
