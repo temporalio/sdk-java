@@ -115,6 +115,9 @@ public class WorkflowSlotGrpcInterceptedTests {
             TestActivities.VariousTestActivities.class,
             ActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(10))
+                // If the task comes eagerly, since the interceptor blows us up we drop it
+                // and that can cause timeouts.
+                .setDisableEagerExecution(true)
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                 .validateAndBuildWithDefaults());
 
@@ -140,6 +143,9 @@ public class WorkflowSlotGrpcInterceptedTests {
             TestWorkflows.TestSignaledWorkflow.class,
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
+                // If the task comes eagerly, since the interceptor blows us up we drop it
+                // and that can cause timeouts.
+                .setDisableEagerExecution(true)
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::execute);
     workflow.signal("whatever");
