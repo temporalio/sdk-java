@@ -61,9 +61,7 @@ public class WorkflowTaskDispatchHandle implements Closeable {
     Preconditions.checkNotNull(workflowTask, "workflowTask");
     if (completed.compareAndSet(false, true)) {
       return dispatchCallback.apply(
-          new WorkflowTask(
-              workflowTask,
-              () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit)));
+          new WorkflowTask(workflowTask, (rr) -> slotSupplier.releaseSlot(rr, permit)));
     } else {
       return false;
     }

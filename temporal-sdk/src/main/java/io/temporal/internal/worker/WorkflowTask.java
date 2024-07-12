@@ -21,15 +21,17 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
 
 public class WorkflowTask {
   @Nonnull private final PollWorkflowTaskQueueResponse response;
-  @Nonnull private final Functions.Proc completionCallback;
+  @Nonnull private final Functions.Proc1<SlotReleaseReason> completionCallback;
 
   public WorkflowTask(
-      @Nonnull PollWorkflowTaskQueueResponse response, @Nonnull Functions.Proc completionCallback) {
+      @Nonnull PollWorkflowTaskQueueResponse response,
+      @Nonnull Functions.Proc1<SlotReleaseReason> completionCallback) {
     this.response = response;
     this.completionCallback = completionCallback;
   }
@@ -44,7 +46,7 @@ public class WorkflowTask {
    * completed.
    */
   @Nonnull
-  public Functions.Proc getCompletionCallback() {
+  public Functions.Proc1<SlotReleaseReason> getCompletionCallback() {
     return completionCallback;
   }
 }

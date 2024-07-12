@@ -41,6 +41,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
+import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
@@ -308,6 +309,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
       Stopwatch swTotal =
           workflowTypeScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
+      SlotReleaseReason releaseReason = SlotReleaseReason.taskComplete();
       try {
         if (!Strings.isNullOrEmpty(stickyTaskQueueName)) {
           // Serialize workflow task processing for a particular workflow run.
@@ -384,6 +386,7 @@ final class WorkflowWorker implements SuspendableWorker {
             }
           } catch (Exception e) {
             logExceptionDuringResultReporting(e, currentTask, result);
+            releaseReason = SlotReleaseReason.error(e);
             // if we failed to report the workflow task completion back to the server,
             // our cached version of the workflow may be more advanced than the server is aware of.
             // We should discard this execution and perform a clean replay based on what server
@@ -420,11 +423,10 @@ final class WorkflowWorker implements SuspendableWorker {
         } while (nextWFTResponse.isPresent());
       } finally {
         swTotal.stop();
+        task.getCompletionCallback().apply(releaseReason);
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
-
-        task.getCompletionCallback().apply();
 
         if (locked) {
           runLocks.unlock(runId);
