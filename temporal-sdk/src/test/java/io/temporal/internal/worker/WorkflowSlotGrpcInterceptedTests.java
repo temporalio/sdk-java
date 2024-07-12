@@ -140,7 +140,6 @@ public class WorkflowSlotGrpcInterceptedTests {
             TestWorkflows.TestSignaledWorkflow.class,
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
-                .setWorkflowTaskTimeout(Duration.ofMillis(500))
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::execute);
     workflow.signal("whatever");
@@ -162,7 +161,6 @@ public class WorkflowSlotGrpcInterceptedTests {
             TestWorkflows.TestSignaledWorkflow.class,
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
-                .setWorkflowTaskTimeout(Duration.ofMillis(500))
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::execute);
     workflow.signal("whatever");
