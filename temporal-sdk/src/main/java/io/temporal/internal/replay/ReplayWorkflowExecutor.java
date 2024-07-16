@@ -20,6 +20,7 @@
 
 package io.temporal.internal.replay;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
@@ -41,14 +42,19 @@ import io.temporal.internal.sync.UpdateHandlerInfo;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.workflow.HandlerUnfinishedPolicy;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 final class ReplayWorkflowExecutor {
-  private static final String unfinishedUpdateHandlesWarnMessage =
+  @VisibleForTesting
+  public static final String unfinishedUpdateHandlesWarnMessage =
       "Workflow finished while update handlers are still running. This may "
           + "have interrupted work that the update handler was doing, and the client "
           + "that sent the update will receive a 'workflow execution already completed' "
@@ -59,7 +65,8 @@ final class ReplayWorkflowExecutor {
           + "clients to receive errors, then you can disable this warning via the update "
           + "handler annotations: `@UpdateMethod(unfinishedPolicy = HandlerUnfinishedPolicy.ABANDON)`.";
 
-  private static final String unfinishedSignalHandlesWarnMessage =
+  @VisibleForTesting
+  public static final String unfinishedSignalHandlesWarnMessage =
       "Workflow finished while signal handlers are still running. This may "
           + "have interrupted work that the update handler was doing. You can wait for all update and "
           + "signal handlers to complete by using `await workflow.Await(() -> workflow.isHandlersFinished())`. "
@@ -67,6 +74,7 @@ final class ReplayWorkflowExecutor {
           + "interrupting running handlers when the workflow finishes, and causing "
           + "clients to receive errors, then you can disable this warning via the update "
           + "handler annotations: `@SignalMethod(unfinishedPolicy = HandlerUnfinishedPolicy.ABANDON)`.";
+
   private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowExecutor.class);
 
   private final ReplayWorkflow workflow;
@@ -114,16 +122,30 @@ final class ReplayWorkflowExecutor {
   }
 
   private void completeWorkflow(@Nullable WorkflowExecutionException failure) {
-    Map<Long, SignalHandlerInfo> runningSignalHandlers =
-        workflow.getWorkflowContext().getRunningSignalHandlers();
-    if (!runningSignalHandlers.isEmpty()) {
-      log.warn(unfinishedSignalHandlesWarnMessage);
-    }
+    if (log.isWarnEnabled()) {
+      Map<Long, SignalHandlerInfo> runningSignalHandlers =
+          workflow.getWorkflowContext().getRunningSignalHandlers();
+      List<SignalHandlerInfo> unfinishedSignalHandlers =
+          runningSignalHandlers.values().stream()
+              .filter(a -> a.getPolicy() == HandlerUnfinishedPolicy.WARN_AND_ABANDON)
+              .collect(Collectors.toList());
+      if (!unfinishedSignalHandlers.isEmpty()) {
+        MDC.put("Signals", unfinishedSignalHandlers.toString());
+        log.warn(unfinishedSignalHandlesWarnMessage);
+        MDC.remove("Signals");
+      }
 
-    Map<String, UpdateHandlerInfo> runningUpdateHandlers =
-        workflow.getWorkflowContext().getRunningUpdateHandlers();
-    if (!runningUpdateHandlers.isEmpty()) {
-      log.warn(unfinishedUpdateHandlesWarnMessage);
+      Map<String, UpdateHandlerInfo> runningUpdateHandlers =
+          workflow.getWorkflowContext().getRunningUpdateHandlers();
+      List<UpdateHandlerInfo> unfinishedUpdateHandlers =
+          runningUpdateHandlers.values().stream()
+              .filter(a -> a.getPolicy() == HandlerUnfinishedPolicy.WARN_AND_ABANDON)
+              .collect(Collectors.toList());
+      if (!unfinishedUpdateHandlers.isEmpty()) {
+        MDC.put("Updates", unfinishedUpdateHandlers.toString());
+        log.warn(unfinishedUpdateHandlesWarnMessage);
+        MDC.remove("Updates");
+      }
     }
 
     if (context.isCancelRequested()) {

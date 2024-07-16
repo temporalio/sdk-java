@@ -143,16 +143,11 @@ class SyncWorkflow implements ReplayWorkflow {
   @Override
   public void handleSignal(
       String signalName, Optional<Payloads> input, long eventId, Header header) {
+    // Signals can trigger completion
     runner.executeInWorkflowThread(
         "signal " + signalName,
         () -> {
-          SignalHandlerInfo handlerInfo = workflowProc.getSignalHandlerInfo(signalName);
-          workflowContext.trackSignal(eventId, handlerInfo);
-          try {
-            workflowProc.handleSignal(signalName, input, eventId, header);
-          } finally {
-            workflowContext.removeSignal(eventId);
-          }
+          workflowProc.handleSignal(signalName, input, eventId, header);
         });
   }
 
@@ -167,38 +162,31 @@ class SyncWorkflow implements ReplayWorkflow {
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
-          // Start tracking the update before calling the handler
-          UpdateHandlerInfo handlerInfo = workflowProc.getUpdateHandlerInfo(updateName);
-          workflowContext.trackUpdate(updateId, handlerInfo);
-          try {
-            // Skip validator on replay
-            if (!callbacks.isReplaying()) {
-              try {
-                workflowContext.setReadOnly(true);
-                workflowProc.handleValidateUpdate(updateName, input, eventId, header);
-              } catch (ReadOnlyException r) {
-                // Rethrow instead on rejecting the update to fail the WFT
-                throw r;
-              } catch (Exception e) {
-                callbacks.reject(
-                    workflowContext
-                        .getDataConverterWithCurrentWorkflowContext()
-                        .exceptionToFailure(e));
-                return;
-              } finally {
-                workflowContext.setReadOnly(false);
-              }
-            }
-            callbacks.accept();
+          // Skip validator on replay
+          if (!callbacks.isReplaying()) {
             try {
-              Optional<Payloads> result =
-                  workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
-              callbacks.complete(result, null);
-            } catch (WorkflowExecutionException e) {
-              callbacks.complete(Optional.empty(), e.getFailure());
+              workflowContext.setReadOnly(true);
+              workflowProc.handleValidateUpdate(updateName, updateId, input, eventId, header);
+            } catch (ReadOnlyException r) {
+              // Rethrow instead on rejecting the update to fail the WFT
+              throw r;
+            } catch (Exception e) {
+              callbacks.reject(
+                  workflowContext
+                      .getDataConverterWithCurrentWorkflowContext()
+                      .exceptionToFailure(e));
+              return;
+            } finally {
+              workflowContext.setReadOnly(false);
             }
-          } finally {
-            workflowContext.removeUpdate(updateId);
+          }
+          callbacks.accept();
+          try {
+            Optional<Payloads> result =
+                workflowProc.handleExecuteUpdate(updateName, updateId, input, eventId, header);
+            callbacks.complete(result, null);
+          } catch (WorkflowExecutionException e) {
+            callbacks.complete(Optional.empty(), e.getFailure());
           }
         });
   }
