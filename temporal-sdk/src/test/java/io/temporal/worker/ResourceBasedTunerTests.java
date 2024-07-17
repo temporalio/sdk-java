@@ -26,6 +26,7 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -65,9 +66,9 @@ public class ResourceBasedTunerTests {
           .build();
 
   @Test
-  public void canRunWithResourceBasedTuner() {
+  public void canRunWithResourceBasedTuner() throws InterruptedException {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
-    workflow.execute(10, 1000);
+    workflow.execute(5, 5, 1000);
     Map<String, String> nsAndTaskQueue =
         new ImmutableMap.Builder<String, String>()
             .putAll(TAGS_NAMESPACE)
@@ -83,24 +84,30 @@ public class ResourceBasedTunerTests {
         });
     reporter.assertGauge(MetricsType.RESOURCE_MEM_PID, nsAndTaskQueue, (val) -> true);
     reporter.assertGauge(MetricsType.RESOURCE_CPU_PID, nsAndTaskQueue, (val) -> true);
+    // Verify no slots are leaked
+    Thread.sleep(100); // wait a beat for slots to actually get released
+    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("WorkflowWorker"), 0);
+    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("ActivityWorker"), 0);
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), 0);
   }
 
   @Category(IndependentResourceBasedTests.class)
   @Test(timeout = 300 * 1000)
   public void canRunHeavyMemoryWithResourceBasedTuner() {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
-    workflow.execute(100, 30000000);
+    workflow.execute(50, 50, 30000000);
   }
 
   @WorkflowInterface
   public interface ResourceTunerWorkflow {
     @WorkflowMethod
-    String execute(int numActivities, int memCeiling);
+    String execute(int numActivities, int localActivities, int memCeiling);
   }
 
   public static class ResourceTunerWorkflowImpl implements ResourceTunerWorkflow {
     @Override
-    public String execute(int numActivities, int memCeiling) {
+    public String execute(int numActivities, int localActivities, int memCeiling) {
       SleepActivity activity =
           Workflow.newActivityStub(
               SleepActivity.class,
@@ -109,9 +116,20 @@ public class ResourceBasedTunerTests {
                   .setHeartbeatTimeout(Duration.ofSeconds(20))
                   .build());
 
+      SleepActivity localActivity =
+          Workflow.newLocalActivityStub(
+              SleepActivity.class,
+              LocalActivityOptions.newBuilder()
+                  .setStartToCloseTimeout(Duration.ofMinutes(1))
+                  .build());
+
       List<Promise<Void>> promises = new ArrayList<>();
       for (int j = 0; j < numActivities; j++) {
         Promise<Void> promise = Async.procedure(activity::useResources, memCeiling);
+        promises.add(promise);
+      }
+      for (int j = 0; j < localActivities; j++) {
+        Promise<Void> promise = Async.procedure(localActivity::useResources, memCeiling);
         promises.add(promise);
       }
 
@@ -142,5 +160,15 @@ public class ResourceBasedTunerTests {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  private Map<String, String> getWorkerTags(String workerType) {
+    return ImmutableMap.of(
+        "worker_type",
+        workerType,
+        "task_queue",
+        testWorkflowRule.getTaskQueue(),
+        "namespace",
+        "UnitTest");
   }
 }
