@@ -35,6 +35,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -101,7 +102,9 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               new SlotReservationData(
                   pollRequest.getTaskQueue().getName(),
                   pollRequest.getIdentity(),
-                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
+                  pollRequest.getWorkerVersionCapabilities().getBuildId()),
+              Long.MAX_VALUE,
+              TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;

@@ -41,9 +41,12 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    executorSlotsSemaphore.acquire();
-    return new SlotPermit();
+  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit)
+      throws InterruptedException, TimeoutException {
+    if (executorSlotsSemaphore.tryAcquire(timeout, timeUnit)) {
+      return new SlotPermit();
+    }
+    throw new TimeoutException("Timed out waiting for a slot to become available");
   }
 
   @Override

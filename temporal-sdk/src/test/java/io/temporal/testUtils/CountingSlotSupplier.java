@@ -22,6 +22,8 @@ package io.temporal.testUtils;
 
 import io.temporal.worker.tuning.*;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupplier<SI> {
@@ -33,8 +35,9 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    SlotPermit p = super.reserveSlot(ctx);
+  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit)
+      throws InterruptedException, TimeoutException {
+    SlotPermit p = super.reserveSlot(ctx, timeout, timeUnit);
     reservedCount.incrementAndGet();
     return p;
   }

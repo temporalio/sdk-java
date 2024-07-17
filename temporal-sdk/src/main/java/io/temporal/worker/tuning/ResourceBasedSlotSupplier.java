@@ -24,6 +24,8 @@ import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
 @Experimental
@@ -111,8 +113,10 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    while (true) {
+  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit)
+      throws InterruptedException, TimeoutException {
+    Instant started = Instant.now();
+    while (started.plusMillis(timeUnit.toMillis(timeout)).isAfter(Instant.now())) {
       if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
         return new SlotPermit();
       } else {
@@ -134,6 +138,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
         }
       }
     }
+    throw new TimeoutException("Timed out waiting for a slot to become available");
   }
 
   @Override

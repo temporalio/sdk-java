@@ -22,6 +22,8 @@ package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A SlotSupplier is responsible for managing the number of slots available for a given type of
@@ -36,15 +38,19 @@ import java.util.Optional;
 public interface SlotSupplier<SI extends SlotInfo> {
   /**
    * This function is called before polling for new tasks. Your implementation should block until a
-   * slot is available, then return a permit to use that slot.
+   * slot is available then return a permit to use that slot. If the provided timeout is reached
+   * before a slot is available, a {@link TimeoutException} must be thrown.
    *
    * @param ctx The context for slot reservation.
+   * @param timeout The maximum amount of time to wait for a slot to become available.
+   * @param timeUnit The time unit for the timeout.
    * @return A permit to use the slot which may be populated with your own data.
    * @throws InterruptedException The worker may choose to interrupt the thread in order to cancel
    *     the reservation, or during shutdown. You may perform cleanup, and then should rethrow the
    *     exception.
    */
-  SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException;
+  SlotPermit reserveSlot(SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit)
+      throws InterruptedException, TimeoutException;
 
   /**
    * This function is called when trying to reserve slots for "eager" workflow and activity tasks.

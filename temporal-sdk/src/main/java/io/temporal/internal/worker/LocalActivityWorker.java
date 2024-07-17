@@ -24,8 +24,6 @@ import static io.temporal.internal.worker.LocalActivityResult.failed;
 import static io.temporal.internal.worker.LocalActivityResult.processingFailed;
 
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.SimpleTimeLimiter;
-import com.google.common.util.concurrent.TimeLimiter;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
@@ -282,15 +280,12 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         SlotReservationData reservationCtx =
             new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId());
         if (acceptanceTimeoutMs <= 0) {
-          permit = slotSupplier.reserveSlot(reservationCtx);
+          permit = slotSupplier.reserveSlot(reservationCtx, Long.MAX_VALUE, TimeUnit.MILLISECONDS);
         } else {
           try {
-            TimeLimiter timeLimiter = SimpleTimeLimiter.create(timeoutThreadPool);
             permit =
-                timeLimiter.callWithTimeout(
-                    () -> slotSupplier.reserveSlot(reservationCtx),
-                    acceptanceTimeoutMs,
-                    TimeUnit.MILLISECONDS);
+                slotSupplier.reserveSlot(
+                    reservationCtx, acceptanceTimeoutMs, TimeUnit.MILLISECONDS);
           } catch (TimeoutException e) {
             // In the event that we timed out waiting for a permit *because of schedule to start* we
             // still want to proceed with the "attempt" with a null permit, which will then
