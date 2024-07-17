@@ -100,6 +100,7 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
           .gauge(MetricsType.WORKER_TASK_SLOTS_AVAILABLE)
           .update(maximumSlots().get() - usedSlots.size());
     }
+    this.metricsScope.gauge(MetricsType.WORKER_TASK_SLOTS_USED).update(usedSlots.size());
   }
 
   private SlotReserveContext<SI> createCtx(SlotReservationData dat) {

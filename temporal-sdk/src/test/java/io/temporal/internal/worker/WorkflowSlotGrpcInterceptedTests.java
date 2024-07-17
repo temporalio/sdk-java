@@ -151,10 +151,7 @@ public class WorkflowSlotGrpcInterceptedTests {
     workflow.signal("whatever");
     workflow.execute();
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertAllSlotsAvailable();
   }
 
   @Test
@@ -172,13 +169,10 @@ public class WorkflowSlotGrpcInterceptedTests {
     workflow.signal("whatever");
     workflow.execute();
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertAllSlotsAvailable();
   }
 
-  private void assertWorkerSlotCount(int worker, int activity, int localActivity) {
+  private void assertAllSlotsAvailable() {
     try {
       // There can be a delay in metrics emission, another option if this
       // is too flaky is to poll the metrics.
@@ -187,15 +181,21 @@ public class WorkflowSlotGrpcInterceptedTests {
       throw new RuntimeException(e);
     }
     reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("WorkflowWorker"), worker);
-    // All slots should be available
+        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+        getWorkerTags("WorkflowWorker"),
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE);
     reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("ActivityWorker"), activity);
-    // All slots should be available
+        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+        getWorkerTags("ActivityWorker"),
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE);
     reporter.assertGauge(
         MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
         getWorkerTags("LocalActivityWorker"),
-        localActivity);
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("WorkflowWorker"), 0);
+    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("ActivityWorker"), 0);
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), 0);
   }
 
   private Map<String, String> getWorkerTags(String workerType) {

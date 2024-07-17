@@ -105,6 +105,7 @@ public class WorkflowSlotTests {
         localActivitySlotSupplier.releasedCount.get());
   }
 
+  // Arguments are the number of used slots by type
   private void assertWorkerSlotCount(int worker, int activity, int localActivity) {
     try {
       // There can be a delay in metrics emission, another option if this
@@ -114,15 +115,23 @@ public class WorkflowSlotTests {
       throw new RuntimeException(e);
     }
     reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("WorkflowWorker"), worker);
-    // All slots should be available
+        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+        getWorkerTags("WorkflowWorker"),
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - worker);
     reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("ActivityWorker"), activity);
-    // All slots should be available
+        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+        getWorkerTags("ActivityWorker"),
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE - activity);
     reporter.assertGauge(
         MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
         getWorkerTags("LocalActivityWorker"),
-        localActivity);
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - localActivity);
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("WorkflowWorker"), worker);
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("ActivityWorker"), activity);
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), localActivity);
   }
 
   @WorkflowInterface
@@ -215,10 +224,7 @@ public class WorkflowSlotTests {
     // Start the worker
     testWorkflowRule.getTestEnvironment().start();
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 
   @Test
@@ -235,19 +241,13 @@ public class WorkflowSlotTests {
     workflow.unblock();
     activityRunningLatch.await();
     // The activity slot should be taken and the workflow slot should not be taken
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE - 1,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 1, 0);
 
     activityBlockLatch.countDown();
     // Wait for the workflow to finish
     workflow.workflow("activity");
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 
   @Test
@@ -264,18 +264,12 @@ public class WorkflowSlotTests {
     workflow.unblock();
     activityRunningLatch.await();
     // The local activity slot should be taken and the workflow slot should be taken
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - 1,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - 1);
+    assertWorkerSlotCount(1, 0, 1);
 
     activityBlockLatch.countDown();
     workflow.workflow("local-activity");
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 
   @Test
@@ -293,24 +287,15 @@ public class WorkflowSlotTests {
     workflow.unblock();
     activityRunningLatch.await();
     // The local activity slot should be taken and the workflow slot should be taken
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - 1,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - 1);
+    assertWorkerSlotCount(1, 0, 1);
     // Take long enough to heartbeat
     Thread.sleep(1000);
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - 1,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - 1);
+    assertWorkerSlotCount(1, 0, 1);
 
     activityBlockLatch.countDown();
     workflow.workflow("local-activity");
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 
   @Test
@@ -328,9 +313,6 @@ public class WorkflowSlotTests {
     workflow.unblock();
     workflow.workflow("fail");
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 }

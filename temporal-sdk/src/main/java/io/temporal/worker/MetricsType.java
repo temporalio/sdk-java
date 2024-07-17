@@ -135,6 +135,8 @@ public final class MetricsType {
   // gauge
   public static final String WORKER_TASK_SLOTS_AVAILABLE =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_available";
+  public static final String WORKER_TASK_SLOTS_USED =
+      TEMPORAL_METRICS_PREFIX + "worker_task_slots_used";
 
   //
   // Worker Factory
