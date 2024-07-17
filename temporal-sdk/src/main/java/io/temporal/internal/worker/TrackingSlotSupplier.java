@@ -50,15 +50,24 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public SlotPermit reserveSlot(SlotReservationData dat, long timeout, TimeUnit timeUnit)
+  public SlotPermit reserveSlot(SlotReservationData dat)
       throws InterruptedException, TimeoutException {
-    SlotPermit p = inner.reserveSlot(createCtx(dat), timeout, timeUnit);
+    SlotPermit p = inner.reserveSlot(createCtx(dat));
     issuedSlots.incrementAndGet();
     return p;
   }
 
   public Optional<SlotPermit> tryReserveSlot(SlotReservationData dat) {
     Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(dat));
+    if (p.isPresent()) {
+      issuedSlots.incrementAndGet();
+    }
+    return p;
+  }
+
+  public Optional<SlotPermit> tryReserveSlot(
+      SlotReservationData dat, long timeout, TimeUnit timeUnit) throws InterruptedException {
+    Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(dat), timeout, timeUnit);
     if (p.isPresent()) {
       issuedSlots.incrementAndGet();
     }

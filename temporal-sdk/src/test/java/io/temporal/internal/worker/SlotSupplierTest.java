@@ -76,9 +76,7 @@ public class SlotSupplierTest {
                 src -> {
                   usedSlotsWhenCalled.set(src.getUsedSlots().size());
                   return true;
-                }),
-            anyLong(),
-            any()))
+                })))
         .thenReturn(new SlotPermit());
 
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(5, true);
@@ -121,7 +119,7 @@ public class SlotSupplierTest {
 
     if (throwOnPoll) {
       assertThrows(RuntimeException.class, poller::poll);
-      verify(mockSupplier, times(1)).reserveSlot(any(), anyLong(), any());
+      verify(mockSupplier, times(1)).reserveSlot(any());
       verify(mockSupplier, times(1)).releaseSlot(any());
       assertEquals(0, trackingSS.getUsedSlots().size());
     } else {
@@ -131,8 +129,7 @@ public class SlotSupplierTest {
       // where the slot *is* used.
       assertEquals(0, usedSlotsWhenCalled.get());
       verify(mockSupplier, times(1))
-          .reserveSlot(
-              argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)), anyLong(), any());
+          .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
       verify(mockSupplier, times(0)).releaseSlot(any());
       assertEquals(1, trackingSS.getUsedSlots().size());
     }

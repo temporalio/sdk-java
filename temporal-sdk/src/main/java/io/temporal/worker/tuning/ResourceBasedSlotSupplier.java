@@ -25,7 +25,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
 @Experimental
@@ -113,12 +112,31 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit)
-      throws InterruptedException, TimeoutException {
+  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
+    return tryReserveSlot(ctx, Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+        .orElseThrow(() -> new IllegalStateException("Waited infinite time to reserve a slot"));
+  }
+
+  @Override
+  public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx) {
+    int numIssued = ctx.getNumIssuedSlots();
+    if (numIssued < options.getMinimumSlots()
+        || (timeSinceLastSlotIssued().compareTo(options.getRampThrottle()) > 0
+            && numIssued < options.getMaximumSlots()
+            && resourceController.pidDecision())) {
+      lastSlotIssuedAt = Instant.now();
+      return Optional.of(new SlotPermit());
+    }
+    return Optional.empty();
+  }
+
+  @Override
+  public Optional<SlotPermit> tryReserveSlot(
+      SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit) throws InterruptedException {
     Instant started = Instant.now();
     while (started.plusMillis(timeUnit.toMillis(timeout)).isAfter(Instant.now())) {
       if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
-        return new SlotPermit();
+        return Optional.of(new SlotPermit());
       } else {
         Duration mustWaitFor;
         try {
@@ -132,24 +150,11 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
 
         Optional<SlotPermit> permit = tryReserveSlot(ctx);
         if (permit.isPresent()) {
-          return permit.get();
+          return permit;
         } else {
           Thread.sleep(10);
         }
       }
-    }
-    throw new TimeoutException("Timed out waiting for a slot to become available");
-  }
-
-  @Override
-  public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx) {
-    int numIssued = ctx.getNumIssuedSlots();
-    if (numIssued < options.getMinimumSlots()
-        || (timeSinceLastSlotIssued().compareTo(options.getRampThrottle()) > 0
-            && numIssued < options.getMaximumSlots()
-            && resourceController.pidDecision())) {
-      lastSlotIssuedAt = Instant.now();
-      return Optional.of(new SlotPermit());
     }
     return Optional.empty();
   }
