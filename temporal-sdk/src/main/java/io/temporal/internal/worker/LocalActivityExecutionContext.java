@@ -165,7 +165,10 @@ class LocalActivityExecutionContext {
     if (result.getProcessingError() != null) {
       reason = SlotReleaseReason.error(new Exception(result.getProcessingError().getThrowable()));
     }
-    slotSupplier.releaseSlot(reason, permit);
+    // Permit can be null in the event of a timeout while waiting on a permit
+    if (permit != null) {
+      slotSupplier.releaseSlot(reason, permit);
+    }
     return executionResult.complete(result);
   }
 
