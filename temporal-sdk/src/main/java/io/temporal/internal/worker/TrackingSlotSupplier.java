@@ -64,7 +64,8 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
 
   public void markSlotUsed(SI slotInfo, SlotPermit permit) {
     if (permit == null) {
-      return;
+      throw new IllegalStateException(
+          "Permit cannot be null when marking slot as used. This is an SDK bug.");
     }
     inner.markSlotUsed(new SlotMarkUsedContextImpl(slotInfo, permit));
     usedSlots.put(permit, slotInfo);
@@ -73,7 +74,8 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
 
   public void releaseSlot(SlotReleaseReason reason, SlotPermit permit) {
     if (permit == null) {
-      return;
+      throw new IllegalStateException(
+          "Permit cannot be null when releasing a slot. This is an SDK bug.");
     }
     SI slotInfo = usedSlots.get(permit);
     inner.releaseSlot(new SlotReleaseContextImpl(reason, permit, slotInfo));

@@ -475,11 +475,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
 
-      // At this point the permit should definitely be set
-      if (executionContext.getPermit() == null) {
-        throw new IllegalStateException("Permit is expected to be set at this point");
-      }
-
       slotSupplier.markSlotUsed(
           new LocalActivitySlotInfo(
               ActivityPollResponseToInfo.toActivityInfoImpl(
