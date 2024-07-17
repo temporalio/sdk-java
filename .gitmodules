@@ -1,3 +1,6 @@
 [submodule "temporal-serviceclient/src/main/proto"]
 	path = temporal-serviceclient/src/main/proto
 	url = https://github.com/temporalio/api.git
+[submodule "temporal-serviceclient/src/main/protocloud"]
+	path = temporal-serviceclient/src/main/protocloud
+	url = https://github.com/temporalio/api-cloud.git
