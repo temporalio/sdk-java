@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupplier<SI> {
   public final AtomicInteger reservedCount = new AtomicInteger();
   public final AtomicInteger releasedCount = new AtomicInteger();
+  public final AtomicInteger usedCount = new AtomicInteger();
 
   public CountingSlotSupplier(int numSlots) {
     super(numSlots);
@@ -57,6 +58,12 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
       reservedCount.incrementAndGet();
     }
     return p;
+  }
+
+  @Override
+  public void markSlotUsed(SlotMarkUsedContext<SI> ctx) {
+    usedCount.incrementAndGet();
+    super.markSlotUsed(ctx);
   }
 
   @Override

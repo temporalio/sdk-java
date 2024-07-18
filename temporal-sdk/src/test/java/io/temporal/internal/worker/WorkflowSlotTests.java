@@ -63,6 +63,7 @@ public class WorkflowSlotTests {
   private final TestStatsReporter reporter = new TestStatsReporter();
   static CountDownLatch activityBlockLatch = new CountDownLatch(1);
   static CountDownLatch activityRunningLatch = new CountDownLatch(1);
+  static CountDownLatch activityFailLatch = new CountDownLatch(3);
   static boolean didFail = false;
 
   Scope metricsScope =
@@ -90,6 +91,8 @@ public class WorkflowSlotTests {
     reporter.flush();
     activityBlockLatch = new CountDownLatch(1);
     activityRunningLatch = new CountDownLatch(1);
+    activityFailLatch = new CountDownLatch(3);
+    localActivitySlotSupplier.usedCount.set(0);
     didFail = false;
   }
 
@@ -151,7 +154,7 @@ public class WorkflowSlotTests {
             TestActivity.class,
             ActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(10))
-                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(4).build())
                 .validateAndBuildWithDefaults());
 
     private final TestActivity localActivity =
@@ -159,7 +162,11 @@ public class WorkflowSlotTests {
             TestActivity.class,
             LocalActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(10))
-                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+                .setRetryOptions(
+                    RetryOptions.newBuilder()
+                        .setMaximumAttempts(4)
+                        .setInitialInterval(Duration.ofMillis(1))
+                        .build())
                 .validateAndBuildWithDefaults());
 
     @Override
@@ -170,6 +177,8 @@ public class WorkflowSlotTests {
         throw new RuntimeException("fail on purpose");
       } else if (action.equals("local-activity")) {
         localActivity.activity("test");
+      } else if (action.equals("local-activity-fail")) {
+        localActivity.activity("fail");
       } else if (action.equals("activity")) {
         activity.activity("test");
       }
@@ -194,6 +203,10 @@ public class WorkflowSlotTests {
     public String activity(String input) {
       activityRunningLatch.countDown();
       try {
+        if (input.equals("fail") && activityFailLatch.getCount() > 0) {
+          activityFailLatch.countDown();
+          throw new RuntimeException("fail on purpose");
+        }
         activityBlockLatch.await();
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
@@ -296,6 +309,30 @@ public class WorkflowSlotTests {
     workflow.workflow("local-activity");
     // All slots should be available
     assertWorkerSlotCount(0, 0, 0);
+  }
+
+  @Test
+  public void TestLocalActivityFailsThenPasses() throws InterruptedException {
+    testWorkflowRule.getTestEnvironment().start();
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow workflow =
+        client.newWorkflowStub(
+            TestWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .setWorkflowTaskTimeout(Duration.ofSeconds(1))
+                .validateBuildWithDefaults());
+    WorkflowClient.start(workflow::workflow, "local-activity-fail");
+    workflow.unblock();
+    activityRunningLatch.await();
+    // The local activity slot should be taken and the workflow slot should be taken
+    assertWorkerSlotCount(1, 0, 1);
+
+    activityBlockLatch.countDown();
+    workflow.workflow("local-activity-fail");
+    assertWorkerSlotCount(0, 0, 0);
+    // LA slots should only have been used once
+    assertEquals(1, localActivitySlotSupplier.usedCount.get());
   }
 
   @Test
