@@ -67,10 +67,10 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
       throw new IllegalArgumentException(
           "Permit cannot be null when marking slot as used. This is an SDK bug.");
     }
-    // Avoid marking the same slot as used twice. EX: LA retries might call this multiple times.
-    if (usedSlots.put(permit, slotInfo) == null) {
-      inner.markSlotUsed(new SlotMarkUsedContextImpl(slotInfo, permit));
+    if (usedSlots.put(permit, slotInfo) != null) {
+      throw new IllegalStateException("Slot is being marked used twice. This is an SDK bug.");
     }
+    inner.markSlotUsed(new SlotMarkUsedContextImpl(slotInfo, permit));
     publishSlotsMetric();
   }
 
