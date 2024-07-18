@@ -20,6 +20,8 @@
 
 package io.temporal.worker;
 
+import io.temporal.common.Experimental;
+
 public final class MetricsType {
   private MetricsType() {}
 
@@ -135,6 +137,8 @@ public final class MetricsType {
   // gauge
   public static final String WORKER_TASK_SLOTS_AVAILABLE =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_available";
+
+  @Experimental
   public static final String WORKER_TASK_SLOTS_USED =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_used";
 
