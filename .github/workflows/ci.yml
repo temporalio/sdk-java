@@ -83,8 +83,6 @@ jobs:
     name: Unit test with cloud
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only supported in non-fork runs, since secrets are not available in forks
-    if: ${{ github.event.pull_request.head.repo.full_name == '' || github.event.pull_request.head.repo.full_name == 'temporalio/sdk-java' }}
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -103,6 +101,10 @@ jobs:
       uses: gradle/actions/setup-gradle@v3
     
     - name: Run cloud test
+      # Only supported in non-fork runs, since secrets are not available in forks. We intentionally
+      # are only doing this check on the step instead of the job so we require job passing in CI
+      # even for those that can't run this step.
+      if: ${{ github.event.pull_request.head.repo.full_name == '' || github.event.pull_request.head.repo.full_name == 'temporalio/sdk-java' }}
       env:
         USER: unittest
         TEMPORAL_CLIENT_CLOUD_NAMESPACE: sdk-ci.a2dd6
