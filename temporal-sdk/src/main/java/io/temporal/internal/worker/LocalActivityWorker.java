@@ -73,6 +73,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   private ScheduledExecutorService scheduledExecutor;
   private PollTaskExecutor<LocalActivityAttemptTask> activityAttemptTaskExecutor;
   private final TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier;
+  private final LocalActivitySlotSupplierQueue slotQueue;
 
   public LocalActivityWorker(
       @Nonnull String namespace,
@@ -90,32 +91,40 @@ final class LocalActivityWorker implements Startable, Shutdownable {
             options.getMetricsScope(), WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER);
     this.slotSupplier =
         new TrackingSlotSupplier<>(Objects.requireNonNull(slotSupplier), this.workerMetricsScope);
-    this.laScheduler = new LocalActivityDispatcherImpl(this.slotSupplier);
+    this.slotQueue =
+        new LocalActivitySlotSupplierQueue(
+            this.slotSupplier, (t) -> activityAttemptTaskExecutor.process(t));
+    this.laScheduler = new LocalActivityDispatcherImpl();
   }
 
   private void submitRetry(
       @Nonnull LocalActivityExecutionContext executionContext,
       @Nonnull PollActivityTaskQueueResponse.Builder activityTask) {
-    submitAttempt(executionContext, activityTask);
+    submitAttempt(executionContext, activityTask, true);
   }
 
   private void submitAttempt(
       @Nonnull LocalActivityExecutionContext executionContext,
-      @Nonnull PollActivityTaskQueueResponse.Builder activityTask) {
+      @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
+      boolean isRetry) {
     @Nullable Duration scheduleToStartTimeout = executionContext.getScheduleToStartTimeout();
-    @Nullable ScheduledFuture<?> scheduleToStartFuture = null;
+    @Nullable final ScheduledFuture<?> scheduleToStartFuture;
     if (scheduleToStartTimeout != null) {
       scheduleToStartFuture =
           scheduledExecutor.schedule(
               new FinalTimeoutHandler(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START, executionContext),
               scheduleToStartTimeout.toMillis(),
               TimeUnit.MILLISECONDS);
+    } else {
+      scheduleToStartFuture = null;
     }
 
+    SlotReservationData reservationDat =
+        new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId());
     activityTask.setCurrentAttemptScheduledTime(ProtobufTimeUtils.getCurrentProtoTime());
-    LocalActivityAttemptTask task =
+    final LocalActivityAttemptTask task =
         new LocalActivityAttemptTask(executionContext, activityTask, scheduleToStartFuture);
-    activityAttemptTaskExecutor.process(task);
+    slotQueue.submitAttempt(reservationDat, isRetry, task);
   }
 
   /**
@@ -195,17 +204,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   }
 
   private class LocalActivityDispatcherImpl implements LocalActivityDispatcher {
-    /**
-     * Retries always get a green light, but we have a backpressure for new tasks if the queue fills
-     * up with not picked up new executions
-     */
-    private final TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier;
-
-    public LocalActivityDispatcherImpl(TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier) {
-      // we allow submitters to block and wait till the workflow task heartbeat to allow the worker
-      // to tolerate spikes of short local activity executions.
-      this.slotSupplier = slotSupplier;
-    }
 
     @Override
     public boolean dispatch(
@@ -244,7 +242,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
       LocalActivityExecutionContext executionContext =
           new LocalActivityExecutionContext(
-              params, resultCallback, scheduleToCloseDeadline, slotSupplier);
+              params, resultCallback, scheduleToCloseDeadline, slotQueue.getSlotSupplier());
 
       PollActivityTaskQueueResponse.Builder activityTask = executionContext.getInitialTask();
 
@@ -260,67 +258,40 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     private boolean submitANewExecution(
         @Nonnull LocalActivityExecutionContext executionContext,
         @Nonnull PollActivityTaskQueueResponse.Builder activityTask,
-        @Nullable Deadline heartbeatDeadline) {
-      long acceptanceTimeoutMs = 0;
-      boolean timeoutIsScheduleToStart = false;
-      if (heartbeatDeadline != null) {
-        acceptanceTimeoutMs = heartbeatDeadline.timeRemaining(TimeUnit.MILLISECONDS);
-      }
-      Duration scheduleToStartTimeout = executionContext.getScheduleToStartTimeout();
-      if (scheduleToStartTimeout != null) {
-        long scheduleToStartTimeoutMs = scheduleToStartTimeout.toMillis();
-        if (scheduleToStartTimeoutMs > 0 && scheduleToStartTimeoutMs < acceptanceTimeoutMs) {
-          acceptanceTimeoutMs = scheduleToStartTimeoutMs;
-          timeoutIsScheduleToStart = true;
-        }
-      }
+        @Nullable Deadline acceptanceDeadline) {
       try {
-        SlotPermit permit = null;
-        SlotReservationData reservationCtx =
-            new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId());
-        if (acceptanceTimeoutMs <= 0) {
-          permit = slotSupplier.reserveSlot(reservationCtx);
-        } else {
-          Optional<SlotPermit> maybePermit =
-              slotSupplier.tryReserveSlot(
-                  reservationCtx, acceptanceTimeoutMs, TimeUnit.MILLISECONDS);
-          if (maybePermit.isPresent()) {
-            permit = maybePermit.get();
-          } else {
-            // In the event that we timed out waiting for a permit *because of schedule to start* we
-            // still want to proceed with the "attempt" with a null permit, which will then
-            // immediately fail with the s2s timeout.
-            if (!timeoutIsScheduleToStart) {
-              log.warn(
-                  "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
-                  activityTask.getActivityId(),
-                  acceptanceTimeoutMs);
-              return false;
-            }
-          }
+        Long acceptanceTimeoutMs =
+            acceptanceDeadline != null
+                ? acceptanceDeadline.timeRemaining(TimeUnit.MILLISECONDS)
+                : null;
+        boolean accepted = slotQueue.waitOnBackpressure(acceptanceTimeoutMs);
+        if (!accepted) {
+          log.warn(
+              "LocalActivity queue is full and submitting timed out for activity {} with acceptanceTimeoutMs: {}",
+              activityTask.getActivityId(),
+              acceptanceTimeoutMs);
         }
 
-        executionContext.setPermit(permit);
-        // we should publish scheduleToClose before submission, so the handlers always see a full
-        // state of executionContext
-        @Nullable Deadline scheduleToCloseDeadline = executionContext.getScheduleToCloseDeadline();
-        if (scheduleToCloseDeadline != null) {
-          ScheduledFuture<?> scheduleToCloseFuture =
-              scheduledExecutor.schedule(
-                  new FinalTimeoutHandler(
-                      TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext),
-                  scheduleToCloseDeadline.timeRemaining(TimeUnit.MILLISECONDS),
-                  TimeUnit.MILLISECONDS);
-          executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
+        if (accepted) {
+          // we should publish scheduleToClose before submission, so the handlers always see a full
+          // state of executionContext
+          @Nullable
+          Deadline scheduleToCloseDeadline = executionContext.getScheduleToCloseDeadline();
+          if (scheduleToCloseDeadline != null) {
+            ScheduledFuture<?> scheduleToCloseFuture =
+                scheduledExecutor.schedule(
+                    new FinalTimeoutHandler(
+                        TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext),
+                    scheduleToCloseDeadline.timeRemaining(TimeUnit.MILLISECONDS),
+                    TimeUnit.MILLISECONDS);
+            executionContext.setScheduleToCloseFuture(scheduleToCloseFuture);
+          }
+          submitAttempt(executionContext, activityTask, false);
+          log.trace("LocalActivity queued: {}", activityTask.getActivityId());
         }
-        submitAttempt(executionContext, activityTask);
-        log.trace("LocalActivity queued: {}", activityTask.getActivityId());
-        return true;
+        return accepted;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        return false;
-      } catch (Exception e) {
-        log.warn("Error while trying to reserve a slot for local activity", e.getCause());
         return false;
       }
     }
@@ -449,8 +420,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
       // discard this attempt, this execution is completed.
       // The scheduleToStartFired check here is a bit overkill, but allows to catch an edge case
-      // where
-      // scheduleToStart is already fired, but didn't report a completion yet.
+      // where scheduleToStart is already fired, but didn't report a completion yet.
       boolean shouldDiscardTheAttempt = scheduleToStartFired || executionContext.isCompleted();
       if (shouldDiscardTheAttempt) {
         return;
@@ -584,6 +554,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               executionContext, activityTask, activityHandlerResult.getTaskFailed().getFailure());
 
       if (retryDecision.doNextAttempt()) {
+        // Release slot before scheduling the next attempt
+        slotSupplier.releaseSlot(SlotReleaseReason.willRetry(), executionContext.getPermit());
         scheduleNextAttempt(
             executionContext,
             Objects.requireNonNull(
@@ -722,6 +694,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     if (activityAttemptTaskExecutor != null && !activityAttemptTaskExecutor.isShutdown()) {
+      slotQueue.shutdown();
       return activityAttemptTaskExecutor
           .shutdown(shutdownManager, interruptTasks)
           .thenCompose(

@@ -56,20 +56,6 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
   }
 
   @Override
-  public Optional<SlotPermit> tryReserveSlot(
-      SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit) {
-    try {
-      boolean gotOne = executorSlotsSemaphore.tryAcquire(timeout, timeUnit);
-      if (gotOne) {
-        return Optional.of(new SlotPermit());
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    return Optional.empty();
-  }
-
-  @Override
   public void markSlotUsed(SlotMarkUsedContext<SI> ctx) {}
 
   @Override

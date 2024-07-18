@@ -27,8 +27,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -50,8 +48,7 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public SlotPermit reserveSlot(SlotReservationData dat)
-      throws InterruptedException, TimeoutException {
+  public SlotPermit reserveSlot(SlotReservationData dat) throws InterruptedException {
     SlotPermit p = inner.reserveSlot(createCtx(dat));
     issuedSlots.incrementAndGet();
     return p;
@@ -59,15 +56,6 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
 
   public Optional<SlotPermit> tryReserveSlot(SlotReservationData dat) {
     Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(dat));
-    if (p.isPresent()) {
-      issuedSlots.incrementAndGet();
-    }
-    return p;
-  }
-
-  public Optional<SlotPermit> tryReserveSlot(
-      SlotReservationData dat, long timeout, TimeUnit timeUnit) throws InterruptedException {
-    Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(dat), timeout, timeUnit);
     if (p.isPresent()) {
       issuedSlots.incrementAndGet();
     }

@@ -22,8 +22,6 @@ package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * A SlotSupplier is responsible for managing the number of slots available for a given type of
@@ -46,7 +44,7 @@ public interface SlotSupplier<SI extends SlotInfo> {
    *     the reservation, or during shutdown. You may perform cleanup, and then should rethrow the
    *     exception.
    */
-  SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException, TimeoutException;
+  SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException;
 
   /**
    * This function is called when trying to reserve slots for "eager" workflow and activity tasks.
@@ -58,22 +56,6 @@ public interface SlotSupplier<SI extends SlotInfo> {
    * @return Maybe a permit to use the slot which may be populated with your own data.
    */
   Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx);
-
-  /**
-   * This function is called specifically when trying to reserve slots for local activities. Since
-   * they may time out before getting a chance to run, if slots are unavailable, a timeout is
-   * necessary. If the provided timeout is reached before a slot is available, then the
-   * implementation must return an empty optional.
-   *
-   * @param ctx The context for slot reservation.
-   * @param timeout The maximum amount of time to wait for a slot to become available.
-   * @param timeUnit The time unit for the timeout.
-   * @return Maybe a permit to use the slot which may be populated with your own data.
-   * @throws InterruptedException If the thread is interrupted while waiting for a slot to become
-   *     available.
-   */
-  Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit)
-      throws InterruptedException;
 
   /**
    * This function is called once a slot is actually being used to process some task, which may be

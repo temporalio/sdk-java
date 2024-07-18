@@ -31,6 +31,10 @@ public abstract class SlotReleaseReason {
     return new TaskComplete();
   }
 
+  public static SlotReleaseReason willRetry() {
+    return new WillRetry();
+  }
+
   public static SlotReleaseReason neverUsed() {
     return new NeverUsed();
   }
@@ -53,6 +57,9 @@ public abstract class SlotReleaseReason {
 
   /** The slot was released because the task was completed (regardless of status). */
   public static class TaskComplete extends SlotReleaseReason {}
+
+  /** The slot was released because the task will be retried. */
+  public static class WillRetry extends SlotReleaseReason {}
 
   /** The slot was released because it was never needed. */
   public static class NeverUsed extends SlotReleaseReason {}

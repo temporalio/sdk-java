@@ -331,8 +331,8 @@ public class WorkflowSlotTests {
     activityBlockLatch.countDown();
     workflow.workflow("local-activity-fail");
     assertWorkerSlotCount(0, 0, 0);
-    // LA slots should only have been used once
-    assertEquals(1, localActivitySlotSupplier.usedCount.get());
+    // LA slots should only have been used once per attempt
+    assertEquals(4, localActivitySlotSupplier.usedCount.get());
   }
 
   @Test

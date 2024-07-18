@@ -22,7 +22,6 @@ package io.temporal.testUtils;
 
 import io.temporal.worker.tuning.*;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupplier<SI> {
@@ -44,16 +43,6 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   @Override
   public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<SI> ctx) {
     Optional<SlotPermit> p = super.tryReserveSlot(ctx);
-    if (p.isPresent()) {
-      reservedCount.incrementAndGet();
-    }
-    return p;
-  }
-
-  @Override
-  public Optional<SlotPermit> tryReserveSlot(
-      SlotReserveContext<SI> ctx, long timeout, TimeUnit timeUnit) {
-    Optional<SlotPermit> p = super.tryReserveSlot(ctx, timeout, timeUnit);
     if (p.isPresent()) {
       reservedCount.incrementAndGet();
     }
