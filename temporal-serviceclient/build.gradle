@@ -56,6 +56,15 @@ sourcesJar {
         .setDuplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 }
 
+// Putting protocloud as an additional proto source set
+sourceSets {
+  main {
+    proto {
+        srcDir 'src/main/protocloud'
+    }
+  }
+}
+
 protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions are selected to be compatible

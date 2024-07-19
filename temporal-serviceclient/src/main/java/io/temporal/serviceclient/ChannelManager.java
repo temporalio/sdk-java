@@ -75,6 +75,10 @@ final class ChannelManager {
   private static final Metadata.Key<String> CLIENT_NAME_HEADER_KEY =
       Metadata.Key.of("client-name", Metadata.ASCII_STRING_MARSHALLER);
 
+  /** refers to the name of the gRPC header that contains the cloud service version */
+  private static final Metadata.Key<String> CLOUD_VERSION_HEADER_KEY =
+      Metadata.Key.of("temporal-cloud-api-version", Metadata.ASCII_STRING_MARSHALLER);
+
   private static final String CLIENT_NAME_HEADER_VALUE = "temporal-java";
 
   private final ServiceStubsOptions options;
@@ -93,6 +97,18 @@ final class ChannelManager {
 
   public ChannelManager(
       ServiceStubsOptions options, List<ClientInterceptor> additionalHeadInterceptors) {
+    this(options, additionalHeadInterceptors, null);
+  }
+
+  public ChannelManager(
+      ServiceStubsOptions options,
+      List<ClientInterceptor> additionalHeadInterceptors,
+      @Nullable Capabilities fixedServerCapabilities) {
+    // If fixed capabilities are present, set them on the future
+    if (fixedServerCapabilities != null) {
+      serverCapabilitiesFuture.complete(fixedServerCapabilities);
+    }
+
     // Do not shutdown a channel passed to the constructor from outside
     this.channelNeedsShutdown = options.getChannel() == null;
 
@@ -154,6 +170,12 @@ final class ChannelManager {
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
     headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);
+    if (options instanceof CloudServiceStubsOptions) {
+      String version = ((CloudServiceStubsOptions) options).getVersion();
+      if (version != null) {
+        headers.put(CLOUD_VERSION_HEADER_KEY, version);
+      }
+    }
 
     return ClientInterceptors.intercept(
         channel,
