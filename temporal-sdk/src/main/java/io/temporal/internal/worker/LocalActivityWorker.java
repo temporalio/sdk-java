@@ -241,8 +241,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       }
 
       LocalActivityExecutionContext executionContext =
-          new LocalActivityExecutionContext(
-              params, resultCallback, scheduleToCloseDeadline, slotQueue.getSlotSupplier());
+          new LocalActivityExecutionContext(params, resultCallback, scheduleToCloseDeadline);
 
       PollActivityTaskQueueResponse.Builder activityTask = executionContext.getInitialTask();
 
@@ -408,6 +407,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
     @Override
     public void handle(LocalActivityAttemptTask attemptTask) throws Exception {
+      SlotReleaseReason reason = SlotReleaseReason.taskComplete();
+
       // cancel scheduleToStart timeout if not already fired
       @Nullable ScheduledFuture<?> scheduleToStartFuture = attemptTask.getScheduleToStartFuture();
       boolean scheduleToStartFired =
@@ -417,38 +418,38 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       executionContext.newAttempt();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
 
-      // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
-      // discard this attempt, this execution is completed.
-      // The scheduleToStartFired check here is a bit overkill, but allows to catch an edge case
-      // where scheduleToStart is already fired, but didn't report a completion yet.
-      boolean shouldDiscardTheAttempt = scheduleToStartFired || executionContext.isCompleted();
-      if (shouldDiscardTheAttempt) {
-        return;
-      }
-
-      Scope metricsScope =
-          workerMetricsScope.tagged(
-              ImmutableMap.of(
-                  MetricsTag.ACTIVITY_TYPE,
-                  activityTask.getActivityType().getName(),
-                  MetricsTag.WORKFLOW_TYPE,
-                  activityTask.getWorkflowType().getName()));
-
-      MDC.put(LoggerTag.ACTIVITY_ID, activityTask.getActivityId());
-      MDC.put(LoggerTag.ACTIVITY_TYPE, activityTask.getActivityType().getName());
-      MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
-      MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
-
-      slotSupplier.markSlotUsed(
-          new LocalActivitySlotInfo(
-              ActivityPollResponseToInfo.toActivityInfoImpl(
-                  activityTask, namespace, taskQueue, true),
-              options.getIdentity(),
-              options.getBuildId()),
-          executionContext.getPermit());
-
       try {
+        // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
+        // discard this attempt, this execution is completed.
+        // The scheduleToStartFired check here is a bit overkill, but allows to catch an edge case
+        // where scheduleToStart is already fired, but didn't report a completion yet.
+        boolean shouldDiscardTheAttempt = scheduleToStartFired || executionContext.isCompleted();
+        if (shouldDiscardTheAttempt) {
+          return;
+        }
+
+        Scope metricsScope =
+            workerMetricsScope.tagged(
+                ImmutableMap.of(
+                    MetricsTag.ACTIVITY_TYPE,
+                    activityTask.getActivityType().getName(),
+                    MetricsTag.WORKFLOW_TYPE,
+                    activityTask.getWorkflowType().getName()));
+
+        MDC.put(LoggerTag.ACTIVITY_ID, activityTask.getActivityId());
+        MDC.put(LoggerTag.ACTIVITY_TYPE, activityTask.getActivityType().getName());
+        MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
+        MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
+        MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+
+        slotSupplier.markSlotUsed(
+            new LocalActivitySlotInfo(
+                ActivityPollResponseToInfo.toActivityInfoImpl(
+                    activityTask, namespace, taskQueue, true),
+                options.getIdentity(),
+                options.getBuildId()),
+            executionContext.getPermit());
+
         ScheduledFuture<?> startToCloseTimeoutFuture = null;
 
         if (activityTask.hasStartToCloseTimeout()) {
@@ -490,7 +491,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
           return;
         }
 
-        handleResult(activityHandlerResult, attemptTask, metricsScope);
+        reason = handleResult(activityHandlerResult, attemptTask, metricsScope);
       } catch (Throwable ex) {
         // handleLocalActivity is expected to never throw an exception and return a result
         // that can be used for a workflow callback if this method throws, it's a bug.
@@ -499,6 +500,10 @@ final class LocalActivityWorker implements Startable, Shutdownable {
             processingFailed(activityTask.getActivityId(), activityTask.getAttempt(), ex));
         throw ex;
       } finally {
+        // Permit can be null in the event of a timeout while waiting on a permit
+        if (executionContext.getPermit() != null) {
+          slotSupplier.releaseSlot(reason, executionContext.getPermit());
+        }
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
@@ -507,13 +512,14 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       }
     }
 
-    private void handleResult(
+    private SlotReleaseReason handleResult(
         ActivityTaskHandler.Result activityHandlerResult,
         LocalActivityAttemptTask attemptTask,
         Scope metricsScope) {
       LocalActivityExecutionContext executionContext = attemptTask.getExecutionContext();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
       int currentAttempt = activityTask.getAttempt();
+      SlotReleaseReason releaseReason = SlotReleaseReason.taskComplete();
 
       // Success
       if (activityHandlerResult.getTaskCompleted() != null) {
@@ -530,14 +536,14 @@ final class LocalActivityWorker implements Startable, Shutdownable {
                   System.currentTimeMillis() - executionContext.getOriginalScheduledTimestamp());
           metricsScope.timer(MetricsType.LOCAL_ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
         }
-        return;
+        return releaseReason;
       }
 
       // Cancellation
       if (activityHandlerResult.getTaskCanceled() != null) {
         executionContext.callback(
             LocalActivityResult.cancelled(activityHandlerResult, currentAttempt));
-        return;
+        return releaseReason;
       }
 
       // Failure
@@ -554,14 +560,14 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               executionContext, activityTask, activityHandlerResult.getTaskFailed().getFailure());
 
       if (retryDecision.doNextAttempt()) {
-        // Release slot before scheduling the next attempt
-        slotSupplier.releaseSlot(SlotReleaseReason.willRetry(), executionContext.getPermit());
+        releaseReason = SlotReleaseReason.willRetry();
         scheduleNextAttempt(
             executionContext,
             Objects.requireNonNull(
                 retryDecision.nextAttemptBackoff, "nextAttemptBackoff is expected to not be null"),
             executionFailure);
       } else if (retryDecision.failWorkflowTask()) {
+        releaseReason = SlotReleaseReason.error(new Exception(executionThrowable));
         executionContext.callback(
             processingFailed(executionContext.getActivityId(), currentAttempt, executionThrowable));
       } else {
@@ -573,6 +579,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
                 executionFailure,
                 retryDecision.nextAttemptBackoff));
       }
+      return releaseReason;
     }
 
     @Override

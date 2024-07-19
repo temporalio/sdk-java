@@ -56,7 +56,8 @@ class LocalActivitySlotSupplierQueue {
       TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier,
       Functions.Proc1<LocalActivityAttemptTask> afterReservedCallback) {
     this.afterReservedCallback = afterReservedCallback;
-    // TODO: See if I can adjust this for dynamic ones based on current rate
+    // TODO: See if there's a better option than fixed number for no-max suppliers
+    //   https://github.com/temporalio/sdk-java/issues/2149
     int maximumSlots = slotSupplier.maximumSlots().orElse(50) * 2;
     this.newExecutionsBackpressureSemaphore = new Semaphore(maximumSlots);
     this.requestQueue =
