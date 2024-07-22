@@ -25,10 +25,7 @@ import static org.junit.Assert.assertEquals;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
+import io.temporal.activity.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -63,7 +60,6 @@ public class WorkflowSlotTests {
   private final TestStatsReporter reporter = new TestStatsReporter();
   static CountDownLatch activityBlockLatch = new CountDownLatch(1);
   static CountDownLatch activityRunningLatch = new CountDownLatch(1);
-  static CountDownLatch activityFailLatch = new CountDownLatch(3);
   static boolean didFail = false;
 
   Scope metricsScope =
@@ -91,7 +87,6 @@ public class WorkflowSlotTests {
     reporter.flush();
     activityBlockLatch = new CountDownLatch(1);
     activityRunningLatch = new CountDownLatch(1);
-    activityFailLatch = new CountDownLatch(3);
     localActivitySlotSupplier.usedCount.set(0);
     didFail = false;
   }
@@ -203,8 +198,8 @@ public class WorkflowSlotTests {
     public String activity(String input) {
       activityRunningLatch.countDown();
       try {
-        if (input.equals("fail") && activityFailLatch.getCount() > 0) {
-          activityFailLatch.countDown();
+        ActivityExecutionContext executionContext = Activity.getExecutionContext();
+        if (input.equals("fail") && executionContext.getInfo().getAttempt() < 4) {
           throw new RuntimeException("fail on purpose");
         }
         activityBlockLatch.await();
@@ -333,6 +328,8 @@ public class WorkflowSlotTests {
     assertWorkerSlotCount(0, 0, 0);
     // LA slots should only have been used once per attempt
     assertEquals(4, localActivitySlotSupplier.usedCount.get());
+    // We should have seen releases *per* attempt as well
+    assertEquals(4, localActivitySlotSupplier.releasedCount.get());
   }
 
   @Test

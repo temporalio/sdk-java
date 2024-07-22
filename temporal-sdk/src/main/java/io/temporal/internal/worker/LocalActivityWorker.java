@@ -500,10 +500,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
             processingFailed(activityTask.getActivityId(), activityTask.getAttempt(), ex));
         throw ex;
       } finally {
-        // Permit can be null in the event of a timeout while waiting on a permit
-        if (executionContext.getPermit() != null) {
-          slotSupplier.releaseSlot(reason, executionContext.getPermit());
-        }
+        slotSupplier.releaseSlot(reason, executionContext.getPermit());
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
