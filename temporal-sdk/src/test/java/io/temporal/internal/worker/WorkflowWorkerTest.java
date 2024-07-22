@@ -112,11 +112,17 @@ public class WorkflowWorkerTest {
             .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
             .build();
 
+    CountDownLatch blockFirstPollLatch = new CountDownLatch(1);
     CountDownLatch pollTaskQueueLatch = new CountDownLatch(1);
     CountDownLatch blockPollTaskQueueLatch = new CountDownLatch(1);
 
     when(blockingStub.pollWorkflowTaskQueue(any(PollWorkflowTaskQueueRequest.class)))
-        .thenReturn(pollResponse)
+        .thenAnswer(
+            (Answer<PollWorkflowTaskQueueResponse>)
+                invocation -> {
+                  blockFirstPollLatch.await();
+                  return pollResponse;
+                })
         .thenReturn(pollResponse)
         .thenAnswer(
             (Answer<PollWorkflowTaskQueueResponse>)
@@ -180,6 +186,8 @@ public class WorkflowWorkerTest {
         MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
         ImmutableMap.of("worker_type", "WorkflowWorker"),
         100.0);
+    // Unblock the first poll
+    blockFirstPollLatch.countDown();
     // Wait until we have got all the polls
     pollTaskQueueLatch.await();
     // Wait until the worker handles at least one WFT
