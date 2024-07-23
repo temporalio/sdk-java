@@ -30,12 +30,17 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.Config;
+import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.ActivitySlotInfo;
+import io.temporal.worker.tuning.CompositeTuner;
+import io.temporal.worker.tuning.LocalActivitySlotInfo;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -52,6 +57,10 @@ public class EagerActivityDispatchingTest {
   private ArrayList<WorkerFactory> workerFactories;
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
+  CountingSlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new CountingSlotSupplier<>(100);
+  CountingSlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier = new CountingSlotSupplier<>(100);
+  CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
+      new CountingSlotSupplier<>(100);
 
   @Before
   public void setUp() throws Exception {
@@ -69,10 +78,17 @@ public class EagerActivityDispatchingTest {
     this.workerFactories = null;
 
     env.close();
+    assertEquals(
+        workflowTaskSlotSupplier.reservedCount.get(), workflowTaskSlotSupplier.releasedCount.get());
+    assertEquals(
+        activityTaskSlotSupplier.reservedCount.get(), activityTaskSlotSupplier.releasedCount.get());
+    assertEquals(
+        localActivitySlotSupplier.reservedCount.get(),
+        localActivitySlotSupplier.releasedCount.get());
   }
 
   private void setupWorker(
-      String workerIdentity, WorkerOptions workerOptions, boolean registerWorkflows) {
+      String workerIdentity, WorkerOptions.Builder workerOptions, boolean registerWorkflows) {
     WorkflowClient workflowClient =
         WorkflowClient.newInstance(
             env.getWorkflowServiceStubs(),
@@ -80,7 +96,10 @@ public class EagerActivityDispatchingTest {
     WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
     workerFactories.add(workerFactory);
 
-    Worker worker = workerFactory.newWorker(TASK_QUEUE, workerOptions);
+    workerOptions.setWorkerTuner(
+        new CompositeTuner(
+            workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier));
+    Worker worker = workerFactory.newWorker(TASK_QUEUE, workerOptions.build());
     worker.registerActivitiesImplementations(activitiesImpl);
     if (registerWorkflows)
       worker.registerWorkflowImplementationTypes(EagerActivityTestWorkflowImpl.class);
@@ -99,13 +118,10 @@ public class EagerActivityDispatchingTest {
         WorkerOptions.newBuilder()
             .setMaxConcurrentWorkflowTaskPollers(2)
             .setMaxConcurrentActivityTaskPollers(1)
-            .setDisableEagerExecution(false)
-            .build(),
+            .setDisableEagerExecution(false),
         true);
     setupWorker(
-        "worker2",
-        WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2).build(),
-        false);
+        "worker2", WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2), false);
 
     EagerActivityTestWorkflow workflowStub =
         env.getWorkflowClient()
@@ -139,13 +155,10 @@ public class EagerActivityDispatchingTest {
         WorkerOptions.newBuilder()
             .setMaxConcurrentWorkflowTaskPollers(2)
             .setMaxConcurrentActivityTaskPollers(1)
-            .setDisableEagerExecution(true)
-            .build(),
+            .setDisableEagerExecution(true),
         true);
     setupWorker(
-        "worker2",
-        WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2).build(),
-        false);
+        "worker2", WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2), false);
 
     EagerActivityTestWorkflow workflowStub =
         env.getWorkflowClient()
@@ -179,13 +192,10 @@ public class EagerActivityDispatchingTest {
         WorkerOptions.newBuilder()
             .setMaxConcurrentWorkflowTaskPollers(2)
             .setMaxConcurrentActivityTaskPollers(1)
-            .setDisableEagerExecution(false)
-            .build(),
+            .setDisableEagerExecution(false),
         true);
     setupWorker(
-        "worker2",
-        WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2).build(),
-        false);
+        "worker2", WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2), false);
 
     EagerActivityTestWorkflow workflowStub =
         env.getWorkflowClient()

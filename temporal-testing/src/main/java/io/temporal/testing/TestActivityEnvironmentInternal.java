@@ -354,11 +354,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
      */
     private Result executeActivity(
         PollActivityTaskQueueResponse activityTask, boolean localActivity) {
+      //noinspection DataFlowIssue -- no permit for the LA in this test
       Future<Result> activityFuture =
           activityWorkerExecutor.submit(
               () ->
                   activityTaskHandler.handle(
-                      new ActivityTask(activityTask, () -> {}),
+                      new ActivityTask(activityTask, null, () -> {}),
                       testEnvironmentOptions.getMetricsScope(),
                       localActivity));
 

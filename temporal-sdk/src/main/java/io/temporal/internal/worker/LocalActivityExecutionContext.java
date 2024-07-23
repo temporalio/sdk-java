@@ -26,6 +26,7 @@ import io.temporal.api.workflow.v1.PendingActivityInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
@@ -44,6 +45,7 @@ class LocalActivityExecutionContext {
   private @Nullable ScheduledFuture<?> scheduleToCloseFuture;
   private final @Nonnull CompletableFuture<LocalActivityResult> executionResult =
       new CompletableFuture<>();
+  private @Nullable SlotPermit permit;
 
   public LocalActivityExecutionContext(
       @Nonnull ExecuteLocalActivityParameters executionParams,
@@ -163,5 +165,14 @@ class LocalActivityExecutionContext {
 
   public void newAttempt() {
     executionParams.getOnNewAttemptCallback().apply();
+  }
+
+  public void setPermit(SlotPermit permit) {
+    this.permit = permit;
+  }
+
+  @Nullable
+  public SlotPermit getPermit() {
+    return permit;
   }
 }
