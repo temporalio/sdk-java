@@ -60,10 +60,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+
+import org.junit.*;
 import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
 import org.junit.runner.Description;
@@ -367,6 +365,8 @@ public class WorkflowTestingTest {
   }
 
   @Test
+  @Ignore // TODO: Find a way to mock workflows as reflection doesn't work cglib generated proxies
+  // mockito employs.
   public void testMockedChildSimulatedTimeout() {
     String details = "timeout Details";
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
