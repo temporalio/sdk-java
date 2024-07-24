@@ -21,9 +21,12 @@
 package io.temporal.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import io.temporal.worker.tuning.*;
+import java.time.Duration;
 import org.junit.Test;
 
 public class WorkerOptionsTest {
@@ -48,6 +51,61 @@ public class WorkerOptionsTest {
     WorkerOptions w1 = WorkerOptions.newBuilder().build();
     WorkerOptions w2 = WorkerOptions.newBuilder().build();
     assertEquals(w1, w2);
+  }
+
+  @Test
+  public void verifyNewBuilderFromExistingWorkerOptions() {
+    WorkerOptions w1 =
+        WorkerOptions.newBuilder()
+            .setMaxWorkerActivitiesPerSecond(100)
+            .setMaxConcurrentActivityExecutionSize(1000)
+            .setMaxConcurrentWorkflowTaskExecutionSize(500)
+            .setMaxConcurrentLocalActivityExecutionSize(200)
+            .setWorkerTuner(mock(WorkerTuner.class))
+            .setMaxTaskQueueActivitiesPerSecond(50)
+            .setMaxConcurrentWorkflowTaskPollers(4)
+            .setMaxConcurrentActivityTaskPollers(3)
+            .setLocalActivityWorkerOnly(false)
+            .setDefaultDeadlockDetectionTimeout(2)
+            .setMaxHeartbeatThrottleInterval(Duration.ofSeconds(10))
+            .setDefaultHeartbeatThrottleInterval(Duration.ofSeconds(7))
+            .setStickyQueueScheduleToStartTimeout(Duration.ofSeconds(60))
+            .setDisableEagerExecution(false)
+            .setUseBuildIdForVersioning(false)
+            .setBuildId("build-id")
+            .setStickyTaskQueueDrainTimeout(Duration.ofSeconds(15))
+            .setIdentity("worker-identity")
+            .build();
+
+    WorkerOptions w2 = WorkerOptions.newBuilder(w1).build();
+
+    assertEquals(w1.getMaxWorkerActivitiesPerSecond(), w2.getMaxWorkerActivitiesPerSecond(), 0);
+    assertEquals(
+        w1.getMaxConcurrentActivityExecutionSize(), w2.getMaxConcurrentActivityExecutionSize());
+    assertEquals(
+        w1.getMaxConcurrentWorkflowTaskExecutionSize(),
+        w2.getMaxConcurrentWorkflowTaskExecutionSize());
+    assertEquals(
+        w1.getMaxConcurrentLocalActivityExecutionSize(),
+        w2.getMaxConcurrentLocalActivityExecutionSize());
+    assertSame(w1.getWorkerTuner(), w2.getWorkerTuner());
+    assertEquals(
+        w1.getMaxTaskQueueActivitiesPerSecond(), w2.getMaxTaskQueueActivitiesPerSecond(), 0);
+    assertEquals(
+        w1.getMaxConcurrentWorkflowTaskPollers(), w2.getMaxConcurrentWorkflowTaskPollers());
+    assertEquals(
+        w1.getMaxConcurrentActivityTaskPollers(), w2.getMaxConcurrentActivityTaskPollers());
+    assertEquals(w1.isLocalActivityWorkerOnly(), w2.isLocalActivityWorkerOnly());
+    assertEquals(w1.getMaxHeartbeatThrottleInterval(), w2.getMaxHeartbeatThrottleInterval());
+    assertEquals(
+        w1.getDefaultHeartbeatThrottleInterval(), w2.getDefaultHeartbeatThrottleInterval());
+    assertEquals(
+        w1.getStickyQueueScheduleToStartTimeout(), w2.getStickyQueueScheduleToStartTimeout());
+    assertEquals(w1.isEagerExecutionDisabled(), w2.isEagerExecutionDisabled());
+    assertEquals(w1.isUsingBuildIdForVersioning(), w2.isUsingBuildIdForVersioning());
+    assertEquals(w1.getBuildId(), w2.getBuildId());
+    assertEquals(w1.getStickyTaskQueueDrainTimeout(), w2.getStickyTaskQueueDrainTimeout());
+    assertEquals(w1.getIdentity(), w2.getIdentity());
   }
 
   @Test
