@@ -1601,10 +1601,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             protocolInstanceId, u.getRequest().getRequest(), u.getAccepted(), u.getOutcome());
     updates.put(protocolInstanceId, update);
     update.action(StateMachines.Action.START, ctx, msg, workflowTaskCompletedId);
-    ctx.onCommit(
-        (int historySize) -> {
-          u.getAccepted().complete(true);
-        });
   }
 
   private void processRejectionMessage(
@@ -1639,11 +1635,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
     update.action(Action.COMPLETE, ctx, msg, workflowTaskCompletedId);
     UpdateWorkflowExecution u =
-        workflowTaskStateMachine.getData().updateRequest.get(msg.getProtocolInstanceId());
-    ctx.onCommit(
-        (int historySize) -> {
-          u.getOutcome().complete(response.getOutcome());
-        });
+        workflowTaskStateMachine.getData().updateRequest.get(protocolInstanceId);
   }
 
   @Override

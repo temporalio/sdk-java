@@ -811,7 +811,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         @Nullable Deadline deadline = Context.current().getDeadline();
         UpdateWorkflowExecutionResponse response =
             mutableState.updateWorkflowExecution(request, deadline);
-        System.out.println("updateWorkflowExecution: " + response);
         responseObserver.onNext(response);
         responseObserver.onCompleted();
       } catch (StatusRuntimeException e) {

@@ -1805,6 +1805,10 @@ class StateMachines {
       if (!ctx.getWorkflowMutableState().isTerminalState()) {
         ctx.addEvent(event);
       }
+      ctx.onCommit(
+          (int historySize) -> {
+            data.accepted.complete(true);
+          });
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
@@ -1836,7 +1840,10 @@ class StateMachines {
       if (!ctx.getWorkflowMutableState().isTerminalState()) {
         ctx.addEvent(event);
       }
-
+      ctx.onCommit(
+          (int historySize) -> {
+            data.outcome.complete(response.getOutcome());
+          });
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
