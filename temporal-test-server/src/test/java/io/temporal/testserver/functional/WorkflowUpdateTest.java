@@ -181,6 +181,35 @@ public class WorkflowUpdateTest {
   }
 
   @Test
+  public void updateCompleteWorkflow() {
+    // Assert that an update completed in the same WFT as the workflow is completed is reported.
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
+
+    TestWorkflows.WorkflowWithUpdate workflowStub =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
+    WorkflowExecution exec = WorkflowClient.start(workflowStub::execute);
+
+    updateWorkflow(
+        exec,
+        "updateId",
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        TestWorkflows.UpdateType.FINISH_WORKFLOW);
+
+    PollWorkflowExecutionUpdateResponse pollUpdateResponse =
+        pollWorkflowUpdate(
+            exec,
+            "updateId",
+            UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED);
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        pollUpdateResponse.getStage());
+  }
+
+  @Test
   public void updateAdmittedNotSupported() {
     // Assert that we can't update an update with wait stage ADMITTED. Expect a
     // PERMISSION_DENIED error.
@@ -700,6 +729,8 @@ public class WorkflowUpdateTest {
         Workflow.sleep(Duration.ofSeconds(1));
       } else if (type == TestWorkflows.UpdateType.BLOCK) {
         Workflow.await(() -> false);
+      } else if (type == TestWorkflows.UpdateType.FINISH_WORKFLOW) {
+        unblock = true;
       }
     }
 

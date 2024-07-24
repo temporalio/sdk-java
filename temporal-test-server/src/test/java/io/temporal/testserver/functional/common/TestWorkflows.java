@@ -66,6 +66,7 @@ public class TestWorkflows {
     REJECT,
     COMPLETE,
     DELAYED_COMPLETE,
-    BLOCK
+    BLOCK,
+    FINISH_WORKFLOW,
   }
 }
