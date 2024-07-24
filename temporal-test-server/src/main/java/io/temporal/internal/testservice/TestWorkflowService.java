@@ -802,17 +802,23 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request,
       StreamObserver<UpdateWorkflowExecutionResponse> responseObserver) {
-    try {
-      ExecutionId executionId =
-          new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
-      TestWorkflowMutableState mutableState = getMutableState(executionId);
-      @Nullable Deadline deadline = Context.current().getDeadline();
-      UpdateWorkflowExecutionResponse response =
-          mutableState.updateWorkflowExecution(request, deadline);
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (StatusRuntimeException e) {
-      handleStatusRuntimeException(e, responseObserver);
+    try (Context.CancellableContext ctx = deadlineCtx(getUpdatePollDeadline())) {
+      Context toRestore = ctx.attach();
+      try {
+        ExecutionId executionId =
+            new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
+        TestWorkflowMutableState mutableState = getMutableState(executionId);
+        @Nullable Deadline deadline = Context.current().getDeadline();
+        UpdateWorkflowExecutionResponse response =
+            mutableState.updateWorkflowExecution(request, deadline);
+        System.out.println("updateWorkflowExecution: " + response);
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      } catch (StatusRuntimeException e) {
+        handleStatusRuntimeException(e, responseObserver);
+      } finally {
+        ctx.detach(toRestore);
+      }
     }
   }
 
@@ -820,17 +826,22 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollWorkflowExecutionUpdate(
       PollWorkflowExecutionUpdateRequest request,
       StreamObserver<PollWorkflowExecutionUpdateResponse> responseObserver) {
-    try {
-      ExecutionId executionId =
-          new ExecutionId(request.getNamespace(), request.getUpdateRef().getWorkflowExecution());
-      TestWorkflowMutableState mutableState = getMutableState(executionId);
-      @Nullable Deadline deadline = Context.current().getDeadline();
-      PollWorkflowExecutionUpdateResponse response =
-          mutableState.pollUpdateWorkflowExecution(request, deadline);
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (StatusRuntimeException e) {
-      handleStatusRuntimeException(e, responseObserver);
+    try (Context.CancellableContext ctx = deadlineCtx(getUpdatePollDeadline())) {
+      Context toRestore = ctx.attach();
+      try {
+        ExecutionId executionId =
+            new ExecutionId(request.getNamespace(), request.getUpdateRef().getWorkflowExecution());
+        TestWorkflowMutableState mutableState = getMutableState(executionId);
+        @Nullable Deadline deadline = Context.current().getDeadline();
+        PollWorkflowExecutionUpdateResponse response =
+            mutableState.pollUpdateWorkflowExecution(request, deadline);
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      } catch (StatusRuntimeException e) {
+        handleStatusRuntimeException(e, responseObserver);
+      } finally {
+        ctx.detach(toRestore);
+      }
     }
   }
 
@@ -1247,6 +1258,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         Deadline.after(
             WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.toMillis(),
             TimeUnit.MILLISECONDS);
+    return deadline != null ? deadline.minimum(maximumDeadline) : maximumDeadline;
+  }
+
+  private Deadline getUpdatePollDeadline() {
+    @Nullable Deadline deadline = Context.current().getDeadline();
+    Deadline maximumDeadline =
+        Deadline.after(Duration.ofSeconds(10).toMillis(), TimeUnit.MILLISECONDS);
     return deadline != null ? deadline.minimum(maximumDeadline) : maximumDeadline;
   }
 

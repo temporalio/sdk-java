@@ -423,19 +423,19 @@ class StateMachines {
   /** Represents an accepted update workflow execution request */
   static final class UpdateWorkflowExecutionData {
     final String id;
-    final CompletableFuture<UpdateWorkflowExecutionResponse> acceptance;
-    final CompletableFuture<UpdateWorkflowExecutionResponse> complete;
+    final CompletableFuture<Boolean> accepted;
+    final CompletableFuture<Outcome> outcome;
     final Request initialRequest;
 
     public UpdateWorkflowExecutionData(
         String id,
         Request initialRequest,
-        CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
-        CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
+        CompletableFuture<Boolean> accepted,
+        CompletableFuture<Outcome> outcome) {
       this.id = id;
       this.initialRequest = initialRequest;
-      this.acceptance = acceptance;
-      this.complete = complete;
+      this.accepted = accepted;
+      this.outcome = outcome;
     }
 
     @Override
@@ -560,10 +560,10 @@ class StateMachines {
   public static StateMachine<UpdateWorkflowExecutionData> newUpdateWorkflowExecution(
       String updateId,
       Request initialRequest,
-      CompletableFuture<UpdateWorkflowExecutionResponse> acceptance,
-      CompletableFuture<UpdateWorkflowExecutionResponse> complete) {
+      CompletableFuture<Boolean> accepted,
+      CompletableFuture<Outcome> outcome) {
     return new StateMachine<>(
-            new UpdateWorkflowExecutionData(updateId, initialRequest, acceptance, complete))
+            new UpdateWorkflowExecutionData(updateId, initialRequest, accepted, outcome))
         .add(NONE, START, STARTED, StateMachines::acceptUpdate)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
@@ -1805,19 +1805,6 @@ class StateMachines {
       if (!ctx.getWorkflowMutableState().isTerminalState()) {
         ctx.addEvent(event);
       }
-
-      UpdateWorkflowExecutionResponse response =
-          UpdateWorkflowExecutionResponse.newBuilder()
-              .setUpdateRef(
-                  UpdateRef.newBuilder()
-                      .setWorkflowExecution(ctx.getExecution())
-                      .setUpdateId(data.id))
-              .setStage(
-                  UpdateWorkflowExecutionLifecycleStage
-                      .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED)
-              .build();
-
-      data.acceptance.complete(response);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
@@ -1850,19 +1837,6 @@ class StateMachines {
         ctx.addEvent(event);
       }
 
-      UpdateWorkflowExecutionResponse updateResponse =
-          UpdateWorkflowExecutionResponse.newBuilder()
-              .setUpdateRef(
-                  UpdateRef.newBuilder()
-                      .setWorkflowExecution(ctx.getExecution())
-                      .setUpdateId(data.id))
-              .setOutcome(response.getOutcome())
-              .setStage(
-                  UpdateWorkflowExecutionLifecycleStage
-                      .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
-              .build();
-
-      data.complete.complete(updateResponse);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
