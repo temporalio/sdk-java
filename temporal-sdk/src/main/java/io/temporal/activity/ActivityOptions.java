@@ -243,6 +243,7 @@ public final class ActivityOptions {
       return this;
     }
 
+    /** Merge options with override parameter having higher precedence. */
     public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
