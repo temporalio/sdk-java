@@ -3,8 +3,8 @@ package io.temporal.workflow;
 import io.temporal.common.converter.EncodedValues;
 
 /**
- * Use DynamicUpdateHandler to process any update dynamically. This is useful for library-level
- * code and implementation of DSLs.
+ * Use DynamicUpdateHandler to process any update dynamically. This is useful for library-level code
+ * and implementation of DSLs.
  *
  * <p>Use {@link Workflow#registerListener(Object)} to register an implementation of the
  * DynamicUpdateListener. Only one such listener can be registered per workflow execution.
