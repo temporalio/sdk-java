@@ -5,8 +5,8 @@ import io.temporal.internal.sync.StubMarker;
 import javax.annotation.Nullable;
 
 /**
- * Supports signalling and cancelling any workflows by the workflow type and their id. This is
- * useful when an external workflow type is not known at the compile time and to call workflows in
+ * Supports signalling and cancelling any workflow by the workflow type and their id. This is
+ * useful when an external workflow type is not known at compile time and to call workflows in
  * other languages.
  *
  * @see Workflow#newUntypedExternalWorkflowStub(String)
@@ -28,7 +28,7 @@ public interface ExternalWorkflowStub {
     }
     if (typed instanceof ChildWorkflowStub) {
       throw new IllegalArgumentException(
-          "Use ChildWorkflowStub.fromTyped to extract sbub created through Workflow#newChildWorkflowStub");
+          "Use ChildWorkflowStub.fromTyped to extract stub created through Workflow#newChildWorkflowStub");
     }
     @SuppressWarnings("unchecked")
     StubMarker supplier = (StubMarker) typed;
