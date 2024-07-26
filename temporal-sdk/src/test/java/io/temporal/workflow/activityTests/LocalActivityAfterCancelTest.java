@@ -22,6 +22,7 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
@@ -33,7 +34,6 @@ import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import java.util.concurrent.Future;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,10 +50,10 @@ public class LocalActivityAfterCancelTest {
           .build();
 
   @Test
-  public void testLocalActivityAfterCancel() {
+  public void localActivityAfterChildWorkflowCanceled() {
     TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
-    Future<String> s = WorkflowClient.execute(workflowStub::execute, "sada");
+    WorkflowClient.execute(workflowStub::execute, "sada");
     WorkflowStub.fromTyped(workflowStub).cancel();
     WorkflowFailedException exception =
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("sada"));
@@ -75,21 +75,17 @@ public class LocalActivityAfterCancelTest {
     @Override
     public String execute(String taskQueue) {
       try {
-        //        ChildWorkflowOptions childOptions =
-        //            ChildWorkflowOptions.newBuilder()
-        //                .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-child1")
-        //
-        // .setCancellationType(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED)
-        //
-        // .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_REQUEST_CANCEL)
-        //                .validateAndBuildWithDefaults();
-        //        TestWorkflows.TestWorkflowReturnString child =
-        //            Workflow.newChildWorkflowStub(
-        //                TestWorkflows.TestWorkflowReturnString.class, childOptions);
-        //        child.execute();
-        Workflow.await(() -> false);
+        ChildWorkflowOptions childOptions =
+            ChildWorkflowOptions.newBuilder()
+                .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-child1")
+                .setCancellationType(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED)
+                .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_REQUEST_CANCEL)
+                .validateAndBuildWithDefaults();
+        TestWorkflows.TestWorkflowReturnString child =
+            Workflow.newChildWorkflowStub(
+                TestWorkflows.TestWorkflowReturnString.class, childOptions);
+        child.execute();
       } catch (TemporalFailure e) {
-        System.out.println("Caught exception");
         if (CancellationScope.current().isCancelRequested()) {
           Workflow.newDetachedCancellationScope(
                   () -> {
