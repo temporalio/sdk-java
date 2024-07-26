@@ -20,6 +20,8 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.junit.Assert.assertThrows;
+
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
@@ -27,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -59,6 +62,16 @@ public class LocalActivityAfterCancelTest {
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("sada"));
     Assert.assertEquals(
         EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED, exception.getWorkflowCloseEventType());
+  }
+
+  @Test
+  public void testLocalActivityAfterChildWorkflowCanceledReplay() {
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            WorkflowReplayer.replayWorkflowExecutionFromResource(
+                "testLocalActivityAfterCancelTest.json",
+                LocalActivityAfterCancelTest.TestLocalActivityRetry.class));
   }
 
   @WorkflowInterface
