@@ -121,6 +121,13 @@ final class LocalActivityStateMachine
                   State.REQUEST_PREPARED,
                   LocalActivityStateMachine::sendRequest)
               .add(State.REQUEST_PREPARED, ExplicitEvent.MARK_AS_SENT, State.REQUEST_SENT)
+              // This is to cover am edge case where the event loop is
+              // run more than once while processing a workflow task.
+              // This can happen due to external cancellation
+              .add(
+                  State.REQUEST_PREPARED,
+                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
+                  State.REQUEST_PREPARED)
               .add(
                   State.REQUEST_SENT,
                   ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,

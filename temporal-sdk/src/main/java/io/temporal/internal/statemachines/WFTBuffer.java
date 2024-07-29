@@ -113,12 +113,10 @@ public class WFTBuffer {
       if (event.getEventType().equals(EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED)) {
         workflowTaskCompletedEvent = Optional.of(event);
         wftSequenceState = WFTState.Closed;
-        addToBuffer(event);
       } else {
         wftSequenceState = WFTState.None;
-        flushBuffer();
-        readyToFetch.add(event);
       }
+      addToBuffer(event);
       return;
     }
 
@@ -138,8 +136,9 @@ public class WFTBuffer {
       return;
     }
 
-    if (WFTState.None.equals(wftSequenceState)) {
-      // we should be returning the events one by one, we are not inside a WFT sequence
+    if (WorkflowExecutionUtils.isCommandEvent(event)
+        || WorkflowExecutionUtils.isWorkflowTaskClosedEvent(event)) {
+      flushBuffer();
       readyToFetch.add(event);
     } else {
       addToBuffer(event);
