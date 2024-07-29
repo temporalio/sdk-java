@@ -68,9 +68,9 @@ final class ReplayWorkflowExecutor {
   @VisibleForTesting
   public static final String unfinishedSignalHandlesWarnMessage =
       "[TMPRL1102] Workflow finished while signal handlers are still running. This may "
-          + "have interrupted work that the update handler was doing. You can wait for all update and "
+          + "have interrupted work that the signal handler was doing. You can wait for all update and "
           + "signal handlers to complete by using `await workflow.Await(() -> workflow.isEveryHandlerFinished())`. "
-          + "Alternatively, if both you  are okay with "
+          + "Alternatively, if both you and the clients sending the signal are okay with "
           + "interrupting running handlers when the workflow finishes you can disable this warning via the signal "
           + "handler annotations: `@SignalMethod(unfinishedPolicy = HandlerUnfinishedPolicy.ABANDON)`.";
 
