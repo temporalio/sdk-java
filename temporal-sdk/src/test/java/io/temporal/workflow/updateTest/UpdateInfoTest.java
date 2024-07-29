@@ -34,6 +34,7 @@ import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -63,23 +64,30 @@ public class UpdateInfoTest {
     // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     WorkflowStub stub = WorkflowStub.fromTyped(workflow);
-    UpdateHandle handle =
-        stub.startUpdate(
-            UpdateOptions.newBuilder(String.class)
-                .setUpdateName("update")
-                .setWaitForStage(WorkflowUpdateStage.COMPLETED)
-                .setUpdateId("update id")
-                .build(),
-            0,
-            "");
-    assertEquals("update id", handle.getResultAsync().get());
+    UpdateOptions.Builder updateOptionsBuilder =
+        UpdateOptions.newBuilder(String.class)
+            .setUpdateName("update")
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED);
 
+    UpdateHandle handle1 =
+        stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 1").build(), 0, "");
+    assertEquals("update:update id 1", handle1.getResultAsync().get());
+
+    UpdateHandle handle2 =
+        stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 2").build(), 0, "");
+    assertEquals("update:update id 2", handle2.getResultAsync().get());
+
+    Assert.assertThrows(
+        WorkflowUpdateException.class,
+        () -> stub.startUpdate(updateOptionsBuilder.setUpdateId("reject").build(), 0, ""));
+
+    workflow.complete();
     String result =
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(execution, Optional.empty())
             .getResult(String.class);
-    assertEquals("update id ", result);
+    assertEquals(" update id 1 update id 2", result);
   }
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
