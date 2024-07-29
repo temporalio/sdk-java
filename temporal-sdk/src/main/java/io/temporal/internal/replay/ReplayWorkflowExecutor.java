@@ -55,7 +55,7 @@ import org.slf4j.MDC;
 final class ReplayWorkflowExecutor {
   @VisibleForTesting
   public static final String unfinishedUpdateHandlesWarnMessage =
-      "Workflow finished while update handlers are still running. This may "
+      "[TMPRL1102] Workflow finished while update handlers are still running. This may "
           + "have interrupted work that the update handler was doing, and the client "
           + "that sent the update will receive a 'workflow execution already completed' "
           + "Exception instead of the update result. You can wait for all update and "
@@ -67,7 +67,7 @@ final class ReplayWorkflowExecutor {
 
   @VisibleForTesting
   public static final String unfinishedSignalHandlesWarnMessage =
-      "Workflow finished while signal handlers are still running. This may "
+      "[TMPRL1102] Workflow finished while signal handlers are still running. This may "
           + "have interrupted work that the update handler was doing. You can wait for all update and "
           + "signal handlers to complete by using `await workflow.Await(() -> workflow.isHandlersFinished())`. "
           + "Alternatively, if both you  are okay with "

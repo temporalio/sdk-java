@@ -48,7 +48,7 @@ class SignalDispatcher {
   /** Buffers signals which don't have a registered listener. */
   private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
 
-  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new TreeMap<>();
+  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new LinkedHashMap<>();
 
   public SignalDispatcher(DataConverter dataConverterWithWorkflowContext) {
     this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;

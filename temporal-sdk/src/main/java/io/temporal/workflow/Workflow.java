@@ -1234,8 +1234,8 @@ public final class Workflow {
    *
    * @return true if all handlers are finished, false otherwise.
    */
-  public static boolean isAllHandlersFinished() {
-    return WorkflowInternal.isAllHandlersFinished();
+  public static boolean isEveryHandlerFinished() {
+    return WorkflowInternal.isEveryHandlerFinished();
   }
 
   /** Prohibit instantiation. */

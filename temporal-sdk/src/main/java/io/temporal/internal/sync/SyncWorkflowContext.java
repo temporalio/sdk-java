@@ -349,7 +349,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return queryDispatcher.handleQuery(queryName, header, input);
   }
 
-  public boolean isAllHandlersFinished() {
+  public boolean isEveryHandlerFinished() {
     return updateDispatcher.getRunningUpdateHandlers().isEmpty()
         && signalDispatcher.getRunningSignalHandlers().isEmpty();
   }

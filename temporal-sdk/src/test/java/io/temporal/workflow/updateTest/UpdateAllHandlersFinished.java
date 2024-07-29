@@ -94,7 +94,7 @@ public class UpdateAllHandlersFinished {
     @Override
     public String execute() {
       promise.get();
-      Workflow.await(() -> Workflow.isAllHandlersFinished());
+      Workflow.await(() -> Workflow.isEveryHandlerFinished());
       return updates.stream().reduce("", (a, b) -> a + " " + b);
     }
 
@@ -113,8 +113,8 @@ public class UpdateAllHandlersFinished {
 
     @Override
     public void updateValidator(String value) {
-      if (Workflow.isAllHandlersFinished()) {
-        throw new IllegalArgumentException("Workflow.isAllHandlersFinished() should return false");
+      if (Workflow.isEveryHandlerFinished()) {
+        throw new IllegalArgumentException("Workflow.isEveryHandlerFinished() should return false");
       }
     }
   }

@@ -31,10 +31,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest;
 import io.temporal.workflow.DynamicUpdateHandler;
 import io.temporal.workflow.HandlerUnfinishedPolicy;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +40,7 @@ class UpdateDispatcher {
 
   private final DataConverter dataConverterWithWorkflowContext;
   private final Map<String, WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest>
-      updateCallbacks = new HashMap<>();
+      updateCallbacks = new LinkedHashMap<>();
 
   private DynamicUpdateHandler dynamicUpdateHandler;
   private WorkflowInboundCallsInterceptor inboundCallsInterceptor;

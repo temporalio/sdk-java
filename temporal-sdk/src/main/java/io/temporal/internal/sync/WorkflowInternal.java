@@ -734,8 +734,8 @@ public final class WorkflowInternal {
         .map(f -> getDataConverterWithCurrentWorkflowContext().failureToException(f));
   }
 
-  public static boolean isAllHandlersFinished() {
-    return getRootWorkflowContext().isAllHandlersFinished();
+  public static boolean isEveryHandlerFinished() {
+    return getRootWorkflowContext().isEveryHandlerFinished();
   }
 
   private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {

@@ -77,7 +77,7 @@ public class SignalAllHandlersFinished {
     @Override
     public int execute() {
       promise.get();
-      Workflow.await(() -> Workflow.isAllHandlersFinished());
+      Workflow.await(() -> Workflow.isEveryHandlerFinished());
       return handlersFinished;
     }
 
