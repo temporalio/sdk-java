@@ -162,7 +162,6 @@ class SyncWorkflow implements ReplayWorkflow {
         "update " + updateName,
         () -> {
           try {
-            System.out.println(updateInfo);
             workflowContext.setCurrentUpdateInfo(updateInfo);
             // Skip validator on replay
             if (!callbacks.isReplaying()) {
