@@ -71,8 +71,7 @@ final class ReplayWorkflowExecutor {
           + "have interrupted work that the update handler was doing. You can wait for all update and "
           + "signal handlers to complete by using `await workflow.Await(() -> workflow.isHandlersFinished())`. "
           + "Alternatively, if both you  are okay with "
-          + "interrupting running handlers when the workflow finishes, and causing "
-          + "clients to receive errors, then you can disable this warning via the update "
+          + "interrupting running handlers when the workflow finishes you can disable this warning via the signal "
           + "handler annotations: `@SignalMethod(unfinishedPolicy = HandlerUnfinishedPolicy.ABANDON)`.";
 
   private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowExecutor.class);
