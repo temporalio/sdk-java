@@ -1271,6 +1271,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return contextData;
   }
 
+  public void setCurrentUpdateInfo(UpdateInfo updateInfo) {
+    currentUpdateInfo.set(updateInfo);
+  }
+
   public Optional<UpdateInfo> getCurrentUpdateInfo() {
     return Optional.ofNullable(currentUpdateInfo.get());
   }
