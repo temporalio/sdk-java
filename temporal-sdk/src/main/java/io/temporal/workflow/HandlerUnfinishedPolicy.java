@@ -20,21 +20,21 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.converter.EncodedValues;
-
 /**
- * Use DynamicQueryHandler to process any query dynamically. This is useful for a library level code
- * and implementation of DSLs.
+ * Actions taken if a workflow terminates with running handlers.
  *
- * <p>Use {@link Workflow#registerListener(Object)} to register an implementation of the
- * DynamicQueryListener. Only one such listener can be registered per workflow execution.
- *
- * <p>When registered any queries which don't have a specific handler will be delivered to it.
- *
- * @see DynamicSignalHandler
- * @see DynamicWorkflow
- * @see DynamicUpdateHandler
+ * <p>Policy defining actions taken when a workflow exits while update or signal handlers are
+ * running. The workflow exit may be due to successful return, failure, cancellation, or
+ * continue-as-new.
  */
-public interface DynamicQueryHandler {
-  Object handle(String queryType, EncodedValues args);
+public enum HandlerUnfinishedPolicy {
+  /** Issue a warning in addition to abandon. */
+  WARN_AND_ABANDON,
+  /**
+   * Abandon the handler.
+   *
+   * <p>In the case of an update handler this means that the client will receive an error rather
+   * than the update result.
+   */
+  ABANDON,
 }
