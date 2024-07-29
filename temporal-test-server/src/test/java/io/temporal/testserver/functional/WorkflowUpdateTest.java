@@ -24,6 +24,7 @@ import static org.junit.Assume.assumeFalse;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.update.v1.*;
@@ -148,7 +149,7 @@ public class WorkflowUpdateTest {
 
   @Test
   public void update() {
-    // Assert that we can update a workflow and poll the update.å
+    // Assert that we can update a workflow and poll the update.
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
 
@@ -211,7 +212,7 @@ public class WorkflowUpdateTest {
 
   @Test
   public void updateAdmittedNotSupported() {
-    // Assert that we can't update an update with wait stage ADMITTED. Expect a
+    // Assert that we can't send an update with wait stage ADMITTED. Expect a
     // PERMISSION_DENIED error.
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
@@ -241,6 +242,17 @@ public class WorkflowUpdateTest {
             UpdateWorkflowExecutionLifecycleStage
                 .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
             TestWorkflows.UpdateType.COMPLETE);
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        updateResponse.getStage());
+    Assert.assertEquals(
+        Outcome.newBuilder()
+            .setSuccess(
+                Payloads.newBuilder()
+                    .addPayloads(DefaultDataConverter.newDefaultInstance().toPayload(null).get())
+                    .build())
+            .build(),
+        updateResponse.getOutcome());
 
     PollWorkflowExecutionUpdateResponse response =
         pollWorkflowUpdate(
@@ -285,7 +297,7 @@ public class WorkflowUpdateTest {
 
   @Test
   public void duplicateRejectedUpdate() {
-    // Assert that a rejected updates are not stored and a new request can use the same update id.
+    // Assert that rejected updates are not stored and a new request can use the same update id.
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
 
