@@ -398,14 +398,15 @@ public class LocalActivityStateMachineTest {
         2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
         3: EVENT_TYPE_WORKFLOW_TASK_STARTED
         4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
-        5: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        6: EVENT_TYPE_WORKFLOW_TASK_STARTED
-        7: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
-        8: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        9: EVENT_TYPE_WORKFLOW_TASK_STARTED
-        10: EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT
-        11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        12: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        5: EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED
+        6: EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED
+        7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        8: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        10: EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED
+        11: EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED
+        12: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        13: EVENT_TYPE_WORKFLOW_TASK_STARTED
     */
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -429,6 +430,7 @@ public class LocalActivityStateMachineTest {
                 ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
                     .setInitiatedEventId(10)
                     .build())
+            .addWorkflowTaskScheduled()
             .addWorkflowTaskStarted();
 
     TestListener listener = new TestListener();
