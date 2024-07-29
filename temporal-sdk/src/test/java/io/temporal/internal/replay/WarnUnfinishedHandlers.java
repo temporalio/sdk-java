@@ -68,6 +68,7 @@ public class WarnUnfinishedHandlers {
     WorkflowWithDanglingHandlers workflow =
         workflowClient.newWorkflowStub(WorkflowWithDanglingHandlers.class, options);
     WorkflowClient.start(workflow::execute);
+    testWorkflowRule.waitForTheEndOfWFT(workflowId);
     // Send a bunch of signals to warn
     for (int i = 0; i < 5; i++) {
       workflow.warningSignalHandler();
@@ -76,6 +77,7 @@ public class WarnUnfinishedHandlers {
     }
     for (int i = 0; i < 5; i++) {
       workflow.nonWarningSignalHandler();
+      testWorkflowRule.waitForTheEndOfWFT(workflowId);
     }
     // Send a bunch of updates to warn
     WorkflowStub stub = WorkflowStub.fromTyped(workflow);
