@@ -151,6 +151,7 @@ class SyncWorkflow implements ReplayWorkflow {
   @Override
   public void handleUpdate(
       String updateName,
+      String updateId,
       Optional<Payloads> input,
       long eventId,
       Header header,
@@ -161,6 +162,8 @@ class SyncWorkflow implements ReplayWorkflow {
           // Skip validator on replay
           if (!callbacks.isReplaying()) {
             try {
+              Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
+
               workflowContext.setReadOnly(true);
               workflowProc.handleValidateUpdate(updateName, input, eventId, header);
             } catch (ReadOnlyException r) {

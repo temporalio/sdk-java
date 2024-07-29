@@ -343,6 +343,10 @@ public final class Workflow {
     return WorkflowInternal.getWorkflowInfo();
   }
 
+  public static Optional<UpdateInfo> getCurrentUpdateInfo() {
+    return WorkflowInternal.getCurrentUpdateInfo();
+  }
+
   /**
    * Extract deserialized Memo associated with given key
    *

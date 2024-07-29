@@ -161,6 +161,7 @@ final class ReplayWorkflowExecutor {
       Optional<Payloads> args = Optional.ofNullable(input.getArgs());
       this.workflow.handleUpdate(
           input.getName(),
+              protocolMessage.getProtocolInstanceId(),
           args,
           protocolMessage.getEventId(),
           input.getHeader(),
