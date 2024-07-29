@@ -24,9 +24,9 @@ import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.UpdateInfo;
 import io.temporal.workflow.Workflow;
@@ -37,19 +37,11 @@ import java.util.concurrent.ExecutionException;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class UpdateInfoTest {
-
-  private static final Logger log = LoggerFactory.getLogger(UpdateInfoTest.class);
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setWorkflowTypes(TestUpdateWorkflowImpl.class)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestUpdateWorkflowImpl.class).build();
 
   @Test
   public void testUpdateInfo() throws ExecutionException, InterruptedException {
@@ -97,6 +89,9 @@ public class UpdateInfoTest {
 
     @Override
     public String execute() {
+      if (Workflow.getCurrentUpdateInfo().isPresent()) {
+        throw ApplicationFailure.newFailure("update info should not be present", "TestFailure");
+      }
       promise.get();
       return updates.stream().reduce("", (a, b) -> a + " " + b);
     }

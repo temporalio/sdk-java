@@ -339,10 +339,24 @@ public final class Workflow {
     WorkflowInternal.continueAsNew(workflowType, options, args);
   }
 
+  /**
+   * Returns information about current workflow execution.
+   *
+   * <p>Note: Should only be called within the context of a workflow.
+   *
+   * @return current workflow info.
+   */
   public static WorkflowInfo getInfo() {
     return WorkflowInternal.getWorkflowInfo();
   }
 
+  /**
+   * Returns information about current workflow update.
+   *
+   * <p>Note: Should only be called within the context of a update handler thread in a workflow.
+   *
+   * @return current workflow update info.
+   */
   public static Optional<UpdateInfo> getCurrentUpdateInfo() {
     return WorkflowInternal.getCurrentUpdateInfo();
   }
