@@ -47,7 +47,6 @@ public class LocalActivityAfterCancelTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setUseExternalService(true)
           .setWorkflowTypes(TestLocalActivityRetry.class, BlockingWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .build();
