@@ -39,13 +39,12 @@ import io.temporal.internal.statemachines.UpdateProtocolCallback;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.UpdateInfo;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import io.temporal.workflow.UpdateInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,7 +161,8 @@ class SyncWorkflow implements ReplayWorkflow {
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
-          try{
+          try {
+            System.out.println(updateInfo);
             workflowContext.setCurrentUpdateInfo(updateInfo);
             // Skip validator on replay
             if (!callbacks.isReplaying()) {
@@ -174,9 +174,9 @@ class SyncWorkflow implements ReplayWorkflow {
                 throw r;
               } catch (Exception e) {
                 callbacks.reject(
-                        workflowContext
-                                .getDataConverterWithCurrentWorkflowContext()
-                                .exceptionToFailure(e));
+                    workflowContext
+                        .getDataConverterWithCurrentWorkflowContext()
+                        .exceptionToFailure(e));
                 return;
               } finally {
                 workflowContext.setReadOnly(false);
@@ -185,7 +185,7 @@ class SyncWorkflow implements ReplayWorkflow {
             callbacks.accept();
             try {
               Optional<Payloads> result =
-                      workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
+                  workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
               callbacks.complete(result, null);
             } catch (WorkflowExecutionException e) {
               callbacks.complete(Optional.empty(), e.getFailure());

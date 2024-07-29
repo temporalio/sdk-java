@@ -70,7 +70,6 @@ import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
-
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;

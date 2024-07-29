@@ -20,40 +20,24 @@
 
 package io.temporal.workflow.updateTest;
 
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
+import static org.junit.Assert.*;
+
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.ResetReapplyExcludeType;
-import io.temporal.api.enums.v1.ResetReapplyType;
-import io.temporal.api.workflowservice.v1.ResetWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.ResetWorkflowExecutionResponse;
 import io.temporal.client.*;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.UpdateInfo;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.junit.Assert.*;
-import static org.junit.Assume.assumeTrue;
 
 public class UpdateInfoTest {
 
@@ -67,7 +51,7 @@ public class UpdateInfoTest {
           .build();
 
   @Test
-  public void testUpdate() {
+  public void testUpdateInfo() throws ExecutionException, InterruptedException {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
@@ -78,31 +62,25 @@ public class UpdateInfoTest {
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
     // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
-
-
-    assertEquals("Execute-Hello Update", workflow.update(0, "Hello Update"));
-    assertThrows(WorkflowUpdateException.class, () -> workflow.update(-2, "Bad update"));
-
-    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
-    testWorkflowRule.invalidateWorkflowCache();
-
-    // send an update that will fail in the update handler
-    assertThrows(WorkflowUpdateException.class, () -> workflow.complete());
-    assertThrows(WorkflowUpdateException.class, () -> workflow.update(1, ""));
-
-    assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
-    assertThrows(WorkflowUpdateException.class, () -> workflow.update(0, "Bad update"));
-
-    workflow.complete();
+    WorkflowStub stub = WorkflowStub.fromTyped(workflow);
+    UpdateHandle handle =
+        stub.startUpdate(
+            UpdateOptions.newBuilder(String.class)
+                .setUpdateName("update")
+                .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+                .setUpdateId("update id")
+                .build(),
+            0,
+            "");
+    assertEquals("update id", handle.getResultAsync().get());
 
     String result =
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(execution, Optional.empty())
             .getResult(String.class);
-    assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
+    assertEquals("update id ", result);
   }
-
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
     String state = "initial";
@@ -112,7 +90,7 @@ public class UpdateInfoTest {
     @Override
     public String execute() {
       promise.get();
-      return updates.get(0) + " " + updates.get(1);
+      return updates.stream().reduce("", (a, b) -> a + " " + b);
     }
 
     @Override
@@ -125,7 +103,7 @@ public class UpdateInfoTest {
       UpdateInfo updateInfo = Workflow.getCurrentUpdateInfo().get();
       Workflow.sleep(Duration.ofMillis(100));
       updates.add(updateInfo.getUpdateId());
-      return updateInfo.getUpdateId();
+      return updateInfo.getUpdateName() + ":" + updateInfo.getUpdateId();
     }
 
     @Override
@@ -142,7 +120,6 @@ public class UpdateInfoTest {
     }
 
     @Override
-    public void completeValidator() {
-    }
+    public void completeValidator() {}
   }
 }
