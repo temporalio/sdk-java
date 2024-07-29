@@ -1634,8 +1634,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     update.action(Action.COMPLETE, ctx, msg, workflowTaskCompletedId);
-    UpdateWorkflowExecution u =
-        workflowTaskStateMachine.getData().updateRequest.get(protocolInstanceId);
   }
 
   @Override
