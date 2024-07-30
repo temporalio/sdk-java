@@ -387,6 +387,8 @@ public final class WorkflowStateMachines {
         // other state machines because a rejected update produces no event in history.
         protocolStateMachines.entrySet().removeIf(entry -> entry.getValue().isFinalState());
         break;
+      default:
+        break;
     }
   }
 
@@ -625,6 +627,9 @@ public final class WorkflowStateMachines {
     List<Message> result = new ArrayList<>(messageOutbox.size());
     result.addAll(messageOutbox);
     messageOutbox.clear();
+    // Remove any finished update protocol state machines. We can't remove them on an event like
+    // other state machines because a rejected update produces no event in history.
+    protocolStateMachines.entrySet().removeIf(entry -> entry.getValue().isFinalState());
     return result;
   }
 
