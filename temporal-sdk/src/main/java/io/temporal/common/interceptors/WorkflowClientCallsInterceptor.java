@@ -22,8 +22,8 @@ package io.temporal.common.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.update.v1.UpdateRef;
 import io.temporal.api.update.v1.WaitPolicy;
+import io.temporal.client.UpdateHandle;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
@@ -78,7 +78,7 @@ public interface WorkflowClientCallsInterceptor {
   <R> QueryOutput<R> query(QueryInput<R> input);
 
   @Experimental
-  <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input);
+  <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input);
 
   @Experimental
   <R> PollWorkflowUpdateOutput<R> pollWorkflowUpdate(PollWorkflowUpdateInput<R> input);
@@ -383,6 +383,7 @@ public interface WorkflowClientCallsInterceptor {
   @Experimental
   final class StartUpdateInput<R> {
     private final WorkflowExecution workflowExecution;
+    private final Optional<String> workflowType;
     private final String updateName;
     private final Header header;
     private final Object[] arguments;
@@ -394,6 +395,7 @@ public interface WorkflowClientCallsInterceptor {
 
     public StartUpdateInput(
         WorkflowExecution workflowExecution,
+        Optional<String> workflowType,
         String updateName,
         Header header,
         String updateId,
@@ -403,6 +405,7 @@ public interface WorkflowClientCallsInterceptor {
         String firstExecutionRunId,
         WaitPolicy waitPolicy) {
       this.workflowExecution = workflowExecution;
+      this.workflowType = workflowType;
       this.header = header;
       this.updateId = updateId;
       this.updateName = updateName;
@@ -415,6 +418,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+
+    public Optional<String> getWorkflowType() {
+      return workflowType;
     }
 
     public String getUpdateName() {
@@ -447,44 +454,6 @@ public interface WorkflowClientCallsInterceptor {
 
     public WaitPolicy getWaitPolicy() {
       return waitPolicy;
-    }
-  }
-
-  @Experimental
-  final class UpdateOutput<R> {
-    private final R result;
-
-    public UpdateOutput(R result) {
-      this.result = result;
-    }
-
-    public R getResult() {
-      return result;
-    }
-  }
-
-  @Experimental
-  final class StartUpdateOutput<R> {
-    private final UpdateRef reference;
-    private final R result;
-    private final boolean hasResult;
-
-    public StartUpdateOutput(UpdateRef reference, boolean hasResult, R result) {
-      this.reference = reference;
-      this.result = result;
-      this.hasResult = hasResult;
-    }
-
-    public UpdateRef getReference() {
-      return reference;
-    }
-
-    public boolean hasResult() {
-      return hasResult;
-    }
-
-    public R getResult() {
-      return result;
     }
   }
 
