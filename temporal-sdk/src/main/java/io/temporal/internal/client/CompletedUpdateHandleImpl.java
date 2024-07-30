@@ -27,13 +27,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Experimental
-final class CompletedUpdateHandleImpl<T> implements UpdateHandle<T> {
+public final class CompletedUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   private final String id;
   private final WorkflowExecution execution;
   private final T result;
 
-  CompletedUpdateHandleImpl(String id, WorkflowExecution execution, T result) {
+  public CompletedUpdateHandleImpl(String id, WorkflowExecution execution, T result) {
     this.id = id;
     this.execution = execution;
     this.result = result;
