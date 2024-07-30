@@ -553,18 +553,27 @@ class TestHistoryBuilder {
           result.setWorkflowExecutionUpdateCompletedEventAttributes(
               (WorkflowExecutionUpdateCompletedEventAttributes) attributes);
           break;
+        case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
+          result.setStartChildWorkflowExecutionInitiatedEventAttributes(
+              (StartChildWorkflowExecutionInitiatedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
+          result.setRequestCancelExternalWorkflowExecutionInitiatedEventAttributes(
+              (RequestCancelExternalWorkflowExecutionInitiatedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
+          result.setExternalWorkflowExecutionCancelRequestedEventAttributes(
+              (ExternalWorkflowExecutionCancelRequestedEventAttributes) attributes);
+          break;
 
         case EVENT_TYPE_UNSPECIFIED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
         case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
-        case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
         case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED:
-        case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW:
-        case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
         case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
         case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
         case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED:
