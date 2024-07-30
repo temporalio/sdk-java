@@ -370,7 +370,7 @@ public class LocalActivityStateMachineTest {
                 null);
         // TODO: This is a workaround for the lack of support for child workflow in the test
         // framework.
-        // The test framework has not support for state machines with multiple callbacks.
+        // The test framework has no support for state machines with multiple callbacks.
         AtomicReference<Functions.Proc> cc = new AtomicReference<>();
         AtomicReference<Functions.Proc2<Optional<Payloads>, Exception>> completionCallback =
             new AtomicReference<>();
