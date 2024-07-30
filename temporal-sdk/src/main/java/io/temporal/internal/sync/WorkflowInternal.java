@@ -109,6 +109,14 @@ public final class WorkflowInternal {
     return new WorkflowQueueImpl<>(capacity);
   }
 
+  public static WorkflowLock newWorkflowLock() {
+    return new WorkflowLockImpl();
+  }
+
+  public static WorkflowSemaphore newWorkflowSemaphore(int permits) {
+    return new WorkflowSemaphoreImpl(permits);
+  }
+
   public static <E> CompletablePromise<E> newCompletablePromise() {
     return new CompletablePromiseImpl<>();
   }
@@ -479,13 +487,13 @@ public final class WorkflowInternal {
 
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
-    assertNotReadOnly("await");
+    assertNotReadOnly(reason);
     getWorkflowOutboundInterceptor().await(reason, unblockCondition);
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
-    assertNotReadOnly("await with timeout");
+    assertNotReadOnly(reason);
     return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
   }
 
