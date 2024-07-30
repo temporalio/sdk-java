@@ -56,7 +56,7 @@ public class UpdateInfoTest {
     // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     WorkflowStub stub = WorkflowStub.fromTyped(workflow);
-    UpdateOptions.Builder updateOptionsBuilder =
+    UpdateOptions.Builder<String> updateOptionsBuilder =
         UpdateOptions.newBuilder(String.class)
             .setUpdateName("update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED);
@@ -71,7 +71,9 @@ public class UpdateInfoTest {
 
     Assert.assertThrows(
         WorkflowUpdateException.class,
-        () -> stub.startUpdate(updateOptionsBuilder.setUpdateId("reject").build(), 0, ""));
+        () ->
+            stub.startUpdate(updateOptionsBuilder.setUpdateId("reject").build(), 0, "")
+                .getResultAsync());
 
     workflow.complete();
     String result =
@@ -112,7 +114,7 @@ public class UpdateInfoTest {
     @Override
     public void updateValidator(Integer index, String value) {
       UpdateInfo updateInfo = Workflow.getCurrentUpdateInfo().get();
-      if (updateInfo.getUpdateId() == "reject") {
+      if (updateInfo.getUpdateId().equals("reject")) {
         throw new RuntimeException("Rejecting update");
       }
     }
