@@ -21,7 +21,6 @@
 package io.temporal.activity;
 
 import static org.junit.Assert.*;
-import static org.junit.Assume.assumeFalse;
 
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -46,8 +45,6 @@ public class ActivityNextRetryDelayTest {
 
   @Test
   public void activityNextRetryDelay() {
-    assumeFalse(
-        "Real Server doesn't support next retry delay yet", SDKTestWorkflowRule.useExternalService);
     TestWorkflowReturnDuration workflow =
         testWorkflowRule.newWorkflowStub(TestWorkflowReturnDuration.class);
     Duration result = workflow.execute(false);
