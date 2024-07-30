@@ -31,7 +31,9 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.client.*;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowUpdateException;
+import io.temporal.client.WorkflowUpdateTimeoutOrCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -339,8 +341,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     UpdateWorkflowExecutionLifecycleStage waitForStage = input.getWaitPolicy().getLifecycleStage();
     do {
       Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
-      result = genericClient.update(updateRequest, pollTimeoutDeadline);
-    } while (result.getStage().getNumber() < waitForStage.getNumber()
+      try {
+        result = genericClient.update(updateRequest, pollTimeoutDeadline);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.CANCELLED) {
+          throw new WorkflowUpdateTimeoutOrCancelledException(
+              input.getWorkflowExecution(), input.getUpdateName(), input.getUpdateId(), e);
+        }
+        throw e;
+      }
+
+    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
         && result.getStage().getNumber()
             < UpdateWorkflowExecutionLifecycleStage
                 .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
