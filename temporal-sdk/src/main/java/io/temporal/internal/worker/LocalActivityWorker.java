@@ -717,6 +717,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
+    slotQueue.shutdown();
     long timeoutMillis = unit.toMillis(timeout);
     ShutdownManager.awaitTermination(scheduledExecutor, timeoutMillis);
   }
