@@ -84,6 +84,9 @@ class LocalActivitySlotSupplierQueue {
         SlotPermit slotPermit;
         try {
           slotPermit = slotSupplier.reserveSlot(request.data);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
         } catch (Exception e) {
           log.error(
               "Error reserving local activity slot, dropped activity id {}",
@@ -130,9 +133,5 @@ class LocalActivitySlotSupplierQueue {
       // semaphore, and therefore we should release that permit now.
       newExecutionsBackpressureSemaphore.release();
     }
-  }
-
-  TrackingSlotSupplier<LocalActivitySlotInfo> getSlotSupplier() {
-    return slotSupplier;
   }
 }

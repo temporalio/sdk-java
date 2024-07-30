@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -242,6 +243,29 @@ public class WorkflowSlotsSmallSizeTests {
       parallelSemBlocked.release(2);
     }
     workflow.workflow(true);
+    // All slots should be available
+    assertWorkerSlotCount(
+        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
+        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+  }
+
+  @Test
+  public void TestLocalActivityShutdownWhileWaitingOnSlot() throws InterruptedException {
+    testWorkflowRule.getTestEnvironment().start();
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow workflow =
+        client.newWorkflowStub(
+            TestWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .validateBuildWithDefaults());
+    WorkflowClient.start(workflow::workflow, activitiesAreLocal);
+    workflow.unblock();
+    parallelSemRunning.acquire(2);
+    testWorkflowRule.getTestEnvironment().getWorkerFactory().shutdownNow();
+    parallelSemBlocked.release(2);
+    testWorkflowRule.getTestEnvironment().getWorkerFactory().awaitTermination(3, TimeUnit.SECONDS);
     // All slots should be available
     assertWorkerSlotCount(
         MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
