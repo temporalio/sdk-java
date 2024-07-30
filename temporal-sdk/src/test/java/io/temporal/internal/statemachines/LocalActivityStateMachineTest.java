@@ -27,20 +27,25 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.history.v1.*;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.worker.LocalActivityResult;
+import io.temporal.workflow.ChildWorkflowCancellationType;
+import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -332,6 +337,101 @@ public class LocalActivityStateMachineTest {
     assertEquals(new TestHistoryBuilder.HistoryInfo(0, 3), h.getHistoryInfo(0));
     assertEquals(new TestHistoryBuilder.HistoryInfo(3, 6), h.getHistoryInfo(1));
     assertEquals(new TestHistoryBuilder.HistoryInfo(6, 12), h.getHistoryInfo());
+
+    TestListener listener = new TestListener();
+    stateMachines = newStateMachines(listener);
+
+    h.handleWorkflowTask(stateMachines);
+    List<ExecuteLocalActivityParameters> requests = stateMachines.takeLocalActivityRequests();
+    assertEquals(1, requests.size());
+    assertEquals("id1", requests.get(0).getActivityId());
+    List<Command> commands = stateMachines.takeCommands();
+    assertTrue(commands.isEmpty());
+  }
+
+  @Test
+  public void testLocalActivityStateMachineDuplicateTask() {
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        StartChildWorkflowExecutionParameters childRequest =
+            new StartChildWorkflowExecutionParameters(
+                StartChildWorkflowExecutionCommandAttributes.newBuilder(),
+                ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
+        ExecuteLocalActivityParameters parameters1 =
+            new ExecuteLocalActivityParameters(
+                PollActivityTaskQueueResponse.newBuilder()
+                    .setActivityId("id1")
+                    .setActivityType(ActivityType.newBuilder().setName("activity1")),
+                null,
+                System.currentTimeMillis(),
+                null,
+                false,
+                null);
+        // TODO: This is a workaround for the lack of support for child workflow in the test
+        // framework.
+        // The test framework has no support for state machines with multiple callbacks.
+        AtomicReference<Functions.Proc> cc = new AtomicReference<>();
+        AtomicReference<Functions.Proc2<Optional<Payloads>, Exception>> completionCallback =
+            new AtomicReference<>();
+        builder
+            .<WorkflowExecution, Exception>add2(
+                (r, c) ->
+                    cc.set(
+                        stateMachines.startChildWorkflow(
+                            childRequest,
+                            c,
+                            (r1, c1) -> {
+                              completionCallback.get().apply(r1, c1);
+                            })))
+            .add((r) -> cc.get().apply())
+            .<Optional<Payloads>, Exception>add2(
+                (r, c) -> {
+                  completionCallback.set(c);
+                })
+            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+                (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c));
+      }
+    }
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED
+        6: EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED
+        7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        8: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        10: EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED
+        11: EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED
+        12: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        13: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask()
+            .add(
+                EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
+                StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder().build())
+            .add(
+                EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED,
+                ChildWorkflowExecutionStartedEventAttributes.newBuilder()
+                    .setInitiatedEventId(5)
+                    .build())
+            .addWorkflowTask()
+            .add(
+                EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+                RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder().build())
+            .addWorkflowTaskScheduled()
+            .add(
+                EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED,
+                ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
+                    .setInitiatedEventId(10)
+                    .build())
+            .addWorkflowTaskScheduled()
+            .addWorkflowTaskStarted();
 
     TestListener listener = new TestListener();
     stateMachines = newStateMachines(listener);
