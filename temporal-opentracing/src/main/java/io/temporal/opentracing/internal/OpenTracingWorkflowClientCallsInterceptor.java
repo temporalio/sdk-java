@@ -23,6 +23,7 @@ package io.temporal.opentracing.internal;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
+import io.temporal.client.UpdateHandle;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.opentracing.OpenTracingOptions;
@@ -119,7 +120,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
   }
 
   @Override
-  public <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input) {
+  public <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
     Span workflowStartUpdateSpan =
         contextAccessor.writeSpanContextToHeader(
             () ->

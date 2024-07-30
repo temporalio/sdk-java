@@ -18,9 +18,10 @@
  * limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.UpdateHandle;
 import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;

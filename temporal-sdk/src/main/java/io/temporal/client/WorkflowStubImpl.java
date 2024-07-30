@@ -31,6 +31,7 @@ import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.client.LazyUpdateHandleImpl;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
@@ -331,42 +332,20 @@ class WorkflowStubImpl implements WorkflowStub {
     options.validate();
     WorkflowExecution targetExecution = execution.get();
     try {
-      WorkflowClientCallsInterceptor.StartUpdateOutput<R> result =
-          workflowClientInvoker.startUpdate(
-              new WorkflowClientCallsInterceptor.StartUpdateInput<>(
-                  targetExecution,
-                  options.getUpdateName(),
-                  Header.empty(),
-                  options.getUpdateId(),
-                  args,
-                  options.getResultClass(),
-                  options.getResultType(),
-                  options.getFirstExecutionRunId(),
-                  WaitPolicy.newBuilder()
-                      .setLifecycleStage(options.getWaitForStage().getProto())
-                      .build()));
-
-      if (result.hasResult()) {
-        return new CompletedUpdateHandleImpl<>(
-            result.getReference().getUpdateId(),
-            result.getReference().getWorkflowExecution(),
-            result.getResult());
-      } else {
-        LazyUpdateHandleImpl<R> handle =
-            new LazyUpdateHandleImpl<>(
-                workflowClientInvoker,
-                workflowType.orElse(null),
-                options.getUpdateName(),
-                result.getReference().getUpdateId(),
-                result.getReference().getWorkflowExecution(),
-                options.getResultClass(),
-                options.getResultType());
-        if (options.getWaitForStage() == WorkflowUpdateStage.COMPLETED) {
-          // Don't return the handle until completed, since that's what's been asked for
-          handle.waitCompleted();
-        }
-        return handle;
-      }
+      return workflowClientInvoker.startUpdate(
+          new WorkflowClientCallsInterceptor.StartUpdateInput<>(
+              targetExecution,
+              workflowType,
+              options.getUpdateName(),
+              Header.empty(),
+              options.getUpdateId(),
+              args,
+              options.getResultClass(),
+              options.getResultType(),
+              options.getFirstExecutionRunId(),
+              WaitPolicy.newBuilder()
+                  .setLifecycleStage(options.getWaitForStage().getProto())
+                  .build()));
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), throwable);
