@@ -342,7 +342,8 @@ public final class Workflow {
   /**
    * Returns information about current workflow execution.
    *
-   * <p>Note: Should only be called within the context of a workflow.
+   * <p>Note: Can only be called within the context of a workflow. Will throw an error if called
+   * outside a workflow context.
    *
    * @return current workflow info.
    */
@@ -353,7 +354,9 @@ public final class Workflow {
   /**
    * Returns information about current workflow update.
    *
-   * <p>Note: Should only be called within the context of a update handler thread in a workflow.
+   * <p>Note: Should only be called within the context of an update handler thread in a workflow.
+   * Will return an empty Optional if called outside an update handler thread inside a workflow context. Will throw
+   * an error if called outside a workflow context.
    *
    * @return current workflow update info.
    */
