@@ -277,16 +277,19 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       return;
     }
 
-    UpdateScheduleRequest request =
+    UpdateScheduleRequest.Builder request =
         UpdateScheduleRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity())
             .setScheduleId(input.getDescription().getId())
             .setRequestId(UUID.randomUUID().toString())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()))
-            .build();
+            .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()));
+    if (schedule.getTypedSearchAttributes() != null) {
+      request.setSearchAttributes(
+          SearchAttributesUtil.encodeTyped(schedule.getTypedSearchAttributes()));
+    }
     try {
-      genericClient.updateSchedule(request);
+      genericClient.updateSchedule(request.build());
     } catch (Exception e) {
       throw new ScheduleException(e);
     }
