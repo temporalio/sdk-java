@@ -20,8 +20,6 @@
 
 package io.temporal.client.schedules;
 
-import static org.junit.Assume.assumeTrue;
-
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -40,7 +38,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -52,6 +49,7 @@ public class ScheduleTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ScheduleTest.QuickWorkflowImpl.class)
+          .setUseExternalService(true)
           .build();
 
   private ScheduleClient createScheduleClient(ScheduleClientInterceptor... interceptors) {
@@ -94,10 +92,10 @@ public class ScheduleTest {
                 .build());
   }
 
-  @Before
-  public void checkRealServer() {
-    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  }
+  //  @Before
+  //  public void checkRealServer() {
+  //    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+  //  }
 
   @Test
   public void createSchedule() {
@@ -412,12 +410,14 @@ public class ScheduleTest {
   }
 
   @Test
-  public void updateSchedules() {
+  public void updateSchedules() throws InterruptedException {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
     ScheduleOptions options =
         ScheduleOptions.newBuilder()
             .setMemo(Collections.singletonMap("memokey2", "memoval2"))
+            .setTypedSearchAttributes(
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "keyword").build())
             .build();
     String scheduleId = UUID.randomUUID().toString();
     Schedule schedule = createTestSchedule().build();
@@ -469,7 +469,7 @@ public class ScheduleTest {
                   .setAction(input.getDescription().getSchedule().getAction())
                   .setSpec(ScheduleSpec.newBuilder().build());
           builder.setState(ScheduleState.newBuilder().setPaused(true).build());
-          return new ScheduleUpdate(builder.build());
+          return new ScheduleUpdate(builder.build(), null);
         });
     description = handle.describe();
     //
@@ -481,6 +481,13 @@ public class ScheduleTest {
     //
     Assert.assertNotEquals(expectedUpdateTime, description.getInfo().getLastUpdatedAt());
     Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    // Update the schedule search attribute by clearing them
+    handle.update(
+        (ScheduleUpdateInput input) ->
+            new ScheduleUpdate(input.getDescription().getSchedule(), SearchAttributes.EMPTY));
+    Thread.sleep(1000);
+    description = handle.describe();
+    Assert.assertEquals(0, description.getTypedSearchAttributes().size());
     // Cleanup schedule
     handle.delete();
   }

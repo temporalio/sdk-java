@@ -26,6 +26,7 @@ import com.google.common.collect.Iterators;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Memo;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.schedule.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.ListScheduleListDescriptionIterator;
@@ -285,8 +286,12 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setRequestId(UUID.randomUUID().toString())
             .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()));
     if (schedule.getTypedSearchAttributes() != null) {
-      request.setSearchAttributes(
-          SearchAttributesUtil.encodeTyped(schedule.getTypedSearchAttributes()));
+      SearchAttributes encodedSa =
+          SearchAttributesUtil.encodeTyped(schedule.getTypedSearchAttributes());
+      if (encodedSa == null) {
+        encodedSa = SearchAttributes.getDefaultInstance();
+      }
+      request.setSearchAttributes(encodedSa);
     }
     try {
       genericClient.updateSchedule(request.build());
