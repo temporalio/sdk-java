@@ -30,6 +30,7 @@ import java.util.List;
 public class TestServicesStarter implements Closeable {
   private final SelfAdvancingTimerImpl selfAdvancingTimer;
   private final TestVisibilityStore visibilityStore = new TestVisibilityStoreImpl();
+  private final TestNexusEndpointStore nexusEndpointStore = new TestNexusEndpointStoreImpl();
   private final TestWorkflowStore workflowStore;
   private final TestOperatorService operatorService;
   private final TestWorkflowService workflowService;
@@ -46,7 +47,7 @@ public class TestServicesStarter implements Closeable {
     this.selfAdvancingTimer =
         new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
     this.workflowStore = new TestWorkflowStoreImpl(this.selfAdvancingTimer);
-    this.operatorService = new TestOperatorService(this.visibilityStore);
+    this.operatorService = new TestOperatorService(this.visibilityStore, this.nexusEndpointStore);
     this.testService =
         new TestService(this.workflowStore, this.selfAdvancingTimer, lockTimeSkipping);
     this.workflowService =
