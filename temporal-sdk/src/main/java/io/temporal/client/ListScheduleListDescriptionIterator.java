@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 public final class ListScheduleListDescriptionIterator
     extends EagerPaginator<ListSchedulesResponse, ScheduleListEntry> {
   private final @Nonnull String namespace;
+  private final @Nullable String query;
   private final @Nullable Integer pageSize;
   private final @Nonnull GenericWorkflowClient genericClient;
 
@@ -42,6 +43,18 @@ public final class ListScheduleListDescriptionIterator
       @Nullable Integer pageSize,
       @Nonnull GenericWorkflowClient genericClient) {
     this.namespace = namespace;
+    this.query = null;
+    this.pageSize = pageSize;
+    this.genericClient = genericClient;
+  }
+
+  public ListScheduleListDescriptionIterator(
+      @Nonnull String namespace,
+      @Nullable String query,
+      @Nullable Integer pageSize,
+      @Nonnull GenericWorkflowClient genericClient) {
+    this.namespace = namespace;
+    this.query = query;
     this.pageSize = pageSize;
     this.genericClient = genericClient;
   }
@@ -51,10 +64,12 @@ public final class ListScheduleListDescriptionIterator
     ListSchedulesRequest.Builder request =
         ListSchedulesRequest.newBuilder().setNamespace(namespace).setNextPageToken(nextPageToken);
 
+    if (query != null) {
+      request.setQuery(query);
+    }
     if (pageSize != null) {
       request.setMaximumPageSize(pageSize);
     }
-
     return genericClient.listSchedulesAsync(request.build());
   }
 
