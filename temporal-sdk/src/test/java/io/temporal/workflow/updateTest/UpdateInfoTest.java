@@ -106,7 +106,6 @@ public class UpdateInfoTest {
     @Override
     public String update(Integer index, String value) {
       UpdateInfo updateInfo = Workflow.getCurrentUpdateInfo().get();
-      Workflow.sleep(Duration.ofMillis(100));
       updates.add(updateInfo.getUpdateId());
       return updateInfo.getUpdateName() + ":" + updateInfo.getUpdateId();
     }
