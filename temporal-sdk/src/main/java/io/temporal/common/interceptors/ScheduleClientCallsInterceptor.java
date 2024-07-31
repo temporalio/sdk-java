@@ -81,14 +81,20 @@ public interface ScheduleClientCallsInterceptor {
   }
 
   class ListSchedulesInput {
+    private final String query;
     private final int pageSize;
 
-    public ListSchedulesInput(int pageSize) {
+    public ListSchedulesInput(String query, int pageSize) {
+      this.query = query;
       this.pageSize = pageSize;
     }
 
     public int getPageSize() {
       return pageSize;
+    }
+
+    public String getQuery() {
+      return query;
     }
   }
 

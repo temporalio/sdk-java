@@ -97,15 +97,21 @@ final class ScheduleClientImpl implements ScheduleClient {
 
   @Override
   public Stream<ScheduleListDescription> listSchedules() {
-    return this.listSchedules(null);
+    return this.listSchedules(null, null);
   }
 
   @Override
   public Stream<ScheduleListDescription> listSchedules(@Nullable Integer pageSize) {
+    return this.listSchedules(null, pageSize);
+  }
+
+  @Override
+  public Stream<ScheduleListDescription> listSchedules(
+      @Nullable String query, @Nullable Integer pageSize) {
     return scheduleClientCallsInvoker
         .listSchedules(
             new ScheduleClientCallsInterceptor.ListSchedulesInput(
-                pageSize == null ? 100 : pageSize))
+                query, pageSize == null ? 100 : pageSize))
         .getStream();
   }
 }
