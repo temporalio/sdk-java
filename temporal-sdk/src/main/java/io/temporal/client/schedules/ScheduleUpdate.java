@@ -20,12 +20,21 @@
 
 package io.temporal.client.schedules;
 
+import io.temporal.common.SearchAttributes;
+
 /** An update returned from a schedule updater. */
 public final class ScheduleUpdate {
   private final Schedule schedule;
+  private final SearchAttributes typedSearchAttributes;
 
   public ScheduleUpdate(Schedule schedule) {
     this.schedule = schedule;
+    this.typedSearchAttributes = null;
+  }
+
+  public ScheduleUpdate(Schedule schedule, SearchAttributes typedSearchAttributes) {
+    this.schedule = schedule;
+    this.typedSearchAttributes = typedSearchAttributes;
   }
 
   /**
@@ -35,5 +44,14 @@ public final class ScheduleUpdate {
    */
   public Schedule getSchedule() {
     return schedule;
+  }
+
+  /**
+   * Get the search attributes to update.
+   *
+   * @return search attributes to update
+   */
+  public SearchAttributes getTypedSearchAttributes() {
+    return typedSearchAttributes;
   }
 }
