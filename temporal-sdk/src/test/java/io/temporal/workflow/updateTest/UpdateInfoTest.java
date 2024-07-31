@@ -31,7 +31,6 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.UpdateInfo;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import org.junit.Assert;
