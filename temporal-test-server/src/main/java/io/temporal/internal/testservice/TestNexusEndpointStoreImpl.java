@@ -1,5 +1,9 @@
 /*
- * Copyright (C) 2024 Temporal Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this material except in compliance with the License.
@@ -33,7 +37,7 @@ import java.util.stream.Collectors;
  */
 public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
 
-  private static final Pattern ENDPOINT_NAME_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_-]*$");
+  private static final Pattern ENDPOINT_NAME_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
   private final SortedMap<String, Endpoint> endpoints = new ConcurrentSkipListMap<>();
 
@@ -42,9 +46,13 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
     validateEndpointSpec(spec);
 
     String id = UUID.randomUUID().toString();
-    Endpoint endpoint = Endpoint.newBuilder().setId(id).setVersion(1).setSpec(spec).build();
+    Endpoint endpoint = Endpoint.newBuilder()
+            .setId(id)
+            .setVersion(1)
+            .setSpec(spec)
+            .build();
 
-    if (endpoints.putIfAbsent(spec.getName(), endpoint) != null) {
+    if (endpoints.putIfAbsent(id, endpoint) != null) {
       throw Status.ALREADY_EXISTS
           .withDescription("Endpoint already exists with ID: " + id)
           .asRuntimeException();
@@ -61,22 +69,23 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
 
     if (prev == null) {
       throw Status.NOT_FOUND
-          .withDescription("Could not find Nexus endpoint with ID: " + spec.getName())
+          .withDescription("Could not find Nexus endpoint with ID: " + id)
           .asRuntimeException();
     }
 
     if (prev.getVersion() != version) {
       throw Status.INVALID_ARGUMENT
           .withDescription(
-              "Error updating Nexus endpoint: version mismatch. "
-                  + "Expected: "
-                  + prev.getVersion()
-                  + " Received: "
-                  + version)
+              "Error updating Nexus endpoint: version mismatch."
+                  + " Expected: " + prev.getVersion()
+                  + " Received: " + version)
           .asRuntimeException();
     }
 
-    Endpoint updated = Endpoint.newBuilder(prev).setVersion(version + 1).setSpec(spec).build();
+    Endpoint updated = Endpoint.newBuilder(prev)
+            .setVersion(version + 1)
+            .setSpec(spec)
+            .build();
 
     endpoints.put(id, updated);
     return updated;
@@ -95,11 +104,9 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
     if (existing.getVersion() != version) {
       throw Status.INVALID_ARGUMENT
           .withDescription(
-              "Error deleting Nexus endpoint: version mismatch. "
-                  + "Expected "
-                  + existing.getVersion()
-                  + " Received: "
-                  + version)
+              "Error deleting Nexus endpoint: version mismatch."
+                  + " Expected " + existing.getVersion()
+                  + " Received: " + version)
           .asRuntimeException();
     }
 
@@ -151,6 +158,11 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
     if (!spec.hasTarget()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Nexus endpoint spec must have a target")
+          .asRuntimeException();
+    }
+    if (!spec.getTarget().hasWorker()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Test server only supports Nexus endpoints with worker targets")
           .asRuntimeException();
     }
   }
