@@ -30,7 +30,11 @@ import io.temporal.api.enums.v1.ResetReapplyType;
 import io.temporal.api.workflowservice.v1.ResetWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.ResetWorkflowExecutionResponse;
 import io.temporal.client.*;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
+import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.client.CompletedUpdateHandleImpl;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -93,6 +97,55 @@ public class UpdateTest {
     assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
     assertThrows(WorkflowUpdateException.class, () -> workflow.update(0, "Bad update"));
 
+    workflow.complete();
+
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(execution, Optional.empty())
+            .getResult(String.class);
+    assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
+  }
+
+  private static class FakesResultUpdateInterceptor extends WorkflowClientInterceptorBase {
+    @Override
+    public WorkflowClientCallsInterceptor workflowClientCallsInterceptor(
+        WorkflowClientCallsInterceptor next) {
+      return new WorkflowClientCallsInterceptorBase(next) {
+        @Override
+        public <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
+          super.startUpdate(input);
+          return new CompletedUpdateHandleImpl<>(
+              "someid", input.getWorkflowExecution(), (R) "fake");
+        }
+      };
+    }
+  }
+
+  @Test
+  public void testUpdateIntercepted() {
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowClient workflowClient =
+        WorkflowClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            WorkflowClientOptions.newBuilder(testWorkflowRule.getWorkflowClient().getOptions())
+                .setInterceptors(new FakesResultUpdateInterceptor())
+                .validateAndBuildWithDefaults());
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setWorkflowId(workflowId)
+            .build();
+    WorkflowWithUpdate workflow = workflowClient.newWorkflowStub(WorkflowWithUpdate.class, options);
+    // To execute workflow client.execute() would do. But we want to start workflow and immediately
+    // return.
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+
+    SDKTestWorkflowRule.waitForOKQuery(workflow);
+    assertEquals("initial", workflow.getState());
+    assertEquals(workflowId, execution.getWorkflowId());
+
+    assertEquals("fake", workflow.update(0, "Hello Update"));
+    assertEquals("fake", workflow.update(1, "Hello Update 2"));
     workflow.complete();
 
     String result =

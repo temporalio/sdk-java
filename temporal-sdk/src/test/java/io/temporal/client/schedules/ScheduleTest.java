@@ -25,6 +25,8 @@ import static org.junit.Assume.assumeTrue;
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributeKey;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -43,6 +45,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class ScheduleTest {
+  static final SearchAttributeKey<String> CUSTOM_KEYWORD_SA =
+      SearchAttributeKey.forKeyword("CustomKeywordField");
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -484,10 +489,12 @@ public class ScheduleTest {
   public void listSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
-    ScheduleOptions options =
+    ScheduleOptions.Builder optionsBuilder =
         ScheduleOptions.newBuilder()
             .setMemo(Collections.singletonMap("memokey2", "memoval2"))
-            .build();
+            .setTypedSearchAttributes(
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "keyword").build());
+    ScheduleOptions options = optionsBuilder.build();
     Schedule schedule =
         createTestSchedule()
             .setState(ScheduleState.newBuilder().setPaused(true).setNote("schedule list").build())
@@ -532,8 +539,9 @@ public class ScheduleTest {
         (ScheduleListActionStartWorkflow) listDescription.getSchedule().getAction();
     Assert.assertEquals("TestWorkflow1", action.getWorkflow());
     // Create two additional schedules
-    client.createSchedule(scheduleIdPrefix + UUID.randomUUID(), schedule, options);
-    client.createSchedule(scheduleIdPrefix + UUID.randomUUID(), schedule, options);
+    optionsBuilder = optionsBuilder.setTypedSearchAttributes(null);
+    client.createSchedule(scheduleIdPrefix + UUID.randomUUID(), schedule, optionsBuilder.build());
+    client.createSchedule(scheduleIdPrefix + UUID.randomUUID(), schedule, optionsBuilder.build());
     // Add delay for schedules to appear
     testWorkflowRule.sleep(Duration.ofSeconds(2));
     // List all schedules and filter
@@ -541,8 +549,18 @@ public class ScheduleTest {
     long listedSchedulesCount =
         scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
     Assert.assertEquals(3, listedSchedulesCount);
+    // List all schedules with a null filter
+    scheduleStream = client.listSchedules(null, 10);
+    listedSchedulesCount =
+        scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
+    Assert.assertEquals(3, listedSchedulesCount);
+    // List schedules with a query
+    scheduleStream = client.listSchedules("CustomKeywordField = 'keyword'", null);
+    listedSchedulesCount =
+        scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
+    Assert.assertEquals(1, listedSchedulesCount);
     // Cleanup all schedules
-    scheduleStream = client.listSchedules(null);
+    scheduleStream = client.listSchedules(null, null);
     scheduleStream
         .filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix))
         .forEach(

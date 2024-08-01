@@ -87,4 +87,14 @@ public interface ScheduleClient {
    * @return sequential stream that performs remote pagination under the hood
    */
   Stream<ScheduleListDescription> listSchedules(@Nullable Integer pageSize);
+
+  /**
+   * List schedules.
+   *
+   * @param query Temporal Visibility Query, for syntax see <a
+   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
+   * @param pageSize how many results to fetch from the Server at a time. Default is 100.
+   * @return sequential stream that performs remote pagination under the hood
+   */
+  Stream<ScheduleListDescription> listSchedules(@Nullable String query, @Nullable Integer pageSize);
 }

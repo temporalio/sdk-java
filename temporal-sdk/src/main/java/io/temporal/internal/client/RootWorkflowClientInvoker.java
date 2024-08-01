@@ -31,8 +31,7 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowUpdateException;
+import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -298,7 +297,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   }
 
   @Override
-  public <R> StartUpdateOutput<R> startUpdate(StartUpdateInput<R> input) {
+  public <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
     DataConverter dataConverterWithWorkflowContext =
         clientOptions
             .getDataConverter()
@@ -337,10 +336,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
     // by the user.
     UpdateWorkflowExecutionResponse result;
+    UpdateWorkflowExecutionLifecycleStage waitForStage = input.getWaitPolicy().getLifecycleStage();
     do {
       Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
       result = genericClient.update(updateRequest, pollTimeoutDeadline);
-    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
+    } while (result.getStage().getNumber() < waitForStage.getNumber()
         && result.getStage().getNumber()
             < UpdateWorkflowExecutionLifecycleStage
                 .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
@@ -356,7 +356,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   input.getResultClass(),
                   input.getResultType(),
                   dataConverterWithWorkflowContext);
-          return new StartUpdateOutput<R>(result.getUpdateRef(), true, resultValue);
+          return new CompletedUpdateHandleImpl<>(
+              result.getUpdateRef().getUpdateId(),
+              result.getUpdateRef().getWorkflowExecution(),
+              resultValue);
         case FAILURE:
           throw new WorkflowUpdateException(
               result.getUpdateRef().getWorkflowExecution(),
@@ -370,7 +373,20 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   + result.getOutcome().getValueCase());
       }
     } else {
-      return new StartUpdateOutput<R>(result.getUpdateRef(), false, null);
+      LazyUpdateHandleImpl<R> handle =
+          new LazyUpdateHandleImpl<>(
+              this,
+              input.getWorkflowType().orElse(null),
+              input.getUpdateName(),
+              result.getUpdateRef().getUpdateId(),
+              result.getUpdateRef().getWorkflowExecution(),
+              input.getResultClass(),
+              input.getResultType());
+      if (waitForStage == WorkflowUpdateStage.COMPLETED.getProto()) {
+        // Don't return the handle until completed, since that's what's been asked for
+        handle.waitCompleted();
+      }
+      return handle;
     }
   }
 

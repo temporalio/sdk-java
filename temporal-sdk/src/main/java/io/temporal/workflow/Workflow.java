@@ -508,6 +508,27 @@ public final class Workflow {
   }
 
   /**
+   * Creates a {@link WorkflowLock} implementation that can be used from workflow code.
+   *
+   * @apiNote The lock returned is not reentrant. If a workflow thread tries to acquire a lock that
+   *     it already holds, the call will block indefinitely.
+   * @return new instance of {@link WorkflowLock}
+   */
+  public static WorkflowLock newWorkflowLock() {
+    return WorkflowInternal.newWorkflowLock();
+  }
+
+  /**
+   * Creates a {@link WorkflowSemaphore} implementation that can be used from workflow code.
+   *
+   * @param permits the given number of permits for the semaphore.
+   * @return new instance of {@link WorkflowSemaphore}
+   */
+  public static WorkflowSemaphore newWorkflowSemaphore(int permits) {
+    return WorkflowInternal.newWorkflowSemaphore(permits);
+  }
+
+  /**
    * Registers an implementation object. The object must implement at least one interface annotated
    * with {@link WorkflowInterface}. All its methods annotated with @{@link SignalMethod}
    * and @{@link QueryMethod} are registered.

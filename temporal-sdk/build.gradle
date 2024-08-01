@@ -36,3 +36,16 @@ task registerNamespace(type: JavaExec) {
 }
 
 test.dependsOn 'registerNamespace'
+
+test {
+    useJUnit {
+        excludeCategories 'io.temporal.worker.IndependentResourceBasedTests'
+    }
+}
+
+task testResourceIndependent(type: Test) {
+    useJUnit {
+        includeCategories 'io.temporal.worker.IndependentResourceBasedTests'
+        maxParallelForks = 1
+    }
+}

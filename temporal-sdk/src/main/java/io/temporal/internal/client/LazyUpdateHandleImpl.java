@@ -18,11 +18,14 @@
  * limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.UpdateHandle;
+import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowServiceException;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -33,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Experimental
-final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
+public final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
 
   private final WorkflowClientCallsInterceptor workflowClientInvoker;
   private final String workflowType;
@@ -44,7 +47,7 @@ final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   private final Type resultType;
   private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> waitCompletedPollCall;
 
-  LazyUpdateHandleImpl(
+  public LazyUpdateHandleImpl(
       WorkflowClientCallsInterceptor workflowClientInvoker,
       String workflowType,
       String updateName,

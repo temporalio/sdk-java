@@ -20,8 +20,7 @@
 
 package io.temporal.testserver.functional.common;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 
 public class TestWorkflows {
   @WorkflowInterface
@@ -46,5 +45,28 @@ public class TestWorkflows {
   public interface PrimitiveChildWorkflow {
     @WorkflowMethod
     void execute();
+  }
+
+  @WorkflowInterface
+  public interface WorkflowWithUpdate {
+    @WorkflowMethod
+    void execute();
+
+    @UpdateMethod
+    void update(UpdateType type);
+
+    @UpdateValidatorMethod(updateName = "update")
+    void updateValidator(UpdateType type);
+
+    @SignalMethod
+    void signal();
+  }
+
+  public enum UpdateType {
+    REJECT,
+    COMPLETE,
+    DELAYED_COMPLETE,
+    BLOCK,
+    FINISH_WORKFLOW,
   }
 }
