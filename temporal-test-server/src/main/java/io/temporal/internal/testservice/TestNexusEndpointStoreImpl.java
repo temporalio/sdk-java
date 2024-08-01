@@ -23,38 +23,40 @@ package io.temporal.internal.testservice;
 import io.grpc.Status;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.api.nexus.v1.EndpointSpec;
-import java.util.List;
-import java.util.SortedMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * TestNexusEndpointStoreImpl is an in-memory implementation of Nexus endpoint CRUD operations for use with
- * the test server. Because conflict resolution is not required, there is no handling for created or updated
- * timestamps.
+ * TestNexusEndpointStoreImpl is an in-memory implementation of Nexus endpoint CRUD operations for
+ * use with the test server. Because conflict resolution is not required, there is no handling for
+ * created or updated timestamps.
  */
 public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
 
   private static final Pattern ENDPOINT_NAME_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
   private final SortedMap<String, Endpoint> endpoints = new ConcurrentSkipListMap<>();
+  private final Set<String> endpointNames = new HashSet<>();
 
   @Override
   public Endpoint createEndpoint(EndpointSpec spec) {
     validateEndpointSpec(spec);
 
+    if (!endpointNames.add(spec.getName())) {
+      throw Status.ALREADY_EXISTS
+          .withDescription("Nexus endpoint already registered with name: " + spec.getName())
+          .asRuntimeException();
+    }
+
     String id = UUID.randomUUID().toString();
-    Endpoint endpoint = Endpoint.newBuilder()
-            .setId(id)
-            .setVersion(1)
-            .setSpec(spec)
-            .build();
+    Endpoint endpoint = Endpoint.newBuilder().setId(id).setVersion(1).setSpec(spec).build();
 
     if (endpoints.putIfAbsent(id, endpoint) != null) {
+      // This should never happen in practice
       throw Status.ALREADY_EXISTS
-          .withDescription("Endpoint already exists with ID: " + id)
+          .withDescription("Nexus endpoint already exists with ID: " + id)
           .asRuntimeException();
     }
 
@@ -77,15 +79,25 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
       throw Status.INVALID_ARGUMENT
           .withDescription(
               "Error updating Nexus endpoint: version mismatch."
-                  + " Expected: " + prev.getVersion()
-                  + " Received: " + version)
+                  + " Expected: "
+                  + prev.getVersion()
+                  + " Received: "
+                  + version)
           .asRuntimeException();
     }
 
-    Endpoint updated = Endpoint.newBuilder(prev)
-            .setVersion(version + 1)
-            .setSpec(spec)
-            .build();
+    if (!prev.getSpec().getName().equals(spec.getName()) && !endpointNames.add(spec.getName())) {
+      throw Status.ALREADY_EXISTS
+          .withDescription(
+              "Error updating Nexus endpoint: "
+                  + "endpoint already registered with updated name: "
+                  + spec.getName())
+          .asRuntimeException();
+    } else {
+      endpointNames.remove(prev.getSpec().getName());
+    }
+
+    Endpoint updated = Endpoint.newBuilder(prev).setVersion(version + 1).setSpec(spec).build();
 
     endpoints.put(id, updated);
     return updated;
@@ -105,8 +117,10 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
       throw Status.INVALID_ARGUMENT
           .withDescription(
               "Error deleting Nexus endpoint: version mismatch."
-                  + " Expected " + existing.getVersion()
-                  + " Received: " + version)
+                  + " Expected "
+                  + existing.getVersion()
+                  + " Received: "
+                  + version)
           .asRuntimeException();
     }
 
@@ -129,14 +143,17 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
     if (name != null && !name.isEmpty()) {
       return endpoints.values().stream()
           .filter(ep -> ep.getSpec().getName().equals(name))
+          .limit(1)
           .collect(Collectors.toList());
     }
 
-    String lastID = new String(nextPageToken);
-    return endpoints.tailMap(lastID).values().stream()
-        .skip(1)
-        .limit(pageSize)
-        .collect(Collectors.toList());
+    if (nextPageToken.length > 0) {
+      return endpoints.tailMap(new String(nextPageToken)).values().stream()
+          .skip(1)
+          .limit(pageSize)
+          .collect(Collectors.toList());
+    }
+    return endpoints.values().stream().limit(pageSize).collect(Collectors.toList());
   }
 
   @Override

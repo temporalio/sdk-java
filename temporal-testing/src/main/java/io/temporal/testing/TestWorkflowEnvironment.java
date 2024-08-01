@@ -24,6 +24,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.serviceclient.OperatorServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
@@ -169,6 +170,11 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @return {@link WorkflowServiceStubs} connected to the test server (in-memory or external)
    */
   WorkflowServiceStubs getWorkflowServiceStubs();
+
+  /**
+   * @return {@link io.temporal.serviceclient.OperatorServiceStubs} connected to the test server
+   */
+  OperatorServiceStubs getOperatorServiceStubs();
 
   String getNamespace();
 

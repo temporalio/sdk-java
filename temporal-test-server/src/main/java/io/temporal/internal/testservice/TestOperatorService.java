@@ -20,6 +20,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -161,8 +162,15 @@ final class TestOperatorService extends OperatorServiceGrpc.OperatorServiceImplB
       List<Endpoint> endpoints =
           nexusEndpointStore.listEndpoints(
               request.getPageSize(), request.getNextPageToken().toByteArray(), request.getName());
+      ByteString nextPageToken =
+          (!endpoints.isEmpty() && endpoints.size() == request.getPageSize())
+              ? endpoints.get(endpoints.size() - 1).getIdBytes()
+              : ByteString.empty();
       responseObserver.onNext(
-          ListNexusEndpointsResponse.newBuilder().addAllEndpoints(endpoints).build());
+          ListNexusEndpointsResponse.newBuilder()
+              .addAllEndpoints(endpoints)
+              .setNextPageToken(nextPageToken)
+              .build());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       handleStatusRuntimeException(e, responseObserver);
