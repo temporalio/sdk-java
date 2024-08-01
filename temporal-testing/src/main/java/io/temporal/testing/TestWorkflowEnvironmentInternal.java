@@ -83,6 +83,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       this.workflowServiceStubs =
           WorkflowServiceStubs.newServiceStubs(
               stubsOptionsBuilder.setTarget(testEnvironmentOptions.getTarget()).build());
+      this.operatorServiceStubs = OperatorServiceStubs.newServiceStubs(
+          OperatorServiceStubsOptions.newBuilder(stubsOptionsBuilder.build())
+              .setChannel(workflowServiceStubs.getRawChannel()).build());
       this.testServiceStubs = null;
       this.timeLockingInterceptor = null;
       this.constructorTimeLock = null;
@@ -97,6 +100,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
               .setTarget(null)
               .validateAndBuildWithDefaults();
       this.workflowServiceStubs = WorkflowServiceStubs.newServiceStubs(workflowServiceStubsOptions);
+      this.operatorServiceStubs =
+              OperatorServiceStubs.newServiceStubs(
+                      OperatorServiceStubsOptions.newBuilder()
+                              .setChannel(workflowServiceStubs.getRawChannel())
+                              .validateAndBuildWithDefaults());
       this.testServiceStubs =
           TestServiceStubs.newServiceStubs(
               TestServiceStubsOptions.newBuilder(workflowServiceStubsOptions)
@@ -114,12 +122,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         this.constructorTimeLock = null;
       }
     }
-
-    this.operatorServiceStubs =
-        OperatorServiceStubs.newServiceStubs(
-            OperatorServiceStubsOptions.newBuilder()
-                .setChannel(workflowServiceStubs.getRawChannel())
-                .validateAndBuildWithDefaults());
 
     WorkflowClient client =
         WorkflowClient.newInstance(this.workflowServiceStubs, this.workflowClientOptions);
