@@ -87,7 +87,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
           OperatorServiceStubs.newServiceStubs(
               OperatorServiceStubsOptions.newBuilder()
                   .setTarget(testEnvironmentOptions.getTarget())
-                  .setChannel(workflowServiceStubs.getRawChannel())
                   .validateAndBuildWithDefaults());
       this.testServiceStubs = null;
       this.timeLockingInterceptor = null;
