@@ -355,8 +355,8 @@ public final class Workflow {
    * Returns information about current workflow update.
    *
    * <p>Note: Should only be called within the context of an update handler thread in a workflow.
-   * Will return an empty Optional if called outside an update handler thread inside a workflow context. Will throw
-   * an error if called outside a workflow context.
+   * Will return an empty Optional if called outside an update handler thread inside a workflow
+   * context. Will throw an error if called outside a workflow context.
    *
    * @return current workflow update info.
    */
