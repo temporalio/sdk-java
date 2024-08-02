@@ -623,6 +623,10 @@ public final class WorkflowInternal {
     return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
+  public static Optional<UpdateInfo> getCurrentUpdateInfo() {
+    return getRootWorkflowContext().getCurrentUpdateInfo();
+  }
+
   public static Scope getMetricsScope() {
     return getRootWorkflowContext().getMetricsScope();
   }

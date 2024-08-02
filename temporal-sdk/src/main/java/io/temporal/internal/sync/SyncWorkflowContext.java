@@ -68,14 +68,8 @@ import io.temporal.internal.statemachines.*;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.CancellationScope;
-import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.Functions;
+import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
@@ -124,6 +118,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private LocalActivityOptions defaultLocalActivityOptions = null;
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
   private boolean readOnly = false;
+  private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -1273,6 +1268,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
 
     return contextData;
+  }
+
+  public void setCurrentUpdateInfo(UpdateInfo updateInfo) {
+    currentUpdateInfo.set(updateInfo);
+  }
+
+  public Optional<UpdateInfo> getCurrentUpdateInfo() {
+    return Optional.ofNullable(currentUpdateInfo.get());
   }
 
   /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */
