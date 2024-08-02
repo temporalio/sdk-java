@@ -22,6 +22,7 @@ package io.temporal.testserver.functional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeFalse;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
@@ -36,11 +37,21 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class NexusEndpointTest {
   @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
+
+  @Before
+  public void checkExternal() {
+    // TODO: remove this skip once 1.25.0 is officially released and
+    // https://github.com/temporalio/sdk-java/issues/2165 is resolved
+    assumeFalse(
+        "Nexus APIs are not supported for server versions < 1.25.0",
+        testWorkflowRule.isUseExternalService());
+  }
 
   @Test
   public void testValidateEndpointSpec() {
