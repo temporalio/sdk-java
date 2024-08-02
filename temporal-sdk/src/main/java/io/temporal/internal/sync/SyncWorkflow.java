@@ -39,6 +39,7 @@ import io.temporal.internal.statemachines.UpdateProtocolCallback;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.UpdateInfo;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -151,38 +152,45 @@ class SyncWorkflow implements ReplayWorkflow {
   @Override
   public void handleUpdate(
       String updateName,
+      String updateId,
       Optional<Payloads> input,
       long eventId,
       Header header,
       UpdateProtocolCallback callbacks) {
+    final UpdateInfo updateInfo = new UpdateInfoImpl(updateName, updateId);
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
-          // Skip validator on replay
-          if (!callbacks.isReplaying()) {
-            try {
-              workflowContext.setReadOnly(true);
-              workflowProc.handleValidateUpdate(updateName, input, eventId, header);
-            } catch (ReadOnlyException r) {
-              // Rethrow instead on rejecting the update to fail the WFT
-              throw r;
-            } catch (Exception e) {
-              callbacks.reject(
-                  workflowContext
-                      .getDataConverterWithCurrentWorkflowContext()
-                      .exceptionToFailure(e));
-              return;
-            } finally {
-              workflowContext.setReadOnly(false);
-            }
-          }
-          callbacks.accept();
           try {
-            Optional<Payloads> result =
-                workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
-            callbacks.complete(result, null);
-          } catch (WorkflowExecutionException e) {
-            callbacks.complete(Optional.empty(), e.getFailure());
+            workflowContext.setCurrentUpdateInfo(updateInfo);
+            // Skip validator on replay
+            if (!callbacks.isReplaying()) {
+              try {
+                workflowContext.setReadOnly(true);
+                workflowProc.handleValidateUpdate(updateName, input, eventId, header);
+              } catch (ReadOnlyException r) {
+                // Rethrow instead on rejecting the update to fail the WFT
+                throw r;
+              } catch (Exception e) {
+                callbacks.reject(
+                    workflowContext
+                        .getDataConverterWithCurrentWorkflowContext()
+                        .exceptionToFailure(e));
+                return;
+              } finally {
+                workflowContext.setReadOnly(false);
+              }
+            }
+            callbacks.accept();
+            try {
+              Optional<Payloads> result =
+                  workflowProc.handleExecuteUpdate(updateName, input, eventId, header);
+              callbacks.complete(result, null);
+            } catch (WorkflowExecutionException e) {
+              callbacks.complete(Optional.empty(), e.getFailure());
+            }
+          } finally {
+            workflowContext.setCurrentUpdateInfo(null);
           }
         });
   }

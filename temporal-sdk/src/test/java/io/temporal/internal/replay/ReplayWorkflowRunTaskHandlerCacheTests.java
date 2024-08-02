@@ -299,6 +299,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
           @Override
           public void handleUpdate(
               String updateName,
+              String updateId,
               Optional<Payloads> input,
               long eventId,
               Header header,
