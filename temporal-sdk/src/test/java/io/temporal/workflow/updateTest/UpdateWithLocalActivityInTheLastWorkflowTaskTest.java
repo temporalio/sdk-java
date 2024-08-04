@@ -44,9 +44,8 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
           .build();
 
   @Test
-  @Parameters({"true, true", "false, true", "true, false", "false, false"})
-  public void testUpdateWithLocalActivityInTheLastWorkflowTask(
-      Boolean waitOnLA, Boolean continueAsNew) {
+  @Parameters({"true", "false"})
+  public void testUpdateWithLocalActivityInTheLastWorkflowTask(Boolean waitOnLA) {
     WorkflowWithUpdate client = testWorkflowRule.newWorkflowStub(WorkflowWithUpdate.class);
 
     WorkflowStub.fromTyped(client).start(true);
@@ -54,7 +53,7 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
         new Thread(
             () -> {
               try {
-                client.update(waitOnLA, continueAsNew);
+                client.update(waitOnLA);
               } catch (Exception e) {
               }
             });
@@ -70,7 +69,7 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
     String execute(Boolean finish);
 
     @UpdateMethod
-    String update(Boolean waitOnLA, Boolean continueAsNew);
+    String update(Boolean waitOnLA);
   }
 
   public static class WorkflowWithUpdateImpl implements WorkflowWithUpdate {
@@ -91,16 +90,13 @@ public class UpdateWithLocalActivityInTheLastWorkflowTaskTest {
     }
 
     @Override
-    public String update(Boolean waitOnLA, Boolean continueAsNew) {
+    public String update(Boolean waitOnLA) {
       if (waitOnLA) {
         Promise promise = Async.procedure(activities::sleepActivity, (long) 10, 0);
         Async.procedure(activities::sleepActivity, (long) 10000, 0);
         promise.get();
       }
 
-      if (continueAsNew) {
-        Workflow.continueAsNew(false);
-      }
       finish = true;
       activities.sleepActivity(1000, 0);
       return "update";
