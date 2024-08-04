@@ -20,6 +20,8 @@
 
 package io.temporal.client.schedules;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -27,6 +29,7 @@ import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -38,6 +41,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -49,7 +53,6 @@ public class ScheduleTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ScheduleTest.QuickWorkflowImpl.class)
-          .setUseExternalService(true)
           .build();
 
   private ScheduleClient createScheduleClient(ScheduleClientInterceptor... interceptors) {
@@ -92,10 +95,10 @@ public class ScheduleTest {
                 .build());
   }
 
-  //  @Before
-  //  public void checkRealServer() {
-  //    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  //  }
+  @Before
+  public void checkRealServer() {
+    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+  }
 
   @Test
   public void createSchedule() {
@@ -410,14 +413,15 @@ public class ScheduleTest {
   }
 
   @Test
-  public void updateSchedules() throws InterruptedException {
+  public void updateSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
+    String keywordSAValue = "keyword";
     ScheduleOptions options =
         ScheduleOptions.newBuilder()
             .setMemo(Collections.singletonMap("memokey2", "memoval2"))
             .setTypedSearchAttributes(
-                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "keyword").build())
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, keywordSAValue).build())
             .build();
     String scheduleId = UUID.randomUUID().toString();
     Schedule schedule = createTestSchedule().build();
@@ -481,13 +485,32 @@ public class ScheduleTest {
     //
     Assert.assertNotEquals(expectedUpdateTime, description.getInfo().getLastUpdatedAt());
     Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    Assert.assertEquals(1, description.getTypedSearchAttributes().size());
+    Assert.assertEquals(
+        keywordSAValue, description.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
     // Update the schedule search attribute by clearing them
     handle.update(
         (ScheduleUpdateInput input) ->
             new ScheduleUpdate(input.getDescription().getSchedule(), SearchAttributes.EMPTY));
-    Thread.sleep(1000);
-    description = handle.describe();
-    Assert.assertEquals(0, description.getTypedSearchAttributes().size());
+    Eventually.assertEventually(
+        Duration.ofSeconds(1),
+        () -> {
+          ScheduleDescription desc = handle.describe();
+          Assert.assertEquals(0, desc.getTypedSearchAttributes().size());
+        });
+    // Update the schedule search attribute by adding a new search attribute
+    handle.update(
+        (ScheduleUpdateInput input) ->
+            new ScheduleUpdate(
+                input.getDescription().getSchedule(),
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "newkeyword").build()));
+    Eventually.assertEventually(
+        Duration.ofSeconds(1),
+        () -> {
+          ScheduleDescription desc = handle.describe();
+          Assert.assertEquals(1, desc.getTypedSearchAttributes().size());
+          Assert.assertEquals("newkeyword", desc.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
+        });
     // Cleanup schedule
     handle.delete();
   }
