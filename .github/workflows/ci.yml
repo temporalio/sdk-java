@@ -147,3 +147,15 @@ jobs:
     
     - name: Run copyright and code format checks
       run: ./gradlew --no-daemon checkLicenseMain checkLicenses spotlessCheck
+
+
+  omes-image-build:
+    uses: temporalio/omes/.github/workflows/docker-images.yml@main
+    secrets: inherit
+    with:
+      lang: java
+      sdk-repo-url: ${{ github.event.pull_request.head.repo.full_name || 'temporalio/sdk-java' }}
+      sdk-repo-ref: ${{ github.event.pull_request.head.ref || github.ref }}
+      # TODO: Remove once we have a good way of cleaning up sha-based pushed images
+      docker-tag-ext: ci-latest
+      do-push: true
