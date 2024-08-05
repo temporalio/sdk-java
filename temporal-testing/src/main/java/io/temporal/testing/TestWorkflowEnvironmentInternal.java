@@ -230,6 +230,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
+  public OperatorServiceStubs getOperatorServiceStubs() {
+    return operatorServiceStubs;
+  }
+
+  @Override
   public String getNamespace() {
     return workflowClientOptions.getNamespace();
   }
