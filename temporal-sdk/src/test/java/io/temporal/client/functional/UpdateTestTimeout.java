@@ -27,17 +27,13 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Stopwatch;
-import io.temporal.client.UpdateHandle;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowStub;
-import io.temporal.client.WorkflowUpdateStage;
+import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -111,7 +107,9 @@ public class UpdateTestTimeout {
     // Verify get throws the correct exception in around the right amount of time
     Stopwatch stopWatch = Stopwatch.createStarted();
     ExecutionException executionException = assertThrows(ExecutionException.class, result::get);
-    assertThat(executionException.getCause(), is(instanceOf(TimeoutException.class)));
+    assertThat(
+        executionException.getCause(),
+        is(instanceOf(WorkflowUpdateTimeoutOrCancelledException.class)));
     stopWatch.stop();
     long elapsedSeconds = stopWatch.elapsed(TimeUnit.SECONDS);
     assertTrue(

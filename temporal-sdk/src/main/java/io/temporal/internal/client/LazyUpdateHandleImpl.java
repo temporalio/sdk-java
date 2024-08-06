@@ -110,12 +110,13 @@ public final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
                   // does not exist or because the update ID does not exist.
                   throw sre;
                 }
+                throw sre;
               } else if (failure instanceof WorkflowException) {
                 throw (WorkflowException) failure;
               } else if (failure instanceof TimeoutException) {
-                throw new CompletionException((TimeoutException) failure);
+                throw new CompletionException(failure);
               }
-              throw new WorkflowServiceException(execution, workflowType, (Throwable) failure);
+              throw new WorkflowServiceException(execution, workflowType, failure);
             });
   }
 
