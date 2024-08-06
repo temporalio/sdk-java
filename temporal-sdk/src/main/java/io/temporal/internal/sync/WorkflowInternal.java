@@ -45,6 +45,7 @@ import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
+import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
@@ -576,6 +577,7 @@ public final class WorkflowInternal {
   public static void continueAsNew(
       @Nullable String workflowType, @Nullable ContinueAsNewOptions options, Object[] args) {
     assertNotReadOnly("continue as new");
+    assertNotInUpdateHandler("ContinueAsNew is not supported in an update handler");
     getWorkflowOutboundInterceptor()
         .continueAsNew(
             new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
@@ -588,6 +590,7 @@ public final class WorkflowInternal {
       Object[] args,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     assertNotReadOnly("continue as new");
+    assertNotInUpdateHandler("ContinueAsNew is not supported in an update handler");
     outboundCallsInterceptor.continueAsNew(
         new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
             workflowType, options, args, Header.empty()));
@@ -757,6 +760,12 @@ public final class WorkflowInternal {
   static void assertNotReadOnly(String action) {
     if (isReadOnly()) {
       throw new ReadOnlyException(action);
+    }
+  }
+
+  static void assertNotInUpdateHandler(String message) {
+    if (getCurrentUpdateInfo().isPresent()) {
+      throw new UnsupportedContinueAsNewRequest(message);
     }
   }
 
