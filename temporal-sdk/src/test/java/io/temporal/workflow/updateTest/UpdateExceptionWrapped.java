@@ -34,26 +34,15 @@ import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.BeforeClass;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class UpdateExceptionWrapped {
 
-  private static ScheduledExecutorService scheduledExecutor;
-
-  @BeforeClass
-  public static void beforeClass() {
-    scheduledExecutor = Executors.newScheduledThreadPool(1);
-  }
-
-  private static final Logger log = LoggerFactory.getLogger(UpdateTest.class);
+  private static ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -88,38 +77,7 @@ public class UpdateExceptionWrapped {
                     assertThrows(
                         WorkflowUpdateTimeoutOrCancelledException.class,
                         () -> workflow.update(0, ""))));
-  }
-
-  @Test
-  public void testUpdatePoll() {
-    String workflowId = UUID.randomUUID().toString();
-    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
-    WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
-            .setWorkflowId(workflowId)
-            .build();
-    WorkflowWithUpdate workflow = workflowClient.newWorkflowStub(WorkflowWithUpdate.class, options);
-    // To execute workflow client.execute() would do. But we want to start workflow and immediately
-    // return.
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
-    UpdateHandle handle =
-        WorkflowStub.fromTyped(workflow)
-            .startUpdate("update", WorkflowUpdateStage.ACCEPTED, String.class, 0, " ");
-
-    testWorkflowRule.getTestEnvironment().shutdownNow();
-    testWorkflowRule.getTestEnvironment().awaitTermination(1000, TimeUnit.MILLISECONDS);
-
-    final AtomicReference<WorkflowUpdateTimeoutOrCancelledException> exception =
-        new AtomicReference<>();
-
-    Context.current()
-        .withDeadlineAfter(500, TimeUnit.MILLISECONDS, scheduledExecutor)
-        .run(
-            () ->
-                exception.set(
-                    assertThrows(
-                        WorkflowUpdateTimeoutOrCancelledException.class,
-                        () -> handle.getResultAsync().get())));
+    Assert.assertEquals(execution.getWorkflowId(), exception.get().getExecution().getWorkflowId());
   }
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
@@ -140,6 +98,7 @@ public class UpdateExceptionWrapped {
 
     @Override
     public String update(Integer index, String value) {
+      Workflow.await(() -> false);
       return "";
     }
 

@@ -31,9 +31,7 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowUpdateException;
-import io.temporal.client.WorkflowUpdateTimeoutOrCancelledException;
+import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -478,17 +476,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 return;
               }
               if ((e instanceof StatusRuntimeException
-                      && ((StatusRuntimeException) e).getStatus().getCode()
-                          == Status.Code.DEADLINE_EXCEEDED)
+                      && (((StatusRuntimeException) e).getStatus().getCode()
+                              == Status.Code.DEADLINE_EXCEEDED
+                          || ((StatusRuntimeException) e).getStatus().getCode()
+                              == Status.Code.CANCELLED))
                   || deadline.isExpired()) {
                 resultCF.completeExceptionally(
-                    new TimeoutException(
-                        "WorkflowId="
-                            + request.getUpdateRef().getWorkflowExecution().getWorkflowId()
-                            + ", runId="
-                            + request.getUpdateRef().getWorkflowExecution().getRunId()
-                            + ", updateId="
-                            + request.getUpdateRef().getUpdateId()));
+                    new WorkflowUpdateTimeoutOrCancelledException(
+                        request.getUpdateRef().getWorkflowExecution(),
+                        request.getUpdateRef().getUpdateId(),
+                        "",
+                        e));
               } else if (e != null) {
                 resultCF.completeExceptionally(e);
               } else {
