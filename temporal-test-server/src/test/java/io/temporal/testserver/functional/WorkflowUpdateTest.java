@@ -20,6 +20,8 @@
 
 package io.temporal.testserver.functional;
 
+import static org.junit.Assume.assumeFalse;
+
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
@@ -545,6 +547,9 @@ public class WorkflowUpdateTest {
 
   @Test
   public void getCompletedUpdateOfCompletedWorkflow() {
+    // Assert that we can get and poll a completed update from a completed workflow.
+    assumeFalse("Skipping as real server has a bug", SDKTestWorkflowRule.useExternalService);
+
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
 
