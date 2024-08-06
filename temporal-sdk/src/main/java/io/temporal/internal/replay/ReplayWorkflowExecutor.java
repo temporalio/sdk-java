@@ -121,7 +121,8 @@ final class ReplayWorkflowExecutor {
   }
 
   private void completeWorkflow(@Nullable WorkflowExecutionException failure) {
-    if (log.isWarnEnabled()) {
+    // If the workflow is failed we do not log any warnings about unfinished handlers.
+    if (log.isWarnEnabled() && (failure == null || context.isCancelRequested())) {
       Map<Long, SignalHandlerInfo> runningSignalHandlers =
           workflow.getWorkflowContext().getRunningSignalHandlers();
       List<SignalHandlerInfo> unfinishedSignalHandlers =

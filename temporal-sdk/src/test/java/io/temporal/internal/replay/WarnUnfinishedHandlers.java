@@ -96,19 +96,23 @@ public class WarnUnfinishedHandlers {
     return workflow;
   }
 
-  void assertLogs() {
+  void assertLogs(Boolean expectLogs) {
     List<ILoggingEvent> logsList = listAppender.list;
-    assertEquals(Level.WARN, logsList.get(0).getLevel());
-    assertEquals(unfinishedSignalHandlesWarnMessage, logsList.get(0).getMessage());
-    assertEquals(
-        logsList.get(0).getMDCPropertyMap().get("Signals"),
-        "[SignalHandlerInfo{eventId=5, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=9, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=13, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=17, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=21, name='warningSignalHandler', policy=WARN_AND_ABANDON}]");
+    if (expectLogs) {
+      assertEquals(Level.WARN, logsList.get(0).getLevel());
+      assertEquals(unfinishedSignalHandlesWarnMessage, logsList.get(0).getMessage());
+      assertEquals(
+          logsList.get(0).getMDCPropertyMap().get("Signals"),
+          "[SignalHandlerInfo{eventId=5, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=9, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=13, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=17, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=21, name='warningSignalHandler', policy=WARN_AND_ABANDON}]");
 
-    assertEquals(Level.WARN, logsList.get(1).getLevel());
-    assertEquals(unfinishedUpdateHandlesWarnMessage, logsList.get(1).getMessage());
-    assertEquals(
-        logsList.get(1).getMDCPropertyMap().get("Updates"),
-        "[UpdateHandlerInfo{updateId='0', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='1', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='2', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='3', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='4', name='warningUpdateHandler', policy=WARN_AND_ABANDON}]");
+      assertEquals(Level.WARN, logsList.get(1).getLevel());
+      assertEquals(unfinishedUpdateHandlesWarnMessage, logsList.get(1).getMessage());
+      assertEquals(
+          logsList.get(1).getMDCPropertyMap().get("Updates"),
+          "[UpdateHandlerInfo{updateId='0', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='1', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='2', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='3', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='4', name='warningUpdateHandler', policy=WARN_AND_ABANDON}]");
+    } else {
+      assertEquals(0, logsList.size());
+    }
   }
 
   @Test
@@ -117,16 +121,16 @@ public class WarnUnfinishedHandlers {
     // Try to complete the workflow
     workflow.complete(CompletionMethod.COMPLETE);
     assertEquals(0, workflow.execute());
-    assertLogs();
+    assertLogs(true);
   }
 
   @Test
-  public void warnOnWorkflowFail() {
+  public void doesNotWarnOnWorkflowFail() {
     WorkflowWithDanglingHandlers workflow = setupWorkflow();
     // Try to complete the workflow
     workflow.complete(CompletionMethod.FAIL);
     assertThrows(WorkflowFailedException.class, () -> workflow.execute());
-    assertLogs();
+    assertLogs(false);
   }
 
   @Test
@@ -135,7 +139,7 @@ public class WarnUnfinishedHandlers {
     // Cancel the workflow
     WorkflowStub.fromTyped(workflow).cancel();
     assertThrows(WorkflowFailedException.class, () -> workflow.execute());
-    assertLogs();
+    assertLogs(true);
   }
 
   @Test
@@ -144,7 +148,7 @@ public class WarnUnfinishedHandlers {
     // Request the workflow CAN
     workflow.complete(CompletionMethod.CONTINUE_AS_NEW);
     assertEquals(0, workflow.execute());
-    assertLogs();
+    assertLogs(true);
   }
 
   @WorkflowInterface
