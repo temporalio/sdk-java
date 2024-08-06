@@ -29,6 +29,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
@@ -123,6 +124,9 @@ class WorkflowExecutionHandler {
       io.temporal.api.common.v1.Header header) {
     try {
       return context.handleExecuteUpdate(updateName, input, eventId, new Header(header));
+    } catch (UnsupportedContinueAsNewRequest e) {
+      // Re-throw to fail the workflow task
+      throw e;
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
