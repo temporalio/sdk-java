@@ -20,10 +20,12 @@
 
 package io.temporal.workflow.updateTest;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -66,7 +68,11 @@ public class UpdateContinueAsNewInHandlerTest {
             .setUpdateName("update")
             .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
             .build());
-    assertThrows(WorkflowFailedException.class, () -> stub.getResult(String.class));
+    WorkflowFailedException e =
+        assertThrows(WorkflowFailedException.class, () -> stub.getResult(String.class));
+    assertEquals(
+        "io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest",
+        ((ApplicationFailure) e.getCause()).getType());
   }
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
