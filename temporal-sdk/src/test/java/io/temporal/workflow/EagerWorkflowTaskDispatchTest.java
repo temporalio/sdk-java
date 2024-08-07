@@ -26,6 +26,7 @@ import io.grpc.*;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -40,6 +41,7 @@ import io.temporal.worker.tuning.*;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Rule;
@@ -98,6 +100,7 @@ public class EagerWorkflowTaskDispatchTest {
         workerFactory.newWorker(
             testWorkflowRule.getTaskQueue(),
             WorkerOptions.newBuilder()
+                .setIdentity(workerIdentity)
                 .setWorkerTuner(
                     new CompositeTuner(
                         workflowTaskSlotSupplier,
@@ -126,9 +129,10 @@ public class EagerWorkflowTaskDispatchTest {
                 WorkflowOptions.newBuilder()
                     .setTaskQueue(testWorkflowRule.getTaskQueue())
                     .setDisableEagerExecution(false)
+                    .setWorkflowId(UUID.randomUUID() + "-w1")
                     .build());
     workflowStub1.execute();
-    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager);
+    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager());
     TestWorkflows.NoArgsWorkflow workflowStub2 =
         workerFactory2
             .getWorkflowClient()
@@ -137,9 +141,10 @@ public class EagerWorkflowTaskDispatchTest {
                 WorkflowOptions.newBuilder()
                     .setTaskQueue(testWorkflowRule.getTaskQueue())
                     .setDisableEagerExecution(false)
+                    .setWorkflowId(UUID.randomUUID() + "-w2")
                     .build());
     workflowStub2.execute();
-    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager);
+    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager());
 
     HistoryEvent workflowTaskStartedEvent1 =
         testWorkflowRule.getHistoryEvent(
@@ -289,7 +294,7 @@ public class EagerWorkflowTaskDispatchTest {
 
   private static class StartCallInterceptor implements ClientInterceptor {
 
-    private Boolean wasLastStartEager;
+    private boolean wasLastStartEager;
 
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
@@ -300,12 +305,13 @@ public class EagerWorkflowTaskDispatchTest {
       return next.newCall(method, callOptions);
     }
 
-    public Boolean wasLastStartEager() {
+    public boolean wasLastStartEager() {
+      System.out.println("wasLastStartEager: " + wasLastStartEager);
       return wasLastStartEager;
     }
 
     public void clear() {
-      wasLastStartEager = null;
+      wasLastStartEager = false;
     }
 
     private final class EagerStartSniffingCall<ReqT, RespT>
@@ -318,8 +324,22 @@ public class EagerWorkflowTaskDispatchTest {
       @Override
       public void sendMessage(ReqT message) {
         StartWorkflowExecutionRequest request = (StartWorkflowExecutionRequest) message;
-        wasLastStartEager = request.getRequestEagerExecution();
         super.sendMessage(message);
+      }
+
+      @Override
+      public void start(Listener<RespT> responseListener, Metadata headers) {
+        responseListener =
+            new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(
+                responseListener) {
+              @Override
+              public void onMessage(RespT message) {
+                StartWorkflowExecutionResponse response = (StartWorkflowExecutionResponse) message;
+                wasLastStartEager = response.hasEagerWorkflowTask();
+                super.onMessage(message);
+              }
+            };
+        super.start(responseListener, headers);
       }
     }
   }

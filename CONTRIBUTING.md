@@ -45,7 +45,8 @@ commit messages. Read it, follow it, learn it, love it.
 
 ## Test and Build
 
-Testing and building `sdk-java` requires running temporal docker locally, execute:
+Testing and `sdk-java` by default will use the built-in test server. To run the tests against a real server, you can
+either run the server via docker compose or via the CLI.
 
 ```bash
 curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
@@ -57,11 +58,7 @@ docker-compose up
 Then run all the tests with:
 
 ```bash
+export USE_DOCKER_SERVER=true
+export TEMPORAL_SERVER_ADDRESS=localhost:7233 # or whatever address the server is running on
 ./gradlew test
-```
-
-Build with:
-
-```bash
-./gradlew build
 ```
