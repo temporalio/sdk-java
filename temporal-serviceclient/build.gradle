@@ -61,6 +61,8 @@ sourceSets {
   main {
     proto {
         srcDir 'src/main/protocloud'
+        // TODO(https://github.com/temporalio/api/issues/400): Remove this exclusion once the 3rd party protos are removed.
+        exclude '**/google/**/*'
     }
   }
 }
