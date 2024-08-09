@@ -339,8 +339,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     UpdateWorkflowExecutionLifecycleStage waitForStage = input.getWaitPolicy().getLifecycleStage();
     do {
       Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
-      result = genericClient.update(updateRequest, pollTimeoutDeadline);
-    } while (result.getStage().getNumber() < waitForStage.getNumber()
+      try {
+        result = genericClient.update(updateRequest, pollTimeoutDeadline);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.CANCELLED) {
+          throw new WorkflowUpdateTimeoutOrCancelledException(
+              input.getWorkflowExecution(), input.getUpdateName(), input.getUpdateId(), e);
+        }
+        throw e;
+      }
+
+    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
         && result.getStage().getNumber()
             < UpdateWorkflowExecutionLifecycleStage
                 .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
@@ -466,17 +476,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 return;
               }
               if ((e instanceof StatusRuntimeException
-                      && ((StatusRuntimeException) e).getStatus().getCode()
-                          == Status.Code.DEADLINE_EXCEEDED)
+                      && (((StatusRuntimeException) e).getStatus().getCode()
+                              == Status.Code.DEADLINE_EXCEEDED
+                          || ((StatusRuntimeException) e).getStatus().getCode()
+                              == Status.Code.CANCELLED))
                   || deadline.isExpired()) {
                 resultCF.completeExceptionally(
-                    new TimeoutException(
-                        "WorkflowId="
-                            + request.getUpdateRef().getWorkflowExecution().getWorkflowId()
-                            + ", runId="
-                            + request.getUpdateRef().getWorkflowExecution().getRunId()
-                            + ", updateId="
-                            + request.getUpdateRef().getUpdateId()));
+                    new WorkflowUpdateTimeoutOrCancelledException(
+                        request.getUpdateRef().getWorkflowExecution(),
+                        request.getUpdateRef().getUpdateId(),
+                        "",
+                        e));
               } else if (e != null) {
                 resultCF.completeExceptionally(e);
               } else {
