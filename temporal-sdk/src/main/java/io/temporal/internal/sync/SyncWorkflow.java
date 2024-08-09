@@ -154,8 +154,8 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void handleUpdate(
-      String updateId,
       String updateName,
+      String updateId,
       Optional<Payloads> input,
       long eventId,
       Header header,
