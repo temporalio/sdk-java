@@ -91,7 +91,7 @@ class SignalDispatcher {
         return;
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
-      policy = dynamicSignalHandler.getUnfinishedPolicy();
+      policy = dynamicSignalHandler.getUnfinishedPolicy(signalName);
     } else {
       try {
         args =

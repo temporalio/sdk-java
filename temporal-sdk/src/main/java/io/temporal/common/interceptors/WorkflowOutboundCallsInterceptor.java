@@ -376,6 +376,19 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Type[] genericArgTypes;
     private final Functions.Proc1<Object[]> callback;
 
+    // Kept for backward compatibility
+    public SignalRegistrationRequest(
+        String signalType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> callback) {
+      this.signalType = signalType;
+      this.unfinishedPolicy = HandlerUnfinishedPolicy.WARN_AND_ABANDON;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.callback = callback;
+    }
+
     public SignalRegistrationRequest(
         String signalType,
         HandlerUnfinishedPolicy unfinishedPolicy,

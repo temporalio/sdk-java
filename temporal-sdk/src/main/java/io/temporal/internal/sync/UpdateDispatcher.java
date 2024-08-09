@@ -66,7 +66,7 @@ class UpdateDispatcher {
             "Unknown update name: " + updateName + ", knownTypes=" + updateCallbacks.keySet());
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
-      policy = dynamicUpdateHandler.getUnfinishedPolicy();
+      policy = dynamicUpdateHandler.getUnfinishedPolicy(updateName);
     } else {
       args =
           dataConverterWithWorkflowContext.fromPayloads(
@@ -94,7 +94,7 @@ class UpdateDispatcher {
             "Unknown update name: " + updateName + ", knownTypes=" + updateCallbacks.keySet());
       }
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
-      policy = dynamicUpdateHandler.getUnfinishedPolicy();
+      policy = dynamicUpdateHandler.getUnfinishedPolicy(updateName);
     } else {
       args =
           dataConverterWithWorkflowContext.fromPayloads(
