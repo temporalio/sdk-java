@@ -34,12 +34,7 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -71,6 +66,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       activityTaskQueues = new HashMap<>();
   private final Map<TaskQueueId, TaskQueue<PollWorkflowTaskQueueResponse.Builder>>
       workflowTaskQueues = new HashMap<>();
+  private final Map<TaskQueueId, TaskQueue<PollNexusTaskQueueResponse.Builder>> nexusTaskQueues =
+      new HashMap<>();
   private final SelfAdvancingTimer selfAdvancingTimer;
 
   private static class HistoryStore {
@@ -233,6 +230,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     }
 
+    List<NexusTask> nexusTasks = ctx.getNexusTasks();
+    if (nexusTasks != null) {
+      for (NexusTask nexusTask : nexusTasks) {
+        TaskQueue<PollNexusTaskQueueResponse.Builder> nexusTaskQueue =
+            getNexusTaskQueueQueue(nexusTask.getTaskQueueId());
+        nexusTaskQueue.add(nexusTask.getTask());
+      }
+    }
+
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
@@ -304,6 +310,22 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
   }
 
+  private TaskQueue<PollNexusTaskQueueResponse.Builder> getNexusTaskQueueQueue(
+      TaskQueueId taskQueueId) {
+    lock.lock();
+    try {
+      TaskQueue<PollNexusTaskQueueResponse.Builder> nexusTaskQueue =
+          nexusTaskQueues.get(taskQueueId);
+      if (nexusTaskQueue == null) {
+        nexusTaskQueue = new TaskQueue<>();
+        nexusTaskQueues.put(taskQueueId, nexusTaskQueue);
+      }
+      return nexusTaskQueue;
+    } finally {
+      lock.unlock();
+    }
+  }
+
   @Override
   public Future<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest) {
@@ -318,6 +340,14 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     final TaskQueueId taskQueueId =
         new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
     return getActivityTaskQueueQueue(taskQueueId).poll();
+  }
+
+  @Override
+  public Future<PollNexusTaskQueueResponse.Builder> pollNexusTaskQueue(
+      PollNexusTaskQueueRequest pollRequest) {
+    final TaskQueueId taskQueueId =
+        new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
+    return getNexusTaskQueueQueue(taskQueueId).poll();
   }
 
   @Override

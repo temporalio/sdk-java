@@ -23,12 +23,7 @@ package io.temporal.internal.testservice;
 import com.google.protobuf.Timestamp;
 import io.grpc.Deadline;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -136,6 +131,24 @@ interface TestWorkflowStore {
     }
   }
 
+  class NexusTask {
+    private final TaskQueueId taskQueueId;
+    private final PollNexusTaskQueueResponse.Builder task;
+
+    public NexusTask(TaskQueueId taskQueueId, PollNexusTaskQueueResponse.Builder task) {
+      this.taskQueueId = taskQueueId;
+      this.task = task;
+    }
+
+    public TaskQueueId getTaskQueueId() {
+      return taskQueueId;
+    }
+
+    public PollNexusTaskQueueResponse.Builder getTask() {
+      return task;
+    }
+  }
+
   Timestamp currentTime();
 
   long save(RequestContext requestContext);
@@ -155,6 +168,9 @@ interface TestWorkflowStore {
    */
   Future<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest);
+
+  Future<PollNexusTaskQueueResponse.Builder> pollNexusTaskQueue(
+      PollNexusTaskQueueRequest pollRequest);
 
   void sendQueryTask(
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);

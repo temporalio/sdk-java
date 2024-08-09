@@ -111,6 +111,12 @@ interface TestWorkflowMutableState {
 
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIdRequest canceledRequest);
 
+  void startNexusTask(long scheduledEventId, RespondNexusTaskCompletedRequest request);
+
+  void completeNexusTask(long scheduledEventId, RespondNexusTaskCompletedRequest request);
+
+  void failNexusTask(long scheduledEventId, RespondNexusTaskFailedRequest request);
+
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 
   UpdateWorkflowExecutionResponse updateWorkflowExecution(

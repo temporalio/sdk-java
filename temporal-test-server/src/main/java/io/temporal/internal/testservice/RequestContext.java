@@ -124,6 +124,7 @@ final class RequestContext {
   // If an eager dispatch was performed, it should be reset to null
   private WorkflowTask workflowTaskForMatching;
   private final List<ActivityTask> activityTasks = new ArrayList<>();
+  private final List<TestWorkflowStore.NexusTask> nexusTasks = new ArrayList<>();
   private final List<Timer> timers = new ArrayList<>();
   private long workflowCompletedAtEventId = -1;
   private boolean needWorkflowTask;
@@ -157,6 +158,7 @@ final class RequestContext {
 
   void add(RequestContext ctx) {
     this.activityTasks.addAll(ctx.getActivityTasks());
+    this.nexusTasks.addAll(ctx.getNexusTasks());
     this.timers.addAll(ctx.getTimers());
     this.events.addAll(ctx.getEvents());
   }
@@ -252,6 +254,10 @@ final class RequestContext {
     this.activityTasks.add(activityTask);
   }
 
+  void addNexusTask(TestWorkflowStore.NexusTask nexusTask) {
+    this.nexusTasks.add(nexusTask);
+  }
+
   /**
    * @return cancellation handle
    */
@@ -267,6 +273,10 @@ final class RequestContext {
 
   List<ActivityTask> getActivityTasks() {
     return activityTasks;
+  }
+
+  List<TestWorkflowStore.NexusTask> getNexusTasks() {
+    return nexusTasks;
   }
 
   List<HistoryEvent> getEvents() {
