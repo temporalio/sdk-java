@@ -80,6 +80,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final TestWorkflowStore store;
   private final TestVisibilityStore visibilityStore;
+  private final TestNexusEndpointStore nexusEndpointStore;
   private final SelfAdvancingTimer selfAdvancingTimer;
 
   private final ScheduledExecutorService backgroundScheduler =
@@ -92,9 +93,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   TestWorkflowService(
       TestWorkflowStore store,
       TestVisibilityStore visibilityStore,
+      TestNexusEndpointStore nexusEndpointStore,
       SelfAdvancingTimer selfAdvancingTimer) {
     this.store = store;
     this.visibilityStore = visibilityStore;
+    this.nexusEndpointStore = nexusEndpointStore;
     this.selfAdvancingTimer = selfAdvancingTimer;
     this.outOfProcessServer = null;
     this.inProcessServer = null;
@@ -355,6 +358,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             this,
             store,
             visibilityStore,
+            nexusEndpointStore,
             selfAdvancingTimer);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(namespace, execution);
@@ -734,6 +738,70 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       mutableState.cancelActivityTaskById(canceledRequest.getActivityId(), canceledRequest);
       responseObserver.onNext(RespondActivityTaskCanceledByIdResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
+  public void pollNexusTaskQueue(
+      PollNexusTaskQueueRequest request,
+      StreamObserver<PollNexusTaskQueueResponse> responseObserver) {
+    try (Context.CancellableContext ctx = deadlineCtx(getLongPollDeadline())) {
+
+      PollNexusTaskQueueResponse.Builder task;
+      try {
+        task = pollTaskQueue(ctx, store.pollNexusTaskQueue(request));
+      } catch (ExecutionException e) {
+        responseObserver.onError(e);
+        return;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        responseObserver.onNext(PollNexusTaskQueueResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+        return;
+      } catch (CancellationException e) {
+        responseObserver.onNext(PollNexusTaskQueueResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+        return;
+      }
+
+      responseObserver.onNext(task.build());
+      responseObserver.onCompleted();
+    }
+  }
+
+  @Override
+  public void respondNexusTaskCompleted(
+      RespondNexusTaskCompletedRequest request,
+      StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {
+    try {
+      NexusTaskToken taskToken = NexusTaskToken.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
+      if (request.getResponse().hasStartOperation()
+          && request.getResponse().getStartOperation().hasAsyncSuccess()) {
+        // Start event is only recorded for async success
+        mutableState.startNexusTask(taskToken.getScheduledEventId(), request);
+      } else {
+        mutableState.completeNexusTask(taskToken.getScheduledEventId(), request);
+      }
+      responseObserver.onNext(RespondNexusTaskCompletedResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
+  public void respondNexusTaskFailed(
+      RespondNexusTaskFailedRequest request,
+      StreamObserver<RespondNexusTaskFailedResponse> responseObserver) {
+    try {
+      NexusTaskToken taskToken = NexusTaskToken.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
+      mutableState.failNexusTask(taskToken.getScheduledEventId(), request);
+      responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       handleStatusRuntimeException(e, responseObserver);
@@ -1329,6 +1397,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
     store = new TestWorkflowStoreImpl(this.selfAdvancingTimer);
     visibilityStore = new TestVisibilityStoreImpl();
+    nexusEndpointStore = new TestNexusEndpointStoreImpl();
     outOfProcessServer = null;
     if (startInProcessServer) {
       this.inProcessServer = new InProcessGRPCServer(Collections.singletonList(this));
@@ -1366,6 +1435,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     this.selfAdvancingTimer = new SelfAdvancingTimerImpl(0, Clock.systemDefaultZone());
     store = new TestWorkflowStoreImpl(selfAdvancingTimer);
     visibilityStore = new TestVisibilityStoreImpl();
+    nexusEndpointStore = new TestNexusEndpointStoreImpl();
     try {
       ServerBuilder<?> serverBuilder =
           Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());

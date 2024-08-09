@@ -28,9 +28,12 @@ import io.temporal.internal.common.ProtoEnumNameUtils;
 
 class CommandVerifier {
   private final TestVisibilityStore visibilityStore;
+  private final TestNexusEndpointStore nexusEndpointStore;
 
-  public CommandVerifier(TestVisibilityStore visibilityStore) {
+  public CommandVerifier(
+      TestVisibilityStore visibilityStore, TestNexusEndpointStore nexusEndpointStore) {
     this.visibilityStore = visibilityStore;
+    this.nexusEndpointStore = nexusEndpointStore;
   }
 
   InvalidCommandResult verifyCommand(RequestContext ctx, Command d) {
@@ -49,6 +52,25 @@ class CommandVerifier {
                   true);
           return new InvalidCommandResult(
               WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_SEARCH_ATTRIBUTES,
+              eventAttributesFailure,
+              e);
+        }
+      case COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION:
+        try {
+          nexusEndpointStore.getEndpointByName(
+              d.getScheduleNexusOperationCommandAttributes().getEndpoint());
+        } catch (StatusRuntimeException e) {
+          ServerFailure eventAttributesFailure =
+              new ServerFailure(
+                  ProtoEnumNameUtils.uniqueToSimplifiedName(
+                          WorkflowTaskFailedCause
+                              .WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES)
+                      + ": "
+                      + e.getStatus().getDescription(),
+                  true);
+          return new InvalidCommandResult(
+              WorkflowTaskFailedCause
+                  .WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES,
               eventAttributesFailure,
               e);
         }

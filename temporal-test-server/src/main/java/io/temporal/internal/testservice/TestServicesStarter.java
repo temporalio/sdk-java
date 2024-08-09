@@ -51,7 +51,11 @@ public class TestServicesStarter implements Closeable {
     this.testService =
         new TestService(this.workflowStore, this.selfAdvancingTimer, lockTimeSkipping);
     this.workflowService =
-        new TestWorkflowService(this.workflowStore, this.visibilityStore, this.selfAdvancingTimer);
+        new TestWorkflowService(
+            this.workflowStore,
+            this.visibilityStore,
+            this.nexusEndpointStore,
+            this.selfAdvancingTimer);
     this.services = Arrays.asList(this.operatorService, this.testService, this.workflowService);
   }
 
