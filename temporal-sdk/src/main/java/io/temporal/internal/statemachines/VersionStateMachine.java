@@ -45,6 +45,7 @@ final class VersionStateMachine {
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
   @Nullable private Integer version;
+
   /**
    * This variable is used for replay only. When we replay, we look one workflow task ahead and
    * preload all version markers to be able to return from Workflow.getVersion called in the event
@@ -368,6 +369,7 @@ final class VersionStateMachine {
     this.commandSink = Objects.requireNonNull(commandSink);
     this.stateMachineSink = stateMachineSink;
   }
+
   /**
    * Get the version for this state machine.
    *

@@ -31,9 +31,11 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
    * empty result after this server timeout.
    */
   public static final Duration DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT = Duration.ofSeconds(60);
+
   /** Default RPC timeout used for all long poll calls. */
   public static final Duration DEFAULT_POLL_RPC_TIMEOUT =
       DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.plus(Duration.ofSeconds(10));
+
   /** Default RPC timeout for workflow queries */
   public static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
 

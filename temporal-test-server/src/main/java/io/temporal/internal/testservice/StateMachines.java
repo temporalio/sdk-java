@@ -140,10 +140,12 @@ class StateMachines {
     String cronSchedule;
     Payloads lastCompletionResult;
     Optional<Failure> lastFailure;
+
     /**
      * @see WorkflowExecutionStartedEventAttributes#getFirstExecutionRunId()
      */
     final @Nonnull String firstExecutionRunId;
+
     /**
      * @see WorkflowExecutionStartedEventAttributes#getOriginalExecutionRunId()
      */
