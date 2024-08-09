@@ -29,6 +29,7 @@ import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -415,9 +416,12 @@ public class ScheduleTest {
   public void updateSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
+    String keywordSAValue = "keyword";
     ScheduleOptions options =
         ScheduleOptions.newBuilder()
             .setMemo(Collections.singletonMap("memokey2", "memoval2"))
+            .setTypedSearchAttributes(
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, keywordSAValue).build())
             .build();
     String scheduleId = UUID.randomUUID().toString();
     Schedule schedule = createTestSchedule().build();
@@ -469,7 +473,7 @@ public class ScheduleTest {
                   .setAction(input.getDescription().getSchedule().getAction())
                   .setSpec(ScheduleSpec.newBuilder().build());
           builder.setState(ScheduleState.newBuilder().setPaused(true).build());
-          return new ScheduleUpdate(builder.build());
+          return new ScheduleUpdate(builder.build(), null);
         });
     description = handle.describe();
     //
@@ -481,6 +485,32 @@ public class ScheduleTest {
     //
     Assert.assertNotEquals(expectedUpdateTime, description.getInfo().getLastUpdatedAt());
     Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    Assert.assertEquals(1, description.getTypedSearchAttributes().size());
+    Assert.assertEquals(
+        keywordSAValue, description.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
+    // Update the schedule search attribute by clearing them
+    handle.update(
+        (ScheduleUpdateInput input) ->
+            new ScheduleUpdate(input.getDescription().getSchedule(), SearchAttributes.EMPTY));
+    Eventually.assertEventually(
+        Duration.ofSeconds(1),
+        () -> {
+          ScheduleDescription desc = handle.describe();
+          Assert.assertEquals(0, desc.getTypedSearchAttributes().size());
+        });
+    // Update the schedule search attribute by adding a new search attribute
+    handle.update(
+        (ScheduleUpdateInput input) ->
+            new ScheduleUpdate(
+                input.getDescription().getSchedule(),
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "newkeyword").build()));
+    Eventually.assertEventually(
+        Duration.ofSeconds(1),
+        () -> {
+          ScheduleDescription desc = handle.describe();
+          Assert.assertEquals(1, desc.getTypedSearchAttributes().size());
+          Assert.assertEquals("newkeyword", desc.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
+        });
     // Cleanup schedule
     handle.delete();
   }
