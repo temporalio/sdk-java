@@ -40,7 +40,7 @@ class UpdateDispatcher {
 
   private final DataConverter dataConverterWithWorkflowContext;
   private final Map<String, WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest>
-      updateCallbacks = new LinkedHashMap<>();
+      updateCallbacks = new HashMap<>();
 
   private DynamicUpdateHandler dynamicUpdateHandler;
   private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
