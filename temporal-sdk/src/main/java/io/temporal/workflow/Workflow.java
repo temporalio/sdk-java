@@ -1264,6 +1264,22 @@ public final class Workflow {
     WorkflowInternal.applyLocalActivityOptions(activityTypeToOptions);
   }
 
+  /**
+   * Checks if all update and signal handlers have finished executing.
+   *
+   * <p>Consider waiting on this condition before workflow return or continue-as-new, to prevent
+   * interruption of in-progress handlers by workflow return:
+   *
+   * <pre><code>
+   *    Workflow.await(() -&gt; Workflow.isAllHandlersFinished());
+   *  </pre></code> will eventually have search attributes as:
+   *
+   * @return true if all handlers are finished, false otherwise.
+   */
+  public static boolean isEveryHandlerFinished() {
+    return WorkflowInternal.isEveryHandlerFinished();
+  }
+
   /** Prohibit instantiation. */
   private Workflow() {}
 }

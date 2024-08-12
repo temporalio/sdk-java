@@ -22,6 +22,8 @@ package io.temporal.internal.replay;
 
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.sync.SignalHandlerInfo;
+import io.temporal.internal.sync.UpdateHandlerInfo;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -66,4 +68,8 @@ public interface WorkflowContext {
    * ContextPropagator#getCurrentContext()}
    */
   Map<String, Object> getPropagatedContexts();
+
+  Map<Long, SignalHandlerInfo> getRunningSignalHandlers();
+
+  Map<String, UpdateHandlerInfo> getRunningUpdateHandlers();
 }

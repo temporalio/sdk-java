@@ -33,7 +33,13 @@ import io.temporal.common.converter.EncodedValues;
  *
  * @see DynamicQueryHandler
  * @see DynamicWorkflow
+ * @see DynamicUpdateHandler
  */
 public interface DynamicSignalHandler {
   void handle(String signalName, EncodedValues args);
+
+  /** Returns the actions taken if a workflow exits with a running instance of this handler. */
+  default HandlerUnfinishedPolicy getUnfinishedPolicy(String signalName) {
+    return HandlerUnfinishedPolicy.WARN_AND_ABANDON;
+  }
 }
