@@ -371,16 +371,32 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class SignalRegistrationRequest {
     private final String signalType;
+    private final HandlerUnfinishedPolicy unfinishedPolicy;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
     private final Functions.Proc1<Object[]> callback;
 
+    // Kept for backward compatibility
     public SignalRegistrationRequest(
         String signalType,
         Class<?>[] argTypes,
         Type[] genericArgTypes,
         Functions.Proc1<Object[]> callback) {
       this.signalType = signalType;
+      this.unfinishedPolicy = HandlerUnfinishedPolicy.WARN_AND_ABANDON;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.callback = callback;
+    }
+
+    public SignalRegistrationRequest(
+        String signalType,
+        HandlerUnfinishedPolicy unfinishedPolicy,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> callback) {
+      this.signalType = signalType;
+      this.unfinishedPolicy = unfinishedPolicy;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
       this.callback = callback;
@@ -388,6 +404,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getSignalType() {
       return signalType;
+    }
+
+    public HandlerUnfinishedPolicy getUnfinishedPolicy() {
+      return unfinishedPolicy;
     }
 
     public Class<?>[] getArgTypes() {
@@ -417,19 +437,22 @@ public interface WorkflowOutboundCallsInterceptor {
 
   @Experimental
   final class UpdateRegistrationRequest {
-    private final Functions.Func1<Object[], Object> executeCallback;
-    private final Functions.Proc1<Object[]> validateCallback;
     private final String updateName;
+    private final HandlerUnfinishedPolicy unfinishedPolicy;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
+    private final Functions.Func1<Object[], Object> executeCallback;
+    private final Functions.Proc1<Object[]> validateCallback;
 
     public UpdateRegistrationRequest(
         String updateName,
+        HandlerUnfinishedPolicy unfinishedPolicy,
         Class<?>[] argTypes,
         Type[] genericArgTypes,
         Functions.Proc1<Object[]> validateCallback,
         Functions.Func1<Object[], Object> executeCallback) {
       this.updateName = updateName;
+      this.unfinishedPolicy = unfinishedPolicy;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
       this.validateCallback = validateCallback;
@@ -440,12 +463,8 @@ public interface WorkflowOutboundCallsInterceptor {
       return updateName;
     }
 
-    public Functions.Proc1<Object[]> getValidateCallback() {
-      return validateCallback;
-    }
-
-    public Functions.Func1<Object[], Object> getExecuteCallback() {
-      return executeCallback;
+    public HandlerUnfinishedPolicy getUnfinishedPolicy() {
+      return unfinishedPolicy;
     }
 
     public Class<?>[] getArgTypes() {
@@ -454,6 +473,14 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Type[] getGenericArgTypes() {
       return genericArgTypes;
+    }
+
+    public Functions.Proc1<Object[]> getValidateCallback() {
+      return validateCallback;
+    }
+
+    public Functions.Func1<Object[], Object> getExecuteCallback() {
+      return executeCallback;
     }
   }
 

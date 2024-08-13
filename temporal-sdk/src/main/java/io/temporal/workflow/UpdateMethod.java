@@ -43,4 +43,7 @@ public @interface UpdateMethod {
    * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
    */
   String name() default "";
+
+  /** Sets the actions taken if a workflow exits with a running instance of this handler. */
+  HandlerUnfinishedPolicy unfinishedPolicy() default HandlerUnfinishedPolicy.WARN_AND_ABANDON;
 }

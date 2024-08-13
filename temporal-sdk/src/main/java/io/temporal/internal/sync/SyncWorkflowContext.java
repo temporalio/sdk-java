@@ -119,6 +119,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
+  // Map of all running update handlers. Key is the update Id of the update request.
+  private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
+  // Map of all running signal handlers. Key is the event Id of the signal event.
+  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -317,13 +321,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public void handleValidateUpdate(
-      String updateName, Optional<Payloads> input, long eventId, Header header) {
-    updateDispatcher.handleValidateUpdate(updateName, input, eventId, header);
+      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
+    updateDispatcher.handleValidateUpdate(updateName, updateId, input, eventId, header);
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, Optional<Payloads> input, long eventId, Header header) {
-    return updateDispatcher.handleExecuteUpdate(updateName, input, eventId, header);
+      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
+    return updateDispatcher.handleExecuteUpdate(updateName, updateId, input, eventId, header);
   }
 
   public void handleInterceptedValidateUpdate(WorkflowInboundCallsInterceptor.UpdateInput input) {
@@ -342,6 +346,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
     return queryDispatcher.handleQuery(queryName, header, input);
+  }
+
+  public boolean isEveryHandlerFinished() {
+    return updateDispatcher.getRunningUpdateHandlers().isEmpty()
+        && signalDispatcher.getRunningSignalHandlers().isEmpty();
   }
 
   private class ActivityCallback {
@@ -1017,6 +1026,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   void setReadOnly(boolean readOnly) {
     this.readOnly = readOnly;
+  }
+
+  @Override
+  public Map<Long, SignalHandlerInfo> getRunningSignalHandlers() {
+    return signalDispatcher.getRunningSignalHandlers();
+  }
+
+  @Override
+  public Map<String, UpdateHandlerInfo> getRunningUpdateHandlers() {
+    return updateDispatcher.getRunningUpdateHandlers();
   }
 
   @Override
