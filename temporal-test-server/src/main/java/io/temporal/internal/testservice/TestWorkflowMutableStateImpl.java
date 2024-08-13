@@ -732,11 +732,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private ScheduleNexusOperationCommandAttributes validateScheduleNexusOperation(
       ScheduleNexusOperationCommandAttributes attr) {
-    // TODO(pj): implement me
-    return attr;
+    ScheduleNexusOperationCommandAttributes.Builder result =
+        ScheduleNexusOperationCommandAttributes.newBuilder(attr);
+
+    com.google.protobuf.Duration workflowRunTimeout = this.startRequest.getWorkflowRunTimeout();
+
+    if (Durations.compare(attr.getScheduleToCloseTimeout(), Durations.ZERO) <= 0
+        || Durations.compare(attr.getScheduleToCloseTimeout(), workflowRunTimeout) > 0) {
+      result.setScheduleToCloseTimeout(workflowRunTimeout);
+    }
+
+    return result.build();
   }
 
-  // TODO(pj): refactor cancellation to be a separate state machine as implemented in OSS
   private void processRequestCancelNexusOperation(
       RequestContext ctx,
       RequestCancelNexusOperationCommandAttributes attr,
@@ -755,8 +763,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       // request is null here, because it's caused not by a separate cancel request, but by a
       // command
       operation.action(Action.CANCEL, ctx, null, 0);
-      //      nexusOperations.remove(scheduleEventId); // TODO: server doesn't currently remove
-      // operations on terminal state
+      // nexusOperations.remove(scheduleEventId); // TODO(pj): server doesn't currently remove
       ctx.setNeedWorkflowTask(true);
     }
   }
@@ -2058,12 +2065,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
           throwIfOperationTokenDoesntMatch(request.getTaskToken(), operation.getData());
           if (request.getResponse().hasCancelOperation()) {
-            operation.action(Action.REQUEST_CANCELLATION, ctx, request, 0);
+            operation.action(Action.CANCEL, ctx, request, 0);
           } else {
             operation.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           }
-          // nexusOperations.remove(scheduledEventId); // TODO: server currently does not delete on
-          // completion
+          // nexusOperations.remove(scheduledEventId); // TODO(pj): server currently does not delete
           scheduleWorkflowTask(ctx);
           ctx.unlockTimer("completeNexusTask");
         });
@@ -2077,8 +2083,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           throwIfOperationTokenDoesntMatch(request.getTaskToken(), operation.getData());
           operation.action(StateMachines.Action.FAIL, ctx, request, 0);
           if (isTerminalState(operation.getState())) {
-            // nexusOperations.remove(scheduledEventId); // TODO: server currently does not delete
-            // on completion
+            // nexusOperations.remove(scheduledEventId); // TODO(pj): server currently does not
+            // delete
             scheduleWorkflowTask(ctx);
           } else {
             addNexusOperationRetryTimer(ctx, operation);
@@ -2103,7 +2109,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             operation.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);
             if (isTerminalState(operation.getState())) {
-              nexusOperations.remove(scheduledEventId);
+              //              nexusOperations.remove(scheduledEventId); // TODO(pj): server
+              // currently does not delete
               scheduleWorkflowTask(ctx);
             } else {
               addNexusOperationRetryTimer(ctx, operation);
