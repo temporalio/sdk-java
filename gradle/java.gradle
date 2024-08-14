@@ -58,7 +58,7 @@ subprojects {
         }
         forkEvery = 1
 
-        var coresDivider = project.hasProperty("jacoco") ? 4 : 2 // penalize jacoco build to reduce load and random timeouts
+        var coresDivider = 4
         maxParallelForks = Math.max(Runtime.runtime.availableProcessors().intdiv(coresDivider), 1) ?: 1
 
         // Captures the list of failed tests to log after build is done.

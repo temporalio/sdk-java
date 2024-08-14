@@ -260,8 +260,7 @@ public class ScheduleTest {
 
   @Test(timeout = 30000)
   public void backfillSchedules() {
-    // assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-    Instant now = Instant.now();
+    Instant now = Instant.ofEpochSecond(100000);
     ScheduleClient client = createScheduleClient();
     // Create schedule
     ScheduleOptions options =
