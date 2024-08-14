@@ -2444,11 +2444,13 @@ class StateMachines {
 
   static RetryPolicy getDefaultNexusOperationRetryPolicy() {
     return RetryPolicy.newBuilder()
-        .addNonRetryableErrorTypes("BAD_REQUEST")
-        .setInitialInterval(Durations.fromMillis(100))
-        .setMaximumInterval(Durations.fromSeconds(5))
+        .addAllNonRetryableErrorTypes(
+            Arrays.asList(
+                "BAD_REQUEST", "INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
+        .setInitialInterval(Durations.fromSeconds(1))
+        .setMaximumInterval(Durations.fromSeconds(10))
         .setBackoffCoefficient(2.0)
-        .setMaximumAttempts(5)
+        .setMaximumAttempts(10)
         .build();
   }
 }

@@ -20,6 +20,8 @@
 
 package io.temporal.testserver.functional;
 
+import static org.junit.Assume.assumeFalse;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Durations;
 import io.temporal.api.command.v1.Command;
@@ -45,13 +47,23 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class NexusWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).setTestTimeoutSeconds(1000).build();
+      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).build();
+
+  @Before
+  public void checkExternal() {
+    // TODO: remove this skip once 1.25.0 is officially released and
+    // https://github.com/temporalio/sdk-java/issues/2165 is resolved
+    assumeFalse(
+        "Nexus APIs are not supported for server versions < 1.25.0",
+        testWorkflowRule.isUseExternalService());
+  }
 
   @Test
   public void testNexusOperationSyncCompletion() {
