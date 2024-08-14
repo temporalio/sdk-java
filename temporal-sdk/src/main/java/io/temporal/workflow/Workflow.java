@@ -1271,7 +1271,7 @@ public final class Workflow {
    * interruption of in-progress handlers by workflow return:
    *
    * <pre><code>
-   *    Workflow.await(() -&gt; Workflow.isAllHandlersFinished());
+   *    Workflow.await(() -&gt; Workflow.isEveryHandlerFinished());
    *  </pre></code> will eventually have search attributes as:
    *
    * @return true if all handlers are finished, false otherwise.
