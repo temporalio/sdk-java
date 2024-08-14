@@ -42,7 +42,7 @@ public class UpdateAllHandlersFinished {
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestUpdateWorkflowImpl.class).build();
 
   @Test
-  public void isAllHandlersFinished() throws ExecutionException, InterruptedException {
+  public void isEveryHandlerFinished() throws ExecutionException, InterruptedException {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
