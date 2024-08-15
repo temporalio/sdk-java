@@ -228,7 +228,6 @@ public class WorkflowSlotsSmallSizeTests {
     workflow.unblock();
     for (int i = 0; i < 5; i++) {
       parallelSemRunning.acquire(2);
-      System.out.println("!!!!!!!! CHECKING");
       assertIntraWFTSlotCount(2);
       parallelSemBlocked.release(2);
     }
