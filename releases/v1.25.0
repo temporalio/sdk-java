@@ -1,0 +1,27 @@
+# Highlights
+
+## Slot Auto-Tuning (Preview)
+
+Added `WorkerTuner` - this wraps the previously added `SlotSupplier` classes to bring worker tuning options together under one class passed to the WorkerOptions
+    * Added `ResourceBasedTuner` and `ResourceBasedSlotSupplier` - these classes can be used to tune the workers slot count based on available memory and cpu resources. 
+    Set a memory/cpu target and the worker will automatically try to reach those target usage levels.
+    * Added `CompositeTuner` - this allows you to combine different kinds of `SlotSuppliers` to implement `WorkerTuner`.
+
+Please give the resource based tuning a try and let us know how it works for you (feedback on community slack is welcome)! 
+The easiest thing to do is instantiate and pass a `ResourceBasedTuner` to `WorkerOptions`. 
+It'll work best if the worker is the only thing on your host using significant resources. 
+Try setting the thresholds to a reasonable value like 0.8, and make sure that your `JVM -Xmx` value is set appropriately.
+
+Note: Custom Slot Supplier is currently considered experimental and not intended for production use.
+
+## Handler Warnings
+
+Previously if you had a signal handler or update handler that was not complete when the workflow was marked complete,
+it'd silently be ignored/abandoned. Now you will get a warning. Users are encouraged to add
+`Workflow.await(() -> Workflow.isAllHandlersFinished())` to the bottom of their workflow to ensure they
+have no outstanding handlers. If the previous no-warn situation is preferred, the signal/update annotation has a setting
+to just abandon.
+
+# Changeset
+
+
