@@ -22,8 +22,6 @@ package io.temporal.internal.worker;
 
 import static org.junit.Assert.assertEquals;
 
-import com.uber.m3.tally.RootScopeBuilder;
-import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -32,10 +30,8 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.tuning.ActivitySlotInfo;
 import io.temporal.worker.tuning.CompositeTuner;
@@ -66,12 +62,8 @@ public class WorkflowSlotsSmallSizeTests {
       new CountingSlotSupplier<>(MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE);
   private final CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
       new CountingSlotSupplier<>(MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
-  private final TestStatsReporter reporter = new TestStatsReporter();
   static Semaphore parallelSemRunning = new Semaphore(0);
   static Semaphore parallelSemBlocked = new Semaphore(0);
-
-  Scope metricsScope =
-      new RootScopeBuilder().reporter(reporter).reportEvery(com.uber.m3.util.Duration.ofMillis(1));
 
   @Parameterized.Parameter public boolean activitiesAreLocal;
 
@@ -91,7 +83,6 @@ public class WorkflowSlotsSmallSizeTests {
                           activityTaskSlotSupplier,
                           localActivitySlotSupplier))
                   .build())
-          .setMetricsScope(metricsScope)
           .setActivityImplementations(new TestActivitySemaphoreImpl())
           .setWorkflowTypes(ParallelActivities.class)
           .setDoNotStart(true)
@@ -99,7 +90,6 @@ public class WorkflowSlotsSmallSizeTests {
 
   @Before
   public void setup() {
-    reporter.flush();
     parallelSemRunning = new Semaphore(0);
     parallelSemBlocked = new Semaphore(0);
   }
@@ -116,24 +106,9 @@ public class WorkflowSlotsSmallSizeTests {
         localActivitySlotSupplier.releasedCount.get());
   }
 
-  private void assertWorkerSlotCount(int worker, int activity, int localActivity) {
-    try {
-      // There can be a delay in metrics emission, another option if this
-      // is too flaky is to poll the metrics.
-      Thread.sleep(100);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("WorkflowWorker"), worker);
-    // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("ActivityWorker"), activity);
-    // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
-        getWorkerTags("LocalActivityWorker"),
-        localActivity);
+  private void assertCurrentUsedCount(int activity, int localActivity) {
+    assertEquals(activity, activityTaskSlotSupplier.currentUsedSet.size());
+    assertEquals(localActivity, localActivitySlotSupplier.currentUsedSet.size());
   }
 
   @WorkflowInterface
@@ -219,14 +194,11 @@ public class WorkflowSlotsSmallSizeTests {
     int runningLAs = activitiesAreLocal ? allowedToRun : 0;
     int runningAs = activitiesAreLocal ? 0 : allowedToRun;
     int runningWFTs = activitiesAreLocal ? 1 : 0;
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - runningWFTs,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE - runningAs,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - runningLAs);
+    assertCurrentUsedCount(runningAs, runningLAs);
   }
 
   @Test
-  public void TestLocalActivitySlotAtLimit() throws InterruptedException {
+  public void TestActivitySlotAtLimit() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow workflow =
@@ -244,14 +216,11 @@ public class WorkflowSlotsSmallSizeTests {
     }
     workflow.workflow(true);
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertCurrentUsedCount(0, 0);
   }
 
   @Test
-  public void TestLocalActivityShutdownWhileWaitingOnSlot() throws InterruptedException {
+  public void TestActivityShutdownWhileWaitingOnSlot() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow workflow =
@@ -267,14 +236,12 @@ public class WorkflowSlotsSmallSizeTests {
     parallelSemBlocked.release(2);
     testWorkflowRule.getTestEnvironment().getWorkerFactory().awaitTermination(3, TimeUnit.SECONDS);
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    // Used count here is actually -2 since the slots weren't marked used
+    assertCurrentUsedCount(0, 0);
   }
 
   @Test
-  public void TestLocalActivitySlotHitsCapacity() throws InterruptedException {
+  public void TestActivitySlotHitsCapacity() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow workflow =
@@ -301,9 +268,6 @@ public class WorkflowSlotsSmallSizeTests {
     parallelSemBlocked.release(100);
     workflow.workflow(true);
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertCurrentUsedCount(0, 0);
   }
 }
