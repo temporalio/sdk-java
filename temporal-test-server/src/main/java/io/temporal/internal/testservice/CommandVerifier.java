@@ -55,6 +55,7 @@ class CommandVerifier {
               eventAttributesFailure,
               e);
         }
+        break;
       case COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION:
         try {
           nexusEndpointStore.getEndpointByName(
@@ -74,6 +75,7 @@ class CommandVerifier {
               eventAttributesFailure,
               e);
         }
+        break;
     }
     return null;
   }

@@ -90,10 +90,7 @@ class NexusTaskToken {
       out.writeInt(attempt);
       return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
-      throw Status.INVALID_ARGUMENT
-          .withCause(e)
-          .withDescription(e.getMessage())
-          .asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 
@@ -108,7 +105,10 @@ class NexusTaskToken {
       int attempt = in.readInt();
       return new NexusTaskToken(namespace, workflowId, runId, scheduledEventId, attempt);
     } catch (IOException e) {
-      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
+      throw Status.INVALID_ARGUMENT
+          .withCause(e)
+          .withDescription(e.getMessage())
+          .asRuntimeException();
     }
   }
 }
