@@ -35,7 +35,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.tuning.ActivitySlotInfo;
 import io.temporal.worker.tuning.CompositeTuner;
@@ -124,16 +123,9 @@ public class WorkflowSlotsSmallSizeTests {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("WorkflowWorker"), worker);
-    // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE, getWorkerTags("ActivityWorker"), activity);
-    // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
-        getWorkerTags("LocalActivityWorker"),
-        localActivity);
+    assertEquals(worker, workflowTaskSlotSupplier.currentUsedCount.get());
+    assertEquals(activity, activityTaskSlotSupplier.currentUsedCount.get());
+    assertEquals(localActivity, localActivitySlotSupplier.currentUsedCount.get());
   }
 
   @WorkflowInterface
@@ -219,14 +211,11 @@ public class WorkflowSlotsSmallSizeTests {
     int runningLAs = activitiesAreLocal ? allowedToRun : 0;
     int runningAs = activitiesAreLocal ? 0 : allowedToRun;
     int runningWFTs = activitiesAreLocal ? 1 : 0;
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE - runningWFTs,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE - runningAs,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE - runningLAs);
+    assertWorkerSlotCount(runningWFTs, runningAs, runningLAs);
   }
 
   @Test
-  public void TestLocalActivitySlotAtLimit() throws InterruptedException {
+  public void TestActivitySlotAtLimit() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow workflow =
@@ -239,19 +228,17 @@ public class WorkflowSlotsSmallSizeTests {
     workflow.unblock();
     for (int i = 0; i < 5; i++) {
       parallelSemRunning.acquire(2);
+      System.out.println("!!!!!!!! CHECKING");
       assertIntraWFTSlotCount(2);
       parallelSemBlocked.release(2);
     }
     workflow.workflow(true);
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 
   @Test
-  public void TestLocalActivityShutdownWhileWaitingOnSlot() throws InterruptedException {
+  public void TestActivityShutdownWhileWaitingOnSlot() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow workflow =
@@ -267,14 +254,11 @@ public class WorkflowSlotsSmallSizeTests {
     parallelSemBlocked.release(2);
     testWorkflowRule.getTestEnvironment().getWorkerFactory().awaitTermination(3, TimeUnit.SECONDS);
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 
   @Test
-  public void TestLocalActivitySlotHitsCapacity() throws InterruptedException {
+  public void TestActivitySlotHitsCapacity() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow workflow =
@@ -301,9 +285,6 @@ public class WorkflowSlotsSmallSizeTests {
     parallelSemBlocked.release(100);
     workflow.workflow(true);
     // All slots should be available
-    assertWorkerSlotCount(
-        MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-        MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
-        MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+    assertWorkerSlotCount(0, 0, 0);
   }
 }

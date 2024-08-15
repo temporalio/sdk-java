@@ -418,6 +418,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       executionContext.newAttempt();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
 
+      System.out.println("!!!!!!!!!!!!!!!!!! HANDLING AT");
       try {
         // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
         // discard this attempt, this execution is completed.
@@ -442,6 +443,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
         MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
 
+        System.out.println("!!!!! MARKING USED");
         slotSupplier.markSlotUsed(
             new LocalActivitySlotInfo(
                 ActivityPollResponseToInfo.toActivityInfoImpl(

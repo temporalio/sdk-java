@@ -28,6 +28,7 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   public final AtomicInteger reservedCount = new AtomicInteger();
   public final AtomicInteger releasedCount = new AtomicInteger();
   public final AtomicInteger usedCount = new AtomicInteger();
+  public final AtomicInteger currentUsedCount = new AtomicInteger();
 
   public CountingSlotSupplier(int numSlots) {
     super(numSlots);
@@ -52,12 +53,14 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   @Override
   public void markSlotUsed(SlotMarkUsedContext<SI> ctx) {
     usedCount.incrementAndGet();
+    currentUsedCount.incrementAndGet();
     super.markSlotUsed(ctx);
   }
 
   @Override
   public void releaseSlot(SlotReleaseContext<SI> ctx) {
     super.releaseSlot(ctx);
+    currentUsedCount.decrementAndGet();
     releasedCount.incrementAndGet();
   }
 }
