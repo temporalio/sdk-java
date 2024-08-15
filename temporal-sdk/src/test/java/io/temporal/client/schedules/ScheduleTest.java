@@ -266,7 +266,9 @@ public class ScheduleTest {
     ScheduleOptions options =
         ScheduleOptions.newBuilder()
             .setBackfills(
-                Arrays.asList(new ScheduleBackfill(backfillTime.minusMillis(20500), backfillTime.minusMillis(10000))))
+                Arrays.asList(
+                    new ScheduleBackfill(
+                        backfillTime.minusMillis(20500), backfillTime.minusMillis(10000))))
             .build();
     String scheduleId = UUID.randomUUID().toString();
     Schedule schedule =
