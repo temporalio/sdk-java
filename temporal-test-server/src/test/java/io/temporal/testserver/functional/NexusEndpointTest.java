@@ -56,7 +56,7 @@ public class NexusEndpointTest {
   @Test
   public void testValidateEndpointSpec() {
     // Create and Update use same validation logic, so just test once
-    EndpointSpec.Builder specBuilder = getTestEndpointSpecBuilder("valid_name_01");
+    EndpointSpec.Builder specBuilder = getTestEndpointSpecBuilder("valid-name-01");
 
     // Valid
     Endpoint testEndpoint = createTestEndpoint(specBuilder);
@@ -77,11 +77,11 @@ public class NexusEndpointTest {
     assertEquals(
         "Nexus endpoint name ("
             + specBuilder.getName()
-            + ") does not match expected pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$",
+            + ") does not match expected pattern: ^[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9]$",
         ex.getStatus().getDescription());
 
     // Missing target
-    specBuilder.setName("valid_name_02");
+    specBuilder.setName("valid-name-02");
     specBuilder.clearTarget();
     ex = assertThrows(StatusRuntimeException.class, () -> createTestEndpoint(specBuilder));
     assertEquals(Status.Code.INVALID_ARGUMENT, ex.getStatus().getCode());
@@ -100,7 +100,7 @@ public class NexusEndpointTest {
 
   @Test
   public void testCreate() {
-    EndpointSpec.Builder specBuilder = getTestEndpointSpecBuilder("valid_create_test_endpoint");
+    EndpointSpec.Builder specBuilder = getTestEndpointSpecBuilder("valid-create-test-endpoint");
 
     // Valid create
     Endpoint testEndpoint = createTestEndpoint(specBuilder);
@@ -119,7 +119,7 @@ public class NexusEndpointTest {
   @Test
   public void testUpdate() {
     // Setup
-    Endpoint testEndpoint = createTestEndpoint(getTestEndpointSpecBuilder("update_test_endpoint"));
+    Endpoint testEndpoint = createTestEndpoint(getTestEndpointSpecBuilder("update-test-endpoint"));
     assertEquals(1, testEndpoint.getVersion());
     EndpointSpec updatedSpec =
         EndpointSpec.newBuilder(testEndpoint.getSpec())
@@ -172,7 +172,7 @@ public class NexusEndpointTest {
         ex.getStatus().getDescription());
 
     // Updated name already registered
-    EndpointSpec.Builder otherSpec = getTestEndpointSpecBuilder("other_test_endpoint");
+    EndpointSpec.Builder otherSpec = getTestEndpointSpecBuilder("other-test-endpoint");
     createTestEndpoint(otherSpec);
     ex =
         assertThrows(
@@ -214,7 +214,7 @@ public class NexusEndpointTest {
   @Test
   public void testDelete() {
     // Setup
-    Endpoint testEndpoint = createTestEndpoint(getTestEndpointSpecBuilder("delete_test_endpoint"));
+    Endpoint testEndpoint = createTestEndpoint(getTestEndpointSpecBuilder("delete-test-endpoint"));
     assertEquals(1, testEndpoint.getVersion());
 
     // Not found
@@ -276,7 +276,7 @@ public class NexusEndpointTest {
   @Test
   public void testGet() {
     // Setup
-    Endpoint testEndpoint = createTestEndpoint(getTestEndpointSpecBuilder("get_test_endpoint"));
+    Endpoint testEndpoint = createTestEndpoint(getTestEndpointSpecBuilder("get-test-endpoint"));
     assertEquals(1, testEndpoint.getVersion());
 
     // Not found
@@ -311,7 +311,7 @@ public class NexusEndpointTest {
     // Setup
     List<Endpoint> testEndpoints = new ArrayList<>(3);
     for (int i = 0; i < 3; i++) {
-      testEndpoints.add(createTestEndpoint(getTestEndpointSpecBuilder("list_test_endpoint_" + i)));
+      testEndpoints.add(createTestEndpoint(getTestEndpointSpecBuilder("list-test-endpoint-" + i)));
     }
     testEndpoints.sort(Comparator.comparing(Endpoint::getId));
 
@@ -322,7 +322,7 @@ public class NexusEndpointTest {
             .getOperatorServiceStubs()
             .blockingStub()
             .listNexusEndpoints(
-                ListNexusEndpointsRequest.newBuilder().setName("some_missing_name").build());
+                ListNexusEndpointsRequest.newBuilder().setName("some-missing-name").build());
     assertEquals(0, resp.getEndpointsCount());
 
     // List with filter for existing name
