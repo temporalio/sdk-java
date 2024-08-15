@@ -44,25 +44,13 @@ import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
 import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
 
 import com.google.common.base.Preconditions;
-import com.google.protobuf.Any;
-import com.google.protobuf.Duration;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Timestamp;
+import com.google.protobuf.*;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.command.v1.CancelTimerCommandAttributes;
-import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.command.v1.*;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -70,8 +58,13 @@ import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.api.nexus.v1.StartOperationRequest;
+import io.temporal.api.nexus.v1.StartOperationResponse;
+import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -88,6 +81,7 @@ import io.temporal.workflow.Functions;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -346,6 +340,51 @@ class StateMachines {
     }
   }
 
+  static final class NexusOperationData {
+
+    String operationId;
+    Endpoint endpoint;
+    NexusOperationScheduledEventAttributes scheduledEvent;
+    TestWorkflowStore.NexusTask nexusTask;
+
+    long scheduledEventId = NO_EVENT_ID;
+    // TODO(pj): consider refactoring cancellation into its own state machine as part of async work
+    boolean cancelRequested = false;
+
+    TestServiceRetryState retryState;
+    long lastAttemptCompleteTime;
+    Duration nextBackoffInterval;
+    long nextAttemptScheduleTime;
+    String identity;
+
+    public NexusOperationData(Endpoint endpoint) {
+      this.operationId = UUID.randomUUID().toString();
+      this.endpoint = endpoint;
+    }
+
+    public int getAttempt() {
+      return retryState != null ? retryState.getAttempt() : 1;
+    }
+
+    @Override
+    public String toString() {
+      return "NexusOperationData{"
+          + ", nexusEndpoint="
+          + endpoint
+          + ", scheduledEvent="
+          + scheduledEvent
+          + ", nexusTask="
+          + nexusTask
+          + ", scheduledEventId="
+          + scheduledEventId
+          + ", retryState="
+          + retryState
+          + ", nextBackoffInterval="
+          + nextBackoffInterval
+          + '}';
+    }
+  }
+
   static final class SignalExternalData {
     long initiatedEventId = NO_EVENT_ID;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
@@ -568,6 +607,43 @@ class StateMachines {
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
 
+  public static StateMachine<NexusOperationData> newNexusOperation(Endpoint endpoint) {
+    return new StateMachine<>(new NexusOperationData(endpoint))
+        .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
+        .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
+        .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
+        .add(
+            INITIATED,
+            REQUEST_CANCELLATION,
+            CANCELLATION_REQUESTED,
+            StateMachines::requestCancelNexusOperation)
+        // Transitions directly from INITIATED to COMPLETE for sync completions
+        .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
+        .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
+        .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
+        // Transitions to initiated in case of a retry
+        .add(STARTED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failNexusOperation)
+        // Transitions to initiated in case of a retry
+        .add(
+            STARTED,
+            TIME_OUT,
+            new State[] {TIMED_OUT, INITIATED},
+            StateMachines::timeoutNexusOperation)
+        .add(
+            STARTED,
+            REQUEST_CANCELLATION,
+            CANCELLATION_REQUESTED,
+            StateMachines::requestCancelNexusOperation)
+        .add(
+            CANCELLATION_REQUESTED,
+            CANCEL,
+            CANCELED,
+            StateMachines::reportNexusOperationCancellation)
+        .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
+        .add(CANCELLATION_REQUESTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
+        .add(CANCELLATION_REQUESTED, FAIL, FAILED, StateMachines::failNexusOperation);
+  }
+
   public static StateMachine<TimerData> newTimerStateMachine() {
     return new StateMachine<>(new TimerData())
         .add(NONE, START, STARTED, StateMachines::startTimer)
@@ -590,6 +666,301 @@ class StateMachines {
   }
 
   private static <T, A> void noop(RequestContext ctx, T data, A a, long notUsed) {}
+
+  private static void scheduleNexusOperation(
+      RequestContext ctx,
+      NexusOperationData data,
+      ScheduleNexusOperationCommandAttributes attr,
+      long workflowTaskCompletedId) {
+    RetryPolicy retryPolicy = getDefaultNexusOperationRetryPolicy();
+    Duration expirationInterval = attr.getScheduleToCloseTimeout();
+    Timestamp expirationTime = Timestamps.add(ctx.currentTime(), expirationInterval);
+    TestServiceRetryState retryState = new TestServiceRetryState(retryPolicy, expirationTime);
+
+    NexusOperationScheduledEventAttributes.Builder a =
+        NexusOperationScheduledEventAttributes.newBuilder()
+            .setEndpoint(attr.getEndpoint())
+            .setEndpointId(data.endpoint.getId())
+            .setService(attr.getService())
+            .setOperation(attr.getOperation())
+            .setInput(attr.getInput())
+            .setScheduleToCloseTimeout(attr.getScheduleToCloseTimeout())
+            .putAllNexusHeader(attr.getNexusHeaderMap())
+            .setRequestId(UUID.randomUUID().toString())
+            .setWorkflowTaskCompletedEventId(workflowTaskCompletedId);
+
+    data.scheduledEvent = a.build();
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED)
+            .setNexusOperationScheduledEventAttributes(a)
+            .build();
+
+    long scheduledEventId = ctx.addEvent(event);
+    NexusTaskToken taskToken =
+        new NexusTaskToken(ctx.getExecutionId(), scheduledEventId, data.getAttempt());
+
+    PollNexusTaskQueueResponse.Builder pollResponse =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setTaskToken(taskToken.toBytes())
+            .setRequest(
+                io.temporal.api.nexus.v1.Request.newBuilder()
+                    .setScheduledTime(ctx.currentTime())
+                    .putAllHeader(attr.getNexusHeaderMap())
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setService(attr.getService())
+                            .setOperation(attr.getOperation())
+                            .setPayload(attr.getInput())
+                            .setCallback(""))); // TODO(pj): support async operations
+
+    TaskQueueId taskQueueId =
+        new TaskQueueId(
+            ctx.getNamespace(), data.endpoint.getSpec().getTarget().getWorker().getTaskQueue());
+    TestWorkflowStore.NexusTask task = new TestWorkflowStore.NexusTask(taskQueueId, pollResponse);
+
+    // Test server only supports worker targets, so just push directly to Nexus task queue without
+    // invoking Nexus client.
+    ctx.addNexusTask(task);
+    ctx.onCommit(
+        historySize -> {
+          data.scheduledEventId = scheduledEventId;
+          data.nexusTask = task;
+          data.retryState = retryState;
+        });
+  }
+
+  private static void startNexusOperation(
+      RequestContext ctx,
+      NexusOperationData data,
+      RespondNexusTaskCompletedRequest request,
+      long notUsed) {
+    // TODO(pj): support async operations
+  }
+
+  private static void completeNexusOperation(
+      RequestContext ctx, NexusOperationData data, Object request, long notUsed) {
+    if (request instanceof RespondNexusTaskCompletedRequest) {
+      handleSyncStartOperation(
+          ctx,
+          data,
+          ((RespondNexusTaskCompletedRequest) request).getResponse().getStartOperation());
+    } else {
+      // TODO(pj): support async completion
+      throw new IllegalArgumentException("Unknown request: " + request);
+    }
+  }
+
+  private static void handleSyncStartOperation(
+      RequestContext ctx, NexusOperationData data, StartOperationResponse response) {
+    if (response.hasSyncSuccess()) {
+      handleSyncSuccess(ctx, data, response.getSyncSuccess());
+    } else if (response.hasOperationError()) {
+      handleUnsuccessfulOperationError(ctx, data, response.getOperationError());
+    } else {
+      throw new IllegalArgumentException(
+          "Unable to process StartOperationResponse. Expected SyncSuccess or OperationError.");
+    }
+  }
+
+  private static void handleSyncSuccess(
+      RequestContext ctx, NexusOperationData data, StartOperationResponse.Sync response) {
+    ctx.addEvent(
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED)
+            .setNexusOperationCompletedEventAttributes(
+                NexusOperationCompletedEventAttributes.newBuilder()
+                    .setRequestId(data.scheduledEvent.getRequestId())
+                    .setScheduledEventId(data.scheduledEventId)
+                    .setResult(response.getPayload()))
+            .build());
+  }
+
+  private static void handleUnsuccessfulOperationError(
+      RequestContext ctx, NexusOperationData data, UnsuccessfulOperationError err) {
+
+    Failure f =
+        Failure.newBuilder()
+            .setMessage("nexus operation completed unsuccessfully")
+            .setNexusOperationExecutionFailureInfo(
+                NexusOperationFailureInfo.newBuilder()
+                    .setEndpoint(data.endpoint.getSpec().getName())
+                    .setService(data.scheduledEvent.getService())
+                    .setOperation(data.scheduledEvent.getOperation())
+                    .setOperationId(data.operationId)
+                    .setScheduledEventId(data.scheduledEventId))
+            .setCause(nexusFailureToApplicationFailure(err.getFailure()))
+            .build();
+
+    HistoryEvent event;
+    if (data.cancelRequested) {
+      event =
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED)
+              .setNexusOperationCanceledEventAttributes(
+                  NexusOperationCanceledEventAttributes.newBuilder()
+                      .setRequestId(data.scheduledEvent.getRequestId())
+                      .setScheduledEventId(data.scheduledEventId)
+                      .setFailure(f))
+              .build();
+    } else {
+      event =
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_FAILED)
+              .setNexusOperationFailedEventAttributes(
+                  NexusOperationFailedEventAttributes.newBuilder()
+                      .setRequestId(data.scheduledEvent.getRequestId())
+                      .setScheduledEventId(data.scheduledEventId)
+                      .setFailure(f))
+              .build();
+    }
+
+    ctx.addEvent(event);
+  }
+
+  private static State timeoutNexusOperation(
+      RequestContext ctx, NexusOperationData data, TimeoutType timeoutType, long notUsed) {
+    if (timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE) {
+      throw new IllegalArgumentException(
+          "Timeout type not supported for Nexus operations: " + timeoutType);
+    }
+
+    Optional<Failure> previousFailure = data.retryState.getPreviousRunFailure();
+
+    // chaining with the previous run failure if we are preparing the final failure
+    Failure failure = newTimeoutFailure(timeoutType, Optional.empty(), previousFailure);
+
+    // not chaining with the previous run failure if we are preparing the failure to be stored
+    // for the next iteration
+    Optional<Failure> lastFailure =
+        Optional.of(newTimeoutFailure(timeoutType, Optional.empty(), Optional.empty()));
+    RetryState retryState = attemptNexusOperationRetry(ctx, lastFailure, data);
+    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
+      return INITIATED;
+    }
+
+    ctx.addEvent(
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT)
+            .setNexusOperationTimedOutEventAttributes(
+                NexusOperationTimedOutEventAttributes.newBuilder()
+                    .setRequestId(data.scheduledEvent.getRequestId())
+                    .setScheduledEventId(data.scheduledEventId)
+                    .setFailure(failure))
+            .build());
+
+    return TIMED_OUT;
+  }
+
+  private static State failNexusOperation(
+      RequestContext ctx,
+      NexusOperationData data,
+      RespondNexusTaskFailedRequest request,
+      long notUsed) {
+    if (!request.hasError()) {
+      throw new IllegalArgumentException(
+          "Nexus handler error not set on RespondNexusTaskFailedRequest");
+    }
+
+    Failure failure = nexusFailureToApplicationFailure(request.getError().getFailure());
+    RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
+    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
+      return INITIATED;
+    }
+
+    ctx.addEvent(
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_FAILED)
+            .setNexusOperationFailedEventAttributes(
+                NexusOperationFailedEventAttributes.newBuilder()
+                    .setRequestId(data.scheduledEvent.getRequestId())
+                    .setScheduledEventId(data.scheduledEventId)
+                    .setFailure(failure))
+            .build());
+    return FAILED;
+  }
+
+  private static RetryState attemptNexusOperationRetry(
+      RequestContext ctx, Optional<Failure> failure, NexusOperationData data) {
+    Optional<ApplicationFailureInfo> info = failure.map(Failure::getApplicationFailureInfo);
+    Optional<java.time.Duration> nextRetryDelay = Optional.empty();
+    if (info.isPresent()) {
+      if (info.get().getNonRetryable()) {
+        return RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
+      }
+      if (info.get().hasNextRetryDelay()) {
+        nextRetryDelay =
+            Optional.of(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
+      }
+    }
+
+    TestServiceRetryState nextAttempt = data.retryState.getNextAttempt(failure);
+    TestServiceRetryState.BackoffInterval backoffInterval =
+        data.retryState.getBackoffIntervalInSeconds(
+            info.map(ApplicationFailureInfo::getType), ctx.currentTime(), nextRetryDelay);
+    if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
+      data.nextBackoffInterval = ProtobufTimeUtils.toProtoDuration(backoffInterval.getInterval());
+      PollNexusTaskQueueResponse.Builder task = data.nexusTask.getTask();
+      ctx.onCommit(
+          (historySize) -> {
+            data.retryState = nextAttempt;
+            data.nextAttemptScheduleTime = ctx.currentTime().getSeconds();
+          });
+    } else {
+      data.nextBackoffInterval = Durations.ZERO;
+    }
+    return backoffInterval.getRetryState();
+  }
+
+  private static Failure nexusFailureToApplicationFailure(
+      io.temporal.api.nexus.v1.Failure failure) {
+    return Failure.newBuilder()
+        .setMessage(failure.getMessage())
+        .setApplicationFailureInfo(
+            ApplicationFailureInfo.newBuilder()
+                .setType("NexusOperationFailure")
+                .setNonRetryable(true)
+                .setDetails(
+                    Payloads.newBuilder()
+                        .addPayloads(
+                            Payload.newBuilder()
+                                .putAllMetadata(
+                                    failure.getMetadataMap().entrySet().stream()
+                                        .collect(
+                                            Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                e -> ByteString.copyFromUtf8(e.getValue()))))
+                                .setData(failure.getDetails()))))
+        .build();
+  }
+
+  private static void requestCancelNexusOperation(
+      RequestContext ctx,
+      NexusOperationData data,
+      RequestCancelNexusOperationCommandAttributes attr,
+      long workflowTaskCompletedId) {
+    data.cancelRequested = true;
+    ctx.addEvent(
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED)
+            .setNexusOperationCancelRequestedEventAttributes(
+                NexusOperationCancelRequestedEventAttributes.newBuilder()
+                    .setScheduledEventId(attr.getScheduledEventId())
+                    .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
+            .build());
+  }
+
+  private static void reportNexusOperationCancellation(
+      RequestContext ctx, NexusOperationData data, Object request, long notUsed) {
+    ctx.addEvent(
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED)
+            .setNexusOperationCanceledEventAttributes(
+                NexusOperationCanceledEventAttributes.newBuilder()
+                    .setScheduledEventId(data.scheduledEventId)
+                    .setRequestId(data.scheduledEvent.getRequestId()))
+            .build());
+  }
 
   private static void timeoutChildWorkflow(
       RequestContext ctx, ChildWorkflowData data, RetryState retryState, long notUsed) {
@@ -2068,6 +2439,18 @@ class StateMachines {
             originalPolicy.getMaximumAttempts() == 0
                 ? DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS
                 : originalPolicy.getMaximumAttempts())
+        .build();
+  }
+
+  static RetryPolicy getDefaultNexusOperationRetryPolicy() {
+    return RetryPolicy.newBuilder()
+        .addAllNonRetryableErrorTypes(
+            Arrays.asList(
+                "BAD_REQUEST", "INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
+        .setInitialInterval(Durations.fromSeconds(1))
+        .setMaximumInterval(Durations.fromSeconds(10))
+        .setBackoffCoefficient(2.0)
+        .setMaximumAttempts(10)
         .build();
   }
 }

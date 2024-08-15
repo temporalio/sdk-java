@@ -35,6 +35,8 @@ public interface TestNexusEndpointStore extends Closeable {
 
   Endpoint getEndpoint(String id);
 
+  Endpoint getEndpointByName(String name);
+
   List<Endpoint> listEndpoints(long pageSize, byte[] nextPageToken, String name);
 
   void validateEndpointSpec(EndpointSpec spec);

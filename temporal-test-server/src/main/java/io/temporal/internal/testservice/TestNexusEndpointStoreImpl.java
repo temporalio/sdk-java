@@ -24,6 +24,8 @@ import io.grpc.Status;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.api.nexus.v1.EndpointSpec;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,25 +37,26 @@ import java.util.stream.Collectors;
  */
 public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
 
-  private static final Pattern ENDPOINT_NAME_REGEX = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
+  private static final Pattern ENDPOINT_NAME_REGEX =
+      Pattern.compile("^[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9]$");
 
-  private final SortedMap<String, Endpoint> endpoints = new ConcurrentSkipListMap<>();
-  private final Set<String> endpointNames = new HashSet<>();
+  private final SortedMap<String, Endpoint> endpointsById = new ConcurrentSkipListMap<>();
+  private final ConcurrentMap<String, Endpoint> endpointsByName = new ConcurrentHashMap<>();
 
   @Override
   public Endpoint createEndpoint(EndpointSpec spec) {
     validateEndpointSpec(spec);
 
-    if (!endpointNames.add(spec.getName())) {
+    String id = UUID.randomUUID().toString();
+    Endpoint endpoint = Endpoint.newBuilder().setId(id).setVersion(1).setSpec(spec).build();
+
+    if (endpointsByName.putIfAbsent(spec.getName(), endpoint) != null) {
       throw Status.ALREADY_EXISTS
           .withDescription("Nexus endpoint already registered with name: " + spec.getName())
           .asRuntimeException();
     }
 
-    String id = UUID.randomUUID().toString();
-    Endpoint endpoint = Endpoint.newBuilder().setId(id).setVersion(1).setSpec(spec).build();
-
-    if (endpoints.putIfAbsent(id, endpoint) != null) {
+    if (endpointsById.putIfAbsent(id, endpoint) != null) {
       // This should never happen in practice
       throw Status.ALREADY_EXISTS
           .withDescription("Nexus endpoint already exists with ID: " + id)
@@ -67,7 +70,7 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
   public Endpoint updateEndpoint(String id, long version, EndpointSpec spec) {
     validateEndpointSpec(spec);
 
-    Endpoint prev = endpoints.get(id);
+    Endpoint prev = endpointsById.get(id);
 
     if (prev == null) {
       throw Status.NOT_FOUND
@@ -86,7 +89,10 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
           .asRuntimeException();
     }
 
-    if (!prev.getSpec().getName().equals(spec.getName()) && !endpointNames.add(spec.getName())) {
+    Endpoint updated = Endpoint.newBuilder(prev).setVersion(version + 1).setSpec(spec).build();
+
+    if (!prev.getSpec().getName().equals(spec.getName())
+        && endpointsByName.putIfAbsent(spec.getName(), updated) != null) {
       throw Status.ALREADY_EXISTS
           .withDescription(
               "Error updating Nexus endpoint: "
@@ -94,18 +100,16 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
                   + spec.getName())
           .asRuntimeException();
     } else {
-      endpointNames.remove(prev.getSpec().getName());
+      endpointsByName.remove(prev.getSpec().getName());
     }
 
-    Endpoint updated = Endpoint.newBuilder(prev).setVersion(version + 1).setSpec(spec).build();
-
-    endpoints.put(id, updated);
+    endpointsById.put(id, updated);
     return updated;
   }
 
   @Override
   public void deleteEndpoint(String id, long version) {
-    Endpoint existing = endpoints.get(id);
+    Endpoint existing = endpointsById.get(id);
 
     if (existing == null) {
       throw Status.NOT_FOUND
@@ -124,12 +128,13 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
           .asRuntimeException();
     }
 
-    endpoints.remove(id);
+    endpointsById.remove(id);
+    endpointsByName.remove(existing.getSpec().getName());
   }
 
   @Override
   public Endpoint getEndpoint(String id) {
-    Endpoint endpoint = endpoints.get(id);
+    Endpoint endpoint = endpointsById.get(id);
     if (endpoint == null) {
       throw Status.NOT_FOUND
           .withDescription("Could not find Nexus endpoint with ID: " + id)
@@ -139,21 +144,32 @@ public class TestNexusEndpointStoreImpl implements TestNexusEndpointStore {
   }
 
   @Override
+  public Endpoint getEndpointByName(String name) {
+    Endpoint endpoint = endpointsByName.get(name);
+    if (endpoint == null) {
+      throw Status.NOT_FOUND
+          .withDescription("Could not find Nexus endpoint with name: " + name)
+          .asRuntimeException();
+    }
+    return endpoint;
+  }
+
+  @Override
   public List<Endpoint> listEndpoints(long pageSize, byte[] nextPageToken, String name) {
     if (name != null && !name.isEmpty()) {
-      return endpoints.values().stream()
+      return endpointsById.values().stream()
           .filter(ep -> ep.getSpec().getName().equals(name))
           .limit(1)
           .collect(Collectors.toList());
     }
 
     if (nextPageToken.length > 0) {
-      return endpoints.tailMap(new String(nextPageToken)).values().stream()
+      return endpointsById.tailMap(new String(nextPageToken)).values().stream()
           .skip(1)
           .limit(pageSize)
           .collect(Collectors.toList());
     }
-    return endpoints.values().stream().limit(pageSize).collect(Collectors.toList());
+    return endpointsById.values().stream().limit(pageSize).collect(Collectors.toList());
   }
 
   @Override
