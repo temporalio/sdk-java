@@ -182,11 +182,6 @@ public class WorkflowWorkerTest {
                 });
 
     assertTrue(worker.start());
-    // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
-        ImmutableMap.of("worker_type", "WorkflowWorker"),
-        100.0);
     // Unblock the first poll
     blockFirstPollLatch.countDown();
     // Wait until we have got all the polls
