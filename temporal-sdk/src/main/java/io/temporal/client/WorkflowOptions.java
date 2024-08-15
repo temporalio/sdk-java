@@ -374,9 +374,8 @@ public final class WorkflowOptions {
     }
 
     /**
-     * Time to wait before dispatching the first workflow task.
-     *  A signal from signal with start will not trigger a workflow task. Cannot be set the same time
-     * as a CronSchedule.
+     * Time to wait before dispatching the first workflow task. A signal from signal with start will
+     * not trigger a workflow task. Cannot be set the same time as a CronSchedule.
      */
     public Builder setStartDelay(Duration startDelay) {
       this.startDelay = startDelay;
