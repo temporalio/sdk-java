@@ -22,13 +22,15 @@ package io.temporal.testUtils;
 
 import io.temporal.worker.tuning.*;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupplier<SI> {
   public final AtomicInteger reservedCount = new AtomicInteger();
   public final AtomicInteger releasedCount = new AtomicInteger();
   public final AtomicInteger usedCount = new AtomicInteger();
-  public final AtomicInteger currentUsedCount = new AtomicInteger();
+  public final ConcurrentHashMap.KeySetView<SlotPermit, Boolean> currentUsedSet =
+      ConcurrentHashMap.newKeySet();
 
   public CountingSlotSupplier(int numSlots) {
     super(numSlots);
@@ -53,14 +55,14 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   @Override
   public void markSlotUsed(SlotMarkUsedContext<SI> ctx) {
     usedCount.incrementAndGet();
-    currentUsedCount.incrementAndGet();
+    currentUsedSet.add(ctx.getSlotPermit());
     super.markSlotUsed(ctx);
   }
 
   @Override
   public void releaseSlot(SlotReleaseContext<SI> ctx) {
     super.releaseSlot(ctx);
-    currentUsedCount.decrementAndGet();
+    currentUsedSet.remove(ctx.getSlotPermit());
     releasedCount.incrementAndGet();
   }
 }
