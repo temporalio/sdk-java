@@ -39,7 +39,7 @@ public class SignalAllHandlersFinished {
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestSignalWorkflowImpl.class).build();
 
   @Test
-  public void isAllHandlersFinished() {
+  public void isEveryHandlerFinished() {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
