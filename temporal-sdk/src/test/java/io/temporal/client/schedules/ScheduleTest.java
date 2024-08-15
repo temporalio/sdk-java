@@ -260,13 +260,13 @@ public class ScheduleTest {
 
   @Test(timeout = 30000)
   public void backfillSchedules() {
-    Instant now = Instant.ofEpochSecond(100000);
+    Instant backfillTime = Instant.ofEpochSecond(100000);
     ScheduleClient client = createScheduleClient();
     // Create schedule
     ScheduleOptions options =
         ScheduleOptions.newBuilder()
             .setBackfills(
-                Arrays.asList(new ScheduleBackfill(now.minusMillis(20500), now.minusMillis(10000))))
+                Arrays.asList(new ScheduleBackfill(backfillTime.minusMillis(20500), backfillTime.minusMillis(10000))))
             .build();
     String scheduleId = UUID.randomUUID().toString();
     Schedule schedule =
@@ -282,8 +282,8 @@ public class ScheduleTest {
 
     handle.backfill(
         Arrays.asList(
-            new ScheduleBackfill(now.minusMillis(5500), now.minusMillis(2500)),
-            new ScheduleBackfill(now.minusMillis(2500), now)));
+            new ScheduleBackfill(backfillTime.minusMillis(5500), backfillTime.minusMillis(2500)),
+            new ScheduleBackfill(backfillTime.minusMillis(2500), backfillTime)));
     waitForActions(handle, 15);
     // Cleanup schedule
     handle.delete();
@@ -291,8 +291,8 @@ public class ScheduleTest {
     try {
       handle.backfill(
           Arrays.asList(
-              new ScheduleBackfill(now.minusMillis(5500), now.minusMillis(2500)),
-              new ScheduleBackfill(now.minusMillis(2500), now)));
+              new ScheduleBackfill(backfillTime.minusMillis(5500), backfillTime.minusMillis(2500)),
+              new ScheduleBackfill(backfillTime.minusMillis(2500), backfillTime)));
       Assert.fail();
     } catch (ScheduleException e) {
     }
