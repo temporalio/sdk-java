@@ -441,6 +441,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
         MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
         MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+        MDC.put(LoggerTag.ATTEMPT, Integer.toString(activityTask.getAttempt()));
 
         slotSupplier.markSlotUsed(
             new LocalActivitySlotInfo(
@@ -506,6 +507,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
+        MDC.remove(LoggerTag.ATTEMPT);
       }
     }
 
