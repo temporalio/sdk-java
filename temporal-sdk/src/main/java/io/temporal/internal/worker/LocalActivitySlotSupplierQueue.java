@@ -23,14 +23,12 @@ package io.temporal.internal.worker;
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class LocalActivitySlotSupplierQueue {
+class LocalActivitySlotSupplierQueue implements Shutdownable {
   static final class QueuedLARequest {
     final boolean isRetry;
     final SlotReservationData data;
@@ -47,10 +45,11 @@ class LocalActivitySlotSupplierQueue {
   private final Semaphore newExecutionsBackpressureSemaphore;
   private final TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier;
   private final Functions.Proc1<LocalActivityAttemptTask> afterReservedCallback;
-  private final Thread queueThread;
+  private final ExecutorService queueThreadService;
   private static final Logger log =
       LoggerFactory.getLogger(LocalActivitySlotSupplierQueue.class.getName());
   private volatile boolean running = true;
+  private volatile boolean wasEverStarted = false;
 
   LocalActivitySlotSupplierQueue(
       TrackingSlotSupplier<LocalActivitySlotInfo> slotSupplier,
@@ -73,13 +72,13 @@ class LocalActivitySlotSupplierQueue {
               return 0;
             });
     this.slotSupplier = slotSupplier;
-    this.queueThread = new Thread(this::processQueue, "LocalActivitySlotSupplierQueue");
-    this.queueThread.start();
+    this.queueThreadService =
+        Executors.newSingleThreadExecutor(r -> new Thread(r, "LocalActivitySlotSupplierQueue"));
   }
 
   private void processQueue() {
     try {
-      while (running) {
+      while (running || !requestQueue.isEmpty()) {
         QueuedLARequest request = requestQueue.take();
         SlotPermit slotPermit;
         try {
@@ -102,9 +101,9 @@ class LocalActivitySlotSupplierQueue {
     }
   }
 
-  void shutdown() {
-    running = false;
-    queueThread.interrupt();
+  void start() {
+    wasEverStarted = true;
+    this.queueThreadService.submit(this::processQueue);
   }
 
   boolean waitOnBackpressure(@Nullable Long acceptanceTimeoutMs) throws InterruptedException {
@@ -133,5 +132,41 @@ class LocalActivitySlotSupplierQueue {
       // semaphore, and therefore we should release that permit now.
       newExecutionsBackpressureSemaphore.release();
     }
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return queueThreadService.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return queueThreadService.isTerminated();
+  }
+
+  @Override
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    running = false;
+    if (requestQueue.isEmpty()) {
+      // Just interrupt the thread, so that if we're waiting on blocking take the thread will
+      // be interrupted and exit. Otherwise the loop will exit once the queue is empty.
+      queueThreadService.shutdownNow();
+    }
+
+    return interruptTasks
+        ? shutdownManager.shutdownExecutorNowUntimed(
+            queueThreadService, "LocalActivitySlotSupplierQueue")
+        : shutdownManager.shutdownExecutorUntimed(
+            queueThreadService, "LocalActivitySlotSupplierQueue");
+  }
+
+  @Override
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    if (!wasEverStarted) {
+      // Not entirely clear why this is necessary, but await termination will hang the whole
+      // timeout duration if no task was ever submitted.
+      return;
+    }
+    ShutdownManager.awaitTermination(queueThreadService, unit.toMillis(timeout));
   }
 }

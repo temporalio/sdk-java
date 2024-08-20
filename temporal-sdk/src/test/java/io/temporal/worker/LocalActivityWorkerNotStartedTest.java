@@ -20,10 +20,14 @@
 
 package io.temporal.worker;
 
+import static org.junit.Assert.assertTrue;
+
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,14 +46,18 @@ public class LocalActivityWorkerNotStartedTest {
   @Test
   public void canShutDownProperlyWhenNotStarted() {
     // Shut down the (never started) worker
+    Instant shutdownTime = Instant.now();
     testWorkflowRule.getTestEnvironment().getWorkerFactory().shutdown();
-    testWorkflowRule.getWorker().awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS);
+    testWorkflowRule.getWorker().awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS);
     Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
     for (Thread thread : threadSet) {
       if (thread.getName().contains("LocalActivitySlotSupplierQueue")) {
         throw new RuntimeException("Thread should be terminated");
       }
     }
+    Duration elapsed = Duration.between(shutdownTime, Instant.now());
+    // Shutdown should not have taken long
+    assertTrue(elapsed.getSeconds() < 2);
   }
 
   @WorkflowInterface
