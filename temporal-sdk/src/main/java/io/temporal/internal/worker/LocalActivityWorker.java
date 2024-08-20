@@ -697,8 +697,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    slotQueue.shutdown();
     if (activityAttemptTaskExecutor != null && !activityAttemptTaskExecutor.isShutdown()) {
-      slotQueue.shutdown();
       return activityAttemptTaskExecutor
           .shutdown(shutdownManager, interruptTasks)
           .thenCompose(
