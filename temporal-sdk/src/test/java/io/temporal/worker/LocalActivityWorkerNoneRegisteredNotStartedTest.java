@@ -26,20 +26,18 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class LocalActivityWorkerNotStartedTest {
+public class LocalActivityWorkerNoneRegisteredNotStartedTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(NothingWorkflowImpl.class)
-          .setActivityImplementations(new NothingActivityImpl())
           .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
           // Don't start the worker
           .setDoNotStart(true)
@@ -73,10 +71,5 @@ public class LocalActivityWorkerNotStartedTest {
     public void execute() {
       Workflow.sleep(500);
     }
-  }
-
-  public static class NothingActivityImpl implements TestActivities.NoArgsActivity {
-    @Override
-    public void execute() {}
   }
 }
