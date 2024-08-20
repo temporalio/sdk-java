@@ -691,6 +691,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               false);
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      this.slotQueue.start();
       return true;
     } else {
       return false;
@@ -700,9 +701,9 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     if (activityAttemptTaskExecutor != null && !activityAttemptTaskExecutor.isShutdown()) {
-      slotQueue.shutdown();
-      return activityAttemptTaskExecutor
+      return slotQueue
           .shutdown(shutdownManager, interruptTasks)
+          .thenCompose(r -> activityAttemptTaskExecutor.shutdown(shutdownManager, interruptTasks))
           .thenCompose(
               r ->
                   shutdownManager.shutdownExecutor(
@@ -719,21 +720,24 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    slotQueue.shutdown();
     long timeoutMillis = unit.toMillis(timeout);
-    ShutdownManager.awaitTermination(scheduledExecutor, timeoutMillis);
+    long remainingTimeout = ShutdownManager.awaitTermination(scheduledExecutor, timeoutMillis);
+    ShutdownManager.awaitTermination(slotQueue, remainingTimeout);
   }
 
   @Override
   public boolean isShutdown() {
-    return activityAttemptTaskExecutor != null && activityAttemptTaskExecutor.isShutdown();
+    return activityAttemptTaskExecutor != null
+        && activityAttemptTaskExecutor.isShutdown()
+        && slotQueue.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
     return activityAttemptTaskExecutor != null
         && activityAttemptTaskExecutor.isTerminated()
-        && scheduledExecutor.isTerminated();
+        && scheduledExecutor.isTerminated()
+        && slotQueue.isTerminated();
   }
 
   @Override
