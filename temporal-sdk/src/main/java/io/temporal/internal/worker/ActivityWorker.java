@@ -247,6 +247,7 @@ final class ActivityWorker implements SuspendableWorker {
       MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, pollResponse.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
+      MDC.put(LoggerTag.ATTEMPT, Integer.toString(pollResponse.getAttempt()));
 
       ActivityTaskHandler.Result result = null;
       try {
@@ -257,6 +258,7 @@ final class ActivityWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
+        MDC.remove(LoggerTag.ATTEMPT);
         if (
         // handleActivity throw an exception (not a normal scenario)
         result == null

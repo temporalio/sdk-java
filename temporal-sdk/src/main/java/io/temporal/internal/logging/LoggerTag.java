@@ -37,4 +37,5 @@ public final class LoggerTag {
   public static final String WORKER_TYPE = "WorkerType";
   public static final String SIDE_EFFECT_ID = "SideEffectId";
   public static final String CHILD_WORKFLOW_ID = "ChildWorkflowId";
+  public static final String ATTEMPT = "Attempt";
 }
