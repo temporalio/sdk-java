@@ -24,6 +24,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.Experimental;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.SearchAttributes;
@@ -1289,6 +1290,67 @@ public final class Workflow {
    */
   public static boolean isEveryHandlerFinished() {
     return WorkflowInternal.isEveryHandlerFinished();
+  }
+
+  /**
+   * Creates a Nexus service stub that can be used to start Nexus operations on the given service
+   * interface.
+   *
+   * @param service interface that given service implements.
+   */
+  @Experimental
+  public static <T> T newNexusServiceStub(Class<T> service) {
+    return WorkflowInternal.newNexusServiceStub(service, null);
+  }
+
+  /**
+   * Creates a Nexus service stub that can be used to start Nexus operations on the given service
+   * interface.
+   *
+   * @param service interface that given service implements.
+   * @param options options passed to the Nexus service.
+   */
+  @Experimental
+  public static <T> T newNexusServiceStub(Class<T> service, NexusServiceOptions options) {
+    return WorkflowInternal.newNexusServiceStub(service, options);
+  }
+
+  /**
+   * Creates untyped nexus service stub that can be used to execute Nexus operations.
+   *
+   * @param service name of the service the operation is part of.
+   * @param options options passed to the Nexus service.
+   */
+  @Experimental
+  public static NexusServiceStub newUntypedNexusServiceStub(
+      String service, NexusServiceOptions options) {
+    return WorkflowInternal.newUntypedNexusServiceStub(service, options);
+  }
+
+  /**
+   * Start a nexus operation.
+   *
+   * @param operation The only supported value is method reference to a proxy created through {@link
+   *     #newNexusServiceStub(Class)}.
+   * @param arg operation argument
+   * @return OperationHandle a handle to the operation.
+   */
+  @Experimental
+  public static <T, R> NexusOperationHandle<R> startNexusOperation(
+      Functions.Func1<T, R> operation, T arg) {
+    return WorkflowInternal.startNexusOperation(operation, arg);
+  }
+
+  /**
+   * Start a Nexus operation.
+   *
+   * @param operation The only supported value is method reference to a proxy created through {@link
+   *     #newNexusServiceStub(Class)}.
+   * @return OperationHandle a handle to the operation.
+   */
+  @Experimental
+  public static <R> NexusOperationHandle<R> startNexusOperation(Functions.Func<R> operation) {
+    return WorkflowInternal.startNexusOperation(operation);
   }
 
   /** Prohibit instantiation. */

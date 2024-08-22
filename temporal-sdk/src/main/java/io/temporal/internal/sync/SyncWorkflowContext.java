@@ -30,10 +30,7 @@ import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
@@ -117,6 +114,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, ActivityOptions> activityOptionsMap;
   private LocalActivityOptions defaultLocalActivityOptions = null;
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
+  private NexusServiceOptions defaultNexusServiceOptions = null;
+  private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   // Map of all running update handlers. Key is the update Id of the update request.
@@ -150,6 +149,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           workflowImplementationOptions.getDefaultLocalActivityOptions();
       this.localActivityOptionsMap =
           new HashMap<>(workflowImplementationOptions.getLocalActivityOptions());
+      this.defaultNexusServiceOptions =
+          workflowImplementationOptions.getDefaultNexusServiceOptions();
+      this.nexusServiceOptionsMap =
+          new HashMap<>(workflowImplementationOptions.getNexusServiceOptions());
     }
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
@@ -216,6 +219,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public @Nonnull Map<String, LocalActivityOptions> getLocalActivityOptions() {
     return localActivityOptionsMap != null
         ? Collections.unmodifiableMap(localActivityOptionsMap)
+        : Collections.emptyMap();
+  }
+
+  public NexusServiceOptions getDefaultNexusServiceOptions() {
+    return defaultNexusServiceOptions;
+  }
+
+  public @Nonnull Map<String, NexusServiceOptions> getNexusServiceOptions() {
+    return nexusServiceOptionsMap != null
+        ? Collections.unmodifiableMap(nexusServiceOptionsMap)
         : Collections.emptyMap();
   }
 
@@ -704,6 +717,81 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 dataConverterWithChildWorkflowContext.fromPayloads(
                     0, b, input.getResultClass(), input.getResultType()));
     return new ChildWorkflowOutput<>(result, executionPromise);
+  }
+
+  @Override
+  public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
+      ExecuteNexusOperationInput<R> input) {
+    if (CancellationScope.current().isCancelRequested()) {
+      CanceledFailure canceledFailure =
+          new CanceledFailure("execute nexus operation called from a canceled scope");
+      return new ExecuteNexusOperationOutput<>(
+          Workflow.newFailedPromise(canceledFailure), Workflow.newFailedPromise(canceledFailure));
+    }
+
+    CompletablePromise<Optional<String>> operationPromise = Workflow.newPromise();
+    CompletablePromise<Optional<Payload>> resultPromise = Workflow.newPromise();
+
+    // Not using the context aware data converter because the context will not be available on the
+    // worker side
+    Optional<Payload> payload = dataConverter.toPayload(input.getArg());
+
+    ScheduleNexusOperationCommandAttributes.Builder attributes =
+        ScheduleNexusOperationCommandAttributes.newBuilder();
+    payload.ifPresent(attributes::setInput);
+    attributes.setOperation(input.getOperation());
+    attributes.setService(input.getService());
+    attributes.setEndpoint(input.getEndpoint());
+    attributes.putAllNexusHeader(input.getHeaders());
+    attributes.setScheduleToCloseTimeout(
+        ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToCloseTimeout()));
+
+    Functions.Proc1<Exception> cancellationCallback =
+        replayContext.startNexusOperation(
+            attributes.build(),
+            (operationExec, failure) -> {
+              if (failure != null) {
+                runner.executeInWorkflowThread(
+                    "nexus operation start failed callback",
+                    () ->
+                        operationPromise.completeExceptionally(
+                            dataConverter.failureToException(failure)));
+              } else {
+                runner.executeInWorkflowThread(
+                    "nexus operation started callback",
+                    () -> operationPromise.complete(operationExec));
+              }
+            },
+            (Optional<Payload> result, Failure failure) -> {
+              if (failure != null) {
+                runner.executeInWorkflowThread(
+                    "nexus operation failure callback",
+                    () ->
+                        resultPromise.completeExceptionally(
+                            dataConverter.failureToException(failure)));
+              } else {
+                runner.executeInWorkflowThread(
+                    "nexus operation completion callback", () -> resultPromise.complete(result));
+              }
+            });
+    AtomicBoolean callbackCalled = new AtomicBoolean();
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (reason) -> {
+              if (!callbackCalled.getAndSet(true)) {
+                cancellationCallback.apply(new CanceledFailure(reason));
+              }
+              return null;
+            });
+    Promise<R> result =
+        resultPromise.thenApply(
+            (b) ->
+                input.getResultClass() != Void.class
+                    ? dataConverter.fromPayload(
+                        b.get(), input.getResultClass(), input.getResultType())
+                    : null);
+    return new ExecuteNexusOperationOutput<>(result, operationPromise);
   }
 
   @SuppressWarnings("deprecation")

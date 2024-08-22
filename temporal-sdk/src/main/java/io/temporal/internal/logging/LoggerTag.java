@@ -38,4 +38,6 @@ public final class LoggerTag {
   public static final String SIDE_EFFECT_ID = "SideEffectId";
   public static final String CHILD_WORKFLOW_ID = "ChildWorkflowId";
   public static final String ATTEMPT = "Attempt";
+  public static final String NEXUS_SERVICE = "NexusService";
+  public static final String NEXUS_OPERATION = "NexusOperation";
 }

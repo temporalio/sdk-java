@@ -21,11 +21,7 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -220,6 +216,16 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     Functions.Proc cancellationHandler =
         workflowStateMachines.startChildWorkflow(parameters, startCallback, completionCallback);
+    return (exception) -> cancellationHandler.apply();
+  }
+
+  @Override
+  public Functions.Proc1<Exception> startNexusOperation(
+      ScheduleNexusOperationCommandAttributes attributes,
+      Functions.Proc2<Optional<String>, Failure> startedCallback,
+      Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
+    Functions.Proc cancellationHandler =
+        workflowStateMachines.startNexusOperation(attributes, startedCallback, completionCallback);
     return (exception) -> cancellationHandler.apply();
   }
 

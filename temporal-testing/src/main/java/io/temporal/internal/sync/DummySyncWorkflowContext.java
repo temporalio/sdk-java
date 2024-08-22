@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -204,6 +205,14 @@ public class DummySyncWorkflowContext {
         StartChildWorkflowExecutionParameters parameters,
         Functions.Proc2<WorkflowExecution, Exception> executionCallback,
         Functions.Proc2<Optional<Payloads>, Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Functions.Proc1<Exception> startNexusOperation(
+        ScheduleNexusOperationCommandAttributes attributes,
+        Functions.Proc2<Optional<String>, Failure> startedCallback,
+        Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
       throw new UnsupportedOperationException("not implemented");
     }
 

@@ -27,6 +27,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
+import io.nexusrpc.ServiceDefinition;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.Payload;
@@ -758,7 +759,47 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().isEveryHandlerFinished();
   }
 
-  private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
+  public static <T> T newNexusServiceStub(Class<T> serviceInterface, NexusServiceOptions options) {
+    SyncWorkflowContext context = getRootWorkflowContext();
+    NexusServiceOptions baseOptions =
+        (options == null) ? context.getDefaultNexusServiceOptions() : options;
+
+    @Nonnull
+    Map<String, NexusServiceOptions> predefinedNexusServiceOptions =
+        context.getNexusServiceOptions();
+
+    ServiceDefinition serviceDef = ServiceDefinition.fromClass(serviceInterface);
+    NexusServiceOptions mergedOptions =
+        NexusServiceOptions.newBuilder(predefinedNexusServiceOptions.get(serviceDef.getName()))
+            .mergeNexusServiceOptions(baseOptions)
+            .build();
+    return (T)
+        Proxy.newProxyInstance(
+            serviceInterface.getClassLoader(),
+            new Class<?>[] {serviceInterface, StubMarker.class, AsyncInternal.AsyncMarker.class},
+            new NexusServiceInvocationHandler(
+                serviceDef,
+                mergedOptions,
+                getWorkflowOutboundInterceptor(),
+                WorkflowInternal::assertNotReadOnly));
+  }
+
+  public static NexusServiceStub newUntypedNexusServiceStub(
+      String service, NexusServiceOptions options) {
+    return new NexusServiceStubImpl(
+        service, options, getWorkflowOutboundInterceptor(), WorkflowInternal::assertNotReadOnly);
+  }
+
+  public static <T, R> NexusOperationHandle<R> startNexusOperation(
+      Functions.Func1<T, R> operation, T arg) {
+    return StartNexusCallInternal.startNexusOperation(() -> operation.apply(arg));
+  }
+
+  public static <R> NexusOperationHandle<R> startNexusOperation(Functions.Func<R> operation) {
+    return StartNexusCallInternal.startNexusOperation(() -> operation.apply());
+  }
+
+  static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
     return getRootWorkflowContext().getWorkflowOutboundInterceptor();
   }
 

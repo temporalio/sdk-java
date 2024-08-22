@@ -21,8 +21,13 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.internal.client.NexusStartWorkflowRequest;
+import java.util.Arrays;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
@@ -47,6 +52,39 @@ public final class InternalUtils {
       return value;
     }
     return Defaults.defaultValue(valueClass);
+  }
+
+  /**
+   * Creates a new stub that is bound to the same workflow as the given stub, but with the Nexus
+   * callback URL and headers set.
+   *
+   * @param stub the stub to create a new stub from
+   * @param request the request containing the Nexus callback URL and headers
+   * @return a new stub bound to the same workflow as the given stub, but with the Nexus callback URL
+   *     and headers set
+   */
+  public static WorkflowStub createNexusBoundStub(
+      WorkflowStub stub, NexusStartWorkflowRequest request) {
+    if (stub.getOptions().isPresent()) {
+      throw new IllegalArgumentException("Options are not expected to be set on the stub");
+    }
+    WorkflowOptions options = stub.getOptions().get();
+    WorkflowOptions.Builder nexusWorkflowOptions =
+        WorkflowOptions.newBuilder()
+            .setRequestID(request.getRequestId())
+            .setCallbacks(
+                Arrays.asList(
+                    Callback.newBuilder()
+                        .setNexus(
+                            Callback.Nexus.newBuilder()
+                                .setUrl(request.getCallbackUrl())
+                                .putAllHeader(request.getCallbackHeaders())
+                                .build())
+                        .build()));
+    if (options.getTaskQueue() == null) {
+      nexusWorkflowOptions.setTaskQueue(request.getTaskQueue());
+    }
+    return stub.newInstance(nexusWorkflowOptions.build());
   }
 
   /** Prohibit instantiation */

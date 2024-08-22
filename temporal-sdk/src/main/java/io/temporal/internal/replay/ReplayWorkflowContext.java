@@ -22,6 +22,7 @@ package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -174,6 +175,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
       StartChildWorkflowExecutionParameters parameters,
       Functions.Proc2<WorkflowExecution, Exception> startCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback);
+
+  Functions.Proc1<Exception> startNexusOperation(
+      ScheduleNexusOperationCommandAttributes attributes,
+      Functions.Proc2<Optional<String>, Failure> startedCallback,
+      Functions.Proc2<Optional<Payload>, Failure> completionCallback);
 
   /**
    * Signal a workflow execution by WorkflowId and optionally RunId.
