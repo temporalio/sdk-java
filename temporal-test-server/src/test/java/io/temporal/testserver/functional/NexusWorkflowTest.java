@@ -28,9 +28,7 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.RequestCancelNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.TaskQueueKind;
@@ -42,6 +40,8 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testserver.functional.common.TestWorkflows;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -54,85 +54,47 @@ import org.junit.Test;
 public class NexusWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setDoNotStart(true)
+          .setWorkflowTypes(EchoNexusHandlerWorkflowImpl.class)
+          .build();
+
+  private final Payload defaultInput =
+      Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
+  private Endpoint testEndpoint;
 
   @Before
-  public void checkExternal() {
+  public void setup() {
     // TODO: remove this skip once 1.25.0 is officially released and
     // https://github.com/temporalio/sdk-java/issues/2165 is resolved
     assumeFalse(
         "Nexus APIs are not supported for server versions < 1.25.0",
         testWorkflowRule.isUseExternalService());
+
+    testEndpoint = createEndpoint("nexus-workflow-test-endpoint");
   }
 
   @Test
   public void testNexusOperationSyncCompletion() {
-    Endpoint testEndpoint = createEndpoint("test-sync-completion-endpoint");
-    CompletableFuture<Void> nexusPoller = CompletableFuture.runAsync(pollAndCompleteNexusTask());
+    CompletableFuture<?> nexusPoller =
+        pollNexusTask()
+            .thenCompose(
+                task ->
+                    completeNexusTask(
+                        task.getTaskToken(), task.getRequest().getStartOperation().getPayload()));
 
     try {
-      WorkflowOptions options =
-          WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-      WorkflowStub stub =
-          testWorkflowRule
-              .getWorkflowClient()
-              .newUntypedWorkflowStub("TestNexusOperationSyncCompletionWorkflow", options);
+      WorkflowStub stub = newWorkflowStub("TestNexusOperationSyncCompletionWorkflow");
       WorkflowExecution execution = stub.start();
 
       // Get first WFT and respond with ScheduleNexusOperation command
-      PollWorkflowTaskQueueResponse pollResp =
-          testWorkflowRule
-              .getWorkflowClient()
-              .getWorkflowServiceStubs()
-              .blockingStub()
-              .pollWorkflowTaskQueue(
-                  PollWorkflowTaskQueueRequest.newBuilder()
-                      .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                      .setTaskQueue(
-                          TaskQueue.newBuilder()
-                              .setName(testWorkflowRule.getTaskQueue())
-                              .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                      .setIdentity("test")
-                      .build());
-      testWorkflowRule
-          .getWorkflowClient()
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .respondWorkflowTaskCompleted(
-              RespondWorkflowTaskCompletedRequest.newBuilder()
-                  .setIdentity("test")
-                  .setTaskToken(pollResp.getTaskToken())
-                  .addCommands(
-                      Command.newBuilder()
-                          .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
-                          .setScheduleNexusOperationCommandAttributes(
-                              ScheduleNexusOperationCommandAttributes.newBuilder()
-                                  .setEndpoint(testEndpoint.getSpec().getName())
-                                  .setService("service")
-                                  .setOperation("operation")
-                                  .setInput(
-                                      Payload.newBuilder()
-                                          .setData(ByteString.copyFromUtf8("input"))))
-                          .build())
-                  .build());
+      PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+      completeWorkflowTask(pollResp.getTaskToken(), newScheduleOperationCommand());
 
       // Wait for Nexus operation result to be recorded
       nexusPoller.get(1, TimeUnit.SECONDS);
 
-      pollResp =
-          testWorkflowRule
-              .getWorkflowClient()
-              .getWorkflowServiceStubs()
-              .blockingStub()
-              .pollWorkflowTaskQueue(
-                  PollWorkflowTaskQueueRequest.newBuilder()
-                      .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                      .setTaskQueue(
-                          TaskQueue.newBuilder()
-                              .setName(testWorkflowRule.getTaskQueue())
-                              .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                      .setIdentity("test")
-                      .build());
+      pollResp = pollWorkflowTask();
       Assert.assertTrue(
           pollResp.getHistory().getEventsList().stream()
               .anyMatch(
@@ -141,28 +103,11 @@ public class NexusWorkflowTest {
           testWorkflowRule.getHistoryEvents(
               execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED);
       Assert.assertEquals(1, events.size());
-      HistoryEvent completedEvent = events.get(0);
 
-      testWorkflowRule
-          .getWorkflowClient()
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .respondWorkflowTaskCompleted(
-              RespondWorkflowTaskCompletedRequest.newBuilder()
-                  .setIdentity("test")
-                  .setTaskToken(pollResp.getTaskToken())
-                  .addCommands(
-                      Command.newBuilder()
-                          .setCommandType(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION)
-                          .setCompleteWorkflowExecutionCommandAttributes(
-                              CompleteWorkflowExecutionCommandAttributes.newBuilder()
-                                  .setResult(
-                                      Payloads.newBuilder()
-                                          .addPayloads(
-                                              completedEvent
-                                                  .getNexusOperationCompletedEventAttributes()
-                                                  .getResult()))))
-                  .build());
+      HistoryEvent completedEvent = events.get(0);
+      completeWorkflow(
+          pollResp.getTaskToken(),
+          completedEvent.getNexusOperationCompletedEventAttributes().getResult());
 
       String result = stub.getResult(String.class);
       Assert.assertEquals(result, "input");
@@ -175,91 +120,30 @@ public class NexusWorkflowTest {
 
   @Test
   public void testNexusOperationCancelBeforeStart() {
-    Endpoint testEndpoint = createEndpoint("test-sync-cancel-before-start-endpoint");
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-    WorkflowStub stub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub("TestNexusOperationSyncCompletionWorkflow", options);
+    WorkflowStub stub = newWorkflowStub("TestNexusOperationCancelBeforeStartWorkflow");
     WorkflowExecution execution = stub.start();
 
     // Get first WFT and respond with ScheduleNexusOperation command
-    PollWorkflowTaskQueueResponse pollResp =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .pollWorkflowTaskQueue(
-                PollWorkflowTaskQueueRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                    .setTaskQueue(
-                        TaskQueue.newBuilder()
-                            .setName(testWorkflowRule.getTaskQueue())
-                            .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                    .setIdentity("test")
-                    .build());
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .respondWorkflowTaskCompleted(
-            RespondWorkflowTaskCompletedRequest.newBuilder()
-                .setIdentity("test")
-                .setTaskToken(pollResp.getTaskToken())
-                .setForceCreateNewWorkflowTask(true)
-                .addCommands(
-                    Command.newBuilder()
-                        .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
-                        .setScheduleNexusOperationCommandAttributes(
-                            ScheduleNexusOperationCommandAttributes.newBuilder()
-                                .setEndpoint(testEndpoint.getSpec().getName())
-                                .setService("service")
-                                .setOperation("operation")
-                                .setInput(
-                                    Payload.newBuilder().setData(ByteString.copyFromUtf8("input"))))
-                        .build())
-                .build());
+    PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+    completeWorkflowTask(pollResp.getTaskToken(), true, newScheduleOperationCommand());
 
     // Poll for new WFT and respond with RequestCancelNexusOperation command
-    pollResp =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .pollWorkflowTaskQueue(
-                PollWorkflowTaskQueueRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                    .setTaskQueue(
-                        TaskQueue.newBuilder()
-                            .setName(testWorkflowRule.getTaskQueue())
-                            .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                    .setIdentity("test")
-                    .build());
+    pollResp = pollWorkflowTask();
 
     List<HistoryEvent> events =
         testWorkflowRule.getHistoryEvents(
             execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
     Assert.assertEquals(1, events.size());
-    HistoryEvent scheduledEvent = events.get(0);
 
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .respondWorkflowTaskCompleted(
-            RespondWorkflowTaskCompletedRequest.newBuilder()
-                .setIdentity("test")
-                .setTaskToken(pollResp.getTaskToken())
-                .setForceCreateNewWorkflowTask(true)
-                .addCommands(
-                    Command.newBuilder()
-                        .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION)
-                        .setRequestCancelNexusOperationCommandAttributes(
-                            RequestCancelNexusOperationCommandAttributes.newBuilder()
-                                .setScheduledEventId(scheduledEvent.getEventId()))
-                        .build())
-                .build());
+    HistoryEvent scheduledEvent = events.get(0);
+    Command cancelCmd =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION)
+            .setRequestCancelNexusOperationCommandAttributes(
+                RequestCancelNexusOperationCommandAttributes.newBuilder()
+                    .setScheduledEventId(scheduledEvent.getEventId()))
+            .build();
+    completeWorkflowTask(pollResp.getTaskToken(), cancelCmd);
 
     events =
         testWorkflowRule.getHistoryEvents(
@@ -273,51 +157,16 @@ public class NexusWorkflowTest {
 
   @Test
   public void testNexusOperationTimeout() {
-    Endpoint testEndpoint = createEndpoint("test-timeout-endpoint");
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-    WorkflowStub stub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub("TestNexusOperationSyncCompletionWorkflow", options);
+    WorkflowStub stub = newWorkflowStub("TestNexusOperationTimeoutWorkflow");
     WorkflowExecution execution = stub.start();
 
     // Get first WFT and respond with ScheduleNexusOperation command
-    PollWorkflowTaskQueueResponse pollResp =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .pollWorkflowTaskQueue(
-                PollWorkflowTaskQueueRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                    .setTaskQueue(
-                        TaskQueue.newBuilder()
-                            .setName(testWorkflowRule.getTaskQueue())
-                            .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                    .setIdentity("test")
-                    .build());
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .respondWorkflowTaskCompleted(
-            RespondWorkflowTaskCompletedRequest.newBuilder()
-                .setIdentity("test")
-                .setTaskToken(pollResp.getTaskToken())
-                .addCommands(
-                    Command.newBuilder()
-                        .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
-                        .setScheduleNexusOperationCommandAttributes(
-                            ScheduleNexusOperationCommandAttributes.newBuilder()
-                                .setScheduleToCloseTimeout(Durations.fromSeconds(1))
-                                .setEndpoint(testEndpoint.getSpec().getName())
-                                .setService("service")
-                                .setOperation("operation")
-                                .setInput(
-                                    Payload.newBuilder().setData(ByteString.copyFromUtf8("input"))))
-                        .build())
-                .build());
+    PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+    Command cmd =
+        newScheduleOperationCommand(
+            defaultScheduleOperationAttributes()
+                .setScheduleToCloseTimeout(Durations.fromSeconds(1)));
+    completeWorkflowTask(pollResp.getTaskToken(), cmd);
 
     List<HistoryEvent> events =
         testWorkflowRule.getHistoryEvents(
@@ -325,19 +174,7 @@ public class NexusWorkflowTest {
     Assert.assertEquals(1, events.size());
 
     // Poll to wait for new task after operation times out
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .pollWorkflowTaskQueue(
-            PollWorkflowTaskQueueRequest.newBuilder()
-                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                .setTaskQueue(
-                    TaskQueue.newBuilder()
-                        .setName(testWorkflowRule.getTaskQueue())
-                        .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                .setIdentity("test")
-                .build());
+    pollWorkflowTask();
 
     testWorkflowRule.assertHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT);
@@ -345,55 +182,24 @@ public class NexusWorkflowTest {
 
   @Test
   public void testRespondNexusTaskFailed() {
-    Endpoint testEndpoint = createEndpoint("test-respond-failed-endpoint");
-    CompletableFuture<Void> nexusPoller = CompletableFuture.runAsync(pollAndFailNexusTask());
+    CompletableFuture<?> nexusPoller =
+        pollNexusTask()
+            .thenCompose(
+                task ->
+                    failNexusTask(
+                        task.getTaskToken(),
+                        HandlerError.newBuilder()
+                            .setErrorType("BAD_REQUEST")
+                            .setFailure(Failure.newBuilder().setMessage("deliberate error"))
+                            .build()));
 
     try {
-      WorkflowOptions options =
-          WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-      WorkflowStub stub =
-          testWorkflowRule
-              .getWorkflowClient()
-              .newUntypedWorkflowStub("TestNexusOperationSyncCompletionWorkflow", options);
+      WorkflowStub stub = newWorkflowStub("TestRespondNexusTaskFailedWorkflow");
       WorkflowExecution execution = stub.start();
 
       // Get first WFT and respond with ScheduleNexusOperation command
-      PollWorkflowTaskQueueResponse pollResp =
-          testWorkflowRule
-              .getWorkflowClient()
-              .getWorkflowServiceStubs()
-              .blockingStub()
-              .pollWorkflowTaskQueue(
-                  PollWorkflowTaskQueueRequest.newBuilder()
-                      .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                      .setTaskQueue(
-                          TaskQueue.newBuilder()
-                              .setName(testWorkflowRule.getTaskQueue())
-                              .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
-                      .setIdentity("test")
-                      .build());
-      testWorkflowRule
-          .getWorkflowClient()
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .respondWorkflowTaskCompleted(
-              RespondWorkflowTaskCompletedRequest.newBuilder()
-                  .setIdentity("test")
-                  .setTaskToken(pollResp.getTaskToken())
-                  .addCommands(
-                      Command.newBuilder()
-                          .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
-                          .setScheduleNexusOperationCommandAttributes(
-                              ScheduleNexusOperationCommandAttributes.newBuilder()
-                                  .setScheduleToCloseTimeout(Durations.fromSeconds(1))
-                                  .setEndpoint(testEndpoint.getSpec().getName())
-                                  .setService("service")
-                                  .setOperation("operation")
-                                  .setInput(
-                                      Payload.newBuilder()
-                                          .setData(ByteString.copyFromUtf8("input"))))
-                          .build())
-                  .build());
+      PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+      completeWorkflowTask(pollResp.getTaskToken(), newScheduleOperationCommand());
 
       // Wait for Nexus operation error to be recorded
       nexusPoller.get(1, TimeUnit.SECONDS);
@@ -407,79 +213,235 @@ public class NexusWorkflowTest {
     }
   }
 
-  private Runnable pollAndCompleteNexusTask() {
-    return () -> {
-      PollNexusTaskQueueResponse pollResp =
+  @Test
+  public void testNexusOperationAsyncCompletion() {
+    String operationId = UUID.randomUUID().toString();
+    CompletableFuture<ByteString> nexusPoller =
+        pollNexusTask().thenCompose(task -> completeNexusTask(task.getTaskToken(), operationId));
+
+    try {
+      WorkflowStub callerStub = newWorkflowStub("TestNexusOperationAsyncCompletionWorkflow");
+      WorkflowExecution callerExecution = callerStub.start();
+
+      // Get first WFT and respond with ScheduleNexusOperation command
+      PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+      completeWorkflowTask(pollResp.getTaskToken(), newScheduleOperationCommand());
+
+      // Wait for scheduled task to be completed
+      ByteString operationRef = nexusPoller.get();
+
+      // Poll and verify started event is recorded and triggers workflow progress
+      pollResp = pollWorkflowTask();
+      List<HistoryEvent> events =
+          testWorkflowRule.getHistoryEvents(
+              callerExecution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED);
+      Assert.assertEquals(1, events.size());
+      completeWorkflowTask(pollResp.getTaskToken());
+
+      // Manually start handler WF with callback
+      TaskQueue handlerWFTaskQueue =
+          TaskQueue.newBuilder()
+              .setName("nexus-handler-tq")
+              .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL)
+              .build();
+      StartWorkflowExecutionResponse startResp =
           testWorkflowRule
               .getWorkflowClient()
               .getWorkflowServiceStubs()
               .blockingStub()
-              .pollNexusTaskQueue(
-                  PollNexusTaskQueueRequest.newBuilder()
-                      .setIdentity(UUID.randomUUID().toString())
+              .startWorkflowExecution(
+                  StartWorkflowExecutionRequest.newBuilder()
+                      .setRequestId(UUID.randomUUID().toString())
                       .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                      .setTaskQueue(
-                          TaskQueue.newBuilder()
-                              .setName(testWorkflowRule.getTaskQueue())
-                              .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
+                      .setWorkflowId("TestNexusOperationAsyncHandlerWorkflow")
+                      .setWorkflowType(
+                          WorkflowType.newBuilder()
+                              .setName(EchoNexusHandlerWorkflowImpl.class.getName()))
+                      .setTaskQueue(handlerWFTaskQueue)
+                      .setInput(Payloads.newBuilder().addPayloads(defaultInput))
+                      .setIdentity("test")
+                      .addCompletionCallbacks(
+                          Callback.newBuilder()
+                              .setNexus(Callback.Nexus.newBuilder().setUrlBytes(operationRef)))
                       .build());
 
-      testWorkflowRule
-          .getWorkflowClient()
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .respondNexusTaskCompleted(
-              RespondNexusTaskCompletedRequest.newBuilder()
-                  .setIdentity(UUID.randomUUID().toString())
-                  .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                  .setTaskToken(pollResp.getTaskToken())
-                  .setResponse(
-                      Response.newBuilder()
-                          .setStartOperation(
-                              StartOperationResponse.newBuilder()
-                                  .setSyncSuccess(
-                                      StartOperationResponse.Sync.newBuilder()
-                                          .setPayload(
-                                              pollResp
-                                                  .getRequest()
-                                                  .getStartOperation()
-                                                  .getPayload()))))
-                  .build());
-    };
+      // Complete handler workflow
+      pollResp = pollWorkflowTask(handlerWFTaskQueue);
+      completeWorkflow(pollResp.getTaskToken(), defaultInput);
+
+      // Verify operation completion is recorded and triggers caller workflow progress
+      pollResp = pollWorkflowTask();
+      events =
+          testWorkflowRule.getHistoryEvents(
+              callerExecution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED);
+      Assert.assertEquals(1, events.size());
+      completeWorkflow(pollResp.getTaskToken(), Payload.getDefaultInstance());
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    } finally {
+      nexusPoller.cancel(true);
+    }
   }
 
-  private Runnable pollAndFailNexusTask() {
-    return () -> {
-      PollNexusTaskQueueResponse pollResp =
+  private WorkflowStub newWorkflowStub(String name) {
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
+    return testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub(name, options);
+  }
+
+  private PollWorkflowTaskQueueResponse pollWorkflowTask() {
+    return pollWorkflowTask(
+        TaskQueue.newBuilder()
+            .setName(testWorkflowRule.getTaskQueue())
+            .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL)
+            .build());
+  }
+
+  private PollWorkflowTaskQueueResponse pollWorkflowTask(TaskQueue taskQueue) {
+    return testWorkflowRule
+        .getWorkflowClient()
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .pollWorkflowTaskQueue(
+            PollWorkflowTaskQueueRequest.newBuilder()
+                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                .setTaskQueue(taskQueue)
+                .setIdentity("test")
+                .build());
+  }
+
+  private void completeWorkflowTask(ByteString taskToken, Command... commands) {
+    completeWorkflowTask(taskToken, false, commands);
+  }
+
+  private void completeWorkflowTask(
+      ByteString taskToken, boolean forceNewTask, Command... commands) {
+    testWorkflowRule
+        .getWorkflowClient()
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .respondWorkflowTaskCompleted(
+            RespondWorkflowTaskCompletedRequest.newBuilder()
+                .setIdentity("test")
+                .setTaskToken(taskToken)
+                .setForceCreateNewWorkflowTask(forceNewTask)
+                .addAllCommands(Arrays.asList(commands))
+                .build());
+  }
+
+  private ScheduleNexusOperationCommandAttributes.Builder defaultScheduleOperationAttributes() {
+    return ScheduleNexusOperationCommandAttributes.newBuilder()
+        .setEndpoint(testEndpoint.getSpec().getName())
+        .setService("test-service")
+        .setOperation("test-operation")
+        .setInput(defaultInput);
+  }
+
+  private Command newScheduleOperationCommand() {
+    return newScheduleOperationCommand(defaultScheduleOperationAttributes());
+  }
+
+  private Command newScheduleOperationCommand(
+      ScheduleNexusOperationCommandAttributes.Builder attr) {
+    return Command.newBuilder()
+        .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
+        .setScheduleNexusOperationCommandAttributes(attr)
+        .build();
+  }
+
+  private void completeWorkflow(ByteString taskToken, Payload result) {
+    Command cmd =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION)
+            .setCompleteWorkflowExecutionCommandAttributes(
+                CompleteWorkflowExecutionCommandAttributes.newBuilder()
+                    .setResult(Payloads.newBuilder().addPayloads(result)))
+            .build();
+
+    completeWorkflowTask(taskToken, cmd);
+  }
+
+  private CompletableFuture<PollNexusTaskQueueResponse> pollNexusTask() {
+    return CompletableFuture.supplyAsync(
+        () ->
+            testWorkflowRule
+                .getWorkflowClient()
+                .getWorkflowServiceStubs()
+                .blockingStub()
+                .pollNexusTaskQueue(
+                    PollNexusTaskQueueRequest.newBuilder()
+                        .setIdentity(UUID.randomUUID().toString())
+                        .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                        .setTaskQueue(
+                            TaskQueue.newBuilder()
+                                .setName(testWorkflowRule.getTaskQueue())
+                                .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
+                        .build()));
+  }
+
+  private CompletableFuture<RespondNexusTaskCompletedResponse> completeNexusTask(
+      ByteString taskToken, Payload result) {
+    return CompletableFuture.supplyAsync(
+        () ->
+            testWorkflowRule
+                .getWorkflowClient()
+                .getWorkflowServiceStubs()
+                .blockingStub()
+                .respondNexusTaskCompleted(
+                    RespondNexusTaskCompletedRequest.newBuilder()
+                        .setIdentity(UUID.randomUUID().toString())
+                        .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                        .setTaskToken(taskToken)
+                        .setResponse(
+                            Response.newBuilder()
+                                .setStartOperation(
+                                    StartOperationResponse.newBuilder()
+                                        .setSyncSuccess(
+                                            StartOperationResponse.Sync.newBuilder()
+                                                .setPayload(result))))
+                        .build()));
+  }
+
+  private CompletableFuture<ByteString> completeNexusTask(
+      ByteString taskToken, String operationId) {
+    return CompletableFuture.supplyAsync(
+        () -> {
           testWorkflowRule
               .getWorkflowClient()
               .getWorkflowServiceStubs()
               .blockingStub()
-              .pollNexusTaskQueue(
-                  PollNexusTaskQueueRequest.newBuilder()
+              .respondNexusTaskCompleted(
+                  RespondNexusTaskCompletedRequest.newBuilder()
                       .setIdentity(UUID.randomUUID().toString())
                       .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                      .setTaskQueue(
-                          TaskQueue.newBuilder()
-                              .setName(testWorkflowRule.getTaskQueue())
-                              .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
+                      .setTaskToken(taskToken)
+                      .setResponse(
+                          Response.newBuilder()
+                              .setStartOperation(
+                                  StartOperationResponse.newBuilder()
+                                      .setAsyncSuccess(
+                                          StartOperationResponse.Async.newBuilder()
+                                              .setOperationId(operationId))))
                       .build());
+          return taskToken;
+        });
+  }
 
-      testWorkflowRule
-          .getWorkflowClient()
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .respondNexusTaskFailed(
-              RespondNexusTaskFailedRequest.newBuilder()
-                  .setIdentity(UUID.randomUUID().toString())
-                  .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                  .setTaskToken(pollResp.getTaskToken())
-                  .setError(
-                      HandlerError.newBuilder()
-                          .setErrorType("BAD_REQUEST")
-                          .setFailure(Failure.newBuilder().setMessage("deliberate error")))
-                  .build());
-    };
+  private CompletableFuture<RespondNexusTaskFailedResponse> failNexusTask(
+      ByteString taskToken, HandlerError err) {
+    return CompletableFuture.supplyAsync(
+        () ->
+            testWorkflowRule
+                .getWorkflowClient()
+                .getWorkflowServiceStubs()
+                .blockingStub()
+                .respondNexusTaskFailed(
+                    RespondNexusTaskFailedRequest.newBuilder()
+                        .setIdentity(UUID.randomUUID().toString())
+                        .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                        .setTaskToken(taskToken)
+                        .setError(err)
+                        .build()));
   }
 
   private Endpoint createEndpoint(String name) {
@@ -503,5 +465,13 @@ public class NexusWorkflowTest {
                                         .setTaskQueue(testWorkflowRule.getTaskQueue()))))
                 .build())
         .getEndpoint();
+  }
+
+  public static class EchoNexusHandlerWorkflowImpl
+      implements TestWorkflows.PrimitiveNexusHandlerWorkflow {
+    @Override
+    public Object execute(String input) {
+      return input;
+    }
   }
 }

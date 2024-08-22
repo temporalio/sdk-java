@@ -27,13 +27,13 @@ import java.io.*;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
-class NexusTaskToken {
+class NexusOperationRef {
 
   @Nonnull private final ExecutionId executionId;
   private final long scheduledEventId;
   private final int attempt;
 
-  NexusTaskToken(
+  NexusOperationRef(
       @Nonnull String namespace,
       @Nonnull WorkflowExecution execution,
       long scheduledEventId,
@@ -44,7 +44,7 @@ class NexusTaskToken {
         attempt);
   }
 
-  NexusTaskToken(
+  NexusOperationRef(
       @Nonnull String namespace,
       @Nonnull String workflowId,
       @Nonnull String runId,
@@ -60,7 +60,7 @@ class NexusTaskToken {
         attempt);
   }
 
-  NexusTaskToken(@Nonnull ExecutionId executionId, long scheduledEventId, int attempt) {
+  NexusOperationRef(@Nonnull ExecutionId executionId, long scheduledEventId, int attempt) {
     this.executionId = Objects.requireNonNull(executionId);
     this.scheduledEventId = scheduledEventId;
     this.attempt = attempt;
@@ -94,7 +94,7 @@ class NexusTaskToken {
     }
   }
 
-  static NexusTaskToken fromBytes(ByteString serialized) {
+  static NexusOperationRef fromBytes(ByteString serialized) {
     ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
     DataInputStream in = new DataInputStream(bin);
     try {
@@ -103,7 +103,7 @@ class NexusTaskToken {
       String runId = in.readUTF();
       long scheduledEventId = in.readLong();
       int attempt = in.readInt();
-      return new NexusTaskToken(namespace, workflowId, runId, scheduledEventId, attempt);
+      return new NexusOperationRef(namespace, workflowId, runId, scheduledEventId, attempt);
     } catch (IOException e) {
       throw Status.INVALID_ARGUMENT
           .withCause(e)

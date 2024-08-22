@@ -38,9 +38,12 @@ import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
+import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
@@ -59,6 +62,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -749,7 +753,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       PollNexusTaskQueueRequest request,
       StreamObserver<PollNexusTaskQueueResponse> responseObserver) {
     try (Context.CancellableContext ctx = deadlineCtx(getLongPollDeadline())) {
-
       PollNexusTaskQueueResponse.Builder task;
       try {
         task = pollTaskQueue(ctx, store.pollNexusTaskQueue(request));
@@ -766,7 +769,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         responseObserver.onCompleted();
         return;
       }
-
       responseObserver.onNext(task.build());
       responseObserver.onCompleted();
     }
@@ -777,14 +779,31 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondNexusTaskCompletedRequest request,
       StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {
     try {
-      NexusTaskToken taskToken = NexusTaskToken.fromBytes(request.getTaskToken());
-      TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
-      if (request.getResponse().hasStartOperation()
-          && request.getResponse().getStartOperation().hasAsyncSuccess()) {
-        // Start event is only recorded for async success
-        mutableState.startNexusTask(taskToken.getScheduledEventId(), request);
+      NexusOperationRef ref = NexusOperationRef.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(ref.getExecutionId());
+      if (request.getResponse().hasCancelOperation()) {
+        mutableState.cancelNexusOperation(ref);
+      } else if (request.getResponse().hasStartOperation()) {
+        StartOperationResponse startResp = request.getResponse().getStartOperation();
+        if (startResp.hasOperationError()) {
+          Failure failure =
+              nexusFailureToApplicationFailure(startResp.getOperationError().getFailure());
+          mutableState.failNexusOperation(ref, failure);
+        } else if (startResp.hasAsyncSuccess()) {
+          // Start event is only recorded for async success
+          mutableState.startNexusOperation(
+              ref.getScheduledEventId(), request.getIdentity(), startResp.getAsyncSuccess());
+        } else if (startResp.hasSyncSuccess()) {
+          mutableState.completeNexusOperation(ref, startResp.getSyncSuccess().getPayload());
+        } else {
+          throw Status.INVALID_ARGUMENT
+              .withDescription("Expected success or OperationError to be set on request.")
+              .asRuntimeException();
+        }
       } else {
-        mutableState.completeNexusTask(taskToken.getScheduledEventId(), request);
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Expected StartOperation or CancelOperation to be set on request.")
+            .asRuntimeException();
       }
       responseObserver.onNext(RespondNexusTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
@@ -798,14 +817,95 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondNexusTaskFailedRequest request,
       StreamObserver<RespondNexusTaskFailedResponse> responseObserver) {
     try {
-      NexusTaskToken taskToken = NexusTaskToken.fromBytes(request.getTaskToken());
-      TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
-      mutableState.failNexusTask(taskToken.getScheduledEventId(), request);
+      if (!request.hasError()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Nexus handler error not set on RespondNexusTaskFailedRequest")
+            .asRuntimeException();
+      }
+      NexusOperationRef ref = NexusOperationRef.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(ref.getExecutionId());
+      Failure failure = nexusFailureToApplicationFailure(request.getError().getFailure());
+      mutableState.failNexusOperation(ref, failure);
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       handleStatusRuntimeException(e, responseObserver);
     }
+  }
+
+  public void completeNexusOperation(
+      ByteString token,
+      String namespace,
+      WorkflowExecution execution,
+      HistoryEvent completionEvent) {
+    ExecutionId executionId = new ExecutionId(namespace, execution);
+    TestWorkflowMutableState target = getMutableState(executionId);
+    NexusOperationRef ref = NexusOperationRef.fromBytes(token);
+
+    switch (completionEvent.getEventType()) {
+      case EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+        Payloads result =
+            completionEvent.getWorkflowExecutionCompletedEventAttributes().getResult();
+        // All of our SDKs support returning a single value from workflows, we can safely ignore the
+        // rest of the payloads. Additionally, even if a workflow could return more than a single
+        // value,
+        // Nexus does not support it.
+        Payload p =
+            (result.getPayloadsCount() > 0) ? result.getPayloads(0) : Payload.getDefaultInstance();
+        target.completeNexusOperation(ref, p);
+        break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+        target.failNexusOperation(
+            ref, completionEvent.getWorkflowExecutionFailedEventAttributes().getFailure());
+        break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+        target.cancelNexusOperation(ref);
+        break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
+        Failure terminated =
+            Failure.newBuilder()
+                .setMessage("operation terminated")
+                .setApplicationFailureInfo(
+                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
+                .build();
+        target.failNexusOperation(ref, terminated);
+        break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
+        Failure timedOut =
+            Failure.newBuilder()
+                .setMessage("operation exceeded internal timeout")
+                .setApplicationFailureInfo(
+                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
+                .build();
+        target.failNexusOperation(ref, timedOut);
+        break;
+      default:
+        throw Status.INTERNAL
+            .withDescription("invalid workflow execution status: " + completionEvent.getEventType())
+            .asRuntimeException();
+    }
+  }
+
+  private static Failure nexusFailureToApplicationFailure(
+      io.temporal.api.nexus.v1.Failure failure) {
+    return Failure.newBuilder()
+        .setMessage(failure.getMessage())
+        .setApplicationFailureInfo(
+            ApplicationFailureInfo.newBuilder()
+                .setType("NexusOperationFailure")
+                .setNonRetryable(true)
+                .setDetails(
+                    Payloads.newBuilder()
+                        .addPayloads(
+                            Payload.newBuilder()
+                                .putAllMetadata(
+                                    failure.getMetadataMap().entrySet().stream()
+                                        .collect(
+                                            Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                e -> ByteString.copyFromUtf8(e.getValue()))))
+                                .setData(failure.getDetails()))))
+        .build();
   }
 
   @Override

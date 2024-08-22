@@ -22,16 +22,13 @@ package io.temporal.internal.testservice;
 
 import io.grpc.Deadline;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.history.v1.*;
+import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
 import java.util.Optional;
@@ -111,11 +108,14 @@ interface TestWorkflowMutableState {
 
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIdRequest canceledRequest);
 
-  void startNexusTask(long scheduledEventId, RespondNexusTaskCompletedRequest request);
+  void startNexusOperation(
+      long scheduledEventId, String clientIdentity, StartOperationResponse.Async resp);
 
-  void completeNexusTask(long scheduledEventId, RespondNexusTaskCompletedRequest request);
+  void cancelNexusOperation(NexusOperationRef ref);
 
-  void failNexusTask(long scheduledEventId, RespondNexusTaskFailedRequest request);
+  void completeNexusOperation(NexusOperationRef ref, Payload result);
+
+  void failNexusOperation(NexusOperationRef ref, Failure failure);
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 

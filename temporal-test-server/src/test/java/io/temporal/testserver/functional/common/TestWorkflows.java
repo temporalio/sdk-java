@@ -69,4 +69,10 @@ public class TestWorkflows {
     BLOCK,
     FINISH_WORKFLOW,
   }
+
+  @WorkflowInterface
+  public interface PrimitiveNexusHandlerWorkflow {
+    @WorkflowMethod
+    Object execute(String input);
+  }
 }
