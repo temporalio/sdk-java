@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -56,8 +57,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Hosts activity and workflow implementations. Uses long poll to receive activity and workflow
- * tasks and processes them in a correspondent thread pool.
+ * Hosts activity, nexus and workflow implementations. Uses long poll to receive workflow, activity
+ * and nexus tasks and processes them in a correspondent thread pool.
  */
 public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
@@ -65,6 +66,7 @@ public final class Worker {
   private final String taskQueue;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
+  final SyncNexusWorker nexusWorker;
   private final AtomicBoolean started = new AtomicBoolean();
 
   /**
@@ -127,6 +129,18 @@ public final class Worker {
         (activityWorker != null && !this.options.isEagerExecutionDisabled())
             ? activityWorker.getEagerActivityDispatcher()
             : new EagerActivityDispatcher.NoopEagerActivityDispatcher();
+
+    SingleWorkerOptions nexusOptions =
+        toNexusOptions(
+            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+    SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
+        this.options.getWorkerTuner() == null
+            ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentNexusExecutionSize())
+            : this.options.getWorkerTuner().getNexusSlotSupplier();
+    attachMetricsToResourceController(taggedScope, nexusSlotSupplier);
+
+    nexusWorker =
+        new SyncNexusWorker(client, namespace, taskQueue, nexusOptions, nexusSlotSupplier);
 
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
@@ -386,11 +400,28 @@ public final class Worker {
     workflowWorker.registerLocalActivityImplementations(activityImplementations);
   }
 
+  /**
+   * Register Nexus service implementation objects with a worker.
+   *
+   * <p>An Nexus service object must implement at least one interface annotated with {@link
+   * io.nexusrpc.handler.ServiceImpl}.
+   *
+   * @throws TypeAlreadyRegisteredException if one of the services is already registered
+   */
+  @Experimental
+  public void registerNexusServiceImplementation(Object... nexusServiceImplementations) {
+    Preconditions.checkState(
+        !started.get(),
+        "registerNexusServiceImplementation is not allowed after worker has started");
+    nexusWorker.registerNexusServiceImplementation(nexusServiceImplementations);
+  }
+
   void start() {
     if (!started.compareAndSet(false, true)) {
       return;
     }
     workflowWorker.start();
+    nexusWorker.start();
     if (activityWorker != null) {
       activityWorker.start();
     }
@@ -399,19 +430,23 @@ public final class Worker {
   CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptUserTasks) {
     CompletableFuture<Void> workflowWorkerShutdownFuture =
         workflowWorker.shutdown(shutdownManager, interruptUserTasks);
+    CompletableFuture<Void> nexusWorkerShutdownFuture =
+        nexusWorker.shutdown(shutdownManager, interruptUserTasks);
     if (activityWorker != null) {
       return CompletableFuture.allOf(
           activityWorker.shutdown(shutdownManager, interruptUserTasks),
-          workflowWorkerShutdownFuture);
+          workflowWorkerShutdownFuture,
+          nexusWorkerShutdownFuture);
     } else {
-      return workflowWorkerShutdownFuture;
+      return CompletableFuture.allOf(workflowWorkerShutdownFuture, nexusWorkerShutdownFuture);
     }
   }
 
   boolean isTerminated() {
     boolean isTerminated = workflowWorker.isTerminated();
+    isTerminated &= nexusWorker.isTerminated();
     if (activityWorker != null) {
-      isTerminated = activityWorker.isTerminated();
+      isTerminated &= activityWorker.isTerminated();
     }
     return isTerminated;
   }
@@ -421,6 +456,7 @@ public final class Worker {
     if (activityWorker != null) {
       timeoutMillis = ShutdownManager.awaitTermination(activityWorker, timeoutMillis);
     }
+    timeoutMillis = ShutdownManager.awaitTermination(nexusWorker, timeoutMillis);
     ShutdownManager.awaitTermination(workflowWorker, timeoutMillis);
   }
 
@@ -476,6 +512,7 @@ public final class Worker {
 
   public void suspendPolling() {
     workflowWorker.suspendPolling();
+    nexusWorker.suspendPolling();
     if (activityWorker != null) {
       activityWorker.suspendPolling();
     }
@@ -483,13 +520,16 @@ public final class Worker {
 
   public void resumePolling() {
     workflowWorker.resumePolling();
+    nexusWorker.resumePolling();
     if (activityWorker != null) {
       activityWorker.resumePolling();
     }
   }
 
   public boolean isSuspended() {
-    return workflowWorker.isSuspended() && (activityWorker == null || activityWorker.isSuspended());
+    return workflowWorker.isSuspended()
+        && nexusWorker.isSuspended()
+        && (activityWorker == null || activityWorker.isSuspended());
   }
 
   @Nullable
@@ -527,6 +567,21 @@ public final class Worker {
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
                 .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
+                .build())
+        .setMetricsScope(metricsScope)
+        .build();
+  }
+
+  private static SingleWorkerOptions toNexusOptions(
+      WorkerFactoryOptions factoryOptions,
+      WorkerOptions options,
+      WorkflowClientOptions clientOptions,
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
+    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setPollThreadCount(options.getMaxConcurrentNexusTaskPollers())
                 .build())
         .setMetricsScope(metricsScope)
         .build();

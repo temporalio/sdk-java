@@ -20,33 +20,41 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponseOrBuilder;
+import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
 
-public class WorkflowTask {
-  @Nonnull private final PollWorkflowTaskQueueResponse response;
-  @Nonnull private final Functions.Proc1<SlotReleaseReason> completionCallback;
+public final class NexusTask {
+  private final @Nonnull PollNexusTaskQueueResponseOrBuilder response;
+  private final @Nonnull SlotPermit permit;
+  private final @Nonnull Functions.Proc completionCallback;
 
-  public WorkflowTask(
-      @Nonnull PollWorkflowTaskQueueResponse response,
-      @Nonnull Functions.Proc1<SlotReleaseReason> completionCallback) {
+  public NexusTask(
+      @Nonnull PollNexusTaskQueueResponseOrBuilder response,
+      @Nonnull SlotPermit permit,
+      @Nonnull Functions.Proc completionCallback) {
     this.response = response;
+    this.permit = permit;
     this.completionCallback = completionCallback;
   }
 
   @Nonnull
-  public PollWorkflowTaskQueueResponse getResponse() {
+  public PollNexusTaskQueueResponseOrBuilder getResponse() {
     return response;
   }
 
   /**
-   * Completion handle function that must be called by the handler whenever workflow processing is
-   * completed.
+   * Completion handle function that must be called by the handler whenever the nexus task
+   * processing is completed.
    */
   @Nonnull
-  public Functions.Proc1<SlotReleaseReason> getCompletionCallback() {
+  public Functions.Proc getCompletionCallback() {
     return completionCallback;
+  }
+
+  @Nonnull
+  public SlotPermit getPermit() {
+    return permit;
   }
 }

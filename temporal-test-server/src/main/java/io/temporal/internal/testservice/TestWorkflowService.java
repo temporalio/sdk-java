@@ -30,6 +30,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import io.nexusrpc.Header;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payload;
@@ -777,7 +778,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String taskTimeout =
           String.valueOf(Timestamps.between(store.currentTime(), task.getDeadline()).getSeconds());
       Request.Builder req =
-          task.getTask().getRequestBuilder().putHeader("Request-Timeout", taskTimeout);
+          task.getTask().getRequestBuilder().putHeader(Header.REQUEST_TIMEOUT, taskTimeout + "s");
       PollNexusTaskQueueResponse.Builder resp = task.getTask().setRequest(req);
 
       responseObserver.onNext(resp.build());
