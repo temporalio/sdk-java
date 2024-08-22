@@ -759,9 +759,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     State before = operation.getState();
     operation.action(Action.REQUEST_CANCELLATION, ctx, attr, workflowTaskCompletedId);
     if (before == State.INITIATED) {
-      // request is null here, because it's caused not by a separate cancel request, but by a
-      // command
-      operation.action(Action.CANCEL, ctx, null, 0);
+      // Operation canceled before started, so immediately remove operation since no new
+      // cancellation task
+      // will be generated.
       nexusOperations.remove(scheduleEventId);
       ctx.setNeedWorkflowTask(true);
     }

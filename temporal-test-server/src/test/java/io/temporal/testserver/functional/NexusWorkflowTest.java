@@ -147,10 +147,6 @@ public class NexusWorkflowTest {
 
     events =
         testWorkflowRule.getHistoryEvents(
-            execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED);
-    Assert.assertEquals(1, events.size());
-    events =
-        testWorkflowRule.getHistoryEvents(
             execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED);
     Assert.assertEquals(1, events.size());
   }

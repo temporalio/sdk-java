@@ -60,6 +60,7 @@ import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.nexus.v1.CancelOperationRequest;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.nexus.v1.StartOperationResponse;
@@ -345,8 +346,6 @@ class StateMachines {
     TestWorkflowStore.NexusTask nexusTask;
 
     long scheduledEventId = NO_EVENT_ID;
-    // TODO(pj): consider refactoring cancellation into its own state machine as part of async work
-    boolean cancelRequested = false;
 
     TestServiceRetryState retryState;
     long lastAttemptCompleteTime;
@@ -608,16 +607,21 @@ class StateMachines {
     return new StateMachine<>(new NexusOperationData(endpoint))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
-        .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
+        // Transitions to initiated in case of a retry
+        .add(
+            INITIATED,
+            TIME_OUT,
+            new State[] {TIMED_OUT, INITIATED},
+            StateMachines::timeoutNexusOperation)
+        // Transitions directly to canceled if operation has not been started
         .add(
             INITIATED,
             REQUEST_CANCELLATION,
-            CANCELLATION_REQUESTED,
-            StateMachines::requestCancelNexusOperation)
+            CANCELED,
+            StateMachines::reportNexusOperationCancellation)
         // Transitions directly from INITIATED to COMPLETE for sync completions
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
-        .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
         // Transitions to initiated in case of a retry
         .add(STARTED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failNexusOperation)
         // Transitions to initiated in case of a retry
@@ -637,8 +641,23 @@ class StateMachines {
             CANCELED,
             StateMachines::reportNexusOperationCancellation)
         .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
-        .add(CANCELLATION_REQUESTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
-        .add(CANCELLATION_REQUESTED, FAIL, FAILED, StateMachines::failNexusOperation);
+        // Transitions back to CANCELLATION_REQUESTED in case of a retry
+        .add(
+            CANCELLATION_REQUESTED,
+            TIME_OUT,
+            new State[] {TIMED_OUT, CANCELLATION_REQUESTED},
+            StateMachines::timeoutNexusOperation)
+        .add(
+            CANCELLATION_REQUESTED,
+            FAIL,
+            new State[] {FAILED, CANCELLATION_REQUESTED},
+            StateMachines::failNexusOperation)
+        // Duplicate cancellation request
+        .add(
+            CANCELLATION_REQUESTED,
+            REQUEST_CANCELLATION,
+            CANCELLATION_REQUESTED,
+            StateMachines::noop);
   }
 
   public static StateMachine<TimerData> newTimerStateMachine() {
@@ -798,7 +817,7 @@ class StateMachines {
     }
 
     HistoryEvent event;
-    if (data.cancelRequested) {
+    if (data.nexusTask.getTask().getRequest().hasCancelOperation()) {
       event =
           HistoryEvent.newBuilder()
               .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED)
@@ -849,6 +868,10 @@ class StateMachines {
           (historySize) -> {
             data.retryState = nextAttempt;
             data.nextAttemptScheduleTime = ctx.currentTime().getSeconds();
+            task.setTaskToken(
+                new NexusOperationRef(
+                        ctx.getExecutionId(), data.scheduledEventId, nextAttempt.getAttempt())
+                    .toBytes());
           });
     } else {
       data.nextBackoffInterval = Durations.ZERO;
@@ -861,7 +884,6 @@ class StateMachines {
       NexusOperationData data,
       RequestCancelNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
-    data.cancelRequested = true;
     ctx.addEvent(
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED)
@@ -870,6 +892,39 @@ class StateMachines {
                     .setScheduledEventId(attr.getScheduledEventId())
                     .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
             .build());
+
+    RetryPolicy retryPolicy = getDefaultNexusOperationRetryPolicy();
+    Timestamp expirationTime = Timestamps.add(ctx.currentTime(), Durations.fromSeconds(10));
+    TestServiceRetryState cancelRetryState = new TestServiceRetryState(retryPolicy, expirationTime);
+
+    NexusOperationRef ref =
+        new NexusOperationRef(ctx.getExecutionId(), attr.getScheduledEventId(), 1);
+
+    PollNexusTaskQueueResponse.Builder pollResponse =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setTaskToken(ref.toBytes())
+            .setRequest(
+                io.temporal.api.nexus.v1.Request.newBuilder()
+                    .setCancelOperation(
+                        CancelOperationRequest.newBuilder()
+                            .setOperationId(data.operationId)
+                            .setOperation(data.scheduledEvent.getOperation())
+                            .setService(data.scheduledEvent.getService())));
+
+    TaskQueueId taskQueueId =
+        new TaskQueueId(
+            ctx.getNamespace(), data.endpoint.getSpec().getTarget().getWorker().getTaskQueue());
+    TestWorkflowStore.NexusTask cancelTask =
+        new TestWorkflowStore.NexusTask(taskQueueId, pollResponse);
+
+    // Test server only supports worker targets, so just push directly to Nexus task queue without
+    // invoking Nexus client.
+    ctx.addNexusTask(cancelTask);
+    ctx.onCommit(
+        historySize -> {
+          data.nexusTask = cancelTask;
+          data.retryState = cancelRetryState;
+        });
   }
 
   private static void reportNexusOperationCancellation(
