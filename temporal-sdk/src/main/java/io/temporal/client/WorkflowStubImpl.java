@@ -96,7 +96,7 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
-  private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
+  WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
     checkExecutionIsNotStarted();
     String workflowId = getWorkflowIdForStart(options);
     WorkflowExecution workflowExecution = null;
@@ -405,6 +405,12 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public Optional<WorkflowOptions> getOptions() {
     return Optional.ofNullable(options);
+  }
+
+  @Override
+  public WorkflowStub newInstance(WorkflowOptions options) {
+    return new WorkflowStubImpl(
+        clientOptions, workflowClientInvoker, workflowType.orElse(null), options);
   }
 
   private void checkStarted() {

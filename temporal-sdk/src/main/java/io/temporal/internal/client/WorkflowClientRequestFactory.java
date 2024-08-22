@@ -88,6 +88,14 @@ final class WorkflowClientRequestFactory {
       request.setWorkflowIdConflictPolicy(options.getWorkflowIdConflictPolicy());
     }
 
+    if (options.getRequestID() != null) {
+      request.setRequestId(options.getRequestID());
+    }
+
+    if (options.getCallbacks() != null) {
+      options.getCallbacks().forEach(request::addCompletionCallbacks);
+    }
+
     String taskQueue = options.getTaskQueue();
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());

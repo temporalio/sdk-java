@@ -371,4 +371,12 @@ public interface WorkflowStub {
   void terminate(@Nullable String reason, Object... details);
 
   Optional<WorkflowOptions> getOptions();
+
+  /**
+   * Creates a new stub that can be used to start a new run of the same workflow type with the same
+   * options.
+   *
+   * @param options new options to use for the stub
+   */
+  WorkflowStub newInstance(WorkflowOptions options);
 }

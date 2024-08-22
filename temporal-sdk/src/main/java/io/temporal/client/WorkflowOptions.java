@@ -21,6 +21,7 @@
 package io.temporal.client;
 
 import com.google.common.base.Objects;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.*;
@@ -78,6 +79,8 @@ public final class WorkflowOptions {
         .setWorkflowIdConflictPolicy(o.getWorkflowIdConflictPolicy())
         .setStaticSummary(o.getStaticSummary())
         .setStaticDetails(o.getStaticDetails())
+        .setRequestID(o.getRequestID())
+        .setCallbacks(o.getCallbacks())
         .validateBuildWithDefaults();
   }
 
@@ -117,6 +120,10 @@ public final class WorkflowOptions {
 
     private String staticDetails;
 
+    private String requestID;
+
+    private List<Callback> callbacks;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -140,6 +147,8 @@ public final class WorkflowOptions {
       this.workflowIdConflictpolicy = options.workflowIdConflictpolicy;
       this.staticSummary = options.staticSummary;
       this.staticDetails = options.staticDetails;
+      this.requestID = options.requestID;
+      this.callbacks = options.callbacks;
     }
 
     /**
@@ -412,6 +421,18 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /** Request ID. */
+    public Builder setRequestID(String requestID) {
+      this.requestID = requestID;
+      return this;
+    }
+
+    /** Workflow completion callback. */
+    public Builder setCallbacks(List<Callback> callbacks) {
+      this.callbacks = callbacks;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -430,7 +451,9 @@ public final class WorkflowOptions {
           startDelay,
           workflowIdConflictpolicy,
           staticSummary,
-          staticDetails);
+          staticDetails,
+          requestID,
+          callbacks);
     }
 
     /**
@@ -454,7 +477,9 @@ public final class WorkflowOptions {
           startDelay,
           workflowIdConflictpolicy,
           staticSummary,
-          staticDetails);
+          staticDetails,
+          requestID,
+          callbacks);
     }
   }
 
@@ -492,6 +517,10 @@ public final class WorkflowOptions {
 
   private final String staticDetails;
 
+  private final String requestID;
+
+  private final List<Callback> callbacks;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -509,7 +538,9 @@ public final class WorkflowOptions {
       Duration startDelay,
       WorkflowIdConflictPolicy workflowIdConflictpolicy,
       String staticSummary,
-      String staticDetails) {
+      String staticDetails,
+      String requestID,
+      List<Callback> callbacks) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -527,6 +558,8 @@ public final class WorkflowOptions {
     this.workflowIdConflictpolicy = workflowIdConflictpolicy;
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
+    this.requestID = requestID;
+    this.callbacks = callbacks;
   }
 
   public String getWorkflowId() {
@@ -598,6 +631,16 @@ public final class WorkflowOptions {
     return workflowIdConflictpolicy;
   }
 
+  // TODO can we avoid exposing this?
+  public String getRequestID() {
+    return requestID;
+  }
+
+  // TODO can we avoid exposing this?
+  public List<Callback> getCallbacks() {
+    return callbacks;
+  }
+
   public String getStaticSummary() {
     return staticSummary;
   }
@@ -631,7 +674,10 @@ public final class WorkflowOptions {
         && Objects.equal(startDelay, that.startDelay)
         && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy)
         && Objects.equal(staticSummary, that.staticSummary)
-        && Objects.equal(staticDetails, that.staticDetails);
+        && Objects.equal(staticDetails, that.staticDetails)
+        && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy)
+        && Objects.equal(requestID, that.requestID)
+        && Objects.equal(callbacks, that.callbacks);
   }
 
   @Override
@@ -653,7 +699,9 @@ public final class WorkflowOptions {
         startDelay,
         workflowIdConflictpolicy,
         staticSummary,
-        staticDetails);
+        staticDetails,
+        requestID,
+        callbacks);
   }
 
   @Override
@@ -696,6 +744,10 @@ public final class WorkflowOptions {
         + staticSummary
         + ", staticDetails="
         + staticDetails
+        + ", requestId="
+        + requestID
+        + ", Callbacks="
+        + callbacks
         + '}';
   }
 }
