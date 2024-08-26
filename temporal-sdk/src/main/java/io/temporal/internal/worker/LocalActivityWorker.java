@@ -441,6 +441,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
         MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
         MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+        MDC.put(LoggerTag.ATTEMPT, Integer.toString(activityTask.getAttempt()));
 
         slotSupplier.markSlotUsed(
             new LocalActivitySlotInfo(
@@ -506,6 +507,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
+        MDC.remove(LoggerTag.ATTEMPT);
       }
     }
 
@@ -689,6 +691,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               false);
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      this.slotQueue.start();
       return true;
     } else {
       return false;
@@ -698,9 +701,9 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     if (activityAttemptTaskExecutor != null && !activityAttemptTaskExecutor.isShutdown()) {
-      slotQueue.shutdown();
-      return activityAttemptTaskExecutor
+      return slotQueue
           .shutdown(shutdownManager, interruptTasks)
+          .thenCompose(r -> activityAttemptTaskExecutor.shutdown(shutdownManager, interruptTasks))
           .thenCompose(
               r ->
                   shutdownManager.shutdownExecutor(
@@ -717,21 +720,24 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    slotQueue.shutdown();
     long timeoutMillis = unit.toMillis(timeout);
-    ShutdownManager.awaitTermination(scheduledExecutor, timeoutMillis);
+    long remainingTimeout = ShutdownManager.awaitTermination(scheduledExecutor, timeoutMillis);
+    ShutdownManager.awaitTermination(slotQueue, remainingTimeout);
   }
 
   @Override
   public boolean isShutdown() {
-    return activityAttemptTaskExecutor != null && activityAttemptTaskExecutor.isShutdown();
+    return activityAttemptTaskExecutor != null
+        && activityAttemptTaskExecutor.isShutdown()
+        && slotQueue.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
     return activityAttemptTaskExecutor != null
         && activityAttemptTaskExecutor.isTerminated()
-        && scheduledExecutor.isTerminated();
+        && scheduledExecutor.isTerminated()
+        && slotQueue.isTerminated();
   }
 
   @Override

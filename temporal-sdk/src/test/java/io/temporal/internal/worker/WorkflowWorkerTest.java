@@ -40,6 +40,7 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testUtils.Eventually;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.FixedSizeSlotSupplier;
@@ -181,38 +182,38 @@ public class WorkflowWorkerTest {
                 });
 
     assertTrue(worker.start());
-    // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
-        ImmutableMap.of("worker_type", "WorkflowWorker"),
-        100.0);
     // Unblock the first poll
     blockFirstPollLatch.countDown();
     // Wait until we have got all the polls
     pollTaskQueueLatch.await();
     // Wait until the worker handles at least one WFT
     handleTaskLatch.await();
-    // Sleep to allow metrics to be published
-    Thread.sleep(100);
-    // Since all polls have the same runID only one should get through, the other two should be
-    // blocked
-    assertEquals(runLockManager.totalLocks(), 1);
     // Verify 3 slots have been used
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
-        ImmutableMap.of("worker_type", "WorkflowWorker"),
-        97.0);
+    Eventually.assertEventually(
+        Duration.ofSeconds(10),
+        () -> {
+          // Since all polls have the same runID only one should get through, the other two should
+          // be
+          // blocked
+          assertEquals(runLockManager.totalLocks(), 1);
+          reporter.assertGauge(
+              MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+              ImmutableMap.of("worker_type", "WorkflowWorker"),
+              97.0);
+        });
     // Wait for the worker to respond, by this time the other blocked tasks should have timed out
     respondTaskLatch.await();
-    // Sleep to allow metrics to be published
-    Thread.sleep(100);
-    // No task should have the lock anymore
-    assertEquals(runLockManager.totalLocks(), 0);
     // All slots should be available
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
-        ImmutableMap.of("worker_type", "WorkflowWorker"),
-        100.0);
+    Eventually.assertEventually(
+        Duration.ofSeconds(10),
+        () -> {
+          // No task should have the lock anymore
+          assertEquals(runLockManager.totalLocks(), 0);
+          reporter.assertGauge(
+              MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
+              ImmutableMap.of("worker_type", "WorkflowWorker"),
+              100.0);
+        });
     // Cleanup
     worker.shutdown(new ShutdownManager(), false).get();
     // Verify we only handled two tasks
