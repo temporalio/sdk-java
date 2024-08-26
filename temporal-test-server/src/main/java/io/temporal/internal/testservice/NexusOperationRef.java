@@ -27,7 +27,7 @@ import java.io.*;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
-class NexusOperationRef {
+public class NexusOperationRef {
 
   @Nonnull private final ExecutionId executionId;
   private final long scheduledEventId;
@@ -94,7 +94,7 @@ class NexusOperationRef {
     }
   }
 
-  static NexusOperationRef fromBytes(ByteString serialized) {
+  public static NexusOperationRef fromBytes(ByteString serialized) {
     ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
     DataInputStream in = new DataInputStream(bin);
     try {

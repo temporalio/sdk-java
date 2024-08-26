@@ -833,14 +833,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  public void completeNexusOperation(
-      ByteString token,
-      String namespace,
-      WorkflowExecution execution,
-      HistoryEvent completionEvent) {
-    ExecutionId executionId = new ExecutionId(namespace, execution);
-    TestWorkflowMutableState target = getMutableState(executionId);
+  public void completeNexusOperation(ByteString token, HistoryEvent completionEvent) {
     NexusOperationRef ref = NexusOperationRef.fromBytes(token);
+    TestWorkflowMutableState target = getMutableState(ref.getExecutionId());
 
     switch (completionEvent.getEventType()) {
       case EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:

@@ -344,8 +344,10 @@ class StateMachines {
     Endpoint endpoint;
     NexusOperationScheduledEventAttributes scheduledEvent;
     TestWorkflowStore.NexusTask nexusTask;
+    RetryPolicy taskRetryPolicy;
 
     long scheduledEventId = NO_EVENT_ID;
+    boolean isStarted = false;
 
     TestServiceRetryState retryState;
     long lastAttemptCompleteTime;
@@ -355,6 +357,7 @@ class StateMachines {
 
     public NexusOperationData(Endpoint endpoint) {
       this.operationId = UUID.randomUUID().toString();
+      this.taskRetryPolicy = getDefaultNexusTaskRetryPolicy();
       this.endpoint = endpoint;
     }
 
@@ -607,57 +610,34 @@ class StateMachines {
     return new StateMachine<>(new NexusOperationData(endpoint))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
-        // Transitions to initiated in case of a retry
+        // Transitions to INITIATED in case of a retry
         .add(
             INITIATED,
             TIME_OUT,
             new State[] {TIMED_OUT, INITIATED},
             StateMachines::timeoutNexusOperation)
-        // Transitions directly to canceled if operation has not been started
+        // Transitions directly to CANCELED if operation has not been started
         .add(
             INITIATED,
             REQUEST_CANCELLATION,
             CANCELED,
             StateMachines::reportNexusOperationCancellation)
+        .add(INITIATED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation)
         // Transitions directly from INITIATED to COMPLETE for sync completions
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
+        // Transitions to INITIATED in case of a retry
+        .add(INITIATED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failNexusOperation)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
-        // Transitions to initiated in case of a retry
-        .add(STARTED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failNexusOperation)
-        // Transitions to initiated in case of a retry
+        // Transitions back to STARTED in case of a retry
+        .add(STARTED, FAIL, new State[] {FAILED, STARTED}, StateMachines::failNexusOperation)
+        // Transitions back to STARTED in case of a retry
         .add(
             STARTED,
             TIME_OUT,
-            new State[] {TIMED_OUT, INITIATED},
+            new State[] {TIMED_OUT, STARTED},
             StateMachines::timeoutNexusOperation)
-        .add(
-            STARTED,
-            REQUEST_CANCELLATION,
-            CANCELLATION_REQUESTED,
-            StateMachines::requestCancelNexusOperation)
-        .add(
-            CANCELLATION_REQUESTED,
-            CANCEL,
-            CANCELED,
-            StateMachines::reportNexusOperationCancellation)
-        .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
-        // Transitions back to CANCELLATION_REQUESTED in case of a retry
-        .add(
-            CANCELLATION_REQUESTED,
-            TIME_OUT,
-            new State[] {TIMED_OUT, CANCELLATION_REQUESTED},
-            StateMachines::timeoutNexusOperation)
-        .add(
-            CANCELLATION_REQUESTED,
-            FAIL,
-            new State[] {FAILED, CANCELLATION_REQUESTED},
-            StateMachines::failNexusOperation)
-        // Duplicate cancellation request
-        .add(
-            CANCELLATION_REQUESTED,
-            REQUEST_CANCELLATION,
-            CANCELLATION_REQUESTED,
-            StateMachines::noop);
+        .add(STARTED, REQUEST_CANCELLATION, STARTED, StateMachines::requestCancelNexusOperation)
+        .add(STARTED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation);
   }
 
   public static StateMachine<TimerData> newTimerStateMachine() {
@@ -688,10 +668,10 @@ class StateMachines {
       NexusOperationData data,
       ScheduleNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
-    RetryPolicy retryPolicy = getDefaultNexusOperationRetryPolicy();
     Duration expirationInterval = attr.getScheduleToCloseTimeout();
     Timestamp expirationTime = Timestamps.add(ctx.currentTime(), expirationInterval);
-    TestServiceRetryState retryState = new TestServiceRetryState(retryPolicy, expirationTime);
+    TestServiceRetryState retryState =
+        new TestServiceRetryState(data.taskRetryPolicy, expirationTime);
 
     NexusOperationScheduledEventAttributes.Builder a =
         NexusOperationScheduledEventAttributes.newBuilder()
@@ -760,7 +740,11 @@ class StateMachines {
                     .setScheduledEventId(data.scheduledEventId)
                     .setRequestId(data.scheduledEvent.getRequestId()))
             .build());
-    ctx.onCommit(historySize -> data.operationId = resp.getOperationId());
+    ctx.onCommit(
+        historySize -> {
+          data.operationId = resp.getOperationId();
+          data.isStarted = true;
+        });
   }
 
   private static void completeNexusOperation(
@@ -778,18 +762,21 @@ class StateMachines {
 
   private static State timeoutNexusOperation(
       RequestContext ctx, NexusOperationData data, TimeoutType timeoutType, long notUsed) {
-    if (timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE) {
+    if (timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE
+        && timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START) {
       throw new IllegalArgumentException(
           "Timeout type not supported for Nexus operations: " + timeoutType);
     }
 
-    // not chaining with the previous run failure if we are preparing the failure to be stored
-    // for the next iteration
-    Optional<Failure> lastFailure =
-        Optional.of(newTimeoutFailure(timeoutType, Optional.empty(), Optional.empty()));
-    RetryState retryState = attemptNexusOperationRetry(ctx, lastFailure, data);
-    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
-      return INITIATED;
+    if (timeoutType == TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START) {
+      // not chaining with the previous run failure if we are preparing the failure to be stored
+      // for the next iteration
+      Optional<Failure> lastFailure =
+          Optional.of(newTimeoutFailure(timeoutType, Optional.empty(), Optional.empty()));
+      RetryState retryState = attemptNexusOperationRetry(ctx, lastFailure, data);
+      if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
+        return (data.isStarted) ? STARTED : INITIATED;
+      }
     }
 
     // chaining with the previous run failure if we are preparing the final failure
@@ -813,7 +800,7 @@ class StateMachines {
       RequestContext ctx, NexusOperationData data, Failure failure, long notUsed) {
     RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
     if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
-      return INITIATED;
+      return (data.isStarted) ? STARTED : INITIATED;
     }
 
     HistoryEvent event;
@@ -893,12 +880,11 @@ class StateMachines {
                     .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
             .build());
 
-    RetryPolicy retryPolicy = getDefaultNexusOperationRetryPolicy();
-    Timestamp expirationTime = Timestamps.add(ctx.currentTime(), Durations.fromSeconds(10));
-    TestServiceRetryState cancelRetryState = new TestServiceRetryState(retryPolicy, expirationTime);
-
+    TestServiceRetryState cancelRetryState =
+        new TestServiceRetryState(data.taskRetryPolicy, data.retryState.getExpirationTime());
     NexusOperationRef ref =
-        new NexusOperationRef(ctx.getExecutionId(), attr.getScheduledEventId(), 1);
+        new NexusOperationRef(
+            ctx.getExecutionId(), attr.getScheduledEventId(), cancelRetryState.getAttempt());
 
     PollNexusTaskQueueResponse.Builder pollResponse =
         PollNexusTaskQueueResponse.newBuilder()
@@ -2419,11 +2405,10 @@ class StateMachines {
         .build();
   }
 
-  static RetryPolicy getDefaultNexusOperationRetryPolicy() {
+  static RetryPolicy getDefaultNexusTaskRetryPolicy() {
     return RetryPolicy.newBuilder()
         .addAllNonRetryableErrorTypes(
-            Arrays.asList(
-                "BAD_REQUEST", "INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
+            Arrays.asList("INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
         .setInitialInterval(Durations.fromSeconds(1))
         .setMaximumInterval(Durations.fromSeconds(10))
         .setBackoffCoefficient(2.0)

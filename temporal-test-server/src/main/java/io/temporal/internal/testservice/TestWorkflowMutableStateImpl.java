@@ -711,20 +711,28 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId) {
     attr = validateScheduleNexusOperation(attr);
     Endpoint endpoint = nexusEndpointStore.getEndpointByName(attr.getEndpoint());
-    StateMachine<StateMachines.NexusOperationData> operationStateMachine =
-        newNexusOperation(endpoint);
+    StateMachine<StateMachines.NexusOperationData> operation = newNexusOperation(endpoint);
     long scheduleEventId = ctx.getNextEventId();
-    nexusOperations.put(scheduleEventId, operationStateMachine);
+    nexusOperations.put(scheduleEventId, operation);
 
-    operationStateMachine.action(Action.INITIATE, ctx, attr, workflowTaskCompletedId);
+    operation.action(Action.INITIATE, ctx, attr, workflowTaskCompletedId);
+    // Use TIMEOUT_TYPE_SCHEDULE_TO_START for timing out an individual start request
+    ctx.addTimer(
+        ProtobufTimeUtils.toJavaDuration(operation.getData().taskRetryPolicy.getInitialInterval()),
+        () ->
+            timeoutNexusOperation(
+                scheduleEventId,
+                TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START,
+                operation.getData().getAttempt()),
+        "ScheduleNexusOperation ScheduleToStart");
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(
-            operationStateMachine.getData().scheduledEvent.getScheduleToCloseTimeout()),
+            operation.getData().scheduledEvent.getScheduleToCloseTimeout()),
         () ->
             timeoutNexusOperation(
                 scheduleEventId,
                 TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-                operationStateMachine.getData().getAttempt()),
+                operation.getData().getAttempt()),
         "NexusOperation ScheduleToCloseTimeout");
     ctx.lockTimer("processScheduleNexusOperation");
   }
@@ -749,21 +757,31 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestCancelNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
     long scheduleEventId = attr.getScheduledEventId();
-    StateMachine<?> operation = nexusOperations.get(scheduleEventId);
+    StateMachine<NexusOperationData> operation = nexusOperations.get(scheduleEventId);
     if (operation == null) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Nexus operation not found for scheduleEventId=" + scheduleEventId)
           .asRuntimeException();
     }
 
-    State before = operation.getState();
     operation.action(Action.REQUEST_CANCELLATION, ctx, attr, workflowTaskCompletedId);
-    if (before == State.INITIATED) {
+    if (isTerminalState(operation.getState())) {
       // Operation canceled before started, so immediately remove operation since no new
-      // cancellation task
-      // will be generated.
+      // cancellation task will be generated.
       nexusOperations.remove(scheduleEventId);
       ctx.setNeedWorkflowTask(true);
+    } else {
+      // Use TIMEOUT_TYPE_SCHEDULE_TO_START for timing out an individual cancel request
+      ctx.addTimer(
+          ProtobufTimeUtils.toJavaDuration(
+              operation.getData().taskRetryPolicy.getInitialInterval()),
+          () ->
+              timeoutNexusOperation(
+                  scheduleEventId,
+                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START,
+                  operation.getData().getAttempt()),
+          "CancelNexusOperation ScheduleToStart");
+      ctx.lockTimer("processRequestCancelNexusOperation");
     }
   }
 
@@ -1594,11 +1612,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         log.warn("skipping non-nexus completion callback");
         continue;
       }
-      service.completeNexusOperation(
-          cb.getNexus().getUrlBytes(),
-          ctx.getNamespace(),
-          ctx.getExecution(),
-          completionEvent.get());
+      service.completeNexusOperation(cb.getNexus().getUrlBytes(), completionEvent.get());
     }
   }
 
@@ -2169,15 +2183,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void addNexusOperationRetryTimer(
       RequestContext ctx, StateMachine<NexusOperationData> operation) {
+    State prevState = operation.getState();
     NexusOperationData data = operation.getData();
     int attempt = data.getAttempt();
-    Duration nextDelay = ProtobufTimeUtils.toJavaDuration(data.nextBackoffInterval);
-    data.nextAttemptScheduleTime = clock.getAsLong() + nextDelay.toMillis();
     ctx.addTimer(
-        nextDelay,
+        ProtobufTimeUtils.toJavaDuration(data.nextBackoffInterval),
         () -> {
           // Timers are not removed, so skip if it is not for this attempt.
-          if (operation.getState() != State.INITIATED && data.getAttempt() != attempt) {
+          if (operation.getState() != prevState && data.getAttempt() != attempt) {
             return;
           }
 
