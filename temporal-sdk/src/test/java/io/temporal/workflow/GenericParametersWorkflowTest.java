@@ -70,8 +70,22 @@ public class GenericParametersWorkflowTest {
     expectedQueryResult.sort(UUID::compareTo);
     queryResult.sort(UUID::compareTo);
     Assert.assertEquals(expectedQueryResult, queryResult);
-    workflowStub.signal(new ArrayList<UUID>()); // empty list unblocks workflow await.
+    // Test update and query serialization
+    List<UUID> queryArgAfterUpdate = new ArrayList<UUID>();
+    queryArgAfterUpdate.add(UUID.randomUUID());
+    queryArgAfterUpdate.add(UUID.randomUUID());
+    List<UUID> updateArg = new ArrayList<UUID>();
+    updateArg.add(UUID.randomUUID());
+    updateArg.add(UUID.randomUUID());
+    List<UUID> updateResult = workflowStub.update(updateArg);
+    Assert.assertEquals(updateArg, updateResult);
+    ArrayList<UUID> expectedQueryResultAfterUpdate = new ArrayList<UUID>();
+    expectedQueryResultAfterUpdate.addAll(queryArgAfterUpdate);
+    expectedQueryResultAfterUpdate.addAll(updateArg);
+    queryResult = workflowStub.query(queryArgAfterUpdate);
+    Assert.assertEquals(expectedQueryResultAfterUpdate, queryResult);
     // test workflow result serialization
+    workflowStub.signal(new ArrayList<UUID>()); // empty list unblocks workflow await.
     List<UUID> expectedResult = new ArrayList<UUID>();
     expectedResult.addAll(uuidList);
     expectedResult.addAll(uuidSet);
@@ -95,6 +109,9 @@ public class GenericParametersWorkflowTest {
 
     @SignalMethod
     void signal(List<UUID> arg);
+
+    @UpdateMethod
+    List<UUID> update(List<UUID> arg);
 
     @QueryMethod
     List<UUID> query(List<UUID> arg);
@@ -129,6 +146,12 @@ public class GenericParametersWorkflowTest {
     @Override
     public void signal(List<UUID> arg) {
       signaled = arg;
+    }
+
+    @Override
+    public List<UUID> update(List<UUID> arg) {
+      signaled = arg;
+      return arg;
     }
 
     @Override

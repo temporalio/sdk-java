@@ -22,10 +22,9 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
-import io.temporal.common.CronSchedule;
-import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
+import io.temporal.common.metadata.POJOWorkflowMethod;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -53,13 +52,11 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
       throw new IllegalArgumentException(
           "Missing method annotated with @WorkflowMethod: " + workflowInterface.getName());
     }
-    Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
-    MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
-    CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
+    POJOWorkflowMethod workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     ChildWorkflowOptions merged =
         ChildWorkflowOptions.newBuilder(options)
-            .setMethodRetry(retryAnnotation)
-            .setCronSchedule(cronSchedule)
+            .setMethodRetry(workflowMethod.getRetryAnnotation())
+            .setCronSchedule(workflowMethod.getChronScheduleAnnotation())
             .validateAndBuildWithDefaults();
     this.stub =
         new ChildWorkflowStubImpl(

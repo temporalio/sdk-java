@@ -73,7 +73,7 @@ private fun workflowMethodName(method: KFunction<*>, type: WorkflowMethodType): 
   val javaMethod = method.javaMethod
     ?: throw IllegalArgumentException("Invalid method reference $method")
   val interfaceMetadata = POJOWorkflowInterfaceMetadata.newInstance(javaMethod.declaringClass)
-  val methodMetadata = interfaceMetadata.methodsMetadata.find { it.workflowMethod == javaMethod }
+  val methodMetadata = interfaceMetadata.methodsMetadata.find { it.workflowMethod.method == javaMethod }
     ?: throw IllegalArgumentException("Not a workflow method reference $method")
   if (methodMetadata.type != type) {
     throw IllegalArgumentException("Workflow method $method is not of expected type $type")

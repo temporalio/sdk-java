@@ -110,7 +110,7 @@ public class POJOWorkflowInterfaceMetadataTest {
     POJOWorkflowMethodMetadata dMethod = dMetadata.getMethodMetadata(method);
 
     assertEquals(cMethod, dMethod);
-    assertEquals(method, dMethod.getWorkflowMethod());
+    assertEquals(method, dMethod.getWorkflowMethod().getMethod());
     assertEquals("c", dMethod.getName());
   }
 
@@ -171,7 +171,7 @@ public class POJOWorkflowInterfaceMetadataTest {
           assertEquals(
               shouldBeConsideredAWorkflowMethod,
               metadata.getMethodsMetadata().stream()
-                  .anyMatch(m -> m.getWorkflowMethod().getName().equals("method")));
+                  .anyMatch(m -> m.getWorkflowMethod().getMethod().getName().equals("method")));
         };
     if (shouldThrow) {
       assertThrows(IllegalArgumentException.class, r);

@@ -236,6 +236,11 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public <R> R update(String updateName, Class<R> resultClass, Type resultType, Object... args) {
+      return next.update(updateName, resultClass, resultType, args);
+    }
+
+    @Override
     public <R> UpdateHandle<R> startUpdate(
         String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args) {
       return next.startUpdate(updateName, waitForStage, resultClass, args);

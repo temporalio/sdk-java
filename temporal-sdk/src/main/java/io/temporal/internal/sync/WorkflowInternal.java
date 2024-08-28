@@ -39,6 +39,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
+import io.temporal.common.metadata.POJOWorkflowMethod;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
@@ -164,16 +165,16 @@ public final class WorkflowInternal {
     Class<?> cls = implementation.getClass();
     POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newListenerInstance(cls);
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getQueryMethods()) {
-      Method method = methodMetadata.getWorkflowMethod();
+      POJOWorkflowMethod workflowMethod = methodMetadata.getWorkflowMethod();
       getWorkflowOutboundInterceptor()
           .registerQuery(
               new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
                   methodMetadata.getName(),
-                  method.getParameterTypes(),
-                  method.getGenericParameterTypes(),
+                  workflowMethod.getParameterTypes(),
+                  workflowMethod.getGenericParameterTypes(),
                   (args) -> {
                     try {
-                      return method.invoke(implementation, args);
+                      return workflowMethod.invoke(implementation, args);
                     } catch (Throwable e) {
                       throw CheckedExceptionWrapper.wrap(e);
                     }
@@ -181,17 +182,16 @@ public final class WorkflowInternal {
     }
     List<WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> requests = new ArrayList<>();
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getSignalMethods()) {
-      Method method = methodMetadata.getWorkflowMethod();
-      SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+      POJOWorkflowMethod workflowMethod = methodMetadata.getWorkflowMethod();
       requests.add(
           new WorkflowOutboundCallsInterceptor.SignalRegistrationRequest(
               methodMetadata.getName(),
-              signalMethod.unfinishedPolicy(),
-              method.getParameterTypes(),
-              method.getGenericParameterTypes(),
+              workflowMethod.getSignalAnnotation().unfinishedPolicy(),
+              workflowMethod.getParameterTypes(),
+              workflowMethod.getGenericParameterTypes(),
               (args) -> {
                 try {
-                  method.invoke(implementation, args);
+                  workflowMethod.invoke(implementation, args);
                 } catch (Throwable e) {
                   throw CheckedExceptionWrapper.wrap(e);
                 }
@@ -207,9 +207,9 @@ public final class WorkflowInternal {
     Map<String, POJOWorkflowMethodMetadata> validators =
         new HashMap<>(workflowMetadata.getUpdateValidatorMethods().size());
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateValidatorMethods()) {
-      Method method = methodMetadata.getWorkflowMethod();
+      POJOWorkflowMethod workflowMethod = methodMetadata.getWorkflowMethod();
       UpdateValidatorMethod updateValidatorMethod =
-          method.getAnnotation(UpdateValidatorMethod.class);
+          workflowMethod.getUpdateValidatorMethodAnnotation();
       if (validators.containsKey(updateValidatorMethod.updateName())) {
         throw new IllegalArgumentException(
             "Duplicate validator for update handle " + updateValidatorMethod.updateName());
@@ -220,19 +220,17 @@ public final class WorkflowInternal {
     List<WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest> updateRequests =
         new ArrayList<>();
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateMethods()) {
-      Method method = methodMetadata.getWorkflowMethod();
-      UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
-      // Get the update name, defaulting to the method name if not specified.
-      String updateMethodName = updateMethod.name();
-      if (updateMethodName.isEmpty()) {
-        updateMethodName = method.getName();
-      }
+      POJOWorkflowMethod workflowMethod = methodMetadata.getWorkflowMethod();
+      String updateMethodName =
+          workflowMethod.getNameFromAnnotation().orElse(workflowMethod.getMethod().getName());
+
       // Check if any validators claim they are the validator for this update
       POJOWorkflowMethodMetadata validatorMethodMetadata = validators.remove(updateMethodName);
-      Method validatorMethod;
+      POJOWorkflowMethod validatorMethod;
       if (validatorMethodMetadata != null) {
         validatorMethod = validatorMethodMetadata.getWorkflowMethod();
-        if (!Arrays.equals(validatorMethod.getParameterTypes(), method.getParameterTypes())) {
+        if (!Arrays.equals(
+            validatorMethod.getParameterTypes(), workflowMethod.getParameterTypes())) {
           throw new IllegalArgumentException(
               "Validator for: "
                   + updateMethodName
@@ -244,9 +242,9 @@ public final class WorkflowInternal {
       updateRequests.add(
           new WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest(
               methodMetadata.getName(),
-              updateMethod.unfinishedPolicy(),
-              method.getParameterTypes(),
-              method.getGenericParameterTypes(),
+              workflowMethod.getUpdateAnnotation().unfinishedPolicy(),
+              workflowMethod.getParameterTypes(),
+              workflowMethod.getGenericParameterTypes(),
               (args) -> {
                 try {
                   if (validatorMethod != null) {
@@ -258,7 +256,7 @@ public final class WorkflowInternal {
               },
               (args) -> {
                 try {
-                  return method.invoke(implementation, args);
+                  return workflowMethod.invoke(implementation, args);
                 } catch (Throwable e) {
                   throw CheckedExceptionWrapper.wrap(e);
                 }

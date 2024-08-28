@@ -92,6 +92,24 @@ public interface WorkflowStub {
   <R> R update(String updateName, Class<R> resultClass, Object... args);
 
   /**
+   * Synchronously update a workflow execution by invoking its update handler. Usually a update
+   * handler is a method annotated with {@link io.temporal.workflow.UpdateMethod}.
+   *
+   * @param updateName name of the update handler. Usually it is a method name.
+   * @param resultClass class of the update return value
+   * @param <R> type of the update return value
+   * @param resultType type of the update return value. Differs from resultClass for generic types.
+   * @param args update method arguments
+   * @return update result
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or completed and
+   *     can't be signalled
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues
+   */
+  @Experimental
+  <R> R update(String updateName, Class<R> resultClass, Type resultType, Object... args);
+
+  /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a
    * handle to the update request. Usually an update handler is a method annotated with {@link
    * io.temporal.workflow.UpdateMethod}.

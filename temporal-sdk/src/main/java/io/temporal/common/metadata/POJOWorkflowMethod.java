@@ -21,18 +21,32 @@
 package io.temporal.common.metadata;
 
 import com.google.common.base.Strings;
+import io.temporal.common.CronSchedule;
+import io.temporal.common.MethodRetry;
 import io.temporal.workflow.*;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
 
-final class POJOWorkflowMethod {
+public final class POJOWorkflowMethod {
 
   private final WorkflowMethodType type;
   private final Method method;
+  private final Type[] genericParameterTypes;
+  private final Type genericReturnType;
   private final Optional<String> nameFromAnnotation;
 
   POJOWorkflowMethod(Method method) {
+    this(method, method.getGenericParameterTypes(), method.getGenericReturnType());
+  }
+
+  POJOWorkflowMethod withGenericTypes(Type[] genericParameterTypes, Type genericReturnType) {
+    return new POJOWorkflowMethod(method, genericParameterTypes, genericReturnType);
+  }
+
+  private POJOWorkflowMethod(Method method, Type[] genericParameterTypes, Type genericReturnType) {
     this.method = Objects.requireNonNull(method);
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
@@ -94,6 +108,8 @@ final class POJOWorkflowMethod {
       this.nameFromAnnotation = Optional.of(name);
     }
     this.type = Objects.requireNonNull(type);
+    this.genericParameterTypes = genericParameterTypes;
+    this.genericReturnType = genericReturnType;
   }
 
   public WorkflowMethodType getType() {
@@ -104,8 +120,49 @@ final class POJOWorkflowMethod {
     return method;
   }
 
+  public Class<?>[] getParameterTypes() {
+    return method.getParameterTypes();
+  }
+
+  public Type[] getGenericParameterTypes() {
+    return genericParameterTypes;
+  }
+
+  public Class<?> getReturnType() {
+    return method.getReturnType();
+  }
+
+  public Type getGenericReturnType() {
+    return genericReturnType;
+  }
+
   public Optional<String> getNameFromAnnotation() {
     return nameFromAnnotation;
+  }
+
+  public MethodRetry getRetryAnnotation() {
+    return method.getAnnotation(MethodRetry.class);
+  }
+
+  public CronSchedule getChronScheduleAnnotation() {
+    return method.getAnnotation(CronSchedule.class);
+  }
+
+  public UpdateValidatorMethod getUpdateValidatorMethodAnnotation() {
+    return method.getAnnotation(UpdateValidatorMethod.class);
+  }
+
+  public UpdateMethod getUpdateAnnotation() {
+    return method.getAnnotation(UpdateMethod.class);
+  }
+
+  public SignalMethod getSignalAnnotation() {
+    return method.getAnnotation(SignalMethod.class);
+  }
+
+  public Object invoke(Object obj, Object... args)
+      throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+    return method.invoke(obj, args);
   }
 
   /** Compare and hash on method only. */
@@ -121,5 +178,10 @@ final class POJOWorkflowMethod {
   @Override
   public int hashCode() {
     return com.google.common.base.Objects.hashCode(method);
+  }
+
+  @Override
+  public String toString() {
+    return method.toString();
   }
 }

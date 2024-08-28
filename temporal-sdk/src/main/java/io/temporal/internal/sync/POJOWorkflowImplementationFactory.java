@@ -35,6 +35,7 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
+import io.temporal.common.metadata.POJOWorkflowMethod;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.env.ReflectionUtils;
@@ -50,7 +51,6 @@ import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -196,21 +196,21 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     }
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
-    List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
-    if (workflowMethods.isEmpty()) {
+    List<POJOWorkflowMethodMetadata> methodsMetadata = workflowMetadata.getWorkflowMethods();
+    if (methodsMetadata.isEmpty()) {
       throw new IllegalArgumentException(
           "Workflow implementation doesn't implement any interface "
               + "with a workflow method annotated with @WorkflowMethod: "
               + workflowImplementationClass);
     }
-    for (POJOWorkflowMethodMetadata workflowMethod : workflowMethods) {
-      String workflowName = workflowMethod.getName();
-      Method method = workflowMethod.getWorkflowMethod();
+    for (POJOWorkflowMethodMetadata methodMetadata : methodsMetadata) {
+      String workflowName = methodMetadata.getName();
+      POJOWorkflowMethod workflowMethod = methodMetadata.getWorkflowMethod();
       Functions.Func1<WorkflowExecution, SyncWorkflowDefinition> definition =
           (execution) ->
               new POJOWorkflowImplementation(
                   workflowImplementationClass,
-                  method,
+                  workflowMethod,
                   dataConverter.withContext(
                       new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
 
@@ -280,14 +280,14 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
 
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {
     private final Class<?> workflowImplementationClass;
-    private final Method workflowMethod;
+    private final POJOWorkflowMethod workflowMethod;
     private WorkflowInboundCallsInterceptor workflowInvoker;
     // don't pass it down to other classes, it's a "cached" instance for internal usage only
     private final DataConverter dataConverterWithWorkflowContext;
 
     public POJOWorkflowImplementation(
         Class<?> workflowImplementationClass,
-        Method workflowMethod,
+        POJOWorkflowMethod workflowMethod,
         DataConverter dataConverterWithWorkflowContext) {
       this.workflowImplementationClass = workflowImplementationClass;
       this.workflowMethod = workflowMethod;

@@ -20,7 +20,6 @@
 
 package io.temporal.common.metadata;
 
-import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -62,8 +61,8 @@ public final class POJOWorkflowMethodMetadata {
     return name;
   }
 
-  public Method getWorkflowMethod() {
-    return workflowMethod.getMethod();
+  public POJOWorkflowMethod getWorkflowMethod() {
+    return workflowMethod;
   }
 
   public Class<?> getWorkflowInterface() {
