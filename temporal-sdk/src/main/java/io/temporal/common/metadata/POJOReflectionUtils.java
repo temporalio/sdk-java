@@ -21,6 +21,7 @@
 package io.temporal.common.metadata;
 
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -156,20 +157,24 @@ final class POJOReflectionUtils {
 
   private static Type getResolvedGenericType(
       TypeVariable<?> typeVariable, Map<TypeParameterKey, Type> resolvedTypes) {
-    Class<?> typeVariableClass = (Class<?>) typeVariable.getGenericDeclaration();
-    Type type = resolvedTypes.get(new TypeParameterKey(typeVariableClass, typeVariable.getName()));
-    if (type instanceof TypeVariable<?>) {
-      Type[] bounds = ((TypeVariable<?>) type).getBounds();
-      if (bounds.length == 1) {
-        return bounds[0];
-      } // If there are multiple bounds we can't really know
-    } else if (type instanceof ParameterizedType) {
-      return getResolvedGenericType((ParameterizedType) type, resolvedTypes);
-    } else if (type instanceof GenericArrayType) {
-      return getResolvedGenericType((GenericArrayType) type, resolvedTypes);
+    GenericDeclaration genericDeclaration = typeVariable.getGenericDeclaration();
+    if (genericDeclaration instanceof Class<?>) {
+      Class<?> typeVariableClass = (Class<?>) genericDeclaration;
+      Type type =
+          resolvedTypes.get(new TypeParameterKey(typeVariableClass, typeVariable.getName()));
+      if (type instanceof TypeVariable<?>) {
+        return getResolvedGenericType(((TypeVariable<?>) type));
+      } else if (type instanceof ParameterizedType) {
+        return getResolvedGenericType((ParameterizedType) type, resolvedTypes);
+      } else if (type instanceof GenericArrayType) {
+        return getResolvedGenericType((GenericArrayType) type, resolvedTypes);
+      }
+      return type;
     }
 
-    return type;
+    // The type variable is declared on a method or constructor
+    // We can only resolve considering the bounds
+    return getResolvedGenericType(typeVariable);
   }
 
   private static Type getResolvedGenericType(
@@ -198,6 +203,14 @@ final class POJOReflectionUtils {
     }
     // If there are multiple bounds we can't really know
     return wildcardType;
+  }
+
+  private static Type getResolvedGenericType(TypeVariable<?> typeVariable) {
+    Type[] bounds = typeVariable.getBounds();
+    if (bounds.length == 1) {
+      return bounds[0];
+    } // If there are multiple bounds we can't really know
+    return typeVariable;
   }
 
   static Map<TypeParameterKey, Type> getResolvedTypes(Class<?> clazz) {

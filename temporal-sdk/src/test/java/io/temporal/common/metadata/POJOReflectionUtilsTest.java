@@ -342,6 +342,20 @@ public class POJOReflectionUtilsTest {
         new POJOReflectionUtils.ParameterizedTypeImpl(null, List.class, Object.class), type);
   }
 
+  @Test
+  public void testGetTypeVariableDeclaredOnMethodNotResolved() throws NoSuchMethodException {
+    Type type = getReturnTypeForInterfaceMethod(InterfaceH.class, InterfaceH.class);
+    Assert.assertEquals(
+        new POJOReflectionUtils.ParameterizedTypeImpl(null, List.class, Object.class), type);
+  }
+
+  @Test
+  public void testGetTypeVariableDeclaredOnMethodBound() throws NoSuchMethodException {
+    Type type = getReturnTypeForInterfaceMethod(InterfaceH.class, InterfaceH.class, "method2");
+    Assert.assertEquals(
+        new POJOReflectionUtils.ParameterizedTypeImpl(null, List.class, Number.class), type);
+  }
+
   private Type[] getParamTypesForInterfaceMethod(Class<?> parentInterface, Class<?> childInterface)
       throws NoSuchMethodException {
     return POJOReflectionUtils.getGenericParameterTypes(
@@ -439,4 +453,10 @@ public class POJOReflectionUtilsTest {
   }
 
   public interface InterfaceGChild extends InterfaceG<Integer> {}
+
+  public interface InterfaceH {
+    <T> List<T> method();
+
+    <T extends Number> List<T> method2();
+  }
 }

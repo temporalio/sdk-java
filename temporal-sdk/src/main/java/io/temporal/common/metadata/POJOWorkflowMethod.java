@@ -128,6 +128,10 @@ public final class POJOWorkflowMethod {
     return genericParameterTypes;
   }
 
+  public int getParameterCount() {
+    return method.getParameterCount();
+  }
+
   public Class<?> getReturnType() {
     return method.getReturnType();
   }
