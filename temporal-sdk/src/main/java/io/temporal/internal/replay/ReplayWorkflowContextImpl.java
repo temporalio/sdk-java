@@ -185,7 +185,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Payload getMemo(String key) {
-    return basicWorkflowContext.getMemo(key);
+    return mutableState.getMemo(key);
   }
 
   @Override
@@ -333,6 +333,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
     mutableState.upsertSearchAttributes(searchAttributes);
+  }
+
+  @Override
+  public void upsertMemo(@Nonnull Memo memo) {
+    workflowStateMachines.upsertMemo(memo);
+    mutableState.upsertMemo(memo);
   }
 
   @Override

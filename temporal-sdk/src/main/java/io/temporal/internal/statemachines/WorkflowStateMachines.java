@@ -918,6 +918,14 @@ public final class WorkflowStateMachines {
     UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }
 
+  public void upsertMemo(Memo memo) {
+    checkEventLoopExecuting();
+    WorkflowPropertiesModifiedStateMachine.newInstance(
+        ModifyWorkflowPropertiesCommandAttributes.newBuilder().setUpsertedMemo(memo).build(),
+        commandSink,
+        stateMachineSink);
+  }
+
   public void completeWorkflow(Optional<Payloads> workflowOutput) {
     checkEventLoopExecuting();
     CompleteWorkflowStateMachine.newInstance(workflowOutput, commandSink, stateMachineSink);
@@ -1188,6 +1196,7 @@ public final class WorkflowStateMachines {
       case COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION:
       case COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION:
       case COMMAND_TYPE_PROTOCOL_MESSAGE:
+      case COMMAND_TYPE_MODIFY_WORKFLOW_PROPERTIES:
         break;
       case UNRECOGNIZED:
       case COMMAND_TYPE_UNSPECIFIED:
@@ -1343,6 +1352,7 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED:
+      case EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED:
         return OptionalLong.of(event.getEventId());
 
       default:

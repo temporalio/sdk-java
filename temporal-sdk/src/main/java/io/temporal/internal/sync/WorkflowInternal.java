@@ -722,6 +722,11 @@ public final class WorkflowInternal {
     getWorkflowOutboundInterceptor().upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
+  public static void upsertMemo(Map<String, Object> memo) {
+    assertNotReadOnly("upsert memo");
+    getWorkflowOutboundInterceptor().upsertMemo(memo);
+  }
+
   public static DataConverter getDataConverter() {
     return getRootWorkflowContext().getDataConverter();
   }
