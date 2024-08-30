@@ -28,13 +28,12 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class UpsertMemoTest {
 
