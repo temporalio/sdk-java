@@ -20,7 +20,7 @@
 
 package io.temporal.common.interceptors;
 
-import io.temporal.client.UpdateHandle;
+import io.temporal.client.WorkflowUpdateHandle;
 import java.util.concurrent.TimeoutException;
 
 /** Convenience base class for {@link WorkflowClientCallsInterceptor} implementations. */
@@ -63,7 +63,7 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
+  public <R> WorkflowUpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
     return next.startUpdate(input);
   }
 

@@ -297,7 +297,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
+  public <R> WorkflowUpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
     DataConverter dataConverterWithWorkflowContext =
         clientOptions
             .getDataConverter()
@@ -366,7 +366,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   input.getResultClass(),
                   input.getResultType(),
                   dataConverterWithWorkflowContext);
-          return new CompletedUpdateHandleImpl<>(
+          return new CompletedWorkflowUpdateHandleImpl<>(
               result.getUpdateRef().getUpdateId(),
               result.getUpdateRef().getWorkflowExecution(),
               resultValue);
@@ -383,8 +383,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   + result.getOutcome().getValueCase());
       }
     } else {
-      LazyUpdateHandleImpl<R> handle =
-          new LazyUpdateHandleImpl<>(
+      LazyWorkflowUpdateHandleImpl<R> handle =
+          new LazyWorkflowUpdateHandleImpl<>(
               this,
               input.getWorkflowType().orElse(null),
               input.getUpdateName(),

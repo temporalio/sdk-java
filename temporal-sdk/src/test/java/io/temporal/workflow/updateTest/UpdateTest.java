@@ -34,7 +34,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.internal.client.CompletedUpdateHandleImpl;
+import io.temporal.internal.client.CompletedWorkflowUpdateHandleImpl;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -113,9 +113,9 @@ public class UpdateTest {
         WorkflowClientCallsInterceptor next) {
       return new WorkflowClientCallsInterceptorBase(next) {
         @Override
-        public <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
+        public <R> WorkflowUpdateHandle<R> startUpdate(StartUpdateInput<R> input) {
           super.startUpdate(input);
-          return new CompletedUpdateHandleImpl<>(
+          return new CompletedWorkflowUpdateHandleImpl<>(
               "someid", input.getWorkflowExecution(), (R) "fake");
         }
       };
@@ -173,7 +173,7 @@ public class UpdateTest {
     // send an update through the sync path
     assertEquals("Execute-Hello", workflowStub.update("update", String.class, 0, "Hello"));
     // send an update through the async path
-    UpdateHandle<String> updateRef =
+    WorkflowUpdateHandle<String> updateRef =
         workflowStub.startUpdate("update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "World");
     assertEquals("Execute-World", updateRef.getResultAsync().get());
     // send a bad update that will be rejected through the sync path
@@ -266,7 +266,7 @@ public class UpdateTest {
         Executors.newSingleThreadExecutor()
             .submit(
                 () -> {
-                  UpdateHandle<String> handle =
+                  WorkflowUpdateHandle<String> handle =
                       workflowStub.startUpdate(
                           UpdateOptions.newBuilder(String.class)
                               .setUpdateName("update")

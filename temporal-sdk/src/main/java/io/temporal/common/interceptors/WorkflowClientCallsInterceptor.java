@@ -23,8 +23,8 @@ package io.temporal.common.interceptors;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.update.v1.WaitPolicy;
-import io.temporal.client.UpdateHandle;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowUpdateHandle;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -78,7 +78,7 @@ public interface WorkflowClientCallsInterceptor {
   <R> QueryOutput<R> query(QueryInput<R> input);
 
   @Experimental
-  <R> UpdateHandle<R> startUpdate(StartUpdateInput<R> input);
+  <R> WorkflowUpdateHandle<R> startUpdate(StartUpdateInput<R> input);
 
   @Experimental
   <R> PollWorkflowUpdateOutput<R> pollWorkflowUpdate(PollWorkflowUpdateInput<R> input);

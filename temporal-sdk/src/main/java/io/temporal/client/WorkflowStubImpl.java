@@ -31,7 +31,7 @@ import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.client.LazyUpdateHandleImpl;
+import io.temporal.internal.client.LazyWorkflowUpdateHandleImpl;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
@@ -313,7 +313,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(
+  public <R> WorkflowUpdateHandle<R> startUpdate(
       String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args) {
     UpdateOptions<R> options =
         UpdateOptions.<R>newBuilder()
@@ -327,7 +327,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
+  public <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
     checkStarted();
     options.validate();
     WorkflowExecution targetExecution = execution.get();
@@ -353,8 +353,8 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass) {
-    return new LazyUpdateHandleImpl<>(
+  public <R> WorkflowUpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass) {
+    return new LazyWorkflowUpdateHandleImpl<>(
         workflowClientInvoker,
         workflowType.orElse(null),
         "",
@@ -365,9 +365,9 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> UpdateHandle<R> getUpdateHandle(
+  public <R> WorkflowUpdateHandle<R> getUpdateHandle(
       String updateId, Class<R> resultClass, Type resultType) {
-    return new LazyUpdateHandleImpl<>(
+    return new LazyWorkflowUpdateHandleImpl<>(
         workflowClientInvoker,
         workflowType.orElse(null),
         "",

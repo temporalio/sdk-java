@@ -58,7 +58,7 @@ public class UpdateTestTimeout {
     workflowStub.start();
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
     // Send an update that is accepted, but will not complete.
-    UpdateHandle<String> handle =
+    WorkflowUpdateHandle<String> handle =
         workflowStub.startUpdate(
             "update", WorkflowUpdateStage.ACCEPTED, String.class, 10_000, "some-value");
 
@@ -78,7 +78,7 @@ public class UpdateTestTimeout {
 
     workflowStub.start();
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
-    UpdateHandle<String> handle =
+    WorkflowUpdateHandle<String> handle =
         workflowStub.startUpdate(
             "update", WorkflowUpdateStage.ACCEPTED, String.class, 65_000, "some-value");
 
@@ -99,7 +99,7 @@ public class UpdateTestTimeout {
     workflowStub.start();
     SDKTestWorkflowRule.waitForOKQuery(workflowStub);
 
-    UpdateHandle<String> handle =
+    WorkflowUpdateHandle<String> handle =
         workflowStub.startUpdate(
             "update", WorkflowUpdateStage.ACCEPTED, String.class, 10_000, "some-value");
 
