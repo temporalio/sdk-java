@@ -56,7 +56,7 @@ public class UpdateTest {
     WorkflowStub workflowStub =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("non-existing-id");
     // Getting the update handle to a nonexistent workflow is fine
-    UpdateHandle<String> handle = workflowStub.getUpdateHandle("update-id", String.class);
+    WorkflowUpdateHandle<String> handle = workflowStub.getUpdateHandle("update-id", String.class);
     assertThrows(Exception.class, () -> handle.getResultAsync().get());
   }
 
@@ -124,7 +124,7 @@ public class UpdateTest {
     String updateId = "update-id";
 
     // Try to get the result of an invalid update
-    UpdateHandle<String> handle = workflowStub.getUpdateHandle(updateId, String.class);
+    WorkflowUpdateHandle<String> handle = workflowStub.getUpdateHandle(updateId, String.class);
     assertThrows(Exception.class, () -> handle.getResultAsync().get());
 
     assertEquals(

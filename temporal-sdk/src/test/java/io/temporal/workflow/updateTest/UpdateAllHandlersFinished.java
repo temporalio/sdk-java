@@ -53,7 +53,7 @@ public class UpdateAllHandlersFinished {
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
 
     WorkflowStub untypedStub = workflowClient.newUntypedWorkflowStub(execution.getWorkflowId());
-    List<UpdateHandle<String>> updateHandles = new ArrayList<>();
+    List<WorkflowUpdateHandle<String>> updateHandles = new ArrayList<>();
     // Send a bunch of update requests
     for (int i = 0; i < 5; i++) {
       updateHandles.add(

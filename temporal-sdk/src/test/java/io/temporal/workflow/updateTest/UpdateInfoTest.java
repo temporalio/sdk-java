@@ -60,11 +60,11 @@ public class UpdateInfoTest {
             .setUpdateName("update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED);
 
-    UpdateHandle handle1 =
+    WorkflowUpdateHandle handle1 =
         stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 1").build(), 0, "");
     assertEquals("update:update id 1", handle1.getResultAsync().get());
 
-    UpdateHandle handle2 =
+    WorkflowUpdateHandle handle2 =
         stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 2").build(), 0, "");
     assertEquals("update:update id 2", handle2.getResultAsync().get());
 
