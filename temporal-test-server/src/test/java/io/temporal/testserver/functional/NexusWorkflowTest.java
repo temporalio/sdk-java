@@ -521,7 +521,7 @@ public class NexusWorkflowTest {
         pollResp.getTaskToken(),
         newScheduleOperationCommand(
             defaultScheduleOperationAttributes()
-                .setScheduleToCloseTimeout(Durations.fromSeconds(7))));
+                .setScheduleToCloseTimeout(Durations.fromSeconds(8))));
     testWorkflowRule.assertHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
 
@@ -602,7 +602,7 @@ public class NexusWorkflowTest {
           pollResp.getTaskToken(),
           newScheduleOperationCommand(
               defaultScheduleOperationAttributes()
-                  .setScheduleToCloseTimeout(Durations.fromSeconds(7))));
+                  .setScheduleToCloseTimeout(Durations.fromSeconds(8))));
       testWorkflowRule.assertHistoryEvent(
           execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
 

@@ -709,7 +709,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       ScheduleNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
-    attr = validateScheduleNexusOperation(attr);
     Endpoint endpoint = nexusEndpointStore.getEndpointByName(attr.getEndpoint());
     StateMachine<StateMachines.NexusOperationData> operation = newNexusOperation(endpoint);
     long scheduleEventId = ctx.getNextEventId();
@@ -733,16 +732,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           "NexusOperation ScheduleToCloseTimeout");
     }
     ctx.lockTimer("processScheduleNexusOperation");
-  }
-
-  private ScheduleNexusOperationCommandAttributes validateScheduleNexusOperation(
-      ScheduleNexusOperationCommandAttributes attr) {
-    ScheduleNexusOperationCommandAttributes.Builder result =
-        ScheduleNexusOperationCommandAttributes.newBuilder(attr);
-
-    // TODO: extra validation
-
-    return result.build();
   }
 
   private void processRequestCancelNexusOperation(

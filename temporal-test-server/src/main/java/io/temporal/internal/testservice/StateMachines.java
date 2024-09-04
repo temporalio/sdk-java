@@ -58,6 +58,7 @@ import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.CancelOperationRequest;
@@ -761,9 +762,22 @@ class StateMachines {
           "Timeout type not supported for Nexus operations: " + timeoutType);
     }
 
-    Optional<Failure> previousFailure = data.retryState.getPreviousRunFailure();
-    Failure failure = newTimeoutFailure(timeoutType, Optional.empty(), previousFailure);
-    // TODO: make sure this is a Nexus failure
+    Failure failure =
+        Failure.newBuilder()
+            .setMessage("nexus operation completed unsuccessfully")
+            .setNexusOperationExecutionFailureInfo(
+                NexusOperationFailureInfo.newBuilder()
+                    .setEndpoint(data.scheduledEvent.getEndpoint())
+                    .setService(data.scheduledEvent.getService())
+                    .setOperation(data.scheduledEvent.getOperation())
+                    .setOperationId(data.operationId)
+                    .setScheduledEventId(data.scheduledEventId))
+            .setCause(
+                Failure.newBuilder()
+                    .setMessage("operation timed out")
+                    .setTimeoutFailureInfo(
+                        TimeoutFailureInfo.newBuilder().setTimeoutType(timeoutType)))
+            .build();
 
     ctx.addEvent(
         HistoryEvent.newBuilder()
@@ -783,6 +797,19 @@ class StateMachines {
       return (data.isStarted) ? STARTED : INITIATED;
     }
 
+    Failure wrapped =
+        Failure.newBuilder()
+            .setMessage("nexus operation completed unsuccessfully")
+            .setNexusOperationExecutionFailureInfo(
+                NexusOperationFailureInfo.newBuilder()
+                    .setEndpoint(data.scheduledEvent.getEndpoint())
+                    .setService(data.scheduledEvent.getService())
+                    .setOperation(data.scheduledEvent.getOperation())
+                    .setOperationId(data.operationId)
+                    .setScheduledEventId(data.scheduledEventId))
+            .setCause(failure)
+            .build();
+
     HistoryEvent event;
     if (data.nexusTask.getTask().getRequest().hasCancelOperation()) {
       event =
@@ -792,7 +819,7 @@ class StateMachines {
                   NexusOperationCanceledEventAttributes.newBuilder()
                       .setRequestId(data.scheduledEvent.getRequestId())
                       .setScheduledEventId(data.scheduledEventId)
-                      .setFailure(failure))
+                      .setFailure(wrapped))
               .build();
     } else {
       event =
@@ -802,7 +829,7 @@ class StateMachines {
                   NexusOperationFailedEventAttributes.newBuilder()
                       .setRequestId(data.scheduledEvent.getRequestId())
                       .setScheduledEventId(data.scheduledEventId)
-                      .setFailure(failure))
+                      .setFailure(wrapped))
               .build();
     }
 

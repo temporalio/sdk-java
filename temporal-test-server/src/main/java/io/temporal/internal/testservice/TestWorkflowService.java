@@ -39,11 +39,14 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
+import io.temporal.api.nexus.v1.HandlerError;
 import io.temporal.api.nexus.v1.StartOperationResponse;
+import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
@@ -786,8 +789,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();
         if (startResp.hasOperationError()) {
-          Failure failure =
-              nexusFailureToApplicationFailure(startResp.getOperationError().getFailure());
+          Failure failure = unsuccessfulOperationErrorToFailure(startResp.getOperationError());
           mutableState.failNexusOperation(ref, failure);
         } else if (startResp.hasAsyncSuccess()) {
           // Start event is only recorded for async success
@@ -824,7 +826,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       NexusOperationRef ref = NexusOperationRef.fromBytes(request.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(ref.getExecutionId());
-      Failure failure = nexusFailureToApplicationFailure(request.getError().getFailure());
+      Failure failure = handlerErrorToFailure(request.getError());
       mutableState.failNexusOperation(ref, failure);
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
@@ -881,25 +883,39 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  private static Failure nexusFailureToApplicationFailure(
-      io.temporal.api.nexus.v1.Failure failure) {
+  private static Failure unsuccessfulOperationErrorToFailure(UnsuccessfulOperationError err) {
+    Failure.Builder b = Failure.newBuilder().setMessage(err.getFailure().getMessage());
+    if (err.getOperationState().equals("canceled")) {
+      b.setCanceledFailureInfo(
+          CanceledFailureInfo.newBuilder()
+              .setDetails(nexusFailureMetadataToPayloads(err.getFailure())));
+    } else {
+      b.setApplicationFailureInfo(
+          ApplicationFailureInfo.newBuilder()
+              .setType("NexusOperationFailure")
+              .setDetails(nexusFailureMetadataToPayloads(err.getFailure()))
+              .setNonRetryable(true));
+    }
+    return b.build();
+  }
+
+  private static Failure handlerErrorToFailure(HandlerError err) {
     return Failure.newBuilder()
-        .setMessage(failure.getMessage())
+        .setMessage(err.getFailure().getMessage())
         .setApplicationFailureInfo(
             ApplicationFailureInfo.newBuilder()
-                .setType("NexusOperationFailure")
-                .setNonRetryable(true)
-                .setDetails(
-                    Payloads.newBuilder()
-                        .addPayloads(
-                            Payload.newBuilder()
-                                .putAllMetadata(
-                                    failure.getMetadataMap().entrySet().stream()
-                                        .collect(
-                                            Collectors.toMap(
-                                                Map.Entry::getKey,
-                                                e -> ByteString.copyFromUtf8(e.getValue()))))
-                                .setData(failure.getDetails()))))
+                .setType(err.getErrorType())
+                .setDetails(nexusFailureMetadataToPayloads(err.getFailure())))
+        .build();
+  }
+
+  private static Payloads nexusFailureMetadataToPayloads(io.temporal.api.nexus.v1.Failure failure) {
+    Map<String, ByteString> metadata =
+        failure.getMetadataMap().entrySet().stream()
+            .collect(
+                Collectors.toMap(Map.Entry::getKey, e -> ByteString.copyFromUtf8(e.getValue())));
+    return Payloads.newBuilder()
+        .addPayloads(Payload.newBuilder().putAllMetadata(metadata).setData(failure.getDetails()))
         .build();
   }
 
