@@ -1152,6 +1152,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     //    if (previousRunStartRequest.hasRetryPolicy()) {
     //      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
     //    }
+    if (previousRunStartRequest.getCompletionCallbacksCount() > 0) {
+      startRequestBuilder.addAllCompletionCallbacks(
+          previousRunStartRequest.getCompletionCallbacksList());
+    }
     if (ca.hasRetryPolicy()) {
       startRequestBuilder.setRetryPolicy(ca.getRetryPolicy());
     }

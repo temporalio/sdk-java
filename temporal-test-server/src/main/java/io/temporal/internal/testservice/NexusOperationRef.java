@@ -32,16 +32,19 @@ public class NexusOperationRef {
   @Nonnull private final ExecutionId executionId;
   private final long scheduledEventId;
   private final int attempt;
+  private final boolean isCancel;
 
   NexusOperationRef(
       @Nonnull String namespace,
       @Nonnull WorkflowExecution execution,
       long scheduledEventId,
-      int attempt) {
+      int attempt,
+      boolean isCancel) {
     this(
         new ExecutionId(Objects.requireNonNull(namespace), Objects.requireNonNull(execution)),
         scheduledEventId,
-        attempt);
+        attempt,
+        isCancel);
   }
 
   NexusOperationRef(
@@ -49,7 +52,8 @@ public class NexusOperationRef {
       @Nonnull String workflowId,
       @Nonnull String runId,
       long scheduledEventId,
-      int attempt) {
+      int attempt,
+      boolean isCancel) {
     this(
         namespace,
         WorkflowExecution.newBuilder()
@@ -57,13 +61,16 @@ public class NexusOperationRef {
             .setRunId(Objects.requireNonNull(runId))
             .build(),
         scheduledEventId,
-        attempt);
+        attempt,
+        isCancel);
   }
 
-  NexusOperationRef(@Nonnull ExecutionId executionId, long scheduledEventId, int attempt) {
+  public NexusOperationRef(
+      @Nonnull ExecutionId executionId, long scheduledEventId, int attempt, boolean isCancel) {
     this.executionId = Objects.requireNonNull(executionId);
     this.scheduledEventId = scheduledEventId;
     this.attempt = attempt;
+    this.isCancel = isCancel;
   }
 
   public ExecutionId getExecutionId() {
@@ -78,6 +85,10 @@ public class NexusOperationRef {
     return attempt;
   }
 
+  public boolean isCancel() {
+    return isCancel;
+  }
+
   /** Used for task tokens. */
   public ByteString toBytes() {
     try (ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -88,6 +99,7 @@ public class NexusOperationRef {
       out.writeUTF(execution.getRunId());
       out.writeLong(scheduledEventId);
       out.writeInt(attempt);
+      out.writeBoolean(isCancel);
       return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
@@ -103,7 +115,9 @@ public class NexusOperationRef {
       String runId = in.readUTF();
       long scheduledEventId = in.readLong();
       int attempt = in.readInt();
-      return new NexusOperationRef(namespace, workflowId, runId, scheduledEventId, attempt);
+      boolean isCancel = in.readBoolean();
+      return new NexusOperationRef(
+          namespace, workflowId, runId, scheduledEventId, attempt, isCancel);
     } catch (IOException e) {
       throw Status.INVALID_ARGUMENT
           .withCause(e)
