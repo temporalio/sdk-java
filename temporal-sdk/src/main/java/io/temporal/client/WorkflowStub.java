@@ -105,7 +105,7 @@ public interface WorkflowStub {
    * @return update handle that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateHandle<R> startUpdate(
+  <R> WorkflowUpdateHandle<R> startUpdate(
       String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args);
 
   /**
@@ -118,7 +118,7 @@ public interface WorkflowStub {
    * @return update handle that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args);
+  <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args);
 
   /**
    * Get an update handle to a previously started update request. Getting an update handle does not
@@ -130,7 +130,7 @@ public interface WorkflowStub {
    * @return update handle that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass);
+  <R> WorkflowUpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass);
 
   /**
    * Get an update handle to a previously started update request. Getting an update handle does not
@@ -144,7 +144,8 @@ public interface WorkflowStub {
    * @return update handle that can be used to get the result of the update.
    */
   @Experimental
-  <R> UpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass, Type resultType);
+  <R> WorkflowUpdateHandle<R> getUpdateHandle(
+      String updateId, Class<R> resultClass, Type resultType);
 
   WorkflowExecution start(Object... args);
 

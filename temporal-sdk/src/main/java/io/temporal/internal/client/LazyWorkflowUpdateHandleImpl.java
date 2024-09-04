@@ -23,9 +23,9 @@ package io.temporal.internal.client;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.UpdateHandle;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowServiceException;
+import io.temporal.client.WorkflowUpdateHandle;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Experimental
-public final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
+public final class LazyWorkflowUpdateHandleImpl<T> implements WorkflowUpdateHandle<T> {
 
   private final WorkflowClientCallsInterceptor workflowClientInvoker;
   private final String workflowType;
@@ -47,7 +47,7 @@ public final class LazyUpdateHandleImpl<T> implements UpdateHandle<T> {
   private final Type resultType;
   private WorkflowClientCallsInterceptor.PollWorkflowUpdateOutput<T> waitCompletedPollCall;
 
-  public LazyUpdateHandleImpl(
+  public LazyWorkflowUpdateHandleImpl(
       WorkflowClientCallsInterceptor workflowClientInvoker,
       String workflowType,
       String updateName,

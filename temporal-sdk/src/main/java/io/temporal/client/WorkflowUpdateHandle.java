@@ -26,11 +26,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * UpdateHandle is a handle to an update workflow execution request that can be used to get the
- * status of that update request.
+ * WorkflowUpdateHandle is a handle to an update workflow execution request that can be used to get
+ * the status of that update request.
  */
 @Experimental
-public interface UpdateHandle<T> {
+public interface WorkflowUpdateHandle<T> {
   /**
    * Gets the workflow execution this update request was sent to.
    *
