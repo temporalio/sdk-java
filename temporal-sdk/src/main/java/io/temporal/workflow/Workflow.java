@@ -1189,8 +1189,9 @@ public final class Workflow {
   /**
    * Updates a Workflow Memos by applying {@code memoUpdates} to the existing Memos set attached to
    * the workflow. Memos are additional non-indexed information attributed to workflow and can
-   * returned by describing or listing a workflow. The type of value can be any object that are
-   * serializable by {@link io.temporal.common.converter.DataConverter}
+   * return by describing or listing a workflow. The type of value can be any object that are
+   * serializable by {@link io.temporal.common.converter.DataConverter}. To remove a memo set the
+   * value null.
    */
   public static void upsertMemo(Map<String, Object> memo) {
     WorkflowInternal.upsertMemo(memo);

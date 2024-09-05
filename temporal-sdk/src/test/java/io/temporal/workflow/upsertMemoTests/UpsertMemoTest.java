@@ -25,7 +25,9 @@ import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.interceptors.*;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
@@ -39,7 +41,13 @@ public class UpsertMemoTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestWorkflow1Impl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkerInterceptors(new WorkerInterceptor())
+                  .build())
+          .setWorkflowTypes(TestWorkflow1Impl.class)
+          .build();
 
   @Test
   public void upsertMemo() {
@@ -87,6 +95,24 @@ public class UpsertMemoTest {
       memoVal = Workflow.getMemo("memoKey", String.class, String.class);
       Assert.assertNull(memoVal);
       return Workflow.getMemo("memoKey2", String.class, String.class);
+    }
+  }
+
+  private static class WorkerInterceptor extends WorkerInterceptorBase {
+    @Override
+    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+      return new WorkflowInboundCallsInterceptorBase(next) {
+        @Override
+        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+          next.init(new OutboundCallsInterceptor(outboundCalls));
+        }
+      };
+    }
+  }
+
+  private static class OutboundCallsInterceptor extends WorkflowOutboundCallsInterceptorBase {
+    public OutboundCallsInterceptor(WorkflowOutboundCallsInterceptor next) {
+      super(next);
     }
   }
 }

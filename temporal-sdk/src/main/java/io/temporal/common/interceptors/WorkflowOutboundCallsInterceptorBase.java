@@ -158,7 +158,7 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
 
   @Override
   public void upsertMemo(Map<String, Object> memo) {
-    next.upsertSearchAttributes(memo);
+    next.upsertMemo(memo);
   }
 
   @Override
