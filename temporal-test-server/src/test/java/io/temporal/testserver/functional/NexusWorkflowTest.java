@@ -677,7 +677,7 @@ public class NexusWorkflowTest {
           pollResp.getTaskToken(),
           newScheduleOperationCommand(
               defaultScheduleOperationAttributes()
-                  .setScheduleToCloseTimeout(Durations.fromSeconds(10))));
+                  .setScheduleToCloseTimeout(Durations.fromSeconds(22))));
       testWorkflowRule.assertHistoryEvent(
           execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
 
@@ -1078,15 +1078,12 @@ public class NexusWorkflowTest {
   }
 
   private void assertOperationFailureInfo(NexusOperationFailureInfo info) {
-    assertOperationFailureInfo(null, info);
+    assertOperationFailureInfo("", info);
   }
 
   private void assertOperationFailureInfo(String operationID, NexusOperationFailureInfo info) {
     Assert.assertNotNull(info);
-    if (operationID != null) {
-      // Means this was a sync operation and don't have an easy way of getting ID.
-      Assert.assertEquals(operationID, info.getOperationId());
-    }
+    Assert.assertEquals(operationID, info.getOperationId());
     Assert.assertEquals(testEndpoint.getSpec().getName(), info.getEndpoint());
     Assert.assertEquals(testService, info.getService());
     Assert.assertEquals(testOperation, info.getOperation());

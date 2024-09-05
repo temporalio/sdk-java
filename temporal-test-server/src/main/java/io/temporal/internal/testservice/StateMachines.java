@@ -44,6 +44,7 @@ import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
 import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.protobuf.*;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -343,14 +344,13 @@ class StateMachines {
     // Timeout for an individual Start or Cancel Operation request.
     final java.time.Duration requestTimeout = java.time.Duration.ofSeconds(10);
 
-    String operationId;
+    String operationId = "";
     Endpoint endpoint;
     NexusOperationScheduledEventAttributes scheduledEvent;
     TestWorkflowStore.NexusTask nexusTask;
     RetryPolicy retryPolicy = defaultNexusRetryPolicy();
 
     long scheduledEventId = NO_EVENT_ID;
-    boolean isStarted = false;
 
     TestServiceRetryState retryState;
     long lastAttemptCompleteTime;
@@ -359,7 +359,6 @@ class StateMachines {
     String identity;
 
     public NexusOperationData(Endpoint endpoint) {
-      this.operationId = UUID.randomUUID().toString();
       this.endpoint = endpoint;
     }
 
@@ -736,11 +735,7 @@ class StateMachines {
                     .setScheduledEventId(data.scheduledEventId)
                     .setRequestId(data.scheduledEvent.getRequestId()))
             .build());
-    ctx.onCommit(
-        historySize -> {
-          data.operationId = resp.getOperationId();
-          data.isStarted = true;
-        });
+    ctx.onCommit(historySize -> data.operationId = resp.getOperationId());
   }
 
   private static void completeNexusOperation(
@@ -795,7 +790,7 @@ class StateMachines {
       RequestContext ctx, NexusOperationData data, Failure failure, long notUsed) {
     RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
     if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
-      return (data.isStarted) ? STARTED : INITIATED;
+      return (Strings.isNullOrEmpty(data.operationId)) ? INITIATED : STARTED;
     }
 
     Failure wrapped =
