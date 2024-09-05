@@ -386,6 +386,14 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public void upsertMemo(Map<String, Object> memo) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("upsertMemo");
+      }
+      next.upsertMemo(memo);
+    }
+
+    @Override
     public Object newChildThread(Runnable runnable, boolean detached, String name) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("newThread " + name);

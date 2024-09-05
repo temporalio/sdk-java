@@ -471,6 +471,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public void upsertMemo(Map<String, Object> memo) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Object newChildThread(Runnable runnable, boolean detached, String name) {
       throw new UnsupportedOperationException("not implemented");
     }

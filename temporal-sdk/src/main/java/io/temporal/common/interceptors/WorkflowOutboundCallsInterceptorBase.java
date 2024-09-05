@@ -157,6 +157,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public void upsertMemo(Map<String, Object> memo) {
+    next.upsertMemo(memo);
+  }
+
+  @Override
   public Object newChildThread(Runnable runnable, boolean detached, String name) {
     return next.newChildThread(runnable, detached, name);
   }

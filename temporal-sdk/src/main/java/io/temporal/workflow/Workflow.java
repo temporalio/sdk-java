@@ -1187,6 +1187,17 @@ public final class Workflow {
   }
 
   /**
+   * Updates a Workflow Memos by applying {@code memoUpdates} to the existing Memos set attached to
+   * the workflow. Memos are additional non-indexed information attributed to workflow and can
+   * return by describing or listing a workflow. The type of value can be any object that are
+   * serializable by {@link io.temporal.common.converter.DataConverter}. To remove a memo set the
+   * value null.
+   */
+  public static void upsertMemo(Map<String, Object> memo) {
+    WorkflowInternal.upsertMemo(memo);
+  }
+
+  /**
    * Sets the default activity options that will be used for activity stubs that have no {@link
    * ActivityOptions} specified.<br>
    * This overrides a value provided by {@link
