@@ -617,6 +617,8 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates);
 
+  void upsertMemo(Map<String, Object> memo);
+
   /**
    * Intercepts creation of a workflow child thread.
    *

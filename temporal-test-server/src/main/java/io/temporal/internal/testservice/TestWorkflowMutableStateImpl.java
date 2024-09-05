@@ -23,6 +23,7 @@ package io.temporal.internal.testservice;
 import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.*;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.StateMachines.*;
+import static io.temporal.internal.testservice.StateUtils.mergeMemo;
 import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
 
 import com.google.common.base.Preconditions;
@@ -126,6 +127,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
+  private Map<String, Payload> currentMemo;
 
   /**
    * @param retryState present if workflow is a retry
@@ -173,6 +175,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
     this.workflowTaskStateMachine = StateMachines.newWorkflowTaskStateMachine(store, startRequest);
+    this.currentMemo = new HashMap(startRequest.getMemo().getFieldsMap());
   }
 
   /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */
@@ -652,6 +655,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       case COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
         processUpsertWorkflowSearchAttributes(
             ctx, d.getUpsertWorkflowSearchAttributesCommandAttributes(), workflowTaskCompletedId);
+        break;
+      case COMMAND_TYPE_MODIFY_WORKFLOW_PROPERTIES:
+        processModifyWorkflowProperties(
+            ctx, d.getModifyWorkflowPropertiesCommandAttributes(), workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_PROTOCOL_MESSAGE:
         processProtocolMessageAttributes(
@@ -1612,6 +1619,26 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .build();
     ctx.addEvent(event);
     return null;
+  }
+
+  /** processModifyWorkflowProperties handles ModifyWorkflowPropertiesCommandAttributes */
+  private void processModifyWorkflowProperties(
+      RequestContext ctx,
+      ModifyWorkflowPropertiesCommandAttributes attr,
+      long workflowTaskCompletedId) {
+    // Update workflow properties
+    currentMemo = mergeMemo(currentMemo, attr.getUpsertedMemo().getFieldsMap());
+
+    WorkflowPropertiesModifiedEventAttributes.Builder propModifiedEventAttr =
+        WorkflowPropertiesModifiedEventAttributes.newBuilder()
+            .setUpsertedMemo(attr.getUpsertedMemo())
+            .setWorkflowTaskCompletedEventId(workflowTaskCompletedId);
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED)
+            .setWorkflowPropertiesModifiedEventAttributes(propModifiedEventAttr)
+            .build();
+    ctx.addEvent(event);
   }
 
   /**
@@ -2934,6 +2961,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
   }
 
+  private Memo getCurrentMemo() {
+    return Memo.newBuilder().putAllFields(currentMemo).build();
+  }
+
   private DescribeWorkflowExecutionResponse describeWorkflowExecutionInsideLock() {
     WorkflowExecutionConfig.Builder executionConfig =
         WorkflowExecutionConfig.newBuilder()
@@ -2957,7 +2988,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     executionInfo
         .setExecution(this.executionId.getExecution())
         .setType(this.getStartRequest().getWorkflowType())
-        .setMemo(this.startRequest.getMemo())
+        .setMemo(this.getCurrentMemo())
         // No setAutoResetPoints - the test environment doesn't support that feature
         .setSearchAttributes(visibilityStore.getSearchAttributesForExecution(executionId))
         .setStatus(this.getWorkflowExecutionStatus())

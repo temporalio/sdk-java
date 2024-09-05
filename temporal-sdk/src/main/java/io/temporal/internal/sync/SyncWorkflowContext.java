@@ -1209,6 +1209,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     replayContext.upsertSearchAttributes(attr);
   }
 
+  @Override
+  public void upsertMemo(Map<String, Object> memo) {
+    Preconditions.checkArgument(memo != null, "null memo");
+    Preconditions.checkArgument(!memo.isEmpty(), "empty memo");
+    replayContext.upsertMemo(
+        Memo.newBuilder()
+            .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo))
+            .build());
+  }
+
   @Nonnull
   public Object newWorkflowMethodThreadIntercepted(Runnable runnable, @Nullable String name) {
     return runner.newWorkflowThread(runnable, false, name);

@@ -401,6 +401,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /** Updates or inserts search attributes used to index workflows. */
   void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes);
 
+  /** Updates or inserts memos. */
+  void upsertMemo(@Nonnull Memo memo);
+
   /**
    * @return true if this flag may currently be used.
    */

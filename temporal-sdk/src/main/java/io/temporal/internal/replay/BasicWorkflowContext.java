@@ -128,10 +128,6 @@ final class BasicWorkflowContext {
     return startedAttributes.getHeader().getFieldsMap();
   }
 
-  public Payload getMemo(String key) {
-    return startedAttributes.getMemo().getFieldsMap().get(key);
-  }
-
   int getAttempt() {
     return startedAttributes.getAttempt();
   }

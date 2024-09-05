@@ -24,11 +24,7 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -311,6 +307,11 @@ public class DummySyncWorkflowContext {
 
     @Override
     public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void upsertMemo(Memo memo) {
       throw new UnsupportedOperationException("not implemented");
     }
 

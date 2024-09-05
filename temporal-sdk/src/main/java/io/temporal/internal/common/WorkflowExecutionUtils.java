@@ -299,6 +299,7 @@ public class WorkflowExecutionUtils {
       case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_REJECTED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
+      case EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED:
         return true;
       default:
         return false;
@@ -334,6 +335,8 @@ public class WorkflowExecutionUtils {
         return EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED;
       case COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
         return EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES;
+      case COMMAND_TYPE_MODIFY_WORKFLOW_PROPERTIES:
+        return EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED;
     }
     throw new IllegalArgumentException("Unknown commandType");
   }
