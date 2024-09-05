@@ -341,7 +341,7 @@ class StateMachines {
 
   static final class NexusOperationData {
     // Timeout for an individual Start or Cancel Operation request.
-    final java.time.Duration requestTimeout = java.time.Duration.ofSeconds(5);
+    final java.time.Duration requestTimeout = java.time.Duration.ofSeconds(10);
 
     String operationId;
     Endpoint endpoint;
@@ -614,6 +614,7 @@ class StateMachines {
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
         // Transitions directly to CANCELED if operation has not been started
+        // TODO: properly support cancel before start
         .add(
             INITIATED,
             REQUEST_CANCELLATION,

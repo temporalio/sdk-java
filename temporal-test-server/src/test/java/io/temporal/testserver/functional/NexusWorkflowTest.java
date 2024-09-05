@@ -556,7 +556,7 @@ public class NexusWorkflowTest {
     Assert.assertFalse(canceledEvent.hasFailure());
   }
 
-  @Test
+  @Test(timeout = 15000)
   public void testNexusOperationTimeout_BeforeStart() {
     WorkflowStub stub = newWorkflowStub("TestNexusOperationTimeoutBeforeStartWorkflow");
     WorkflowExecution execution = stub.start();
@@ -567,7 +567,7 @@ public class NexusWorkflowTest {
         pollResp.getTaskToken(),
         newScheduleOperationCommand(
             defaultScheduleOperationAttributes()
-                .setScheduleToCloseTimeout(Durations.fromSeconds(8))));
+                .setScheduleToCloseTimeout(Durations.fromSeconds(12))));
     testWorkflowRule.assertHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
 
@@ -575,6 +575,10 @@ public class NexusWorkflowTest {
       // Poll for Nexus task but do not complete it
       PollNexusTaskQueueResponse nexusPollResp = pollNexusTask().get();
       Assert.assertTrue(nexusPollResp.getRequest().hasStartOperation());
+
+      // Request timeout and long poll deadline are both 10s, so sleep to give some buffer so poll
+      // request doesn't timeout.
+      Thread.sleep(2000);
 
       // Poll again to verify task is resent on timeout
       nexusPollResp = pollNexusTask().get();
@@ -657,7 +661,7 @@ public class NexusWorkflowTest {
     }
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testNexusOperationTimeout_AfterCancel() {
     String operationId = UUID.randomUUID().toString();
     CompletableFuture<ByteString> nexusPoller =
@@ -673,7 +677,7 @@ public class NexusWorkflowTest {
           pollResp.getTaskToken(),
           newScheduleOperationCommand(
               defaultScheduleOperationAttributes()
-                  .setScheduleToCloseTimeout(Durations.fromSeconds(8))));
+                  .setScheduleToCloseTimeout(Durations.fromSeconds(10))));
       testWorkflowRule.assertHistoryEvent(
           execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
 
@@ -702,11 +706,19 @@ public class NexusWorkflowTest {
       PollNexusTaskQueueResponse nexusPollResp = pollNexusTask().get();
       Assert.assertTrue(nexusPollResp.getRequest().hasCancelOperation());
 
+      // Request timeout and long poll deadline are both 10s, so sleep to give some buffer so poll
+      // request doesn't timeout.
+      Thread.sleep(2000);
+
       // Poll for cancellation task again to confirm it is retried on timeout
       nexusPollResp = pollNexusTask().get();
       Assert.assertTrue(nexusPollResp.getRequest().hasCancelOperation());
       NexusOperationRef ref = NexusOperationRef.fromBytes(nexusPollResp.getTaskToken());
       Assert.assertTrue(ref.getAttempt() > 1);
+
+      // Request timeout and long poll deadline are both 10s, so sleep to give some buffer so poll
+      // request doesn't timeout.
+      Thread.sleep(2000);
 
       // Poll to wait for new task after operation times out
       pollResp = pollWorkflowTask();
