@@ -76,6 +76,17 @@ class WorkflowExecutionHandler {
     }
   }
 
+  /** Runs the workflow class constructor. */
+  public void runConstructor() {
+    try {
+      workflow.initialize(
+          attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty());
+    } catch (Throwable e) {
+      applyWorkflowFailurePolicyAndRethrow(e);
+      done = true;
+    }
+  }
+
   public void cancel(String reason) {}
 
   public boolean isDone() {
