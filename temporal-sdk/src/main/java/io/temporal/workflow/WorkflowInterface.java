@@ -47,6 +47,12 @@ import java.lang.annotation.Target;
  * <p>A workflow implementation object must have <b>exactly one</b> method annotated with
  * {@literal @}WorkflowMethod inherited from all the interfaces it implements.
  *
+ * <p>A workflow implementation may have a no-arg constructor or a constructor that takes the same
+ * set of arguments as the workflow interface method annotated with {@literal @}WorkflowMethod.
+ * Users should avoid blocking operations in the constructor as the constructor must be called
+ * before the workflow method is invoked and before any Signal, Update, or Queries handlers are
+ * registered.
+ *
  * <p>Example:
  *
  * <pre><code>
