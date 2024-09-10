@@ -39,7 +39,7 @@ public interface DynamicUpdateHandler {
 
   default void handleValidate(String updateName, EncodedValues args) {}
 
-  EncodedValues handleExecute(String updateName, EncodedValues args);
+  Object handleExecute(String updateName, EncodedValues args);
 
   /** Returns the actions taken if a workflow exits with a running instance of this handler. */
   default HandlerUnfinishedPolicy getUnfinishedPolicy(String updateName) {
