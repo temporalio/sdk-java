@@ -72,7 +72,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final ActivityTaskHandlerImpl laTaskHandler;
-  private boolean runningLocalActivityWorker;
 
   public SyncWorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -177,7 +176,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     boolean started = workflowWorker.start();
     // It doesn't start if no types are registered with it.
     if (started) {
-      runningLocalActivityWorker = laWorker.start();
+      laWorker.start();
     }
     return started;
   }
@@ -236,8 +235,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   @Override
   public boolean isTerminated() {
-    return workflowWorker.isTerminated()
-        && (!runningLocalActivityWorker || laWorker.isTerminated());
+    return workflowWorker.isTerminated() && laWorker.isTerminated();
   }
 
   @Override
