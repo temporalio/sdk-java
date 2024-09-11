@@ -164,6 +164,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
               (execution) ->
                   new POJOWorkflowImplementation(
                       clazz,
+                      null,
                       methodMetadata.getWorkflowMethod(),
                       dataConverter.withContext(
                           new WorkflowSerializationContext(namespace, execution.getWorkflowId()))));
@@ -221,6 +222,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
           (execution) ->
               new POJOWorkflowImplementation(
                   workflowImplementationClass,
+                  workflowMetadata.getConstructor(),
                   method,
                   dataConverter.withContext(
                       new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
@@ -292,15 +294,18 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {
     private final Class<?> workflowImplementationClass;
     private final Method workflowMethod;
+    private final Constructor<?> ctor;
     private WorkflowInboundCallsInterceptor workflowInvoker;
     // don't pass it down to other classes, it's a "cached" instance for internal usage only
     private final DataConverter dataConverterWithWorkflowContext;
 
     public POJOWorkflowImplementation(
         Class<?> workflowImplementationClass,
+        Constructor<?> ctor,
         Method workflowMethod,
         DataConverter dataConverterWithWorkflowContext) {
       this.workflowImplementationClass = workflowImplementationClass;
+      this.ctor = ctor;
       this.workflowMethod = workflowMethod;
       this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
     }
@@ -368,26 +373,35 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         if (factory != null) {
           workflow = factory.apply();
         } else {
-          try {
+          if (ctor != null) {
             try {
-              workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
-            } catch (NoSuchMethodException e) {
-              Constructor<?> constructor =
-                  workflowImplementationClass.getDeclaredConstructor(
-                      workflowMethod.getParameterTypes());
               workflow =
-                  constructor.newInstance(
+                  ctor.newInstance(
                       dataConverterWithWorkflowContext.fromPayloads(
-                          input,
-                          constructor.getParameterTypes(),
-                          constructor.getGenericParameterTypes()));
+                          input, ctor.getParameterTypes(), ctor.getGenericParameterTypes()));
+            } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+              throw wrap(e);
             }
-          } catch (NoSuchMethodException
-              | InstantiationException
-              | IllegalAccessException
-              | InvocationTargetException e) {
-            throw wrap(e);
+          } else {
+            legacyNewInstance();
           }
+        }
+      }
+
+      private void legacyNewInstance() {
+        try {
+          workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException
+            | InstantiationException
+            | IllegalAccessException
+            | InvocationTargetException e) {
+          // Error to fail workflow task as this can be fixed by a new deployment.
+          throw new Error(
+              "Failure instantiating workflow implementation class "
+                  + workflowImplementationClass.getName(),
+              e);
         }
       }
     }
