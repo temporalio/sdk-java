@@ -58,6 +58,7 @@ public class WorkflowInitTest {
   public static class TestInitWorkflow implements TestWorkflow1 {
     private final String taskQueue;
 
+    @WorkflowInit
     public TestInitWorkflow(String taskQueue) {
       if (taskQueue.isEmpty()) {
         throw ApplicationFailure.newFailure("Empty taskQueue", "TestFailure");

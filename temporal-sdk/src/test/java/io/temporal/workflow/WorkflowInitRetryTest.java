@@ -58,6 +58,8 @@ public class WorkflowInitRetryTest {
   }
 
   public static class TestInitWorkflow implements TestWorkflows.TestWorkflow1 {
+
+    @WorkflowInit
     public TestInitWorkflow(String testName) {
       AtomicInteger count = retryCount.get(testName);
       if (count == null) {

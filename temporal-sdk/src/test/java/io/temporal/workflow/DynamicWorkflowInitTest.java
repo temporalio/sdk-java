@@ -59,6 +59,7 @@ public class DynamicWorkflowInitTest {
   public static class TestInitWorkflow implements DynamicWorkflow {
     private final String taskQueue;
 
+    @WorkflowInit
     public TestInitWorkflow(EncodedValues args) {
       String taskQueue = args.get(0, String.class);
       if (taskQueue.isEmpty()) {
