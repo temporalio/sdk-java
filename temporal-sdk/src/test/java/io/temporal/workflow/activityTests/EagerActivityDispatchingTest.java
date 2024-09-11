@@ -37,7 +37,10 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.tuning.*;
+import io.temporal.worker.tuning.ActivitySlotInfo;
+import io.temporal.worker.tuning.CompositeTuner;
+import io.temporal.worker.tuning.LocalActivitySlotInfo;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -58,7 +61,6 @@ public class EagerActivityDispatchingTest {
   CountingSlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier = new CountingSlotSupplier<>(100);
   CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
       new CountingSlotSupplier<>(100);
-  CountingSlotSupplier<NexusSlotInfo> nexusSlotSupplier = new CountingSlotSupplier<>(100);
 
   @Before
   public void setUp() throws Exception {
@@ -96,10 +98,7 @@ public class EagerActivityDispatchingTest {
 
     workerOptions.setWorkerTuner(
         new CompositeTuner(
-            workflowTaskSlotSupplier,
-            activityTaskSlotSupplier,
-            localActivitySlotSupplier,
-            nexusSlotSupplier));
+            workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier));
     Worker worker = workerFactory.newWorker(TASK_QUEUE, workerOptions.build());
     worker.registerActivitiesImplementations(activitiesImpl);
     if (registerWorkflows)

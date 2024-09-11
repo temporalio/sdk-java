@@ -61,12 +61,10 @@ public class WorkerOptionsTest {
             .setMaxConcurrentActivityExecutionSize(1000)
             .setMaxConcurrentWorkflowTaskExecutionSize(500)
             .setMaxConcurrentLocalActivityExecutionSize(200)
-            .setMaxConcurrentNexusExecutionSize(300)
             .setWorkerTuner(mock(WorkerTuner.class))
             .setMaxTaskQueueActivitiesPerSecond(50)
             .setMaxConcurrentWorkflowTaskPollers(4)
             .setMaxConcurrentActivityTaskPollers(3)
-            .setMaxConcurrentNexusTaskPollers(6)
             .setLocalActivityWorkerOnly(false)
             .setDefaultDeadlockDetectionTimeout(2)
             .setMaxHeartbeatThrottleInterval(Duration.ofSeconds(10))
@@ -90,7 +88,6 @@ public class WorkerOptionsTest {
     assertEquals(
         w1.getMaxConcurrentLocalActivityExecutionSize(),
         w2.getMaxConcurrentLocalActivityExecutionSize());
-    assertEquals(w1.getMaxConcurrentNexusExecutionSize(), w2.getMaxConcurrentNexusExecutionSize());
     assertSame(w1.getWorkerTuner(), w2.getWorkerTuner());
     assertEquals(
         w1.getMaxTaskQueueActivitiesPerSecond(), w2.getMaxTaskQueueActivitiesPerSecond(), 0);
@@ -98,7 +95,6 @@ public class WorkerOptionsTest {
         w1.getMaxConcurrentWorkflowTaskPollers(), w2.getMaxConcurrentWorkflowTaskPollers());
     assertEquals(
         w1.getMaxConcurrentActivityTaskPollers(), w2.getMaxConcurrentActivityTaskPollers());
-    assertEquals(w1.getMaxConcurrentNexusTaskPollers(), w2.getMaxConcurrentNexusTaskPollers());
     assertEquals(w1.isLocalActivityWorkerOnly(), w2.isLocalActivityWorkerOnly());
     assertEquals(w1.getMaxHeartbeatThrottleInterval(), w2.getMaxHeartbeatThrottleInterval());
     assertEquals(
@@ -125,15 +121,11 @@ public class WorkerOptionsTest {
     SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
         ResourceBasedSlotSupplier.createForLocalActivity(
             resourceController, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
-    SlotSupplier<NexusSlotInfo> nexusSlotSupplier = new FixedSizeSlotSupplier<>(10);
 
     WorkerOptions.newBuilder()
         .setWorkerTuner(
             new CompositeTuner(
-                workflowTaskSlotSupplier,
-                activityTaskSlotSupplier,
-                localActivitySlotSupplier,
-                nexusSlotSupplier))
+                workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier))
         .build();
   }
 
@@ -153,15 +145,11 @@ public class WorkerOptionsTest {
     SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
         ResourceBasedSlotSupplier.createForLocalActivity(
             resourceController2, ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS);
-    SlotSupplier<NexusSlotInfo> nexusSlotSupplier = new FixedSizeSlotSupplier<>(10);
 
     assertThrows(
         IllegalArgumentException.class,
         () ->
             new CompositeTuner(
-                workflowTaskSlotSupplier,
-                activityTaskSlotSupplier,
-                localActivitySlotSupplier,
-                nexusSlotSupplier));
+                workflowTaskSlotSupplier, activityTaskSlotSupplier, localActivitySlotSupplier));
   }
 }

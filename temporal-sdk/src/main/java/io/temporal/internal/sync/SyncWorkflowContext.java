@@ -149,10 +149,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           workflowImplementationOptions.getDefaultLocalActivityOptions();
       this.localActivityOptionsMap =
           new HashMap<>(workflowImplementationOptions.getLocalActivityOptions());
-      this.defaultNexusServiceOptions =
-          workflowImplementationOptions.getDefaultNexusServiceOptions();
-      this.nexusServiceOptionsMap =
-          new HashMap<>(workflowImplementationOptions.getNexusServiceOptions());
+      // TODO(SDK-1829) Add NexusServiceOptions to WorkflowImplementationOptions
+      this.defaultNexusServiceOptions = NexusServiceOptions.getDefaultInstance();
+      this.nexusServiceOptionsMap = new HashMap<>();
     }
     this.workflowImplementationOptions =
         workflowImplementationOptions == null

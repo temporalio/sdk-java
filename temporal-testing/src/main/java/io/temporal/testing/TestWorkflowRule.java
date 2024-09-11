@@ -89,7 +89,6 @@ public class TestWorkflowRule implements TestRule {
 
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
-  private final Object[] nexusServiceImplementations;
   private final WorkflowServiceStubsOptions serviceStubsOptions;
   private final WorkflowClientOptions clientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
@@ -119,10 +118,6 @@ public class TestWorkflowRule implements TestRule {
     this.workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     this.activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
-    this.nexusServiceImplementations =
-        (builder.nexusServiceImplementations == null)
-            ? new Object[0]
-            : builder.nexusServiceImplementations;
     this.serviceStubsOptions =
         (builder.workflowServiceStubsOptions == null)
             ? WorkflowServiceStubsOptions.newBuilder().build()
@@ -410,7 +405,6 @@ public class TestWorkflowRule implements TestRule {
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
     worker.registerWorkflowImplementationTypes(workflowImplementationOptions, workflowTypes);
     worker.registerActivitiesImplementations(activityImplementations);
-    worker.registerNexusServiceImplementation(nexusServiceImplementations);
     return taskQueue;
   }
 
