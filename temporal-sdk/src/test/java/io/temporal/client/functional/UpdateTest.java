@@ -23,11 +23,13 @@ package io.temporal.client.functional;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.util.UUID;
 import java.util.concurrent.*;
 import org.junit.Rule;
 import org.junit.Test;
@@ -165,6 +167,93 @@ public class UpdateTest {
 
     // Try to poll again
     assertEquals("some-value", handle.getResultAsync().get());
+  }
+
+  @Test
+  public void updateWithStart() throws ExecutionException, InterruptedException {
+    String workflowId = UUID.randomUUID().toString();
+    String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    // first update-with-start
+    WorkflowStartOperationUpdate<String> update1 =
+        WorkflowStartOperationUpdate.newBuilder(
+                "update", String.class, new Object[] {0, "Hello Update"})
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+    WorkflowStub workflowStub1 =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                .toBuilder()
+                .setWorkflowId(workflowId)
+                .build());
+    WorkflowExecution execution1 =
+        workflowStub1.startWithOperation(update1, new String[] {"some-value"}, new String[] {});
+
+    assertEquals(workflowId, execution1.getWorkflowId());
+    assertEquals("Hello Update", update1.getResult());
+
+    WorkflowUpdateHandle<String> updHandle1 = update1.getUpdateHandle().get();
+    assertEquals(workflowId, updHandle1.getExecution().getWorkflowId());
+    assertEquals(execution1.getRunId(), updHandle1.getExecution().getRunId());
+    assertEquals("Hello Update", updHandle1.getResultAsync().get());
+
+    // second update-with-start
+    WorkflowStartOperationUpdate<String> update2 =
+        WorkflowStartOperationUpdate.newBuilder(
+                "update", String.class, new Object[] {0, "Hello Update 2"})
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+    WorkflowStub workflowStub2 =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                .toBuilder()
+                .setWorkflowIdConflictPolicy(
+                    WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
+                .setWorkflowId(workflowId)
+                .build());
+    WorkflowExecution execution2 =
+        workflowStub2.startWithOperation(update2, new String[] {"some-value"}, new String[] {});
+
+    assertEquals(execution1.getRunId(), execution2.getRunId());
+    assertEquals("Hello Update 2", update2.getResult());
+
+    WorkflowUpdateHandle<String> updHandle2 = update2.getUpdateHandle().get();
+    assertEquals(workflowId, updHandle2.getExecution().getWorkflowId());
+    assertEquals(execution2.getRunId(), updHandle2.getExecution().getRunId());
+    assertEquals("Hello Update 2", updHandle2.getResultAsync().get());
+
+    workflowStub2.update("complete", void.class);
+    assertEquals("complete", workflowStub2.getResult(String.class));
+  }
+
+  @Test
+  public void updateWithStartOperationSingleUse() throws ExecutionException, InterruptedException {
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    WorkflowStartOperationUpdate<String> update =
+        WorkflowStartOperationUpdate.newBuilder(
+                "update", String.class, new Object[] {0, "Hello Update"})
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            TestWorkflows.WorkflowWithUpdate.class.getSimpleName(),
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                .toBuilder()
+                .setWorkflowId(workflowId)
+                .build());
+
+    workflowStub.startWithOperation(update, new String[] {"some-value"}, new String[] {});
+
+    try {
+      workflowStub.startWithOperation(update, new String[] {"some-value"}, new String[] {});
+    } catch (IllegalStateException e) {
+      assertEquals(e.getMessage(), "WorkflowStartOperationUpdate was already executed");
+    }
   }
 
   public static class QuickWorkflowWithUpdateImpl implements TestWorkflows.TestUpdatedWorkflow {

@@ -386,4 +386,15 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .getWorkerTaskReachability(req),
         grpcRetryerOptions);
   }
+
+  @Override
+  public ExecuteMultiOperationResponse executeMultiOperation(ExecuteMultiOperationRequest req) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .executeMultiOperation(req),
+        grpcRetryerOptions);
+  }
 }

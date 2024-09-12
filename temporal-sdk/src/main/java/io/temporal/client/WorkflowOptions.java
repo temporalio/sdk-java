@@ -23,12 +23,10 @@ package io.temporal.client;
 import com.google.common.base.Objects;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
-import io.temporal.common.CronSchedule;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
-import io.temporal.common.SearchAttributes;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
@@ -112,6 +110,8 @@ public final class WorkflowOptions {
 
     private Duration startDelay;
 
+    private StartWorkflowAdditionalOperation startOperation;
+
     private WorkflowIdConflictPolicy workflowIdConflictpolicy;
 
     private Builder() {}
@@ -120,6 +120,7 @@ public final class WorkflowOptions {
       if (options == null) {
         return;
       }
+      this.startOperation = options.startOperation;
       this.workflowIdReusePolicy = options.workflowIdReusePolicy;
       this.workflowId = options.workflowId;
       this.workflowTaskTimeout = options.workflowTaskTimeout;
@@ -255,7 +256,7 @@ public final class WorkflowOptions {
 
     /**
      * Task queue to use for workflow tasks. It should match a task queue specified when creating a
-     * {@link io.temporal.worker.Worker} that hosts the workflow code.
+     * {@link Worker} that hosts the workflow code.
      */
     public Builder setTaskQueue(String taskQueue) {
       this.taskQueue = taskQueue;
@@ -382,6 +383,11 @@ public final class WorkflowOptions {
       return this;
     }
 
+    Builder setStartOperation(StartWorkflowAdditionalOperation operation) {
+      this.startOperation = operation;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -398,6 +404,7 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
+          startOperation,
           workflowIdConflictpolicy);
     }
 
@@ -420,6 +427,7 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
+          startOperation,
           workflowIdConflictpolicy);
     }
   }
@@ -452,6 +460,8 @@ public final class WorkflowOptions {
 
   private final Duration startDelay;
 
+  private final StartWorkflowAdditionalOperation startOperation;
+
   private final WorkflowIdConflictPolicy workflowIdConflictpolicy;
 
   private WorkflowOptions(
@@ -469,6 +479,7 @@ public final class WorkflowOptions {
       List<ContextPropagator> contextPropagators,
       boolean disableEagerExecution,
       Duration startDelay,
+      StartWorkflowAdditionalOperation startOperation,
       WorkflowIdConflictPolicy workflowIdConflictpolicy) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -484,6 +495,7 @@ public final class WorkflowOptions {
     this.contextPropagators = contextPropagators;
     this.disableEagerExecution = disableEagerExecution;
     this.startDelay = startDelay;
+    this.startOperation = startOperation;
     this.workflowIdConflictpolicy = workflowIdConflictpolicy;
   }
 
@@ -509,6 +521,10 @@ public final class WorkflowOptions {
 
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  StartWorkflowAdditionalOperation getStartOperation() {
+    return startOperation;
   }
 
   public RetryOptions getRetryOptions() {
@@ -579,6 +595,7 @@ public final class WorkflowOptions {
         && Objects.equal(contextPropagators, that.contextPropagators)
         && Objects.equal(disableEagerExecution, that.disableEagerExecution)
         && Objects.equal(startDelay, that.startDelay)
+        && Objects.equal(startOperation, that.startOperation)
         && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy);
   }
 
@@ -599,6 +616,7 @@ public final class WorkflowOptions {
         contextPropagators,
         disableEagerExecution,
         startDelay,
+        startOperation,
         workflowIdConflictpolicy);
   }
 
@@ -636,6 +654,8 @@ public final class WorkflowOptions {
         + disableEagerExecution
         + ", startDelay="
         + startDelay
+        + ", startOperation="
+        + startOperation
         + ", workflowIdConflictpolicy="
         + workflowIdConflictpolicy
         + '}';

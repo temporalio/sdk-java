@@ -141,5 +141,10 @@ public class SagaTest {
     public String func() {
       return "done";
     }
+
+    @Override
+    public String update(Integer i) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

@@ -20,7 +20,10 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.START_WORKFLOW;
+import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
+import static io.temporal.serviceclient.StatusUtils.packAny;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -37,10 +40,12 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
+import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
@@ -1015,12 +1020,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try (Context.CancellableContext ctx = deadlineCtx(getUpdatePollDeadline())) {
       Context toRestore = ctx.attach();
       try {
-        ExecutionId executionId =
-            new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
-        TestWorkflowMutableState mutableState = getMutableState(executionId);
-        @Nullable Deadline deadline = Context.current().getDeadline();
-        UpdateWorkflowExecutionResponse response =
-            mutableState.updateWorkflowExecution(request, deadline);
+        UpdateWorkflowExecutionResponse response = updateWorkflowExecutionImpl(request);
         responseObserver.onNext(response);
         responseObserver.onCompleted();
       } catch (StatusRuntimeException e) {
@@ -1029,6 +1029,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         ctx.detach(toRestore);
       }
     }
+  }
+
+  private UpdateWorkflowExecutionResponse updateWorkflowExecutionImpl(
+      UpdateWorkflowExecutionRequest request) {
+    ExecutionId executionId =
+        new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
+    TestWorkflowMutableState mutableState = getMutableState(executionId);
+    @Nullable Deadline deadline = Context.current().getDeadline();
+    return mutableState.updateWorkflowExecution(request, deadline);
   }
 
   @Override
@@ -1052,6 +1061,125 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         ctx.detach(toRestore);
       }
     }
+  }
+
+  @Override
+  public void executeMultiOperation(
+      ExecuteMultiOperationRequest request,
+      StreamObserver<ExecuteMultiOperationResponse> responseObserver) {
+    try {
+      if (request.getOperationsCount() != 2) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Exactly two operations are expected.")
+            .asRuntimeException();
+      }
+
+      StartWorkflowExecutionRequest startRequest;
+      ExecuteMultiOperationRequest.Operation firstOperation = request.getOperations(0);
+      if (firstOperation.getOperationCase() != START_WORKFLOW) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("first operation needs to be StartWorkflow request")
+            .asRuntimeException();
+      }
+      startRequest = firstOperation.getStartWorkflow();
+
+      UpdateWorkflowExecutionRequest updateRequest;
+      ExecuteMultiOperationRequest.Operation secondOperation = request.getOperations(1);
+      if (secondOperation.getOperationCase() != UPDATE_WORKFLOW) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("second operation needs to be UpdateWorkflow request")
+            .asRuntimeException();
+      }
+      updateRequest = secondOperation.getUpdateWorkflow();
+
+      if (!startRequest
+          .getWorkflowId()
+          .equals(updateRequest.getWorkflowExecution().getWorkflowId())) {
+        throw multiOperationExecutionFailure(
+            null, // start aborted
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("Workflow ID does not match Start operation's")
+                .build());
+      }
+
+      // execute start
+      StartWorkflowExecutionResponse startResult;
+      try {
+        startResult =
+            startWorkflowExecutionImpl(
+                startRequest, Duration.ZERO, Optional.empty(), OptionalLong.empty(), null);
+      } catch (StatusRuntimeException e) {
+        throw multiOperationExecutionFailure(
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(e.getStatus().getCode().value())
+                .setMessage(e.getMessage())
+                .build(),
+            null); // update aborted
+      }
+
+      // execute update
+      UpdateWorkflowExecutionResponse updateResult;
+      try {
+        updateResult = updateWorkflowExecutionImpl(updateRequest);
+      } catch (StatusRuntimeException e) {
+        throw multiOperationExecutionFailure(
+            null, // start aborted
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(e.getStatus().getCode().value())
+                .setMessage(e.getMessage())
+                .build());
+      }
+
+      ExecuteMultiOperationResponse response =
+          ExecuteMultiOperationResponse.newBuilder()
+              .addResponses(
+                  ExecuteMultiOperationResponse.Response.newBuilder().setStartWorkflow(startResult))
+              .addResponses(
+                  ExecuteMultiOperationResponse.Response.newBuilder()
+                      .setUpdateWorkflow(updateResult))
+              .build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  private StatusRuntimeException multiOperationExecutionFailure(
+      MultiOperationExecutionFailure.OperationStatus... operationStatuses) {
+    Status status = null;
+    for (int i = 0; i < operationStatuses.length; i++) {
+      MultiOperationExecutionFailure.OperationStatus operationStatus = operationStatuses[i];
+      if (operationStatus == null) {
+        // convert to aborted failure
+        operationStatuses[i] =
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.ABORTED.getCode().value())
+                .setMessage("Operation was aborted")
+                .addDetails(
+                    packAny(
+                        MultiOperationExecutionAborted.newBuilder().build(),
+                        MultiOperationExecutionAborted.getDescriptor()))
+                .build();
+        continue;
+      }
+      if (status != null) {
+        throw new IllegalArgumentException(
+            "exactly one non-null operation status must be specified");
+      }
+      status = Status.fromCodeValue(operationStatus.getCode());
+    }
+    if (status == null) {
+      throw new IllegalArgumentException("exactly one non-null operation status must be specified");
+    }
+
+    return StatusUtils.newException(
+        status.withDescription("MultiOperation could not be executed"),
+        MultiOperationExecutionFailure.newBuilder()
+            .addAllStatuses(Arrays.asList(operationStatuses))
+            .build(),
+        MultiOperationExecutionFailure.getDescriptor());
   }
 
   @Override

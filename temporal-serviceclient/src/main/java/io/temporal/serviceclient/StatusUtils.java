@@ -87,7 +87,7 @@ public class StatusUtils {
    * This method does exactly what {@link Any#pack(Message)} does. But it doesn't go into reflection
    * to fetch the {@code descriptor}, which allows us to avoid a bunch of Graal reflection configs.
    */
-  private static <T extends GeneratedMessageV3> Any packAny(
+  public static <T extends GeneratedMessageV3> Any packAny(
       T details, Descriptors.Descriptor descriptor) {
     return Any.newBuilder()
         .setTypeUrl("type.googleapis.com/" + descriptor.getFullName())
