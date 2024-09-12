@@ -175,6 +175,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     ExecuteMultiOperationRequest request =
         ExecuteMultiOperationRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
             .addOperations(
                 0,
                 ExecuteMultiOperationRequest.Operation.newBuilder()
