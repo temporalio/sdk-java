@@ -23,7 +23,6 @@ package io.temporal.internal.testservice;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
-import static io.temporal.serviceclient.StatusUtils.packAny;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -58,6 +57,7 @@ import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.internal.common.ProtoUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.StatusUtils;
@@ -1158,7 +1158,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setCode(Status.ABORTED.getCode().value())
                 .setMessage("Operation was aborted")
                 .addDetails(
-                    packAny(
+                    ProtoUtils.packAny(
                         MultiOperationExecutionAborted.newBuilder().build(),
                         MultiOperationExecutionAborted.getDescriptor()))
                 .build();
