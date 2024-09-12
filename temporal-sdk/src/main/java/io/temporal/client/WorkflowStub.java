@@ -150,7 +150,7 @@ public interface WorkflowStub {
   WorkflowExecution start(Object... args);
 
   <R> WorkflowExecution startWithOperation(
-      StartWorkflowAdditionalOperation<R> operation, Object... args);
+      StartWorkflowAdditionalOperation<R> additionalOperation, Object... args);
 
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
