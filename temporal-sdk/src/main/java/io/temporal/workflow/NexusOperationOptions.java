@@ -91,8 +91,8 @@ public final class NexusOperationOptions {
     }
   }
 
-  private NexusOperationOptions(Duration startToCloseTimeout) {
-    this.scheduleToCloseTimeout = startToCloseTimeout;
+  private NexusOperationOptions(Duration scheduleToCloseTimeout) {
+    this.scheduleToCloseTimeout = scheduleToCloseTimeout;
   }
 
   private Duration scheduleToCloseTimeout;

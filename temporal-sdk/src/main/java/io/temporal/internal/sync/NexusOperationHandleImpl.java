@@ -20,21 +20,22 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.workflow.NexusOperationExecution;
 import io.temporal.workflow.NexusOperationHandle;
 import io.temporal.workflow.Promise;
-import java.util.Optional;
 
 public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
-  Promise<Optional<String>> operationExecution;
+  Promise<NexusOperationExecution> operationExecution;
   Promise<R> result;
 
-  public NexusOperationHandleImpl(Promise<Optional<String>> operationExecution, Promise<R> result) {
+  public NexusOperationHandleImpl(
+      Promise<NexusOperationExecution> operationExecution, Promise<R> result) {
     this.operationExecution = operationExecution;
     this.result = result;
   }
 
   @Override
-  public Promise<Optional<String>> getExecution() {
+  public Promise<NexusOperationExecution> getExecution() {
     return operationExecution;
   }
 

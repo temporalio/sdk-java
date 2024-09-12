@@ -21,7 +21,6 @@
 package io.temporal.workflow;
 
 import io.temporal.common.Experimental;
-import java.util.Optional;
 
 /**
  * OperationHandle is used to interact with a scheduled nexus operation. Created through {@link
@@ -40,7 +39,7 @@ public interface NexusOperationHandle<R> {
    *
    * @return promise that becomes ready once the operation has started.
    */
-  Promise<Optional<String>> getExecution();
+  Promise<NexusOperationExecution> getExecution();
 
   /** Returns a promise that will be resolved when the operation completes. */
   Promise<R> getResult();

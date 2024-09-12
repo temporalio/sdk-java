@@ -323,10 +323,10 @@ public interface WorkflowOutboundCallsInterceptor {
   @Experimental
   final class ExecuteNexusOperationOutput<R> {
     private final Promise<R> result;
-    private final Promise<Optional<String>> operationExecution;
+    private final Promise<NexusOperationExecution> operationExecution;
 
     public ExecuteNexusOperationOutput(
-        Promise<R> result, Promise<Optional<String>> operationExecution) {
+        Promise<R> result, Promise<NexusOperationExecution> operationExecution) {
       this.result = result;
       this.operationExecution = operationExecution;
     }
@@ -335,7 +335,7 @@ public interface WorkflowOutboundCallsInterceptor {
       return result;
     }
 
-    public Promise<Optional<String>> getOperationExecution() {
+    public Promise<NexusOperationExecution> getOperationExecution() {
       return operationExecution;
     }
   }

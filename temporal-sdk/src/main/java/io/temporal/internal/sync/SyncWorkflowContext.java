@@ -728,7 +728,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           Workflow.newFailedPromise(canceledFailure), Workflow.newFailedPromise(canceledFailure));
     }
 
-    CompletablePromise<Optional<String>> operationPromise = Workflow.newPromise();
+    CompletablePromise<NexusOperationExecution> operationPromise = Workflow.newPromise();
     CompletablePromise<Optional<Payload>> resultPromise = Workflow.newPromise();
 
     // Not using the context aware data converter because the context will not be available on the
@@ -758,7 +758,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               } else {
                 runner.executeInWorkflowThread(
                     "nexus operation started callback",
-                    () -> operationPromise.complete(operationExec));
+                    () ->
+                        operationPromise.complete(new NexusOperationExecutionImpl(operationExec)));
               }
             },
             (Optional<Payload> result, Failure failure) -> {
