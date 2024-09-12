@@ -20,14 +20,14 @@
 
 package io.temporal.client;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.*;
 
 /** TBD */
-public class WorkflowStartOperationUpdate<R> extends StartWorkflowAdditionalOperation {
+public class WorkflowStartOperationUpdate<R>
+    extends StartWorkflowAdditionalOperation<WorkflowUpdateHandle<R>> {
 
   public static <T> WorkflowStartOperationUpdate.Builder<T> newBuilder() {
     return new WorkflowStartOperationUpdate.Builder<T>();
@@ -134,13 +134,16 @@ public class WorkflowStartOperationUpdate<R> extends StartWorkflowAdditionalOper
   }
 
   @Override
-  WorkflowExecution invoke(Functions.Proc workflow) {
+  WorkflowUpdateHandle<R> invoke(Functions.Proc workflow) {
     WorkflowInvocationHandler.initAsyncInvocation(
         WorkflowInvocationHandler.InvocationType.UPDATE_WITH_START, this);
     try {
       request.apply();
       workflow.apply();
-      return stub.startWithOperation(this, this.updateArgs);
+      stub.startWithOperation(this, this.updateArgs);
+      return this.handle.get();
+    } catch (ExecutionException | InterruptedException e) {
+      throw new RuntimeException(e); // TODO
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
     }

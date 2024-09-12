@@ -60,19 +60,18 @@ public class UpdateWithStartTest {
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
 
-    WorkflowStartOperationUpdate<String> update =
+    WorkflowStartOperationUpdate<String> updateOp =
         WorkflowStartOperationUpdate.newBuilder(workflow::update, 1, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
-    WorkflowExecution execution = WorkflowClient.startWithOperation(workflow::execute, update);
 
-    assertEquals(options.getWorkflowId(), execution.getWorkflowId());
-    assertEquals("Hello Update", update.getResult());
+    WorkflowUpdateHandle<String> handle1 =
+        WorkflowClient.startWithOperation(workflow::execute, updateOp);
+    assertEquals(options.getWorkflowId(), handle1.getExecution().getWorkflowId());
+    assertEquals("Hello Update", handle1.getResultAsync().get());
 
-    WorkflowUpdateHandle<String> updHandle = update.getUpdateHandle().get();
-    assertEquals(options.getWorkflowId(), updHandle.getExecution().getWorkflowId());
-    assertEquals(execution.getRunId(), updHandle.getExecution().getRunId());
-    assertEquals("Hello Update", updHandle.getResultAsync().get());
+    WorkflowUpdateHandle<String> updHandle = updateOp.getUpdateHandle().get();
+    assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
 
     workflow.complete();
     assertEquals("Hello Update complete", workflow.execute());
@@ -102,15 +101,11 @@ public class UpdateWithStartTest {
         WorkflowStartOperationUpdate.newBuilder(workflow2::update, 0, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
-    WorkflowExecution execution2 = WorkflowClient.startWithOperation(workflow2::execute, updateOp);
 
-    assertEquals(execution1.getRunId(), execution2.getRunId());
-    assertEquals("Hello Update", updateOp.getResult());
-
-    WorkflowUpdateHandle<String> updHandle = updateOp.getUpdateHandle().get();
-    assertEquals(options1.getWorkflowId(), updHandle.getExecution().getWorkflowId());
-    assertEquals(execution2.getRunId(), updHandle.getExecution().getRunId());
-    assertEquals("Hello Update", updHandle.getResultAsync().get());
+    WorkflowUpdateHandle<String> updHandle =
+        WorkflowClient.startWithOperation(workflow2::execute, updateOp);
+    assertEquals(execution1.getRunId(), updHandle.getExecution().getRunId());
+    assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
 
     workflow2.complete();
     assertEquals("Hello Update complete", workflow2.execute());
@@ -132,68 +127,64 @@ public class UpdateWithStartTest {
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp0 = newUpdateOp.apply(stubF::update, 0);
-    WorkflowExecution exec0 = WorkflowClient.startWithOperation(stubF::func, updateOp0);
-    assertEquals(exec0.getRunId(), updateOp0.getUpdateHandle().get().getExecution().getRunId());
+    WorkflowUpdateHandle<String> handle0 =
+        WorkflowClient.startWithOperation(stubF::func, updateOp0);
 
     // 1 arg
     TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc stubF1 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp1 = newUpdateOp.apply(stubF1::update, 1);
-    WorkflowExecution exec1 = WorkflowClient.startWithOperation(stubF1::func1, 1, updateOp1);
-    assertEquals(exec1.getRunId(), updateOp1.getUpdateHandle().get().getExecution().getRunId());
+    WorkflowUpdateHandle<String> handle1 =
+        WorkflowClient.startWithOperation(stubF1::func1, 1, updateOp1);
 
     // 2 args
     TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc stubF2 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp2 = newUpdateOp.apply(stubF2::update, 2);
-    WorkflowExecution exec2 = WorkflowClient.startWithOperation(stubF2::func2, "1", 2, updateOp2);
-    assertEquals(exec2.getRunId(), updateOp2.getUpdateHandle().get().getExecution().getRunId());
+    WorkflowUpdateHandle<String> handle2 =
+        WorkflowClient.startWithOperation(stubF2::func2, "1", 2, updateOp2);
 
     // 3 args
     TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc stubF3 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp3 = newUpdateOp.apply(stubF3::update, 3);
-    WorkflowExecution exec3 =
+    WorkflowUpdateHandle<String> handle3 =
         WorkflowClient.startWithOperation(stubF3::func3, "1", 2, 3, updateOp3);
-    assertEquals(exec3.getRunId(), updateOp3.getUpdateHandle().get().getExecution().getRunId());
 
     // 4 args
     TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc stubF4 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp4 = newUpdateOp.apply(stubF4::update, 4);
-    WorkflowExecution exec4 =
+    WorkflowUpdateHandle<String> handle4 =
         WorkflowClient.startWithOperation(stubF4::func4, "1", 2, 3, 4, updateOp4);
-    assertEquals(exec4.getRunId(), updateOp4.getUpdateHandle().get().getExecution().getRunId());
 
     // 5 args
     TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc stubF5 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp5 = newUpdateOp.apply(stubF5::update, 5);
-    WorkflowExecution exec5 =
+    WorkflowUpdateHandle<String> handle5 =
         WorkflowClient.startWithOperation(stubF5::func5, "1", 2, 3, 4, 5, updateOp5);
-    assertEquals(exec5.getRunId(), updateOp5.getUpdateHandle().get().getExecution().getRunId());
 
     // 6 args
     TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc stubF6 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp6 = newUpdateOp.apply(stubF6::update, 6);
-    WorkflowExecution exec6 =
+    WorkflowUpdateHandle<String> handle6 =
         WorkflowClient.startWithOperation(stubF6::func6, "1", 2, 3, 4, 5, 6, updateOp6);
-    assertEquals(exec6.getRunId(), updateOp6.getUpdateHandle().get().getExecution().getRunId());
 
-    assertEquals("0", updateOp0.getResult());
-    assertEquals("1", updateOp1.getResult());
-    assertEquals("2", updateOp2.getResult());
-    assertEquals("3", updateOp3.getResult());
-    assertEquals("4", updateOp4.getResult());
-    assertEquals("5", updateOp5.getResult());
-    assertEquals("6", updateOp6.getResult());
+    assertEquals("0", handle0.getResultAsync().get());
+    assertEquals("1", handle1.getResultAsync().get());
+    assertEquals("2", handle2.getResultAsync().get());
+    assertEquals("3", handle3.getResultAsync().get());
+    assertEquals("4", handle4.getResultAsync().get());
+    assertEquals("5", handle5.getResultAsync().get());
+    assertEquals("6", handle6.getResultAsync().get());
   }
 
   @Test
@@ -212,69 +203,64 @@ public class UpdateWithStartTest {
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp0 = newUpdateOp.apply(stubProc::update, 0);
-    WorkflowExecution exec0 = WorkflowClient.startWithOperation(stubProc::proc, updateOp0);
-    assertEquals(exec0.getRunId(), updateOp0.getUpdateHandle().get().getExecution().getRunId());
+    WorkflowUpdateHandle<String> handle0 =
+        WorkflowClient.startWithOperation(stubProc::proc, updateOp0);
 
     // 1 arg
     TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc stubProc1 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp1 = newUpdateOp.apply(stubProc1::update, 1);
-    WorkflowExecution exec1 = WorkflowClient.startWithOperation(stubProc1::proc1, "1", updateOp1);
-    assertEquals(exec1.getRunId(), updateOp1.getUpdateHandle().get().getExecution().getRunId());
+    WorkflowUpdateHandle<String> handle1 =
+        WorkflowClient.startWithOperation(stubProc1::proc1, "1", updateOp1);
 
     // 2 args
     TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc stubProc2 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp2 = newUpdateOp.apply(stubProc2::update, 2);
-    WorkflowExecution exec2 =
+    WorkflowUpdateHandle<String> handle2 =
         WorkflowClient.startWithOperation(stubProc2::proc2, "1", 2, updateOp2);
-    assertEquals(exec2.getRunId(), updateOp2.getUpdateHandle().get().getExecution().getRunId());
 
     // 3 args
     TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc stubProc3 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp3 = newUpdateOp.apply(stubProc3::update, 3);
-    WorkflowExecution exec3 =
+    WorkflowUpdateHandle<String> handle3 =
         WorkflowClient.startWithOperation(stubProc3::proc3, "1", 2, 3, updateOp3);
-    assertEquals(exec3.getRunId(), updateOp3.getUpdateHandle().get().getExecution().getRunId());
 
     // 4 args
     TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc stubProc4 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp4 = newUpdateOp.apply(stubProc4::update, 4);
-    WorkflowExecution exec4 =
+    WorkflowUpdateHandle<String> handle4 =
         WorkflowClient.startWithOperation(stubProc4::proc4, "1", 2, 3, 4, updateOp4);
-    assertEquals(exec4.getRunId(), updateOp4.getUpdateHandle().get().getExecution().getRunId());
 
     // 5 args
     TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc stubProc5 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp5 = newUpdateOp.apply(stubProc5::update, 5);
-    WorkflowExecution exec5 =
+    WorkflowUpdateHandle<String> handle5 =
         WorkflowClient.startWithOperation(stubProc5::proc5, "1", 2, 3, 4, 5, updateOp5);
-    assertEquals(exec5.getRunId(), updateOp5.getUpdateHandle().get().getExecution().getRunId());
 
     // 6 args
     TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc stubProc6 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc.class, createOptions());
     WorkflowStartOperationUpdate<String> updateOp6 = newUpdateOp.apply(stubProc6::update, 6);
-    WorkflowExecution exec6 =
+    WorkflowUpdateHandle<String> handle6 =
         WorkflowClient.startWithOperation(stubProc6::proc6, "1", 2, 3, 4, 5, 6, updateOp6);
-    assertEquals(exec6.getRunId(), updateOp6.getUpdateHandle().get().getExecution().getRunId());
 
-    assertEquals("0", updateOp0.getResult());
-    assertEquals("1", updateOp1.getResult());
-    assertEquals("2", updateOp2.getResult());
-    assertEquals("3", updateOp3.getResult());
-    assertEquals("4", updateOp4.getResult());
-    assertEquals("5", updateOp5.getResult());
-    assertEquals("6", updateOp6.getResult());
+    assertEquals("0", handle0.getResultAsync().get());
+    assertEquals("1", handle1.getResultAsync().get());
+    assertEquals("2", handle2.getResultAsync().get());
+    assertEquals("3", handle3.getResultAsync().get());
+    assertEquals("4", handle4.getResultAsync().get());
+    assertEquals("5", handle5.getResultAsync().get());
+    assertEquals("6", handle6.getResultAsync().get());
   }
 
   @Test

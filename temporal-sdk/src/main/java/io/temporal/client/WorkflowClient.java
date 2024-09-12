@@ -577,8 +577,8 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static WorkflowExecution startWithOperation(
-      Functions.Proc workflow, @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+  static <R> R startWithOperation(
+      Functions.Proc workflow, @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(workflow);
   }
 
@@ -592,10 +592,10 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1> WorkflowExecution startWithOperation(
+  static <R, A1> R startWithOperation(
       Functions.Proc1<A1> workflow,
       A1 arg1,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1));
   }
 
@@ -610,11 +610,11 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2> WorkflowExecution startWithOperation(
+  static <R, A1, A2> R startWithOperation(
       Functions.Proc2<A1, A2> workflow,
       A1 arg1,
       A2 arg2,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2));
   }
 
@@ -630,12 +630,12 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3> WorkflowExecution startWithOperation(
+  static <R, A1, A2, A3> R startWithOperation(
       Functions.Proc3<A1, A2, A3> workflow,
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3));
   }
 
@@ -652,13 +652,13 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, A4> WorkflowExecution startWithOperation(
+  static <R, A1, A2, A3, A4> R startWithOperation(
       Functions.Proc4<A1, A2, A3, A4> workflow,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4));
   }
 
@@ -676,14 +676,14 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, A4, A5> WorkflowExecution startWithOperation(
+  static <R, A1, A2, A3, A4, A5> R startWithOperation(
       Functions.Proc5<A1, A2, A3, A4, A5> workflow,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
   }
 
@@ -702,7 +702,7 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, A4, A5, A6> WorkflowExecution startWithOperation(
+  static <R, A1, A2, A3, A4, A5, A6> R startWithOperation(
       Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow,
       A1 arg1,
       A2 arg2,
@@ -710,7 +710,7 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       A6 arg6,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
   }
 
@@ -723,8 +723,9 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <R> WorkflowExecution startWithOperation(
-      Functions.Func<R> workflow, @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+  static <R> R startWithOperation(
+      Functions.Func<R> workflow,
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(
         () -> {
           workflow.apply();
@@ -741,10 +742,10 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, R> WorkflowExecution startWithOperation(
+  static <R, A1> R startWithOperation(
       Functions.Func1<A1, R> workflow,
       A1 arg1,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1));
   }
 
@@ -759,11 +760,11 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, R> WorkflowExecution startWithOperation(
+  static <A1, A2, R> R startWithOperation(
       Functions.Func2<A1, A2, R> workflow,
       A1 arg1,
       A2 arg2,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2));
   }
 
@@ -779,12 +780,12 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, R> WorkflowExecution startWithOperation(
+  static <A1, A2, A3, R> R startWithOperation(
       Functions.Func3<A1, A2, A3, R> workflow,
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3));
   }
 
@@ -801,13 +802,13 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, A4, R> WorkflowExecution startWithOperation(
+  static <A1, A2, A3, A4, R> R startWithOperation(
       Functions.Func4<A1, A2, A3, A4, R> workflow,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4));
   }
 
@@ -825,14 +826,14 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, A4, A5, R> WorkflowExecution startWithOperation(
+  static <A1, A2, A3, A4, A5, R> R startWithOperation(
       Functions.Func5<A1, A2, A3, A4, A5, R> workflow,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
   }
 
@@ -851,7 +852,7 @@ public interface WorkflowClient {
    *     WorkflowStartOperationUpdate} for Update-With-Start)
    * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
-  static <A1, A2, A3, A4, A5, A6, R> WorkflowExecution startWithOperation(
+  static <A1, A2, A3, A4, A5, A6, R> R startWithOperation(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow,
       A1 arg1,
       A2 arg2,
@@ -859,7 +860,7 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       A6 arg6,
-      @Nonnull StartWorkflowAdditionalOperation additionalOperation) {
+      @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
     return additionalOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
   }
 

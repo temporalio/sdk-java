@@ -20,12 +20,11 @@
 
 package io.temporal.client;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Base class for operations that can be added to a Start Workflow. */
-public abstract class StartWorkflowAdditionalOperation {
+public abstract class StartWorkflowAdditionalOperation<R> {
 
   private final AtomicBoolean invoked = new AtomicBoolean(false);
 
@@ -33,5 +32,5 @@ public abstract class StartWorkflowAdditionalOperation {
     return invoked.compareAndSet(false, true);
   }
 
-  abstract WorkflowExecution invoke(Functions.Proc workflow);
+  abstract R invoke(Functions.Proc workflow);
 }

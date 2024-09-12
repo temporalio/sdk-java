@@ -96,6 +96,30 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
+  @Override
+  public WorkflowExecution start(Object... args) {
+    if (options == null) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    return startWithOptions(WorkflowOptions.merge(null, null, options), args);
+  }
+
+  @Override
+  public <R> WorkflowExecution startWithOperation(
+      StartWorkflowAdditionalOperation<R> operation, Object... args) {
+    if (options == null) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    if (!operation.markInvoked()) {
+      throw new IllegalStateException("WorkflowStartOperationUpdate was already executed");
+    }
+    WorkflowOptions withStartOptions =
+        WorkflowOptions.newBuilder(WorkflowOptions.merge(null, null, options))
+            .setStartOperation(operation)
+            .build();
+    return startWithOptions(withStartOptions, args);
+  }
+
   private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
     checkExecutionIsNotStarted();
     String workflowId = getWorkflowIdForStart(options);
@@ -120,30 +144,6 @@ class WorkflowStubImpl implements WorkflowStub {
       }
       throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     }
-  }
-
-  @Override
-  public WorkflowExecution start(Object... args) {
-    if (options == null) {
-      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
-    }
-    return startWithOptions(WorkflowOptions.merge(null, null, options), args);
-  }
-
-  @Override
-  public WorkflowExecution startWithOperation(
-      StartWorkflowAdditionalOperation operation, Object... args) {
-    if (options == null) {
-      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
-    }
-    if (!operation.markInvoked()) {
-      throw new IllegalStateException("WorkflowStartOperationUpdate was already executed");
-    }
-    WorkflowOptions withStartOptions =
-        WorkflowOptions.newBuilder(WorkflowOptions.merge(null, null, options))
-            .setStartOperation(operation)
-            .build();
-    return startWithOptions(withStartOptions, args);
   }
 
   private WorkflowExecution signalWithStartWithOptions(

@@ -523,7 +523,7 @@ public final class WorkflowOptions {
     return taskQueue;
   }
 
-  StartWorkflowAdditionalOperation getStartOperation() {
+  public StartWorkflowAdditionalOperation getStartOperation() {
     return startOperation;
   }
 
