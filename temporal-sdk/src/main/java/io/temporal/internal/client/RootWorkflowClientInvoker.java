@@ -101,7 +101,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             inputArgs.orElse(null),
             memo);
 
-    StartWorkflowAdditionalOperation additionalOperation = input.getOptions().getStartOperation();
+    StartWorkflowAdditionalOperation additionalOperation =
+        input.getOptions().getAdditionalOperation();
     if (additionalOperation != null) {
       if (additionalOperation instanceof WorkflowStartOperationUpdate) {
         WorkflowStartOperationUpdate<?> updateOperation =

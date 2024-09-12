@@ -115,7 +115,7 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     WorkflowOptions withStartOptions =
         WorkflowOptions.newBuilder(WorkflowOptions.merge(null, null, options))
-            .setStartOperation(operation)
+            .setAdditionalOperation(operation)
             .build();
     return startWithOptions(withStartOptions, args);
   }
