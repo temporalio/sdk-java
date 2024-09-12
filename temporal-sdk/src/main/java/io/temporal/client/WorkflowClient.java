@@ -573,9 +573,9 @@ public interface WorkflowClient {
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R> R startWithOperation(
       Functions.Proc workflow, @Nonnull StartWorkflowAdditionalOperation<R> additionalOperation) {
@@ -588,9 +588,9 @@ public interface WorkflowClient {
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1> R startWithOperation(
       Functions.Proc1<A1> workflow,
@@ -606,9 +606,9 @@ public interface WorkflowClient {
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1, A2> R startWithOperation(
       Functions.Proc2<A1, A2> workflow,
@@ -626,9 +626,9 @@ public interface WorkflowClient {
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1, A2, A3> R startWithOperation(
       Functions.Proc3<A1, A2, A3> workflow,
@@ -648,9 +648,9 @@ public interface WorkflowClient {
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1, A2, A3, A4> R startWithOperation(
       Functions.Proc4<A1, A2, A3, A4> workflow,
@@ -672,9 +672,9 @@ public interface WorkflowClient {
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
    * @param arg5 fifth workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1, A2, A3, A4, A5> R startWithOperation(
       Functions.Proc5<A1, A2, A3, A4, A5> workflow,
@@ -698,9 +698,9 @@ public interface WorkflowClient {
    * @param arg4 fourth workflow function parameter
    * @param arg5 sixth workflow function parameter
    * @param arg6 sixth workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1, A2, A3, A4, A5, A6> R startWithOperation(
       Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow,
@@ -719,9 +719,9 @@ public interface WorkflowClient {
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R> R startWithOperation(
       Functions.Func<R> workflow,
@@ -738,9 +738,9 @@ public interface WorkflowClient {
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow argument
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <R, A1> R startWithOperation(
       Functions.Func1<A1, R> workflow,
@@ -756,9 +756,9 @@ public interface WorkflowClient {
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <A1, A2, R> R startWithOperation(
       Functions.Func2<A1, A2, R> workflow,
@@ -776,9 +776,9 @@ public interface WorkflowClient {
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <A1, A2, A3, R> R startWithOperation(
       Functions.Func3<A1, A2, A3, R> workflow,
@@ -798,9 +798,9 @@ public interface WorkflowClient {
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <A1, A2, A3, A4, R> R startWithOperation(
       Functions.Func4<A1, A2, A3, A4, R> workflow,
@@ -822,9 +822,9 @@ public interface WorkflowClient {
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
    * @param arg5 sixth workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <A1, A2, A3, A4, A5, R> R startWithOperation(
       Functions.Func5<A1, A2, A3, A4, A5, R> workflow,
@@ -848,9 +848,9 @@ public interface WorkflowClient {
    * @param arg4 fourth workflow function parameter
    * @param arg5 sixth workflow function parameter
    * @param arg6 sixth workflow function parameter
-   * @param additionalOperation to run at the beginning of the workflow (e.g. {@link
+   * @param additionalOperation to execute with workflow start (e.g. {@link
    *     WorkflowStartOperationUpdate} for Update-With-Start)
-   * @return result from additional operation
+   * @return handle from additional operation
    */
   static <A1, A2, A3, A4, A5, A6, R> R startWithOperation(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow,
