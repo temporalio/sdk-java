@@ -111,11 +111,13 @@ interface TestWorkflowMutableState {
   void startNexusOperation(
       long scheduledEventId, String clientIdentity, StartOperationResponse.Async resp);
 
-  void cancelNexusOperation(NexusOperationRef ref);
+  void cancelNexusOperation(NexusOperationRef ref, Failure failure);
 
   void completeNexusOperation(NexusOperationRef ref, Payload result);
 
   void failNexusOperation(NexusOperationRef ref, Failure failure);
+
+  boolean validateOperationTaskToken(NexusTaskToken tt);
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 

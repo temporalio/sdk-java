@@ -134,10 +134,13 @@ interface TestWorkflowStore {
   class NexusTask {
     private final TaskQueueId taskQueueId;
     private final PollNexusTaskQueueResponse.Builder task;
+    private Timestamp deadline;
 
-    public NexusTask(TaskQueueId taskQueueId, PollNexusTaskQueueResponse.Builder task) {
+    public NexusTask(
+        TaskQueueId taskQueueId, PollNexusTaskQueueResponse.Builder task, Timestamp deadline) {
       this.taskQueueId = taskQueueId;
       this.task = task;
+      this.deadline = deadline;
     }
 
     public TaskQueueId getTaskQueueId() {
@@ -146,6 +149,14 @@ interface TestWorkflowStore {
 
     public PollNexusTaskQueueResponse.Builder getTask() {
       return task;
+    }
+
+    public Timestamp getDeadline() {
+      return deadline;
+    }
+
+    public void setDeadline(Timestamp deadline) {
+      this.deadline = deadline;
     }
   }
 
@@ -169,8 +180,7 @@ interface TestWorkflowStore {
   Future<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest);
 
-  Future<PollNexusTaskQueueResponse.Builder> pollNexusTaskQueue(
-      PollNexusTaskQueueRequest pollRequest);
+  Future<NexusTask> pollNexusTaskQueue(PollNexusTaskQueueRequest pollRequest);
 
   void sendQueryTask(
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);

@@ -45,6 +45,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.nexus.v1.HandlerError;
+import io.temporal.api.nexus.v1.Request;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
@@ -756,7 +757,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       PollNexusTaskQueueRequest request,
       StreamObserver<PollNexusTaskQueueResponse> responseObserver) {
     try (Context.CancellableContext ctx = deadlineCtx(getLongPollDeadline())) {
-      PollNexusTaskQueueResponse.Builder task;
+      TestWorkflowStore.NexusTask task;
       try {
         task = pollTaskQueue(ctx, store.pollNexusTaskQueue(request));
       } catch (ExecutionException e) {
@@ -772,7 +773,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         responseObserver.onCompleted();
         return;
       }
-      responseObserver.onNext(task.build());
+
+      String taskTimeout =
+          String.valueOf(Timestamps.between(store.currentTime(), task.getDeadline()).getSeconds());
+      Request.Builder req =
+          task.getTask().getRequestBuilder().putHeader("Request-Timeout", taskTimeout);
+      PollNexusTaskQueueResponse.Builder resp = task.getTask().setRequest(req);
+
+      responseObserver.onNext(resp.build());
       responseObserver.onCompleted();
     }
   }
@@ -782,21 +790,45 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondNexusTaskCompletedRequest request,
       StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {
     try {
-      NexusOperationRef ref = NexusOperationRef.fromBytes(request.getTaskToken());
-      TestWorkflowMutableState mutableState = getMutableState(ref.getExecutionId());
+      NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState =
+          getMutableState(tt.getOperationRef().getExecutionId());
+      if (!mutableState.validateOperationTaskToken(tt)) {
+        responseObserver.onNext(RespondNexusTaskCompletedResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+        return;
+      }
+
       if (request.getResponse().hasCancelOperation()) {
-        mutableState.cancelNexusOperation(ref);
+        mutableState.cancelNexusOperation(tt.getOperationRef(), null);
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();
         if (startResp.hasOperationError()) {
-          Failure failure = unsuccessfulOperationErrorToFailure(startResp.getOperationError());
-          mutableState.failNexusOperation(ref, failure);
+          UnsuccessfulOperationError opError = startResp.getOperationError();
+          Failure.Builder b = Failure.newBuilder().setMessage(opError.getFailure().getMessage());
+
+          if (startResp.getOperationError().getOperationState().equals("canceled")) {
+            b.setCanceledFailureInfo(
+                CanceledFailureInfo.newBuilder()
+                    .setDetails(nexusFailureMetadataToPayloads(opError.getFailure())));
+            mutableState.cancelNexusOperation(tt.getOperationRef(), b.build());
+          } else {
+            b.setApplicationFailureInfo(
+                ApplicationFailureInfo.newBuilder()
+                    .setType("NexusOperationFailure")
+                    .setDetails(nexusFailureMetadataToPayloads(opError.getFailure()))
+                    .setNonRetryable(true));
+            mutableState.failNexusOperation(tt.getOperationRef(), b.build());
+          }
         } else if (startResp.hasAsyncSuccess()) {
           // Start event is only recorded for async success
           mutableState.startNexusOperation(
-              ref.getScheduledEventId(), request.getIdentity(), startResp.getAsyncSuccess());
+              tt.getOperationRef().getScheduledEventId(),
+              request.getIdentity(),
+              startResp.getAsyncSuccess());
         } else if (startResp.hasSyncSuccess()) {
-          mutableState.completeNexusOperation(ref, startResp.getSyncSuccess().getPayload());
+          mutableState.completeNexusOperation(
+              tt.getOperationRef(), startResp.getSyncSuccess().getPayload());
         } else {
           throw Status.INVALID_ARGUMENT
               .withDescription("Expected success or OperationError to be set on request.")
@@ -824,10 +856,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .withDescription("Nexus handler error not set on RespondNexusTaskFailedRequest")
             .asRuntimeException();
       }
-      NexusOperationRef ref = NexusOperationRef.fromBytes(request.getTaskToken());
-      TestWorkflowMutableState mutableState = getMutableState(ref.getExecutionId());
-      Failure failure = handlerErrorToFailure(request.getError());
-      mutableState.failNexusOperation(ref, failure);
+      NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState =
+          getMutableState(tt.getOperationRef().getExecutionId());
+      if (mutableState.validateOperationTaskToken(tt)) {
+        Failure failure = handlerErrorToFailure(request.getError());
+        mutableState.failNexusOperation(tt.getOperationRef(), failure);
+      }
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -835,8 +870,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  public void completeNexusOperation(ByteString token, HistoryEvent completionEvent) {
-    NexusOperationRef ref = NexusOperationRef.fromBytes(token);
+  public void completeNexusOperation(NexusOperationRef ref, HistoryEvent completionEvent) {
     TestWorkflowMutableState target = getMutableState(ref.getExecutionId());
 
     switch (completionEvent.getEventType()) {
@@ -852,11 +886,24 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         target.completeNexusOperation(ref, p);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
-        target.failNexusOperation(
-            ref, completionEvent.getWorkflowExecutionFailedEventAttributes().getFailure());
+        Failure f =
+            Failure.newBuilder()
+                .setMessage(
+                    completionEvent
+                        .getWorkflowExecutionFailedEventAttributes()
+                        .getFailure()
+                        .getMessage())
+                .build();
+        target.failNexusOperation(ref, f);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
-        target.cancelNexusOperation(ref);
+        Failure canceled =
+            Failure.newBuilder()
+                .setMessage("operation canceled")
+                .setApplicationFailureInfo(
+                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
+                .build();
+        target.cancelNexusOperation(ref, canceled);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         Failure terminated =
@@ -881,22 +928,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .withDescription("invalid workflow execution status: " + completionEvent.getEventType())
             .asRuntimeException();
     }
-  }
-
-  private static Failure unsuccessfulOperationErrorToFailure(UnsuccessfulOperationError err) {
-    Failure.Builder b = Failure.newBuilder().setMessage(err.getFailure().getMessage());
-    if (err.getOperationState().equals("canceled")) {
-      b.setCanceledFailureInfo(
-          CanceledFailureInfo.newBuilder()
-              .setDetails(nexusFailureMetadataToPayloads(err.getFailure())));
-    } else {
-      b.setApplicationFailureInfo(
-          ApplicationFailureInfo.newBuilder()
-              .setType("NexusOperationFailure")
-              .setDetails(nexusFailureMetadataToPayloads(err.getFailure()))
-              .setNonRetryable(true));
-    }
-    return b.build();
   }
 
   private static Failure handlerErrorToFailure(HandlerError err) {
