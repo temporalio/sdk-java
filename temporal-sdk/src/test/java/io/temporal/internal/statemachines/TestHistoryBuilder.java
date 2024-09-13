@@ -408,7 +408,6 @@ class TestHistoryBuilder {
       case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
         return ChildWorkflowExecutionTerminatedEventAttributes.newBuilder()
             .setInitiatedEventId(initiatedEventId);
-
       case EVENT_TYPE_UNSPECIFIED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
@@ -565,7 +564,34 @@ class TestHistoryBuilder {
           result.setExternalWorkflowExecutionCancelRequestedEventAttributes(
               (ExternalWorkflowExecutionCancelRequestedEventAttributes) attributes);
           break;
-
+        case EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+          result.setNexusOperationScheduledEventAttributes(
+              (NexusOperationScheduledEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_STARTED:
+          result.setNexusOperationStartedEventAttributes(
+              (NexusOperationStartedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+          result.setNexusOperationCompletedEventAttributes(
+              (NexusOperationCompletedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+          result.setNexusOperationCanceledEventAttributes(
+              (NexusOperationCanceledEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_FAILED:
+          result.setNexusOperationFailedEventAttributes(
+              (NexusOperationFailedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+          result.setNexusOperationTimedOutEventAttributes(
+              (NexusOperationTimedOutEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED:
+          result.setNexusOperationCancelRequestedEventAttributes(
+              (NexusOperationCancelRequestedEventAttributes) attributes);
+          break;
         case EVENT_TYPE_UNSPECIFIED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
