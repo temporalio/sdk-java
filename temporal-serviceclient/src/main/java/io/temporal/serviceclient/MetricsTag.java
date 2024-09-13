@@ -35,6 +35,8 @@ public class MetricsTag {
 
   public static final String ACTIVITY_TYPE = "activity_type";
   public static final String WORKFLOW_TYPE = "workflow_type";
+  public static final String NEXUS_SERVICE = "nexus_service";
+  public static final String NEXUS_OPERATION = "nexus_operation";
   public static final String SIGNAL_NAME = "signal_name";
   public static final String QUERY_TYPE = "query_type";
   public static final String UPDATE_NAME = "update_name";

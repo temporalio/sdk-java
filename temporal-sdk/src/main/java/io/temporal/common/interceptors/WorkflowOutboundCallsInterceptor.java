@@ -30,10 +30,7 @@ import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -258,6 +255,89 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Promise<WorkflowExecution> getWorkflowExecution() {
       return workflowExecution;
+    }
+  }
+
+  @Experimental
+  final class ExecuteNexusOperationInput<R> {
+    private final String endpoint;
+    private final String service;
+    private final String operation;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final Object arg;
+    private final NexusOperationOptions options;
+    private final Map<String, String> headers;
+
+    public ExecuteNexusOperationInput(
+        String endpoint,
+        String service,
+        String operation,
+        Class<R> resultClass,
+        Type resultType,
+        Object arg,
+        NexusOperationOptions options,
+        Map<String, String> headers) {
+      this.endpoint = endpoint;
+      this.service = service;
+      this.operation = operation;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.arg = arg;
+      this.options = options;
+      this.headers = headers;
+    }
+
+    public String getService() {
+      return service;
+    }
+
+    public String getOperation() {
+      return operation;
+    }
+
+    public Object getArg() {
+      return arg;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public String getEndpoint() {
+      return endpoint;
+    }
+
+    public NexusOperationOptions getOptions() {
+      return options;
+    }
+
+    public Map<String, String> getHeaders() {
+      return headers;
+    }
+  }
+
+  @Experimental
+  final class ExecuteNexusOperationOutput<R> {
+    private final Promise<R> result;
+    private final Promise<NexusOperationExecution> operationExecution;
+
+    public ExecuteNexusOperationOutput(
+        Promise<R> result, Promise<NexusOperationExecution> operationExecution) {
+      this.result = result;
+      this.operationExecution = operationExecution;
+    }
+
+    public Promise<R> getResult() {
+      return result;
+    }
+
+    public Promise<NexusOperationExecution> getOperationExecution() {
+      return operationExecution;
     }
   }
 
@@ -574,6 +654,9 @@ public interface WorkflowOutboundCallsInterceptor {
   <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input);
 
   <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input);
+
+  @Experimental
+  <R> ExecuteNexusOperationOutput<R> executeNexusOperation(ExecuteNexusOperationInput<R> input);
 
   Random newRandom();
 

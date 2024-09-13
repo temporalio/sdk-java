@@ -162,6 +162,11 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
+    public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
+      testWorkflowRuleBuilder.setNexusServiceImplementation(nexusServiceImplementations);
+      return this;
+    }
+
     public Builder setWorkflowTypes(
         WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
       testWorkflowRuleBuilder.setWorkflowTypes(implementationOptions, workflowTypes);
