@@ -47,7 +47,8 @@ import javax.annotation.Nullable;
 @Experimental
 public interface WorkflowClientCallsInterceptor {
   /**
-   * If you implement this method, {@link #signalWithStart} most likely needs to be implemented too.
+   * If you implement this method, {@link #signalWithStart} and @{link #updateWithStart}
+   *    * most likely need to be implemented too.
    *
    * @see #signalWithStart
    */
@@ -62,6 +63,7 @@ public interface WorkflowClientCallsInterceptor {
 
   WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
 
+  @Experimental
   <R> WorkflowUpdateWithStartOutput<R> updateWithStart(WorkflowUpdateWithStartInput<R> input);
 
   /**
