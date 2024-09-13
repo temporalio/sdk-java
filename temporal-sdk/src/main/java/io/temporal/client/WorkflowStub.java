@@ -149,8 +149,16 @@ public interface WorkflowStub {
 
   WorkflowExecution start(Object... args);
 
-  <R> WorkflowExecution startWithOperation(
-      StartWorkflowAdditionalOperation<R> additionalOperation, Object... args);
+  /**
+   * Execute a workflow together with an update workflow request.
+   *
+   * @param updateOperation update workflow operation
+   * @param startArgs workflow start arguments
+   * @param <R> type of the update workflow result
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  <R> WorkflowUpdateHandle<R> updateWithStart(
+      UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs);
 
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 

@@ -83,37 +83,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     Optional<Payloads> inputArgs =
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
 
-    @Nullable
-    Memo memo =
-        (input.getOptions().getMemo() != null)
-            ? Memo.newBuilder()
-                .putAllFields(
-                    intoPayloadMap(dataConverterWithWorkflowContext, input.getOptions().getMemo()))
-                .build()
-            : null;
-
     StartWorkflowExecutionRequest.Builder startRequest =
-        requestsHelper.newStartWorkflowExecutionRequest(
-            input.getWorkflowId(),
-            input.getWorkflowType(),
-            input.getHeader(),
-            input.getOptions(),
-            inputArgs.orElse(null),
-            memo);
-
-    StartWorkflowAdditionalOperation additionalOperation =
-        input.getOptions().getAdditionalOperation();
-    if (additionalOperation != null) {
-      if (additionalOperation instanceof WorkflowStartOperationUpdate) {
-        WorkflowStartOperationUpdate<?> updateOperation =
-            (WorkflowStartOperationUpdate<?>) additionalOperation;
-        return updateWithStart(
-            input, updateOperation, dataConverterWithWorkflowContext, startRequest);
-      } else {
-        throw new IllegalArgumentException(
-            "Unsupported StartOperation type " + additionalOperation.getClass());
-      }
-    }
+        toStartRequest(dataConverterWithWorkflowContext, input);
 
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
@@ -147,28 +118,92 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
   }
 
-  private WorkflowStartOutput updateWithStart(
-      WorkflowStartInput input,
-      WorkflowStartOperationUpdate<?> updateOperation,
-      DataConverter dataConverterWithWorkflowContext,
-      StartWorkflowExecutionRequest.Builder startRequest) {
+  @Override
+  public WorkflowSignalOutput signal(WorkflowSignalInput input) {
+    SignalWorkflowExecutionRequest.Builder request =
+        SignalWorkflowExecutionRequest.newBuilder()
+            .setSignalName(input.getSignalName())
+            .setWorkflowExecution(input.getWorkflowExecution())
+            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(clientOptions.getNamespace())
+            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
 
+    DataConverter dataConverterWitSignalContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
+
+    Optional<Payloads> inputArgs = dataConverterWitSignalContext.toPayloads(input.getArguments());
+    inputArgs.ifPresent(request::setInput);
+    genericClient.signal(request.build());
+    return new WorkflowSignalOutput();
+  }
+
+  @Override
+  public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
+    WorkflowStartInput workflowStartInput = input.getWorkflowStartInput();
+
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), workflowStartInput.getWorkflowId()));
+    StartWorkflowExecutionRequestOrBuilder startRequest =
+        toStartRequest(dataConverterWithWorkflowContext, workflowStartInput);
+
+    Optional<Payloads> signalInput =
+        dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
+    SignalWithStartWorkflowExecutionRequest request =
+        requestsHelper
+            .newSignalWithStartWorkflowExecutionRequest(
+                startRequest, input.getSignalName(), signalInput.orElse(null))
+            .build();
+    SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setRunId(response.getRunId())
+            .setWorkflowId(request.getWorkflowId())
+            .build();
+    // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
+    //  We should wire it when it's implemented server-side.
+    return new WorkflowSignalWithStartOutput(new WorkflowStartOutput(execution));
+  }
+
+  @Override
+  public <R> WorkflowUpdateWithStartOutput<R> updateWithStart(
+      WorkflowUpdateWithStartInput<R> input) {
+
+    WorkflowStartInput startInput = input.getWorkflowStartInput();
+    UpdateWithStartWorkflowOperation<R> updateOperation = input.getUpdateOperation();
     UpdateOptions<?> updateOptions = updateOperation.getOptions();
     updateOptions.validate();
     StartUpdateInput<?> startUpdateInput =
         new StartUpdateInput<>(
-            WorkflowExecution.newBuilder().setWorkflowId(input.getWorkflowId()).build(),
-            Optional.of(input.getWorkflowType()),
+            WorkflowExecution.newBuilder().setWorkflowId(startInput.getWorkflowId()).build(),
+            Optional.of(startInput.getWorkflowType()),
             updateOptions.getUpdateName(),
             Header.empty(),
             updateOptions.getUpdateId(),
             updateOperation.getUpdateArgs(),
             updateOptions.getResultClass(),
             updateOptions.getResultType(),
-            "",
+            "", // firstExecutionRunId is always empty
             WaitPolicy.newBuilder()
                 .setLifecycleStage(updateOptions.getWaitForStage().getProto())
                 .build());
+
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), startInput.getWorkflowId()));
+
+    StartWorkflowExecutionRequest startRequest =
+        toStartRequest(dataConverterWithWorkflowContext, startInput).build();
 
     UpdateWorkflowExecutionRequest updateRequest =
         toUpdateWorkflowExecutionRequest(startUpdateInput, dataConverterWithWorkflowContext);
@@ -256,42 +291,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setRunId(startResponse.getRunId())
             .setWorkflowId(startRequest.getWorkflowId())
             .build();
-    return new WorkflowStartOutput(execution);
+    return new WorkflowUpdateWithStartOutput<>(new WorkflowStartOutput(execution), updateHandle);
   }
 
-  @Override
-  public WorkflowSignalOutput signal(WorkflowSignalInput input) {
-    SignalWorkflowExecutionRequest.Builder request =
-        SignalWorkflowExecutionRequest.newBuilder()
-            .setSignalName(input.getSignalName())
-            .setWorkflowExecution(input.getWorkflowExecution())
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
-
-    DataConverter dataConverterWitSignalContext =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new WorkflowSerializationContext(
-                    clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
-
-    Optional<Payloads> inputArgs = dataConverterWitSignalContext.toPayloads(input.getArguments());
-    inputArgs.ifPresent(request::setInput);
-    genericClient.signal(request.build());
-    return new WorkflowSignalOutput();
-  }
-
-  @Override
-  public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
-    WorkflowStartInput workflowStartInput = input.getWorkflowStartInput();
-
-    DataConverter dataConverterWithWorkflowContext =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new WorkflowSerializationContext(
-                    clientOptions.getNamespace(), workflowStartInput.getWorkflowId()));
+  private StartWorkflowExecutionRequest.Builder toStartRequest(
+      DataConverter dataConverterWithWorkflowContext, WorkflowStartInput workflowStartInput) {
     Optional<Payloads> workflowInput =
         dataConverterWithWorkflowContext.toPayloads(workflowStartInput.getArguments());
 
@@ -306,31 +310,13 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 .build()
             : null;
 
-    StartWorkflowExecutionRequestOrBuilder startRequest =
-        requestsHelper.newStartWorkflowExecutionRequest(
-            workflowStartInput.getWorkflowId(),
-            workflowStartInput.getWorkflowType(),
-            workflowStartInput.getHeader(),
-            workflowStartInput.getOptions(),
-            workflowInput.orElse(null),
-            memo);
-
-    Optional<Payloads> signalInput =
-        dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
-    SignalWithStartWorkflowExecutionRequest request =
-        requestsHelper
-            .newSignalWithStartWorkflowExecutionRequest(
-                startRequest, input.getSignalName(), signalInput.orElse(null))
-            .build();
-    SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
-    WorkflowExecution execution =
-        WorkflowExecution.newBuilder()
-            .setRunId(response.getRunId())
-            .setWorkflowId(request.getWorkflowId())
-            .build();
-    // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
-    //  We should wire it when it's implemented server-side.
-    return new WorkflowSignalWithStartOutput(new WorkflowStartOutput(execution));
+    return requestsHelper.newStartWorkflowExecutionRequest(
+        workflowStartInput.getWorkflowId(),
+        workflowStartInput.getWorkflowType(),
+        workflowStartInput.getHeader(),
+        workflowStartInput.getOptions(),
+        workflowInput.orElse(null),
+        memo);
   }
 
   @Override

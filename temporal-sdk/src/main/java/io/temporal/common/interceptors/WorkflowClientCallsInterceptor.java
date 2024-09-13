@@ -23,6 +23,7 @@ package io.temporal.common.interceptors;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.update.v1.WaitPolicy;
+import io.temporal.client.UpdateWithStartWorkflowOperation;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowUpdateHandle;
 import io.temporal.common.Experimental;
@@ -60,6 +61,8 @@ public interface WorkflowClientCallsInterceptor {
   WorkflowSignalOutput signal(WorkflowSignalInput input);
 
   WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
+
+  <R> WorkflowUpdateWithStartOutput<R> updateWithStart(WorkflowUpdateWithStartInput<R> input);
 
   /**
    * If you implement this method, {@link #getResultAsync} most likely needs to be implemented too.
@@ -219,6 +222,45 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowStartOutput getWorkflowStartOutput() {
       return workflowStartOutput;
+    }
+  }
+
+  final class WorkflowUpdateWithStartInput<R> {
+    private final WorkflowStartInput workflowStartInput;
+    private final UpdateWithStartWorkflowOperation<R> updateOperation;
+
+    public WorkflowUpdateWithStartInput(
+        WorkflowStartInput workflowStartInput,
+        UpdateWithStartWorkflowOperation<R> updateOperation) {
+      this.workflowStartInput = workflowStartInput;
+      this.updateOperation = updateOperation;
+    }
+
+    public WorkflowStartInput getWorkflowStartInput() {
+      return workflowStartInput;
+    }
+
+    public UpdateWithStartWorkflowOperation<R> getUpdateOperation() {
+      return updateOperation;
+    }
+  }
+
+  final class WorkflowUpdateWithStartOutput<R> {
+    private final WorkflowStartOutput workflowStartOutput;
+    private final WorkflowUpdateHandle<R> updateHandle;
+
+    public WorkflowUpdateWithStartOutput(
+        WorkflowStartOutput workflowStartOutput, WorkflowUpdateHandle<R> updateHandle) {
+      this.workflowStartOutput = workflowStartOutput;
+      this.updateHandle = updateHandle;
+    }
+
+    public WorkflowStartOutput getWorkflowStartOutput() {
+      return workflowStartOutput;
+    }
+
+    public WorkflowUpdateHandle<R> getUpdateHandle() {
+      return updateHandle;
     }
   }
 

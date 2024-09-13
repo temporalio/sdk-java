@@ -176,8 +176,8 @@ public class UpdateTest {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
     // first update-with-start
-    WorkflowStartOperationUpdate<String> update1 =
-        WorkflowStartOperationUpdate.newBuilder(
+    UpdateWithStartWorkflowOperation<String> update1 =
+        UpdateWithStartWorkflowOperation.newBuilder(
                 "update", String.class, new Object[] {0, "Hello Update"})
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
@@ -188,20 +188,15 @@ public class UpdateTest {
                 .toBuilder()
                 .setWorkflowId(workflowId)
                 .build());
-    WorkflowExecution execution1 =
-        workflowStub1.startWithOperation(update1, new String[] {"some-value"}, new String[] {});
+    WorkflowUpdateHandle<String> updateHandle1 =
+        workflowStub1.updateWithStart(update1, new String[] {"some-value"}, new String[] {});
 
-    assertEquals(workflowId, execution1.getWorkflowId());
+    assertEquals(updateHandle1, update1.getUpdateHandle().get());
     assertEquals("Hello Update", update1.getResult());
 
-    WorkflowUpdateHandle<String> updHandle1 = update1.getUpdateHandle().get();
-    assertEquals(workflowId, updHandle1.getExecution().getWorkflowId());
-    assertEquals(execution1.getRunId(), updHandle1.getExecution().getRunId());
-    assertEquals("Hello Update", updHandle1.getResultAsync().get());
-
     // second update-with-start
-    WorkflowStartOperationUpdate<String> update2 =
-        WorkflowStartOperationUpdate.newBuilder(
+    UpdateWithStartWorkflowOperation<String> update2 =
+        UpdateWithStartWorkflowOperation.newBuilder(
                 "update", String.class, new Object[] {0, "Hello Update 2"})
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
@@ -214,28 +209,23 @@ public class UpdateTest {
                     WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
                 .setWorkflowId(workflowId)
                 .build());
-    WorkflowExecution execution2 =
-        workflowStub2.startWithOperation(update2, new String[] {"some-value"}, new String[] {});
+    WorkflowUpdateHandle<String> updateHandle2 =
+        workflowStub2.updateWithStart(update2, new String[] {"some-value"}, new String[] {});
 
-    assertEquals(execution1.getRunId(), execution2.getRunId());
+    assertEquals(updateHandle2, update2.getUpdateHandle().get());
     assertEquals("Hello Update 2", update2.getResult());
-
-    WorkflowUpdateHandle<String> updHandle2 = update2.getUpdateHandle().get();
-    assertEquals(workflowId, updHandle2.getExecution().getWorkflowId());
-    assertEquals(execution2.getRunId(), updHandle2.getExecution().getRunId());
-    assertEquals("Hello Update 2", updHandle2.getResultAsync().get());
 
     workflowStub2.update("complete", void.class);
     assertEquals("complete", workflowStub2.getResult(String.class));
   }
 
   @Test
-  public void updateWithStartOperationSingleUse() throws ExecutionException, InterruptedException {
+  public void updateWithStartOperationSingleUse() {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
-    WorkflowStartOperationUpdate<String> update =
-        WorkflowStartOperationUpdate.newBuilder(
+    UpdateWithStartWorkflowOperation<String> update =
+        UpdateWithStartWorkflowOperation.newBuilder(
                 "update", String.class, new Object[] {0, "Hello Update"})
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
@@ -247,12 +237,12 @@ public class UpdateTest {
                 .setWorkflowId(workflowId)
                 .build());
 
-    workflowStub.startWithOperation(update, new String[] {"some-value"}, new String[] {});
+    workflowStub.updateWithStart(update, new String[] {"some-value"}, new String[] {});
 
     try {
-      workflowStub.startWithOperation(update, new String[] {"some-value"}, new String[] {});
+      workflowStub.updateWithStart(update, new String[] {"some-value"}, new String[] {});
     } catch (IllegalStateException e) {
-      assertEquals(e.getMessage(), "WorkflowStartOperationUpdate was already executed");
+      assertEquals(e.getMessage(), "UpdateWithStartWorkflowOperation was already executed");
     }
   }
 

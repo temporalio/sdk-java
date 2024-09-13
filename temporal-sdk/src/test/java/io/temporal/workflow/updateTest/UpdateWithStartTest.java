@@ -60,13 +60,13 @@ public class UpdateWithStartTest {
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
 
-    WorkflowStartOperationUpdate<String> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(workflow::update, 1, "Hello Update")
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, 1, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
 
     WorkflowUpdateHandle<String> handle1 =
-        WorkflowClient.startWithOperation(workflow::execute, updateOp);
+        WorkflowClient.updateWithStart(workflow::execute, updateOp);
     assertEquals(options.getWorkflowId(), handle1.getExecution().getWorkflowId());
     assertEquals("Hello Update", handle1.getResultAsync().get());
 
@@ -97,13 +97,13 @@ public class UpdateWithStartTest {
             .build();
     TestWorkflows.WorkflowWithUpdate workflow2 =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options2);
-    WorkflowStartOperationUpdate<String> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(workflow2::update, 0, "Hello Update")
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow2::update, 0, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED)
             .build();
 
     WorkflowUpdateHandle<String> updHandle =
-        WorkflowClient.startWithOperation(workflow2::execute, updateOp);
+        WorkflowClient.updateWithStart(workflow2::execute, updateOp);
     assertEquals(execution1.getRunId(), updHandle.getExecution().getRunId());
     assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
 
@@ -115,10 +115,10 @@ public class UpdateWithStartTest {
   public void startVariousFuncs() throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
-    BiFunction<Functions.Func1<Integer, String>, Integer, WorkflowStartOperationUpdate<String>>
+    BiFunction<Functions.Func1<Integer, String>, Integer, UpdateWithStartWorkflowOperation<String>>
         newUpdateOp =
             (request, input) ->
-                WorkflowStartOperationUpdate.newBuilder(request, input)
+                UpdateWithStartWorkflowOperation.newBuilder(request, input)
                     .setWaitForStage(WorkflowUpdateStage.COMPLETED)
                     .build();
 
@@ -126,57 +126,56 @@ public class UpdateWithStartTest {
     TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc stubF =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp0 = newUpdateOp.apply(stubF::update, 0);
-    WorkflowUpdateHandle<String> handle0 =
-        WorkflowClient.startWithOperation(stubF::func, updateOp0);
+    UpdateWithStartWorkflowOperation<String> updateOp0 = newUpdateOp.apply(stubF::update, 0);
+    WorkflowUpdateHandle<String> handle0 = WorkflowClient.updateWithStart(stubF::func, updateOp0);
 
     // 1 arg
     TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc stubF1 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp1 = newUpdateOp.apply(stubF1::update, 1);
+    UpdateWithStartWorkflowOperation<String> updateOp1 = newUpdateOp.apply(stubF1::update, 1);
     WorkflowUpdateHandle<String> handle1 =
-        WorkflowClient.startWithOperation(stubF1::func1, 1, updateOp1);
+        WorkflowClient.updateWithStart(stubF1::func1, 1, updateOp1);
 
     // 2 args
     TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc stubF2 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp2 = newUpdateOp.apply(stubF2::update, 2);
+    UpdateWithStartWorkflowOperation<String> updateOp2 = newUpdateOp.apply(stubF2::update, 2);
     WorkflowUpdateHandle<String> handle2 =
-        WorkflowClient.startWithOperation(stubF2::func2, "1", 2, updateOp2);
+        WorkflowClient.updateWithStart(stubF2::func2, "1", 2, updateOp2);
 
     // 3 args
     TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc stubF3 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp3 = newUpdateOp.apply(stubF3::update, 3);
+    UpdateWithStartWorkflowOperation<String> updateOp3 = newUpdateOp.apply(stubF3::update, 3);
     WorkflowUpdateHandle<String> handle3 =
-        WorkflowClient.startWithOperation(stubF3::func3, "1", 2, 3, updateOp3);
+        WorkflowClient.updateWithStart(stubF3::func3, "1", 2, 3, updateOp3);
 
     // 4 args
     TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc stubF4 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp4 = newUpdateOp.apply(stubF4::update, 4);
+    UpdateWithStartWorkflowOperation<String> updateOp4 = newUpdateOp.apply(stubF4::update, 4);
     WorkflowUpdateHandle<String> handle4 =
-        WorkflowClient.startWithOperation(stubF4::func4, "1", 2, 3, 4, updateOp4);
+        WorkflowClient.updateWithStart(stubF4::func4, "1", 2, 3, 4, updateOp4);
 
     // 5 args
     TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc stubF5 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp5 = newUpdateOp.apply(stubF5::update, 5);
+    UpdateWithStartWorkflowOperation<String> updateOp5 = newUpdateOp.apply(stubF5::update, 5);
     WorkflowUpdateHandle<String> handle5 =
-        WorkflowClient.startWithOperation(stubF5::func5, "1", 2, 3, 4, 5, updateOp5);
+        WorkflowClient.updateWithStart(stubF5::func5, "1", 2, 3, 4, 5, updateOp5);
 
     // 6 args
     TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc stubF6 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp6 = newUpdateOp.apply(stubF6::update, 6);
+    UpdateWithStartWorkflowOperation<String> updateOp6 = newUpdateOp.apply(stubF6::update, 6);
     WorkflowUpdateHandle<String> handle6 =
-        WorkflowClient.startWithOperation(stubF6::func6, "1", 2, 3, 4, 5, 6, updateOp6);
+        WorkflowClient.updateWithStart(stubF6::func6, "1", 2, 3, 4, 5, 6, updateOp6);
 
     assertEquals("0", handle0.getResultAsync().get());
     assertEquals("1", handle1.getResultAsync().get());
@@ -191,10 +190,10 @@ public class UpdateWithStartTest {
   public void startVariousProcs() throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
-    BiFunction<Functions.Func1<Integer, String>, Integer, WorkflowStartOperationUpdate<String>>
+    BiFunction<Functions.Func1<Integer, String>, Integer, UpdateWithStartWorkflowOperation<String>>
         newUpdateOp =
             (request, input) ->
-                WorkflowStartOperationUpdate.newBuilder(request, input)
+                UpdateWithStartWorkflowOperation.newBuilder(request, input)
                     .setWaitForStage(WorkflowUpdateStage.COMPLETED)
                     .build();
 
@@ -202,57 +201,57 @@ public class UpdateWithStartTest {
     TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc stubProc =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp0 = newUpdateOp.apply(stubProc::update, 0);
+    UpdateWithStartWorkflowOperation<String> updateOp0 = newUpdateOp.apply(stubProc::update, 0);
     WorkflowUpdateHandle<String> handle0 =
-        WorkflowClient.startWithOperation(stubProc::proc, updateOp0);
+        WorkflowClient.updateWithStart(stubProc::proc, updateOp0);
 
     // 1 arg
     TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc stubProc1 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp1 = newUpdateOp.apply(stubProc1::update, 1);
+    UpdateWithStartWorkflowOperation<String> updateOp1 = newUpdateOp.apply(stubProc1::update, 1);
     WorkflowUpdateHandle<String> handle1 =
-        WorkflowClient.startWithOperation(stubProc1::proc1, "1", updateOp1);
+        WorkflowClient.updateWithStart(stubProc1::proc1, "1", updateOp1);
 
     // 2 args
     TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc stubProc2 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp2 = newUpdateOp.apply(stubProc2::update, 2);
+    UpdateWithStartWorkflowOperation<String> updateOp2 = newUpdateOp.apply(stubProc2::update, 2);
     WorkflowUpdateHandle<String> handle2 =
-        WorkflowClient.startWithOperation(stubProc2::proc2, "1", 2, updateOp2);
+        WorkflowClient.updateWithStart(stubProc2::proc2, "1", 2, updateOp2);
 
     // 3 args
     TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc stubProc3 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp3 = newUpdateOp.apply(stubProc3::update, 3);
+    UpdateWithStartWorkflowOperation<String> updateOp3 = newUpdateOp.apply(stubProc3::update, 3);
     WorkflowUpdateHandle<String> handle3 =
-        WorkflowClient.startWithOperation(stubProc3::proc3, "1", 2, 3, updateOp3);
+        WorkflowClient.updateWithStart(stubProc3::proc3, "1", 2, 3, updateOp3);
 
     // 4 args
     TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc stubProc4 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp4 = newUpdateOp.apply(stubProc4::update, 4);
+    UpdateWithStartWorkflowOperation<String> updateOp4 = newUpdateOp.apply(stubProc4::update, 4);
     WorkflowUpdateHandle<String> handle4 =
-        WorkflowClient.startWithOperation(stubProc4::proc4, "1", 2, 3, 4, updateOp4);
+        WorkflowClient.updateWithStart(stubProc4::proc4, "1", 2, 3, 4, updateOp4);
 
     // 5 args
     TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc stubProc5 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp5 = newUpdateOp.apply(stubProc5::update, 5);
+    UpdateWithStartWorkflowOperation<String> updateOp5 = newUpdateOp.apply(stubProc5::update, 5);
     WorkflowUpdateHandle<String> handle5 =
-        WorkflowClient.startWithOperation(stubProc5::proc5, "1", 2, 3, 4, 5, updateOp5);
+        WorkflowClient.updateWithStart(stubProc5::proc5, "1", 2, 3, 4, 5, updateOp5);
 
     // 6 args
     TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc stubProc6 =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp6 = newUpdateOp.apply(stubProc6::update, 6);
+    UpdateWithStartWorkflowOperation<String> updateOp6 = newUpdateOp.apply(stubProc6::update, 6);
     WorkflowUpdateHandle<String> handle6 =
-        WorkflowClient.startWithOperation(stubProc6::proc6, "1", 2, 3, 4, 5, 6, updateOp6);
+        WorkflowClient.updateWithStart(stubProc6::proc6, "1", 2, 3, 4, 5, 6, updateOp6);
 
     assertEquals("0", handle0.getResultAsync().get());
     assertEquals("1", handle1.getResultAsync().get());
@@ -269,17 +268,17 @@ public class UpdateWithStartTest {
 
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, createOptions());
-    WorkflowStartOperationUpdate<String> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(workflow::update, 0, "Hello Update")
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, 0, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
             .build();
-    WorkflowClient.startWithOperation(workflow::execute, updateOp);
+    WorkflowClient.updateWithStart(workflow::execute, updateOp);
 
     try {
-      WorkflowClient.startWithOperation(workflow::execute, updateOp);
+      WorkflowClient.updateWithStart(workflow::execute, updateOp);
       fail("unreachable");
     } catch (IllegalStateException e) {
-      assertEquals(e.getMessage(), "WorkflowStartOperationUpdate was already executed");
+      assertEquals(e.getMessage(), "UpdateWithStartWorkflowOperation was already executed");
     }
   }
 
@@ -296,13 +295,13 @@ public class UpdateWithStartTest {
             .build();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
-    WorkflowStartOperationUpdate<String> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(workflow::update, 0, "Hello Update")
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, 0, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
             .build();
 
     try {
-      WorkflowClient.startWithOperation(workflow::execute, updateOp);
+      WorkflowClient.updateWithStart(workflow::execute, updateOp);
       fail("unreachable");
     } catch (WorkflowServiceException e) {
       assertTrue(
@@ -319,11 +318,11 @@ public class UpdateWithStartTest {
     WorkflowOptions options = createOptions();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
-    WorkflowStartOperationUpdate<String> updateOp = // without wait stage
-        WorkflowStartOperationUpdate.newBuilder(workflow::update, 0, "Hello Update").build();
+    UpdateWithStartWorkflowOperation<String> updateOp = // without wait stage
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, 0, "Hello Update").build();
 
     try {
-      WorkflowClient.startWithOperation(workflow::execute, updateOp);
+      WorkflowClient.updateWithStart(workflow::execute, updateOp);
       fail("unreachable");
     } catch (WorkflowServiceException e) {
       assertEquals(e.getCause().getMessage(), "waitForStage must not be null");
@@ -339,13 +338,13 @@ public class UpdateWithStartTest {
     WorkflowOptions options = createOptions();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
-    WorkflowStartOperationUpdate<String> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(workflow::execute) // incorrect!
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::execute) // incorrect!
             .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
             .build();
 
     try {
-      WorkflowClient.startWithOperation(workflow::execute, updateOp);
+      WorkflowClient.updateWithStart(workflow::execute, updateOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(e.getMessage(), "Method 'execute' is not an UpdateMethod");
@@ -361,13 +360,14 @@ public class UpdateWithStartTest {
     WorkflowOptions options = createOptions();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
-    WorkflowStartOperationUpdate<String> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(workflow::update, 0, "Hello Update") // incorrect!
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(
+                workflow::update, 0, "Hello Update") // incorrect!
             .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
             .build();
 
     try {
-      WorkflowClient.startWithOperation(workflow::update, 0, "Hello Update", updateOp);
+      WorkflowClient.updateWithStart(workflow::update, 0, "Hello Update", updateOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(e.getMessage(), "Method 'update' is not a WorkflowMethod");
@@ -383,19 +383,19 @@ public class UpdateWithStartTest {
     WorkflowOptions options = createOptions();
     TestWorkflows.TestUpdatedWorkflow stub1 =
         workflowClient.newWorkflowStub(TestWorkflows.TestUpdatedWorkflow.class, options);
-    WorkflowStartOperationUpdate<Void> updateOp =
-        WorkflowStartOperationUpdate.newBuilder(stub1::update, "Hello Update")
+    UpdateWithStartWorkflowOperation<Void> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(stub1::update, "Hello Update")
             .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
             .build();
 
     TestWorkflows.WorkflowWithUpdate stub2 =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
     try {
-      WorkflowClient.startWithOperation(stub2::execute, updateOp);
+      WorkflowClient.updateWithStart(stub2::execute, updateOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(
-          e.getMessage(), "WorkflowStartOperationUpdate invoked on different workflow stubs");
+          e.getMessage(), "UpdateWithStartWorkflowOperation invoked on different workflow stubs");
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());

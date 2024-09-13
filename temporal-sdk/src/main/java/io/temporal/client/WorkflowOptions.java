@@ -110,8 +110,6 @@ public final class WorkflowOptions {
 
     private Duration startDelay;
 
-    private StartWorkflowAdditionalOperation additionalOperation;
-
     private WorkflowIdConflictPolicy workflowIdConflictpolicy;
 
     private Builder() {}
@@ -120,7 +118,6 @@ public final class WorkflowOptions {
       if (options == null) {
         return;
       }
-      this.additionalOperation = options.additionalOperation;
       this.workflowIdReusePolicy = options.workflowIdReusePolicy;
       this.workflowId = options.workflowId;
       this.workflowTaskTimeout = options.workflowTaskTimeout;
@@ -383,11 +380,6 @@ public final class WorkflowOptions {
       return this;
     }
 
-    Builder setAdditionalOperation(StartWorkflowAdditionalOperation operation) {
-      this.additionalOperation = operation;
-      return this;
-    }
-
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -404,7 +396,6 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
-          additionalOperation,
           workflowIdConflictpolicy);
     }
 
@@ -427,7 +418,6 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
-          additionalOperation,
           workflowIdConflictpolicy);
     }
   }
@@ -460,8 +450,6 @@ public final class WorkflowOptions {
 
   private final Duration startDelay;
 
-  private final StartWorkflowAdditionalOperation additionalOperation;
-
   private final WorkflowIdConflictPolicy workflowIdConflictpolicy;
 
   private WorkflowOptions(
@@ -479,7 +467,6 @@ public final class WorkflowOptions {
       List<ContextPropagator> contextPropagators,
       boolean disableEagerExecution,
       Duration startDelay,
-      StartWorkflowAdditionalOperation additionalOperation,
       WorkflowIdConflictPolicy workflowIdConflictpolicy) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -495,7 +482,6 @@ public final class WorkflowOptions {
     this.contextPropagators = contextPropagators;
     this.disableEagerExecution = disableEagerExecution;
     this.startDelay = startDelay;
-    this.additionalOperation = additionalOperation;
     this.workflowIdConflictpolicy = workflowIdConflictpolicy;
   }
 
@@ -521,10 +507,6 @@ public final class WorkflowOptions {
 
   public String getTaskQueue() {
     return taskQueue;
-  }
-
-  public StartWorkflowAdditionalOperation getAdditionalOperation() {
-    return additionalOperation;
   }
 
   public RetryOptions getRetryOptions() {
@@ -595,7 +577,6 @@ public final class WorkflowOptions {
         && Objects.equal(contextPropagators, that.contextPropagators)
         && Objects.equal(disableEagerExecution, that.disableEagerExecution)
         && Objects.equal(startDelay, that.startDelay)
-        && Objects.equal(additionalOperation, that.additionalOperation)
         && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy);
   }
 
@@ -616,7 +597,6 @@ public final class WorkflowOptions {
         contextPropagators,
         disableEagerExecution,
         startDelay,
-        additionalOperation,
         workflowIdConflictpolicy);
   }
 
@@ -654,8 +634,6 @@ public final class WorkflowOptions {
         + disableEagerExecution
         + ", startDelay="
         + startDelay
-        + ", additionalOperation="
-        + additionalOperation
         + ", workflowIdConflictpolicy="
         + workflowIdConflictpolicy
         + '}';

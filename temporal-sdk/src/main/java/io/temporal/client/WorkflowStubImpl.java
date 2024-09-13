@@ -101,37 +101,56 @@ class WorkflowStubImpl implements WorkflowStub {
     if (options == null) {
       throw new IllegalStateException("Required parameter WorkflowOptions is missing");
     }
-    return startWithOptions(WorkflowOptions.merge(null, null, options), args);
-  }
-
-  @Override
-  public <R> WorkflowExecution startWithOperation(
-      StartWorkflowAdditionalOperation<R> operation, Object... args) {
-    if (options == null) {
-      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
-    }
-    if (!operation.markInvoked()) {
-      throw new IllegalStateException("WorkflowStartOperationUpdate was already executed");
-    }
-    WorkflowOptions withStartOptions =
-        WorkflowOptions.newBuilder(WorkflowOptions.merge(null, null, options))
-            .setAdditionalOperation(operation)
-            .build();
-    return startWithOptions(withStartOptions, args);
-  }
-
-  private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
+    WorkflowOptions options1 = WorkflowOptions.merge(null, null, options);
     checkExecutionIsNotStarted();
-    String workflowId = getWorkflowIdForStart(options);
+    String workflowId = getWorkflowIdForStart(options1);
     WorkflowExecution workflowExecution = null;
     try {
       WorkflowClientCallsInterceptor.WorkflowStartOutput workflowStartOutput =
           workflowClientInvoker.start(
               new WorkflowClientCallsInterceptor.WorkflowStartInput(
-                  workflowId, workflowType.get(), Header.empty(), args, options));
+                  workflowId, workflowType.get(), Header.empty(), args, options1));
       workflowExecution = workflowStartOutput.getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
       return workflowExecution;
+    } catch (StatusRuntimeException e) {
+      throw wrapStartException(workflowId, workflowType.orElse(null), e);
+    } catch (Exception e) {
+      if (workflowExecution == null) {
+        // if start failed with exception - there could be no valid workflow execution populated
+        // from the server.
+        // WorkflowServiceException requires not null workflowExecution, so we have to provide
+        // an WorkflowExecution instance with just a workflowId
+        workflowExecution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
+      }
+      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
+    }
+  }
+
+  @Override
+  public <R> WorkflowUpdateHandle<R> updateWithStart(
+      UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs) {
+    if (options == null) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    if (!updateOperation.markInvoked()) {
+      throw new IllegalStateException("UpdateWithStartWorkflowOperation was already executed");
+    }
+    checkExecutionIsNotStarted();
+    String workflowId = getWorkflowIdForStart(options);
+    WorkflowExecution workflowExecution = null;
+    try {
+      WorkflowClientCallsInterceptor.WorkflowStartInput startInput =
+          new WorkflowClientCallsInterceptor.WorkflowStartInput(
+              workflowId, workflowType.get(), Header.empty(), startArgs, options);
+      WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<R> input =
+          new WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<>(
+              startInput, updateOperation);
+      WorkflowClientCallsInterceptor.WorkflowUpdateWithStartOutput<R> output =
+          workflowClientInvoker.updateWithStart(input);
+      workflowExecution = output.getWorkflowStartOutput().getWorkflowExecution();
+      populateExecutionAfterStart(workflowExecution);
+      return output.getUpdateHandle();
     } catch (StatusRuntimeException e) {
       throw wrapStartException(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {

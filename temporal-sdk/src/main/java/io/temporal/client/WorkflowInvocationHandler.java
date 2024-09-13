@@ -88,7 +88,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
       invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
     } else if (type == InvocationType.UPDATE_WITH_START) {
-      WorkflowStartOperationUpdate operation = (WorkflowStartOperationUpdate) value;
+      UpdateWithStartWorkflowOperation operation = (UpdateWithStartWorkflowOperation) value;
       invocationContext.set(new UpdateWithStartInvocationHandler(operation));
     } else {
       throw new IllegalArgumentException("Unexpected InvocationType: " + type);
@@ -404,9 +404,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     private int step;
 
-    private final WorkflowStartOperationUpdate operation;
+    private final UpdateWithStartWorkflowOperation operation;
 
-    public UpdateWithStartInvocationHandler(WorkflowStartOperationUpdate operation) {
+    public UpdateWithStartInvocationHandler(UpdateWithStartWorkflowOperation operation) {
       this.operation = operation;
     }
 
