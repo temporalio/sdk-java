@@ -402,9 +402,15 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
   private static class UpdateWithStartInvocationHandler implements SpecificInvocationHandler {
 
-    private int invocation;
+    enum State {
+      NOT_STARTED,
+      START_RECEIVED,
+      UPDATE_RECEIVED,
+    }
 
     private final UpdateWithStartWorkflowOperation operation;
+
+    private State state = State.NOT_STARTED;
 
     public UpdateWithStartInvocationHandler(UpdateWithStartWorkflowOperation operation) {
       this.operation = operation;
@@ -422,11 +428,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
         Method method,
         Object[] args) {
 
-      invocation += 1;
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
 
-      // first invocation is update method
-      if (invocation == 1) {
+      if (state == State.NOT_STARTED) {
         UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
         if (updateMethod == null) {
           throw new IllegalArgumentException(
@@ -438,21 +442,19 @@ class WorkflowInvocationHandler implements InvocationHandler {
             method.getReturnType(),
             method.getGenericReturnType(),
             args);
-        return;
-      }
-
-      // second call invocation is workflow method
-      if (invocation == 2) {
+        state = State.START_RECEIVED;
+      } else if (state == State.START_RECEIVED) {
         WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
         if (workflowMethod == null) {
           throw new IllegalArgumentException(
               "Method '" + method.getName() + "' is not a WorkflowMethod");
         }
         this.operation.prepareStart(untyped);
-        return;
+        state = State.UPDATE_RECEIVED;
+      } else {
+        throw new IllegalArgumentException(
+            "UpdateWithStartInvocationHandler called too many times");
       }
-
-      throw new IllegalArgumentException("UpdateWithStartInvocationHandler called too many times");
     }
 
     @Override
