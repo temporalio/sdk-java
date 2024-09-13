@@ -80,8 +80,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .withContext(
                 new WorkflowSerializationContext(
                     clientOptions.getNamespace(), input.getWorkflowId()));
-    Optional<Payloads> inputArgs =
-        dataConverterWithWorkflowContext.toPayloads(input.getArguments());
 
     StartWorkflowExecutionRequest.Builder startRequest =
         toStartRequest(dataConverterWithWorkflowContext, input);
@@ -201,7 +199,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .withContext(
                 new WorkflowSerializationContext(
                     clientOptions.getNamespace(), startInput.getWorkflowId()));
-
     StartWorkflowExecutionRequest startRequest =
         toStartRequest(dataConverterWithWorkflowContext, startInput).build();
 
