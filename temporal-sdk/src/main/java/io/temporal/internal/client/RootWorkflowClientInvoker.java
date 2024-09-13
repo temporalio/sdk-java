@@ -175,10 +175,19 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       WorkflowUpdateWithStartInput<R> input) {
 
     WorkflowStartInput startInput = input.getWorkflowStartInput();
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), startInput.getWorkflowId()));
+    StartWorkflowExecutionRequest startRequest =
+        toStartRequest(dataConverterWithWorkflowContext, startInput).build();
+
     UpdateWithStartWorkflowOperation<R> updateOperation = input.getUpdateOperation();
     UpdateOptions<?> updateOptions = updateOperation.getOptions();
     updateOptions.validate();
-    StartUpdateInput<?> startUpdateInput =
+    StartUpdateInput<?> updateInput =
         new StartUpdateInput<>(
             WorkflowExecution.newBuilder().setWorkflowId(startInput.getWorkflowId()).build(),
             Optional.of(startInput.getWorkflowType()),
@@ -192,18 +201,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             WaitPolicy.newBuilder()
                 .setLifecycleStage(updateOptions.getWaitForStage().getProto())
                 .build());
-
-    DataConverter dataConverterWithWorkflowContext =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new WorkflowSerializationContext(
-                    clientOptions.getNamespace(), startInput.getWorkflowId()));
-    StartWorkflowExecutionRequest startRequest =
-        toStartRequest(dataConverterWithWorkflowContext, startInput).build();
-
     UpdateWorkflowExecutionRequest updateRequest =
-        toUpdateWorkflowExecutionRequest(startUpdateInput, dataConverterWithWorkflowContext);
+        toUpdateWorkflowExecutionRequest(updateInput, dataConverterWithWorkflowContext);
 
     ExecuteMultiOperationRequest request =
         ExecuteMultiOperationRequest.newBuilder()
@@ -267,20 +266,20 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               + " operation responses");
     }
 
-    StartWorkflowExecutionResponse startResponse;
     ExecuteMultiOperationResponse.Response firstResponse = response.getResponses(0);
     if (firstResponse.getResponseCase() != START_WORKFLOW) {
       throw new Error("Server sent back an invalid response type for StartWorkflow response");
     }
-    startResponse = firstResponse.getStartWorkflow();
+    StartWorkflowExecutionResponse startResponse = firstResponse.getStartWorkflow();
 
     ExecuteMultiOperationResponse.Response secondResponse = response.getResponses(1);
     if (secondResponse.getResponseCase() != UPDATE_WORKFLOW) {
       throw new Error("Server sent back an invalid response type for UpdateWorkflow response");
     }
+    UpdateWorkflowExecutionResponse updateResponse = secondResponse.getUpdateWorkflow();
 
     WorkflowUpdateHandle updateHandle =
-        toUpdateHandle(startUpdateInput, updateRequest, dataConverterWithWorkflowContext);
+        toUpdateHandle(updateInput, updateResponse, dataConverterWithWorkflowContext);
     updateOperation.setUpdateHandle(updateHandle);
 
     WorkflowExecution execution =
@@ -424,7 +423,28 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     UpdateWorkflowExecutionRequest updateRequest =
         toUpdateWorkflowExecutionRequest(input, dataConverterWithWorkflowContext);
 
-    return toUpdateHandle(input, updateRequest, dataConverterWithWorkflowContext);
+    // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
+    // by the user.
+    UpdateWorkflowExecutionResponse result;
+    do {
+      Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
+      try {
+        result = genericClient.update(updateRequest, pollTimeoutDeadline);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.CANCELLED) {
+          throw new WorkflowUpdateTimeoutOrCancelledException(
+              input.getWorkflowExecution(), input.getUpdateName(), input.getUpdateId(), e);
+        }
+        throw e;
+      }
+    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
+        && result.getStage().getNumber()
+            < UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
+                .getNumber());
+
+    return toUpdateHandle(input, result, dataConverterWithWorkflowContext);
   }
 
   private <R> UpdateWorkflowExecutionRequest toUpdateWorkflowExecutionRequest(
@@ -460,31 +480,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   private <R> WorkflowUpdateHandle<R> toUpdateHandle(
       StartUpdateInput<R> input,
-      UpdateWorkflowExecutionRequest updateRequest,
+      UpdateWorkflowExecutionResponse result,
       DataConverter dataConverterWithWorkflowContext) {
-    // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
-    // by the user.
-    UpdateWorkflowExecutionResponse result;
-    UpdateWorkflowExecutionLifecycleStage waitForStage = input.getWaitPolicy().getLifecycleStage();
-    do {
-      Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
-      try {
-        result = genericClient.update(updateRequest, pollTimeoutDeadline);
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
-            || e.getStatus().getCode() == Status.Code.CANCELLED) {
-          throw new WorkflowUpdateTimeoutOrCancelledException(
-              input.getWorkflowExecution(), input.getUpdateName(), input.getUpdateId(), e);
-        }
-        throw e;
-      }
-
-    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
-        && result.getStage().getNumber()
-            < UpdateWorkflowExecutionLifecycleStage
-                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
-                .getNumber());
-
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {
         case SUCCESS:
@@ -521,6 +518,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               result.getUpdateRef().getWorkflowExecution(),
               input.getResultClass(),
               input.getResultType());
+      UpdateWorkflowExecutionLifecycleStage waitForStage =
+          input.getWaitPolicy().getLifecycleStage();
       if (waitForStage == WorkflowUpdateStage.COMPLETED.getProto()) {
         // Don't return the handle until completed, since that's what's been asked for
         handle.waitCompleted();
