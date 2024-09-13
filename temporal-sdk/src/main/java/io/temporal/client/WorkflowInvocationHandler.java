@@ -402,7 +402,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
   private static class UpdateWithStartInvocationHandler implements SpecificInvocationHandler {
 
-    private int step;
+    private int invocation;
 
     private final UpdateWithStartWorkflowOperation operation;
 
@@ -422,11 +422,11 @@ class WorkflowInvocationHandler implements InvocationHandler {
         Method method,
         Object[] args) {
 
-      step += 1;
+      invocation += 1;
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
 
-      // first call
-      if (step == 1) {
+      // first invocation is update method
+      if (invocation == 1) {
         UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
         if (updateMethod == null) {
           throw new IllegalArgumentException(
@@ -441,8 +441,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
         return;
       }
 
-      // second call
-      if (step == 2) {
+      // second call invocation is workflow method
+      if (invocation == 2) {
         WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
         if (workflowMethod == null) {
           throw new IllegalArgumentException(
