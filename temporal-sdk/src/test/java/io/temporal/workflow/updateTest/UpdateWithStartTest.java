@@ -74,7 +74,8 @@ public class UpdateWithStartTest {
     assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
 
     workflow.complete();
-    assertEquals("Hello Update complete", workflow.execute());
+
+    assertEquals("Hello Update complete", WorkflowStub.fromTyped(workflow).getResult(String.class));
   }
 
   @Test
@@ -93,12 +94,12 @@ public class UpdateWithStartTest {
 
     WorkflowUpdateHandle<Void> handle1 =
         WorkflowClient.updateWithStart(workflow::execute, updateOp);
-    assertEquals(null, handle1.getResultAsync().get());
+    assertNull(handle1.getResultAsync().get());
 
     WorkflowUpdateHandle<Void> updHandle = updateOp.getUpdateHandle().get();
     assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
 
-    assertEquals("Hello Update", workflow.execute());
+    assertEquals("Hello Update", WorkflowStub.fromTyped(workflow).getResult(String.class));
   }
 
   @Test
@@ -132,7 +133,8 @@ public class UpdateWithStartTest {
     assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
 
     workflow2.complete();
-    assertEquals("Hello Update complete", workflow2.execute());
+    assertEquals(
+        "Hello Update complete", WorkflowStub.fromTyped(workflow2).getResult(String.class));
   }
 
   @Test
