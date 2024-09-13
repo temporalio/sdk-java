@@ -115,7 +115,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * @param arg2 second request function parameter
    * @param arg3 third request function parameter
    * @param arg4 fourth request function parameter
-   * @param arg5 sixth request function parameter
+   * @param arg5 fifth request function parameter
    */
   public static <A1, A2, A3, A4, A5, R> Builder<R> newBuilder(
       Functions.Func5<A1, A2, A3, A4, A5, R> request, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
@@ -132,7 +132,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * @param arg2 second request function parameter
    * @param arg3 third request function parameter
    * @param arg4 fourth request function parameter
-   * @param arg5 sixth request function parameter
+   * @param arg5 fifth request function parameter
    * @param arg6 sixth request function parameter
    */
   public static <A1, A2, A3, A4, A5, A6, R> Builder<R> newBuilder(
@@ -227,7 +227,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * @param arg2 second request function parameter
    * @param arg3 third request function parameter
    * @param arg4 fourth request function parameter
-   * @param arg5 sixth request function parameter
+   * @param arg5 fifth request function parameter
    */
   public static <A1, A2, A3, A4, A5> Builder<Void> newBuilder(
       Functions.Proc5<A1, A2, A3, A4, A5> request, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
@@ -244,7 +244,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * @param arg2 second request function parameter
    * @param arg3 third request function parameter
    * @param arg4 fourth request function parameter
-   * @param arg5 sixth request function parameter
+   * @param arg5 fifth request function parameter
    * @param arg6 sixth request function parameter
    */
   public static <A1, A2, A3, A4, A5, A6> Builder<Void> newBuilder(
