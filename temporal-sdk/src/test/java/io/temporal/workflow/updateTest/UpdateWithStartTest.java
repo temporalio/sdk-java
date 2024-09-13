@@ -78,6 +78,29 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  public void startAndSendUpdateTogetherWithNullUpdateResult() throws ExecutionException, InterruptedException {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    WorkflowOptions options = createOptions();
+    TestWorkflows.TestUpdatedWorkflow workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.TestUpdatedWorkflow.class, options);
+
+    UpdateWithStartWorkflowOperation<Void> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, "Hello Update")
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+
+    WorkflowUpdateHandle<Void> handle1 =
+        WorkflowClient.updateWithStart(workflow::execute, updateOp);
+    assertEquals(null, handle1.getResultAsync().get());
+
+    WorkflowUpdateHandle<Void> updHandle = updateOp.getUpdateHandle().get();
+    assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
+
+    assertEquals("Hello Update", workflow.execute());
+  }
+
+  @Test
   public void onlySendUpdateWhenWorkflowIsAlreadyRunning()
       throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
@@ -473,12 +496,16 @@ public class UpdateWithStartTest {
 
   public static class TestUpdatedWorkflowImpl implements TestWorkflows.TestUpdatedWorkflow {
 
+    private String state;
+
     @Override
     public String execute() {
-      return "done";
+      return state;
     }
 
     @Override
-    public void update(String arg) {}
+    public void update(String arg) {
+      this.state = arg;
+    }
   }
 }
