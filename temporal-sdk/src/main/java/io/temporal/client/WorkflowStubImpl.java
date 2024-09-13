@@ -96,20 +96,15 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
-  @Override
-  public WorkflowExecution start(Object... args) {
-    if (options == null) {
-      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
-    }
-    WorkflowOptions options1 = WorkflowOptions.merge(null, null, options);
+  private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
     checkExecutionIsNotStarted();
-    String workflowId = getWorkflowIdForStart(options1);
+    String workflowId = getWorkflowIdForStart(options);
     WorkflowExecution workflowExecution = null;
     try {
       WorkflowClientCallsInterceptor.WorkflowStartOutput workflowStartOutput =
           workflowClientInvoker.start(
               new WorkflowClientCallsInterceptor.WorkflowStartInput(
-                  workflowId, workflowType.get(), Header.empty(), args, options1));
+                  workflowId, workflowType.get(), Header.empty(), args, options));
       workflowExecution = workflowStartOutput.getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
       return workflowExecution;
@@ -125,6 +120,14 @@ class WorkflowStubImpl implements WorkflowStub {
       }
       throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     }
+  }
+
+  @Override
+  public WorkflowExecution start(Object... args) {
+    if (options == null) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    return startWithOptions(WorkflowOptions.merge(null, null, options), args);
   }
 
   @Override
