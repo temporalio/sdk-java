@@ -78,7 +78,8 @@ public class UpdateWithStartTest {
   }
 
   @Test
-  public void startAndSendUpdateTogetherWithNullUpdateResult() throws ExecutionException, InterruptedException {
+  public void startAndSendUpdateTogetherWithNullUpdateResult()
+      throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
     WorkflowOptions options = createOptions();

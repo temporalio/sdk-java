@@ -282,7 +282,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private final Functions.Proc request;
 
-  public UpdateWithStartWorkflowOperation(
+  private UpdateWithStartWorkflowOperation(
       UpdateOptions<R> options, Functions.Proc request, Object[] updateArgs) {
     this.options = options;
     this.updateArgs = updateArgs;
