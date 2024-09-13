@@ -1070,7 +1070,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       if (request.getOperationsCount() != 2) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Operations have to be exactly [Start, Update]")
+            .withDescription("Operations have to be exactly [Start, Update].")
             .asRuntimeException();
       }
 
@@ -1078,7 +1078,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       ExecuteMultiOperationRequest.Operation firstOperation = request.getOperations(0);
       if (firstOperation.getOperationCase() != START_WORKFLOW) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Operations have to be exactly [Start, Update]")
+            .withDescription("Operations have to be exactly [Start, Update].")
             .asRuntimeException();
       }
       startRequest = firstOperation.getStartWorkflow();
@@ -1105,7 +1105,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       ExecuteMultiOperationRequest.Operation secondOperation = request.getOperations(1);
       if (secondOperation.getOperationCase() != UPDATE_WORKFLOW) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Operations have to be exactly [Start, Update]")
+            .withDescription("Operations have to be exactly [Start, Update].")
             .asRuntimeException();
       }
       updateRequest = secondOperation.getUpdateWorkflow();
@@ -1202,7 +1202,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         operationStatuses[i] =
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(Status.ABORTED.getCode().value())
-                .setMessage("Operation was aborted")
+                .setMessage("Operation was aborted.")
                 .addDetails(
                     ProtoUtils.packAny(
                         MultiOperationExecutionAborted.newBuilder().build(),

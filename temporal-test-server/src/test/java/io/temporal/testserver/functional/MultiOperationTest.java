@@ -22,6 +22,7 @@ package io.temporal.testserver.functional;
 
 import static org.junit.Assert.*;
 
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
@@ -29,9 +30,13 @@ import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.update.v1.Input;
+import io.temporal.api.update.v1.Meta;
+import io.temporal.api.update.v1.Request;
 import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
@@ -44,7 +49,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class MultiOperationTest {
-  private static final String WORKFLOW_ID = "test-workflow-id";
   private static final String WORKFLOW_TYPE = "WorkflowWithUpdate";
 
   @Rule
@@ -54,10 +58,11 @@ public class MultiOperationTest {
   @Test
   public void startAndUpdate() throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowId = UUID.randomUUID().toString();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setWorkflowId(WORKFLOW_ID)
+            .setWorkflowId(workflowId)
             .build();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
@@ -73,6 +78,8 @@ public class MultiOperationTest {
 
   @Test
   public void failWhenStartOperationIsInvalid() {
+    String workflowId = UUID.randomUUID().toString();
+
     // general start workflow validation
     StatusRuntimeException exception =
         assertThrows(
@@ -85,17 +92,16 @@ public class MultiOperationTest {
                           .addOperations(
                               ExecuteMultiOperationRequest.Operation.newBuilder()
                                   .setStartWorkflow(
-                                      validStartRequest().setTaskQueue(invalidTaskQueue))
-                                  .build())
+                                      validStartRequest(workflowId).setTaskQueue(invalidTaskQueue)))
                           .addOperations(
                               ExecuteMultiOperationRequest.Operation.newBuilder()
-                                  .setUpdateWorkflow(validUpdateRequest().build()));
+                                  .setUpdateWorkflow(validUpdateRequest(workflowId)));
                     }));
     MultiOperationExecutionFailure failure =
         StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals("INVALID_ARGUMENT: Missing TaskQueue.", failure.getStatuses(0).getMessage());
-    assertEquals("Operation was aborted", failure.getStatuses(1).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(0).getCode());
+    assertEquals("Operation was aborted.", failure.getStatuses(1).getMessage());
 
     // unique to MultiOperation: invalid CronSchedule option
     exception =
@@ -108,15 +114,15 @@ public class MultiOperationTest {
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setStartWorkflow(
-                                        validStartRequest().setCronSchedule("0 */12 * * *")))
+                                        validStartRequest(workflowId)
+                                            .setCronSchedule("0 */12 * * *")))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setUpdateWorkflow(validUpdateRequest()))));
+                                    .setUpdateWorkflow(validUpdateRequest(workflowId)))));
     failure = StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals(
-        "INVALID_ARGUMENT: CronSchedule is not allowed.", failure.getStatuses(0).getMessage());
-    assertEquals("Operation was aborted", failure.getStatuses(1).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(0).getCode());
+    assertEquals("Operation was aborted.", failure.getStatuses(1).getMessage());
 
     // unique to MultiOperation: invalid RequestEagerExecution option
     exception =
@@ -129,16 +135,15 @@ public class MultiOperationTest {
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setStartWorkflow(
-                                        validStartRequest().setRequestEagerExecution(true)))
+                                        validStartRequest(workflowId)
+                                            .setRequestEagerExecution(true)))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setUpdateWorkflow(validUpdateRequest()))));
+                                    .setUpdateWorkflow(validUpdateRequest(workflowId)))));
     failure = StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals(
-        "INVALID_ARGUMENT: RequestEagerExecution is not supported.",
-        failure.getStatuses(0).getMessage());
-    assertEquals("Operation was aborted", failure.getStatuses(1).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(0).getCode());
+    assertEquals("Operation was aborted.", failure.getStatuses(1).getMessage());
 
     // unique to MultiOperation: invalid WorkflowStartDelay option
     exception =
@@ -151,46 +156,51 @@ public class MultiOperationTest {
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setStartWorkflow(
-                                        validStartRequest()
+                                        validStartRequest(workflowId)
                                             .setWorkflowStartDelay(
                                                 com.google.protobuf.Duration.newBuilder()
                                                     .setSeconds(1))))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setUpdateWorkflow(validUpdateRequest()))));
+                                    .setUpdateWorkflow(validUpdateRequest(workflowId)))));
     failure = StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals(
-        "INVALID_ARGUMENT: WorkflowStartDelay is not supported.",
-        failure.getStatuses(0).getMessage());
-    assertEquals("Operation was aborted", failure.getStatuses(1).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(0).getCode());
+    assertEquals("Operation was aborted.", failure.getStatuses(1).getMessage());
   }
 
   @Test
   public void failWhenUpdateOperationIsInvalid() {
+    String workflowId = UUID.randomUUID().toString();
+
     // general update workflow validation
     StatusRuntimeException exception =
         assertThrows(
             StatusRuntimeException.class,
             () -> {
-              WaitPolicy.Builder invalidWaitPolicy = WaitPolicy.newBuilder();
               executeMultiOperation(
-                  (builder) ->
-                      builder
-                          .addOperations(
-                              ExecuteMultiOperationRequest.Operation.newBuilder()
-                                  .setStartWorkflow(validStartRequest()))
-                          .addOperations(
-                              ExecuteMultiOperationRequest.Operation.newBuilder()
-                                  .setUpdateWorkflow(
-                                      validUpdateRequest().setWaitPolicy(invalidWaitPolicy))));
+                  (builder) -> {
+                    WaitPolicy.Builder invalidWaitPolicy =
+                        WaitPolicy.newBuilder()
+                            .setLifecycleStage(
+                                UpdateWorkflowExecutionLifecycleStage
+                                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED);
+                    builder
+                        .addOperations(
+                            ExecuteMultiOperationRequest.Operation.newBuilder()
+                                .setStartWorkflow(validStartRequest(workflowId)))
+                        .addOperations(
+                            ExecuteMultiOperationRequest.Operation.newBuilder()
+                                .setUpdateWorkflow(
+                                    validUpdateRequest(workflowId)
+                                        .setWaitPolicy(invalidWaitPolicy)));
+                  });
             });
     MultiOperationExecutionFailure failure =
         StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals("Operation was aborted", failure.getStatuses(0).getMessage());
-    assertEquals(
-        "INVALID_ARGUMENT: LifeCycle stage is required", failure.getStatuses(1).getMessage());
+    assertEquals("Operation was aborted.", failure.getStatuses(0).getMessage());
+    assertEquals(Status.PERMISSION_DENIED.getCode().value(), failure.getStatuses(1).getCode());
 
     // unique to MultiOperation: invalid RunId option
     exception =
@@ -202,19 +212,19 @@ public class MultiOperationTest {
                         builder
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setStartWorkflow(validStartRequest()))
+                                    .setStartWorkflow(validStartRequest(workflowId)))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setUpdateWorkflow(
-                                        validUpdateRequest()
+                                        validUpdateRequest(workflowId)
                                             .setWorkflowExecution(
                                                 WorkflowExecution.newBuilder()
-                                                    .setWorkflowId(WORKFLOW_ID)
+                                                    .setWorkflowId(workflowId)
                                                     .setRunId("RUN_ID"))))));
     failure = StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals("Operation was aborted", failure.getStatuses(0).getMessage());
-    assertEquals("INVALID_ARGUMENT: RunId is not allowed.", failure.getStatuses(1).getMessage());
+    assertEquals("Operation was aborted.", failure.getStatuses(0).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(1).getCode());
 
     // unique to MultiOperation: invalid FirstExecutionRunId option
     exception =
@@ -226,21 +236,21 @@ public class MultiOperationTest {
                         builder
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setStartWorkflow(validStartRequest()))
+                                    .setStartWorkflow(validStartRequest(workflowId)))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setUpdateWorkflow(
-                                        validUpdateRequest().setFirstExecutionRunId("RUN_ID")))));
+                                        validUpdateRequest(workflowId)
+                                            .setFirstExecutionRunId("RUN_ID")))));
     failure = StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals("Operation was aborted", failure.getStatuses(0).getMessage());
-    assertEquals(
-        "INVALID_ARGUMENT: FirstExecutionRunId is not allowed.",
-        failure.getStatuses(1).getMessage());
+    assertEquals("Operation was aborted.", failure.getStatuses(0).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(1).getCode());
   }
 
   @Test
   public void failWhenMultiOperationWorkflowIDsNotMatching() {
+    String workflowId = UUID.randomUUID().toString();
     StatusRuntimeException exception =
         assertThrows(
             StatusRuntimeException.class,
@@ -251,25 +261,19 @@ public class MultiOperationTest {
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setStartWorkflow(
-                                        StartWorkflowExecutionRequest.newBuilder()
-                                            .setWorkflowId("A")
-                                            .build())
-                                    .build())
+                                        validStartRequest(workflowId).setWorkflowId("A")))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setUpdateWorkflow(
-                                        UpdateWorkflowExecutionRequest.newBuilder()
+                                        validUpdateRequest(workflowId)
                                             .setWorkflowExecution(
-                                                WorkflowExecution.newBuilder().setWorkflowId("Z"))
-                                            .build())
-                                    .build())));
+                                                WorkflowExecution.newBuilder()
+                                                    .setWorkflowId("Z"))))));
     MultiOperationExecutionFailure failure =
         StatusUtils.getFailure(exception, MultiOperationExecutionFailure.class);
     assertEquals(2, failure.getStatusesCount());
-    assertEquals("Operation was aborted", failure.getStatuses(0).getMessage());
-    assertEquals(
-        "INVALID_ARGUMENT: WorkflowId is not consistent with previous operation(s)",
-        failure.getStatuses(1).getMessage());
+    assertEquals("Operation was aborted.", failure.getStatuses(0).getMessage());
+    assertEquals(Status.INVALID_ARGUMENT.getCode().value(), failure.getStatuses(1).getCode());
   }
 
   @Test
@@ -278,7 +282,7 @@ public class MultiOperationTest {
     StatusRuntimeException exception =
         assertThrows(StatusRuntimeException.class, () -> executeMultiOperation((builder) -> {}));
     assertEquals(
-        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update]", exception.getMessage());
+        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update].", exception.getMessage());
 
     // too many operations
     exception =
@@ -288,14 +292,11 @@ public class MultiOperationTest {
                 executeMultiOperation(
                     (builder) ->
                         builder
-                            .addOperations(
-                                ExecuteMultiOperationRequest.Operation.newBuilder().build())
-                            .addOperations(
-                                ExecuteMultiOperationRequest.Operation.newBuilder().build())
-                            .addOperations(
-                                ExecuteMultiOperationRequest.Operation.newBuilder().build())));
+                            .addOperations(ExecuteMultiOperationRequest.Operation.newBuilder())
+                            .addOperations(ExecuteMultiOperationRequest.Operation.newBuilder())
+                            .addOperations(ExecuteMultiOperationRequest.Operation.newBuilder())));
     assertEquals(
-        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update]", exception.getMessage());
+        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update].", exception.getMessage());
 
     // too few operations
     exception =
@@ -305,9 +306,9 @@ public class MultiOperationTest {
                 executeMultiOperation(
                     (builder) ->
                         builder.addOperations(
-                            ExecuteMultiOperationRequest.Operation.newBuilder().build())));
+                            ExecuteMultiOperationRequest.Operation.newBuilder())));
     assertEquals(
-        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update]", exception.getMessage());
+        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update].", exception.getMessage());
 
     // two undefined operations
     exception =
@@ -317,12 +318,10 @@ public class MultiOperationTest {
                 executeMultiOperation(
                     (builder) ->
                         builder
-                            .addOperations(
-                                ExecuteMultiOperationRequest.Operation.newBuilder().build())
-                            .addOperations(
-                                ExecuteMultiOperationRequest.Operation.newBuilder().build())));
+                            .addOperations(ExecuteMultiOperationRequest.Operation.newBuilder())
+                            .addOperations(ExecuteMultiOperationRequest.Operation.newBuilder())));
     assertEquals(
-        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update]", exception.getMessage());
+        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update].", exception.getMessage());
 
     // two update operations
     exception =
@@ -334,16 +333,13 @@ public class MultiOperationTest {
                         builder
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setUpdateWorkflow(
-                                        UpdateWorkflowExecutionRequest.newBuilder().build())
-                                    .build())
+                                    .setUpdateWorkflow(UpdateWorkflowExecutionRequest.newBuilder()))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setUpdateWorkflow(
-                                        UpdateWorkflowExecutionRequest.newBuilder().build())
-                                    .build())));
+                                        UpdateWorkflowExecutionRequest.newBuilder()))));
     assertEquals(
-        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update]", exception.getMessage());
+        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update].", exception.getMessage());
 
     // two start operations
     exception =
@@ -355,16 +351,13 @@ public class MultiOperationTest {
                         builder
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                                    .setStartWorkflow(
-                                        StartWorkflowExecutionRequest.newBuilder().build())
-                                    .build())
+                                    .setStartWorkflow(StartWorkflowExecutionRequest.newBuilder()))
                             .addOperations(
                                 ExecuteMultiOperationRequest.Operation.newBuilder()
                                     .setStartWorkflow(
-                                        StartWorkflowExecutionRequest.newBuilder().build())
-                                    .build())));
+                                        StartWorkflowExecutionRequest.newBuilder()))));
     assertEquals(
-        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update]", exception.getMessage());
+        "INVALID_ARGUMENT: Operations have to be exactly [Start, Update].", exception.getMessage());
   }
 
   private ExecuteMultiOperationResponse executeMultiOperation(
@@ -379,29 +372,39 @@ public class MultiOperationTest {
         .executeMultiOperation(builder.build());
   }
 
-  private StartWorkflowExecutionRequest.Builder validStartRequest() {
+  private StartWorkflowExecutionRequest.Builder validStartRequest(String workflowId) {
     return StartWorkflowExecutionRequest.newBuilder()
         .setNamespace(getNamespace())
-        .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
+        .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE))
         .setTaskQueue(
             TaskQueue.newBuilder()
                 .setName(testWorkflowRule.getTaskQueue())
-                .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL)
-                .build())
+                .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL))
         .setRequestId(UUID.randomUUID().toString())
-        .setWorkflowId(WORKFLOW_ID);
+        .setWorkflowId(workflowId);
   }
 
-  private UpdateWorkflowExecutionRequest.Builder validUpdateRequest() {
+  private UpdateWorkflowExecutionRequest.Builder validUpdateRequest(String workflowId) {
     return UpdateWorkflowExecutionRequest.newBuilder()
         .setNamespace(getNamespace())
+        .setRequest(
+            Request.newBuilder()
+                .setInput(
+                    Input.newBuilder()
+                        .setName("update")
+                        .setArgs(
+                            DefaultDataConverter.newDefaultInstance()
+                                .toPayloads(TestWorkflows.UpdateType.COMPLETE)
+                                .get())
+                        .build())
+                .setMeta(Meta.newBuilder().setUpdateId(UUID.randomUUID().toString()).build()))
         .setWaitPolicy(
             WaitPolicy.newBuilder()
                 .setLifecycleStage(
                     UpdateWorkflowExecutionLifecycleStage
                         .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)
                 .build())
-        .setWorkflowExecution(WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).build());
+        .setWorkflowExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).build());
   }
 
   private String getNamespace() {
