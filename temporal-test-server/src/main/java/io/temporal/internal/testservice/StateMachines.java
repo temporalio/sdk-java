@@ -871,12 +871,12 @@ class StateMachines {
                     .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
             .build());
 
-    NexusTaskToken ref =
+    NexusTaskToken taskToken =
         new NexusTaskToken(ctx.getExecutionId(), data.scheduledEventId, data.getAttempt(), true);
 
     PollNexusTaskQueueResponse.Builder pollResponse =
         PollNexusTaskQueueResponse.newBuilder()
-            .setTaskToken(ref.toBytes())
+            .setTaskToken(taskToken.toBytes())
             .setRequest(
                 io.temporal.api.nexus.v1.Request.newBuilder()
                     .setCancelOperation(
