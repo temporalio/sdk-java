@@ -263,6 +263,22 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  public void failWhenUpdatedIsRejected() {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, createOptions());
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, -1, "Hello Update")
+            .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
+            .build();
+
+    assertThrows(
+        WorkflowServiceException.class,
+        () -> WorkflowClient.updateWithStart(workflow::execute, updateOp));
+  }
+
+  @Test
   public void failWhenUpdateOperationUsedAgain() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
@@ -439,7 +455,11 @@ public class UpdateWithStartTest {
     }
 
     @Override
-    public void updateValidator(Integer index, String value) {}
+    public void updateValidator(Integer index, String value) {
+      if (index < 0) {
+        throw new RuntimeException("Rejecting update");
+      }
+    }
 
     @Override
     public void complete() {
