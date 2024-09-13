@@ -1070,7 +1070,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       if (request.getOperationsCount() != 2) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Exactly two operations are expected.")
+            .withDescription("Operations have to be exactly [Start, Update]")
             .asRuntimeException();
       }
 
@@ -1078,19 +1078,55 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       ExecuteMultiOperationRequest.Operation firstOperation = request.getOperations(0);
       if (firstOperation.getOperationCase() != START_WORKFLOW) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("first operation needs to be StartWorkflow request")
+            .withDescription("Operations have to be exactly [Start, Update]")
             .asRuntimeException();
       }
       startRequest = firstOperation.getStartWorkflow();
+
+      if (!startRequest.getCronSchedule().isEmpty()) {
+        throw multiOperationExecutionFailure(
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: CronSchedule is not allowed.")
+                .build(),
+            null);
+      }
+
+      if (startRequest.getRequestEagerExecution()) {
+        throw multiOperationExecutionFailure(
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: RequestEagerExecution is not supported.")
+                .build(),
+            null);
+      }
 
       UpdateWorkflowExecutionRequest updateRequest;
       ExecuteMultiOperationRequest.Operation secondOperation = request.getOperations(1);
       if (secondOperation.getOperationCase() != UPDATE_WORKFLOW) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("second operation needs to be UpdateWorkflow request")
+            .withDescription("Operations have to be exactly [Start, Update]")
             .asRuntimeException();
       }
       updateRequest = secondOperation.getUpdateWorkflow();
+
+      if (!updateRequest.getWorkflowExecution().getRunId().isEmpty()) {
+        throw multiOperationExecutionFailure(
+            null, // start aborted
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: RunId is not allowed.")
+                .build());
+      }
+
+      if (!updateRequest.getFirstExecutionRunId().isEmpty()) {
+        throw multiOperationExecutionFailure(
+            null, // start aborted
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: FirstExecutionRunId is not allowed.")
+                .build());
+      }
 
       if (!startRequest
           .getWorkflowId()
@@ -1099,8 +1135,18 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             null, // start aborted
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
-                .setMessage("Workflow ID does not match Start operation's")
+                .setMessage(
+                    "INVALID_ARGUMENT: WorkflowId is not consistent with previous operation(s)")
                 .build());
+      }
+
+      if (startRequest.hasWorkflowStartDelay()) {
+        throw multiOperationExecutionFailure(
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: WorkflowStartDelay is not supported.")
+                .build(),
+            null);
       }
 
       // execute start

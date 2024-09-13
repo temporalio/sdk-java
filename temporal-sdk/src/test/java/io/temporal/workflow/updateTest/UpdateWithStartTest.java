@@ -287,6 +287,34 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  public void failWhenWorkflowAlreadyRunning() {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    // first, start workflow
+    WorkflowOptions options1 = createOptions();
+    TestWorkflows.WorkflowWithUpdate workflow1 =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options1);
+    WorkflowClient.start(workflow1::execute);
+
+    // then, send Update-with-Start
+    WorkflowOptions options2 =
+        createOptions().toBuilder().setWorkflowId(options1.getWorkflowId()).build();
+    TestWorkflows.WorkflowWithUpdate workflow2 =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options2);
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow2::update, 0, "Hello Update")
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+
+    WorkflowServiceException exception =
+        assertThrows(
+            WorkflowServiceException.class,
+            () -> WorkflowClient.updateWithStart(workflow2::execute, updateOp));
+    StatusRuntimeException cause = (StatusRuntimeException) exception.getCause();
+    assertEquals(Status.ALREADY_EXISTS.getCode(), cause.getStatus().getCode());
+  }
+
+  @Test
   public void failWhenUpdatedIsRejected() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
