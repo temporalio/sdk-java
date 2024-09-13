@@ -23,9 +23,7 @@ package io.temporal.common.interceptors;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.update.v1.WaitPolicy;
-import io.temporal.client.UpdateWithStartWorkflowOperation;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowUpdateHandle;
+import io.temporal.client.*;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -63,6 +61,10 @@ public interface WorkflowClientCallsInterceptor {
 
   WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
 
+  /**
+   * Intercepts calls from {@link WorkflowStub#updateWithStart} and {@link
+   * WorkflowClient#updateWithStart}.
+   */
   @Experimental
   <R> WorkflowUpdateWithStartOutput<R> updateWithStart(WorkflowUpdateWithStartInput<R> input);
 
