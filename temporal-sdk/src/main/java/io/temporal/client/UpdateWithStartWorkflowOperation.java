@@ -296,8 +296,14 @@ public final class UpdateWithStartWorkflowOperation<R> {
       workflow.apply();
       stub.updateWithStart(this, this.updateArgs);
       return this.handle.get();
-    } catch (ExecutionException | InterruptedException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      throw (cause instanceof RuntimeException
+          ? (RuntimeException) cause
+          : new RuntimeException(cause));
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
     }
