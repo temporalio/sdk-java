@@ -157,6 +157,7 @@ public interface WorkflowStub {
    * @param <R> type of the update workflow result
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
+  @Experimental
   <R> WorkflowUpdateHandle<R> updateWithStart(
       UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs);
 

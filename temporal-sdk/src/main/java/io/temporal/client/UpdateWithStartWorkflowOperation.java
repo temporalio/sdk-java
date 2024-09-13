@@ -20,6 +20,7 @@
 
 package io.temporal.client;
 
+import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * UpdateWithStartWorkflowOperation is an update workflow request that can be executed together with
  * a start workflow request.
  */
+@Experimental
 public final class UpdateWithStartWorkflowOperation<R> {
 
   private final AtomicBoolean invoked = new AtomicBoolean(false);
