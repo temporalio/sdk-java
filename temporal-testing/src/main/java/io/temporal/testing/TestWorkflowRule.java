@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
@@ -182,6 +183,7 @@ public class TestWorkflowRule implements TestRule {
 
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
+    private Object[] nexusServiceImplementations;
     private WorkflowServiceStubsOptions workflowServiceStubsOptions;
     private WorkflowClientOptions workflowClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
@@ -231,6 +233,12 @@ public class TestWorkflowRule implements TestRule {
         WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
       this.workflowImplementationOptions = implementationOptions;
       this.workflowTypes = workflowTypes;
+      return this;
+    }
+
+    @Experimental
+    public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
+      this.nexusServiceImplementations = nexusServiceImplementations;
       return this;
     }
 

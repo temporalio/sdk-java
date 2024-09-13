@@ -26,15 +26,7 @@ import com.google.common.collect.ImmutableSet;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.failure.v1.ActivityFailureInfo;
-import io.temporal.api.failure.v1.ApplicationFailureInfo;
-import io.temporal.api.failure.v1.CanceledFailureInfo;
-import io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo;
-import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
-import io.temporal.api.failure.v1.ServerFailureInfo;
-import io.temporal.api.failure.v1.TerminatedFailureInfo;
-import io.temporal.api.failure.v1.TimeoutFailureInfo;
+import io.temporal.api.failure.v1.*;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -183,6 +175,17 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.getRetryState(),
               cause);
         }
+      case NEXUS_OPERATION_EXECUTION_FAILURE_INFO:
+        {
+          NexusOperationFailureInfo info = failure.getNexusOperationExecutionFailureInfo();
+          return new NexusOperationFailure(
+              info.getScheduledEventId(),
+              info.getEndpoint(),
+              info.getService(),
+              info.getOperation(),
+              info.getOperationId(),
+              cause);
+        }
       case FAILUREINFO_NOT_SET:
       default:
         throw new IllegalArgumentException("Failure info not set");
@@ -289,6 +292,16 @@ public final class DefaultFailureConverter implements FailureConverter {
     } else if (throwable instanceof ActivityCanceledException) {
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       failure.setCanceledFailureInfo(info);
+    } else if (throwable instanceof NexusOperationFailure) {
+      NexusOperationFailure no = (NexusOperationFailure) throwable;
+      NexusOperationFailureInfo.Builder info =
+          NexusOperationFailureInfo.newBuilder()
+              .setScheduledEventId(no.getScheduledEventId())
+              .setEndpoint(no.getEndpoint())
+              .setService(no.getService())
+              .setOperation(no.getOperation())
+              .setOperationId(no.getOperationId());
+      failure.setNexusOperationExecutionFailureInfo(info);
     } else {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
