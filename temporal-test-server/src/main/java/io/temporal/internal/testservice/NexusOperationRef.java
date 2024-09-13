@@ -27,98 +27,72 @@ import java.io.*;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
-public class NexusTaskToken {
+public class NexusOperationRef {
 
-  @Nonnull private final NexusOperationRef ref;
-  private final int attempt;
-  private final boolean isCancel;
+  @Nonnull private final ExecutionId executionId;
+  private final long scheduledEventId;
 
-  NexusTaskToken(
-      @Nonnull String namespace,
-      @Nonnull WorkflowExecution execution,
-      long scheduledEventId,
-      int attempt,
-      boolean isCancel) {
+  NexusOperationRef(
+      @Nonnull String namespace, @Nonnull WorkflowExecution execution, long scheduledEventId) {
     this(
         new ExecutionId(Objects.requireNonNull(namespace), Objects.requireNonNull(execution)),
-        scheduledEventId,
-        attempt,
-        isCancel);
+        scheduledEventId);
   }
 
-  NexusTaskToken(
+  NexusOperationRef(
       @Nonnull String namespace,
       @Nonnull String workflowId,
       @Nonnull String runId,
-      long scheduledEventId,
-      int attempt,
-      boolean isCancel) {
+      long scheduledEventId) {
     this(
         namespace,
         WorkflowExecution.newBuilder()
             .setWorkflowId(Objects.requireNonNull(workflowId))
             .setRunId(Objects.requireNonNull(runId))
             .build(),
-        scheduledEventId,
-        attempt,
-        isCancel);
+        scheduledEventId);
   }
 
-  NexusTaskToken(
-      @Nonnull ExecutionId executionId, long scheduledEventId, int attempt, boolean isCancel) {
-    this(
-        new NexusOperationRef(Objects.requireNonNull(executionId), scheduledEventId),
-        attempt,
-        isCancel);
+  public NexusOperationRef(@Nonnull ExecutionId executionId, long scheduledEventId) {
+    this.executionId = Objects.requireNonNull(executionId);
+    this.scheduledEventId = scheduledEventId;
   }
 
-  public NexusTaskToken(@Nonnull NexusOperationRef ref, int attempt, boolean isCancel) {
-    this.ref = Objects.requireNonNull(ref);
-    this.attempt = attempt;
-    this.isCancel = isCancel;
+  public ExecutionId getExecutionId() {
+    return executionId;
   }
 
-  public NexusOperationRef getOperationRef() {
-    return ref;
+  public long getScheduledEventId() {
+    return scheduledEventId;
   }
 
-  public long getAttempt() {
-    return attempt;
-  }
-
-  public boolean isCancel() {
-    return isCancel;
-  }
-
-  /** Used for task tokens. */
   public ByteString toBytes() {
     try (ByteArrayOutputStream bout = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(bout)) {
-      ExecutionId executionId = ref.getExecutionId();
       out.writeUTF(executionId.getNamespace());
       WorkflowExecution execution = executionId.getExecution();
       out.writeUTF(execution.getWorkflowId());
       out.writeUTF(execution.getRunId());
-      out.writeLong(ref.getScheduledEventId());
-      out.writeInt(attempt);
-      out.writeBoolean(isCancel);
+      out.writeLong(scheduledEventId);
       return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 
-  public static NexusTaskToken fromBytes(ByteString serialized) {
-    ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
+  public static NexusOperationRef fromBytes(ByteString serialized) {
+    return fromBytes(serialized.toByteArray());
+  }
+
+  public static NexusOperationRef fromBytes(byte[] serialized) {
+    ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
     DataInputStream in = new DataInputStream(bin);
     try {
       String namespace = in.readUTF();
       String workflowId = in.readUTF();
       String runId = in.readUTF();
       long scheduledEventId = in.readLong();
-      int attempt = in.readInt();
-      boolean isCancel = in.readBoolean();
-      return new NexusTaskToken(namespace, workflowId, runId, scheduledEventId, attempt, isCancel);
+      return new NexusOperationRef(namespace, workflowId, runId, scheduledEventId);
     } catch (IOException e) {
       throw Status.INVALID_ARGUMENT
           .withCause(e)

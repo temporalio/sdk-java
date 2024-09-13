@@ -66,8 +66,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       activityTaskQueues = new HashMap<>();
   private final Map<TaskQueueId, TaskQueue<PollWorkflowTaskQueueResponse.Builder>>
       workflowTaskQueues = new HashMap<>();
-  private final Map<TaskQueueId, TaskQueue<PollNexusTaskQueueResponse.Builder>> nexusTaskQueues =
-      new HashMap<>();
+  private final Map<TaskQueueId, TaskQueue<NexusTask>> nexusTaskQueues = new HashMap<>();
   private final SelfAdvancingTimer selfAdvancingTimer;
 
   private static class HistoryStore {
@@ -233,9 +232,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<NexusTask> nexusTasks = ctx.getNexusTasks();
     if (nexusTasks != null) {
       for (NexusTask nexusTask : nexusTasks) {
-        TaskQueue<PollNexusTaskQueueResponse.Builder> nexusTaskQueue =
-            getNexusTaskQueueQueue(nexusTask.getTaskQueueId());
-        nexusTaskQueue.add(nexusTask.getTask());
+        TaskQueue<NexusTask> nexusTaskQueue = getNexusTaskQueueQueue(nexusTask.getTaskQueueId());
+        nexusTaskQueue.add(nexusTask);
       }
     }
 
@@ -310,12 +308,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
   }
 
-  private TaskQueue<PollNexusTaskQueueResponse.Builder> getNexusTaskQueueQueue(
-      TaskQueueId taskQueueId) {
+  private TaskQueue<NexusTask> getNexusTaskQueueQueue(TaskQueueId taskQueueId) {
     lock.lock();
     try {
-      TaskQueue<PollNexusTaskQueueResponse.Builder> nexusTaskQueue =
-          nexusTaskQueues.get(taskQueueId);
+      TaskQueue<NexusTask> nexusTaskQueue = nexusTaskQueues.get(taskQueueId);
       if (nexusTaskQueue == null) {
         nexusTaskQueue = new TaskQueue<>();
         nexusTaskQueues.put(taskQueueId, nexusTaskQueue);
@@ -343,8 +339,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public Future<PollNexusTaskQueueResponse.Builder> pollNexusTaskQueue(
-      PollNexusTaskQueueRequest pollRequest) {
+  public Future<NexusTask> pollNexusTaskQueue(PollNexusTaskQueueRequest pollRequest) {
     final TaskQueueId taskQueueId =
         new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
     return getNexusTaskQueueQueue(taskQueueId).poll();
