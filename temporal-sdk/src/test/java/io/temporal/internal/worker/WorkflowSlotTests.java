@@ -85,7 +85,6 @@ public class WorkflowSlotTests extends BaseNexusTest {
           .setMetricsScope(metricsScope)
           .setActivityImplementations(new TestActivityImpl())
           .setWorkflowTypes(SleepingWorkflowImpl.class)
-          .setUseExternalService(true)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .setDoNotStart(true)
           .build();

@@ -4,6 +4,8 @@ system.enableActivityEagerExecution:
   - value: true
 system.enableEagerWorkflowStart:
   - value: true
+system.enableNexus:
+  - value: true
 frontend.enableUpdateWorkflowExecution:
   - value: true
 frontend.enableUpdateWorkflowExecutionAsyncAccepted:
