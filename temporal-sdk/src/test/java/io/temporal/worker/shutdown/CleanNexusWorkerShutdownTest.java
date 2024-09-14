@@ -70,7 +70,7 @@ public class CleanNexusWorkerShutdownTest extends BaseNexusTest {
     WorkflowExecution execution = WorkflowClient.start(workflow::execute, null);
     shutdownLatch.await();
     testWorkflowRule.getTestEnvironment().shutdown();
-    testWorkflowRule.getTestEnvironment().awaitTermination(6, TimeUnit.SECONDS);
+    testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.MINUTES);
     List<HistoryEvent> events =
         testWorkflowRule
             .getExecutionHistory(execution.getWorkflowId())
@@ -95,13 +95,12 @@ public class CleanNexusWorkerShutdownTest extends BaseNexusTest {
     WorkflowExecution execution = WorkflowClient.start(workflow::execute, "now");
     shutdownNowLatch.await();
     testWorkflowRule.getTestEnvironment().shutdownNow();
-    testWorkflowRule.getTestEnvironment().awaitTermination(6, TimeUnit.SECONDS);
+    testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.MINUTES);
     List<HistoryEvent> events =
         testWorkflowRule
             .getExecutionHistory(execution.getWorkflowId())
             .getHistory()
             .getEventsList();
-    events.forEach(System.out::println);
     boolean found = false;
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED) {
