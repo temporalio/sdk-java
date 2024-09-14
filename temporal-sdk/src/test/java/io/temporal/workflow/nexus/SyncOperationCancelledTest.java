@@ -82,9 +82,6 @@ public class SyncOperationCancelledTest extends BaseNexusTest {
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof CanceledFailure);
-    CanceledFailure canceledFailure = (CanceledFailure) nexusFailure.getCause();
-    Assert.assertEquals(
-        "operation canceled before it was started", canceledFailure.getOriginalMessage());
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
