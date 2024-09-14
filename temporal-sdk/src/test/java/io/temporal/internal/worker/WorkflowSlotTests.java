@@ -63,8 +63,8 @@ public class WorkflowSlotTests extends BaseNexusTest {
   private final CountingSlotSupplier<NexusSlotInfo> nexusSlotSupplier =
       new CountingSlotSupplier<>(MAX_CONCURRENT_NEXUS_EXECUTION_SIZE);
   private final TestStatsReporter reporter = new TestStatsReporter();
-  static CountDownLatch activityBlockLatch = new CountDownLatch(1);
-  static CountDownLatch activityRunningLatch = new CountDownLatch(1);
+  static CountDownLatch blockLatch = new CountDownLatch(1);
+  static CountDownLatch runningLatch = new CountDownLatch(1);
   static boolean didFail = false;
 
   Scope metricsScope =
@@ -92,8 +92,8 @@ public class WorkflowSlotTests extends BaseNexusTest {
   @Before
   public void setup() {
     reporter.flush();
-    activityBlockLatch = new CountDownLatch(1);
-    activityRunningLatch = new CountDownLatch(1);
+    blockLatch = new CountDownLatch(1);
+    runningLatch = new CountDownLatch(1);
     localActivitySlotSupplier.usedCount.set(0);
     didFail = false;
   }
@@ -180,7 +180,13 @@ public class WorkflowSlotTests extends BaseNexusTest {
     private final TestNexusServices.TestNexusService1 nexusService =
         Workflow.newNexusServiceStub(
             TestNexusServices.TestNexusService1.class,
-            NexusServiceOptions.newBuilder().setEndpoint(getEndpointName()).build());
+            NexusServiceOptions.newBuilder()
+                .setEndpoint(getEndpointName())
+                .setOperationOptions(
+                    NexusOperationOptions.newBuilder()
+                        .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+                        .build())
+                .build());
 
     @Override
     public String workflow(String action) {
@@ -216,13 +222,13 @@ public class WorkflowSlotTests extends BaseNexusTest {
   public static class TestActivityImpl implements TestActivity {
     @Override
     public String activity(String input) {
-      activityRunningLatch.countDown();
+      runningLatch.countDown();
       try {
         ActivityExecutionContext executionContext = Activity.getExecutionContext();
         if (input.equals("fail") && executionContext.getInfo().getAttempt() < 4) {
           throw new RuntimeException("fail on purpose");
         }
-        activityBlockLatch.await();
+        blockLatch.await();
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -236,9 +242,9 @@ public class WorkflowSlotTests extends BaseNexusTest {
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (ctx, details, input) -> {
-            activityRunningLatch.countDown();
+            runningLatch.countDown();
             try {
-              activityBlockLatch.await();
+              blockLatch.await();
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
             }
@@ -284,11 +290,11 @@ public class WorkflowSlotTests extends BaseNexusTest {
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::workflow, "activity");
     workflow.unblock();
-    activityRunningLatch.await();
+    runningLatch.await();
     // The activity slot should be taken and the workflow slot should not be taken
     assertWorkerSlotCount(0, 1, 0, 0);
 
-    activityBlockLatch.countDown();
+    blockLatch.countDown();
     // Wait for the workflow to finish
     workflow.workflow("activity");
     // All slots should be available
@@ -307,11 +313,11 @@ public class WorkflowSlotTests extends BaseNexusTest {
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::workflow, "nexus");
     workflow.unblock();
-    activityRunningLatch.await();
+    runningLatch.await();
     // The nexus slot should be taken and the workflow slot should not be taken
     assertWorkerSlotCount(0, 0, 0, 1);
 
-    activityBlockLatch.countDown();
+    blockLatch.countDown();
     // Wait for the workflow to finish
     workflow.workflow("nexus");
     // All slots should be available
@@ -330,11 +336,11 @@ public class WorkflowSlotTests extends BaseNexusTest {
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::workflow, "local-activity");
     workflow.unblock();
-    activityRunningLatch.await();
+    runningLatch.await();
     // The local activity slot should be taken and the workflow slot should be taken
     assertWorkerSlotCount(1, 0, 1, 0);
 
-    activityBlockLatch.countDown();
+    blockLatch.countDown();
     workflow.workflow("local-activity");
     // All slots should be available
     assertWorkerSlotCount(0, 0, 0, 0);
@@ -353,14 +359,14 @@ public class WorkflowSlotTests extends BaseNexusTest {
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::workflow, "local-activity");
     workflow.unblock();
-    activityRunningLatch.await();
+    runningLatch.await();
     // The local activity slot should be taken and the workflow slot should be taken
     assertWorkerSlotCount(1, 0, 1, 0);
     // Take long enough to heartbeat
     Thread.sleep(1000);
     assertWorkerSlotCount(1, 0, 1, 0);
 
-    activityBlockLatch.countDown();
+    blockLatch.countDown();
     workflow.workflow("local-activity");
     // All slots should be available
     assertWorkerSlotCount(0, 0, 0, 0);
@@ -379,11 +385,11 @@ public class WorkflowSlotTests extends BaseNexusTest {
                 .validateBuildWithDefaults());
     WorkflowClient.start(workflow::workflow, "local-activity-fail");
     workflow.unblock();
-    activityRunningLatch.await();
+    runningLatch.await();
     // The local activity slot should be taken and the workflow slot should be taken
     assertWorkerSlotCount(1, 0, 1, 0);
 
-    activityBlockLatch.countDown();
+    blockLatch.countDown();
     workflow.workflow("local-activity-fail");
     assertWorkerSlotCount(0, 0, 0, 0);
     // LA slots should only have been used once per attempt
