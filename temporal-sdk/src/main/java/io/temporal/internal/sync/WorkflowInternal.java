@@ -89,6 +89,11 @@ public final class WorkflowInternal {
     return getWorkflowOutboundInterceptor().newTimer(duration);
   }
 
+  public static Promise<Void> newTimer(Duration duration, TimerOptions options) {
+    assertNotReadOnly("schedule timer");
+    return getWorkflowOutboundInterceptor().newTimer(duration, options);
+  }
+
   /**
    * @param capacity the maximum size of the queue
    * @return new instance of {@link WorkflowQueue}

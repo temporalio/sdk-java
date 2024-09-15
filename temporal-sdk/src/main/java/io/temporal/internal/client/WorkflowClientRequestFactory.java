@@ -28,6 +28,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
@@ -59,7 +60,8 @@ final class WorkflowClientRequestFactory {
       @Nonnull io.temporal.common.interceptors.Header header,
       @Nonnull WorkflowOptions options,
       @Nullable Payloads inputArgs,
-      @Nullable Memo memo) {
+      @Nullable Memo memo,
+      @Nullable UserMetadata userMetadata) {
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
@@ -106,6 +108,10 @@ final class WorkflowClientRequestFactory {
 
     if (options.getStartDelay() != null) {
       request.setWorkflowStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
+    }
+
+    if (userMetadata != null) {
+      request.setUserMetadata(userMetadata);
     }
 
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {
@@ -181,6 +187,10 @@ final class WorkflowClientRequestFactory {
 
     if (startParameters.hasWorkflowStartDelay()) {
       request.setWorkflowStartDelay(startParameters.getWorkflowStartDelay());
+    }
+
+    if (startParameters.hasUserMetadata()) {
+      request.setUserMetadata(startParameters.getUserMetadata());
     }
 
     return request;

@@ -493,7 +493,18 @@ public final class Workflow {
    *     failed with {@link CanceledFailure} if enclosing scope is canceled.
    */
   public static Promise<Void> newTimer(Duration delay) {
-    return WorkflowInternal.newTimer(delay);
+    return WorkflowInternal.newTimer(delay, null);
+  }
+
+  /**
+   * Create new timer with options. Note that Temporal service time resolution is in seconds. So all
+   * durations are rounded <b>up</b> to the nearest second.
+   *
+   * @return feature that becomes ready when at least specified number of seconds passes. promise is
+   *     failed with {@link CanceledFailure} if enclosing scope is canceled.
+   */
+  public static Promise<Void> newTimer(Duration delay, TimerOptions options) {
+    return WorkflowInternal.newTimer(delay, options);
   }
 
   /**
