@@ -493,7 +493,7 @@ public final class Workflow {
    *     failed with {@link CanceledFailure} if enclosing scope is canceled.
    */
   public static Promise<Void> newTimer(Duration delay) {
-    return WorkflowInternal.newTimer(delay, null);
+    return WorkflowInternal.newTimer(delay);
   }
 
   /**
