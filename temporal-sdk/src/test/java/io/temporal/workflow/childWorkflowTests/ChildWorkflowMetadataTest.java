@@ -21,6 +21,7 @@
 package io.temporal.workflow.childWorkflowTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -38,6 +39,7 @@ import io.temporal.workflow.shared.TestWorkflows.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -47,7 +49,6 @@ public class ChildWorkflowMetadataTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflow.class, TestChild.class)
-          .setUseExternalService(true)
           .build();
 
   static final String summary = "my-wf-summary";
@@ -56,6 +57,11 @@ public class ChildWorkflowMetadataTest {
   static final String childDetails = "child-details";
   static final String childTimerDetails = "child-timer-details";
   static final String childTimerSummary = "child-timer-summary";
+
+  @Before
+  public void checkRealServer() {
+    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
+  }
 
   @Test
   public void testChildWorkflowWithMetaData() {
