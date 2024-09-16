@@ -576,7 +576,9 @@ public class NexusWorkflowTest {
         events.get(0).getNexusOperationCanceledEventAttributes().getFailure();
     assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
     Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
-    Assert.assertFalse(failure.hasCause());
+    io.temporal.api.failure.v1.Failure cause = failure.getCause();
+    Assert.assertEquals("operation canceled before it was started", cause.getMessage());
+    Assert.assertNotNull(cause.getCanceledFailureInfo());
   }
 
   @Test(timeout = 15000)
