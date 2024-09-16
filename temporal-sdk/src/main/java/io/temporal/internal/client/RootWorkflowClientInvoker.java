@@ -225,7 +225,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     do {
       try {
-        response = genericClient.executeMultiOperation(request);
+        Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
+        response = genericClient.executeMultiOperation(request, pollTimeoutDeadline);
 
         if (response.getResponsesCount() != request.getOperationsCount()) {
           throw new RuntimeException(
@@ -250,6 +251,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         }
         updateResponse = secondResponse.getUpdateWorkflow();
       } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.CANCELLED) {
+          throw new WorkflowUpdateTimeoutOrCancelledException(
+              updateInput.getWorkflowExecution(),
+              updateInput.getUpdateName(),
+              updateInput.getUpdateId(),
+              e);
+        }
+
         MultiOperationExecutionFailure failure =
             StatusUtils.getFailure(e, MultiOperationExecutionFailure.class);
         if (failure == null) {

@@ -83,7 +83,8 @@ public interface GenericWorkflowClient {
       UpdateWorkerBuildIdCompatibilityRequest request);
 
   @Experimental
-  ExecuteMultiOperationResponse executeMultiOperation(ExecuteMultiOperationRequest request);
+  ExecuteMultiOperationResponse executeMultiOperation(
+      ExecuteMultiOperationRequest request, @Nonnull Deadline deadline);
 
   @Experimental
   GetWorkerBuildIdCompatibilityResponse getWorkerBuildIdCompatability(

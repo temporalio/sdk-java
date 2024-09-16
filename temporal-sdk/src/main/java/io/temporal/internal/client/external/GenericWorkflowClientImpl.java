@@ -395,7 +395,8 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public ExecuteMultiOperationResponse executeMultiOperation(ExecuteMultiOperationRequest req) {
+  public ExecuteMultiOperationResponse executeMultiOperation(
+      ExecuteMultiOperationRequest req, @Nonnull Deadline deadline) {
     ImmutableMap.Builder<String, String> tags = new ImmutableMap.Builder<>();
     for (int i = 0; i < req.getOperationsCount(); i++) {
       ExecuteMultiOperationRequest.Operation operation = req.getOperations(i);
@@ -411,6 +412,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         () ->
             service
                 .blockingStub()
+                .withDeadline(deadline)
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .executeMultiOperation(req),
         grpcRetryerOptions);
