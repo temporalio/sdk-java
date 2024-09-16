@@ -153,7 +153,9 @@ class WorkflowStubImpl implements WorkflowStub {
           workflowClientInvoker.updateWithStart(input);
       workflowExecution = output.getWorkflowStartOutput().getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
-      return output.getUpdateHandle();
+      WorkflowUpdateHandle<R> updateHandle = output.getUpdateHandle();
+      updateOperation.setUpdateHandle(updateHandle);
+      return updateHandle;
     } catch (StatusRuntimeException e) {
       throw wrapStartException(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {

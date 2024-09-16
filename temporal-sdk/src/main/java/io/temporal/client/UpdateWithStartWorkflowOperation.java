@@ -336,7 +336,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
     return this.handle;
   }
 
-  public void setUpdateHandle(WorkflowUpdateHandle<R> updateHandle) {
+  void setUpdateHandle(WorkflowUpdateHandle<R> updateHandle) {
     this.handle.complete(updateHandle);
   }
 

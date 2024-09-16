@@ -280,7 +280,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     WorkflowUpdateHandle updateHandle =
         toUpdateHandle(updateInput, updateResponse, dataConverterWithWorkflowContext);
-    updateOperation.setUpdateHandle(updateHandle);
 
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
