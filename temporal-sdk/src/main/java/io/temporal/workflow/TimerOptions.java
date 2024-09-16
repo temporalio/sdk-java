@@ -102,6 +102,6 @@ public final class TimerOptions {
 
   @Override
   public int hashCode() {
-    return Objects.hash(staticSummary);
+    return Objects.hash(summary);
   }
 }
