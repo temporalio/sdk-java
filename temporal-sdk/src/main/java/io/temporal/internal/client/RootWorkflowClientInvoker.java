@@ -230,7 +230,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       }
 
       if (failure.getStatusesCount() != request.getOperationsCount()) {
-        throw new Error(
+        throw new RuntimeException(
             "Server sent back an invalid error response: received "
                 + failure.getStatusesCount()
                 + " instead of "
@@ -258,7 +258,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
 
     if (response.getResponsesCount() != request.getOperationsCount()) {
-      throw new Error(
+      throw new RuntimeException(
           "Server sent back an invalid response: received "
               + response.getResponsesCount()
               + " instead of "
@@ -268,13 +268,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     ExecuteMultiOperationResponse.Response firstResponse = response.getResponses(0);
     if (firstResponse.getResponseCase() != START_WORKFLOW) {
-      throw new Error("Server sent back an invalid response type for StartWorkflow response");
+      throw new RuntimeException(
+          "Server sent back an invalid response type for StartWorkflow response");
     }
     StartWorkflowExecutionResponse startResponse = firstResponse.getStartWorkflow();
 
     ExecuteMultiOperationResponse.Response secondResponse = response.getResponses(1);
     if (secondResponse.getResponseCase() != UPDATE_WORKFLOW) {
-      throw new Error("Server sent back an invalid response type for UpdateWorkflow response");
+      throw new RuntimeException(
+          "Server sent back an invalid response type for UpdateWorkflow response");
     }
     UpdateWorkflowExecutionResponse updateResponse = secondResponse.getUpdateWorkflow();
 
