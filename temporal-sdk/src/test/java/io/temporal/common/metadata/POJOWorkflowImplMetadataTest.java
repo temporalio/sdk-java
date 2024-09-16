@@ -159,7 +159,7 @@ public class POJOWorkflowImplMetadataTest {
       assertTrue(
           e.getMessage()
               .contains(
-                  "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed."));
+                  "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed:"));
     }
   }
 
@@ -172,7 +172,7 @@ public class POJOWorkflowImplMetadataTest {
       assertTrue(
           e.getMessage()
               .contains(
-                  "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method."));
+                  "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method"));
     }
   }
 
@@ -196,7 +196,7 @@ public class POJOWorkflowImplMetadataTest {
       assertTrue(
           e.getMessage()
               .contains(
-                  "Multiple constructors annotated with @WorkflowInit or a default constructor found."));
+                  "Multiple constructors annotated with @WorkflowInit or a default constructor found:"));
     }
   }
 
@@ -229,12 +229,12 @@ public class POJOWorkflowImplMetadataTest {
     Assert.assertNull(meta.getWorkflowInit());
   }
 
-  static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
+  public static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
     @Override
     public void g() {}
   }
 
-  static class DImpl
+  public static class DImpl
       implements POJOWorkflowInterfaceMetadataTest.D, POJOWorkflowInterfaceMetadataTest.E {
 
     @Override
@@ -255,13 +255,13 @@ public class POJOWorkflowImplMetadataTest {
     public void d() {}
   }
 
-  static class DWithAdditionalInterface extends DImpl
+  public static class DWithAdditionalInterface extends DImpl
       implements POJOWorkflowInterfaceMetadataTest.O {
     @Override
     public void someMethod() {}
   }
 
-  static class DuplicatedName1Impl implements POJOWorkflowInterfaceMetadataTest.DE {
+  public static class DuplicatedName1Impl implements POJOWorkflowInterfaceMetadataTest.DE {
 
     @Override
     public void a() {}
@@ -281,7 +281,7 @@ public class POJOWorkflowImplMetadataTest {
     public void d() {}
   }
 
-  static class DuplicatedName2Impl
+  public static class DuplicatedName2Impl
       implements POJOWorkflowInterfaceMetadataTest.F, POJOWorkflowInterfaceMetadataTest.C {
 
     @Override
@@ -302,11 +302,11 @@ public class POJOWorkflowImplMetadataTest {
     public void f() {}
   }
 
-  static class EmptyImpl implements POJOWorkflowInterfaceMetadataTest.Empty {
+  public static class EmptyImpl implements POJOWorkflowInterfaceMetadataTest.Empty {
     public void foo() {}
   }
 
-  static class NoWorkflowImpl implements POJOWorkflowInterfaceMetadataTest.A {
+  public static class NoWorkflowImpl implements POJOWorkflowInterfaceMetadataTest.A {
 
     @Override
     public void a() {}
@@ -370,9 +370,9 @@ public class POJOWorkflowImplMetadataTest {
     public void someMethod() {}
   }
 
-  static class WorkflowWithConstructor implements POJOWorkflowInterfaceMetadataTest.I {
+  public static class WorkflowWithConstructor implements POJOWorkflowInterfaceMetadataTest.I {
 
-    WorkflowWithConstructor() {}
+    public WorkflowWithConstructor() {}
 
     @Override
     public void i() {}

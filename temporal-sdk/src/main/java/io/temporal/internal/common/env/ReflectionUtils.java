@@ -44,10 +44,11 @@ public final class ReflectionUtils {
     for (Constructor<?> ctor : clazz.getDeclaredConstructors()) {
       WorkflowInit wfInit = ctor.getAnnotation(WorkflowInit.class);
       if (wfInit == null) {
-        if (ctor.getParameterCount() == 0) {
+        if (ctor.getParameterCount() == 0 && Modifier.isPublic(ctor.getModifiers())) {
           if (workflowInit.isPresent() || defaultConstructors != null) {
             throw new IllegalArgumentException(
-                "Multiple constructors annotated with @WorkflowInit or a default constructor found.");
+                "Multiple constructors annotated with @WorkflowInit or a default constructor found: "
+                    + clazz.getName());
           }
           defaultConstructors = ctor;
           continue;
@@ -56,19 +57,22 @@ public final class ReflectionUtils {
       }
       if (workflowMethod.size() != 1) {
         throw new IllegalArgumentException(
-            "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed.");
+            "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed: "
+                + clazz.getName());
       }
       if (workflowInit.isPresent() || defaultConstructors != null) {
         throw new IllegalArgumentException(
-            "Multiple constructors annotated with @WorkflowInit or a default constructor found.");
+            "Multiple constructors annotated with @WorkflowInit or a default constructor found: "
+                + clazz.getName());
       }
       if (!Modifier.isPublic(ctor.getModifiers())) {
         throw new IllegalArgumentException(
-            "Constructor with @WorkflowInit annotation must be public");
+            "Constructor with @WorkflowInit annotation must be public: " + clazz.getName());
       }
       if (!Arrays.equals(ctor.getParameterTypes(), workflowMethod.get(0).getParameterTypes())) {
         throw new IllegalArgumentException(
-            "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method.");
+            "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method: "
+                + clazz.getName());
       }
       workflowInit = Optional.of(ctor);
     }
