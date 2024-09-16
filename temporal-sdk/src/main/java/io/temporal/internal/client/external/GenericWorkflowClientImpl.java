@@ -60,11 +60,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request) {
-    Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
-            .put(MetricsTag.TASK_QUEUE, request.getTaskQueue().getName())
-            .build();
+    Map<String, String> tags = tagsForStartWorkflow(request);
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResult(
         () ->
@@ -73,6 +69,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .startWorkflowExecution(request),
         grpcRetryerOptions);
+  }
+
+  private static Map<String, String> tagsForStartWorkflow(StartWorkflowExecutionRequest request) {
+    return new ImmutableMap.Builder<String, String>(2)
+        .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
+        .put(MetricsTag.TASK_QUEUE, request.getTaskQueue().getName())
+        .build();
   }
 
   @Override
@@ -320,10 +323,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public UpdateWorkflowExecutionResponse update(
       @Nonnull UpdateWorkflowExecutionRequest updateParameters, @Nonnull Deadline deadline) {
-    Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(1)
-            .put(MetricsTag.UPDATE_NAME, updateParameters.getRequest().getInput().getName())
-            .build();
+    Map<String, String> tags = tagsForUpdateWorkflow(updateParameters);
     Scope scope = metricsScope.tagged(tags);
 
     return grpcRetryer.retryWithResult(
@@ -334,6 +334,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .updateWorkflowExecution(updateParameters),
         new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  private static Map<String, String> tagsForUpdateWorkflow(
+      UpdateWorkflowExecutionRequest updateParameters) {
+    return new ImmutableMap.Builder<String, String>(1)
+        .put(MetricsTag.UPDATE_NAME, updateParameters.getRequest().getInput().getName())
+        .build();
   }
 
   @Override
@@ -389,11 +396,22 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public ExecuteMultiOperationResponse executeMultiOperation(ExecuteMultiOperationRequest req) {
+    ImmutableMap.Builder<String, String> tags = new ImmutableMap.Builder<>();
+    for (int i = 0; i < req.getOperationsCount(); i++) {
+      ExecuteMultiOperationRequest.Operation operation = req.getOperations(i);
+      if (operation.hasStartWorkflow()) {
+        tags.putAll(tagsForStartWorkflow(operation.getStartWorkflow()));
+      } else if (operation.hasUpdateWorkflow()) {
+        tags.putAll(tagsForUpdateWorkflow(operation.getUpdateWorkflow()));
+      }
+    }
+    Scope scope = metricsScope.tagged(tags.build());
+
     return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .executeMultiOperation(req),
         grpcRetryerOptions);
   }
