@@ -29,8 +29,9 @@ import java.lang.annotation.Target;
 /**
  * Indicates that the constructor should be used as a workflow initialization method. The
  * constructor annotated with this annotation is called when a new workflow instance is created. The
- * method must be public and take no arguments or take the same arguments as the workflow method.
- * All the same constraints as for workflow methods apply to workflow initialization methods.
+ * method must be public and take the same arguments as the workflow method. All the same
+ * constraints as for workflow methods apply to workflow initialization methods. Any exceptions
+ * thrown by the constructor are treated the same as exceptions thrown by the workflow method.
  *
  * <p>Workflow initialization methods are called before the workflow method, signal handlers, update
  * handlers or query handlers.

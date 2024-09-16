@@ -166,7 +166,6 @@ public final class POJOWorkflowImplMetadata {
     this.queryMethods = ImmutableList.copyOf(queryMethods.values());
     this.updateMethods = ImmutableList.copyOf(updateMethods.values());
     this.updateValidatorMethods = ImmutableList.copyOf(updateValidatorMethods.values());
-    //
     if (!listener) {
       this.workflowInit =
           ReflectionUtils.getConstructor(
