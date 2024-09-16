@@ -220,65 +220,70 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .build();
 
     ExecuteMultiOperationResponse response;
-    try {
-      response = genericClient.executeMultiOperation(request);
-    } catch (StatusRuntimeException err) {
-      MultiOperationExecutionFailure failure =
-          StatusUtils.getFailure(err, MultiOperationExecutionFailure.class);
-      if (failure == null) {
-        throw err;
+    StartWorkflowExecutionResponse startResponse;
+    UpdateWorkflowExecutionResponse updateResponse;
+
+    do {
+      try {
+        response = genericClient.executeMultiOperation(request);
+
+        if (response.getResponsesCount() != request.getOperationsCount()) {
+          throw new RuntimeException(
+              "Server sent back an invalid response: received "
+                  + response.getResponsesCount()
+                  + " instead of "
+                  + request.getOperationsCount()
+                  + " operation responses");
+        }
+
+        ExecuteMultiOperationResponse.Response firstResponse = response.getResponses(0);
+        if (firstResponse.getResponseCase() != START_WORKFLOW) {
+          throw new RuntimeException(
+              "Server sent back an invalid response type for StartWorkflow response");
+        }
+        startResponse = firstResponse.getStartWorkflow();
+
+        ExecuteMultiOperationResponse.Response secondResponse = response.getResponses(1);
+        if (secondResponse.getResponseCase() != UPDATE_WORKFLOW) {
+          throw new RuntimeException(
+              "Server sent back an invalid response type for UpdateWorkflow response");
+        }
+        updateResponse = secondResponse.getUpdateWorkflow();
+      } catch (StatusRuntimeException e) {
+        MultiOperationExecutionFailure failure =
+            StatusUtils.getFailure(e, MultiOperationExecutionFailure.class);
+        if (failure == null) {
+          throw e;
+        }
+
+        if (failure.getStatusesCount() != request.getOperationsCount()) {
+          throw new RuntimeException(
+              "Server sent back an invalid error response: received "
+                  + failure.getStatusesCount()
+                  + " instead of "
+                  + request.getOperationsCount()
+                  + " operation errors");
+        }
+
+        MultiOperationExecutionFailure.OperationStatus startStatus = failure.getStatuses(0);
+        if (startStatus.getDetailsCount() == 0
+            || !startStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
+          throw Status.fromCodeValue(startStatus.getCode())
+              .withDescription(startStatus.getMessage())
+              .asRuntimeException();
+        }
+
+        MultiOperationExecutionFailure.OperationStatus updateStatus = failure.getStatuses(1);
+        if (updateStatus.getDetailsCount() == 0
+            || !updateStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
+          throw Status.fromCodeValue(updateStatus.getCode())
+              .withDescription("Invalid StartOperation: " + updateStatus.getMessage())
+              .asRuntimeException();
+        }
+
+        throw e; // no detailed failure was found
       }
-
-      if (failure.getStatusesCount() != request.getOperationsCount()) {
-        throw new RuntimeException(
-            "Server sent back an invalid error response: received "
-                + failure.getStatusesCount()
-                + " instead of "
-                + request.getOperationsCount()
-                + " operation errors");
-      }
-
-      MultiOperationExecutionFailure.OperationStatus startStatus = failure.getStatuses(0);
-      if (startStatus.getDetailsCount() == 0
-          || !startStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
-        throw Status.fromCodeValue(startStatus.getCode())
-            .withDescription(startStatus.getMessage())
-            .asRuntimeException();
-      }
-
-      MultiOperationExecutionFailure.OperationStatus updateStatus = failure.getStatuses(1);
-      if (updateStatus.getDetailsCount() == 0
-          || !updateStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
-        throw Status.fromCodeValue(updateStatus.getCode())
-            .withDescription("Invalid StartOperation: " + updateStatus.getMessage())
-            .asRuntimeException();
-      }
-
-      throw err; // no detailed failure was found
-    }
-
-    if (response.getResponsesCount() != request.getOperationsCount()) {
-      throw new RuntimeException(
-          "Server sent back an invalid response: received "
-              + response.getResponsesCount()
-              + " instead of "
-              + request.getOperationsCount()
-              + " operation responses");
-    }
-
-    ExecuteMultiOperationResponse.Response firstResponse = response.getResponses(0);
-    if (firstResponse.getResponseCase() != START_WORKFLOW) {
-      throw new RuntimeException(
-          "Server sent back an invalid response type for StartWorkflow response");
-    }
-    StartWorkflowExecutionResponse startResponse = firstResponse.getStartWorkflow();
-
-    ExecuteMultiOperationResponse.Response secondResponse = response.getResponses(1);
-    if (secondResponse.getResponseCase() != UPDATE_WORKFLOW) {
-      throw new RuntimeException(
-          "Server sent back an invalid response type for UpdateWorkflow response");
-    }
-    UpdateWorkflowExecutionResponse updateResponse = secondResponse.getUpdateWorkflow();
+    } while (updateNotYetDurable(updateInput, updateResponse));
 
     WorkflowUpdateHandle updateHandle =
         toUpdateHandle(updateInput, updateResponse, dataConverterWithWorkflowContext);
@@ -439,13 +444,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         }
         throw e;
       }
-    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
+    } while (updateNotYetDurable(input, result));
+
+    return toUpdateHandle(input, result, dataConverterWithWorkflowContext);
+  }
+
+  private <R> boolean updateNotYetDurable(
+      StartUpdateInput<R> input, UpdateWorkflowExecutionResponse result) {
+    return result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
         && result.getStage().getNumber()
             < UpdateWorkflowExecutionLifecycleStage
                 .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
-                .getNumber());
-
-    return toUpdateHandle(input, result, dataConverterWithWorkflowContext);
+                .getNumber();
   }
 
   private <R> UpdateWorkflowExecutionRequest toUpdateWorkflowExecutionRequest(
