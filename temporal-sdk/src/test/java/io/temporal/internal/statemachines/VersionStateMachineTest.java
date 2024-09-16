@@ -384,6 +384,7 @@ public class VersionStateMachineTest {
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
+                      null,
                       c);
                 })
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
@@ -496,6 +497,7 @@ public class VersionStateMachineTest {
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
+                      null,
                       c);
                 })
             .<HistoryEvent>add1(
@@ -504,6 +506,7 @@ public class VersionStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
@@ -635,6 +638,7 @@ public class VersionStateMachineTest {
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
+                      null,
                       c);
                 })
             .<HistoryEvent>add1(
@@ -643,6 +647,7 @@ public class VersionStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
@@ -743,6 +748,7 @@ public class VersionStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
@@ -841,6 +847,7 @@ public class VersionStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .<HistoryEvent>add1(
                 (v, c) ->
@@ -848,6 +855,7 @@ public class VersionStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             /*.<Integer>add(
             (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))*/
@@ -950,6 +958,7 @@ public class VersionStateMachineTest {
                   StartTimerCommandAttributes.newBuilder()
                       .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                       .build(),
+                  null,
                   c);
               stateMachines.completeWorkflow(converter.toPayloads(v));
             });
@@ -1009,6 +1018,7 @@ public class VersionStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .add(
                 (v) -> {
@@ -1080,6 +1090,7 @@ public class VersionStateMachineTest {
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
+                      null,
                       c);
                 })
             .<Integer, RuntimeException>add2(
@@ -1181,6 +1192,7 @@ public class VersionStateMachineTest {
                                 .setStartToFireTimeout(
                                     Duration.newBuilder().setSeconds(100).build())
                                 .build(),
+                            null,
                             ignore -> {})))
             .add((v) -> cancelTimerProc.get().apply())
             .<Integer, RuntimeException>add2(
@@ -1193,6 +1205,7 @@ public class VersionStateMachineTest {
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
+                      null,
                       c);
                 })
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(null)));
@@ -1265,6 +1278,7 @@ public class VersionStateMachineTest {
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
+                      null,
                       c);
                 })
             .<Integer, RuntimeException>add2(

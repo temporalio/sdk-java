@@ -87,6 +87,7 @@ public class TimerStateMachineTest {
                             .setStartToFireTimeout(
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
+                        null,
                         c))
             .add((firedEvent) -> stateMachines.completeWorkflow(Optional.empty()));
       }
@@ -158,6 +159,7 @@ public class TimerStateMachineTest {
                                 .setStartToFireTimeout(
                                     ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                                 .build(),
+                            null,
                             c))
             .add(
                 (firedEvent) ->
@@ -171,6 +173,7 @@ public class TimerStateMachineTest {
                             .setStartToFireTimeout(
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
+                        null,
                         c))
             .add((firedEvent) -> stateMachines.completeWorkflow(converter.toPayloads("result1")));
 
@@ -232,6 +235,7 @@ public class TimerStateMachineTest {
                                 .setStartToFireTimeout(
                                     ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                                 .build(),
+                            null,
                             c))
             .add(
                 (firedEvent) -> {
@@ -247,6 +251,7 @@ public class TimerStateMachineTest {
                             .setStartToFireTimeout(
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
+                        null,
                         c))
             .add(
                 (firedEvent) -> {

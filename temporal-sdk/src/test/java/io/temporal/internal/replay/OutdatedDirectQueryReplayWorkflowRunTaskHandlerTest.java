@@ -133,6 +133,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                               .getTimerStartedEventAttributes()
                               .getTimerId())
                       .build(),
+                  null,
                   historyEvent -> {});
               return false;
             })

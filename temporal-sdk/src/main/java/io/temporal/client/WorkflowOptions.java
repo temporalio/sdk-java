@@ -23,10 +23,7 @@ package io.temporal.client;
 import com.google.common.base.Objects;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
-import io.temporal.common.CronSchedule;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
-import io.temporal.common.SearchAttributes;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.worker.WorkerFactory;
@@ -79,6 +76,8 @@ public final class WorkflowOptions {
         .setDisableEagerExecution(o.isDisableEagerExecution())
         .setStartDelay(o.getStartDelay())
         .setWorkflowIdConflictPolicy(o.getWorkflowIdConflictPolicy())
+        .setStaticSummary(o.getStaticSummary())
+        .setStaticDetails(o.getStaticDetails())
         .validateBuildWithDefaults();
   }
 
@@ -114,6 +113,10 @@ public final class WorkflowOptions {
 
     private WorkflowIdConflictPolicy workflowIdConflictpolicy;
 
+    private String staticSummary;
+
+    private String staticDetails;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -135,6 +138,8 @@ public final class WorkflowOptions {
       this.disableEagerExecution = options.disableEagerExecution;
       this.startDelay = options.startDelay;
       this.workflowIdConflictpolicy = options.workflowIdConflictpolicy;
+      this.staticSummary = options.staticSummary;
+      this.staticDetails = options.staticDetails;
     }
 
     /**
@@ -382,6 +387,31 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * Single-line fixed summary for this workflow execution that will appear in UI/CLI. This can be
+     * in single-line Temporal Markdown format.
+     *
+     * <p>Default is none/empty.
+     */
+    @Experimental
+    public Builder setStaticSummary(String staticSummary) {
+      this.staticSummary = staticSummary;
+      return this;
+    }
+
+    /**
+     * General fixed details for this workflow execution that will appear in UI/CLI. This can be in
+     * Temporal Markdown format and can span multiple lines. This is a fixed value on the workflow
+     * that cannot be updated.
+     *
+     * <p>Default is none/empty.
+     */
+    @Experimental
+    public Builder setStaticDetails(String staticDetails) {
+      this.staticDetails = staticDetails;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -398,7 +428,9 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
-          workflowIdConflictpolicy);
+          workflowIdConflictpolicy,
+          staticSummary,
+          staticDetails);
     }
 
     /**
@@ -420,7 +452,9 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
-          workflowIdConflictpolicy);
+          workflowIdConflictpolicy,
+          staticSummary,
+          staticDetails);
     }
   }
 
@@ -454,6 +488,10 @@ public final class WorkflowOptions {
 
   private final WorkflowIdConflictPolicy workflowIdConflictpolicy;
 
+  private final String staticSummary;
+
+  private final String staticDetails;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -469,7 +507,9 @@ public final class WorkflowOptions {
       List<ContextPropagator> contextPropagators,
       boolean disableEagerExecution,
       Duration startDelay,
-      WorkflowIdConflictPolicy workflowIdConflictpolicy) {
+      WorkflowIdConflictPolicy workflowIdConflictpolicy,
+      String staticSummary,
+      String staticDetails) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -485,6 +525,8 @@ public final class WorkflowOptions {
     this.disableEagerExecution = disableEagerExecution;
     this.startDelay = startDelay;
     this.workflowIdConflictpolicy = workflowIdConflictpolicy;
+    this.staticSummary = staticSummary;
+    this.staticDetails = staticDetails;
   }
 
   public String getWorkflowId() {
@@ -556,6 +598,14 @@ public final class WorkflowOptions {
     return workflowIdConflictpolicy;
   }
 
+  public String getStaticSummary() {
+    return staticSummary;
+  }
+
+  public String getStaticDetails() {
+    return staticDetails;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -579,7 +629,9 @@ public final class WorkflowOptions {
         && Objects.equal(contextPropagators, that.contextPropagators)
         && Objects.equal(disableEagerExecution, that.disableEagerExecution)
         && Objects.equal(startDelay, that.startDelay)
-        && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy);
+        && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy)
+        && Objects.equal(staticSummary, that.staticSummary)
+        && Objects.equal(staticDetails, that.staticDetails);
   }
 
   @Override
@@ -599,7 +651,9 @@ public final class WorkflowOptions {
         contextPropagators,
         disableEagerExecution,
         startDelay,
-        workflowIdConflictpolicy);
+        workflowIdConflictpolicy,
+        staticSummary,
+        staticDetails);
   }
 
   @Override
@@ -638,6 +692,10 @@ public final class WorkflowOptions {
         + startDelay
         + ", workflowIdConflictpolicy="
         + workflowIdConflictpolicy
+        + ", staticSummary="
+        + staticSummary
+        + ", staticDetails="
+        + staticDetails
         + '}';
   }
 }

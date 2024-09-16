@@ -60,6 +60,7 @@ import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.TimerOptions;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
@@ -411,6 +412,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public Promise<Void> newTimer(Duration duration) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Promise<Void> newTimer(Duration duration, TimerOptions options) {
       throw new UnsupportedOperationException("not implemented");
     }
 
