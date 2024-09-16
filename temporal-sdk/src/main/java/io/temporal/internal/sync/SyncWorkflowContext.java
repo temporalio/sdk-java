@@ -848,7 +848,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     @Nullable
     UserMetadata userMetadata =
-        makeUserMetaData(options.getStaticSummary(), null, dataConverterWithCurrentWorkflowContext);
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
 
     Functions.Proc1<RuntimeException> cancellationHandler =
         replayContext.newTimer(

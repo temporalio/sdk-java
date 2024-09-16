@@ -53,7 +53,7 @@ public final class TimerOptions {
       if (options == null) {
         return;
       }
-      this.summary = options.staticSummary;
+      this.summary = options.summary;
     }
 
     /**
@@ -73,14 +73,14 @@ public final class TimerOptions {
     }
   }
 
-  private final String staticSummary;
+  private final String summary;
 
-  private TimerOptions(String staticSummary) {
-    this.staticSummary = staticSummary;
+  private TimerOptions(String summary) {
+    this.summary = summary;
   }
 
-  public String getStaticSummary() {
-    return staticSummary;
+  public String getSummary() {
+    return summary;
   }
 
   public Builder toBuilder() {
@@ -89,7 +89,7 @@ public final class TimerOptions {
 
   @Override
   public String toString() {
-    return "TimerOptions{" + "summary='" + staticSummary + '\'' + '}';
+    return "TimerOptions{" + "summary='" + summary + '\'' + '}';
   }
 
   @Override
@@ -97,7 +97,7 @@ public final class TimerOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     TimerOptions that = (TimerOptions) o;
-    return Objects.equals(staticSummary, that.staticSummary);
+    return Objects.equals(summary, that.summary);
   }
 
   @Override
