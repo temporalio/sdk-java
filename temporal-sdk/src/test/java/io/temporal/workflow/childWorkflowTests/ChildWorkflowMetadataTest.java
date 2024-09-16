@@ -55,7 +55,6 @@ public class ChildWorkflowMetadataTest {
   static final String details = "my-wf-details";
   static final String childSummary = "child-summary";
   static final String childDetails = "child-details";
-  static final String childTimerDetails = "child-timer-details";
   static final String childTimerSummary = "child-timer-summary";
 
   @Before
@@ -87,7 +86,7 @@ public class ChildWorkflowMetadataTest {
         workflowExecutionHistory.getEvents().stream()
             .filter(HistoryEvent::hasTimerStartedEventAttributes)
             .collect(Collectors.toList());
-    assertEventMetadata(timerStartedEvents.get(0), childTimerSummary, childTimerDetails);
+    assertEventMetadata(timerStartedEvents.get(0), childTimerSummary, null);
   }
 
   private void assertWorkflowMetadata(String workflowId, String summary, String details) {
@@ -116,14 +115,18 @@ public class ChildWorkflowMetadataTest {
   }
 
   private void assertEventMetadata(HistoryEvent event, String summary, String details) {
-    String describedSummary =
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            event.getUserMetadata().getSummary(), String.class, String.class);
-    String describedDetails =
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            event.getUserMetadata().getDetails(), String.class, String.class);
-    assertEquals(summary, describedSummary);
-    assertEquals(details, describedDetails);
+    if (details != null) {
+      String describedSummary =
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+              event.getUserMetadata().getSummary(), String.class, String.class);
+      assertEquals(summary, describedSummary);
+    }
+    if (summary != null) {
+      String describedDetails =
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+              event.getUserMetadata().getDetails(), String.class, String.class);
+      assertEquals(details, describedDetails);
+    }
   }
 
   public static class TestParentWorkflow implements TestWorkflow1 {
@@ -149,10 +152,7 @@ public class ChildWorkflowMetadataTest {
     public String execute(String arg, int delay) {
       Workflow.newTimer(
               Duration.ofMillis(delay),
-              TimerOptions.newBuilder()
-                  .setStaticDetails(childTimerDetails)
-                  .setStaticSummary(childTimerSummary)
-                  .build())
+              TimerOptions.newBuilder().setSummary(childTimerSummary).build())
           .get();
       return arg.toUpperCase();
     }

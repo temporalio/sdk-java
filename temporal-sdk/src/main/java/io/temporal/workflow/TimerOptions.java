@@ -45,8 +45,7 @@ public final class TimerOptions {
   }
 
   public static final class Builder {
-    private String staticSummary;
-    private String staticDetails;
+    private String summary;
 
     private Builder() {}
 
@@ -54,8 +53,7 @@ public final class TimerOptions {
       if (options == null) {
         return;
       }
-      this.staticSummary = options.staticSummary;
-      this.staticDetails = options.staticDetails;
+      this.summary = options.staticSummary;
     }
 
     /**
@@ -65,43 +63,24 @@ public final class TimerOptions {
      * <p>Default is none/empty.
      */
     @Experimental
-    public Builder setStaticSummary(String staticSummary) {
-      this.staticSummary = staticSummary;
-      return this;
-    }
-
-    /**
-     * General fixed details for this timer that will appear in UI/CLI. This can be in Temporal
-     * Markdown format and can span multiple lines. This is a fixed value on the workflow that
-     * cannot be updated.
-     *
-     * <p>Default is none/empty.
-     */
-    @Experimental
-    public Builder setStaticDetails(String staticDetails) {
-      this.staticDetails = staticDetails;
+    public Builder setSummary(String summary) {
+      this.summary = summary;
       return this;
     }
 
     public TimerOptions build() {
-      return new TimerOptions(staticSummary, staticDetails);
+      return new TimerOptions(summary);
     }
   }
 
   private final String staticSummary;
-  private final String staticDetails;
 
-  public TimerOptions(String staticSummary, String staticDetails) {
+  private TimerOptions(String staticSummary) {
     this.staticSummary = staticSummary;
-    this.staticDetails = staticDetails;
   }
 
   public String getStaticSummary() {
     return staticSummary;
-  }
-
-  public String getStaticDetails() {
-    return staticDetails;
   }
 
   public Builder toBuilder() {
@@ -110,14 +89,7 @@ public final class TimerOptions {
 
   @Override
   public String toString() {
-    return "TimerOptions{"
-        + "staticSummary='"
-        + staticSummary
-        + '\''
-        + ", staticDetails='"
-        + staticDetails
-        + '\''
-        + '}';
+    return "TimerOptions{" + "summary='" + staticSummary + '\'' + '}';
   }
 
   @Override
@@ -125,12 +97,11 @@ public final class TimerOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     TimerOptions that = (TimerOptions) o;
-    return Objects.equals(staticSummary, that.staticSummary)
-        && Objects.equals(staticDetails, that.staticDetails);
+    return Objects.equals(staticSummary, that.staticSummary);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(staticSummary, staticDetails);
+    return Objects.hash(staticSummary);
   }
 }
