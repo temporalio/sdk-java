@@ -21,9 +21,64 @@
 package io.temporal.internal.common.env;
 
 import com.google.common.base.Joiner;
+import io.temporal.workflow.WorkflowInit;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 public final class ReflectionUtils {
   private ReflectionUtils() {}
+
+  public static Optional<Constructor<?>> getConstructor(
+      Class<?> clazz, List<Method> workflowMethod) {
+    // We iterate through all constructors to find the one annotated with @WorkflowInit
+    // and check if it has the same parameters as the workflow method.
+    // We check all declared constructors to find any constructors that are annotated with
+    // @WorkflowInit, but not public,
+    // to give a more informative error message.
+    Optional<Constructor<?>> workflowInit = Optional.empty();
+    Constructor<?> defaultConstructors = null;
+    for (Constructor<?> ctor : clazz.getDeclaredConstructors()) {
+      WorkflowInit wfInit = ctor.getAnnotation(WorkflowInit.class);
+      if (wfInit == null) {
+        if (ctor.getParameterCount() == 0) {
+          if (workflowInit.isPresent() || defaultConstructors != null) {
+            throw new IllegalArgumentException(
+                "Multiple constructors annotated with @WorkflowInit or a default constructor found.");
+          }
+          defaultConstructors = ctor;
+          continue;
+        }
+        continue;
+      }
+      if (workflowMethod.size() != 1) {
+        throw new IllegalArgumentException(
+            "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed.");
+      }
+      if (workflowInit.isPresent() || defaultConstructors != null) {
+        throw new IllegalArgumentException(
+            "Multiple constructors annotated with @WorkflowInit or a default constructor found.");
+      }
+      if (!Modifier.isPublic(ctor.getModifiers())) {
+        throw new IllegalArgumentException(
+            "Constructor with @WorkflowInit annotation must be public");
+      }
+      if (!Arrays.equals(ctor.getParameterTypes(), workflowMethod.get(0).getParameterTypes())) {
+        throw new IllegalArgumentException(
+            "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method.");
+      }
+      workflowInit = Optional.of(ctor);
+    }
+    if (!workflowInit.isPresent() && defaultConstructors == null) {
+      throw new IllegalArgumentException(
+          "No default constructor or constructor annotated with @WorkflowInit found: "
+              + clazz.getName());
+    }
+    return workflowInit;
+  }
 
   public static String getMethodNameForStackTraceCutoff(
       Class<?> clazz, String methodName, Class<?>... parameterTypes) throws RuntimeException {

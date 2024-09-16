@@ -265,6 +265,12 @@ public class POJOWorkflowInterfaceMetadataTest {
     void h(Integer i);
   }
 
+  @WorkflowInterface
+  public interface I {
+    @WorkflowMethod
+    void i();
+  }
+
   public interface DE extends D, E {}
 
   @WorkflowInterface

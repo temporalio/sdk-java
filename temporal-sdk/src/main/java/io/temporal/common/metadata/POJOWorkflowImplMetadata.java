@@ -22,10 +22,11 @@ package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
 import io.temporal.common.Experimental;
-import io.temporal.workflow.WorkflowInit;
+import io.temporal.internal.common.env.ReflectionUtils;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Rules:
@@ -72,9 +73,7 @@ public final class POJOWorkflowImplMetadata {
   private final List<POJOWorkflowMethodMetadata> queryMethods;
   private final List<POJOWorkflowMethodMetadata> updateMethods;
   private final List<POJOWorkflowMethodMetadata> updateValidatorMethods;
-  private Constructor<?> defaultConstructors;
-
-  private final Constructor<?> constructor;
+  private final Constructor<?> workflowInit;
 
   /**
    * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
@@ -169,50 +168,15 @@ public final class POJOWorkflowImplMetadata {
     this.updateValidatorMethods = ImmutableList.copyOf(updateValidatorMethods.values());
     //
     if (!listener) {
-      Optional<Constructor<?>> constructors = Optional.empty();
-      for (Constructor<?> ctor : implClass.getDeclaredConstructors()) {
-        WorkflowInit wfInit = ctor.getAnnotation(WorkflowInit.class);
-        if (wfInit == null) {
-          if (ctor.getParameterCount() == 0) {
-            if (constructors.isPresent() || this.defaultConstructors != null) {
-              throw new IllegalArgumentException(
-                  "Multiple constructors annotated with @WorkflowInit or a default constructor found.");
-            }
-            this.defaultConstructors = ctor;
-            continue;
-          }
-          continue;
-        }
-        if (constructors.isPresent() || this.defaultConstructors != null) {
-          throw new IllegalArgumentException(
-              "Multiple constructors annotated with @WorkflowInit or a default constructor found.");
-        }
-        if (!Modifier.isPublic(ctor.getModifiers())) {
-          throw new IllegalArgumentException(
-              "Constructor with @WorkflowInit annotation must be public");
-        }
-        if (this.workflowInterfaces.size() != 1) {
-          throw new IllegalArgumentException(
-              "Multiple interfaces implemented by "
-                  + implClass.getName()
-                  + " using a @WorkflowInit annotation. Only one is allowed.");
-        }
-        if (!Arrays.equals(
-            ctor.getParameterTypes(),
-            this.workflowMethods.get(0).getWorkflowMethod().getParameterTypes())) {
-          throw new IllegalArgumentException(
-              "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method.");
-        }
-        constructors = Optional.of(ctor);
-      }
-      this.constructor = constructors.orElse(null);
-      if (this.constructor == null && this.defaultConstructors == null) {
-        throw new IllegalArgumentException(
-            "No default constructor or constructor annotated with @WorkflowInit found in "
-                + implClass.getName());
-      }
+      this.workflowInit =
+          ReflectionUtils.getConstructor(
+                  implClass,
+                  this.workflowMethods.stream()
+                      .map(POJOWorkflowMethodMetadata::getWorkflowMethod)
+                      .collect(Collectors.toList()))
+              .orElse(null);
     } else {
-      this.constructor = null;
+      this.workflowInit = null;
     }
   }
 
@@ -248,11 +212,8 @@ public final class POJOWorkflowImplMetadata {
     return updateValidatorMethods;
   }
 
-  public Constructor<?> getDefaultConstructors() {
-    return defaultConstructors;
-  }
-
-  public Constructor<?> getConstructor() {
-    return constructor;
+  @Experimental
+  public @Nullable Constructor<?> getWorkflowInit() {
+    return workflowInit;
   }
 }
