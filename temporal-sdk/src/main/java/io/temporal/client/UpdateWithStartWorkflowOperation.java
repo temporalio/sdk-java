@@ -40,7 +40,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a zero argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    */
   public static <R> Builder<R> newBuilder(Functions.Func<R> request) {
@@ -54,7 +54,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a one argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    */
@@ -66,7 +66,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a two argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -80,7 +80,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a three argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -95,7 +95,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a four argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -111,7 +111,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a five argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -128,7 +128,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a six argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -152,7 +152,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a zero argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    */
   public static Builder<Void> newBuilder(Functions.Proc request) {
@@ -166,7 +166,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a one argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    */
@@ -178,7 +178,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a two argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -192,7 +192,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a three argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -207,7 +207,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a four argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -223,7 +223,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a five argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
@@ -240,7 +240,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
    * Returns a new builder for an {@link UpdateWithStartWorkflowOperation} for a six argument
    * request.
    *
-   * @param request method reference to a proxy created through {@link
+   * @param request method reference annotated with @UpdateMethod of a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first request function parameter
    * @param arg2 second request function parameter
