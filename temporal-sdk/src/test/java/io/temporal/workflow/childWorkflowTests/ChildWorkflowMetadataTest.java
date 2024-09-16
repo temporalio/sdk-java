@@ -115,13 +115,13 @@ public class ChildWorkflowMetadataTest {
   }
 
   private void assertEventMetadata(HistoryEvent event, String summary, String details) {
-    if (details != null) {
+    if (summary != null) {
       String describedSummary =
           DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
               event.getUserMetadata().getSummary(), String.class, String.class);
       assertEquals(summary, describedSummary);
     }
-    if (summary != null) {
+    if (details != null) {
       String describedDetails =
           DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
               event.getUserMetadata().getDetails(), String.class, String.class);
