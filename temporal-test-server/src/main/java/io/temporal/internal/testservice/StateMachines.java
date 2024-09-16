@@ -789,7 +789,12 @@ class StateMachines {
   private static State failNexusOperation(
       RequestContext ctx, NexusOperationData data, Failure failure, long notUsed) {
     RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
-    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
+    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS
+        || retryState == RetryState.RETRY_STATE_TIMEOUT) {
+      // RETRY_STATE_TIMEOUT indicates that the next attempt schedule time would exceed the
+      // operation's schedule-to-close timeout, so do not fail the operation here and allow
+      // it to be timed out by the timer set in
+      // io.temporal.internal.testservice.TestWorkflowMutableStateImpl.timeoutNexusOperation
       return (Strings.isNullOrEmpty(data.operationId)) ? INITIATED : STARTED;
     }
 
