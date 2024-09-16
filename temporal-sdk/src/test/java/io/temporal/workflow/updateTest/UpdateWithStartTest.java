@@ -22,6 +22,7 @@ package io.temporal.workflow.updateTest;
 
 import static org.junit.Assert.*;
 
+import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -36,7 +37,12 @@ import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -286,6 +292,41 @@ public class UpdateWithStartTest {
     assertEquals("4", handle4.getResultAsync().get());
     assertEquals("5", handle5.getResultAsync().get());
     assertEquals("6", handle6.getResultAsync().get());
+  }
+
+  @Test
+  public void timeoutError() {
+    testWorkflowRule.getTestEnvironment().shutdownNow();
+    testWorkflowRule.getTestEnvironment().awaitTermination(5, TimeUnit.SECONDS);
+
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setWorkflowId(workflowId)
+            .build();
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, 0, "Hello Update")
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+
+    final AtomicReference<WorkflowServiceException> exception = new AtomicReference<>();
+    ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
+    Context.current()
+        .withDeadlineAfter(500, TimeUnit.MILLISECONDS, scheduledExecutor)
+        .run(
+            () ->
+                exception.set(
+                    assertThrows(
+                        WorkflowServiceException.class,
+                        () -> WorkflowClient.updateWithStart(workflow::execute, updateOp))));
+    Assert.assertEquals(workflowId, exception.get().getExecution().getWorkflowId());
+    WorkflowServiceException cause =
+        (WorkflowUpdateTimeoutOrCancelledException) exception.get().getCause();
+    Assert.assertEquals(workflowId, cause.getExecution().getWorkflowId());
   }
 
   @Test
