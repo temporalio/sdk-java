@@ -40,10 +40,11 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,6 +75,26 @@ public class MultiOperationTest {
     WorkflowUpdateHandle<Void> updHandle =
         WorkflowClient.updateWithStart(workflow::execute, updateOp);
     assertNull(updHandle.getResultAsync().get());
+  }
+
+  @Test(timeout = 15000)
+  public void receiveResponseAfterTimeout() {
+    String workflowId = UUID.randomUUID().toString();
+
+    testWorkflowRule.getTestEnvironment().shutdownNow();
+    testWorkflowRule.getTestEnvironment().awaitTermination(5, TimeUnit.SECONDS);
+
+    executeMultiOperation(
+        (builder) ->
+            builder
+                .addOperations(
+                    ExecuteMultiOperationRequest.Operation.newBuilder()
+                        .setStartWorkflow(validStartRequest(workflowId)))
+                .addOperations(
+                    ExecuteMultiOperationRequest.Operation.newBuilder()
+                        .setUpdateWorkflow(validUpdateRequest(workflowId))));
+
+    // TODO
   }
 
   @Test
