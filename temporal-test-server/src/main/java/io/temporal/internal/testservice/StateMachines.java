@@ -608,13 +608,12 @@ class StateMachines {
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
-        // Transitions directly to CANCELED if operation has not been started
         // TODO: properly support cancel before start
-        .add(
-            INITIATED,
-            REQUEST_CANCELLATION,
-            CANCELED,
-            StateMachines::reportNexusOperationCancellation)
+        // .add(
+        //     INITIATED,
+        //     REQUEST_CANCELLATION,
+        //     INITIATED,
+        //     StateMachines::requestCancelNexusOperation)
         .add(INITIATED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation)
         // Transitions directly from INITIATED to COMPLETE for sync completions
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)

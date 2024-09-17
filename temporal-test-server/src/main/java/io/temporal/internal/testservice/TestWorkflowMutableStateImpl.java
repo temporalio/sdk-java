@@ -41,6 +41,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.Endpoint;
@@ -753,14 +754,26 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
 
-    operation.action(Action.REQUEST_CANCELLATION, ctx, null, workflowTaskCompletedId);
-    if (isTerminalState(operation.getState())) {
-      // Operation canceled before started, so immediately remove operation since no new
-      // cancellation task will be generated.
+    if (operation.getState() == State.INITIATED) {
       // TODO: properly support cancel before start once server does
+      ctx.addEvent(
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED)
+              .setNexusOperationCancelRequestedEventAttributes(
+                  NexusOperationCancelRequestedEventAttributes.newBuilder()
+                      .setScheduledEventId(attr.getScheduledEventId())
+                      .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
+              .build());
+      Failure canceled =
+          Failure.newBuilder()
+              .setMessage("operation canceled before it was started")
+              .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+              .build();
+      operation.action(Action.CANCEL, ctx, canceled, workflowTaskCompletedId);
       nexusOperations.remove(scheduleEventId);
       ctx.setNeedWorkflowTask(true);
     } else {
+      operation.action(Action.REQUEST_CANCELLATION, ctx, null, workflowTaskCompletedId);
       ctx.addTimer(
           ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
           () ->
