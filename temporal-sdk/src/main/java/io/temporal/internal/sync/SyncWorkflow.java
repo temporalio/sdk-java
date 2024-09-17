@@ -131,7 +131,7 @@ class SyncWorkflow implements ReplayWorkflow {
             workflowThreadExecutor,
             workflowContext,
             () -> {
-              workflow.initialize();
+              workflowProc.runConstructor();
               WorkflowInternal.newWorkflowMethodThread(
                       () -> workflowProc.runWorkflowMethod(),
                       workflowMethodThreadNameStrategy.createThreadName(

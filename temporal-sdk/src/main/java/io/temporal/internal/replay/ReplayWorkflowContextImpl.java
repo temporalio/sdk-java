@@ -30,6 +30,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -268,7 +269,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Functions.Proc1<RuntimeException> newTimer(
-      Duration delay, Functions.Proc1<RuntimeException> callback) {
+      Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback) {
     if (delay.compareTo(Duration.ZERO) <= 0) {
       callback.apply(null);
       return (e) -> {};
@@ -279,7 +280,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
             .setTimerId(workflowStateMachines.randomUUID().toString())
             .build();
     Functions.Proc cancellationHandler =
-        workflowStateMachines.newTimer(attributes, (event) -> handleTimerCallback(callback, event));
+        workflowStateMachines.newTimer(
+            attributes, metadata, (event) -> handleTimerCallback(callback, event));
     return (e) -> cancellationHandler.apply();
   }
 

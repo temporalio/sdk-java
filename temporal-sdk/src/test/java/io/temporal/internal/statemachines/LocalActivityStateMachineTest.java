@@ -357,7 +357,8 @@ public class LocalActivityStateMachineTest {
         StartChildWorkflowExecutionParameters childRequest =
             new StartChildWorkflowExecutionParameters(
                 StartChildWorkflowExecutionCommandAttributes.newBuilder(),
-                ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
+                ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED,
+                null);
         ExecuteLocalActivityParameters parameters1 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()

@@ -34,14 +34,14 @@ import java.util.Optional;
 
 final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
-  private final Functions.Func<? extends DynamicWorkflow> factory;
+  private final Functions.Func1<EncodedValues, ? extends DynamicWorkflow> factory;
   private final WorkerInterceptor[] workerInterceptors;
   // don't pass it down to other classes, it's a "cached" instance for internal usage only
   private final DataConverter dataConverterWithWorkflowContext;
   private WorkflowInboundCallsInterceptor workflowInvoker;
 
   public DynamicSyncWorkflowDefinition(
-      Functions.Func<? extends DynamicWorkflow> factory,
+      Functions.Func1<EncodedValues, ? extends DynamicWorkflow> factory,
       WorkerInterceptor[] workerInterceptors,
       DataConverter dataConverterWithWorkflowContext) {
     this.factory = factory;
@@ -50,9 +50,9 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   }
 
   @Override
-  public void initialize() {
+  public void initialize(Optional<Payloads> input) {
     SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
-    workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
+    workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext, input);
     for (WorkerInterceptor workerInterceptor : workerInterceptors) {
       workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
     }
@@ -71,15 +71,18 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {
     private DynamicWorkflow workflow;
+    private Optional<Payloads> input;
 
-    public RootWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
+    public RootWorkflowInboundCallsInterceptor(
+        SyncWorkflowContext workflowContext, Optional<Payloads> input) {
       super(workflowContext);
+      this.input = input;
     }
 
     @Override
     public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
       super.init(outboundCalls);
-      newInstance();
+      newInstance(input);
       WorkflowInternal.registerListener(workflow);
     }
 
@@ -89,11 +92,11 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
       return new WorkflowOutput(result);
     }
 
-    private void newInstance() {
+    private void newInstance(Optional<Payloads> input) {
       if (workflow != null) {
         throw new IllegalStateException("Already called");
       }
-      workflow = factory.apply();
+      workflow = factory.apply(new EncodedValues(input, dataConverterWithWorkflowContext));
     }
   }
 }

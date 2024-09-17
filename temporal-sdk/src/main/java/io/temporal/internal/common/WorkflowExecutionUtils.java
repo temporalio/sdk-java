@@ -33,6 +33,7 @@ import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
@@ -238,6 +239,21 @@ public class WorkflowExecutionUtils {
       default:
         throw new IllegalArgumentException("Not a close event: " + event);
     }
+  }
+
+  public static UserMetadata makeUserMetaData(String summary, String details, DataConverter dc) {
+    if (summary == null && details == null) {
+      return null;
+    }
+
+    UserMetadata.Builder builder = UserMetadata.newBuilder();
+    if (summary != null) {
+      builder.setSummary(dc.toPayload(summary).get());
+    }
+    if (details != null) {
+      builder.setDetails(dc.toPayload(details).get());
+    }
+    return builder.build();
   }
 
   public static String prettyPrintCommands(Iterable<Command> commands) {

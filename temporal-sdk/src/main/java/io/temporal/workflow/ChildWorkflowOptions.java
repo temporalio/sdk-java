@@ -73,6 +73,8 @@ public final class ChildWorkflowOptions {
     private List<ContextPropagator> contextPropagators;
     private ChildWorkflowCancellationType cancellationType;
     private VersioningIntent versioningIntent;
+    private String staticSummary;
+    private String staticDetails;
 
     private Builder() {}
 
@@ -96,6 +98,8 @@ public final class ChildWorkflowOptions {
       this.contextPropagators = options.getContextPropagators();
       this.cancellationType = options.getCancellationType();
       this.versioningIntent = options.getVersioningIntent();
+      this.staticSummary = options.getStaticSummary();
+      this.staticDetails = options.getStaticDetails();
     }
 
     /**
@@ -303,6 +307,31 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    /**
+     * Single-line fixed summary for this workflow execution that will appear in UI/CLI. This can be
+     * in single-line Temporal Markdown format.
+     *
+     * <p>Default is none/empty.
+     */
+    @Experimental
+    public Builder setStaticSummary(String staticSummary) {
+      this.staticSummary = staticSummary;
+      return this;
+    }
+
+    /**
+     * General fixed details for this workflow execution that will appear in UI/CLI. This can be in
+     * Temporal Markdown format and can span multiple lines. This is a fixed value on the workflow
+     * that cannot be updated.
+     *
+     * <p>Default is none/empty.
+     */
+    @Experimental
+    public Builder setStaticDetails(String staticDetails) {
+      this.staticDetails = staticDetails;
+      return this;
+    }
+
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
           namespace,
@@ -320,7 +349,9 @@ public final class ChildWorkflowOptions {
           typedSearchAttributes,
           contextPropagators,
           cancellationType,
-          versioningIntent);
+          versioningIntent,
+          staticSummary,
+          staticDetails);
     }
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
@@ -344,7 +375,9 @@ public final class ChildWorkflowOptions {
               : cancellationType,
           versioningIntent == null
               ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
-              : versioningIntent);
+              : versioningIntent,
+          staticSummary,
+          staticDetails);
     }
   }
 
@@ -364,6 +397,8 @@ public final class ChildWorkflowOptions {
   private final List<ContextPropagator> contextPropagators;
   private final ChildWorkflowCancellationType cancellationType;
   private final VersioningIntent versioningIntent;
+  private final String staticSummary;
+  private final String staticDetails;
 
   private ChildWorkflowOptions(
       String namespace,
@@ -381,7 +416,9 @@ public final class ChildWorkflowOptions {
       SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
       ChildWorkflowCancellationType cancellationType,
-      VersioningIntent versioningIntent) {
+      VersioningIntent versioningIntent,
+      String staticSummary,
+      String staticDetails) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -398,6 +435,8 @@ public final class ChildWorkflowOptions {
     this.contextPropagators = contextPropagators;
     this.cancellationType = cancellationType;
     this.versioningIntent = versioningIntent;
+    this.staticSummary = staticSummary;
+    this.staticDetails = staticDetails;
   }
 
   public String getNamespace() {
@@ -468,6 +507,14 @@ public final class ChildWorkflowOptions {
     return versioningIntent;
   }
 
+  public String getStaticSummary() {
+    return staticSummary;
+  }
+
+  public String getStaticDetails() {
+    return staticDetails;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -492,7 +539,9 @@ public final class ChildWorkflowOptions {
         && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equal(contextPropagators, that.contextPropagators)
         && cancellationType == that.cancellationType
-        && versioningIntent == that.versioningIntent;
+        && versioningIntent == that.versioningIntent
+        && Objects.equal(staticSummary, that.staticSummary)
+        && Objects.equal(staticDetails, that.staticDetails);
   }
 
   @Override
@@ -513,7 +562,9 @@ public final class ChildWorkflowOptions {
         typedSearchAttributes,
         contextPropagators,
         cancellationType,
-        versioningIntent);
+        versioningIntent,
+        staticSummary,
+        staticDetails);
   }
 
   @Override
@@ -555,6 +606,10 @@ public final class ChildWorkflowOptions {
         + cancellationType
         + ", versioningIntent="
         + versioningIntent
+        + ", staticSummary="
+        + staticSummary
+        + ", staticDetails="
+        + staticDetails
         + '}';
   }
 }
