@@ -23,9 +23,11 @@ package io.temporal.common.metadata;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableSet;
+import io.temporal.workflow.WorkflowInit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class POJOWorkflowImplMetadataTest {
@@ -148,12 +150,91 @@ public class POJOWorkflowImplMetadataTest {
     POJOWorkflowImplMetadata.newInstance(EmptyImpl.class);
   }
 
-  static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
+  @Test
+  public void testImplementingMultipleWorkflowInterfaceWithInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(MultipleWorkflowWithInit.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed:"));
+    }
+  }
+
+  @Test
+  public void testWorkflowWithBadInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(WorkflowWithMismatchedInit.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method"));
+    }
+  }
+
+  @Test
+  public void testWorkflowWithPrivateInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(WorkflowWithPrivateInit.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage().contains("Constructor with @WorkflowInit annotation must be public"));
+    }
+  }
+
+  @Test
+  public void testWorkflowWithMultipleInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(WorkflowWithMultipleInit.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "Multiple constructors annotated with @WorkflowInit or a default constructor found:"));
+    }
+  }
+
+  @Test
+  public void testWorkflowInheritWithInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(WorkflowInheritWithInit.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "No default constructor or constructor annotated with @WorkflowInit found:"));
+    }
+  }
+
+  @Test
+  public void testWorkflowInit() {
+    POJOWorkflowImplMetadata meta = POJOWorkflowImplMetadata.newInstance(WorkflowWithInit.class);
+    Assert.assertNotNull(meta.getWorkflowInit());
+    Assert.assertEquals(1, meta.getWorkflowInit().getParameterCount());
+    Assert.assertEquals(Integer.class, meta.getWorkflowInit().getParameterTypes()[0]);
+    Assert.assertEquals(WorkflowWithInit.class, meta.getWorkflowInit().getDeclaringClass());
+  }
+
+  @Test
+  public void testWorkflowWithConstructor() {
+    POJOWorkflowImplMetadata meta =
+        POJOWorkflowImplMetadata.newInstance(WorkflowWithConstructor.class);
+    Assert.assertNull(meta.getWorkflowInit());
+  }
+
+  public static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
     @Override
     public void g() {}
   }
 
-  static class DImpl
+  public static class DImpl
       implements POJOWorkflowInterfaceMetadataTest.D, POJOWorkflowInterfaceMetadataTest.E {
 
     @Override
@@ -174,13 +255,13 @@ public class POJOWorkflowImplMetadataTest {
     public void d() {}
   }
 
-  static class DWithAdditionalInterface extends DImpl
+  public static class DWithAdditionalInterface extends DImpl
       implements POJOWorkflowInterfaceMetadataTest.O {
     @Override
     public void someMethod() {}
   }
 
-  static class DuplicatedName1Impl implements POJOWorkflowInterfaceMetadataTest.DE {
+  public static class DuplicatedName1Impl implements POJOWorkflowInterfaceMetadataTest.DE {
 
     @Override
     public void a() {}
@@ -200,7 +281,7 @@ public class POJOWorkflowImplMetadataTest {
     public void d() {}
   }
 
-  static class DuplicatedName2Impl
+  public static class DuplicatedName2Impl
       implements POJOWorkflowInterfaceMetadataTest.F, POJOWorkflowInterfaceMetadataTest.C {
 
     @Override
@@ -221,13 +302,79 @@ public class POJOWorkflowImplMetadataTest {
     public void f() {}
   }
 
-  static class EmptyImpl implements POJOWorkflowInterfaceMetadataTest.Empty {
+  public static class EmptyImpl implements POJOWorkflowInterfaceMetadataTest.Empty {
     public void foo() {}
   }
 
-  static class NoWorkflowImpl implements POJOWorkflowInterfaceMetadataTest.A {
+  public static class NoWorkflowImpl implements POJOWorkflowInterfaceMetadataTest.A {
 
     @Override
     public void a() {}
+  }
+
+  static class MultipleWorkflowWithInit
+      implements POJOWorkflowInterfaceMetadataTest.F, POJOWorkflowInterfaceMetadataTest.I {
+    @WorkflowInit
+    public MultipleWorkflowWithInit() {}
+
+    @Override
+    public void i() {}
+
+    @Override
+    public void f() {}
+  }
+
+  static class WorkflowWithMismatchedInit implements POJOWorkflowInterfaceMetadataTest.F {
+    @WorkflowInit
+    public WorkflowWithMismatchedInit(Integer i) {}
+
+    @Override
+    public void f() {}
+  }
+
+  static class WorkflowWithPrivateInit implements POJOWorkflowInterfaceMetadataTest.F {
+    @WorkflowInit
+    private WorkflowWithPrivateInit() {}
+
+    @Override
+    public void f() {}
+  }
+
+  static class WorkflowWithMultipleInit implements POJOWorkflowInterfaceMetadataTest.H {
+    @WorkflowInit
+    public WorkflowWithMultipleInit(Integer i) {}
+
+    public WorkflowWithMultipleInit() {}
+
+    @Override
+    public void h(Integer i) {}
+  }
+
+  static class WorkflowWithInit implements POJOWorkflowInterfaceMetadataTest.H {
+
+    @WorkflowInit
+    public WorkflowWithInit(Integer i) {}
+
+    @Override
+    public void h(Integer i) {}
+  }
+
+  static class WorkflowInheritWithInit extends WorkflowWithInit
+      implements POJOWorkflowInterfaceMetadataTest.O {
+
+    public WorkflowInheritWithInit(Integer i) {
+      super(i);
+    }
+
+    @Override
+    public void someMethod() {}
+  }
+
+  public static class WorkflowWithConstructor implements POJOWorkflowInterfaceMetadataTest.I {
+
+    public WorkflowWithConstructor() {}
+
+    @Override
+    public void i() {}
   }
 }

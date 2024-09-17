@@ -234,6 +234,7 @@ public class MutableSideEffectStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .<HistoryEvent>add1(
                 (v, c) ->
@@ -241,6 +242,7 @@ public class MutableSideEffectStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
+                        null,
                         c))
             .<Optional<Payloads>>add1(
                 (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))

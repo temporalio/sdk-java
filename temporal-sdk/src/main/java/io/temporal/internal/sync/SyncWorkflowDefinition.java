@@ -28,7 +28,7 @@ import java.util.Optional;
 interface SyncWorkflowDefinition {
 
   /** Always called first. */
-  void initialize();
+  void initialize(Optional<Payloads> input);
 
   Optional<Payloads> execute(Header header, Optional<Payloads> input);
 }

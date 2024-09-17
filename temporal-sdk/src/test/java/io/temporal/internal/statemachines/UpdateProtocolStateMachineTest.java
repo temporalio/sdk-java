@@ -107,6 +107,7 @@ public class UpdateProtocolStateMachineTest {
                             .setStartToFireTimeout(
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
+                        null,
                         c))
             .add(
                 (r) -> {
@@ -465,6 +466,7 @@ public class UpdateProtocolStateMachineTest {
                         .setStartToFireTimeout(
                             ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                         .build(),
+                    null,
                     c));
       }
 
@@ -488,6 +490,7 @@ public class UpdateProtocolStateMachineTest {
                         .setStartToFireTimeout(
                             ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                         .build(),
+                    null,
                     c));
       }
     }

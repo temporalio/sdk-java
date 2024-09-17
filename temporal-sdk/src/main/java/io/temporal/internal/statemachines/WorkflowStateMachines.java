@@ -35,6 +35,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.*;
@@ -812,16 +813,20 @@ public final class WorkflowStateMachines {
    * Creates a new timer state machine
    *
    * @param attributes timer command attributes
+   * @param metadata user provided metadata
    * @param completionCallback invoked when timer fires or reports cancellation. One of
    *     TimerFiredEvent, TimerCanceledEvent.
    * @return cancellation callback that should be invoked to initiate timer cancellation
    */
   public Functions.Proc newTimer(
-      StartTimerCommandAttributes attributes, Functions.Proc1<HistoryEvent> completionCallback) {
+      StartTimerCommandAttributes attributes,
+      UserMetadata metadata,
+      Functions.Proc1<HistoryEvent> completionCallback) {
     checkEventLoopExecuting();
     TimerStateMachine timer =
         TimerStateMachine.newInstance(
             attributes,
+            metadata,
             (event) -> {
               completionCallback.apply(event);
               // Needed due to immediate cancellation
@@ -851,7 +856,12 @@ public final class WorkflowStateMachines {
     ChildWorkflowCancellationType cancellationType = parameters.getCancellationType();
     ChildWorkflowStateMachine child =
         ChildWorkflowStateMachine.newInstance(
-            attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
+            attributes,
+            parameters.getMetadata(),
+            startedCallback,
+            completionCallback,
+            commandSink,
+            stateMachineSink);
     return () -> {
       if (cancellationType == ChildWorkflowCancellationType.ABANDON) {
         notifyChildCanceled(completionCallback);

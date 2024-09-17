@@ -23,6 +23,7 @@ package io.temporal.internal.client;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
+import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -33,6 +34,7 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
@@ -322,13 +324,21 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 .build()
             : null;
 
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            workflowStartInput.getOptions().getStaticSummary(),
+            workflowStartInput.getOptions().getStaticDetails(),
+            dataConverterWithWorkflowContext);
+
     return requestsHelper.newStartWorkflowExecutionRequest(
         workflowStartInput.getWorkflowId(),
         workflowStartInput.getWorkflowType(),
         workflowStartInput.getHeader(),
         workflowStartInput.getOptions(),
         workflowInput.orElse(null),
-        memo);
+        memo,
+        userMetadata);
   }
 
   @Override
