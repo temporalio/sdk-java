@@ -29,6 +29,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
@@ -49,6 +50,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -89,7 +91,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private final Map<Class<?>, Functions.Func<?>> workflowInstanceFactories =
       Collections.synchronizedMap(new HashMap<>());
   /** If present then it is called for any unknown workflow type. */
-  private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
+  private Functions.Func1<EncodedValues, ? extends DynamicWorkflow>
+      dynamicWorkflowImplementationFactory;
 
   private final Map<String, WorkflowImplementationOptions> implementationOptions =
       Collections.synchronizedMap(new HashMap<>());
@@ -135,7 +138,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
             "DynamicWorkflow",
             "An implementation of DynamicWorkflow or its factory is already registered with the worker");
       }
-      dynamicWorkflowImplementationFactory = (Func<? extends DynamicWorkflow>) factory;
+      dynamicWorkflowImplementationFactory =
+          (unused) -> ((Func<? extends DynamicWorkflow>) factory).apply();
       return;
     }
     workflowInstanceFactories.put(clazz, factory);
@@ -160,6 +164,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
               (execution) ->
                   new POJOWorkflowImplementation(
                       clazz,
+                      null,
                       methodMetadata.getWorkflowMethod(),
                       dataConverter.withContext(
                           new WorkflowSerializationContext(namespace, execution.getWorkflowId()))));
@@ -175,24 +180,49 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private <T> void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<T> workflowImplementationClass) {
     if (DynamicWorkflow.class.isAssignableFrom(workflowImplementationClass)) {
-      addWorkflowImplementationFactory(
-          options,
-          workflowImplementationClass,
-          () -> {
-            try {
-              return workflowImplementationClass.getDeclaredConstructor().newInstance();
-            } catch (NoSuchMethodException
-                | InstantiationException
-                | IllegalAccessException
-                | InvocationTargetException e) {
-              // Error to fail workflow task as this can be fixed by a new deployment.
-              throw new Error(
-                  "Failure instantiating workflow implementation class "
-                      + workflowImplementationClass.getName(),
-                  e);
-            }
-          });
-      return;
+      if (dynamicWorkflowImplementationFactory != null) {
+        throw new TypeAlreadyRegisteredException(
+            "DynamicWorkflow",
+            "An implementation of DynamicWorkflow or its factory is already registered with the worker");
+      }
+      try {
+        Method executeMethod =
+            workflowImplementationClass.getMethod("execute", EncodedValues.class);
+        Optional<Constructor<?>> ctor =
+            ReflectionUtils.getConstructor(
+                workflowImplementationClass, Collections.singletonList(executeMethod));
+        dynamicWorkflowImplementationFactory =
+            (encodedValues) -> {
+              if (ctor.isPresent()) {
+                try {
+                  return (DynamicWorkflow) ctor.get().newInstance(encodedValues);
+                } catch (InstantiationException
+                    | IllegalAccessException
+                    | InvocationTargetException e) {
+                  throw wrap(e);
+                }
+              } else {
+                try {
+                  return (DynamicWorkflow)
+                      workflowImplementationClass.getDeclaredConstructor().newInstance();
+                } catch (NoSuchMethodException
+                    | InstantiationException
+                    | IllegalAccessException
+                    | InvocationTargetException e) {
+                  // Error to fail workflow task as this can be fixed by a new deployment.
+                  throw new Error(
+                      "Failure instantiating workflow implementation class "
+                          + workflowImplementationClass.getName(),
+                      e);
+                }
+              }
+            };
+        return;
+      } catch (NoSuchMethodException e) {
+        throw new IllegalArgumentException(
+            "DynamicWorkflow implementation doesn't implement execute method: "
+                + workflowImplementationClass);
+      }
     }
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
@@ -210,6 +240,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
           (execution) ->
               new POJOWorkflowImplementation(
                   workflowImplementationClass,
+                  workflowMetadata.getWorkflowInit(),
                   method,
                   dataConverter.withContext(
                       new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
@@ -281,23 +312,26 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {
     private final Class<?> workflowImplementationClass;
     private final Method workflowMethod;
+    private final Constructor<?> ctor;
     private WorkflowInboundCallsInterceptor workflowInvoker;
     // don't pass it down to other classes, it's a "cached" instance for internal usage only
     private final DataConverter dataConverterWithWorkflowContext;
 
     public POJOWorkflowImplementation(
         Class<?> workflowImplementationClass,
+        Constructor<?> ctor,
         Method workflowMethod,
         DataConverter dataConverterWithWorkflowContext) {
       this.workflowImplementationClass = workflowImplementationClass;
+      this.ctor = ctor;
       this.workflowMethod = workflowMethod;
       this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
     }
 
     @Override
-    public void initialize() {
+    public void initialize(Optional<Payloads> input) {
       SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
-      workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
+      workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext, input);
       for (WorkerInterceptor workerInterceptor : workerInterceptors) {
         workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
       }
@@ -324,15 +358,18 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     private class RootWorkflowInboundCallsInterceptor
         extends BaseRootWorkflowInboundCallsInterceptor {
       private Object workflow;
+      private Optional<Payloads> input;
 
-      public RootWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
+      public RootWorkflowInboundCallsInterceptor(
+          SyncWorkflowContext workflowContext, Optional<Payloads> input) {
         super(workflowContext);
+        this.input = input;
       }
 
       @Override
       public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
         super.init(outboundCalls);
-        newInstance();
+        newInstance(input);
         WorkflowInternal.registerListener(workflow);
       }
 
@@ -349,23 +386,46 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         }
       }
 
-      protected void newInstance() {
+      protected void newInstance(Optional<Payloads> input) {
         Func<?> factory = workflowInstanceFactories.get(workflowImplementationClass);
         if (factory != null) {
           workflow = factory.apply();
         } else {
-          try {
-            workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
-          } catch (NoSuchMethodException
-              | InstantiationException
-              | IllegalAccessException
-              | InvocationTargetException e) {
-            // Error to fail workflow task as this can be fixed by a new deployment.
-            throw new Error(
-                "Failure instantiating workflow implementation class "
-                    + workflowImplementationClass.getName(),
-                e);
+          // Historically any exception thrown from the constructor was wrapped into Error causing a
+          // workflow task failure.
+          // This is not consistent with throwing exception from the workflow method which can
+          // causes a workflow failure depending on the exception type.
+          // To preserve backwards compatibility we only change behaviour if a constructor is
+          // annotated with WorkflowInit.
+          if (ctor != null) {
+            try {
+              workflow =
+                  ctor.newInstance(
+                      dataConverterWithWorkflowContext.fromPayloads(
+                          input, ctor.getParameterTypes(), ctor.getGenericParameterTypes()));
+            } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+              throw wrap(e);
+            }
+          } else {
+            legacyNewInstance();
           }
+        }
+      }
+
+      private void legacyNewInstance() {
+        try {
+          workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException
+            | InstantiationException
+            | IllegalAccessException
+            | InvocationTargetException e) {
+          // Error to fail workflow task as this can be fixed by a new deployment.
+          throw new Error(
+              "Failure instantiating workflow implementation class "
+                  + workflowImplementationClass.getName(),
+              e);
         }
       }
     }
