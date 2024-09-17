@@ -34,6 +34,7 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValues;
@@ -138,6 +139,8 @@ final class ChildWorkflowStateMachine
 
   private StartChildWorkflowExecutionCommandAttributes startAttributes;
 
+  private UserMetadata metadata;
+
   private final Functions.Proc2<WorkflowExecution, Exception> startedCallback;
 
   private final Functions.Proc2<Optional<Payloads>, Exception> completionCallback;
@@ -146,28 +149,32 @@ final class ChildWorkflowStateMachine
    * Creates a new child workflow state machine
    *
    * @param attributes child workflow start command attributes
+   * @param metadata user metadata to be associated with the child workflow
    * @param startedCallback callback that is notified about child start
    * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
    */
   public static ChildWorkflowStateMachine newInstance(
       StartChildWorkflowExecutionCommandAttributes attributes,
+      UserMetadata metadata,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     return new ChildWorkflowStateMachine(
-        attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
+        attributes, metadata, startedCallback, completionCallback, commandSink, stateMachineSink);
   }
 
   private ChildWorkflowStateMachine(
       StartChildWorkflowExecutionCommandAttributes startAttributes,
+      UserMetadata metadata,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.startAttributes = startAttributes;
+    this.metadata = metadata;
     this.workflowType = startAttributes.getWorkflowType().getName();
     this.namespace = startAttributes.getNamespace();
     this.workflowId = startAttributes.getWorkflowId();
@@ -177,11 +184,16 @@ final class ChildWorkflowStateMachine
   }
 
   public void createStartChildCommand() {
-    addCommand(
+    Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION)
-            .setStartChildWorkflowExecutionCommandAttributes(startAttributes)
-            .build());
+            .setStartChildWorkflowExecutionCommandAttributes(startAttributes);
+
+    if (metadata != null) {
+      command.setUserMetadata(metadata);
+      metadata = null;
+    }
+    addCommand(command.build());
     startAttributes = null; // avoiding retaining large input for the duration of the child
   }
 

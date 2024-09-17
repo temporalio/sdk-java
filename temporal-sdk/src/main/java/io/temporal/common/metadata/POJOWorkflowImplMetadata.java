@@ -22,7 +22,11 @@ package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
 import io.temporal.common.Experimental;
+import io.temporal.internal.common.env.ReflectionUtils;
+import java.lang.reflect.Constructor;
 import java.util.*;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Rules:
@@ -69,6 +73,7 @@ public final class POJOWorkflowImplMetadata {
   private final List<POJOWorkflowMethodMetadata> queryMethods;
   private final List<POJOWorkflowMethodMetadata> updateMethods;
   private final List<POJOWorkflowMethodMetadata> updateValidatorMethods;
+  private final Constructor<?> workflowInit;
 
   /**
    * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
@@ -161,6 +166,17 @@ public final class POJOWorkflowImplMetadata {
     this.queryMethods = ImmutableList.copyOf(queryMethods.values());
     this.updateMethods = ImmutableList.copyOf(updateMethods.values());
     this.updateValidatorMethods = ImmutableList.copyOf(updateValidatorMethods.values());
+    if (!listener) {
+      this.workflowInit =
+          ReflectionUtils.getConstructor(
+                  implClass,
+                  this.workflowMethods.stream()
+                      .map(POJOWorkflowMethodMetadata::getWorkflowMethod)
+                      .collect(Collectors.toList()))
+              .orElse(null);
+    } else {
+      this.workflowInit = null;
+    }
   }
 
   /** List of workflow interfaces an object implements. */
@@ -193,5 +209,10 @@ public final class POJOWorkflowImplMetadata {
   @Experimental
   public List<POJOWorkflowMethodMetadata> getUpdateValidatorMethods() {
     return updateValidatorMethods;
+  }
+
+  @Experimental
+  public @Nullable Constructor<?> getWorkflowInit() {
+    return workflowInit;
   }
 }

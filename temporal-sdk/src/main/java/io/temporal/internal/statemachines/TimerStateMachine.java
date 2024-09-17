@@ -27,7 +27,9 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.TimerCanceledEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
+import javax.annotation.Nullable;
 
 final class TimerStateMachine
     extends EntityStateMachineInitialCommand<
@@ -35,31 +37,38 @@ final class TimerStateMachine
 
   private final StartTimerCommandAttributes startAttributes;
 
+  private UserMetadata metadata;
+
   private final Functions.Proc1<HistoryEvent> completionCallback;
 
   /**
    * Creates a new timer state machine
    *
    * @param attributes timer command attributes
+   * @param metadata user metadata to be associate with the timer
    * @param completionCallback invoked when timer fires or reports cancellation. One of
    *     TimerFiredEvent, TimerCanceledEvent.
    * @return cancellation callback that should be invoked to initiate timer cancellation
    */
   public static TimerStateMachine newInstance(
       StartTimerCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc1<HistoryEvent> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    return new TimerStateMachine(attributes, completionCallback, commandSink, stateMachineSink);
+    return new TimerStateMachine(
+        attributes, metadata, completionCallback, commandSink, stateMachineSink);
   }
 
   private TimerStateMachine(
       StartTimerCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc1<HistoryEvent> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink, attributes.getTimerId());
     this.startAttributes = attributes;
+    this.metadata = metadata;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -127,11 +136,17 @@ final class TimerStateMachine
                   TimerStateMachine::notifyCancellation);
 
   private void createStartTimerCommand() {
-    addCommand(
+    Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_START_TIMER)
-            .setStartTimerCommandAttributes(startAttributes)
-            .build());
+            .setStartTimerCommandAttributes(startAttributes);
+
+    if (metadata != null) {
+      command.setUserMetadata(metadata);
+      metadata = null;
+    }
+
+    addCommand(command.build());
   }
 
   public void cancel() {

@@ -588,6 +588,8 @@ public interface WorkflowOutboundCallsInterceptor {
 
   Promise<Void> newTimer(Duration duration);
 
+  Promise<Void> newTimer(Duration duration, TimerOptions options);
+
   <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func);
 
   <R> R mutableSideEffect(

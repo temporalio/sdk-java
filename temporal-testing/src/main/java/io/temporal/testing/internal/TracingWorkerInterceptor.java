@@ -28,10 +28,7 @@ import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.interceptors.*;
 import io.temporal.internal.sync.WorkflowMethodThreadNameStrategy;
-import io.temporal.workflow.Functions;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInfo;
+import io.temporal.workflow.*;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -245,6 +242,14 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         trace.add("newTimer " + duration);
       }
       return next.newTimer(duration);
+    }
+
+    @Override
+    public Promise<Void> newTimer(Duration duration, TimerOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("newTimer " + duration);
+      }
+      return next.newTimer(duration, options);
     }
 
     @Override

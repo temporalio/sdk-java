@@ -21,6 +21,7 @@
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
+import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -29,6 +30,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
@@ -86,6 +88,13 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 .build()
             : null;
 
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            input.getOptions().getStaticSummary(),
+            input.getOptions().getStaticDetails(),
+            dataConverterWithWorkflowContext);
+
     StartWorkflowExecutionRequest.Builder request =
         requestsHelper.newStartWorkflowExecutionRequest(
             input.getWorkflowId(),
@@ -93,7 +102,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             input.getHeader(),
             input.getOptions(),
             inputArgs.orElse(null),
-            memo);
+            memo,
+            userMetadata);
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
       request.setRequestEagerExecution(requestEagerExecution);
@@ -173,6 +183,13 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 .build()
             : null;
 
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            workflowStartInput.getOptions().getStaticSummary(),
+            workflowStartInput.getOptions().getStaticDetails(),
+            dataConverterWithWorkflowContext);
+
     StartWorkflowExecutionRequestOrBuilder startRequest =
         requestsHelper.newStartWorkflowExecutionRequest(
             workflowStartInput.getWorkflowId(),
@@ -180,7 +197,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             workflowStartInput.getHeader(),
             workflowStartInput.getOptions(),
             workflowInput.orElse(null),
-            memo);
+            memo,
+            userMetadata);
 
     Optional<Payloads> signalInput =
         dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
