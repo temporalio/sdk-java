@@ -482,6 +482,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public Scope getMetricsScope() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Object newChildThread(Runnable runnable, boolean detached, String name) {
       throw new UnsupportedOperationException("not implemented");
     }

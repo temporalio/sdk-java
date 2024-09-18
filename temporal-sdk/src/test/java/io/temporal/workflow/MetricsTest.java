@@ -61,6 +61,7 @@ import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.ReceiveSignalObjectWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -77,6 +78,7 @@ public class MetricsTest {
 
   private static final long REPORTING_FLUSH_TIME = 600;
   private static final String TASK_QUEUE = "metrics_test";
+  private static final String TEST_TAG = "test_tag";
   private TestWorkflowEnvironment testEnvironment;
   private TestStatsReporter reporter;
 
@@ -241,6 +243,44 @@ public class MetricsTest {
             .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
+  }
+
+  @Test
+  public void testWorkflowMetricsInterceptor() throws InterruptedException {
+    setUp(
+        WorkerFactoryOptions.getDefaultInstance().toBuilder()
+            .setWorkerInterceptors(new WorkerInterceptor())
+            .build());
+
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(
+        TestCustomMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
+    worker.registerActivitiesImplementations(new TestActivityImpl());
+    testEnvironment.start();
+
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+            .setTaskQueue(TASK_QUEUE)
+            .build();
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
+    workflow.execute();
+
+    Thread.sleep(REPORTING_FLUSH_TIME);
+
+    Map<String, String> workflowTags = new LinkedHashMap<>(TAGS_TASK_QUEUE);
+    // Assert the interceptor added the extra tag
+    workflowTags.put(TEST_TAG, NAMESPACE);
+
+    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+    reporter.assertCounter("test_started", workflowTags, 1);
+    reporter.assertCounter("test_done", workflowTags, 1);
+
+    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow");
+    reporter.assertCounter("test_child_started", workflowTags, 1);
+    reporter.assertCounter("test_child_done", workflowTags, 1);
+    reporter.assertTimerMinDuration("test_timer", workflowTags, Duration.ofSeconds(3));
   }
 
   @Test
@@ -598,6 +638,35 @@ public class MetricsTest {
               overrideSignalName.apply(input.getSignalName()),
               Header.empty(),
               overrideArgs.apply(args)));
+    }
+  }
+
+  private static class WorkerInterceptor extends WorkerInterceptorBase {
+    @Override
+    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+      return new WorkflowInboundCallsInterceptorBase(next) {
+        @Override
+        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+          next.init(new OutboundCallsInterceptor(outboundCalls));
+        }
+      };
+    }
+  }
+
+  private static class OutboundCallsInterceptor extends WorkflowOutboundCallsInterceptorBase {
+    WorkflowOutboundCallsInterceptor next;
+
+    public OutboundCallsInterceptor(WorkflowOutboundCallsInterceptor next) {
+      super(next);
+      this.next = next;
+    }
+
+    @Override
+    public Scope getMetricsScope() {
+      return next.getMetricsScope()
+          .tagged(
+              Collections.singletonMap(
+                  TEST_TAG, String.valueOf(Workflow.getInfo().getNamespace())));
     }
   }
 }

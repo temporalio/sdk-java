@@ -23,6 +23,7 @@ package io.temporal.testing.internal;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.SearchAttributeUpdate;
@@ -396,6 +397,14 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         trace.add("upsertMemo");
       }
       next.upsertMemo(memo);
+    }
+
+    @Override
+    public Scope getMetricsScope() {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("getMetricsScope");
+      }
+      return next.getMetricsScope();
     }
 
     @Override

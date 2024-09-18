@@ -20,6 +20,7 @@
 
 package io.temporal.common.interceptors;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -620,6 +621,9 @@ public interface WorkflowOutboundCallsInterceptor {
   void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates);
 
   void upsertMemo(Map<String, Object> memo);
+
+  /** Intercepts call to get the metric scope in a workflow. */
+  Scope getMetricsScope();
 
   /**
    * Intercepts creation of a workflow child thread.

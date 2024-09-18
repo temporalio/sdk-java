@@ -640,7 +640,7 @@ public final class WorkflowInternal {
   }
 
   public static Scope getMetricsScope() {
-    return getRootWorkflowContext().getMetricsScope();
+    return getWorkflowOutboundInterceptor().getMetricsScope();
   }
 
   private static boolean isLoggingEnabledInReplay() {
