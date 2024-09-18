@@ -35,9 +35,6 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
-import io.temporal.internal.worker.SyncActivityWorker;
-import io.temporal.internal.worker.SyncWorkflowWorker;
-import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
@@ -403,8 +400,7 @@ public final class Worker {
   /**
    * Register Nexus service implementation objects with a worker.
    *
-   * <p>An Nexus service object must implement at least one interface annotated with {@link
-   * io.nexusrpc.handler.ServiceImpl}.
+   * <p>A Nexus service object must be annotated with {@link io.nexusrpc.handler.ServiceImpl}.
    *
    * @throws TypeAlreadyRegisteredException if one of the services is already registered
    */

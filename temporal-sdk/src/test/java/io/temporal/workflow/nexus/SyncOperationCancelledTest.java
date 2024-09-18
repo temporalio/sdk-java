@@ -20,8 +20,6 @@
 
 package io.temporal.workflow.nexus;
 
-import static org.junit.Assume.assumeTrue;
-
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -34,7 +32,6 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -45,13 +42,6 @@ public class SyncOperationCancelledTest extends BaseNexusTest {
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
-
-  @Before
-  public void checkExternal() {
-    assumeTrue(
-        "Test Server does not retry internal errors correctly. Skip the test for now.",
-        testWorkflowRule.isUseExternalService());
-  }
 
   @Override
   protected SDKTestWorkflowRule getTestWorkflowRule() {
