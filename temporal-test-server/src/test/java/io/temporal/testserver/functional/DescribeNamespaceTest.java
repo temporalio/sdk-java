@@ -51,6 +51,10 @@ public class DescribeNamespaceTest {
     assertEquals(
         RegisterTestNamespace.NAMESPACE, describeNamespaceResponse.getNamespaceInfo().getName());
     assertTrue(describeNamespaceResponse.getNamespaceInfo().getId().length() > 0);
+    assertNotNull(describeNamespaceResponse.getNamespaceInfo().getCapabilities());
+    assertTrue(describeNamespaceResponse.getNamespaceInfo().getCapabilities().getEagerWorkflowStart());
+    assertTrue(describeNamespaceResponse.getNamespaceInfo().getCapabilities().getSyncUpdate());
+    assertTrue(describeNamespaceResponse.getNamespaceInfo().getCapabilities().getAsyncUpdate());
   }
 
   @Test
