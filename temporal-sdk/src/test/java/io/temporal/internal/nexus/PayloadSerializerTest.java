@@ -33,15 +33,12 @@ public class PayloadSerializerTest {
   public void testPayload() {
     String original = "test";
     PayloadSerializer.Content content = payloadSerializer.serialize(original);
-    Assert.assertEquals("json/plain", content.getHeaders().get("encoding"));
     Assert.assertEquals(original, payloadSerializer.deserialize(content, String.class));
   }
 
   @Test
   public void testNull() {
     PayloadSerializer.Content content = payloadSerializer.serialize(null);
-    Assert.assertEquals(0, content.getData().length);
-    Assert.assertEquals("binary/null", content.getHeaders().get("encoding"));
     payloadSerializer.deserialize(content, String.class);
     Assert.assertEquals(null, payloadSerializer.deserialize(content, String.class));
   }

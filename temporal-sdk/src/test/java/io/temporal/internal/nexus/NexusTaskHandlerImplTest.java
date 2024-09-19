@@ -20,6 +20,7 @@
 
 package io.temporal.internal.nexus;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.Duration;
@@ -27,6 +28,7 @@ import io.nexusrpc.Header;
 import io.nexusrpc.OperationInfo;
 import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.handler.*;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Request;
 import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
@@ -81,6 +83,7 @@ public class NexusTaskHandlerImplTest {
         new Object[] {new TestNexusServiceImpl()});
     nexusTaskHandlerImpl.start();
 
+    Payload originalPayload = dataConverter.toPayload("world").get();
     PollNexusTaskQueueResponse.Builder task =
         PollNexusTaskQueueResponse.newBuilder()
             .setRequest(
@@ -89,7 +92,13 @@ public class NexusTaskHandlerImplTest {
                         StartOperationRequest.newBuilder()
                             .setOperation("operation")
                             .setService("TestNexusService1")
-                            .setPayload(dataConverter.toPayload("world").get())
+                            // Passing bytes that are not valid UTF-8 to make sure this does not
+                            // error out
+                            .setPayload(
+                                Payload.newBuilder(originalPayload)
+                                    .putMetadata(
+                                        "ByteKey", ByteString.copyFrom("\\xc3\\x28".getBytes()))
+                                    .build())
                             .build()));
 
     NexusTaskHandler.Result result =

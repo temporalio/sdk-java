@@ -21,6 +21,7 @@
 package io.temporal.internal.nexus;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.FailureInfo;
 import io.nexusrpc.Header;
@@ -179,7 +180,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   }
 
   private StartOperationResponse handleStartOperation(
-      OperationContext.Builder ctx, StartOperationRequest task) {
+      OperationContext.Builder ctx, StartOperationRequest task)
+      throws InvalidProtocolBufferException {
     ctx.setService(task.getService()).setOperation(task.getOperation());
 
     OperationStartDetails.Builder operationStartDetails =
@@ -189,24 +191,17 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     task.getCallbackHeaderMap().forEach(operationStartDetails::putCallbackHeader);
 
     HandlerInputContent.Builder input =
-        HandlerInputContent.newBuilder().setDataStream(task.getPayload().getData().newInput());
-    task.getPayload().getMetadataMap().forEach((k, v) -> input.putHeader(k, v.toStringUtf8()));
+        HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
 
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
     try {
       OperationStartResult<HandlerResultContent> result =
           serviceHandler.startOperation(ctx.build(), operationStartDetails.build(), input.build());
       if (result.isSync()) {
-        StartOperationResponse.Sync.Builder sync = StartOperationResponse.Sync.newBuilder();
-        Payload.Builder payload =
-            Payload.newBuilder()
-                .setData(ByteString.copyFrom(result.getSyncResult().getDataBytes()));
-        result
-            .getSyncResult()
-            .getHeaders()
-            .forEach((k, v) -> payload.putMetadata(k, ByteString.copyFromUtf8(v)));
-        sync.setPayload(payload.build());
-        startResponseBuilder.setSyncSuccess(sync.build());
+        startResponseBuilder.setSyncSuccess(
+            StartOperationResponse.Sync.newBuilder()
+                .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                .build());
       } else {
         startResponseBuilder.setAsyncSuccess(
             StartOperationResponse.Async.newBuilder()
