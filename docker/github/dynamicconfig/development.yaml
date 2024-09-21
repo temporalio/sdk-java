@@ -24,5 +24,5 @@ component.nexusoperations.callback.endpoint.template:
   - value: http://localhost:7243/api/v1/namespaces/{{.NamespaceName}}/nexus/callback
 component.callbacks.allowedAddresses:
   - value:
-      - Pattern: "*"
+      - Pattern: "localhost:7243"
         AllowInsecure: true

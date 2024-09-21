@@ -144,7 +144,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     } finally {
       // If the task timed out, we should not send a response back to the server
       if (timedOut.get()) {
-        throw new TimeoutException("Nexus task complete after timeout.");
+        throw new TimeoutException("Nexus task completed after timeout.");
       }
       canceller.cancel("");
       if (timeoutTask != null) {
