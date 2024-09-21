@@ -95,6 +95,10 @@ public final class NexusOperationOptions {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
   }
 
+  public NexusOperationOptions.Builder toBuilder() {
+    return new NexusOperationOptions.Builder(this);
+  }
+
   private Duration scheduleToCloseTimeout;
 
   public Duration getScheduleToCloseTimeout() {
