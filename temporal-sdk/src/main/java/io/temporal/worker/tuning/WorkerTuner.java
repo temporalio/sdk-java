@@ -43,4 +43,10 @@ public interface WorkerTuner {
    */
   @Nonnull
   SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier();
+
+  /**
+   * @return A {@link SlotSupplier} for nexus tasks.
+   */
+  @Nonnull
+  SlotSupplier<NexusSlotInfo> getNexusSlotSupplier();
 }

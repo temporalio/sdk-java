@@ -59,9 +59,11 @@ public final class WorkerOptions {
 
     private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS = 5;
     private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS = 5;
+    private static final int DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS = 5;
     private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 200;
+    private static final int DEFAULT_MAX_CONCURRENT_NEXUS_EXECUTION_SIZE = 200;
     private static final long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
     private static final Duration DEFAULT_MAX_HEARTBEAT_THROTTLE_INTERVAL = Duration.ofSeconds(60);
     private static final Duration DEFAULT_DEFAULT_HEARTBEAT_THROTTLE_INTERVAL =
@@ -71,9 +73,11 @@ public final class WorkerOptions {
     private int maxConcurrentActivityExecutionSize;
     private int maxConcurrentWorkflowTaskExecutionSize;
     private int maxConcurrentLocalActivityExecutionSize;
+    private int maxConcurrentNexusExecutionSize;
     private double maxTaskQueueActivitiesPerSecond;
     private int maxConcurrentWorkflowTaskPollers;
     private int maxConcurrentActivityTaskPollers;
+    private int maxConcurrentNexusTaskPollers;
     private boolean localActivityWorkerOnly;
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
@@ -96,9 +100,11 @@ public final class WorkerOptions {
       this.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
       this.maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
       this.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
+      this.maxConcurrentNexusExecutionSize = o.maxConcurrentNexusExecutionSize;
       this.workerTuner = o.workerTuner;
       this.maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
       this.maxConcurrentWorkflowTaskPollers = o.maxConcurrentWorkflowTaskPollers;
+      this.maxConcurrentNexusTaskPollers = o.maxConcurrentNexusTaskPollers;
       this.maxConcurrentActivityTaskPollers = o.maxConcurrentActivityTaskPollers;
       this.localActivityWorkerOnly = o.localActivityWorkerOnly;
       this.defaultDeadlockDetectionTimeout = o.defaultDeadlockDetectionTimeout;
@@ -184,6 +190,22 @@ public final class WorkerOptions {
     }
 
     /**
+     * @param maxConcurrentNexusExecutionSize Maximum number of nexus tasks executed in parallel.
+     *     Default is 200, which is chosen if set to zero.
+     * @return {@code this}
+     *     <p>Note setting is mutually exclusive with {@link #setWorkerTuner(WorkerTuner)}
+     */
+    @Experimental
+    public Builder setMaxConcurrentNexusExecutionSize(int maxConcurrentNexusExecutionSize) {
+      if (maxConcurrentNexusExecutionSize < 0) {
+        throw new IllegalArgumentException(
+            "Negative maxConcurrentNexusExecutionSize value: " + maxConcurrentNexusExecutionSize);
+      }
+      this.maxConcurrentNexusExecutionSize = maxConcurrentNexusExecutionSize;
+      return this;
+    }
+
+    /**
      * Optional: Sets the rate limiting on number of activities that can be executed per second.
      * This is managed by the server and controls activities per second for the entire task queue
      * across all the workers. Notice that the number is represented in double, so that you can set
@@ -208,6 +230,19 @@ public final class WorkerOptions {
      */
     public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
+      return this;
+    }
+
+    /**
+     * Sets the maximum number of simultaneous long poll requests to the Temporal Server to retrieve
+     * nexus tasks. Changing this value will affect the rate at which the worker is able to consume
+     * tasks from a task queue.
+     *
+     * <p>Default is 5, which is chosen if set to zero.
+     */
+    @Experimental
+    public Builder setMaxConcurrentNexusTaskPollers(int maxConcurrentNexusTaskPollers) {
+      this.maxConcurrentNexusTaskPollers = maxConcurrentNexusTaskPollers;
       return this;
     }
 
@@ -400,10 +435,12 @@ public final class WorkerOptions {
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowTaskExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
+          maxConcurrentNexusExecutionSize,
           workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers,
+          maxConcurrentNexusTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout,
           maxHeartbeatThrottleInterval,
@@ -462,6 +499,8 @@ public final class WorkerOptions {
       Preconditions.checkState(
           stickyTaskQueueDrainTimeout == null || !stickyTaskQueueDrainTimeout.isNegative(),
           "negative stickyTaskQueueDrainTimeout");
+      Preconditions.checkState(
+          maxConcurrentNexusTaskPollers >= 0, "negative maxConcurrentNexusTaskPollers");
 
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -474,6 +513,9 @@ public final class WorkerOptions {
           maxConcurrentLocalActivityExecutionSize == 0
               ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
               : maxConcurrentLocalActivityExecutionSize,
+          maxConcurrentNexusExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_NEXUS_EXECUTION_SIZE
+              : maxConcurrentNexusExecutionSize,
           workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
@@ -482,6 +524,9 @@ public final class WorkerOptions {
           maxConcurrentActivityTaskPollers == 0
               ? DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
               : maxConcurrentActivityTaskPollers,
+          maxConcurrentNexusTaskPollers == 0
+              ? DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS
+              : maxConcurrentNexusTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout == 0
               ? DEFAULT_DEADLOCK_DETECTION_TIMEOUT
@@ -509,10 +554,12 @@ public final class WorkerOptions {
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowTaskExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
+  private final int maxConcurrentNexusExecutionSize;
   private final WorkerTuner workerTuner;
   private final double maxTaskQueueActivitiesPerSecond;
   private final int maxConcurrentWorkflowTaskPollers;
   private final int maxConcurrentActivityTaskPollers;
+  private final int maxConcurrentNexusTaskPollers;
   private final boolean localActivityWorkerOnly;
   private final long defaultDeadlockDetectionTimeout;
   private final Duration maxHeartbeatThrottleInterval;
@@ -529,10 +576,12 @@ public final class WorkerOptions {
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowTaskExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
+      int maxConcurrentNexusExecutionSize,
       WorkerTuner workerTuner,
       double maxTaskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
       int activityPollThreadCount,
+      int nexusPollThreadCount,
       boolean localActivityWorkerOnly,
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
@@ -547,10 +596,12 @@ public final class WorkerOptions {
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
+    this.maxConcurrentNexusExecutionSize = maxConcurrentNexusExecutionSize;
     this.workerTuner = workerTuner;
     this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
     this.maxConcurrentWorkflowTaskPollers = workflowPollThreadCount;
     this.maxConcurrentActivityTaskPollers = activityPollThreadCount;
+    this.maxConcurrentNexusTaskPollers = nexusPollThreadCount;
     this.localActivityWorkerOnly = localActivityWorkerOnly;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
@@ -579,6 +630,10 @@ public final class WorkerOptions {
     return maxConcurrentLocalActivityExecutionSize;
   }
 
+  public int getMaxConcurrentNexusExecutionSize() {
+    return maxConcurrentNexusExecutionSize;
+  }
+
   public double getMaxTaskQueueActivitiesPerSecond() {
     return maxTaskQueueActivitiesPerSecond;
   }
@@ -605,6 +660,10 @@ public final class WorkerOptions {
 
   public int getMaxConcurrentActivityTaskPollers() {
     return maxConcurrentActivityTaskPollers;
+  }
+
+  public int getMaxConcurrentNexusTaskPollers() {
+    return maxConcurrentNexusTaskPollers;
   }
 
   public long getDefaultDeadlockDetectionTimeout() {
@@ -662,9 +721,11 @@ public final class WorkerOptions {
         && maxConcurrentActivityExecutionSize == that.maxConcurrentActivityExecutionSize
         && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
         && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
+        && maxConcurrentNexusExecutionSize == that.maxConcurrentNexusExecutionSize
         && compare(maxTaskQueueActivitiesPerSecond, that.maxTaskQueueActivitiesPerSecond) == 0
         && maxConcurrentWorkflowTaskPollers == that.maxConcurrentWorkflowTaskPollers
         && maxConcurrentActivityTaskPollers == that.maxConcurrentActivityTaskPollers
+        && maxConcurrentNexusTaskPollers == that.maxConcurrentNexusTaskPollers
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && disableEagerExecution == that.disableEagerExecution
@@ -685,10 +746,12 @@ public final class WorkerOptions {
         maxConcurrentActivityExecutionSize,
         maxConcurrentWorkflowTaskExecutionSize,
         maxConcurrentLocalActivityExecutionSize,
+        maxConcurrentNexusExecutionSize,
         workerTuner,
         maxTaskQueueActivitiesPerSecond,
         maxConcurrentWorkflowTaskPollers,
         maxConcurrentActivityTaskPollers,
+        maxConcurrentNexusTaskPollers,
         localActivityWorkerOnly,
         defaultDeadlockDetectionTimeout,
         maxHeartbeatThrottleInterval,
@@ -712,6 +775,8 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowTaskExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
+        + ", maxConcurrentNexusExecutionSize="
+        + maxConcurrentNexusExecutionSize
         + ", workerTuner="
         + workerTuner
         + ", maxTaskQueueActivitiesPerSecond="
@@ -720,6 +785,8 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowTaskPollers
         + ", maxConcurrentActivityTaskPollers="
         + maxConcurrentActivityTaskPollers
+        + ", maxConcurrentNexusTaskPollers="
+        + maxConcurrentNexusTaskPollers
         + ", localActivityWorkerOnly="
         + localActivityWorkerOnly
         + ", defaultDeadlockDetectionTimeout="

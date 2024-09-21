@@ -18,3 +18,11 @@ worker.buildIdScavengerEnabled:
     - value: true
 worker.removableBuildIdDurationSinceDefault:
     - value: 1
+system.enableNexus:
+  - value: true
+component.nexusoperations.callback.endpoint.template:
+  - value: http://localhost:7243/api/v1/namespaces/{{.NamespaceName}}/nexus/callback
+component.callbacks.allowedAddresses:
+  - value:
+      - Pattern: "localhost:7243"
+        AllowInsecure: true
