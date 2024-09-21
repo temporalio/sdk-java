@@ -64,7 +64,7 @@ public final class WorkflowHandle<R> {
   }
 
   /**
-   * Create a handle to a two argument workflow with void return type
+   * Create a handle to a three argument workflow with void return type
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -77,6 +77,66 @@ public final class WorkflowHandle<R> {
       Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
     return new WorkflowHandle(
         new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3)));
+  }
+
+  /**
+   * Create a handle to a four argument workflow with void return type
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 third workflow argument
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, A4> WorkflowHandle<Void> fromWorkflowMethod(
+      Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3, arg4)));
+  }
+
+  /**
+   * Create a handle to a five argument workflow with void return type
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param arg5 fifth workflow argument
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, A4, A5> WorkflowHandle<Void> fromWorkflowMethod(
+      Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5)));
+  }
+
+  /**
+   * Create a handle to a five argument workflow with void return type
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param arg5 fifth workflow argument
+   * @param arg6 fifth workflow argument
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, A4, A5, A6> WorkflowHandle<Void> fromWorkflowMethod(
+      Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6)));
   }
 
   /**
@@ -115,6 +175,87 @@ public final class WorkflowHandle<R> {
   public static <A1, A2, R> WorkflowHandle<R> fromWorkflowMethod(
       Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
     return new WorkflowHandle(new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2)));
+  }
+
+  /**
+   * Create a handle to a three argument workflow.
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow function parameter
+   * @param arg2 second workflow function parameter
+   * @param arg3 third workflow function parameter
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, R> WorkflowHandle<R> fromWorkflowMethod(
+      Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3)));
+  }
+
+  /**
+   * Create a handle to a four argument workflow.
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow function parameter
+   * @param arg2 second workflow function parameter
+   * @param arg3 third workflow function parameter
+   * @param arg4 fourth workflow function parameter
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, A4, R> WorkflowHandle<R> fromWorkflowMethod(
+      Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3, arg4)));
+  }
+
+  /**
+   * Create a handle to a five argument workflow.
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow function parameter
+   * @param arg2 second workflow function parameter
+   * @param arg3 third workflow function parameter
+   * @param arg4 fourth workflow function parameter
+   * @param arg5 fifth workflow function parameter
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, A4, A5, R> WorkflowHandle<R> fromWorkflowMethod(
+      Functions.Func5<A1, A2, A3, A4, A5, R> workflow,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5)));
+  }
+
+  /**
+   * Create a handle to a six argument workflow.
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow function parameter
+   * @param arg2 second workflow function parameter
+   * @param arg3 third workflow function parameter
+   * @param arg4 fourth workflow function parameter
+   * @param arg5 fifth workflow function parameter
+   * @param arg6 sixth workflow function parameter
+   * @return WorkflowHandle
+   */
+  public static <A1, A2, A3, A4, A5, A6, R> WorkflowHandle<R> fromWorkflowMethod(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return new WorkflowHandle(
+        new WorkflowMethodMethodInvoker(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6)));
   }
 
   /**

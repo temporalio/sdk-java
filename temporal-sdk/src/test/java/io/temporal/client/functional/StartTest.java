@@ -100,9 +100,9 @@ public class StartTest {
           testWorkflowRule.getWorkflowClient().newWorkflowStub(Test1ArgWorkflowFunc.class, options);
       // Use worker that polls on a task queue configured through @WorkflowMethod annotation of
       // func1
-      assertResult(1, WorkflowClient.start(stubF1::func1, 1));
+      assertResult(1, WorkflowClient.start(stubF1::func1, "1"));
       Assert.assertEquals(
-          1, stubF1.func1(1)); // Check that duplicated start just returns the result.
+          "1", stubF1.func1("1")); // Check that duplicated start just returns the result.
     }
   }
 

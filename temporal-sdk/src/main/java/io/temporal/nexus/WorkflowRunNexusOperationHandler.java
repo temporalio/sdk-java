@@ -38,7 +38,7 @@ public final class WorkflowRunNexusOperationHandler {
    * @param startMethod returns the workflow method reference to call
    * @return Operation handler to be used as an {@link OperationImpl}
    */
-  public static <T, R> io.nexusrpc.handler.OperationHandler<T, R> fromWorkflowMethod(
+  public static <T, R> OperationHandler<T, R> fromWorkflowMethod(
       WorkflowMethodFactory<T, R> startMethod) {
     return new RunWorkflowOperation<>(
         (OperationContext context, OperationStartDetails details, WorkflowClient client, T input) ->
