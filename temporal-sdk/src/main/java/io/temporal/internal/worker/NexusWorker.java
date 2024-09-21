@@ -239,12 +239,12 @@ final class NexusWorker implements SuspendableWorker {
       // If we don't know how to handle the task, we will fail the task further down the line.
       Scope metricsScope = workerMetricsScope;
       String service = getNexusTaskService(pollResponse);
-      if (service.isEmpty()) {
+      if (!service.isEmpty()) {
         MDC.put(LoggerTag.NEXUS_SERVICE, service);
         metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
       }
       String operation = getNexusTaskOperation(pollResponse);
-      if (operation.isEmpty()) {
+      if (!operation.isEmpty()) {
         MDC.put(LoggerTag.NEXUS_OPERATION, operation);
         metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
       }
