@@ -43,7 +43,6 @@ public class ParallelWorkflowOperationTest extends BaseNexusTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class, TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(true)
           .build();
 
   @Override
