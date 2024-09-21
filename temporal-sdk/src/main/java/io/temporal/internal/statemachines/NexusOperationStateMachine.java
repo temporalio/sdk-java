@@ -165,6 +165,7 @@ final class NexusOperationStateMachine
     Failure canceledFailure =
         Failure.newBuilder()
             .setSource(JAVA_SDK)
+            .setMessage("operation canceled before it was started")
             .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
             .build();
     NexusOperationFailureInfo nexusFailureInfo =

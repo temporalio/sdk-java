@@ -22,6 +22,7 @@ package io.temporal.worker;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.workflow.NexusServiceOptions;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,6 +50,8 @@ public final class WorkflowImplementationOptions {
     private ActivityOptions defaultActivityOptions;
     private Map<String, LocalActivityOptions> localActivityOptions;
     private LocalActivityOptions defaultLocalActivityOptions;
+    private Map<String, NexusServiceOptions> nexusServiceOptions;
+    private NexusServiceOptions defaultNexusServiceOptions;
 
     private Builder() {}
 
@@ -126,13 +129,39 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
+    /**
+     * Set individual Nexus Service options per service. Will be merged with the map from {@link
+     * io.temporal.workflow.Workflow#newNexusServiceStub(Class, NexusServiceOptions)} which has the
+     * highest precedence.
+     *
+     * @param nexusServiceOptions map from service to NexusServiceOptions
+     */
+    public Builder setNexusServiceOptions(Map<String, NexusServiceOptions> nexusServiceOptions) {
+      this.nexusServiceOptions = new HashMap<>(Objects.requireNonNull(nexusServiceOptions));
+      return this;
+    }
+
+    /**
+     * These nexus service options to use if no specific options are passed for a service. Will be
+     * used for a stub created with {@link io.temporal.workflow.Workflow#newNexusServiceStub(Class)}
+     *
+     * @param defaultNexusServiceOptions default NexusServiceOptions for all services in the
+     *     workflow.
+     */
+    public Builder setDefaultNexusServiceOptions(NexusServiceOptions defaultNexusServiceOptions) {
+      this.defaultNexusServiceOptions = Objects.requireNonNull(defaultNexusServiceOptions);
+      return this;
+    }
+
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
           failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
           activityOptions == null ? null : activityOptions,
           defaultActivityOptions,
           localActivityOptions == null ? null : localActivityOptions,
-          defaultLocalActivityOptions);
+          defaultLocalActivityOptions,
+          nexusServiceOptions == null ? null : nexusServiceOptions,
+          defaultNexusServiceOptions);
     }
   }
 
@@ -141,18 +170,24 @@ public final class WorkflowImplementationOptions {
   private final ActivityOptions defaultActivityOptions;
   private final @Nullable Map<String, LocalActivityOptions> localActivityOptions;
   private final LocalActivityOptions defaultLocalActivityOptions;
+  private final @Nullable Map<String, NexusServiceOptions> nexusServiceOptions;
+  private final NexusServiceOptions defaultNexusServiceOptions;
 
   public WorkflowImplementationOptions(
       Class<? extends Throwable>[] failWorkflowExceptionTypes,
       @Nullable Map<String, ActivityOptions> activityOptions,
       ActivityOptions defaultActivityOptions,
       @Nullable Map<String, LocalActivityOptions> localActivityOptions,
-      LocalActivityOptions defaultLocalActivityOptions) {
+      LocalActivityOptions defaultLocalActivityOptions,
+      @Nullable Map<String, NexusServiceOptions> nexusServiceOptions,
+      NexusServiceOptions defaultNexusServiceOptions) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
     this.defaultActivityOptions = defaultActivityOptions;
     this.localActivityOptions = localActivityOptions;
     this.defaultLocalActivityOptions = defaultLocalActivityOptions;
+    this.nexusServiceOptions = nexusServiceOptions;
+    this.defaultNexusServiceOptions = defaultNexusServiceOptions;
   }
 
   public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
@@ -179,6 +214,16 @@ public final class WorkflowImplementationOptions {
     return defaultLocalActivityOptions;
   }
 
+  public @Nonnull Map<String, NexusServiceOptions> getNexusServiceOptions() {
+    return nexusServiceOptions != null
+        ? Collections.unmodifiableMap(nexusServiceOptions)
+        : Collections.emptyMap();
+  }
+
+  public NexusServiceOptions getDefaultNexusServiceOptions() {
+    return defaultNexusServiceOptions;
+  }
+
   @Override
   public String toString() {
     return "WorkflowImplementationOptions{"
@@ -192,6 +237,10 @@ public final class WorkflowImplementationOptions {
         + localActivityOptions
         + ", defaultLocalActivityOptions="
         + defaultLocalActivityOptions
+        + ", nexusServiceOptions="
+        + nexusServiceOptions
+        + ", defaultNexusServiceOptions="
+        + defaultNexusServiceOptions
         + '}';
   }
 
@@ -204,7 +253,9 @@ public final class WorkflowImplementationOptions {
         && Objects.equals(activityOptions, that.activityOptions)
         && Objects.equals(defaultActivityOptions, that.defaultActivityOptions)
         && Objects.equals(localActivityOptions, that.localActivityOptions)
-        && Objects.equals(defaultLocalActivityOptions, that.defaultLocalActivityOptions);
+        && Objects.equals(defaultLocalActivityOptions, that.defaultLocalActivityOptions)
+        && Objects.equals(nexusServiceOptions, that.nexusServiceOptions)
+        && Objects.equals(defaultNexusServiceOptions, that.defaultNexusServiceOptions);
   }
 
   @Override
@@ -214,7 +265,9 @@ public final class WorkflowImplementationOptions {
             activityOptions,
             defaultActivityOptions,
             localActivityOptions,
-            defaultLocalActivityOptions);
+            defaultLocalActivityOptions,
+            nexusServiceOptions,
+            defaultNexusServiceOptions);
     result = 31 * result + Arrays.hashCode(failWorkflowExceptionTypes);
     return result;
   }
