@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class CleanWorkerShutdownTest {
+public class CleanActivityWorkerShutdownTest {
 
   private static final String COMPLETED = "Completed";
   private static final String INTERRUPTED = "Interrupted";

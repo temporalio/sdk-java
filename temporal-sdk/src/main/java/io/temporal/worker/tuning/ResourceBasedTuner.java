@@ -39,11 +39,18 @@ public class ResourceBasedTuner implements WorkerTuner {
           .setMaximumSlots(1000)
           .setRampThrottle(Duration.ofMillis(50))
           .build();
+  public static final ResourceBasedSlotOptions DEFAULT_NEXUS_SLOT_OPTIONS =
+      ResourceBasedSlotOptions.newBuilder()
+          .setMinimumSlots(1)
+          .setMaximumSlots(1000)
+          .setRampThrottle(Duration.ofMillis(50))
+          .build();
 
   private final ResourceBasedController controller;
   private final ResourceBasedSlotOptions workflowSlotOptions;
   private final ResourceBasedSlotOptions activitySlotOptions;
   private final ResourceBasedSlotOptions localActivitySlotOptions;
+  private final ResourceBasedSlotOptions nexusSlotOptions;
 
   public static Builder newBuilder() {
     return new Builder();
@@ -55,6 +62,7 @@ public class ResourceBasedTuner implements WorkerTuner {
     private @Nonnull ResourceBasedSlotOptions activitySlotOptions = DEFAULT_ACTIVITY_SLOT_OPTIONS;
     private @Nonnull ResourceBasedSlotOptions localActivitySlotOptions =
         DEFAULT_ACTIVITY_SLOT_OPTIONS;
+    private @Nonnull ResourceBasedSlotOptions nexusSlotOptions = DEFAULT_NEXUS_SLOT_OPTIONS;
 
     private Builder() {}
 
@@ -97,9 +105,23 @@ public class ResourceBasedTuner implements WorkerTuner {
       return this;
     }
 
+    /**
+     * Set the slot options for nexus tasks. Has no effect after the worker using this tuner starts.
+     *
+     * <p>Defaults to minimum 1 slot, maximum 1000 slots, and 50ms ramp throttle.
+     */
+    public Builder setNexusSlotOptions(@Nonnull ResourceBasedSlotOptions nexusSlotOptions) {
+      this.nexusSlotOptions = nexusSlotOptions;
+      return this;
+    }
+
     public ResourceBasedTuner build() {
       return new ResourceBasedTuner(
-          controllerOptions, workflowSlotOptions, activitySlotOptions, localActivitySlotOptions);
+          controllerOptions,
+          workflowSlotOptions,
+          activitySlotOptions,
+          localActivitySlotOptions,
+          nexusSlotOptions);
     }
   }
 
@@ -110,11 +132,13 @@ public class ResourceBasedTuner implements WorkerTuner {
       ResourceBasedControllerOptions controllerOptions,
       ResourceBasedSlotOptions workflowSlotOptions,
       ResourceBasedSlotOptions activitySlotOptions,
-      ResourceBasedSlotOptions localActivitySlotOptions) {
+      ResourceBasedSlotOptions localActivitySlotOptions,
+      ResourceBasedSlotOptions nexusSlotOptions) {
     this.controller = ResourceBasedController.newSystemInfoController(controllerOptions);
     this.workflowSlotOptions = workflowSlotOptions;
     this.activitySlotOptions = activitySlotOptions;
     this.localActivitySlotOptions = localActivitySlotOptions;
+    this.nexusSlotOptions = nexusSlotOptions;
   }
 
   @Nonnull
@@ -133,5 +157,11 @@ public class ResourceBasedTuner implements WorkerTuner {
   @Override
   public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
     return ResourceBasedSlotSupplier.createForLocalActivity(controller, localActivitySlotOptions);
+  }
+
+  @Nonnull
+  @Override
+  public SlotSupplier<NexusSlotInfo> getNexusSlotSupplier() {
+    return ResourceBasedSlotSupplier.createForNexus(controller, nexusSlotOptions);
   }
 }
