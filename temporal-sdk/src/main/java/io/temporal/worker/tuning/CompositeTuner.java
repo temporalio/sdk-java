@@ -33,19 +33,23 @@ public class CompositeTuner implements WorkerTuner {
   private final @Nonnull SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier;
   private final @Nonnull SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier;
   private final @Nonnull SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier;
+  private final @Nonnull SlotSupplier<NexusSlotInfo> nexusSlotSupplier;
 
   public CompositeTuner(
       @Nonnull SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier,
       @Nonnull SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier,
-      @Nonnull SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier) {
+      @Nonnull SlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier,
+      @Nonnull SlotSupplier<NexusSlotInfo> nexusSlotSupplier) {
     this.workflowTaskSlotSupplier = Objects.requireNonNull(workflowTaskSlotSupplier);
     this.activityTaskSlotSupplier = Objects.requireNonNull(activityTaskSlotSupplier);
     this.localActivitySlotSupplier = Objects.requireNonNull(localActivitySlotSupplier);
+    this.nexusSlotSupplier = Objects.requireNonNull(nexusSlotSupplier);
 
     // All resource-based slot suppliers must use the same controller
     validateResourceController(workflowTaskSlotSupplier, activityTaskSlotSupplier);
     validateResourceController(workflowTaskSlotSupplier, localActivitySlotSupplier);
     validateResourceController(activityTaskSlotSupplier, localActivitySlotSupplier);
+    validateResourceController(workflowTaskSlotSupplier, nexusSlotSupplier);
   }
 
   @Nonnull
@@ -64,6 +68,12 @@ public class CompositeTuner implements WorkerTuner {
   @Override
   public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
     return localActivitySlotSupplier;
+  }
+
+  @Nonnull
+  @Override
+  public SlotSupplier<NexusSlotInfo> getNexusSlotSupplier() {
+    return nexusSlotSupplier;
   }
 
   private <T extends SlotInfo, U extends SlotInfo> void validateResourceController(

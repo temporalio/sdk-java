@@ -18,30 +18,40 @@
  * limitations under the License.
  */
 
-package io.temporal.worker;
+package io.temporal.workflow.shared;
 
-import io.temporal.serviceclient.MetricsTag;
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
 
-public class WorkerMetricsTag {
-  public enum WorkerType implements MetricsTag.TagValue {
-    WORKFLOW_WORKER("WorkflowWorker"),
-    ACTIVITY_WORKER("ActivityWorker"),
-    LOCAL_ACTIVITY_WORKER("LocalActivityWorker"),
-    NEXUS_WORKER("NexusWorker");
+/** Common set of Nexus Service interfaces for use in tests. */
+public class TestNexusServices {
+  @Service
+  public interface TestNexusService1 {
+    @Operation
+    String operation(String input);
+  }
 
-    WorkerType(String value) {
-      this.value = value;
-    }
+  @Service
+  public interface TestNexusService2 {
+    @Operation
+    Integer operation(Integer input);
+  }
 
-    private final String value;
+  @Service
+  public interface TestNexusServiceVoid {
+    @Operation
+    Void operation();
+  }
 
-    @Override
-    public String getTag() {
-      return MetricsTag.WORKER_TYPE;
-    }
+  @Service
+  public interface TestNexusServiceVoidInput {
+    @Operation
+    String operation();
+  }
 
-    public String getValue() {
-      return value;
-    }
+  @Service
+  public interface TestNexusServiceVoidReturn {
+    @Operation
+    Void operation(String input);
   }
 }

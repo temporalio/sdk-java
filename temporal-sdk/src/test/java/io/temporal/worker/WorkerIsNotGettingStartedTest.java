@@ -28,7 +28,6 @@ import static org.junit.Assert.assertNull;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.Before;
@@ -37,10 +36,12 @@ import org.junit.Test;
 public class WorkerIsNotGettingStartedTest {
   private static final int WORKFLOW_POLL_COUNT = 11;
   private static final int ACTIVITY_POLL_COUNT = 18;
+  private static final int NEXUS_POLL_COUNT = 13;
 
   private static final String TASK_QUEUE = "test-workflow";
   private static final String ACTIVITY_POLLER_THREAD_NAME_PREFIX = "Activity Poller task";
   private static final String WORKFLOW_POLLER_THREAD_NAME_PREFIX = "Workflow Poller task";
+  private static final String NEXUS_POLLER_THREAD_NAME_PREFIX = "Nexus Poller task";
 
   private TestWorkflowEnvironment env;
   private Worker worker;
@@ -55,6 +56,7 @@ public class WorkerIsNotGettingStartedTest {
             WorkerOptions.newBuilder()
                 .setMaxConcurrentWorkflowTaskPollers(WORKFLOW_POLL_COUNT)
                 .setMaxConcurrentActivityTaskPollers(ACTIVITY_POLL_COUNT)
+                .setMaxConcurrentNexusExecutionSize(NEXUS_POLL_COUNT)
                 .setLocalActivityWorkerOnly(true)
                 .build());
     // Need to register something for workers to start
@@ -75,9 +77,26 @@ public class WorkerIsNotGettingStartedTest {
     Thread.sleep(1000);
     Map<String, Long> threads =
         Thread.getAllStackTraces().keySet().stream()
-            .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
-            .collect(groupingBy(Function.identity(), Collectors.counting()));
+            .filter(
+                (t) ->
+                    t.getName().startsWith(WORKFLOW_POLLER_THREAD_NAME_PREFIX)
+                        || t.getName().startsWith(ACTIVITY_POLLER_THREAD_NAME_PREFIX)
+                        || t.getName().startsWith(NEXUS_POLLER_THREAD_NAME_PREFIX))
+            .map(Thread::getName)
+            .collect(
+                groupingBy(
+                    (t) -> {
+                      if (t.startsWith(WORKFLOW_POLLER_THREAD_NAME_PREFIX)) {
+                        return WORKFLOW_POLLER_THREAD_NAME_PREFIX;
+                      } else if (t.startsWith(ACTIVITY_POLLER_THREAD_NAME_PREFIX)) {
+                        return ACTIVITY_POLLER_THREAD_NAME_PREFIX;
+                      } else {
+                        return NEXUS_POLLER_THREAD_NAME_PREFIX;
+                      }
+                    },
+                    Collectors.counting()));
     assertEquals(WORKFLOW_POLL_COUNT, (long) threads.get(WORKFLOW_POLLER_THREAD_NAME_PREFIX));
+    assertFalse(threads.containsKey(NEXUS_POLLER_THREAD_NAME_PREFIX));
     assertFalse(threads.containsKey(ACTIVITY_POLLER_THREAD_NAME_PREFIX));
     assertNull(worker.activityWorker);
   }

@@ -27,14 +27,13 @@ public class NexusUtil {
     try {
       if (timeout.endsWith("m")) {
         return Duration.ofMillis(
-            Math.round(
-                10e3 * Double.parseDouble(timeout.substring(0, timeout.length() - 1)) / 60.0));
-      } else if (timeout.endsWith("s")) {
-        return Duration.ofMillis(
-            Math.round(10e3 * Double.parseDouble(timeout.substring(0, timeout.length() - 1))));
+            Math.round(1e3 * 60 * Double.parseDouble(timeout.substring(0, timeout.length() - 1))));
       } else if (timeout.endsWith("ms")) {
         return Duration.ofMillis(
             Math.round(Double.parseDouble(timeout.substring(0, timeout.length() - 2))));
+      } else if (timeout.endsWith("s")) {
+        return Duration.ofMillis(
+            Math.round(1e3 * Double.parseDouble(timeout.substring(0, timeout.length() - 1))));
       } else {
         throw new IllegalArgumentException("Invalid timeout format: " + timeout);
       }

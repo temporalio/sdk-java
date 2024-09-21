@@ -53,6 +53,8 @@ public class EagerWorkflowTaskDispatchTest {
       new CountingSlotSupplier<>(100);
   private final CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
       new CountingSlotSupplier<>(100);
+  private final CountingSlotSupplier<NexusSlotInfo> nexusSlotSupplier =
+      new CountingSlotSupplier<>(100);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -102,7 +104,8 @@ public class EagerWorkflowTaskDispatchTest {
                     new CompositeTuner(
                         workflowTaskSlotSupplier,
                         activityTaskSlotSupplier,
-                        localActivitySlotSupplier))
+                        localActivitySlotSupplier,
+                        nexusSlotSupplier))
                 .build());
     if (registerWorkflows) {
       worker.registerWorkflowImplementationTypes(EagerWorkflowTaskWorkflowImpl.class);
