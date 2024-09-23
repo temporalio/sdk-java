@@ -147,8 +147,8 @@ public final class WorkflowOptions {
       this.workflowIdConflictPolicy = options.workflowIdConflictPolicy;
       this.staticSummary = options.staticSummary;
       this.staticDetails = options.staticDetails;
-      this.requestId = options.requestID;
-      this.completionCallbacks = options.callbacks;
+      this.requestId = options.requestId;
+      this.completionCallbacks = options.completionCallbacks;
     }
 
     /**
@@ -421,14 +421,22 @@ public final class WorkflowOptions {
       return this;
     }
 
-    /** Request ID. */
+    /**
+     * A unique identifier for this start request.
+     *
+     * <p>WARNING: Not intended for User Code.
+     */
     @Experimental
     public Builder setRequestId(String requestId) {
       this.requestId = requestId;
       return this;
     }
 
-    /** Workflow completion callback. */
+    /**
+     * Callbacks to be called by the server when this workflow reaches a terminal state.
+     *
+     * <p>WARNING: Not intended for User Code.
+     */
     @Experimental
     public Builder setCompletionCallbacks(List<Callback> completionCallbacks) {
       this.completionCallbacks = completionCallbacks;
