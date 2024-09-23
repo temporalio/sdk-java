@@ -1210,6 +1210,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return new CancelWorkflowOutput(result);
   }
 
+  @Override
   public Scope getMetricsScope() {
     return replayContext.getMetricsScope();
   }
