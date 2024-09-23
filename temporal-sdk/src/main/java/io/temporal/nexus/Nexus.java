@@ -31,8 +31,8 @@ public final class Nexus {
    * Can be used to get information about a Nexus Operation. This static method relies on a
    * thread-local variable and works only in the original Nexus thread.
    */
-  public static NexusOperationContext getExecutionContext() {
-    return NexusInternal.getExecutionContext();
+  public static NexusOperationContext getOperationContext() {
+    return NexusInternal.getOperationContext();
   }
 
   /**

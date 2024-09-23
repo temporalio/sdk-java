@@ -87,7 +87,7 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
           Workflow.startNexusOperation(serviceStub::operation, "block");
       NexusOperationExecution asyncExec = asyncOpHandle.getExecution().get();
       // Execution id is present for an asynchronous operations
-      Assert.assertTrue("Execution id should be present", asyncExec.getOperationId().isPresent());
+      Assert.assertTrue("Operation id should be present", asyncExec.getOperationId().isPresent());
       // Result should only be completed if the operation is completed
       Assert.assertFalse("Result should not be completed", asyncOpHandle.getResult().isCompleted());
       // Unblock the operation

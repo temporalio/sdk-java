@@ -29,6 +29,7 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.nexus.Nexus;
+import io.temporal.nexus.WorkflowClientOperationHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
@@ -125,9 +126,9 @@ public class SyncClientOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline
-      return io.temporal.nexus.OperationHandler.sync(
+      return WorkflowClientOperationHandler.sync(
           (ctx, details, client, id) -> {
-            Nexus.getExecutionContext().getMetricsScope().counter("operation").inc(1);
+            Nexus.getOperationContext().getMetricsScope().counter("operation").inc(1);
             return client
                 .newWorkflowStub(TestUpdatedWorkflow.class, id)
                 .update("Update from operation");

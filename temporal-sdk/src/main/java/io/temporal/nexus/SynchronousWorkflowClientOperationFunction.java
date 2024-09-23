@@ -28,12 +28,12 @@ import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
- * Function interface for {@link OperationHandler#sync} representing a call made for every operation
- * call that takes a {@link WorkflowClient}.
+ * Function interface for {@link WorkflowClientOperationHandler#sync} representing a call made for
+ * every operation call that takes a {@link WorkflowClient}.
  */
 @FunctionalInterface
 @Experimental
-public interface SynchronousOperationFunction<T, R> {
+public interface SynchronousWorkflowClientOperationFunction<T, R> {
   @Nullable
   R apply(
       OperationContext ctx, OperationStartDetails details, WorkflowClient client, @Nullable T input)

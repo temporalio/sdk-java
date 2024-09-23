@@ -30,10 +30,10 @@ import io.temporal.internal.nexus.NexusOperationContextImpl;
  * io.temporal.client.WorkflowClient}.
  */
 @Experimental
-public final class OperationHandler {
+public final class WorkflowClientOperationHandler {
   /** Invoked every operation start call and expected to return a fixed/synchronous result. */
-  public static <T, R> io.nexusrpc.handler.OperationHandler<T, R> sync(
-      SynchronousOperationFunction<T, R> func) {
+  public static <T, R> OperationHandler<T, R> sync(
+      SynchronousWorkflowClientOperationFunction<T, R> func) {
     return io.nexusrpc.handler.OperationHandler.sync(
         (OperationContext ctx, OperationStartDetails details, T input) -> {
           NexusOperationContextImpl nexusCtx = CurrentNexusOperationContext.get();
@@ -42,5 +42,5 @@ public final class OperationHandler {
   }
 
   /** Prohibits instantiation. */
-  private OperationHandler() {}
+  private WorkflowClientOperationHandler() {}
 }
