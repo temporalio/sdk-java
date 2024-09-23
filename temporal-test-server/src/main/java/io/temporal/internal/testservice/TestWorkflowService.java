@@ -1362,6 +1362,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                       .setName(request.getNamespace())
                       .setState(NamespaceState.NAMESPACE_STATE_REGISTERED)
                       .setId(namespaceId)
+                      .setCapabilities(
+                          NamespaceInfo.Capabilities.newBuilder()
+                              .setEagerWorkflowStart(true)
+                              .setAsyncUpdate(true)
+                              .setSyncUpdate(true))
                       .build())
               .build();
       responseObserver.onNext(result);
