@@ -26,3 +26,5 @@ component.callbacks.allowedAddresses:
   - value:
       - Pattern: "localhost:7243"
         AllowInsecure: true
+component.nexusoperations.limit.operation.concurrency:
+  - value: 100
