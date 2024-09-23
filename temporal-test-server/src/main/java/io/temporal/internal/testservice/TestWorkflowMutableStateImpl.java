@@ -75,6 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1726,18 +1727,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Nullable
   public PollWorkflowTaskQueueResponse startWorkflow(
       boolean continuedAsNew,
-      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
-      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest) {
+      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest,
+      @Nullable Consumer<TestWorkflowMutableState> withStart) {
     AtomicReference<TestWorkflowStore.WorkflowTask> eagerWorkflowTask = new AtomicReference<>();
+    // need to grab the lock here to ensure that a `withStart` is executed together with the start
+    lock.lock();
     try {
       update(
           ctx -> {
             visibilityStore.upsertSearchAttributesForExecution(
                 ctx.getExecutionId(), startRequest.getSearchAttributes());
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
-            if (signalWithStartSignal != null) {
-              addExecutionSignaledEvent(ctx, signalWithStartSignal);
-            }
             Duration backoffStartInterval =
                 ProtobufTimeUtils.toJavaDuration(workflow.getData().backoffStartInterval);
             if (backoffStartInterval.compareTo(Duration.ZERO) > 0) {
@@ -1775,11 +1775,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             workflow.getData().runTimerCancellationHandle =
                 ctx.addTimer(runTimeout, this::timeoutWorkflow, "workflow execution timeout");
           });
+
+      // e.g. apply signal (signal-with-start) or update (update-with-start)
+      if (withStart != null) {
+        withStart.accept(this);
+      }
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
       throw e;
+    } finally {
+      lock.unlock();
     }
 
     if (!continuedAsNew && parent.isPresent()) {
@@ -1810,9 +1817,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       PollWorkflowTaskQueueResponse.Builder task = eagerWorkflowTask.get().getTask();
       startWorkflowTask(task, eagerWorkflowTaskDispatchPollRequest);
       return task.build();
-    } else {
-      return null;
     }
+
+    return null;
   }
 
   private void scheduleWorkflowTask(RequestContext ctx) {
@@ -2341,7 +2348,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public UpdateWorkflowExecutionResponse updateWorkflowExecution(
+  public UpdateHandle updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request, Deadline deadline) {
     if (request
             .getWaitPolicy()
@@ -2365,58 +2372,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (isTerminalState()) {
       UpdateHandle updateHandle = getUpdate(request.getRequest().getMeta().getUpdateId());
       if (updateHandle.getOutcome().isDone()) {
-        return UpdateWorkflowExecutionResponse.newBuilder()
-            .setUpdateRef(updateHandle.getRef())
-            .setStage(updateHandle.getStage())
-            .setOutcome(updateHandle.getOutcomeNow())
-            .build();
-      } else {
-        throw Status.NOT_FOUND
-            .withDescription("workflow execution already completed")
-            .asRuntimeException();
+        return updateHandle;
       }
+      throw Status.NOT_FOUND
+          .withDescription("workflow execution already completed")
+          .asRuntimeException();
     }
     // Now that we have validated the request we can create the update handle and wait for it to
     // reach the desired stage.
-    UpdateHandle updateHandle = getOrCreateUpdate(request);
-    try {
-      UpdateWorkflowExecutionLifecycleStage reachedStage =
-          updateHandle.waitForStage(
-              request.getWaitPolicy().getLifecycleStage(),
-              deadline.timeRemaining(TimeUnit.MILLISECONDS),
-              TimeUnit.MILLISECONDS);
-      UpdateWorkflowExecutionResponse.Builder response =
-          UpdateWorkflowExecutionResponse.newBuilder()
-              .setUpdateRef(updateHandle.getRef())
-              .setStage(reachedStage);
-      if (reachedStage == UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED) {
-        response.setOutcome(updateHandle.getOutcomeNow());
-      }
-      return response.build();
-    } catch (TimeoutException e) {
-      UpdateWorkflowExecutionLifecycleStage stage = updateHandle.getStage();
-      UpdateWorkflowExecutionResponse.Builder response =
-          UpdateWorkflowExecutionResponse.newBuilder()
-              .setUpdateRef(updateHandle.getRef())
-              .setStage(stage);
-      if (stage
-          == UpdateWorkflowExecutionLifecycleStage
-              .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED) {
-        response.setOutcome(updateHandle.getOutcomeNow());
-      }
-      return response.build();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof StatusRuntimeException) {
-        throw (StatusRuntimeException) cause;
-      }
-      throw Status.INTERNAL
-          .withCause(cause)
-          .withDescription(cause.getMessage())
-          .asRuntimeException();
-    }
+    return getOrCreateUpdate(request);
   }
 
   @Override

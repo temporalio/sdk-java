@@ -20,6 +20,7 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
@@ -54,6 +55,7 @@ import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
+import io.temporal.api.testservice.v1.TestServiceGrpc;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
@@ -61,16 +63,20 @@ import io.temporal.internal.common.ProtoUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.StatusUtils;
+import io.temporal.serviceclient.TestServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testserver.TestServer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -227,7 +233,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Duration backoffStartInterval,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
-      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal) {
+      @Nullable Consumer<TestWorkflowMutableState> withStart) {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String namespace = requireNotNull("Namespace", startRequest.getNamespace());
     WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
@@ -284,6 +290,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
+
       Optional<TestServiceRetryState> retryState;
       Optional<Failure> lastFailure = Optional.empty();
       if (startRequest.hasRetryPolicy()) {
@@ -296,6 +303,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } else {
         retryState = Optional.empty();
       }
+
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
           newRunId,
@@ -309,7 +317,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           lastFailure,
           parent,
           parentChildInitiatedEventId,
-          signalWithStartSignal,
+          withStart,
           workflowId);
     } finally {
       lock.unlock();
@@ -353,7 +361,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
-      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
+      @Nullable Consumer<TestWorkflowMutableState> withStart,
       WorkflowId workflowId) {
     String namespace = startRequest.getNamespace();
     TestWorkflowMutableState mutableState =
@@ -390,9 +398,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     @Nullable
     PollWorkflowTaskQueueResponse eagerWorkflowTask =
         mutableState.startWorkflow(
-            continuedExecutionRunId.isPresent(),
-            signalWithStartSignal,
-            eagerWorkflowTaskPollRequest);
+            continuedExecutionRunId.isPresent(), eagerWorkflowTaskPollRequest, withStart);
     StartWorkflowExecutionResponse.Builder response =
         StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).setStarted(true);
     if (eagerWorkflowTask != null) {
@@ -1020,7 +1026,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try (Context.CancellableContext ctx = deadlineCtx(getUpdatePollDeadline())) {
       Context toRestore = ctx.attach();
       try {
-        UpdateWorkflowExecutionResponse response = updateWorkflowExecutionImpl(request);
+        ExecutionId executionId =
+            new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
+        TestWorkflowMutableState mutableState = getMutableState(executionId);
+        @Nullable Deadline deadline = Context.current().getDeadline();
+        TestWorkflowMutableStateImpl.UpdateHandle updateHandle =
+            mutableState.updateWorkflowExecution(request, deadline);
+        UpdateWorkflowExecutionResponse response =
+            waitForUpdateResponse(request, deadline, updateHandle);
         responseObserver.onNext(response);
         responseObserver.onCompleted();
       } catch (StatusRuntimeException e) {
@@ -1031,13 +1044,48 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  private UpdateWorkflowExecutionResponse updateWorkflowExecutionImpl(
-      UpdateWorkflowExecutionRequest request) {
-    ExecutionId executionId =
-        new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
-    @Nullable Deadline deadline = Context.current().getDeadline();
-    return mutableState.updateWorkflowExecution(request, deadline);
+  UpdateWorkflowExecutionResponse waitForUpdateResponse(
+      UpdateWorkflowExecutionRequest request,
+      Deadline deadline,
+      TestWorkflowMutableStateImpl.UpdateHandle updateHandle) {
+    try {
+      UpdateWorkflowExecutionLifecycleStage reachedStage =
+          updateHandle.waitForStage(
+              request.getWaitPolicy().getLifecycleStage(),
+              deadline.timeRemaining(TimeUnit.MILLISECONDS),
+              TimeUnit.MILLISECONDS);
+      UpdateWorkflowExecutionResponse.Builder response =
+          UpdateWorkflowExecutionResponse.newBuilder()
+              .setUpdateRef(updateHandle.getRef())
+              .setStage(reachedStage);
+      if (reachedStage == UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED) {
+        response.setOutcome(updateHandle.getOutcomeNow());
+      }
+      return response.build();
+    } catch (TimeoutException e) {
+      UpdateWorkflowExecutionLifecycleStage stage = updateHandle.getStage();
+      UpdateWorkflowExecutionResponse.Builder response =
+          UpdateWorkflowExecutionResponse.newBuilder()
+              .setUpdateRef(updateHandle.getRef())
+              .setStage(stage);
+      if (stage
+          == UpdateWorkflowExecutionLifecycleStage
+              .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED) {
+        response.setOutcome(updateHandle.getOutcomeNow());
+      }
+      return response.build();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof StatusRuntimeException) {
+        throw (StatusRuntimeException) cause;
+      }
+      throw Status.INTERNAL
+          .withCause(cause)
+          .withDescription(cause.getMessage())
+          .asRuntimeException();
+    }
   }
 
   @Override
@@ -1149,33 +1197,52 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             null);
       }
 
-      // execute start
+      AtomicReference<TestWorkflowMutableStateImpl.UpdateHandle> updateHandle =
+          new AtomicReference<>();
+      Consumer<TestWorkflowMutableState> applyUpdate =
+          ms -> {
+            @Nullable Deadline deadline = Context.current().getDeadline();
+            try {
+              updateHandle.set(ms.updateWorkflowExecution(updateRequest, deadline));
+            } catch (StatusRuntimeException e) {
+              throw multiOperationExecutionFailure(
+                  null, // ie start aborted
+                  MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                      .setCode(e.getStatus().getCode().value())
+                      .setMessage(e.getMessage())
+                      .build());
+            }
+          };
+
       StartWorkflowExecutionResponse startResult;
       try {
         startResult =
             startWorkflowExecutionImpl(
-                startRequest, Duration.ZERO, Optional.empty(), OptionalLong.empty(), null);
+                startRequest, Duration.ZERO, Optional.empty(), OptionalLong.empty(), applyUpdate);
       } catch (StatusRuntimeException e) {
+        if (StatusUtils.hasFailure(e, MultiOperationExecutionFailure.class)) {
+          throw e;
+        }
+
         throw multiOperationExecutionFailure(
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(e.getStatus().getCode().value())
                 .setMessage(e.getMessage())
                 .build(),
-            null); // update aborted
+            null); // ie update aborted
       }
 
-      // execute update
-      UpdateWorkflowExecutionResponse updateResult;
-      try {
-        updateResult = updateWorkflowExecutionImpl(updateRequest);
-      } catch (StatusRuntimeException e) {
-        throw multiOperationExecutionFailure(
-            null, // start aborted
-            MultiOperationExecutionFailure.OperationStatus.newBuilder()
-                .setCode(e.getStatus().getCode().value())
-                .setMessage(e.getMessage())
-                .build());
+      // if the workflow wasn't started, only send the Update request
+      if (!startResult.getStarted()) {
+        ExecutionId executionId =
+            new ExecutionId(request.getNamespace(), updateRequest.getWorkflowExecution());
+        TestWorkflowMutableState mutableState = getMutableState(executionId);
+        applyUpdate.accept(mutableState);
       }
+
+      @Nullable Deadline deadline = Context.current().getDeadline();
+      UpdateWorkflowExecutionResponse updateResult =
+          waitForUpdateResponse(updateRequest, deadline, updateHandle.get());
 
       ExecuteMultiOperationResponse response =
           ExecuteMultiOperationResponse.newBuilder()
@@ -1301,7 +1368,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               Duration.ZERO,
               Optional.empty(),
               OptionalLong.empty(),
-              signalRequest);
+              ms -> {
+                ms.signal(signalRequest);
+              });
       responseObserver.onNext(
           SignalWithStartWorkflowExecutionResponse.newBuilder()
               .setRunId(startResult.getRunId())
@@ -1494,8 +1563,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   @Override
   public void describeWorkflowExecution(
       DescribeWorkflowExecutionRequest request,
-      StreamObserver<io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse>
-          responseObserver) {
+      StreamObserver<DescribeWorkflowExecutionResponse> responseObserver) {
     try {
       if (request.getNamespace().isEmpty()) {
         throw createInvalidArgument("Namespace not set on request.");
@@ -1563,8 +1631,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   /**
-   * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
-   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#getCurrentTime(Empty)}
+   * @deprecated use {@link TestServiceStubs} and {@link
+   *     TestServiceGrpc.TestServiceBlockingStub#getCurrentTime(Empty)}
    */
   @Deprecated
   public long currentTimeMillis() {
@@ -1667,8 +1735,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * Creates an in-memory service along with client stubs for use in Java code. See also
    * createServerOnly and createWithNoGrpcServer.
    *
-   * @deprecated use {@link io.temporal.testserver.TestServer#createServer(boolean)} instead and
-   *     pass {@code lockTimeSkipping=false} to emulate the behavior of this method
+   * @deprecated use {@link TestServer#createServer(boolean)} instead and pass {@code
+   *     lockTimeSkipping=false} to emulate the behavior of this method
    */
   @Deprecated
   public TestWorkflowService() {
@@ -1679,8 +1747,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * Creates an in-memory service along with client stubs for use in Java code. See also
    * createServerOnly and createWithNoGrpcServer.
    *
-   * @deprecated use {@link io.temporal.testserver.TestServer#createServer(boolean, long)} instead
-   *     and pass {@code lockTimeSkipping=false} to emulate the behavior of this method
+   * @deprecated use {@link TestServer#createServer(boolean, long)} instead and pass {@code
+   *     lockTimeSkipping=false} to emulate the behavior of this method
    */
   @Deprecated
   public TestWorkflowService(long initialTimeMillis) {
@@ -1691,7 +1759,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * Creates an in-memory service along with client stubs for use in Java code. See also
    * createServerOnly and createWithNoGrpcServer.
    *
-   * @deprecated use {@link io.temporal.testserver.TestServer#createServer(boolean)} instead
+   * @deprecated use {@link TestServer#createServer(boolean)} instead
    */
   @Deprecated
   public TestWorkflowService(boolean lockTimeSkipping) {
@@ -1737,8 +1805,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * for example, if you want to use the test service from other SDKs.
    *
    * @param port the port to listen on
-   * @deprecated use {@link io.temporal.testserver.TestServer#createPortBoundServer(int, boolean)}
-   *     instead and pass {@code lockTimeSkipping=false} to emulate the behavior of this method
+   * @deprecated use {@link TestServer#createPortBoundServer(int, boolean)} instead and pass {@code
+   *     lockTimeSkipping=false} to emulate the behavior of this method
    */
   @Deprecated
   public static TestWorkflowService createServerOnly(int port) {
