@@ -498,13 +498,34 @@ public final class WorkflowInternal {
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    getWorkflowOutboundInterceptor().await(reason, unblockCondition);
+    getWorkflowOutboundInterceptor()
+        .await(
+            reason,
+            () -> {
+              getRootWorkflowContext().setReadOnly(true);
+              try {
+                return unblockCondition.get();
+              } finally {
+                getRootWorkflowContext().setReadOnly(false);
+              }
+            });
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
+    return getWorkflowOutboundInterceptor()
+        .await(
+            timeout,
+            reason,
+            () -> {
+              getRootWorkflowContext().setReadOnly(true);
+              try {
+                return unblockCondition.get();
+              } finally {
+                getRootWorkflowContext().setReadOnly(false);
+              }
+            });
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
