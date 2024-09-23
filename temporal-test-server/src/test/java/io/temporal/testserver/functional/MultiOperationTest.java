@@ -77,24 +77,27 @@ public class MultiOperationTest {
     assertNull(updHandle.getResultAsync().get());
   }
 
-  @Test(timeout = 15000)
+  @Test(timeout = 11000) // server timeout is 10s
   public void receiveResponseAfterTimeout() {
     String workflowId = UUID.randomUUID().toString();
 
+    // shut down worker to force server timeout
     testWorkflowRule.getTestEnvironment().shutdownNow();
     testWorkflowRule.getTestEnvironment().awaitTermination(5, TimeUnit.SECONDS);
 
-    executeMultiOperation(
-        (builder) ->
-            builder
-                .addOperations(
-                    ExecuteMultiOperationRequest.Operation.newBuilder()
-                        .setStartWorkflow(validStartRequest(workflowId)))
-                .addOperations(
-                    ExecuteMultiOperationRequest.Operation.newBuilder()
-                        .setUpdateWorkflow(validUpdateRequest(workflowId))));
+    ExecuteMultiOperationResponse response =
+        executeMultiOperation(
+            (builder) ->
+                builder
+                    .addOperations(
+                        ExecuteMultiOperationRequest.Operation.newBuilder()
+                            .setStartWorkflow(validStartRequest(workflowId)))
+                    .addOperations(
+                        ExecuteMultiOperationRequest.Operation.newBuilder()
+                            .setUpdateWorkflow(validUpdateRequest(workflowId))));
 
-    // TODO
+    assertTrue(response.getResponses(0).getStartWorkflow().getStarted());
+    assertFalse(response.getResponses(1).getUpdateWorkflow().hasOutcome());
   }
 
   @Test

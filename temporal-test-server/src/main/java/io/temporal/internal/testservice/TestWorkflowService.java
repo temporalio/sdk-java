@@ -1197,11 +1197,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             null);
       }
 
+      @Nullable Deadline deadline = getUpdatePollDeadline();
+
       AtomicReference<TestWorkflowMutableStateImpl.UpdateHandle> updateHandle =
           new AtomicReference<>();
       Consumer<TestWorkflowMutableState> applyUpdate =
           ms -> {
-            @Nullable Deadline deadline = Context.current().getDeadline();
             try {
               updateHandle.set(ms.updateWorkflowExecution(updateRequest, deadline));
             } catch (StatusRuntimeException e) {
@@ -1240,7 +1241,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         applyUpdate.accept(mutableState);
       }
 
-      @Nullable Deadline deadline = Context.current().getDeadline();
       UpdateWorkflowExecutionResponse updateResult =
           waitForUpdateResponse(updateRequest, deadline, updateHandle.get());
 
