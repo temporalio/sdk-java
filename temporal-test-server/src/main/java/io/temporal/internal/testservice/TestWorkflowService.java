@@ -547,6 +547,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                     .setSignalAndQueryHeader(true)
                     .setEncodedFailureAttributes(true)
                     .setEagerWorkflowStart(true)
+                    .setUpsertMemo(true)
+                    .setNexus(true)
                     .build())
             .build());
     responseObserver.onCompleted();
