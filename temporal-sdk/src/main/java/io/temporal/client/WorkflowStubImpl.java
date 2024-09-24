@@ -407,6 +407,12 @@ class WorkflowStubImpl implements WorkflowStub {
     return Optional.ofNullable(options);
   }
 
+  @Override
+  public WorkflowStub newInstance(WorkflowOptions options) {
+    return new WorkflowStubImpl(
+        clientOptions, workflowClientInvoker, workflowType.orElse(null), options);
+  }
+
   private void checkStarted() {
     if (execution.get() == null || execution.get().getWorkflowId() == null) {
       throw new IllegalStateException("Null workflowId. Was workflow started?");

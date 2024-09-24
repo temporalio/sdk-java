@@ -34,11 +34,13 @@ services:
       - "6934:6934"
       - "6935:6935"
       - "6939:6939"
+      - "7243:7243"
     environment:
       - "CASSANDRA_SEEDS=cassandra"
       - "ENABLE_ES=true"
       - "ES_SEEDS=elasticsearch"
       - "DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml"
+      - "FRONTEND_HTTP_PORT=7243"
     depends_on:
       - cassandra
       - elasticsearch

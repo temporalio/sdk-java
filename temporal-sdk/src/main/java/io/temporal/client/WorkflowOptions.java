@@ -21,6 +21,7 @@
 package io.temporal.client;
 
 import com.google.common.base.Objects;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.*;
@@ -78,6 +79,8 @@ public final class WorkflowOptions {
         .setWorkflowIdConflictPolicy(o.getWorkflowIdConflictPolicy())
         .setStaticSummary(o.getStaticSummary())
         .setStaticDetails(o.getStaticDetails())
+        .setRequestId(o.getRequestId())
+        .setCompletionCallbacks(o.getCompletionCallbacks())
         .validateBuildWithDefaults();
   }
 
@@ -111,11 +114,15 @@ public final class WorkflowOptions {
 
     private Duration startDelay;
 
-    private WorkflowIdConflictPolicy workflowIdConflictpolicy;
+    private WorkflowIdConflictPolicy workflowIdConflictPolicy;
 
     private String staticSummary;
 
     private String staticDetails;
+
+    private String requestId;
+
+    private List<Callback> completionCallbacks;
 
     private Builder() {}
 
@@ -137,9 +144,11 @@ public final class WorkflowOptions {
       this.contextPropagators = options.contextPropagators;
       this.disableEagerExecution = options.disableEagerExecution;
       this.startDelay = options.startDelay;
-      this.workflowIdConflictpolicy = options.workflowIdConflictpolicy;
+      this.workflowIdConflictPolicy = options.workflowIdConflictPolicy;
       this.staticSummary = options.staticSummary;
       this.staticDetails = options.staticDetails;
+      this.requestId = options.requestId;
+      this.completionCallbacks = options.completionCallbacks;
     }
 
     /**
@@ -190,8 +199,8 @@ public final class WorkflowOptions {
      *   <li><b>TerminateExisting</b> Terminate the running workflow before starting a new one.
      * </ul>
      */
-    public Builder setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy workflowIdConflictpolicy) {
-      this.workflowIdConflictpolicy = workflowIdConflictpolicy;
+    public Builder setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy workflowIdConflictPolicy) {
+      this.workflowIdConflictPolicy = workflowIdConflictPolicy;
       return this;
     }
 
@@ -412,6 +421,28 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * A unique identifier for this start request.
+     *
+     * <p>WARNING: Not intended for User Code.
+     */
+    @Experimental
+    public Builder setRequestId(String requestId) {
+      this.requestId = requestId;
+      return this;
+    }
+
+    /**
+     * Callbacks to be called by the server when this workflow reaches a terminal state.
+     *
+     * <p>WARNING: Not intended for User Code.
+     */
+    @Experimental
+    public Builder setCompletionCallbacks(List<Callback> completionCallbacks) {
+      this.completionCallbacks = completionCallbacks;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -428,9 +459,11 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
-          workflowIdConflictpolicy,
+          workflowIdConflictPolicy,
           staticSummary,
-          staticDetails);
+          staticDetails,
+          requestId,
+          completionCallbacks);
     }
 
     /**
@@ -452,9 +485,11 @@ public final class WorkflowOptions {
           contextPropagators,
           disableEagerExecution,
           startDelay,
-          workflowIdConflictpolicy,
+          workflowIdConflictPolicy,
           staticSummary,
-          staticDetails);
+          staticDetails,
+          requestId,
+          completionCallbacks);
     }
   }
 
@@ -486,11 +521,15 @@ public final class WorkflowOptions {
 
   private final Duration startDelay;
 
-  private final WorkflowIdConflictPolicy workflowIdConflictpolicy;
+  private final WorkflowIdConflictPolicy workflowIdConflictPolicy;
 
   private final String staticSummary;
 
   private final String staticDetails;
+
+  private final String requestId;
+
+  private final List<Callback> completionCallbacks;
 
   private WorkflowOptions(
       String workflowId,
@@ -507,9 +546,11 @@ public final class WorkflowOptions {
       List<ContextPropagator> contextPropagators,
       boolean disableEagerExecution,
       Duration startDelay,
-      WorkflowIdConflictPolicy workflowIdConflictpolicy,
+      WorkflowIdConflictPolicy workflowIdConflictPolicy,
       String staticSummary,
-      String staticDetails) {
+      String staticDetails,
+      String requestId,
+      List<Callback> completionCallbacks) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -524,9 +565,11 @@ public final class WorkflowOptions {
     this.contextPropagators = contextPropagators;
     this.disableEagerExecution = disableEagerExecution;
     this.startDelay = startDelay;
-    this.workflowIdConflictpolicy = workflowIdConflictpolicy;
+    this.workflowIdConflictPolicy = workflowIdConflictPolicy;
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
+    this.requestId = requestId;
+    this.completionCallbacks = completionCallbacks;
   }
 
   public String getWorkflowId() {
@@ -595,7 +638,17 @@ public final class WorkflowOptions {
   }
 
   public WorkflowIdConflictPolicy getWorkflowIdConflictPolicy() {
-    return workflowIdConflictpolicy;
+    return workflowIdConflictPolicy;
+  }
+
+  @Experimental
+  public String getRequestId() {
+    return requestId;
+  }
+
+  @Experimental
+  public List<Callback> getCompletionCallbacks() {
+    return completionCallbacks;
   }
 
   public String getStaticSummary() {
@@ -629,9 +682,11 @@ public final class WorkflowOptions {
         && Objects.equal(contextPropagators, that.contextPropagators)
         && Objects.equal(disableEagerExecution, that.disableEagerExecution)
         && Objects.equal(startDelay, that.startDelay)
-        && Objects.equal(workflowIdConflictpolicy, that.workflowIdConflictpolicy)
+        && Objects.equal(workflowIdConflictPolicy, that.workflowIdConflictPolicy)
         && Objects.equal(staticSummary, that.staticSummary)
-        && Objects.equal(staticDetails, that.staticDetails);
+        && Objects.equal(staticDetails, that.staticDetails)
+        && Objects.equal(requestId, that.requestId)
+        && Objects.equal(completionCallbacks, that.completionCallbacks);
   }
 
   @Override
@@ -651,9 +706,11 @@ public final class WorkflowOptions {
         contextPropagators,
         disableEagerExecution,
         startDelay,
-        workflowIdConflictpolicy,
+        workflowIdConflictPolicy,
         staticSummary,
-        staticDetails);
+        staticDetails,
+        requestId,
+        completionCallbacks);
   }
 
   @Override
@@ -690,12 +747,16 @@ public final class WorkflowOptions {
         + disableEagerExecution
         + ", startDelay="
         + startDelay
-        + ", workflowIdConflictpolicy="
-        + workflowIdConflictpolicy
+        + ", workflowIdConflictPolicy="
+        + workflowIdConflictPolicy
         + ", staticSummary="
         + staticSummary
         + ", staticDetails="
         + staticDetails
+        + ", requestId="
+        + requestId
+        + ", completionCallbacks="
+        + completionCallbacks
         + '}';
   }
 }

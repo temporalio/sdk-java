@@ -20,6 +20,8 @@
 
 package io.temporal.client;
 
+import static io.temporal.internal.common.InternalUtils.createNexusBoundStub;
+
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
@@ -30,14 +32,14 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
+import io.temporal.internal.client.NexusStartWorkflowRequest;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Dynamic implementation of a strongly typed workflow interface that can be used to start, signal
@@ -50,6 +52,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     START,
     EXECUTE,
     SIGNAL_WITH_START,
+    START_NEXUS,
   }
 
   interface SpecificInvocationHandler {
@@ -85,6 +88,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } else if (type == InvocationType.SIGNAL_WITH_START) {
       SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
       invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
+    } else if (type == InvocationType.START_NEXUS) {
+      NexusStartWorkflowRequest request = (NexusStartWorkflowRequest) value;
+      invocationContext.set(new StartNexusOperationInvocationHandler(request));
     } else {
       throw new IllegalArgumentException("Unexpected InvocationType: " + type);
     }
@@ -392,6 +398,41 @@ class WorkflowInvocationHandler implements InvocationHandler {
     @Override
     public <R> R getResult(Class<R> resultClass) {
       throw new IllegalStateException("No result is expected");
+    }
+  }
+
+  private static class StartNexusOperationInvocationHandler implements SpecificInvocationHandler {
+    private final NexusStartWorkflowRequest request;
+    private Object result;
+
+    public StartNexusOperationInvocationHandler(NexusStartWorkflowRequest request) {
+      this.request = request;
+    }
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.START_NEXUS;
+    }
+
+    @Override
+    public void invoke(
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+      if (workflowMethod == null) {
+        throw new IllegalArgumentException(
+            "Only on a method annotated with @WorkflowMethod can be used to start a Nexus operation.");
+      }
+
+      result = createNexusBoundStub(untyped, request).start(args);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> R getResult(Class<R> resultClass) {
+      return (R) result;
     }
   }
 }

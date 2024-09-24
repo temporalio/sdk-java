@@ -41,8 +41,9 @@ public class ExecuteTest {
     Assert.assertEquals("func", WorkflowClient.execute(stubF::func).get());
     Test1ArgWorkflowFunc stubF1 =
         testWorkflowRule.newWorkflowStubTimeoutOptions(Test1ArgWorkflowFunc.class);
-    Assert.assertEquals(1, (int) WorkflowClient.execute(stubF1::func1, 1).get());
-    Assert.assertEquals(1, stubF1.func1(1)); // Check that duplicated start just returns the result.
+    Assert.assertEquals("1", WorkflowClient.execute(stubF1::func1, "1").get());
+    Assert.assertEquals(
+        "1", stubF1.func1("1")); // Check that duplicated start just returns the result.
     Test2ArgWorkflowFunc stubF2 =
         testWorkflowRule.newWorkflowStubTimeoutOptions(Test2ArgWorkflowFunc.class);
     Assert.assertEquals("12", WorkflowClient.execute(stubF2::func2, "1", 2).get());
