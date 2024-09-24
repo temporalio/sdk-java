@@ -1,0 +1,742 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2024-09-21T21:58:59.291887Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
+      "taskId": "1049233",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "TestWorkflow1"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "IldvcmtmbG93VGVzdC10ZXN0UGFyYWxsZWxPcGVyYXRpb25zLTFlMjUxNTM4LTQ4MTQtNDUzNS1iOTk5LWU4NmQ4ZjE3YTY5MSI="
+            }
+          ]
+        },
+        "workflowExecutionTimeout": "0s",
+        "workflowRunTimeout": "200s",
+        "workflowTaskTimeout": "5s",
+        "originalExecutionRunId": "cf054c98-0160-450e-9f01-061d861b5a54",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "firstExecutionRunId": "cf054c98-0160-450e-9f01-061d861b5a54",
+        "attempt": 1,
+        "firstWorkflowTaskBackoff": "0s",
+        "header": {},
+        "workflowId": "531437b0-31dd-4222-bf02-96d6cbd8885b"
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2024-09-21T21:58:59.291967Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1049234",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2024-09-21T21:58:59.295147Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1049240",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "7404551c-c4ce-4b89-88aa-856cce2feb74",
+        "historySizeBytes": "512"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2024-09-21T21:58:59.409523Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1049244",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "startedEventId": "3",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "sdkMetadata": {
+          "langUsedFlags": [
+            1
+          ]
+        },
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2024-09-21T21:58:59.409555Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049245",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjAi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "96b76c12-c846-4cce-9290-74ee9b1d79ab",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2024-09-21T21:58:59.409595Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049246",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjEi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "c4ff6b12-5e3e-4838-919d-377854b1ea73",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "7",
+      "eventTime": "2024-09-21T21:58:59.409608Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049247",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjIi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "9dd9cf59-393d-4ecb-8270-9aa0b72adc8c",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "8",
+      "eventTime": "2024-09-21T21:58:59.409617Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049248",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjMi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "db9fb6d0-e7de-460f-b518-2d30678e8011",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "9",
+      "eventTime": "2024-09-21T21:58:59.409627Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049249",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjQi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "6bd05424-845c-426c-9798-00af06ad27d9",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "10",
+      "eventTime": "2024-09-21T21:58:59.409636Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049250",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjUi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "c2a445d2-b548-456f-91c6-d7319b2733b5",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "11",
+      "eventTime": "2024-09-21T21:58:59.409646Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049251",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjYi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "4a0df3c4-e1e0-4877-b3bd-c5185d18027d",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "12",
+      "eventTime": "2024-09-21T21:58:59.409665Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049252",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "Ijci"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "6eb32f69-5c3a-4259-a386-d5d2845aca77",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "13",
+      "eventTime": "2024-09-21T21:58:59.409673Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049253",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "Ijgi"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "68692641-f77f-46a0-accd-4916de8bcc15",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "14",
+      "eventTime": "2024-09-21T21:58:59.409681Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED",
+      "taskId": "1049254",
+      "nexusOperationScheduledEventAttributes": {
+        "endpoint": "test-endpoint-WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691",
+        "service": "TestNexusService1",
+        "operation": "operation",
+        "input": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "Ijki"
+        },
+        "scheduleToCloseTimeout": "10s",
+        "workflowTaskCompletedEventId": "4",
+        "requestId": "6d69714a-df8f-4c7a-a2e3-a4eed95355b2",
+        "endpointId": "6870540a-d056-4f6d-a372-3ad23fedf16e"
+      }
+    },
+    {
+      "eventId": "15",
+      "eventTime": "2024-09-21T21:58:59.441823Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049335",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "7",
+        "operationId": "b99dd681-6005-4120-a9f5-77f69e59ca8a",
+        "requestId": "9dd9cf59-393d-4ecb-8270-9aa0b72adc8c"
+      }
+    },
+    {
+      "eventId": "16",
+      "eventTime": "2024-09-21T21:58:59.441839Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1049336",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "6114@Quinn-Klassens-MacBook-Pro.local:5bff66e2-9eaf-49f2-aa60-1fa7e7cf7848",
+          "kind": "TASK_QUEUE_KIND_STICKY",
+          "normalName": "WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "17",
+      "eventTime": "2024-09-21T21:58:59.443506Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049341",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "6",
+        "operationId": "26fc52ac-66c6-46c2-ba32-8f524e03b80b",
+        "requestId": "c4ff6b12-5e3e-4838-919d-377854b1ea73"
+      }
+    },
+    {
+      "eventId": "18",
+      "eventTime": "2024-09-21T21:58:59.443897Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049343",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "9",
+        "operationId": "d4b13a56-dc16-4bac-af5e-b505c61ba569",
+        "requestId": "6bd05424-845c-426c-9798-00af06ad27d9"
+      }
+    },
+    {
+      "eventId": "19",
+      "eventTime": "2024-09-21T21:58:59.444123Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049345",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "14",
+        "operationId": "1f3aced5-a1ff-4a0d-a02e-065c1b54179c",
+        "requestId": "6d69714a-df8f-4c7a-a2e3-a4eed95355b2"
+      }
+    },
+    {
+      "eventId": "20",
+      "eventTime": "2024-09-21T21:58:59.444333Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049347",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "8",
+        "operationId": "0b4f0b4e-54d3-4185-8a0a-485f27462bc5",
+        "requestId": "db9fb6d0-e7de-460f-b518-2d30678e8011"
+      }
+    },
+    {
+      "eventId": "21",
+      "eventTime": "2024-09-21T21:58:59.444519Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049349",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "5",
+        "operationId": "0777cf0f-3ea0-4e94-8b4e-9580ea4e6ed2",
+        "requestId": "96b76c12-c846-4cce-9290-74ee9b1d79ab"
+      }
+    },
+    {
+      "eventId": "22",
+      "eventTime": "2024-09-21T21:58:59.444697Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049351",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "11",
+        "operationId": "7b694b12-6488-4317-8bec-c893f7f1c07b",
+        "requestId": "4a0df3c4-e1e0-4877-b3bd-c5185d18027d"
+      }
+    },
+    {
+      "eventId": "23",
+      "eventTime": "2024-09-21T21:58:59.444885Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049353",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "13",
+        "operationId": "3afdbf97-3338-450f-914a-14a60dece2ab",
+        "requestId": "68692641-f77f-46a0-accd-4916de8bcc15"
+      }
+    },
+    {
+      "eventId": "24",
+      "eventTime": "2024-09-21T21:58:59.445060Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049355",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "12",
+        "operationId": "e276e526-7fc3-42c5-b12b-2c22ed98b301",
+        "requestId": "6eb32f69-5c3a-4259-a386-d5d2845aca77"
+      }
+    },
+    {
+      "eventId": "25",
+      "eventTime": "2024-09-21T21:58:59.445416Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_STARTED",
+      "taskId": "1049357",
+      "nexusOperationStartedEventAttributes": {
+        "scheduledEventId": "10",
+        "operationId": "e0561cad-d066-46ae-918c-34c52aae8aaa",
+        "requestId": "c2a445d2-b548-456f-91c6-d7319b2733b5"
+      }
+    },
+    {
+      "eventId": "26",
+      "eventTime": "2024-09-21T21:58:59.446001Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1049359",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "16",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "152c4c51-fa99-4241-9707-2cd4e174d276",
+        "historySizeBytes": "4537"
+      }
+    },
+    {
+      "eventId": "27",
+      "eventTime": "2024-09-21T21:58:59.455430Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1049411",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "16",
+        "startedEventId": "26",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "28",
+      "eventTime": "2024-09-21T21:59:00.458552Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049480",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "9",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjQi"
+        },
+        "requestId": "6bd05424-845c-426c-9798-00af06ad27d9"
+      }
+    },
+    {
+      "eventId": "29",
+      "eventTime": "2024-09-21T21:59:00.458567Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1049481",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "6114@Quinn-Klassens-MacBook-Pro.local:5bff66e2-9eaf-49f2-aa60-1fa7e7cf7848",
+          "kind": "TASK_QUEUE_KIND_STICKY",
+          "normalName": "WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "30",
+      "eventTime": "2024-09-21T21:59:00.461771Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1049508",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "29",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "f8078c43-d081-4139-8eb8-29e178ddcbbe",
+        "historySizeBytes": "5005"
+      }
+    },
+    {
+      "eventId": "31",
+      "eventTime": "2024-09-21T21:59:00.467152Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1049560",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "29",
+        "startedEventId": "30",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "32",
+      "eventTime": "2024-09-21T21:59:00.464054Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049561",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "14",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "Ijki"
+        },
+        "requestId": "6d69714a-df8f-4c7a-a2e3-a4eed95355b2"
+      }
+    },
+    {
+      "eventId": "33",
+      "eventTime": "2024-09-21T21:59:00.467168Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1049562",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "6114@Quinn-Klassens-MacBook-Pro.local:5bff66e2-9eaf-49f2-aa60-1fa7e7cf7848",
+          "kind": "TASK_QUEUE_KIND_STICKY",
+          "normalName": "WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "34",
+      "eventTime": "2024-09-21T21:59:00.469553Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049580",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "6",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjEi"
+        },
+        "requestId": "c4ff6b12-5e3e-4838-919d-377854b1ea73"
+      }
+    },
+    {
+      "eventId": "35",
+      "eventTime": "2024-09-21T21:59:00.472643Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049601",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "7",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjIi"
+        },
+        "requestId": "9dd9cf59-393d-4ecb-8270-9aa0b72adc8c"
+      }
+    },
+    {
+      "eventId": "36",
+      "eventTime": "2024-09-21T21:59:00.474830Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049615",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "5",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjAi"
+        },
+        "requestId": "96b76c12-c846-4cce-9290-74ee9b1d79ab"
+      }
+    },
+    {
+      "eventId": "37",
+      "eventTime": "2024-09-21T21:59:00.476132Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1049624",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "33",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "f3014e31-1105-4efc-b197-d28c6bd6c59c",
+        "historySizeBytes": "5767"
+      }
+    },
+    {
+      "eventId": "38",
+      "eventTime": "2024-09-21T21:59:00.480427Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1049632",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "33",
+        "startedEventId": "37",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "39",
+      "eventTime": "2024-09-21T21:59:00.478102Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049633",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "12",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "Ijci"
+        },
+        "requestId": "6eb32f69-5c3a-4259-a386-d5d2845aca77"
+      }
+    },
+    {
+      "eventId": "40",
+      "eventTime": "2024-09-21T21:59:00.478529Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049634",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "13",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "Ijgi"
+        },
+        "requestId": "68692641-f77f-46a0-accd-4916de8bcc15"
+      }
+    },
+    {
+      "eventId": "41",
+      "eventTime": "2024-09-21T21:59:00.478862Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049635",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "11",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjYi"
+        },
+        "requestId": "4a0df3c4-e1e0-4877-b3bd-c5185d18027d"
+      }
+    },
+    {
+      "eventId": "42",
+      "eventTime": "2024-09-21T21:59:00.479198Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049636",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "8",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjMi"
+        },
+        "requestId": "db9fb6d0-e7de-460f-b518-2d30678e8011"
+      }
+    },
+    {
+      "eventId": "43",
+      "eventTime": "2024-09-21T21:59:00.479584Z",
+      "eventType": "EVENT_TYPE_NEXUS_OPERATION_COMPLETED",
+      "taskId": "1049637",
+      "nexusOperationCompletedEventAttributes": {
+        "scheduledEventId": "10",
+        "result": {
+          "metadata": {
+            "encoding": "anNvbi9wbGFpbg=="
+          },
+          "data": "IjUi"
+        },
+        "requestId": "c2a445d2-b548-456f-91c6-d7319b2733b5"
+      }
+    },
+    {
+      "eventId": "44",
+      "eventTime": "2024-09-21T21:59:00.480440Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1049638",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "6114@Quinn-Klassens-MacBook-Pro.local:5bff66e2-9eaf-49f2-aa60-1fa7e7cf7848",
+          "kind": "TASK_QUEUE_KIND_STICKY",
+          "normalName": "WorkflowTest-testParallelOperations-1e251538-4814-4535-b999-e86d8f17a691"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "45",
+      "eventTime": "2024-09-21T21:59:00.497213Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1049642",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "44",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "14fbd347-f7de-40e3-a532-5a5a88e6b78f",
+        "historySizeBytes": "6627"
+      }
+    },
+    {
+      "eventId": "46",
+      "eventTime": "2024-09-21T21:59:00.500049Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1049646",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "44",
+        "startedEventId": "45",
+        "identity": "6114@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "47",
+      "eventTime": "2024-09-21T21:59:00.500065Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+      "taskId": "1049647",
+      "workflowExecutionCompletedEventAttributes": {
+        "result": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "IjAxMjM0NTY3ODki"
+            }
+          ]
+        },
+        "workflowTaskCompletedEventId": "46"
+      }
+    }
+  ]
+}
