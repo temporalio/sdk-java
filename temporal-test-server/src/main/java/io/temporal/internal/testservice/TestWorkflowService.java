@@ -1198,6 +1198,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
 
       @Nullable Deadline deadline = getUpdatePollDeadline();
+      System.out.println("DEBUG");
+      System.out.println(deadline);
 
       AtomicReference<TestWorkflowMutableStateImpl.UpdateHandle> updateHandle =
           new AtomicReference<>();
