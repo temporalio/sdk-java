@@ -44,7 +44,7 @@ public class TestMultiArgWorkflowFunctions {
   public interface Test1ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod(name = "func1")
-    int func1(int input);
+    String func1(String input);
   }
 
   @WorkflowInterface
@@ -162,7 +162,7 @@ public class TestMultiArgWorkflowFunctions {
     }
 
     @Override
-    public int func1(int a1) {
+    public String func1(String a1) {
       return a1;
     }
 
