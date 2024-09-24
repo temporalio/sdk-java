@@ -303,7 +303,7 @@ public class UpdateWithStartTest {
   }
 
   @Test
-  public void retryUntilDurable() throws ExecutionException, InterruptedException {
+  public void retryUntilDurable() {
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
