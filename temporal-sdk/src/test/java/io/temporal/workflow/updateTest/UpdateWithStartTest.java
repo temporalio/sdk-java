@@ -21,14 +21,23 @@
 package io.temporal.workflow.updateTest;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.uber.m3.tally.Scope;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.update.v1.UpdateRef;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -42,7 +51,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -295,6 +303,73 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  public void retryUntilDurable() throws ExecutionException, InterruptedException {
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.withDeadline(any())).thenReturn(blockingStub);
+
+    Scope scope = mock(Scope.class);
+    when(scope.tagged(any())).thenReturn(scope);
+
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+    when(client.blockingStub()).thenReturn(blockingStub);
+    when(client.getOptions())
+        .thenReturn(WorkflowServiceStubsOptions.newBuilder().setMetricsScope(scope).build());
+
+    when(blockingStub.executeMultiOperation(any()))
+        .thenReturn( // 1st response: empty response, Update is not durable yet, client retries
+            ExecuteMultiOperationResponse.newBuilder()
+                .addResponses(
+                    ExecuteMultiOperationResponse.Response.newBuilder()
+                        .setStartWorkflow(StartWorkflowExecutionResponse.newBuilder()))
+                .addResponses(
+                    ExecuteMultiOperationResponse.Response.newBuilder()
+                        .setUpdateWorkflow(UpdateWorkflowExecutionResponse.newBuilder()))
+                .build())
+        .thenReturn( // 2nd response: non-empty response, Update is durable
+            ExecuteMultiOperationResponse.newBuilder()
+                .addResponses(
+                    ExecuteMultiOperationResponse.Response.newBuilder()
+                        .setStartWorkflow(StartWorkflowExecutionResponse.newBuilder()))
+                .addResponses(
+                    ExecuteMultiOperationResponse.Response.newBuilder()
+                        .setUpdateWorkflow(
+                            UpdateWorkflowExecutionResponse.newBuilder()
+                                .setUpdateRef(
+                                    UpdateRef.newBuilder()
+                                        .setWorkflowExecution(
+                                            WorkflowExecution.newBuilder().setRunId("run_id")))
+                                .setStage(
+                                    UpdateWorkflowExecutionLifecycleStage
+                                        .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED)))
+                .build())
+        .thenThrow(new IllegalStateException("should not be reached"));
+
+    WorkflowClient workflowClient =
+        WorkflowClient.newInstance(client, WorkflowClientOptions.newBuilder().build());
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setWorkflowId(workflowId)
+            .build();
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(workflow::update, 0, "Hello Update")
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+
+    WorkflowUpdateHandle<String> updateHandle =
+        WorkflowClient.updateWithStart(workflow::execute, updateOp);
+
+    assertEquals("run_id", updateHandle.getExecution().getRunId());
+  }
+
+  @Test
   public void timeoutError() {
     testWorkflowRule.getTestEnvironment().shutdownNow();
     testWorkflowRule.getTestEnvironment().awaitTermination(5, TimeUnit.SECONDS);
@@ -323,10 +398,10 @@ public class UpdateWithStartTest {
                     assertThrows(
                         WorkflowServiceException.class,
                         () -> WorkflowClient.updateWithStart(workflow::execute, updateOp))));
-    Assert.assertEquals(workflowId, exception.get().getExecution().getWorkflowId());
+    assertEquals(workflowId, exception.get().getExecution().getWorkflowId());
     WorkflowServiceException cause =
         (WorkflowUpdateTimeoutOrCancelledException) exception.get().getCause();
-    Assert.assertEquals(workflowId, cause.getExecution().getWorkflowId());
+    assertEquals(workflowId, cause.getExecution().getWorkflowId());
   }
 
   @Test
