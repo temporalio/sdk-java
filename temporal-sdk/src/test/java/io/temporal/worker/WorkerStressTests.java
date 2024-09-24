@@ -22,6 +22,7 @@ package io.temporal.worker;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
@@ -103,6 +104,44 @@ public class WorkerStressTests {
     w.ChainSequence = 50;
     w.ConcurrentCount = 50;
     w.PayloadSizeBytes = 10000;
+    w.TaskQueueName = taskQueueName;
+
+    workflow.start(w);
+    assertEquals("I'm done", workflow.getResult(String.class));
+    wrapper.close();
+  }
+
+  @Test(timeout = 60000)
+  public void highConcurrentWorkflowsVirtualThreads() {
+    assumeTrue("Skip on JDK < 21", false);
+
+    // Arrange
+    String taskQueueName = "veryLongWorkflow";
+
+    TestEnvironmentWrapper wrapper =
+        new TestEnvironmentWrapper(
+            WorkerFactoryOptions.newBuilder().setEnableVirtualThreads(true).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
+    worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new ActivitiesImpl());
+    factory.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(taskQueueName)
+            .setWorkflowRunTimeout(Duration.ofSeconds(250))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
+            .build();
+    WorkflowStub workflow =
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
+
+    // Act
+    WorkflowParams w = new WorkflowParams();
+    w.TemporalSleepSeconds = 0;
+    w.ChainSequence = 1;
+    w.ConcurrentCount = 800;
+    w.PayloadSizeBytes = 100;
     w.TaskQueueName = taskQueueName;
 
     workflow.start(w);
