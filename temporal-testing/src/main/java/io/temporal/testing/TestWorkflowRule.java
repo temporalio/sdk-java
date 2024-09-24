@@ -20,10 +20,13 @@
 
 package io.temporal.testing;
 
+import static io.temporal.testing.internal.TestServiceUtils.applyNexusServiceOptions;
+
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
+import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -85,6 +88,7 @@ public class TestWorkflowRule implements TestRule {
   private final String namespace;
   private final boolean useExternalService;
   private final boolean doNotStart;
+  private final boolean doNotSetupNexusEndpoint;
   @Nullable private final Timeout globalTimeout;
 
   private final Class<?>[] workflowTypes;
@@ -102,6 +106,8 @@ public class TestWorkflowRule implements TestRule {
   @Nonnull private final Map<String, IndexedValueType> searchAttributes;
 
   private String taskQueue;
+  private String nexusEndpointName;
+  private Endpoint nexusEndpoint;
   private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -113,6 +119,7 @@ public class TestWorkflowRule implements TestRule {
 
   private TestWorkflowRule(Builder builder) {
     this.doNotStart = builder.doNotStart;
+    this.doNotSetupNexusEndpoint = builder.doNotSetupNexusEndpoint;
     this.useExternalService = builder.useExternalService;
     this.namespace =
         (builder.namespace == null) ? RegisterTestNamespace.NAMESPACE : builder.namespace;
@@ -181,6 +188,7 @@ public class TestWorkflowRule implements TestRule {
     private String target;
     private boolean useExternalService;
     private boolean doNotStart;
+    private boolean doNotSetupNexusEndpoint;
     private long initialTimeMillis;
     // Default to TestEnvironmentOptions isUseTimeskipping
     private boolean useTimeskipping =
@@ -327,6 +335,15 @@ public class TestWorkflowRule implements TestRule {
     }
 
     /**
+     * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
+     * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
+     */
+    public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
+      this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
+      return this;
+    }
+
+    /**
      * Add a search attribute to be registered on the Temporal Server.
      *
      * @param name name of the search attribute
@@ -407,7 +424,15 @@ public class TestWorkflowRule implements TestRule {
   private String init(Description description) {
     String testMethod = description.getMethodName();
     String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID();
+    nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
+    WorkflowImplementationOptions workflowImplementationOptions =
+        this.workflowImplementationOptions;
+    if (!doNotSetupNexusEndpoint) {
+      workflowImplementationOptions =
+          applyNexusServiceOptions(
+              workflowImplementationOptions, nexusServiceImplementations, nexusEndpointName);
+    }
     worker.registerWorkflowImplementationTypes(workflowImplementationOptions, workflowTypes);
     worker.registerActivitiesImplementations(activityImplementations);
     worker.registerNexusServiceImplementation(nexusServiceImplementations);
@@ -415,12 +440,18 @@ public class TestWorkflowRule implements TestRule {
   }
 
   private void start() {
+    if (!doNotSetupNexusEndpoint && nexusServiceImplementations.length > 0) {
+      nexusEndpoint = testEnvironment.createNexusEndpoint(nexusEndpointName, taskQueue);
+    }
     if (!doNotStart) {
       testEnvironment.start();
     }
   }
 
   protected void shutdown() {
+    if (nexusEndpoint != null) {
+      testEnvironment.deleteNexusEndpoint(nexusEndpoint);
+    }
     testEnvironment.close();
   }
 

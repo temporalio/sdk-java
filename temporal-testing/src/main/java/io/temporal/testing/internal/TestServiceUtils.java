@@ -23,6 +23,7 @@ package io.temporal.testing.internal;
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 
 import com.google.protobuf.ByteString;
+import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -35,12 +36,39 @@ import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.NexusServiceOptions;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class TestServiceUtils {
   private TestServiceUtils() {}
+
+  public static WorkflowImplementationOptions applyNexusServiceOptions(
+      WorkflowImplementationOptions options,
+      Object[] nexusServiceImplementations,
+      String endpoint) {
+    Map<String, NexusServiceOptions> newNexusServiceOptions = new HashMap<>();
+    for (Object nexusService : nexusServiceImplementations) {
+      String serviceName = ServiceImplInstance.fromInstance(nexusService).getDefinition().getName();
+      NexusServiceOptions serviceOptionWithEndpoint =
+          options.getNexusServiceOptions().get(serviceName);
+      if (serviceOptionWithEndpoint == null) {
+        serviceOptionWithEndpoint = NexusServiceOptions.newBuilder().build();
+      }
+      serviceOptionWithEndpoint =
+          serviceOptionWithEndpoint.getEndpoint() == null
+              ? NexusServiceOptions.newBuilder(serviceOptionWithEndpoint)
+                  .setEndpoint(endpoint)
+                  .build()
+              : serviceOptionWithEndpoint;
+      newNexusServiceOptions.put(serviceName, serviceOptionWithEndpoint);
+    }
+    return options.toBuilder().setNexusServiceOptions(newNexusServiceOptions).build();
+  }
 
   public static void startWorkflowExecution(
       String namespace, String taskqueueName, String workflowType, WorkflowServiceStubs service)
