@@ -23,20 +23,25 @@ package io.temporal.workflow.nexus;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.nexus.WorkflowClientOperationHandlers;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SyncOperationStubTest extends BaseNexusTest {
+public class ParallelWorkflowOperationTest extends BaseNexusTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestNexus.class)
+          .setWorkflowTypes(TestNexus.class, TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
 
@@ -46,11 +51,17 @@ public class SyncOperationStubTest extends BaseNexusTest {
   }
 
   @Test
-  public void typedNexusServiceStub() {
+  public void testParallelOperations() {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("Hello, " + testWorkflowRule.getTaskQueue() + "!", result);
+    Assert.assertEquals("0123456789", result);
+  }
+
+  @Test
+  public void testParallelOperationsReplay() throws Exception {
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "testParallelWorkflowOperationTestHistory.json", TestNexus.class);
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
@@ -58,32 +69,40 @@ public class SyncOperationStubTest extends BaseNexusTest {
     public String execute(String input) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(10))
               .build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder()
               .setEndpoint(getEndpointName())
               .setOperationOptions(options)
               .build();
-      // Try to call a synchronous operation in a blocking way
       TestNexusServices.TestNexusService1 serviceStub =
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
-      // Try to call a synchronous operation in a blocking way
-      String syncResult = serviceStub.operation(input);
-      // Try to call a synchronous operation in a non-blocking way
-      Promise<String> syncPromise = Async.function(serviceStub::operation, input);
-      Assert.assertEquals(syncPromise.get(), syncResult);
-      // Try to call a synchronous operation in a non-blocking way using a handle
-      NexusOperationHandle<String> syncOpHandle =
-          Workflow.startNexusOperation(serviceStub::operation, input);
-      NexusOperationExecution syncExec = syncOpHandle.getExecution().get();
-      // Execution id is not present for synchronous operations
-      Assert.assertFalse(
-          "Operation id should not be present", syncExec.getOperationId().isPresent());
-      // Result should always be completed for a synchronous operations when the Execution
-      // is resolved
-      Assert.assertTrue("Result should be completed", syncOpHandle.getResult().isCompleted());
-      return syncResult;
+      List<Promise<String>> asyncResult = new ArrayList<>();
+      for (int i = 0; i < 10; i++) {
+        NexusOperationHandle h =
+            Workflow.startNexusOperation(serviceStub::operation, String.valueOf(i));
+        asyncResult.add(h.getResult());
+      }
+      StringBuilder result = new StringBuilder();
+      for (Promise<String> promise : asyncResult) {
+        result.append(promise.get());
+      }
+      return result.toString();
+    }
+  }
+
+  @WorkflowInterface
+  public interface OperationWorkflow {
+    @WorkflowMethod
+    String execute(String arg);
+  }
+
+  public static class TestOperationWorkflow implements OperationWorkflow {
+    @Override
+    public String execute(String arg) {
+      Workflow.sleep(Workflow.newRandom().ints(1, 1000).findFirst().getAsInt());
+      return arg;
     }
   }
 
@@ -91,8 +110,12 @@ public class SyncOperationStubTest extends BaseNexusTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      // Implemented inline
-      return OperationHandler.sync((ctx, details, name) -> "Hello, " + name + "!");
+      return WorkflowClientOperationHandlers.fromWorkflowMethod(
+          (context, details, client, input) ->
+              client.newWorkflowStub(
+                      OperationWorkflow.class,
+                      WorkflowOptions.newBuilder().setWorkflowId(details.getRequestId()).build())
+                  ::execute);
     }
   }
 }

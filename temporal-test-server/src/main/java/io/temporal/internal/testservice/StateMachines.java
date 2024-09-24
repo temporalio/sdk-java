@@ -715,6 +715,7 @@ class StateMachines {
                             .setPayload(attr.getInput())
                             .addLinks(link)
                             .setCallback("http://test-env/operations")
+                            .setRequestId(UUID.randomUUID().toString())
                             // The test server uses this to lookup the operation
                             .putCallbackHeader(
                                 "operation-reference", ref.toBytes().toStringUtf8())));
