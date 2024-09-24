@@ -338,6 +338,7 @@ public class TestWorkflowRule implements TestRule {
      * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
      * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
      */
+    @Experimental
     public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
       this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
       return this;

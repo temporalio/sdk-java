@@ -24,6 +24,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.OperatorServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -167,13 +168,15 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @param taskQueue Task Queue to be used for the endpoint
    * @return Endpoint object
    */
+  @Experimental
   Endpoint createNexusEndpoint(String name, String taskQueue);
 
   /**
    * Delete a Nexus Endpoint on the server.
    *
-   * @param Endpoint current endpoint to be deleted
+   * @param endpoint current endpoint to be deleted
    */
+  @Experimental
   void deleteNexusEndpoint(Endpoint endpoint);
 
   /**
