@@ -24,16 +24,27 @@ import io.nexusrpc.handler.*;
 import io.nexusrpc.handler.OperationHandler;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationContextImpl;
 
-/**
- * WorkflowRunNexusOperationHandler can be used to create OperationHandlers that will trigger a
- * workflow run
- */
+/** WorkflowClientOperationHandlers can be used to create Temporal specific OperationHandlers */
 @Experimental
-public final class WorkflowRunNexusOperationHandler {
+public final class WorkflowClientOperationHandlers {
+  /**
+   * Helper to create {@link io.nexusrpc.handler.OperationHandler} instances that take a {@link
+   * io.temporal.client.WorkflowClient}.
+   */
+  public static <T, R> OperationHandler<T, R> sync(
+      SynchronousWorkflowClientOperationFunction<T, R> func) {
+    return io.nexusrpc.handler.OperationHandler.sync(
+        (OperationContext ctx, OperationStartDetails details, T input) -> {
+          NexusOperationContextImpl nexusCtx = CurrentNexusOperationContext.get();
+          return func.apply(ctx, details, nexusCtx.getWorkflowClient(), input);
+        });
+  }
 
   /**
-   * Maps a workflow method to a nexus operation handler.
+   * Maps a workflow method to an {@link io.nexusrpc.handler.OperationHandler}.
    *
    * @param startMethod returns the workflow method reference to call
    * @return Operation handler to be used as an {@link OperationImpl}
@@ -47,7 +58,7 @@ public final class WorkflowRunNexusOperationHandler {
   }
 
   /**
-   * Maps a workflow handle to a nexus operation handler.
+   * Maps a workflow handle to an {@link io.nexusrpc.handler.OperationHandler}.
    *
    * @param handleFactory returns the workflow handle that will be mapped to the call
    * @return Operation handler to be used as an {@link OperationImpl}
@@ -58,5 +69,5 @@ public final class WorkflowRunNexusOperationHandler {
   }
 
   /** Prohibits instantiation. */
-  private WorkflowRunNexusOperationHandler() {}
+  private WorkflowClientOperationHandlers() {}
 }

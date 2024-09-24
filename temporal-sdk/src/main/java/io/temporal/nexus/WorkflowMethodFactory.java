@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 
 /**
  * Function interface for {@link
- * WorkflowRunNexusOperationHandler#fromWorkflowMethod(WorkflowMethodFactory)} representing the
+ * WorkflowClientOperationHandlers#fromWorkflowMethod(WorkflowMethodFactory)} representing the
  * workflow method to invoke for every operation call.
  */
 @FunctionalInterface

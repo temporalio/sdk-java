@@ -28,7 +28,7 @@ import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
- * Function interface for {@link WorkflowClientOperationHandler#sync} representing a call made for
+ * Function interface for {@link WorkflowClientOperationHandlers#sync} representing a call made for
  * every operation call that takes a {@link WorkflowClient}.
  */
 @FunctionalInterface

@@ -26,8 +26,8 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.nexus.WorkflowHandle;
-import io.temporal.nexus.WorkflowRunNexusOperationHandler;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -93,7 +93,7 @@ public class WorkflowHandleProcTest extends BaseNexusTest {
   public class TestNexusServiceFuncImpl {
     @OperationImpl
     public OperationHandler<Integer, Void> operation() {
-      return WorkflowRunNexusOperationHandler.fromWorkflowHandle(
+      return WorkflowClientOperationHandlers.fromWorkflowHandle(
           (context, details, client, input) -> {
             switch (input) {
               case 0:
