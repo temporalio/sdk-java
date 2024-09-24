@@ -78,7 +78,7 @@ public class MultiOperationTest {
     assertNull(updHandle.getResultAsync().get());
   }
 
-  @Test(timeout = 15000) // server timeout is 10s
+  @Test(timeout = 21000) // server timeout is 10s (test server) or 20s (real server)
   public void receiveResponseAfterTimeout() {
     String workflowId = UUID.randomUUID().toString();
 
