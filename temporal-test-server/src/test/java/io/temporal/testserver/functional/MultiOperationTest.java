@@ -20,6 +20,7 @@
 
 package io.temporal.testserver.functional;
 
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
 import static org.junit.Assert.*;
 
 import io.grpc.Status;
@@ -97,7 +98,9 @@ public class MultiOperationTest {
                             .setUpdateWorkflow(validUpdateRequest(workflowId))));
 
     assertTrue(response.getResponses(0).getStartWorkflow().getStarted());
-    assertFalse(response.getResponses(1).getUpdateWorkflow().hasOutcome());
+    assertEquals(
+        UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED,
+        response.getResponses(1).getUpdateWorkflow().getStage());
   }
 
   @Test
@@ -206,9 +209,7 @@ public class MultiOperationTest {
                   (builder) -> {
                     WaitPolicy.Builder invalidWaitPolicy =
                         WaitPolicy.newBuilder()
-                            .setLifecycleStage(
-                                UpdateWorkflowExecutionLifecycleStage
-                                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED);
+                            .setLifecycleStage(UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED);
                     builder
                         .addOperations(
                             ExecuteMultiOperationRequest.Operation.newBuilder()
