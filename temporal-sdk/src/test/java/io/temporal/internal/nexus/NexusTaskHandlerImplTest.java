@@ -60,7 +60,7 @@ public class NexusTaskHandlerImplTest {
   @Test
   public void nexusTaskHandlerImplStartNoService() {
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter, null);
     // Verify if no service is registered, start should return false
     Assert.assertFalse(nexusTaskHandlerImpl.start());
   }
@@ -68,7 +68,7 @@ public class NexusTaskHandlerImplTest {
   @Test
   public void nexusTaskHandlerImplStart() {
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter, null);
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImpl()});
     // Verify if any services are registered, start should return true
@@ -78,7 +78,7 @@ public class NexusTaskHandlerImplTest {
   @Test
   public void startSyncTask() throws TimeoutException {
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter, null);
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImpl()});
     nexusTaskHandlerImpl.start();
@@ -116,7 +116,7 @@ public class NexusTaskHandlerImplTest {
   @Test
   public void syncTimeoutTask() {
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter, null);
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImpl2()});
     nexusTaskHandlerImpl.start();
@@ -141,7 +141,7 @@ public class NexusTaskHandlerImplTest {
   @Test
   public void startAsyncSyncOperation() throws TimeoutException {
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter, null);
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImplAsync()});
     nexusTaskHandlerImpl.start();

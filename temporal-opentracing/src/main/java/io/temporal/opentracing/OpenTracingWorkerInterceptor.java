@@ -52,4 +52,9 @@ public class OpenTracingWorkerInterceptor implements WorkerInterceptor {
     return new OpenTracingActivityInboundCallsInterceptor(
         next, options, spanFactory, contextAccessor);
   }
+
+  @Override
+  public NexusInboundCallsInterceptor interceptNexus(NexusInboundCallsInterceptor next) {
+    return null;
+  }
 }

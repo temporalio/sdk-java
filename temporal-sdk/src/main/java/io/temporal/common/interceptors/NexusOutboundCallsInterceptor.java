@@ -18,25 +18,26 @@
  * limitations under the License.
  */
 
-package io.temporal.nexus;
+package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.common.Experimental;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
 /**
- * Context object passed to a Nexus operation implementation. Use {@link
- * Nexus#getOperationContext()} from a Nexus Operation implementation to access.
+ * Can be used to intercept calls from a Nexus operation into the Temporal APIs.
+ *
+ * <p>Prefer extending {@link NexusOutboundCallsInterceptorBase} and overriding only the methods you
+ * need instead of implementing this interface directly. {@link NexusOutboundCallsInterceptorBase}
+ * provides correct default implementations to all the methods of this interface.
+ *
+ * <p>An instance may be created in {@link
+ * NexusInboundCallsInterceptor#init(NexusOutboundCallsInterceptor)} and set by passing it into
+ * {@code init} method of the {@code next} {@link NexusInboundCallsInterceptor} The implementation
+ * must forward all the calls to the outbound interceptor passed as a {@code outboundCalls}
+ * parameter to the {@code init} call.
  */
 @Experimental
-public interface NexusOperationContext {
-
-  /**
-   * Get scope for reporting business metrics in a nexus handler. This scope is tagged with the
-   * service and operation.
-   *
-   * <p>The original metrics scope is set through {@link
-   * WorkflowServiceStubsOptions.Builder#setMetricsScope(Scope)} when a worker starts up.
-   */
+public interface NexusOutboundCallsInterceptor {
+  /** Intercepts call to get the metric scope in a Nexus operation. */
   Scope getMetricsScope();
 }

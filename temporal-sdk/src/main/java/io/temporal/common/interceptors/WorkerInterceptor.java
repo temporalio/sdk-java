@@ -95,4 +95,6 @@ public interface WorkerInterceptor {
   WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next);
 
   ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next);
+
+  NexusInboundCallsInterceptor interceptNexus(NexusInboundCallsInterceptor next);
 }

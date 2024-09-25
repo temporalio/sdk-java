@@ -23,6 +23,7 @@ package io.temporal.testing.internal;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import io.nexusrpc.OperationUnsuccessfulException;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.SearchAttributeUpdate;
@@ -126,6 +127,11 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
   @Override
   public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
     return new TracingActivityInboundCallsInterceptor(trace, next);
+  }
+
+  @Override
+  public NexusInboundCallsInterceptor interceptNexus(NexusInboundCallsInterceptor next) {
+    return new TracingNexusInboundCallsInterceptor(trace, next);
   }
 
   public static class FilteredTrace {
@@ -456,6 +462,33 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     public ActivityOutput execute(ActivityInput input) {
       trace.add((local ? "local " : "") + "activity " + type);
       return next.execute(input);
+    }
+  }
+
+  private static class TracingNexusInboundCallsInterceptor implements NexusInboundCallsInterceptor {
+    private final NexusInboundCallsInterceptor next;
+    private final FilteredTrace trace;
+
+    public TracingNexusInboundCallsInterceptor(
+        FilteredTrace trace, NexusInboundCallsInterceptor next) {
+      this.trace = trace;
+      this.next = next;
+    }
+
+    @Override
+    public void init(NexusOutboundCallsInterceptor outboundCalls) {
+      next.init(outboundCalls);
+    }
+
+    @Override
+    public StartOperationOutput startOperation(StartOperationInput input)
+        throws OperationUnsuccessfulException {
+      return next.startOperation(input);
+    }
+
+    @Override
+    public CancelOperationOutput cancelOperation(CancelOperationInput input) {
+      return next.cancelOperation(input);
     }
   }
 }
