@@ -26,6 +26,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
@@ -260,7 +261,7 @@ public final class WorkflowOptions {
 
     /**
      * Task queue to use for workflow tasks. It should match a task queue specified when creating a
-     * {@link io.temporal.worker.Worker} that hosts the workflow code.
+     * {@link Worker} that hosts the workflow code.
      */
     public Builder setTaskQueue(String taskQueue) {
       this.taskQueue = taskQueue;

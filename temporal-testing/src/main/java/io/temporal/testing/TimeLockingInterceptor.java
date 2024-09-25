@@ -75,6 +75,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public <R> WorkflowUpdateHandle<R> updateWithStart(
+        UpdateWithStartWorkflowOperation<R> updateOperation, Object... args) {
+      return next.updateWithStart(updateOperation, args);
+    }
+
+    @Override
     public WorkflowExecution signalWithStart(
         String signalName, Object[] signalArgs, Object[] startArgs) {
       return next.signalWithStart(signalName, signalArgs, startArgs);

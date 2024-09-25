@@ -33,6 +33,7 @@ import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
+import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -50,6 +51,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     START,
     EXECUTE,
     SIGNAL_WITH_START,
+    UPDATE_WITH_START
   }
 
   interface SpecificInvocationHandler {
@@ -85,6 +87,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } else if (type == InvocationType.SIGNAL_WITH_START) {
       SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
       invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
+    } else if (type == InvocationType.UPDATE_WITH_START) {
+      UpdateWithStartWorkflowOperation operation = (UpdateWithStartWorkflowOperation) value;
+      invocationContext.set(new UpdateWithStartInvocationHandler(operation));
     } else {
       throw new IllegalArgumentException("Unexpected InvocationType: " + type);
     }
@@ -386,6 +391,69 @@ class WorkflowInvocationHandler implements InvocationHandler {
         case SIGNAL:
           batch.signal(untyped, methodMetadata.getName(), args);
           break;
+      }
+    }
+
+    @Override
+    public <R> R getResult(Class<R> resultClass) {
+      throw new IllegalStateException("No result is expected");
+    }
+  }
+
+  private static class UpdateWithStartInvocationHandler implements SpecificInvocationHandler {
+
+    enum State {
+      NOT_STARTED,
+      START_RECEIVED,
+      UPDATE_RECEIVED,
+    }
+
+    private final UpdateWithStartWorkflowOperation operation;
+
+    private State state = State.NOT_STARTED;
+
+    public UpdateWithStartInvocationHandler(UpdateWithStartWorkflowOperation operation) {
+      this.operation = operation;
+    }
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.UPDATE_WITH_START;
+    }
+
+    @Override
+    public void invoke(
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+
+      POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+
+      if (state == State.NOT_STARTED) {
+        UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+        if (updateMethod == null) {
+          throw new IllegalArgumentException(
+              "Method '" + method.getName() + "' is not an UpdateMethod");
+        }
+        this.operation.prepareUpdate(
+            untyped,
+            methodMetadata.getName(),
+            method.getReturnType(),
+            method.getGenericReturnType(),
+            args);
+        state = State.START_RECEIVED;
+      } else if (state == State.START_RECEIVED) {
+        WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+        if (workflowMethod == null) {
+          throw new IllegalArgumentException(
+              "Method '" + method.getName() + "' is not a WorkflowMethod");
+        }
+        this.operation.prepareStart(untyped);
+        state = State.UPDATE_RECEIVED;
+      } else {
+        throw new IllegalArgumentException(
+            "UpdateWithStartInvocationHandler called too many times");
       }
     }
 

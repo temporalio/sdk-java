@@ -32,6 +32,7 @@ import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
 import java.util.Optional;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 interface TestWorkflowMutableState {
@@ -72,8 +73,8 @@ interface TestWorkflowMutableState {
   @Nullable
   PollWorkflowTaskQueueResponse startWorkflow(
       boolean continuedAsNew,
-      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
-      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest);
+      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest,
+      @Nullable Consumer<TestWorkflowMutableState> withStart);
 
   void startActivityTask(
       PollActivityTaskQueueResponseOrBuilder task, PollActivityTaskQueueRequest pollRequest);
@@ -121,7 +122,7 @@ interface TestWorkflowMutableState {
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 
-  UpdateWorkflowExecutionResponse updateWorkflowExecution(
+  TestWorkflowMutableStateImpl.UpdateHandle updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request, Deadline deadline);
 
   PollWorkflowExecutionUpdateResponse pollUpdateWorkflowExecution(

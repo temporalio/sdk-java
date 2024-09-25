@@ -21,55 +21,62 @@
 package io.temporal.workflow.shared;
 
 import io.temporal.workflow.QueryMethod;
+import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
 public class TestMultiArgWorkflowFunctions {
 
+  public interface TestUpdateFunc {
+
+    @UpdateMethod
+    String update(Integer i);
+  }
+
   @WorkflowInterface
-  public interface TestNoArgsWorkflowFunc {
+  public interface TestNoArgsWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod
     String func();
   }
 
   @WorkflowInterface
-  public interface Test1ArgWorkflowFunc {
+  public interface Test1ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod(name = "func1")
     int func1(int input);
   }
 
   @WorkflowInterface
-  public interface Test2ArgWorkflowFunc {
+  public interface Test2ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod
     String func2(String a1, int a2);
   }
 
   @WorkflowInterface
-  public interface Test3ArgWorkflowFunc {
+  public interface Test3ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod
     String func3(String a1, int a2, int a3);
   }
 
   @WorkflowInterface
-  public interface Test4ArgWorkflowFunc {
+  public interface Test4ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod
     String func4(String a1, int a2, int a3, int a4);
   }
 
   @WorkflowInterface
-  public interface Test5ArgWorkflowFunc {
+  public interface Test5ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod
     String func5(String a1, int a2, int a3, int a4, int a5);
   }
 
   @WorkflowInterface
-  public interface Test6ArgWorkflowFunc {
+  public interface Test6ArgWorkflowFunc extends TestUpdateFunc {
 
     @WorkflowMethod
     String func6(String a1, int a2, int a3, int a4, int a5, int a6);
@@ -82,56 +89,57 @@ public class TestMultiArgWorkflowFunctions {
   }
 
   @WorkflowInterface
-  public interface TestNoArgsWorkflowProc extends ProcInvocationQueryable {
+  public interface TestNoArgsWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc();
   }
 
   @WorkflowInterface
-  public interface Test1ArgWorkflowProc extends ProcInvocationQueryable {
+  public interface Test1ArgWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc1(String input);
   }
 
   @WorkflowInterface
-  public interface Test2ArgWorkflowProc extends ProcInvocationQueryable {
+  public interface Test2ArgWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc2(String a1, int a2);
   }
 
   @WorkflowInterface
-  public interface Test3ArgWorkflowProc extends ProcInvocationQueryable {
+  public interface Test3ArgWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc3(String a1, int a2, int a3);
   }
 
   @WorkflowInterface
-  public interface Test4ArgWorkflowProc extends ProcInvocationQueryable {
+  public interface Test4ArgWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc4(String a1, int a2, int a3, int a4);
   }
 
   @WorkflowInterface
-  public interface Test5ArgWorkflowProc extends ProcInvocationQueryable {
+  public interface Test5ArgWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc5(String a1, int a2, int a3, int a4, int a5);
   }
 
   @WorkflowInterface
-  public interface Test6ArgWorkflowProc extends ProcInvocationQueryable {
+  public interface Test6ArgWorkflowProc extends ProcInvocationQueryable, TestUpdateFunc {
 
     @WorkflowMethod
     void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
   }
 
   public static class TestMultiArgWorkflowImpl
-      implements TestNoArgsWorkflowFunc,
+      implements TestUpdateFunc,
+          TestNoArgsWorkflowFunc,
           Test1ArgWorkflowFunc,
           Test2ArgWorkflowFunc,
           Test3ArgWorkflowFunc,
@@ -221,6 +229,11 @@ public class TestMultiArgWorkflowFunctions {
     @Override
     public String query() {
       return procResult;
+    }
+
+    @Override
+    public String update(Integer i) {
+      return i.toString();
     }
   }
 }

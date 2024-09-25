@@ -67,5 +67,10 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
       Optional<String> parentId = wi.getParentWorkflowId();
       return parentId.get();
     }
+
+    @Override
+    public String update(Integer i) {
+      throw new UnsupportedOperationException();
+    }
   }
 }
