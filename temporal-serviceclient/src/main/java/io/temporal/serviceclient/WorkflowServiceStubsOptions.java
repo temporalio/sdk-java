@@ -37,6 +37,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
   /** Default RPC timeout for workflow queries */
   public static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
 
+  public static final Duration DEFAULT_SYSTEM_INFO_TIMEOUT = Duration.ofSeconds(5);
+
   private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE =
       newBuilder().validateAndBuildWithDefaults();
 
@@ -54,6 +56,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
 
   /** Retry options for outgoing RPC calls */
   private final RpcRetryOptions rpcRetryOptions;
+  /** Timeout for the RPC made by the client to fetch server capabilities. */
+  private final Duration systemInfoTimeout;
 
   public static Builder newBuilder() {
     return new Builder();
@@ -72,11 +76,13 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
       boolean disableHealthCheck,
       Duration rpcLongPollTimeout,
       Duration rpcQueryTimeout,
+      Duration systemInfoTimeout,
       RpcRetryOptions rpcRetryOptions) {
     super(serviceStubsOptions);
     this.disableHealthCheck = disableHealthCheck;
     this.rpcLongPollTimeout = rpcLongPollTimeout;
     this.rpcQueryTimeout = rpcQueryTimeout;
+    this.systemInfoTimeout = systemInfoTimeout;
     this.rpcRetryOptions = rpcRetryOptions;
   }
 
@@ -115,6 +121,13 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return rpcRetryOptions;
   }
 
+  /**
+   * SystemInfoTimeout is the timeout for the RPC made by the client to fetch server capabilities.
+   */
+  public Duration getSystemInfoTimeout() {
+    return systemInfoTimeout;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -123,12 +136,18 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return disableHealthCheck == that.disableHealthCheck
         && Objects.equals(rpcLongPollTimeout, that.rpcLongPollTimeout)
         && Objects.equals(rpcQueryTimeout, that.rpcQueryTimeout)
+        && Objects.equals(systemInfoTimeout, that.systemInfoTimeout)
         && Objects.equals(rpcRetryOptions, that.rpcRetryOptions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(disableHealthCheck, rpcLongPollTimeout, rpcQueryTimeout, rpcRetryOptions);
+    return Objects.hash(
+        disableHealthCheck,
+        rpcLongPollTimeout,
+        rpcQueryTimeout,
+        systemInfoTimeout,
+        rpcRetryOptions);
   }
 
   @Override
@@ -140,6 +159,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         + rpcLongPollTimeout
         + ", rpcQueryTimeout="
         + rpcQueryTimeout
+        + ", systemInfoTimeout="
+        + systemInfoTimeout
         + ", rpcRetryOptions="
         + rpcRetryOptions
         + '}';
@@ -150,6 +171,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     private boolean disableHealthCheck = true;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
+    private Duration systemInfoTimeout = DEFAULT_SYSTEM_INFO_TIMEOUT;
     private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
 
     private Builder() {}
@@ -160,6 +182,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         WorkflowServiceStubsOptions castedOptions = (WorkflowServiceStubsOptions) options;
         this.rpcLongPollTimeout = castedOptions.rpcLongPollTimeout;
         this.rpcQueryTimeout = castedOptions.rpcQueryTimeout;
+        this.systemInfoTimeout = castedOptions.systemInfoTimeout;
         this.rpcRetryOptions = castedOptions.rpcRetryOptions;
       }
     }
@@ -234,6 +257,16 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     }
 
     /**
+     * Sets the rpc timeout value RPC call to fetch server capabilities.
+     *
+     * @param timeout timeout.
+     */
+    public Builder setSystemInfoTimeout(Duration timeout) {
+      this.systemInfoTimeout = Objects.requireNonNull(timeout);
+      return this;
+    }
+
+    /**
      * Allows customization of retry options for the outgoing RPC calls to temporal service.
      *
      * <p>Note that default values should be reasonable for most users, be cautious when changing
@@ -280,6 +313,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.disableHealthCheck,
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
+          this.systemInfoTimeout,
           this.rpcRetryOptions);
     }
 
@@ -292,6 +326,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.disableHealthCheck,
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
+          this.systemInfoTimeout,
           retryOptions);
     }
   }
