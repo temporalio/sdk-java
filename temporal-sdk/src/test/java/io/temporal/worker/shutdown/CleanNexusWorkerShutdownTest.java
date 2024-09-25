@@ -37,7 +37,6 @@ import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.nexus.BaseNexusTest;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
@@ -47,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class CleanNexusWorkerShutdownTest extends BaseNexusTest {
+public class CleanNexusWorkerShutdownTest {
 
   private static final String COMPLETED = "Completed";
   private static final String INTERRUPTED = "Interrupted";
@@ -114,18 +113,12 @@ public class CleanNexusWorkerShutdownTest extends BaseNexusTest {
     assertTrue("Contains NexusOperationCompleted", found);
   }
 
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
-  }
-
   public static class TestWorkflowImpl implements TestWorkflow1 {
 
     private final TestNexusServices.TestNexusService1 service =
         Workflow.newNexusServiceStub(
             TestNexusServices.TestNexusService1.class,
             NexusServiceOptions.newBuilder()
-                .setEndpoint(getEndpointName())
                 .setOperationOptions(
                     NexusOperationOptions.newBuilder()
                         .setScheduleToCloseTimeout(Duration.ofSeconds(10))
