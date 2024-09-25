@@ -346,7 +346,7 @@ final class ChannelManager {
         SystemInfoInterceptor.getServerCapabilitiesWithRetryOrThrow(
             serverCapabilitiesFuture,
             interceptedChannel,
-            deadlineFrom(options.getHealthCheckAttemptTimeout()));
+            deadlineFrom(options.getSystemInfoTimeout()));
   }
 
   private static Deadline deadlineFrom(Duration duration) {
