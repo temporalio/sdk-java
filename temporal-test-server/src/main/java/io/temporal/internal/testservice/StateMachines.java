@@ -608,13 +608,12 @@ class StateMachines {
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
-        // Transitions directly to CANCELED if operation has not been started
         // TODO: properly support cancel before start
-        .add(
-            INITIATED,
-            REQUEST_CANCELLATION,
-            CANCELED,
-            StateMachines::reportNexusOperationCancellation)
+        // .add(
+        //     INITIATED,
+        //     REQUEST_CANCELLATION,
+        //     INITIATED,
+        //     StateMachines::requestCancelNexusOperation)
         .add(INITIATED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation)
         // Transitions directly from INITIATED to COMPLETE for sync completions
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeNexusOperation)
@@ -789,7 +788,12 @@ class StateMachines {
   private static State failNexusOperation(
       RequestContext ctx, NexusOperationData data, Failure failure, long notUsed) {
     RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
-    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
+    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS
+        || retryState == RetryState.RETRY_STATE_TIMEOUT) {
+      // RETRY_STATE_TIMEOUT indicates that the next attempt schedule time would exceed the
+      // operation's schedule-to-close timeout, so do not fail the operation here and allow
+      // it to be timed out by the timer set in
+      // io.temporal.internal.testservice.TestWorkflowMutableStateImpl.timeoutNexusOperation
       return (Strings.isNullOrEmpty(data.operationId)) ? INITIATED : STARTED;
     }
 

@@ -21,6 +21,7 @@
 package io.temporal.testserver.functional;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeFalse;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -51,6 +52,27 @@ public class DescribeNamespaceTest {
     assertEquals(
         RegisterTestNamespace.NAMESPACE, describeNamespaceResponse.getNamespaceInfo().getName());
     assertTrue(describeNamespaceResponse.getNamespaceInfo().getId().length() > 0);
+  }
+
+  @Test
+  public void testDescribeNamespaceCapabilities() {
+    assumeFalse(
+        "Real Server doesn't support namespace capabilities yet",
+        SDKTestWorkflowRule.useExternalService);
+
+    DescribeNamespaceResponse describeNamespaceResponse =
+        testWorkflowRule
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .describeNamespace(
+                DescribeNamespaceRequest.newBuilder()
+                    .setNamespace(RegisterTestNamespace.NAMESPACE)
+                    .build());
+
+    assertTrue(
+        describeNamespaceResponse.getNamespaceInfo().getCapabilities().getEagerWorkflowStart());
+    assertTrue(describeNamespaceResponse.getNamespaceInfo().getCapabilities().getSyncUpdate());
+    assertTrue(describeNamespaceResponse.getNamespaceInfo().getCapabilities().getAsyncUpdate());
   }
 
   @Test

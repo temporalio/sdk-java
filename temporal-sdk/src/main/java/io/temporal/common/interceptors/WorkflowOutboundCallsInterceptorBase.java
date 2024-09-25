@@ -20,6 +20,7 @@
 
 package io.temporal.common.interceptors;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
@@ -165,6 +166,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public void upsertMemo(Map<String, Object> memo) {
     next.upsertMemo(memo);
+  }
+
+  @Override
+  public Scope getMetricsScope() {
+    return next.getMetricsScope();
   }
 
   @Override
