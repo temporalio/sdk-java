@@ -35,18 +35,13 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SyncOperationTimeoutTest extends BaseNexusTest {
+public class SyncOperationTimeoutTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
-
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
-  }
 
   @Test
   public void typedOperationTimeout() {
@@ -69,10 +64,7 @@ public class SyncOperationTimeoutTest extends BaseNexusTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .build();
       NexusServiceOptions serviceOptions =
-          NexusServiceOptions.newBuilder()
-              .setEndpoint(getEndpointName())
-              .setOperationOptions(options)
-              .build();
+          NexusServiceOptions.newBuilder().setOperationOptions(options).build();
       // Try to call a synchronous operation in a blocking way
       TestNexusServices.TestNexusService1 serviceStub =
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);

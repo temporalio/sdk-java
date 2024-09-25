@@ -22,14 +22,20 @@ package io.temporal.testing;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ObjectArrays;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
+import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.api.nexus.v1.EndpointSpec;
+import io.temporal.api.nexus.v1.EndpointTarget;
 import io.temporal.api.operatorservice.v1.AddSearchAttributesRequest;
+import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -217,6 +223,38 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       }
       throw e;
     }
+  }
+
+  @Override
+  public Endpoint createNexusEndpoint(String name, String taskQueue) {
+    EndpointSpec spec =
+        EndpointSpec.newBuilder()
+            .setName(name)
+            .setDescription(
+                Payload.newBuilder()
+                    .setData(
+                        ByteString.copyFromUtf8(
+                            "Test Nexus endpoint created by the Java SDK WorkflowTestEnvironment")))
+            .setTarget(
+                EndpointTarget.newBuilder()
+                    .setWorker(
+                        EndpointTarget.Worker.newBuilder()
+                            .setNamespace(getNamespace())
+                            .setTaskQueue(taskQueue)))
+            .build();
+    CreateNexusEndpointRequest request =
+        CreateNexusEndpointRequest.newBuilder().setSpec(spec).build();
+    return operatorServiceStubs.blockingStub().createNexusEndpoint(request).getEndpoint();
+  }
+
+  public void deleteNexusEndpoint(Endpoint endpoint) {
+    operatorServiceStubs
+        .blockingStub()
+        .deleteNexusEndpoint(
+            io.temporal.api.operatorservice.v1.DeleteNexusEndpointRequest.newBuilder()
+                .setId(endpoint.getId())
+                .setVersion(endpoint.getVersion())
+                .build());
   }
 
   @Deprecated

@@ -22,7 +22,9 @@ package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
+import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.OperatorServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -158,6 +160,24 @@ public interface TestWorkflowEnvironment extends Closeable {
    *     a Custom Search Attribute Using tctl</a>
    */
   boolean registerSearchAttribute(String name, IndexedValueType type);
+
+  /**
+   * Register a Nexus Endpoint with the server.
+   *
+   * @param name Nexus Endpoint name
+   * @param taskQueue Task Queue to be used for the endpoint
+   * @return Endpoint object
+   */
+  @Experimental
+  Endpoint createNexusEndpoint(String name, String taskQueue);
+
+  /**
+   * Delete a Nexus Endpoint on the server.
+   *
+   * @param endpoint current endpoint to be deleted
+   */
+  @Experimental
+  void deleteNexusEndpoint(Endpoint endpoint);
 
   /**
    * @return the in-memory test Temporal service that is owned by this.
