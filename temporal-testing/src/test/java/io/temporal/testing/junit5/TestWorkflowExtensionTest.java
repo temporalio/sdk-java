@@ -25,6 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
+import io.nexusrpc.handler.OperationHandler;
+import io.nexusrpc.handler.OperationImpl;
+import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ActivityInterface;
@@ -35,9 +40,7 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowExtension;
 import io.temporal.testing.WorkflowInitialTime;
 import io.temporal.worker.Worker;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -55,8 +58,23 @@ public class TestWorkflowExtensionTest {
       TestWorkflowExtension.newBuilder()
           .registerWorkflowImplementationTypes(HelloWorkflowImpl.class)
           .setActivityImplementations(new HelloActivityImpl())
+          .setNexusServiceImplementation(new TestNexusServiceImpl())
           .setInitialTime(Instant.parse("2021-10-10T10:01:00Z"))
           .build();
+
+  @Service
+  public interface TestNexusService {
+    @Operation
+    String operation(String input);
+  }
+
+  @ServiceImpl(service = TestNexusService.class)
+  public static class TestNexusServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return OperationHandler.sync((ctx, details, name) -> "Hello, " + name + "!");
+    }
+  }
 
   @ActivityInterface
   public interface HelloActivity {
@@ -88,9 +106,20 @@ public class TestWorkflowExtensionTest {
             HelloActivity.class,
             ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofMinutes(1)).build());
 
+    private final TestNexusService nexusService =
+        Workflow.newNexusServiceStub(
+            TestNexusService.class,
+            NexusServiceOptions.newBuilder()
+                .setOperationOptions(
+                    NexusOperationOptions.newBuilder()
+                        .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+                        .build())
+                .build());
+
     @Override
     public String sayHello(String name) {
       logger.info("Hello, {}", name);
+      nexusService.operation(name);
       Workflow.sleep(Duration.ofHours(1));
       return helloActivity.buildGreeting(name);
     }

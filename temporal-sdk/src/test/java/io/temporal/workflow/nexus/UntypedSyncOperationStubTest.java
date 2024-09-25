@@ -29,21 +29,16 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-public class UntypedSyncOperationStubTest extends BaseNexusTest {
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
+public class UntypedSyncOperationStubTest {
+  @ClassRule
+  public static SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
-
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
-  }
 
   @Test
   public void untypedNexusServiceStub() {
@@ -62,7 +57,7 @@ public class UntypedSyncOperationStubTest extends BaseNexusTest {
               .build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder()
-              .setEndpoint(getEndpointName())
+              .setEndpoint(testWorkflowRule.getNexusEndpoint().getSpec().getName())
               .setOperationOptions(options)
               .build();
       NexusServiceStub serviceStub =
@@ -90,7 +85,7 @@ public class UntypedSyncOperationStubTest extends BaseNexusTest {
   }
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public class TestNexusServiceImpl {
+  public static class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline

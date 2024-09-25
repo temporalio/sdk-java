@@ -20,11 +20,15 @@
 
 package io.temporal.testing;
 
+import static io.temporal.testing.internal.TestServiceUtils.applyNexusServiceOptions;
+
 import com.uber.m3.tally.Scope;
 import io.temporal.api.enums.v1.IndexedValueType;
+import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -36,11 +40,7 @@ import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -89,15 +89,18 @@ public class TestWorkflowExtension
   private static final String TEST_ENVIRONMENT_KEY = "testEnvironment";
   private static final String WORKER_KEY = "worker";
   private static final String WORKFLOW_OPTIONS_KEY = "workflowOptions";
+  private static final String NEXUS_ENDPOINT_KEY = "nexusEndpoint";
 
   private final WorkerOptions workerOptions;
   private final WorkflowClientOptions workflowClientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
   private final Map<Class<?>, WorkflowImplementationOptions> workflowTypes;
   private final Object[] activityImplementations;
+  private final Object[] nexusServiceImplementations;
   private final boolean useExternalService;
   private final String target;
   private final boolean doNotStart;
+  private final boolean doNotSetupNexusEndpoint;
   private final long initialTimeMillis;
   private final boolean useTimeskipping;
   @Nonnull private final Map<String, IndexedValueType> searchAttributes;
@@ -117,9 +120,11 @@ public class TestWorkflowExtension
     workerFactoryOptions = builder.workerFactoryOptions;
     workflowTypes = builder.workflowTypes;
     activityImplementations = builder.activityImplementations;
+    nexusServiceImplementations = builder.nexusServiceImplementations;
     useExternalService = builder.useExternalService;
     target = builder.target;
     doNotStart = builder.doNotStart;
+    doNotSetupNexusEndpoint = builder.doNotSetupNexusEndpoint;
     initialTimeMillis = builder.initialTimeMillis;
     useTimeskipping = builder.useTimeskipping;
     this.searchAttributes = builder.searchAttributes;
@@ -212,12 +217,25 @@ public class TestWorkflowExtension
 
     String taskQueue =
         String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
+    String nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
+    boolean createNexusEndpoint =
+        !doNotSetupNexusEndpoint && nexusServiceImplementations.length > 0;
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
-    workflowTypes.forEach((wft, o) -> worker.registerWorkflowImplementationTypes(o, wft));
+    workflowTypes.forEach(
+        (wft, o) -> {
+          if (createNexusEndpoint) {
+            o = applyNexusServiceOptions(o, nexusServiceImplementations, nexusEndpointName);
+          }
+          worker.registerWorkflowImplementationTypes(o, wft);
+        });
     worker.registerActivitiesImplementations(activityImplementations);
+    worker.registerNexusServiceImplementation(nexusServiceImplementations);
 
     if (!doNotStart) {
       testEnvironment.start();
+    }
+    if (createNexusEndpoint) {
+      setNexusEndpoint(context, testEnvironment.createNexusEndpoint(nexusEndpointName, taskQueue));
     }
 
     setTestEnvironment(context, testEnvironment);
@@ -239,8 +257,12 @@ public class TestWorkflowExtension
   }
 
   @Override
-  public void afterEach(ExtensionContext context) throws Exception {
+  public void afterEach(ExtensionContext context) {
+    Endpoint endpoint = getNexusEndpoint(context);
     TestWorkflowEnvironment testEnvironment = getTestEnvironment(context);
+    if (endpoint != null && !testEnvironment.getOperatorServiceStubs().isShutdown()) {
+      testEnvironment.deleteNexusEndpoint(endpoint);
+    }
     testEnvironment.close();
   }
 
@@ -267,6 +289,14 @@ public class TestWorkflowExtension
     getStore(context).put(WORKER_KEY, worker);
   }
 
+  private Endpoint getNexusEndpoint(ExtensionContext context) {
+    return getStore(context).get(NEXUS_ENDPOINT_KEY, Endpoint.class);
+  }
+
+  private void setNexusEndpoint(ExtensionContext context, Endpoint endpoint) {
+    getStore(context).put(NEXUS_ENDPOINT_KEY, endpoint);
+  }
+
   private WorkflowOptions getWorkflowOptions(ExtensionContext context) {
     return getStore(context).get(WORKFLOW_OPTIONS_KEY, WorkflowOptions.class);
   }
@@ -284,6 +314,7 @@ public class TestWorkflowExtension
   public static class Builder {
 
     private static final Object[] NO_ACTIVITIES = new Object[0];
+    private static final Object[] NO_NEXUS_SERVICES = new Object[0];
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
     private WorkflowClientOptions workflowClientOptions;
@@ -291,9 +322,11 @@ public class TestWorkflowExtension
     private String namespace = "UnitTest";
     private Map<Class<?>, WorkflowImplementationOptions> workflowTypes = new HashMap<>();
     private Object[] activityImplementations = NO_ACTIVITIES;
+    private Object[] nexusServiceImplementations = NO_NEXUS_SERVICES;
     private boolean useExternalService = false;
     private String target = null;
     private boolean doNotStart = false;
+    private boolean doNotSetupNexusEndpoint = false;
     private long initialTimeMillis;
     // Default to TestEnvironmentOptions isUseTimeskipping
     private boolean useTimeskipping =
@@ -365,6 +398,22 @@ public class TestWorkflowExtension
     }
 
     /**
+     * Specify Nexus service implementations to register with the Temporal workerIf any Nexus
+     * services are registered with the worker, the extension will automatically create a Nexus
+     * Endpoint for the test and the endpoint will be set on the per-service options and default
+     * options in {@link WorkflowImplementationOptions} if none are provided.
+     *
+     * <p>This can be disabled by setting {@link #setDoNotSetupNexusEndpoint(boolean)} to true.
+     *
+     * @see Worker#registerNexusServiceImplementation(Object...)
+     */
+    @Experimental
+    public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
+      this.nexusServiceImplementations = nexusServiceImplementations;
+      return this;
+    }
+
+    /**
      * Specify workflow implementation types to register with the Temporal worker.
      *
      * @see Worker#registerWorkflowImplementationTypes(Class[])
@@ -426,6 +475,16 @@ public class TestWorkflowExtension
      */
     public Builder setDoNotStart(boolean doNotStart) {
       this.doNotStart = doNotStart;
+      return this;
+    }
+
+    /**
+     * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
+     * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
+     */
+    @Experimental
+    public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
+      this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
       return this;
     }
 

@@ -32,6 +32,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -254,6 +255,10 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public String getTaskQueue() {
     return testWorkflowRule.getTaskQueue();
+  }
+
+  public Endpoint getNexusEndpoint() {
+    return testWorkflowRule.getNexusEndpoint();
   }
 
   public Worker getWorker() {
