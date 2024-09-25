@@ -67,6 +67,15 @@ public class TestServiceUtils {
               : serviceOptionWithEndpoint;
       newNexusServiceOptions.put(serviceName, serviceOptionWithEndpoint);
     }
+    if (options.getDefaultNexusServiceOptions().getEndpoint() == null) {
+      options =
+          options.toBuilder()
+              .setDefaultNexusServiceOptions(
+                  NexusServiceOptions.newBuilder(options.getDefaultNexusServiceOptions())
+                      .setEndpoint(endpoint)
+                      .build())
+              .build();
+    }
     return options.toBuilder().setNexusServiceOptions(newNexusServiceOptions).build();
   }
 

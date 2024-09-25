@@ -400,8 +400,8 @@ public class TestWorkflowExtension
     /**
      * Specify Nexus service implementations to register with the Temporal workerIf any Nexus
      * services are registered with the worker, the extension will automatically create a Nexus
-     * Endpoint for the test and the endpoint will be set on the per-service options in {@link
-     * WorkflowImplementationOptions} if none are provided.
+     * Endpoint for the test and the endpoint will be set on the per-service options and default
+     * options in {@link WorkflowImplementationOptions} if none are provided.
      *
      * <p>This can be disabled by setting {@link #setDoNotSetupNexusEndpoint(boolean)} to true.
      *
