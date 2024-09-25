@@ -72,6 +72,12 @@ public class ServiceStubsOptions {
   protected final Duration healthCheckAttemptTimeout;
 
   /**
+   * SystemInfoTimeout specifies how to long to wait for service response on each health check
+   * attempt. Default: 5s.
+   */
+  protected final Duration systemInfoTimeout;
+
+  /**
    * HealthCheckTimeout defines how long client should be sending health check requests to the
    * server before concluding that it is unavailable. Defaults to 10s.
    */
@@ -128,6 +134,7 @@ public class ServiceStubsOptions {
     this.enableHttps = that.enableHttps;
     this.sslContext = that.sslContext;
     this.healthCheckAttemptTimeout = that.healthCheckAttemptTimeout;
+    this.systemInfoTimeout = that.systemInfoTimeout;
     this.healthCheckTimeout = that.healthCheckTimeout;
     this.enableKeepAlive = that.enableKeepAlive;
     this.keepAliveTime = that.keepAliveTime;
@@ -150,6 +157,7 @@ public class ServiceStubsOptions {
       SslContext sslContext,
       Duration healthCheckAttemptTimeout,
       Duration healthCheckTimeout,
+      Duration systemInfoTimeout,
       boolean enableKeepAlive,
       Duration keepAliveTime,
       Duration keepAliveTimeout,
@@ -168,6 +176,7 @@ public class ServiceStubsOptions {
     this.sslContext = sslContext;
     this.healthCheckAttemptTimeout = healthCheckAttemptTimeout;
     this.healthCheckTimeout = healthCheckTimeout;
+    this.systemInfoTimeout = systemInfoTimeout;
     this.enableKeepAlive = enableKeepAlive;
     this.keepAliveTime = keepAliveTime;
     this.keepAliveTimeout = keepAliveTimeout;
@@ -231,6 +240,13 @@ public class ServiceStubsOptions {
    */
   public Duration getHealthCheckAttemptTimeout() {
     return healthCheckAttemptTimeout;
+  }
+
+  /**
+   * @return The timeout for the RPC made by the client to fetch server capabilities.
+   */
+  public Duration getSystemInfoTimeout() {
+    return systemInfoTimeout;
   }
 
   /**
@@ -337,6 +353,7 @@ public class ServiceStubsOptions {
         && Objects.equals(sslContext, that.sslContext)
         && Objects.equals(healthCheckAttemptTimeout, that.healthCheckAttemptTimeout)
         && Objects.equals(healthCheckTimeout, that.healthCheckTimeout)
+        && Objects.equals(systemInfoTimeout, that.systemInfoTimeout)
         && Objects.equals(keepAliveTime, that.keepAliveTime)
         && Objects.equals(keepAliveTimeout, that.keepAliveTimeout)
         && Objects.equals(rpcTimeout, that.rpcTimeout)
@@ -358,6 +375,7 @@ public class ServiceStubsOptions {
         sslContext,
         healthCheckAttemptTimeout,
         healthCheckTimeout,
+        systemInfoTimeout,
         enableKeepAlive,
         keepAliveTime,
         keepAliveTimeout,
@@ -389,6 +407,8 @@ public class ServiceStubsOptions {
         + healthCheckAttemptTimeout
         + ", healthCheckTimeout="
         + healthCheckTimeout
+        + ", systemInfoTimeout="
+        + systemInfoTimeout
         + ", enableKeepAlive="
         + enableKeepAlive
         + ", keepAliveTime="
@@ -421,6 +441,7 @@ public class ServiceStubsOptions {
     private String target;
     private Consumer<ManagedChannelBuilder<?>> channelInitializer;
     private Duration healthCheckAttemptTimeout;
+    private Duration systemInfoTimeout;
     private Duration healthCheckTimeout;
     private boolean enableKeepAlive = true;
     private Duration keepAliveTime = Duration.ofSeconds(30);
@@ -444,6 +465,7 @@ public class ServiceStubsOptions {
       this.sslContext = options.sslContext;
       this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
+      this.systemInfoTimeout = options.systemInfoTimeout;
       this.enableKeepAlive = options.enableKeepAlive;
       this.keepAliveTime = options.keepAliveTime;
       this.keepAliveTimeout = options.keepAliveTimeout;
@@ -714,6 +736,17 @@ public class ServiceStubsOptions {
     }
 
     /**
+     * Set a SystemInfoTimeout that specifies how long the client tries to fetch server
+     * capabilities.
+     *
+     * @return {@code this}
+     */
+    public T setSystemInfoTimeout(Duration systemInfoTimeout) {
+      this.systemInfoTimeout = systemInfoTimeout;
+      return self();
+    }
+
+    /**
      * Enables keep alive ping from client to the server, which can help drop abruptly closed
      * connections faster.
      *
@@ -796,6 +829,7 @@ public class ServiceStubsOptions {
           this.sslContext,
           this.healthCheckAttemptTimeout,
           this.healthCheckTimeout,
+          this.systemInfoTimeout,
           this.enableKeepAlive,
           this.keepAliveTime,
           this.keepAliveTimeout,
@@ -847,6 +881,8 @@ public class ServiceStubsOptions {
       Duration healthCheckTimeout =
           this.healthCheckTimeout != null ? this.healthCheckTimeout : Duration.ofSeconds(10);
 
+      Duration systemInfoTimeout =
+          this.systemInfoTimeout != null ? this.systemInfoTimeout : Duration.ofSeconds(5);
       return new ServiceStubsOptions(
           this.channel,
           target,
@@ -855,6 +891,7 @@ public class ServiceStubsOptions {
           this.sslContext,
           healthCheckAttemptTimeout,
           healthCheckTimeout,
+          systemInfoTimeout,
           this.enableKeepAlive,
           this.keepAliveTime,
           this.keepAliveTimeout,
