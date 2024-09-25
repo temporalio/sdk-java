@@ -1,0 +1,13 @@
+# Highlights
+
+In v1.24.0 the Java SDK fixed a bug causing the initial connection health check and server capabilities discovery
+to not have a proper deadline set. Some users may have been unintentionally relying on this lack of deadline when
+the first request to the Temporal service is slow. This release adds a new option to configure the deadline of
+this initial connection. Added ServiceStubsOptions.setSystemInfoTimeout() to configure the deadline of this
+initial connection. Setting the deadline to your RPC timeout would emulate the previous behavior of not having
+a deadline set.
+
+
+# Changeset
+
+2024-09-25 - 4f14ecec - Add option to configure the deadline of getSystemInfo (#2240)
