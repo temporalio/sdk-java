@@ -134,14 +134,14 @@ public class ChannelManagerTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     if (channelManager != null) {
       channelManager.shutdownNow();
     }
   }
 
   @Test
-  public void testGetServerCapabilities() throws Exception {
+  public void testGetServerCapabilities() {
     Capabilities capabilities = channelManager.getServerCapabilities().get();
     assertEquals(CAPABILITIES, capabilities);
     assertEquals(1, getSystemInfoCount.get());
@@ -150,7 +150,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesRetry() throws Exception {
+  public void testGetServerCapabilitiesRetry() {
     getSystemInfoUnavailable.set(2);
     Capabilities capabilities = channelManager.getServerCapabilities().get();
     assertEquals(CAPABILITIES, capabilities);
@@ -160,7 +160,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesUnavailable() throws Exception {
+  public void testGetServerCapabilitiesUnavailable() {
     getSystemInfoUnavailable.set(Integer.MAX_VALUE);
     try {
       Capabilities unused = channelManager.getServerCapabilities().get();
@@ -174,7 +174,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesUnimplemented() throws Exception {
+  public void testGetServerCapabilitiesUnimplemented() {
     getSystemInfoUnimplemented.set(1);
     Capabilities capabilities = channelManager.getServerCapabilities().get();
     assertEquals(Capabilities.getDefaultInstance(), capabilities);
@@ -184,7 +184,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesWithConnect() throws Exception {
+  public void testGetServerCapabilitiesWithConnect() {
     channelManager.connect(HEALTH_CHECK_NAME, Duration.ofMillis(100));
     Capabilities capabilities = channelManager.getServerCapabilities().get();
     assertEquals(CAPABILITIES, capabilities);
@@ -194,7 +194,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesRetryWithConnect() throws Exception {
+  public void testGetServerCapabilitiesRetryWithConnect() {
     getSystemInfoUnavailable.set(2);
     channelManager.connect(HEALTH_CHECK_NAME, Duration.ofMillis(100));
     Capabilities capabilities = channelManager.getServerCapabilities().get();
@@ -205,7 +205,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesUnavailableWithConnect() throws Exception {
+  public void testGetServerCapabilitiesUnavailableWithConnect() {
     getSystemInfoUnavailable.set(Integer.MAX_VALUE);
     try {
       channelManager.connect(HEALTH_CHECK_NAME, Duration.ofMillis(100));
@@ -220,7 +220,7 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesUnimplementedWithConnect() throws Exception {
+  public void testGetServerCapabilitiesUnimplementedWithConnect() {
     getSystemInfoUnimplemented.set(1);
     channelManager.connect(HEALTH_CHECK_NAME, Duration.ofMillis(100));
     Capabilities capabilities = channelManager.getServerCapabilities().get();

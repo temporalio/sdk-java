@@ -102,7 +102,7 @@ public class SystemInfoInterceptor implements ClientInterceptor {
         capabilities = future.getNow(null);
         if (capabilities == null) {
           if (deadline == null) {
-            deadline = Deadline.after(30, TimeUnit.SECONDS);
+            deadline = Deadline.after(10, TimeUnit.MINUTES);
           }
           Deadline computedDeadline = deadline;
           RpcRetryOptions rpcRetryOptions =
@@ -110,8 +110,7 @@ public class SystemInfoInterceptor implements ClientInterceptor {
                   .setExpiration(
                       Duration.ofMillis(computedDeadline.timeRemaining(TimeUnit.MILLISECONDS)))
                   .validateBuildWithDefaults();
-          GrpcRetryerOptions grpcRetryerOptions =
-              new GrpcRetryerOptions(rpcRetryOptions, computedDeadline);
+          GrpcRetryerOptions grpcRetryerOptions = new GrpcRetryerOptions(rpcRetryOptions, deadline);
           capabilities =
               new GrpcRetryer(Capabilities::getDefaultInstance)
                   .retryWithResult(
