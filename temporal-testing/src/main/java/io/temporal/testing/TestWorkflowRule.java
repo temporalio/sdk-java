@@ -249,6 +249,16 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
+    /**
+     * Specify Nexus service implementations to register with the Temporal worker. If any Nexus
+     * services are registered with the worker, the rule will automatically create a Nexus Endpoint
+     * for the test and the endpoint will be set on the per-service options in {@link
+     * WorkflowImplementationOptions} if none are provided.
+     *
+     * <p>This can be disabled by setting {@link #setDoNotSetupNexusEndpoint(boolean)} to true.
+     *
+     * @see Worker#registerNexusServiceImplementation(Object...)
+     */
     @Experimental
     public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
       this.nexusServiceImplementations = nexusServiceImplementations;
