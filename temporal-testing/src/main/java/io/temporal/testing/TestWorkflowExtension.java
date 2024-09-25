@@ -260,7 +260,7 @@ public class TestWorkflowExtension
   public void afterEach(ExtensionContext context) {
     Endpoint endpoint = getNexusEndpoint(context);
     TestWorkflowEnvironment testEnvironment = getTestEnvironment(context);
-    if (endpoint != null) {
+    if (endpoint != null && !testEnvironment.getOperatorServiceStubs().isShutdown()) {
       testEnvironment.deleteNexusEndpoint(endpoint);
     }
     testEnvironment.close();

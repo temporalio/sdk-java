@@ -450,7 +450,7 @@ public class TestWorkflowRule implements TestRule {
   }
 
   protected void shutdown() {
-    if (nexusEndpoint != null) {
+    if (nexusEndpoint != null && !testEnvironment.getOperatorServiceStubs().isShutdown()) {
       testEnvironment.deleteNexusEndpoint(nexusEndpoint);
     }
     testEnvironment.close();
@@ -474,6 +474,13 @@ public class TestWorkflowRule implements TestRule {
    */
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  /**
+   * @return endpoint of the nexus service created for the test.
+   */
+  public Endpoint getNexusEndpoint() {
+    return nexusEndpoint;
   }
 
   /**
