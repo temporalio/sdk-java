@@ -34,7 +34,7 @@ import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.*;
 
-public class SyncOperationFailTest extends BaseNexusTest {
+public class SyncOperationFailTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -56,11 +56,6 @@ public class SyncOperationFailTest extends BaseNexusTest {
     Assert.assertEquals("failed to call operation", applicationFailure.getOriginalMessage());
   }
 
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
-  }
-
   public static class TestNexus implements TestWorkflow1 {
     @Override
     public String execute(String endpoint) {
@@ -70,10 +65,7 @@ public class SyncOperationFailTest extends BaseNexusTest {
               .build();
 
       NexusServiceOptions serviceOptions =
-          NexusServiceOptions.newBuilder()
-              .setEndpoint(getEndpointName())
-              .setOperationOptions(options)
-              .build();
+          NexusServiceOptions.newBuilder().setOperationOptions(options).build();
       TestNexusServices.TestNexusService1 testNexusService =
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
       try {

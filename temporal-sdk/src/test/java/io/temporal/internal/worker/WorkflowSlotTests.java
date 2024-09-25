@@ -39,7 +39,6 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.*;
-import io.temporal.workflow.nexus.BaseNexusTest;
 import io.temporal.workflow.shared.TestNexusServices;
 import java.time.Duration;
 import java.util.Map;
@@ -49,7 +48,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowSlotTests extends BaseNexusTest {
+public class WorkflowSlotTests {
   private final int MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 100;
   private final int MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 1000;
   private final int MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 10000;
@@ -96,11 +95,6 @@ public class WorkflowSlotTests extends BaseNexusTest {
     runningLatch = new CountDownLatch(1);
     localActivitySlotSupplier.usedCount.set(0);
     didFail = false;
-  }
-
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
   }
 
   @After
@@ -181,7 +175,6 @@ public class WorkflowSlotTests extends BaseNexusTest {
         Workflow.newNexusServiceStub(
             TestNexusServices.TestNexusService1.class,
             NexusServiceOptions.newBuilder()
-                .setEndpoint(getEndpointName())
                 .setOperationOptions(
                     NexusOperationOptions.newBuilder()
                         .setScheduleToCloseTimeout(Duration.ofSeconds(10))

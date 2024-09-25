@@ -43,6 +43,14 @@ public final class WorkflowImplementationOptions {
     return new Builder();
   }
 
+  public static Builder newBuilder(WorkflowImplementationOptions options) {
+    return new Builder(options);
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
   public static final class Builder {
 
     private Class<? extends Throwable>[] failWorkflowExceptionTypes;
@@ -54,6 +62,19 @@ public final class WorkflowImplementationOptions {
     private NexusServiceOptions defaultNexusServiceOptions;
 
     private Builder() {}
+
+    private Builder(WorkflowImplementationOptions options) {
+      if (options == null) {
+        return;
+      }
+      this.failWorkflowExceptionTypes = options.getFailWorkflowExceptionTypes();
+      this.activityOptions = options.getActivityOptions();
+      this.defaultActivityOptions = options.getDefaultActivityOptions();
+      this.localActivityOptions = options.getLocalActivityOptions();
+      this.defaultLocalActivityOptions = options.getDefaultLocalActivityOptions();
+      this.nexusServiceOptions = options.getNexusServiceOptions();
+      this.defaultNexusServiceOptions = options.getDefaultNexusServiceOptions();
+    }
 
     /**
      * Optional: Sets how workflow worker deals with exceptions thrown from the workflow code which

@@ -35,18 +35,13 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SyncOperationCancelledTest extends BaseNexusTest {
+public class SyncOperationCancelledTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
-
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
-  }
 
   @Test
   public void syncOperationImmediatelyCancelled() {
@@ -82,10 +77,7 @@ public class SyncOperationCancelledTest extends BaseNexusTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(10))
               .build();
       NexusServiceOptions serviceOptions =
-          NexusServiceOptions.newBuilder()
-              .setEndpoint(getEndpointName())
-              .setOperationOptions(options)
-              .build();
+          NexusServiceOptions.newBuilder().setOperationOptions(options).build();
       TestNexusServices.TestNexusService1 serviceStub =
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
       Workflow.newCancellationScope(
