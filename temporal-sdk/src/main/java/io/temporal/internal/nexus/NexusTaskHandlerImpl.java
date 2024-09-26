@@ -118,12 +118,17 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         }
       }
 
+      RootNexusInboundCallsInterceptor rootInboundNexusInboundCallsInterceptor =
+          new RootNexusInboundCallsInterceptor(serviceHandler);
       NexusInboundCallsInterceptor inboundCallsInterceptor =
-          new RootNexusInboundCallsInterceptor(serviceHandler, taskQueue, client);
+          rootInboundNexusInboundCallsInterceptor;
       for (WorkerInterceptor interceptor : interceptors) {
         inboundCallsInterceptor = interceptor.interceptNexus(inboundCallsInterceptor);
       }
       inboundCallsInterceptor.init(new RootNexusOutboundCallsInterceptor(metricsScope));
+      CurrentNexusOperationContext.set(
+          new NexusOperationContextImpl(
+              rootInboundNexusInboundCallsInterceptor.getOutboundCalls(), taskQueue, client));
 
       switch (request.getVariantCase()) {
         case START_OPERATION:

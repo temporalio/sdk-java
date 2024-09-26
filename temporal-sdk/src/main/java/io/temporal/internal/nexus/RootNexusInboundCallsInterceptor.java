@@ -24,21 +24,19 @@ import io.nexusrpc.OperationUnsuccessfulException;
 import io.nexusrpc.handler.HandlerResultContent;
 import io.nexusrpc.handler.OperationStartResult;
 import io.nexusrpc.handler.ServiceHandler;
-import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusInboundCallsInterceptor;
 import io.temporal.common.interceptors.NexusOutboundCallsInterceptor;
 
 public class RootNexusInboundCallsInterceptor implements NexusInboundCallsInterceptor {
   private final ServiceHandler serviceHandler;
   private NexusOutboundCallsInterceptor outboundCalls;
-  private final String taskQueue;
-  private final WorkflowClient client;
 
-  RootNexusInboundCallsInterceptor(
-      ServiceHandler serviceHandler, String taskQueue, WorkflowClient client) {
+  RootNexusInboundCallsInterceptor(ServiceHandler serviceHandler) {
     this.serviceHandler = serviceHandler;
-    this.taskQueue = taskQueue;
-    this.client = client;
+  }
+
+  public NexusOutboundCallsInterceptor getOutboundCalls() {
+    return outboundCalls;
   }
 
   @Override
@@ -49,27 +47,15 @@ public class RootNexusInboundCallsInterceptor implements NexusInboundCallsInterc
   @Override
   public StartOperationOutput startOperation(StartOperationInput input)
       throws OperationUnsuccessfulException {
-    CurrentNexusOperationContext.set(
-        new NexusOperationContextImpl(outboundCalls, taskQueue, client));
-    try {
-      OperationStartResult<HandlerResultContent> result =
-          serviceHandler.startOperation(
-              input.getOperationContext(), input.getStartDetails(), input.getInput());
-      return new StartOperationOutput(result);
-    } finally {
-      CurrentNexusOperationContext.unset();
-    }
+    OperationStartResult<HandlerResultContent> result =
+        serviceHandler.startOperation(
+            input.getOperationContext(), input.getStartDetails(), input.getInput());
+    return new StartOperationOutput(result);
   }
 
   @Override
   public CancelOperationOutput cancelOperation(CancelOperationInput input) {
-    CurrentNexusOperationContext.set(
-        new NexusOperationContextImpl(outboundCalls, taskQueue, client));
-    try {
-      serviceHandler.cancelOperation(input.getOperationContext(), input.getCancelDetails());
-      return new CancelOperationOutput();
-    } finally {
-      CurrentNexusOperationContext.unset();
-    }
+    serviceHandler.cancelOperation(input.getOperationContext(), input.getCancelDetails());
+    return new CancelOperationOutput();
   }
 }
