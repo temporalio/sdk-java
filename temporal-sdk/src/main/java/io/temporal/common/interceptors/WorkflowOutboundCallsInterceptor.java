@@ -595,6 +595,8 @@ public interface WorkflowOutboundCallsInterceptor {
 
   int getVersion(String changeId, int minSupported, int maxSupported);
 
+  int getVersion(String seriesId, String iterationId, int minSupported, int maxSupported);
+
   void continueAsNew(ContinueAsNewInput input);
 
   void registerQuery(RegisterQueryInput input);

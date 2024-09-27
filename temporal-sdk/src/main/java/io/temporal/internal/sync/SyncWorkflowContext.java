@@ -123,6 +123,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
   // Map of all running signal handlers. Key is the event Id of the signal event.
   private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
+  // Current versions for the getVersion call that supports iterationId.
+  private final Map<String, Integer> currentVersions = new HashMap<>();
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -965,6 +967,46 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       return result.get();
     } catch (UnsupportedVersion.UnsupportedVersionException ex) {
       throw new UnsupportedVersion(ex);
+    }
+  }
+
+  @Override
+  public int getVersion(String seriesId, String iterationId, int minSupported, int maxSupported) {
+    Integer currentVersion = currentVersions.get(seriesId);
+    // When replaying check if there is a marker (by calling getVersion) for each iteration.
+    if (isReplaying()) {
+      int iVersion = getVersion(seriesId + "/" + iterationId, minSupported, maxSupported);
+      if (currentVersion != null) {
+        if (iVersion < currentVersion) {
+          throw new IllegalArgumentException(
+              "getVersion for changeId '"
+                  + seriesId
+                  + "/"
+                  + iterationId
+                  + "' returned "
+                  + iVersion
+                  + " which is smaller than previously found version of "
+                  + currentVersion);
+        }
+        if (iVersion != DEFAULT_VERSION) {
+          currentVersions.put(seriesId, iVersion);
+          return iVersion;
+        }
+        return currentVersion;
+      }
+      return iVersion;
+    } else {
+      // When not replaying, only insert a marker (by calling getVersion) if the maxSupported is
+      // larger than the already recorded one.
+      if (currentVersion == null || (currentVersion != null && maxSupported > currentVersion)) {
+        int iVersion = getVersion(seriesId + "/" + iterationId, minSupported, maxSupported);
+        if (iVersion != maxSupported) {
+          throw new RuntimeException("getVersion returned wrong version: " + iVersion);
+        }
+        currentVersions.put(seriesId, iVersion);
+        return iVersion;
+      }
+      return currentVersion;
     }
   }
 
