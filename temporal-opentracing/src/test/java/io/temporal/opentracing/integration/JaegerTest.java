@@ -53,7 +53,7 @@ public class JaegerTest {
 
   private final InMemoryReporter reporter = new InMemoryReporter();
   private final Sampler sampler = new ConstSampler(true);
-  ;
+
   private final Tracer tracer =
       new JaegerTracer.Builder("temporal-test").withReporter(reporter).withSampler(sampler).build();
 
