@@ -21,12 +21,12 @@
 package io.temporal.internal.nexus;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.common.interceptors.NexusOutboundCallsInterceptor;
+import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 
-public class RootNexusOutboundCallsInterceptor implements NexusOutboundCallsInterceptor {
+public class RootNexusOperationOutboundCallsInterceptor implements NexusOperationOutboundCallsInterceptor {
   private final Scope scope;
 
-  RootNexusOutboundCallsInterceptor(Scope scope) {
+  RootNexusOperationOutboundCallsInterceptor(Scope scope) {
     this.scope = scope;
   }
 

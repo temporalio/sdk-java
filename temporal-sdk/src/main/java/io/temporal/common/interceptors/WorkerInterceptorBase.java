@@ -32,7 +32,7 @@ public class WorkerInterceptorBase implements WorkerInterceptor {
   }
 
   @Override
-  public NexusInboundCallsInterceptor interceptNexus(NexusInboundCallsInterceptor next) {
+  public NexusOperationInboundCallsInterceptor interceptNexusOperation(NexusOperationInboundCallsInterceptor next) {
     return next;
   }
 }

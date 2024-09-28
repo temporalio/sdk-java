@@ -26,18 +26,18 @@ import io.temporal.common.Experimental;
 /**
  * Can be used to intercept calls from a Nexus operation into the Temporal APIs.
  *
- * <p>Prefer extending {@link NexusOutboundCallsInterceptorBase} and overriding only the methods you
- * need instead of implementing this interface directly. {@link NexusOutboundCallsInterceptorBase}
+ * <p>Prefer extending {@link NexusOperationOutboundCallsInterceptorBase} and overriding only the methods you
+ * need instead of implementing this interface directly. {@link NexusOperationOutboundCallsInterceptorBase}
  * provides correct default implementations to all the methods of this interface.
  *
  * <p>An instance may be created in {@link
- * NexusInboundCallsInterceptor#init(NexusOutboundCallsInterceptor)} and set by passing it into
- * {@code init} method of the {@code next} {@link NexusInboundCallsInterceptor} The implementation
+ * NexusOperationInboundCallsInterceptor#init(NexusOperationOutboundCallsInterceptor)} and set by passing it into
+ * {@code init} method of the {@code next} {@link NexusOperationInboundCallsInterceptor} The implementation
  * must forward all the calls to the outbound interceptor passed as a {@code outboundCalls}
  * parameter to the {@code init} call.
  */
 @Experimental
-public interface NexusOutboundCallsInterceptor {
+public interface NexusOperationOutboundCallsInterceptor {
   /** Intercepts call to get the metric scope in a Nexus operation. */
   Scope getMetricsScope();
 }

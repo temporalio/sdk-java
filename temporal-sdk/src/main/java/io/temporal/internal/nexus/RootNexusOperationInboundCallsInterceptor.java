@@ -24,23 +24,23 @@ import io.nexusrpc.OperationUnsuccessfulException;
 import io.nexusrpc.handler.HandlerResultContent;
 import io.nexusrpc.handler.OperationStartResult;
 import io.nexusrpc.handler.ServiceHandler;
-import io.temporal.common.interceptors.NexusInboundCallsInterceptor;
-import io.temporal.common.interceptors.NexusOutboundCallsInterceptor;
+import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
+import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 
-public class RootNexusInboundCallsInterceptor implements NexusInboundCallsInterceptor {
+public class RootNexusOperationInboundCallsInterceptor implements NexusOperationInboundCallsInterceptor {
   private final ServiceHandler serviceHandler;
-  private NexusOutboundCallsInterceptor outboundCalls;
+  private NexusOperationOutboundCallsInterceptor outboundCalls;
 
-  RootNexusInboundCallsInterceptor(ServiceHandler serviceHandler) {
+  RootNexusOperationInboundCallsInterceptor(ServiceHandler serviceHandler) {
     this.serviceHandler = serviceHandler;
   }
 
-  public NexusOutboundCallsInterceptor getOutboundCalls() {
+  public NexusOperationOutboundCallsInterceptor getOutboundCalls() {
     return outboundCalls;
   }
 
   @Override
-  public void init(NexusOutboundCallsInterceptor outboundCalls) {
+  public void init(NexusOperationOutboundCallsInterceptor outboundCalls) {
     this.outboundCalls = outboundCalls;
   }
 

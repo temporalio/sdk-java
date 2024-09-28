@@ -31,7 +31,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.NexusInboundCallsInterceptor;
+import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
@@ -118,14 +118,14 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         }
       }
 
-      RootNexusInboundCallsInterceptor rootInboundNexusInboundCallsInterceptor =
-          new RootNexusInboundCallsInterceptor(serviceHandler);
-      NexusInboundCallsInterceptor inboundCallsInterceptor =
+      RootNexusOperationInboundCallsInterceptor rootInboundNexusInboundCallsInterceptor =
+          new RootNexusOperationInboundCallsInterceptor(serviceHandler);
+      NexusOperationInboundCallsInterceptor inboundCallsInterceptor =
           rootInboundNexusInboundCallsInterceptor;
       for (WorkerInterceptor interceptor : interceptors) {
-        inboundCallsInterceptor = interceptor.interceptNexus(inboundCallsInterceptor);
+        inboundCallsInterceptor = interceptor.interceptNexusOperation(inboundCallsInterceptor);
       }
-      inboundCallsInterceptor.init(new RootNexusOutboundCallsInterceptor(metricsScope));
+      inboundCallsInterceptor.init(new RootNexusOperationOutboundCallsInterceptor(metricsScope));
       CurrentNexusOperationContext.set(
           new NexusOperationContextImpl(
               rootInboundNexusInboundCallsInterceptor.getOutboundCalls(), taskQueue, client));
@@ -191,7 +191,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private CancelOperationResponse handleCancelledOperation(
       OperationContext.Builder ctx,
-      NexusInboundCallsInterceptor inbound,
+      NexusOperationInboundCallsInterceptor inbound,
       CancelOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
 
@@ -199,14 +199,14 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         OperationCancelDetails.newBuilder().setOperationId(task.getOperationId()).build();
 
     inbound.cancelOperation(
-        new NexusInboundCallsInterceptor.CancelOperationInput(ctx.build(), operationCancelDetails));
+        new NexusOperationInboundCallsInterceptor.CancelOperationInput(ctx.build(), operationCancelDetails));
 
     return CancelOperationResponse.newBuilder().build();
   }
 
   private StartOperationResponse handleStartOperation(
       OperationContext.Builder ctx,
-      NexusInboundCallsInterceptor inbound,
+      NexusOperationInboundCallsInterceptor inbound,
       StartOperationRequest task)
       throws InvalidProtocolBufferException {
     ctx.setService(task.getService()).setOperation(task.getOperation());
@@ -222,9 +222,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
     try {
-      NexusInboundCallsInterceptor.StartOperationOutput output =
+      NexusOperationInboundCallsInterceptor.StartOperationOutput output =
           inbound.startOperation(
-              new NexusInboundCallsInterceptor.StartOperationInput(
+              new NexusOperationInboundCallsInterceptor.StartOperationInput(
                   ctx.build(), operationStartDetails.build(), input.build()));
       OperationStartResult<HandlerResultContent> result = output.getResult();
       if (result.isSync()) {

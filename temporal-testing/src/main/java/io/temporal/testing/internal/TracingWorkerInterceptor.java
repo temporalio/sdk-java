@@ -130,8 +130,8 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
   }
 
   @Override
-  public NexusInboundCallsInterceptor interceptNexus(NexusInboundCallsInterceptor next) {
-    return new TracingNexusInboundCallsInterceptor(trace, next);
+  public NexusOperationInboundCallsInterceptor interceptNexusOperation(NexusOperationInboundCallsInterceptor next) {
+    return new TracingNexusOperationInboundCallsInterceptor(trace, next);
   }
 
   public static class FilteredTrace {
@@ -465,18 +465,18 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
   }
 
-  private static class TracingNexusInboundCallsInterceptor implements NexusInboundCallsInterceptor {
-    private final NexusInboundCallsInterceptor next;
+  private static class TracingNexusOperationInboundCallsInterceptor implements NexusOperationInboundCallsInterceptor {
+    private final NexusOperationInboundCallsInterceptor next;
     private final FilteredTrace trace;
 
-    public TracingNexusInboundCallsInterceptor(
-        FilteredTrace trace, NexusInboundCallsInterceptor next) {
+    public TracingNexusOperationInboundCallsInterceptor(
+        FilteredTrace trace, NexusOperationInboundCallsInterceptor next) {
       this.trace = trace;
       this.next = next;
     }
 
     @Override
-    public void init(NexusOutboundCallsInterceptor outboundCalls) {
+    public void init(NexusOperationOutboundCallsInterceptor outboundCalls) {
       next.init(outboundCalls);
     }
 

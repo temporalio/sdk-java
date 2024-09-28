@@ -20,31 +20,20 @@
 
 package io.temporal.common.interceptors;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import com.uber.m3.tally.Scope;
 import io.temporal.common.Experimental;
 
-/** Convenience base class for {@link NexusInboundCallsInterceptor} implementations. */
+/** Convenience base class for {@link NexusOperationOutboundCallsInterceptor} implementations. */
 @Experimental
-public class NexusInboundCallsInterceptorBase implements NexusInboundCallsInterceptor {
-  private final NexusInboundCallsInterceptor next;
+public class NexusOperationOutboundCallsInterceptorBase implements NexusOperationOutboundCallsInterceptor {
+  private final NexusOperationOutboundCallsInterceptor next;
 
-  public NexusInboundCallsInterceptorBase(NexusInboundCallsInterceptor next) {
+  public NexusOperationOutboundCallsInterceptorBase(NexusOperationOutboundCallsInterceptor next) {
     this.next = next;
   }
 
   @Override
-  public void init(NexusOutboundCallsInterceptor outboundCalls) {
-    next.init(outboundCalls);
-  }
-
-  @Override
-  public StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException {
-    return next.startOperation(input);
-  }
-
-  @Override
-  public CancelOperationOutput cancelOperation(CancelOperationInput input) {
-    return next.cancelOperation(input);
+  public Scope getMetricsScope() {
+    return next.getMetricsScope();
   }
 }

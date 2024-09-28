@@ -25,18 +25,18 @@ import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.temporal.common.interceptors.NexusInboundCallsInterceptor;
-import io.temporal.common.interceptors.NexusInboundCallsInterceptorBase;
+import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
+import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptorBase;
 import io.temporal.opentracing.OpenTracingOptions;
 
-public class OpenTracingNexusInboundCallsInterceptor extends NexusInboundCallsInterceptorBase {
+public class OpenTracingNexusOperationInboundCallsInterceptor extends NexusOperationInboundCallsInterceptorBase {
   private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
   private final Tracer tracer;
   private final ContextAccessor contextAccessor;
 
-  public OpenTracingNexusInboundCallsInterceptor(
-      NexusInboundCallsInterceptor next,
+  public OpenTracingNexusOperationInboundCallsInterceptor(
+      NexusOperationInboundCallsInterceptor next,
       OpenTracingOptions options,
       SpanFactory spanFactory,
       ContextAccessor contextAccessor) {

@@ -25,17 +25,17 @@ import io.nexusrpc.handler.*;
 import io.temporal.common.Experimental;
 
 /**
- * Intercepts inbound calls to the Nexus operation on the worker side.
+ * Intercepts inbound calls to a Nexus operation on the worker side.
  *
  * <p>An instance should be created in {@link
- * WorkerInterceptor#interceptNexus(NexusInboundCallsInterceptor)}.
+ * WorkerInterceptor#interceptNexusOperation(NexusOperationInboundCallsInterceptor)}.
  *
- * <p>Prefer extending {@link NexusInboundCallsInterceptorBase} and overriding only the methods you
- * need instead of implementing this interface directly. {@link NexusInboundCallsInterceptorBase}
+ * <p>Prefer extending {@link NexusOperationInboundCallsInterceptorBase} and overriding only the methods you
+ * need instead of implementing this interface directly. {@link NexusOperationInboundCallsInterceptorBase}
  * provides correct default implementations to all the methods of this interface.
  */
 @Experimental
-public interface NexusInboundCallsInterceptor {
+public interface NexusOperationInboundCallsInterceptor {
   final class StartOperationInput {
     private final OperationContext operationContext;
     private final OperationStartDetails startDetails;
@@ -96,7 +96,7 @@ public interface NexusInboundCallsInterceptor {
 
   final class CancelOperationOutput {}
 
-  void init(NexusOutboundCallsInterceptor outboundCalls);
+  void init(NexusOperationOutboundCallsInterceptor outboundCalls);
 
   /**
    * Intercepts a call to start a Nexus operation.
