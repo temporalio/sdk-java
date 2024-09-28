@@ -8,6 +8,7 @@ ext {
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
     api(platform("io.opentelemetry:opentelemetry-bom:$otelVersion"))
+    implementation "io.nexusrpc:nexus-sdk:$nexusVersion"
 
     compileOnly project(':temporal-sdk')
     compileOnly project(':temporal-testing')
