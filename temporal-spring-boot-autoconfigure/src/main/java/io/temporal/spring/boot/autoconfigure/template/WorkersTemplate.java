@@ -21,6 +21,8 @@
 package io.temporal.spring.boot.autoconfigure.template;
 
 import com.google.common.base.Preconditions;
+import io.nexusrpc.ServiceDefinition;
+import io.nexusrpc.handler.ServiceImplInstance;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
@@ -28,6 +30,7 @@ import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.spring.boot.ActivityImpl;
+import io.temporal.spring.boot.NexusServiceImpl;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
@@ -151,13 +154,17 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses =
           autoDiscoverWorkflowImplementations();
       Map<String, Object> autoDiscoveredActivityBeans = autoDiscoverActivityBeans();
+      Map<String, Object> autoDiscoveredNexusServiceBeans = autoDiscoverNexusServiceBeans();
 
       configureWorkflowImplementationsByTaskQueue(
           workerFactory, workers, autoDiscoveredWorkflowImplementationClasses);
       configureActivityBeansByTaskQueue(workerFactory, workers, autoDiscoveredActivityBeans);
+      configureNexusServiceBeansByTaskQueue(
+          workerFactory, workers, autoDiscoveredNexusServiceBeans);
       configureWorkflowImplementationsByWorkerName(
           workers, autoDiscoveredWorkflowImplementationClasses);
       configureActivityBeansByWorkerName(workers, autoDiscoveredActivityBeans);
+      configureNexusServiceBeansByWorkerName(workers, autoDiscoveredNexusServiceBeans);
     }
 
     return workers.getWorkers();
@@ -215,6 +222,35 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         });
   }
 
+  private void configureNexusServiceBeansByTaskQueue(
+      WorkerFactory workerFactory,
+      Workers workers,
+      Map<String, Object> autoDiscoveredNexusServiceBeans) {
+    autoDiscoveredNexusServiceBeans.forEach(
+        (beanName, bean) -> {
+          Class<?> targetClass = AopUtils.getTargetClass(bean);
+          NexusServiceImpl annotation =
+              AnnotationUtils.findAnnotation(targetClass, NexusServiceImpl.class);
+          if (annotation != null) {
+            for (String taskQueue : annotation.taskQueues()) {
+              taskQueue = environment.resolvePlaceholders(taskQueue);
+              Worker worker = workerFactory.tryGetWorker(taskQueue);
+              if (worker == null) {
+                log.info(
+                    "Creating a worker with default settings for a task queue '{}' "
+                        + "caused by an auto-discovered nexus service class {}",
+                    taskQueue,
+                    targetClass);
+                worker = createNewWorker(taskQueue, null, workers);
+              }
+
+              configureNexusServiceImplementationAutoDiscovery(
+                  worker, bean, beanName, targetClass, null, workers);
+            }
+          }
+        });
+  }
+
   private void configureWorkflowImplementationsByWorkerName(
       Workers workers, Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
     for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
@@ -259,6 +295,31 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         });
   }
 
+  private void configureNexusServiceBeansByWorkerName(
+      Workers workers, Map<String, Object> autoDiscoveredNexusServiceBeans) {
+    autoDiscoveredNexusServiceBeans.forEach(
+        (beanName, bean) -> {
+          Class<?> targetClass = AopUtils.getTargetClass(bean);
+          NexusServiceImpl annotation =
+              AnnotationUtils.findAnnotation(targetClass, NexusServiceImpl.class);
+          if (annotation != null) {
+            for (String workerName : annotation.workers()) {
+              Worker worker = workers.getByName(workerName);
+              if (worker == null) {
+                throw new BeanDefinitionValidationException(
+                    "Worker with name "
+                        + workerName
+                        + " is not found in the config, but is referenced by auto-discovered nexus service bean "
+                        + beanName);
+              }
+
+              configureNexusServiceImplementationAutoDiscovery(
+                  worker, bean, beanName, targetClass, workerName, workers);
+            }
+          }
+        });
+  }
+
   private Collection<Class<?>> autoDiscoverWorkflowImplementations() {
     ClassPathScanningCandidateComponentProvider scanner =
         new ClassPathScanningCandidateComponentProvider(false);
@@ -280,6 +341,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   private Map<String, Object> autoDiscoverActivityBeans() {
     return beanFactory.getBeansWithAnnotation(ActivityImpl.class);
+  }
+
+  private Map<String, Object> autoDiscoverNexusServiceBeans() {
+    return beanFactory.getBeansWithAnnotation(NexusServiceImpl.class);
   }
 
   private void createWorkerFromAnExplicitConfig(
@@ -321,6 +386,25 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 worker, beanName, bean.getClass().getName(), activityImplMetadata);
           });
     }
+
+    Collection<String> nexusServiceBeans = workerProperties.getNexusServiceBeans();
+    if (nexusServiceBeans != null) {
+      nexusServiceBeans.forEach(
+          beanName -> {
+            Object bean = beanFactory.getBean(beanName);
+            log.info(
+                "Registering configured nexus service bean '{}' of a {} class on task queue '{}'",
+                beanName,
+                AopUtils.getTargetClass(bean),
+                taskQueue);
+            worker.registerNexusServiceImplementation(bean);
+            addRegisteredNexusServiceImpl(
+                worker,
+                beanName,
+                bean.getClass().getName(),
+                ServiceImplInstance.fromInstance(AopUtils.getTargetClass(bean)).getDefinition());
+          });
+    }
   }
 
   private void configureActivityImplementationAutoDiscovery(
@@ -348,6 +432,42 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         log.info(
             "Skipping auto-discovered activity bean '{}' of class {} on a worker {} with a task queue '{}'"
                 + " as activity type '{}' is already registered on the worker",
+            beanName,
+            targetClass,
+            byWorkerName != null ? "'" + byWorkerName + "' " : "",
+            worker.getTaskQueue(),
+            registeredEx.getRegisteredTypeName());
+      }
+    }
+  }
+
+  private void configureNexusServiceImplementationAutoDiscovery(
+      Worker worker,
+      Object bean,
+      String beanName,
+      Class<?> targetClass,
+      String byWorkerName,
+      Workers workers) {
+    try {
+      worker.registerNexusServiceImplementation(bean);
+      addRegisteredNexusServiceImpl(
+          worker,
+          beanName,
+          bean.getClass().getName(),
+          ServiceImplInstance.fromInstance(bean).getDefinition());
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Registering auto-discovered nexus service bean '{}' of class {} on a worker {} with a task queue '{}'",
+            beanName,
+            targetClass,
+            byWorkerName != null ? "'" + byWorkerName + "' " : "",
+            worker.getTaskQueue());
+      }
+    } catch (TypeAlreadyRegisteredException registeredEx) {
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Skipping auto-discovered nexus service bean '{}' of class {} on a worker {} with a task queue '{}'"
+                + " as nexus service type '{}' is already registered on the worker",
             beanName,
             targetClass,
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
@@ -475,12 +595,41 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     }
   }
 
+  private void addRegisteredNexusServiceImpl(
+      Worker worker, String beanName, String beanClass, ServiceDefinition serviceDefinition) {
+    if (!registeredInfo.containsKey(worker.getTaskQueue())) {
+      registeredInfo.put(
+          worker.getTaskQueue(),
+          new RegisteredInfo()
+              .addNexusServiceInfo(
+                  new RegisteredNexusServiceInfo()
+                      .addBeanName(beanName)
+                      .addClassName(beanClass)
+                      .addDefinition(serviceDefinition)));
+    } else {
+      registeredInfo
+          .get(worker.getTaskQueue())
+          .getRegisteredNexusServiceInfos()
+          .add(
+              new RegisteredNexusServiceInfo()
+                  .addBeanName(beanName)
+                  .addClassName(beanClass)
+                  .addDefinition(serviceDefinition));
+    }
+  }
+
   public static class RegisteredInfo {
     private final List<RegisteredActivityInfo> registeredActivityInfo = new ArrayList<>();
     private final List<RegisteredWorkflowInfo> registeredWorkflowInfo = new ArrayList<>();
+    private final List<RegisteredNexusServiceInfo> registeredNexusServiceInfos = new ArrayList<>();
 
     public RegisteredInfo addActivityInfo(RegisteredActivityInfo activityInfo) {
       registeredActivityInfo.add(activityInfo);
+      return this;
+    }
+
+    public RegisteredInfo addNexusServiceInfo(RegisteredNexusServiceInfo nexusServiceInfo) {
+      registeredNexusServiceInfos.add(nexusServiceInfo);
       return this;
     }
 
@@ -495,6 +644,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
     public List<RegisteredWorkflowInfo> getRegisteredWorkflowInfo() {
       return registeredWorkflowInfo;
+    }
+
+    public List<RegisteredNexusServiceInfo> getRegisteredNexusServiceInfos() {
+      return registeredNexusServiceInfos;
     }
   }
 
@@ -529,6 +682,40 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
     public POJOActivityImplMetadata getMetadata() {
       return metadata;
+    }
+  }
+
+  @Experimental
+  public static class RegisteredNexusServiceInfo {
+    private String beanName;
+    private String className;
+    private ServiceDefinition definition;
+
+    public RegisteredNexusServiceInfo addClassName(String className) {
+      this.className = className;
+      return this;
+    }
+
+    public RegisteredNexusServiceInfo addBeanName(String beanName) {
+      this.beanName = beanName;
+      return this;
+    }
+
+    public RegisteredNexusServiceInfo addDefinition(ServiceDefinition definition) {
+      this.definition = definition;
+      return this;
+    }
+
+    public String getClassName() {
+      return className;
+    }
+
+    public String getBeanName() {
+      return beanName;
+    }
+
+    public ServiceDefinition getDefinition() {
+      return definition;
     }
   }
 
