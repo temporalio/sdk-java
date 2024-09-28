@@ -232,7 +232,14 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public Statement apply(@Nonnull Statement base, Description description) {
-    Statement testWorkflowStatement = base;
+    Statement testWorkflowStatement =
+        new Statement() {
+          @Override
+          public void evaluate() throws Throwable {
+            base.evaluate();
+            shutdown();
+          }
+        };
 
     Test annotation = description.getAnnotation(Test.class);
     boolean timeoutIsOverriddenOnTestAnnotation = annotation != null && annotation.timeout() > 0;
