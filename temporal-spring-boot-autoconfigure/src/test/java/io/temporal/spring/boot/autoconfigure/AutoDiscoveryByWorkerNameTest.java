@@ -63,7 +63,7 @@ public class AutoDiscoveryByWorkerNameTest {
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
-    testWorkflow.execute("input");
+    testWorkflow.execute("nexus");
   }
 
   @ComponentScan(

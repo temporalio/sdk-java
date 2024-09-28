@@ -20,9 +20,11 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflow;
+import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactory;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,11 +42,23 @@ public class AutoDiscoveryByTaskQueueResolverTest {
 
   @Autowired WorkflowClient workflowClient;
 
+  @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
+
   @Autowired WorkerFactory workerFactory;
+
+  Endpoint endpoint;
 
   @BeforeEach
   void setUp() {
     applicationContext.start();
+    endpoint =
+        testWorkflowEnvironment.createNexusEndpoint(
+            "AutoDiscoveryByTaskQueueEndpoint", "PropertyResolverTest");
+  }
+
+  @AfterEach
+  void tearDown() {
+    testWorkflowEnvironment.deleteNexusEndpoint(endpoint);
   }
 
   @Test
@@ -54,7 +68,7 @@ public class AutoDiscoveryByTaskQueueResolverTest {
         workflowClient.newWorkflowStub(
             TestWorkflow.class,
             WorkflowOptions.newBuilder().setTaskQueue("PropertyResolverTest").build());
-    testWorkflow.execute("input");
+    testWorkflow.execute("nexus");
   }
 
   @ComponentScan(

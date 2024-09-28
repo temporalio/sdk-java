@@ -48,8 +48,7 @@ public class AutoDiscoveryByTaskQueueTest {
   void setUp() {
     applicationContext.start();
     endpoint =
-        testWorkflowEnvironment.createNexusEndpoint(
-            "AutoDiscoveryByTaskQueueTestEndpoint", "UnitTest");
+        testWorkflowEnvironment.createNexusEndpoint("AutoDiscoveryByTaskQueueEndpoint", "UnitTest");
   }
 
   @AfterEach
@@ -63,7 +62,7 @@ public class AutoDiscoveryByTaskQueueTest {
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
-    testWorkflow.execute("input");
+    testWorkflow.execute("nexus");
   }
 
   @ComponentScan(

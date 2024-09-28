@@ -31,16 +31,18 @@ import java.time.Duration;
 public class TestWorkflowImpl implements TestWorkflow {
   @Override
   public String execute(String input) {
-    Workflow.newNexusServiceStub(
-            TestNexusService.class,
-            NexusServiceOptions.newBuilder()
-                .setEndpoint("AutoDiscoveryByWorkerNameTestEndpoint")
-                .setOperationOptions(
-                    NexusOperationOptions.newBuilder()
-                        .setScheduleToCloseTimeout(Duration.ofSeconds(10))
-                        .build())
-                .build())
-        .operation(input);
+    if (input.equals("nexus")) {
+      Workflow.newNexusServiceStub(
+              TestNexusService.class,
+              NexusServiceOptions.newBuilder()
+                  .setEndpoint("AutoDiscoveryByWorkerNameTestEndpoint")
+                  .setOperationOptions(
+                      NexusOperationOptions.newBuilder()
+                          .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+                          .build())
+                  .build())
+          .operation(input);
+    }
     return Workflow.newActivityStub(
             TestActivity.class,
             ActivityOptions.newBuilder()
