@@ -58,10 +58,14 @@ class WorkerOptionsTemplate {
             .ifPresent(options::setMaxConcurrentActivityExecutionSize);
         Optional.ofNullable(threadsConfiguration.getMaxConcurrentLocalActivityExecutors())
             .ifPresent(options::setMaxConcurrentLocalActivityExecutionSize);
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentNexusTasksExecutors())
+            .ifPresent(options::setMaxConcurrentNexusExecutionSize);
         Optional.ofNullable(threadsConfiguration.getMaxConcurrentWorkflowTaskPollers())
             .ifPresent(options::setMaxConcurrentWorkflowTaskPollers);
         Optional.ofNullable(threadsConfiguration.getMaxConcurrentActivityTaskPollers())
             .ifPresent(options::setMaxConcurrentActivityTaskPollers);
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentNexusTaskPollers())
+            .ifPresent(options::setMaxConcurrentNexusTaskPollers);
       }
 
       WorkerProperties.RateLimitsConfigurationProperties rateLimitConfiguration =

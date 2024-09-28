@@ -22,6 +22,7 @@ package io.temporal.spring.boot.autoconfigure;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.nexusrpc.ServiceDefinition;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
@@ -94,6 +95,19 @@ public class RegisteredInfoTest {
                         "Execute", metadata.getActivityMethods().get(0).getActivityTypeName());
                     assertEquals(
                         "execute", metadata.getActivityMethods().get(0).getMethod().getName());
+                  });
+
+          info.getRegisteredNexusServiceInfos()
+              .forEach(
+                  (nexusServiceInfo) -> {
+                    assertEquals(
+                        "io.temporal.spring.boot.autoconfigure.bytaskqueue.TestNexusServiceImpl",
+                        nexusServiceInfo.getClassName());
+                    assertEquals("TestNexusServiceImpl", nexusServiceInfo.getBeanName());
+                    ServiceDefinition def = nexusServiceInfo.getDefinition();
+                    assertEquals("TestNexusService", def.getName());
+                    assertEquals(1, def.getOperations().size());
+                    assertEquals("operation", def.getOperations().get("operation").getName());
                   });
         });
   }
