@@ -20,9 +20,11 @@
 
 package io.temporal.common.interceptors;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.TimerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Map;
@@ -88,6 +90,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public Promise<Void> newTimer(Duration duration) {
     return next.newTimer(duration);
+  }
+
+  @Override
+  public Promise<Void> newTimer(Duration duration, TimerOptions options) {
+    return next.newTimer(duration, options);
   }
 
   @Override
@@ -164,6 +171,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public void upsertMemo(Map<String, Object> memo) {
     next.upsertMemo(memo);
+  }
+
+  @Override
+  public Scope getMetricsScope() {
+    return next.getMetricsScope();
   }
 
   @Override

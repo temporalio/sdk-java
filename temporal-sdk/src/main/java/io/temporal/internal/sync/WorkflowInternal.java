@@ -89,6 +89,11 @@ public final class WorkflowInternal {
     return getWorkflowOutboundInterceptor().newTimer(duration);
   }
 
+  public static Promise<Void> newTimer(Duration duration, TimerOptions options) {
+    assertNotReadOnly("schedule timer");
+    return getWorkflowOutboundInterceptor().newTimer(duration, options);
+  }
+
   /**
    * @param capacity the maximum size of the queue
    * @return new instance of {@link WorkflowQueue}
@@ -493,13 +498,34 @@ public final class WorkflowInternal {
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    getWorkflowOutboundInterceptor().await(reason, unblockCondition);
+    getWorkflowOutboundInterceptor()
+        .await(
+            reason,
+            () -> {
+              getRootWorkflowContext().setReadOnly(true);
+              try {
+                return unblockCondition.get();
+              } finally {
+                getRootWorkflowContext().setReadOnly(false);
+              }
+            });
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
+    return getWorkflowOutboundInterceptor()
+        .await(
+            timeout,
+            reason,
+            () -> {
+              getRootWorkflowContext().setReadOnly(true);
+              try {
+                return unblockCondition.get();
+              } finally {
+                getRootWorkflowContext().setReadOnly(false);
+              }
+            });
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
@@ -642,7 +668,7 @@ public final class WorkflowInternal {
   }
 
   public static Scope getMetricsScope() {
-    return getRootWorkflowContext().getMetricsScope();
+    return getWorkflowOutboundInterceptor().getMetricsScope();
   }
 
   private static boolean isLoggingEnabledInReplay() {

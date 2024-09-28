@@ -25,6 +25,7 @@ import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttribute
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.SdkFlag;
@@ -205,13 +206,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * Create a Value that becomes ready after the specified delay.
    *
    * @param delay time-interval after which the Value becomes ready.
+   * @param metadata user metadata to be associated with the timer.
    * @param callback Callback that is called with null parameter after the specified delay.
    *     CanceledException is passed as a parameter in case of a cancellation.
    * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
    *     to cancel timer.
    */
   Functions.Proc1<RuntimeException> newTimer(
-      Duration delay, Functions.Proc1<RuntimeException> callback);
+      Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback);
 
   /**
    * Executes the provided function once, records its result into the workflow history. The recorded

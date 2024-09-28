@@ -130,6 +130,46 @@ class WorkflowStubImpl implements WorkflowStub {
     return startWithOptions(WorkflowOptions.merge(null, null, options), args);
   }
 
+  @Override
+  public <R> WorkflowUpdateHandle<R> updateWithStart(
+      UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs) {
+    if (options == null) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    if (!updateOperation.markInvoked()) {
+      throw new IllegalStateException("UpdateWithStartWorkflowOperation was already executed");
+    }
+    checkExecutionIsNotStarted();
+    String workflowId = getWorkflowIdForStart(options);
+    WorkflowExecution workflowExecution = null;
+    try {
+      WorkflowClientCallsInterceptor.WorkflowStartInput startInput =
+          new WorkflowClientCallsInterceptor.WorkflowStartInput(
+              workflowId, workflowType.get(), Header.empty(), startArgs, options);
+      WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<R> input =
+          new WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<>(
+              startInput, updateOperation);
+      WorkflowClientCallsInterceptor.WorkflowUpdateWithStartOutput<R> output =
+          workflowClientInvoker.updateWithStart(input);
+      workflowExecution = output.getWorkflowStartOutput().getWorkflowExecution();
+      populateExecutionAfterStart(workflowExecution);
+      WorkflowUpdateHandle<R> updateHandle = output.getUpdateHandle();
+      updateOperation.setUpdateHandle(updateHandle);
+      return updateHandle;
+    } catch (StatusRuntimeException e) {
+      throw wrapStartException(workflowId, workflowType.orElse(null), e);
+    } catch (Exception e) {
+      if (workflowExecution == null) {
+        // if start failed with exception - there could be no valid workflow execution populated
+        // from the server.
+        // WorkflowServiceException requires not null workflowExecution, so we have to provide
+        // an WorkflowExecution instance with just a workflowId
+        workflowExecution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
+      }
+      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
+    }
+  }
+
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     checkExecutionIsNotStarted();

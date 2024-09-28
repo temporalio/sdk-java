@@ -57,6 +57,7 @@ public class SagaTest {
             "activity customActivity1",
             "executeChildWorkflow TestNoArgsWorkflowFunc",
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+            "registerUpdateHandlers update",
             "newThread workflow-method",
             "executeActivity ThrowIO",
             "activity ThrowIO",
@@ -140,6 +141,11 @@ public class SagaTest {
     @Override
     public String func() {
       return "done";
+    }
+
+    @Override
+    public String update(Integer i) {
+      throw new UnsupportedOperationException();
     }
   }
 }

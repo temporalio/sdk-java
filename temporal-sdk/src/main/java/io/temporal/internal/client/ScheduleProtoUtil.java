@@ -22,6 +22,7 @@ package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
+import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -33,6 +34,7 @@ import io.temporal.api.schedule.v1.ScheduleActionResult;
 import io.temporal.api.schedule.v1.ScheduleInfo;
 import io.temporal.api.schedule.v1.ScheduleSpec;
 import io.temporal.api.schedule.v1.ScheduleState;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflow.v1.NewWorkflowExecutionInfo;
 import io.temporal.client.WorkflowOptions;
@@ -158,6 +160,16 @@ public class ScheduleProtoUtil {
           && wfOptions.getTypedSearchAttributes().size() > 0) {
         workflowRequest.setSearchAttributes(
             SearchAttributesUtil.encodeTyped(wfOptions.getTypedSearchAttributes()));
+      }
+
+      @Nullable
+      UserMetadata userMetadata =
+          makeUserMetaData(
+              wfOptions.getStaticSummary(),
+              wfOptions.getStaticDetails(),
+              dataConverterWithWorkflowContext);
+      if (userMetadata != null) {
+        workflowRequest.setUserMetadata(userMetadata);
       }
 
       Header grpcHeader =
@@ -458,6 +470,15 @@ public class ScheduleProtoUtil {
       if (startWfAction.hasSearchAttributes()) {
         wfOptionsBuilder.setTypedSearchAttributes(
             SearchAttributesUtil.decodeTyped(startWfAction.getSearchAttributes()));
+      }
+
+      if (startWfAction.hasUserMetadata()) {
+        wfOptionsBuilder.setStaticSummary(
+            dataConverterWithWorkflowContext.fromPayload(
+                startWfAction.getUserMetadata().getSummary(), String.class, String.class));
+        wfOptionsBuilder.setStaticDetails(
+            dataConverterWithWorkflowContext.fromPayload(
+                startWfAction.getUserMetadata().getDetails(), String.class, String.class));
       }
 
       builder.setOptions(wfOptionsBuilder.build());

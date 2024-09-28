@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
+import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.base.MoreObjects;
@@ -44,6 +45,7 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
@@ -651,6 +653,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .build()
             : null;
 
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            input.getOptions().getStaticSummary(),
+            input.getOptions().getStaticDetails(),
+            dataConverterWithChildWorkflowContext);
+
     StartChildWorkflowExecutionParameters parameters =
         createChildWorkflowParameters(
             input.getWorkflowId(),
@@ -658,7 +667,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             input.getOptions(),
             input.getHeader(),
             payloads,
-            memo);
+            memo,
+            userMetadata);
 
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.startChildWorkflow(
@@ -715,7 +725,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       ChildWorkflowOptions options,
       Header header,
       Optional<Payloads> input,
-      @Nullable Memo memo) {
+      @Nullable Memo memo,
+      @Nullable UserMetadata metadata) {
     final StartChildWorkflowExecutionCommandAttributes.Builder attributes =
         StartChildWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
@@ -777,7 +788,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               .determineUseCompatibleFlag(
                   replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
-    return new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
+    return new StartChildWorkflowExecutionParameters(
+        attributes, options.getCancellationType(), metadata);
   }
 
   private static Header extractContextsAndConvertToBytes(
@@ -829,10 +841,21 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public Promise<Void> newTimer(Duration delay) {
+    return newTimer(delay, TimerOptions.newBuilder().build());
+  }
+
+  @Override
+  public Promise<Void> newTimer(Duration delay, TimerOptions options) {
     CompletablePromise<Void> p = Workflow.newPromise();
+
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+
     Functions.Proc1<RuntimeException> cancellationHandler =
         replayContext.newTimer(
             delay,
+            userMetadata,
             (e) ->
                 runner.executeInWorkflowThread(
                     "timer-callback",
@@ -1229,6 +1252,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return new CancelWorkflowOutput(result);
   }
 
+  @Override
   public Scope getMetricsScope() {
     return replayContext.getMetricsScope();
   }

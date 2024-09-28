@@ -20,7 +20,10 @@
 
 package io.temporal.internal.client;
 
+import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.START_WORKFLOW;
+import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
+import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -28,15 +31,20 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
+import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -74,34 +82,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .withContext(
                 new WorkflowSerializationContext(
                     clientOptions.getNamespace(), input.getWorkflowId()));
-    Optional<Payloads> inputArgs =
-        dataConverterWithWorkflowContext.toPayloads(input.getArguments());
 
-    @Nullable
-    Memo memo =
-        (input.getOptions().getMemo() != null)
-            ? Memo.newBuilder()
-                .putAllFields(
-                    intoPayloadMap(dataConverterWithWorkflowContext, input.getOptions().getMemo()))
-                .build()
-            : null;
+    StartWorkflowExecutionRequest.Builder startRequest =
+        toStartRequest(dataConverterWithWorkflowContext, input);
 
-    StartWorkflowExecutionRequest.Builder request =
-        requestsHelper.newStartWorkflowExecutionRequest(
-            input.getWorkflowId(),
-            input.getWorkflowType(),
-            input.getHeader(),
-            input.getOptions(),
-            inputArgs.orElse(null),
-            memo);
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
-      request.setRequestEagerExecution(requestEagerExecution);
-      StartWorkflowExecutionResponse response = genericClient.start(request.build());
+      startRequest.setRequestEagerExecution(requestEagerExecution);
+      StartWorkflowExecutionResponse response = genericClient.start(startRequest.build());
       WorkflowExecution execution =
           WorkflowExecution.newBuilder()
               .setRunId(response.getRunId())
-              .setWorkflowId(request.getWorkflowId())
+              .setWorkflowId(startRequest.getWorkflowId())
               .build();
       @Nullable
       PollWorkflowTaskQueueResponse eagerWorkflowTask =
@@ -159,28 +151,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .withContext(
                 new WorkflowSerializationContext(
                     clientOptions.getNamespace(), workflowStartInput.getWorkflowId()));
-    Optional<Payloads> workflowInput =
-        dataConverterWithWorkflowContext.toPayloads(workflowStartInput.getArguments());
-
-    @Nullable
-    Memo memo =
-        (workflowStartInput.getOptions().getMemo() != null)
-            ? Memo.newBuilder()
-                .putAllFields(
-                    intoPayloadMap(
-                        dataConverterWithWorkflowContext,
-                        workflowStartInput.getOptions().getMemo()))
-                .build()
-            : null;
-
     StartWorkflowExecutionRequestOrBuilder startRequest =
-        requestsHelper.newStartWorkflowExecutionRequest(
-            workflowStartInput.getWorkflowId(),
-            workflowStartInput.getWorkflowType(),
-            workflowStartInput.getHeader(),
-            workflowStartInput.getOptions(),
-            workflowInput.orElse(null),
-            memo);
+        toStartRequest(dataConverterWithWorkflowContext, workflowStartInput);
 
     Optional<Payloads> signalInput =
         dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
@@ -198,6 +170,175 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
     //  We should wire it when it's implemented server-side.
     return new WorkflowSignalWithStartOutput(new WorkflowStartOutput(execution));
+  }
+
+  @Override
+  public <R> WorkflowUpdateWithStartOutput<R> updateWithStart(
+      WorkflowUpdateWithStartInput<R> input) {
+
+    WorkflowStartInput startInput = input.getWorkflowStartInput();
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), startInput.getWorkflowId()));
+    StartWorkflowExecutionRequest startRequest =
+        toStartRequest(dataConverterWithWorkflowContext, startInput).build();
+
+    UpdateWithStartWorkflowOperation<R> updateOperation = input.getUpdateOperation();
+    UpdateOptions<?> updateOptions = updateOperation.getOptions();
+    updateOptions.validate();
+    StartUpdateInput<?> updateInput =
+        new StartUpdateInput<>(
+            WorkflowExecution.newBuilder().setWorkflowId(startInput.getWorkflowId()).build(),
+            Optional.of(startInput.getWorkflowType()),
+            updateOptions.getUpdateName(),
+            Header.empty(),
+            updateOptions.getUpdateId(),
+            updateOperation.getUpdateArgs(),
+            updateOptions.getResultClass(),
+            updateOptions.getResultType(),
+            "", // firstExecutionRunId is always empty
+            WaitPolicy.newBuilder()
+                .setLifecycleStage(updateOptions.getWaitForStage().getProto())
+                .build());
+    UpdateWorkflowExecutionRequest updateRequest =
+        toUpdateWorkflowExecutionRequest(updateInput, dataConverterWithWorkflowContext);
+
+    ExecuteMultiOperationRequest request =
+        ExecuteMultiOperationRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .addOperations(
+                0,
+                ExecuteMultiOperationRequest.Operation.newBuilder()
+                    .setStartWorkflow(startRequest)
+                    .build())
+            .addOperations(
+                1,
+                ExecuteMultiOperationRequest.Operation.newBuilder()
+                    .setUpdateWorkflow(updateRequest)
+                    .build())
+            .build();
+
+    ExecuteMultiOperationResponse response;
+    StartWorkflowExecutionResponse startResponse;
+    UpdateWorkflowExecutionResponse updateResponse;
+
+    do {
+      try {
+        Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
+        response = genericClient.executeMultiOperation(request, pollTimeoutDeadline);
+
+        if (response.getResponsesCount() != request.getOperationsCount()) {
+          throw new RuntimeException(
+              "Server sent back an invalid response: received "
+                  + response.getResponsesCount()
+                  + " instead of "
+                  + request.getOperationsCount()
+                  + " operation responses");
+        }
+
+        ExecuteMultiOperationResponse.Response firstResponse = response.getResponses(0);
+        if (firstResponse.getResponseCase() != START_WORKFLOW) {
+          throw new RuntimeException(
+              "Server sent back an invalid response type for StartWorkflow response");
+        }
+        startResponse = firstResponse.getStartWorkflow();
+
+        ExecuteMultiOperationResponse.Response secondResponse = response.getResponses(1);
+        if (secondResponse.getResponseCase() != UPDATE_WORKFLOW) {
+          throw new RuntimeException(
+              "Server sent back an invalid response type for UpdateWorkflow response");
+        }
+        updateResponse = secondResponse.getUpdateWorkflow();
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.CANCELLED) {
+          throw new WorkflowUpdateTimeoutOrCancelledException(
+              updateInput.getWorkflowExecution(),
+              updateInput.getUpdateName(),
+              updateInput.getUpdateId(),
+              e);
+        }
+
+        MultiOperationExecutionFailure failure =
+            StatusUtils.getFailure(e, MultiOperationExecutionFailure.class);
+        if (failure == null) {
+          throw e;
+        }
+
+        if (failure.getStatusesCount() != request.getOperationsCount()) {
+          throw new RuntimeException(
+              "Server sent back an invalid error response: received "
+                  + failure.getStatusesCount()
+                  + " instead of "
+                  + request.getOperationsCount()
+                  + " operation errors");
+        }
+
+        MultiOperationExecutionFailure.OperationStatus startStatus = failure.getStatuses(0);
+        if (startStatus.getDetailsCount() == 0
+            || !startStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
+          throw Status.fromCodeValue(startStatus.getCode())
+              .withDescription(startStatus.getMessage())
+              .asRuntimeException();
+        }
+
+        MultiOperationExecutionFailure.OperationStatus updateStatus = failure.getStatuses(1);
+        if (updateStatus.getDetailsCount() == 0
+            || !updateStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
+          throw Status.fromCodeValue(updateStatus.getCode())
+              .withDescription("Invalid StartOperation: " + updateStatus.getMessage())
+              .asRuntimeException();
+        }
+
+        throw e; // no detailed failure was found
+      }
+    } while (updateNotYetDurable(updateInput, updateResponse));
+
+    WorkflowUpdateHandle updateHandle =
+        toUpdateHandle(updateInput, updateResponse, dataConverterWithWorkflowContext);
+
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setRunId(startResponse.getRunId())
+            .setWorkflowId(startRequest.getWorkflowId())
+            .build();
+    return new WorkflowUpdateWithStartOutput<>(new WorkflowStartOutput(execution), updateHandle);
+  }
+
+  private StartWorkflowExecutionRequest.Builder toStartRequest(
+      DataConverter dataConverterWithWorkflowContext, WorkflowStartInput workflowStartInput) {
+    Optional<Payloads> workflowInput =
+        dataConverterWithWorkflowContext.toPayloads(workflowStartInput.getArguments());
+
+    @Nullable
+    Memo memo =
+        (workflowStartInput.getOptions().getMemo() != null)
+            ? Memo.newBuilder()
+                .putAllFields(
+                    intoPayloadMap(
+                        dataConverterWithWorkflowContext,
+                        workflowStartInput.getOptions().getMemo()))
+                .build()
+            : null;
+
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            workflowStartInput.getOptions().getStaticSummary(),
+            workflowStartInput.getOptions().getStaticDetails(),
+            dataConverterWithWorkflowContext);
+
+    return requestsHelper.newStartWorkflowExecutionRequest(
+        workflowStartInput.getWorkflowId(),
+        workflowStartInput.getWorkflowType(),
+        workflowStartInput.getHeader(),
+        workflowStartInput.getOptions(),
+        workflowInput.orElse(null),
+        memo,
+        userMetadata);
   }
 
   @Override
@@ -305,6 +446,40 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                 new WorkflowSerializationContext(
                     clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
 
+    UpdateWorkflowExecutionRequest updateRequest =
+        toUpdateWorkflowExecutionRequest(input, dataConverterWithWorkflowContext);
+
+    // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
+    // by the user.
+    UpdateWorkflowExecutionResponse result;
+    do {
+      Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
+      try {
+        result = genericClient.update(updateRequest, pollTimeoutDeadline);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.CANCELLED) {
+          throw new WorkflowUpdateTimeoutOrCancelledException(
+              input.getWorkflowExecution(), input.getUpdateName(), input.getUpdateId(), e);
+        }
+        throw e;
+      }
+    } while (updateNotYetDurable(input, result));
+
+    return toUpdateHandle(input, result, dataConverterWithWorkflowContext);
+  }
+
+  private <R> boolean updateNotYetDurable(
+      StartUpdateInput<R> input, UpdateWorkflowExecutionResponse result) {
+    return result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
+        && result.getStage().getNumber()
+            < UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
+                .getNumber();
+  }
+
+  private <R> UpdateWorkflowExecutionRequest toUpdateWorkflowExecutionRequest(
+      StartUpdateInput<R> input, DataConverter dataConverterWithWorkflowContext) {
     Optional<Payloads> inputArgs =
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
     Input.Builder updateInput =
@@ -321,41 +496,23 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                     .setIdentity(clientOptions.getIdentity()))
             .setInput(updateInput)
             .build();
-    UpdateWorkflowExecutionRequest updateRequest =
-        UpdateWorkflowExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setWaitPolicy(input.getWaitPolicy())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId())
-                    .setRunId(input.getWorkflowExecution().getRunId()))
-            .setFirstExecutionRunId(input.getFirstExecutionRunId())
-            .setRequest(request)
-            .build();
 
-    // Re-attempt the update until it is at least accepted, or passes the lifecycle stage specified
-    // by the user.
-    UpdateWorkflowExecutionResponse result;
-    UpdateWorkflowExecutionLifecycleStage waitForStage = input.getWaitPolicy().getLifecycleStage();
-    do {
-      Deadline pollTimeoutDeadline = Deadline.after(POLL_UPDATE_TIMEOUT_S, TimeUnit.SECONDS);
-      try {
-        result = genericClient.update(updateRequest, pollTimeoutDeadline);
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
-            || e.getStatus().getCode() == Status.Code.CANCELLED) {
-          throw new WorkflowUpdateTimeoutOrCancelledException(
-              input.getWorkflowExecution(), input.getUpdateName(), input.getUpdateId(), e);
-        }
-        throw e;
-      }
+    return UpdateWorkflowExecutionRequest.newBuilder()
+        .setNamespace(clientOptions.getNamespace())
+        .setWaitPolicy(input.getWaitPolicy())
+        .setWorkflowExecution(
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(input.getWorkflowExecution().getWorkflowId())
+                .setRunId(input.getWorkflowExecution().getRunId()))
+        .setFirstExecutionRunId(input.getFirstExecutionRunId())
+        .setRequest(request)
+        .build();
+  }
 
-    } while (result.getStage().getNumber() < input.getWaitPolicy().getLifecycleStage().getNumber()
-        && result.getStage().getNumber()
-            < UpdateWorkflowExecutionLifecycleStage
-                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED
-                .getNumber());
-
+  private <R> WorkflowUpdateHandle<R> toUpdateHandle(
+      StartUpdateInput<R> input,
+      UpdateWorkflowExecutionResponse result,
+      DataConverter dataConverterWithWorkflowContext) {
     if (result.hasOutcome()) {
       switch (result.getOutcome().getValueCase()) {
         case SUCCESS:
@@ -392,6 +549,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               result.getUpdateRef().getWorkflowExecution(),
               input.getResultClass(),
               input.getResultType());
+      UpdateWorkflowExecutionLifecycleStage waitForStage =
+          input.getWaitPolicy().getLifecycleStage();
       if (waitForStage == WorkflowUpdateStage.COMPLETED.getProto()) {
         // Don't return the handle until completed, since that's what's been asked for
         handle.waitCompleted();

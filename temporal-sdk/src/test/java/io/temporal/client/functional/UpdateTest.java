@@ -23,11 +23,13 @@ package io.temporal.client.functional;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.util.UUID;
 import java.util.concurrent.*;
 import org.junit.Rule;
 import org.junit.Test;
@@ -165,6 +167,83 @@ public class UpdateTest {
 
     // Try to poll again
     assertEquals("some-value", handle.getResultAsync().get());
+  }
+
+  @Test
+  public void updateWithStart() throws ExecutionException, InterruptedException {
+    String workflowId = UUID.randomUUID().toString();
+    String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    // first update-with-start
+    UpdateWithStartWorkflowOperation<String> update1 =
+        UpdateWithStartWorkflowOperation.newBuilder(
+                "update", String.class, new Object[] {0, "Hello Update"})
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+    WorkflowStub workflowStub1 =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                .toBuilder()
+                .setWorkflowId(workflowId)
+                .build());
+    WorkflowUpdateHandle<String> updateHandle1 =
+        workflowStub1.updateWithStart(update1, new String[] {"some-value"}, new String[] {});
+
+    assertEquals(updateHandle1, update1.getUpdateHandle().get());
+    assertEquals("Hello Update", update1.getResult());
+
+    // second update-with-start
+    UpdateWithStartWorkflowOperation<String> update2 =
+        UpdateWithStartWorkflowOperation.newBuilder(
+                "update", String.class, new Object[] {0, "Hello Update 2"})
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+    WorkflowStub workflowStub2 =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                .toBuilder()
+                .setWorkflowIdConflictPolicy(
+                    WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
+                .setWorkflowId(workflowId)
+                .build());
+    WorkflowUpdateHandle<String> updateHandle2 =
+        workflowStub2.updateWithStart(update2, new String[] {"some-value"}, new String[] {});
+
+    assertEquals(updateHandle2, update2.getUpdateHandle().get());
+    assertEquals("Hello Update 2", update2.getResult());
+
+    workflowStub2.update("complete", void.class);
+    assertEquals("complete", workflowStub2.getResult(String.class));
+  }
+
+  @Test
+  public void updateWithStartOperationSingleUse() {
+    String workflowId = UUID.randomUUID().toString();
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    UpdateWithStartWorkflowOperation<String> update =
+        UpdateWithStartWorkflowOperation.newBuilder(
+                "update", String.class, new Object[] {0, "Hello Update"})
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            TestWorkflows.WorkflowWithUpdate.class.getSimpleName(),
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                .toBuilder()
+                .setWorkflowId(workflowId)
+                .build());
+
+    workflowStub.updateWithStart(update, new String[] {"some-value"}, new String[] {});
+
+    try {
+      workflowStub.updateWithStart(update, new String[] {"some-value"}, new String[] {});
+    } catch (IllegalStateException e) {
+      assertEquals(e.getMessage(), "UpdateWithStartWorkflowOperation was already executed");
+    }
   }
 
   public static class QuickWorkflowWithUpdateImpl implements TestWorkflows.TestUpdatedWorkflow {

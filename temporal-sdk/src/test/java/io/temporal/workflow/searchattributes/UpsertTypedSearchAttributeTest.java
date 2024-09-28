@@ -72,9 +72,16 @@ public class UpsertTypedSearchAttributeTest {
         .setExpected(
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
-            "upsertSearchAttributes",
-            "executeActivity Activity",
-            "activity Activity");
+            "upsertTypedSearchAttributes",
+            "sleep PT0.1S",
+            "upsertTypedSearchAttributes",
+            "sleep PT0.1S",
+            "upsertTypedSearchAttributes",
+            "upsertTypedSearchAttributes",
+            "sleep PT0.1S",
+            "upsertTypedSearchAttributes",
+            "upsertTypedSearchAttributes",
+            "upsertTypedSearchAttributes");
     testWorkflowRule.assertHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES);
   }

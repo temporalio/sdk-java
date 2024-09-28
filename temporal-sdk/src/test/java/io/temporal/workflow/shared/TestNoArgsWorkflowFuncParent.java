@@ -44,4 +44,9 @@ public class TestNoArgsWorkflowFuncParent
     String result = String.format("%s - %s", parentWorkflowId.isPresent(), childsParentWorkflowId);
     return result;
   }
+
+  @Override
+  public String update(Integer i) {
+    throw new UnsupportedOperationException();
+  }
 }

@@ -69,7 +69,6 @@ public class ParallelLocalActivitiesTest {
     expected.add("newThread workflow-method");
     for (int i = 0; i < TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("executeLocalActivity SleepActivity");
-      expected.add("currentTimeMillis");
     }
     for (int i = 0; i < TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("local activity SleepActivity");

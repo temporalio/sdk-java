@@ -48,6 +48,12 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   }
 
   @Override
+  public <R> WorkflowUpdateWithStartOutput<R> updateWithStart(
+      WorkflowUpdateWithStartInput<R> input) {
+    return next.updateWithStart(input);
+  }
+
+  @Override
   public <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException {
     return next.getResult(input);
   }

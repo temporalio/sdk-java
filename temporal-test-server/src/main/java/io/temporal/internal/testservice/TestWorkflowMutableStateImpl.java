@@ -41,9 +41,11 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.QueryRejected;
 import io.temporal.api.query.v1.WorkflowQueryResult;
@@ -74,6 +76,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -715,39 +718,29 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       ScheduleNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
-    attr = validateScheduleNexusOperation(attr);
     Endpoint endpoint = nexusEndpointStore.getEndpointByName(attr.getEndpoint());
-    StateMachine<StateMachines.NexusOperationData> operationStateMachine =
-        newNexusOperation(endpoint);
+    StateMachine<StateMachines.NexusOperationData> operation = newNexusOperation(endpoint);
     long scheduleEventId = ctx.getNextEventId();
-    nexusOperations.put(scheduleEventId, operationStateMachine);
+    nexusOperations.put(scheduleEventId, operation);
 
-    operationStateMachine.action(Action.INITIATE, ctx, attr, workflowTaskCompletedId);
+    operation.action(Action.INITIATE, ctx, attr, workflowTaskCompletedId);
     ctx.addTimer(
-        ProtobufTimeUtils.toJavaDuration(
-            operationStateMachine.getData().scheduledEvent.getScheduleToCloseTimeout()),
+        ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
         () ->
-            timeoutNexusOperation(
-                scheduleEventId,
-                TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-                operationStateMachine.getData().getAttempt()),
-        "NexusOperation ScheduleToCloseTimeout");
-    ctx.lockTimer("processScheduleNexusOperation");
-  }
-
-  private ScheduleNexusOperationCommandAttributes validateScheduleNexusOperation(
-      ScheduleNexusOperationCommandAttributes attr) {
-    ScheduleNexusOperationCommandAttributes.Builder result =
-        ScheduleNexusOperationCommandAttributes.newBuilder(attr);
-
-    com.google.protobuf.Duration workflowRunTimeout = this.startRequest.getWorkflowRunTimeout();
-
-    if (Durations.compare(attr.getScheduleToCloseTimeout(), Durations.ZERO) <= 0
-        || Durations.compare(attr.getScheduleToCloseTimeout(), workflowRunTimeout) > 0) {
-      result.setScheduleToCloseTimeout(workflowRunTimeout);
+            timeoutNexusRequest(
+                scheduleEventId, "StartNexusOperation", operation.getData().getAttempt()),
+        "StartNexusOperation request timeout");
+    if (attr.hasScheduleToCloseTimeout()) {
+      ctx.addTimer(
+          ProtobufTimeUtils.toJavaDuration(attr.getScheduleToCloseTimeout()),
+          () ->
+              timeoutNexusOperation(
+                  scheduleEventId,
+                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
+                  operation.getData().getAttempt()),
+          "NexusOperation ScheduleToCloseTimeout");
     }
-
-    return result.build();
+    ctx.lockTimer("processScheduleNexusOperation");
   }
 
   private void processRequestCancelNexusOperation(
@@ -755,21 +748,40 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestCancelNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
     long scheduleEventId = attr.getScheduledEventId();
-    StateMachine<?> operation = nexusOperations.get(scheduleEventId);
+    StateMachine<NexusOperationData> operation = nexusOperations.get(scheduleEventId);
     if (operation == null) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Nexus operation not found for scheduleEventId=" + scheduleEventId)
           .asRuntimeException();
     }
 
-    State before = operation.getState();
-    operation.action(Action.REQUEST_CANCELLATION, ctx, attr, workflowTaskCompletedId);
-    if (before == State.INITIATED) {
-      // request is null here, because it's caused not by a separate cancel request, but by a
-      // command
-      operation.action(Action.CANCEL, ctx, null, 0);
-      // nexusOperations.remove(scheduleEventId); // TODO(pj): server doesn't currently remove
+    if (operation.getState() == State.INITIATED) {
+      // TODO: properly support cancel before start once server does
+      ctx.addEvent(
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED)
+              .setNexusOperationCancelRequestedEventAttributes(
+                  NexusOperationCancelRequestedEventAttributes.newBuilder()
+                      .setScheduledEventId(attr.getScheduledEventId())
+                      .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
+              .build());
+      Failure canceled =
+          Failure.newBuilder()
+              .setMessage("operation canceled before it was started")
+              .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+              .build();
+      operation.action(Action.CANCEL, ctx, canceled, workflowTaskCompletedId);
+      nexusOperations.remove(scheduleEventId);
       ctx.setNeedWorkflowTask(true);
+    } else {
+      operation.action(Action.REQUEST_CANCELLATION, ctx, null, workflowTaskCompletedId);
+      ctx.addTimer(
+          ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
+          () ->
+              timeoutNexusRequest(
+                  scheduleEventId, "CancelNexusOperation", operation.getData().getAttempt()),
+          "CancelNexusOperation request timeout");
+      ctx.lockTimer("processRequestCancelNexusOperation");
     }
   }
 
@@ -1414,6 +1426,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     workflow.action(StateMachines.Action.FAIL, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
+    processWorkflowCompletionCallbacks(ctx);
     if (parent.isPresent()) {
       ctx.lockTimer("processFailWorkflowExecution notify parent"); // unlocked by the parent
       ChildWorkflowExecutionFailedEventAttributes a =
@@ -1457,6 +1470,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
+    processWorkflowCompletionCallbacks(ctx);
     // cancel run timer to avoid time skipping to the workflow run timeout which defaults to 10
     // years
     workflow.getData().runTimerCancellationHandle.apply();
@@ -1535,6 +1549,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId) {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
+    processWorkflowCompletionCallbacks(ctx);
     if (parent.isPresent()) {
       ctx.lockTimer("processCancelWorkflowExecution notify parent"); // unlocked by the parent
       ChildWorkflowExecutionCanceledEventAttributes a =
@@ -1583,6 +1598,24 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         workflow.getData().firstExecutionRunId,
         parent,
         parentChildInitiatedEventId);
+  }
+
+  private void processWorkflowCompletionCallbacks(RequestContext ctx) {
+    Optional<HistoryEvent> completionEvent = getCompletionEvent(ctx.getEvents());
+    if (!completionEvent.isPresent()) {
+      return;
+    }
+
+    for (Callback cb : startRequest.getCompletionCallbacksList()) {
+      if (!cb.hasNexus()) {
+        // test server only supports nexus callbacks currently
+        log.warn("skipping non-nexus completion callback");
+        continue;
+      }
+      String serializedRef = cb.getNexus().getHeaderOrThrow("operation-reference");
+      NexusOperationRef ref = NexusOperationRef.fromBytes(serializedRef.getBytes());
+      service.completeNexusOperation(ref, completionEvent.get());
+    }
   }
 
   private WorkflowTaskFailedCause processUpsertWorkflowSearchAttributes(
@@ -1707,18 +1740,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Nullable
   public PollWorkflowTaskQueueResponse startWorkflow(
       boolean continuedAsNew,
-      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
-      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest) {
+      @Nullable PollWorkflowTaskQueueRequest eagerWorkflowTaskDispatchPollRequest,
+      @Nullable Consumer<TestWorkflowMutableState> withStart) {
     AtomicReference<TestWorkflowStore.WorkflowTask> eagerWorkflowTask = new AtomicReference<>();
+    // need to grab the lock here to ensure that a `withStart` is executed together with the start
+    lock.lock();
     try {
       update(
           ctx -> {
             visibilityStore.upsertSearchAttributesForExecution(
                 ctx.getExecutionId(), startRequest.getSearchAttributes());
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
-            if (signalWithStartSignal != null) {
-              addExecutionSignaledEvent(ctx, signalWithStartSignal);
-            }
             Duration backoffStartInterval =
                 ProtobufTimeUtils.toJavaDuration(workflow.getData().backoffStartInterval);
             if (backoffStartInterval.compareTo(Duration.ZERO) > 0) {
@@ -1756,11 +1788,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             workflow.getData().runTimerCancellationHandle =
                 ctx.addTimer(runTimeout, this::timeoutWorkflow, "workflow execution timeout");
           });
+
+      // e.g. apply signal (signal-with-start) or update (update-with-start)
+      if (withStart != null) {
+        withStart.accept(this);
+      }
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
       throw e;
+    } finally {
+      lock.unlock();
     }
 
     if (!continuedAsNew && parent.isPresent()) {
@@ -1791,9 +1830,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       PollWorkflowTaskQueueResponse.Builder task = eagerWorkflowTask.get().getTask();
       startWorkflowTask(task, eagerWorkflowTaskDispatchPollRequest);
       return task.build();
-    } else {
-      return null;
     }
+
+    return null;
   }
 
   private void scheduleWorkflowTask(RequestContext ctx) {
@@ -2074,48 +2113,61 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void startNexusTask(long scheduledEventId, RespondNexusTaskCompletedRequest request) {
+  public void startNexusOperation(
+      long scheduledEventId, String clientIdentity, StartOperationResponse.Async resp) {
     update(
         ctx -> {
           StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
-          operation.action(StateMachines.Action.START, ctx, request, 0);
-          operation.getData().identity = request.getIdentity();
-        });
-  }
-
-  @Override
-  public void completeNexusTask(long scheduledEventId, RespondNexusTaskCompletedRequest request) {
-    update(
-        ctx -> {
-          StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
-          throwIfOperationTokenDoesntMatch(request.getTaskToken(), operation.getData());
-          if (request.getResponse().hasCancelOperation()) {
-            operation.action(Action.CANCEL, ctx, request, 0);
-          } else {
-            operation.action(StateMachines.Action.COMPLETE, ctx, request, 0);
-          }
-          // nexusOperations.remove(scheduledEventId); // TODO(pj): server currently does not delete
+          operation.action(StateMachines.Action.START, ctx, resp, 0);
+          operation.getData().identity = clientIdentity;
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("completeNexusTask");
         });
   }
 
   @Override
-  public void failNexusTask(long scheduledEventId, RespondNexusTaskFailedRequest request) {
+  public void cancelNexusOperation(NexusOperationRef ref, Failure failure) {
     update(
         ctx -> {
-          StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
-          throwIfOperationTokenDoesntMatch(request.getTaskToken(), operation.getData());
-          operation.action(StateMachines.Action.FAIL, ctx, request, 0);
+          StateMachine<NexusOperationData> operation =
+              getPendingNexusOperation(ref.getScheduledEventId());
+          if (!operationInFlight(operation.getState())) {
+            return;
+          }
+          operation.action(Action.CANCEL, ctx, failure, 0);
+          nexusOperations.remove(ref.getScheduledEventId());
+          scheduleWorkflowTask(ctx);
+          ctx.unlockTimer("cancelNexusOperation");
+        });
+  }
+
+  @Override
+  public void completeNexusOperation(NexusOperationRef ref, Payload result) {
+    update(
+        ctx -> {
+          StateMachine<NexusOperationData> operation =
+              getPendingNexusOperation(ref.getScheduledEventId());
+          operation.action(Action.COMPLETE, ctx, result, 0);
+          nexusOperations.remove(ref.getScheduledEventId());
+          scheduleWorkflowTask(ctx);
+          ctx.unlockTimer("completeNexusOperation");
+        });
+  }
+
+  @Override
+  public void failNexusOperation(NexusOperationRef ref, Failure failure) {
+    update(
+        ctx -> {
+          StateMachine<NexusOperationData> operation =
+              getPendingNexusOperation(ref.getScheduledEventId());
+          operation.action(StateMachines.Action.FAIL, ctx, failure, 0);
           if (isTerminalState(operation.getState())) {
-            // nexusOperations.remove(scheduledEventId); // TODO(pj): server currently does not
-            // delete
+            nexusOperations.remove(ref.getScheduledEventId());
             scheduleWorkflowTask(ctx);
           } else {
-            addNexusOperationRetryTimer(ctx, operation);
+            retryNexusTask(ctx, operation);
           }
           // Allow time skipping when waiting for retry
-          ctx.unlockTimer("failNexusTask");
+          ctx.unlockTimer("failNexusOperation");
         });
   }
 
@@ -2133,12 +2185,49 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               throw Status.NOT_FOUND.withDescription("Timer fired earlier").asRuntimeException();
             }
             operation.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);
+            nexusOperations.remove(scheduledEventId);
+            scheduleWorkflowTask(ctx);
+          });
+    } catch (StatusRuntimeException e) {
+      // NOT_FOUND is expected as timers are not removed
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+        log.error("Failure trying to timeout a Nexus operation", e);
+      }
+      unlockTimer = false;
+    } catch (Exception e) {
+      // Cannot fail to timer threads
+      log.error("Failure trying to timeout a Nexus operation", e);
+    } finally {
+      if (unlockTimer) {
+        timerService.unlockTimeSkipping("timeoutNexusOperation: " + scheduledEventId);
+      }
+    }
+  }
+
+  private void timeoutNexusRequest(long scheduledEventId, String requestMethod, int attempt) {
+    boolean unlockTimer = true;
+    try {
+      update(
+          ctx -> {
+            StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
+            if (attempt != operation.getData().getAttempt()
+                || isTerminalState(operation.getState())) {
+              throw Status.NOT_FOUND.withDescription("Timer fired earlier").asRuntimeException();
+            }
+
+            Failure failure =
+                Failure.newBuilder()
+                    .setMessage(requestMethod + " timed out")
+                    .setApplicationFailureInfo(
+                        ApplicationFailureInfo.newBuilder().setNonRetryable(false))
+                    .build();
+            operation.action(StateMachines.Action.FAIL, ctx, failure, 0);
+
             if (isTerminalState(operation.getState())) {
-              //              nexusOperations.remove(scheduledEventId); // TODO(pj): server
-              // currently does not delete
+              nexusOperations.remove(scheduledEventId);
               scheduleWorkflowTask(ctx);
             } else {
-              addNexusOperationRetryTimer(ctx, operation);
+              retryNexusTask(ctx, operation);
             }
           });
     } catch (StatusRuntimeException e) {
@@ -2157,17 +2246,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
   }
 
-  private void addNexusOperationRetryTimer(
-      RequestContext ctx, StateMachine<NexusOperationData> operation) {
+  private void retryNexusTask(RequestContext ctx, StateMachine<NexusOperationData> operation) {
+    State prevState = operation.getState();
     NexusOperationData data = operation.getData();
     int attempt = data.getAttempt();
-    Duration nextDelay = ProtobufTimeUtils.toJavaDuration(data.nextBackoffInterval);
-    data.nextAttemptScheduleTime = clock.getAsLong() + nextDelay.toMillis();
     ctx.addTimer(
-        nextDelay,
+        ProtobufTimeUtils.toJavaDuration(data.nextBackoffInterval),
         () -> {
           // Timers are not removed, so skip if it is not for this attempt.
-          if (operation.getState() != State.INITIATED && data.getAttempt() != attempt) {
+          if (operation.getState() != prevState && data.getAttempt() != attempt) {
             return;
           }
 
@@ -2177,8 +2264,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           boolean unlockTimer = false;
 
           try {
-            // TODO this lock is getting released somewhere on the operation completion.
-            //  We should rework it to pass the lockHandle downstream and use it for the release.
+            data.nexusTask.setDeadline(Timestamps.add(ctx.currentTime(), data.requestTimeout));
             update(ctx1 -> ctx1.addNexusTask(data.nexusTask));
           } catch (StatusRuntimeException e) {
             // NOT_FOUND is expected as timers are not removed
@@ -2220,6 +2306,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             // TODO(maxim): real retry status
             workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
             workflowTaskStateMachine.getData().workflowCompleted = true;
+            processWorkflowCompletionCallbacks(ctx);
             if (parent.isPresent()) {
               ctx.lockTimer("timeoutWorkflow notify parent"); // unlocked by the parent
             }
@@ -2274,7 +2361,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public UpdateWorkflowExecutionResponse updateWorkflowExecution(
+  public UpdateHandle updateWorkflowExecution(
       UpdateWorkflowExecutionRequest request, Deadline deadline) {
     if (request
             .getWaitPolicy()
@@ -2298,58 +2385,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (isTerminalState()) {
       UpdateHandle updateHandle = getUpdate(request.getRequest().getMeta().getUpdateId());
       if (updateHandle.getOutcome().isDone()) {
-        return UpdateWorkflowExecutionResponse.newBuilder()
-            .setUpdateRef(updateHandle.getRef())
-            .setStage(updateHandle.getStage())
-            .setOutcome(updateHandle.getOutcomeNow())
-            .build();
-      } else {
-        throw Status.NOT_FOUND
-            .withDescription("workflow execution already completed")
-            .asRuntimeException();
+        return updateHandle;
       }
+      throw Status.NOT_FOUND
+          .withDescription("workflow execution already completed")
+          .asRuntimeException();
     }
     // Now that we have validated the request we can create the update handle and wait for it to
     // reach the desired stage.
-    UpdateHandle updateHandle = getOrCreateUpdate(request);
-    try {
-      UpdateWorkflowExecutionLifecycleStage reachedStage =
-          updateHandle.waitForStage(
-              request.getWaitPolicy().getLifecycleStage(),
-              deadline.timeRemaining(TimeUnit.MILLISECONDS),
-              TimeUnit.MILLISECONDS);
-      UpdateWorkflowExecutionResponse.Builder response =
-          UpdateWorkflowExecutionResponse.newBuilder()
-              .setUpdateRef(updateHandle.getRef())
-              .setStage(reachedStage);
-      if (reachedStage == UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED) {
-        response.setOutcome(updateHandle.getOutcomeNow());
-      }
-      return response.build();
-    } catch (TimeoutException e) {
-      UpdateWorkflowExecutionLifecycleStage stage = updateHandle.getStage();
-      UpdateWorkflowExecutionResponse.Builder response =
-          UpdateWorkflowExecutionResponse.newBuilder()
-              .setUpdateRef(updateHandle.getRef())
-              .setStage(stage);
-      if (stage
-          == UpdateWorkflowExecutionLifecycleStage
-              .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED) {
-        response.setOutcome(updateHandle.getOutcomeNow());
-      }
-      return response.build();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof StatusRuntimeException) {
-        throw (StatusRuntimeException) cause;
-      }
-      throw Status.INTERNAL
-          .withCause(cause)
-          .withDescription(cause.getMessage())
-          .asRuntimeException();
-    }
+    return getOrCreateUpdate(request);
   }
 
   @Override
@@ -2581,6 +2625,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           workflow.action(Action.TERMINATE, ctx, request, 0);
           workflowTaskStateMachine.getData().workflowCompleted = true;
+          processWorkflowCompletionCallbacks(ctx);
         });
   }
 
@@ -3272,17 +3317,41 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
   }
 
-  private void throwIfOperationTokenDoesntMatch(ByteString taskToken, NexusOperationData data) {
-    if (!taskToken.isEmpty()) {
-      NexusTaskToken deserialized = NexusTaskToken.fromBytes(taskToken);
-      if (deserialized.getAttempt() != data.getAttempt()
-          || deserialized.getScheduledEventId() != data.scheduledEventId) {
-        throw Status.NOT_FOUND
-            .withDescription(
-                "invalid Nexus operationId or operation already timed out or workflow is completed")
-            .asRuntimeException();
-      }
+  private boolean operationInFlight(StateMachines.State operationState) {
+    switch (operationState) {
+      case INITIATED:
+      case STARTED:
+      case CANCELLATION_REQUESTED:
+        return true;
+      default:
+        log.warn("skipping Nexus task for operation that is not in flight");
+        return false;
     }
+  }
+
+  @Override
+  public boolean validateOperationTaskToken(NexusTaskToken tt) {
+    NexusOperationData data =
+        getPendingNexusOperation(tt.getOperationRef().getScheduledEventId()).getData();
+    if (tt.getAttempt() != data.getAttempt()) {
+      log.warn(
+          "skipping outdated Nexus task with mismatched attempt count. provided={} expected={}",
+          tt.getAttempt(),
+          data.getAttempt());
+      return false;
+    }
+    if (tt.getOperationRef().getScheduledEventId() != data.scheduledEventId) {
+      log.warn(
+          "skipping outdated Nexus task with mismatched scheduledEventId. provided={} expected={}",
+          tt.getOperationRef().getScheduledEventId(),
+          data.getAttempt());
+      return false;
+    }
+    if (!tt.isCancel() && data.nexusTask.getTask().getRequest().hasCancelOperation()) {
+      log.warn("skipping outdated Nexus task. expected a cancel operation request");
+      return false;
+    }
+    return true;
   }
 
   private boolean isTerminalState(State workflowState) {
