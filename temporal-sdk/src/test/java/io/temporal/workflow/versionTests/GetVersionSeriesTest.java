@@ -23,10 +23,11 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.testing.WorkflowReplayer;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -34,7 +35,7 @@ import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
-import org.junit.Ignore;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -61,30 +62,11 @@ public class GetVersionSeriesTest {
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     assertTrue(hasReplayed);
     assertEquals("foo", result);
-    testWorkflowRule
-        .getInterceptor(TracingWorkerInterceptor.class)
-        .setExpected(
-            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
-            "newThread workflow-method",
-            "getVersion",
-            "executeActivity Activity2",
-            "activity Activity2",
-            "getVersion",
-            "executeActivity customActivity1",
-            "activity customActivity1",
-            "executeActivity customActivity1",
-            "activity customActivity1",
-            "sleep PT1S",
-            "getVersion",
-            "executeActivity customActivity1",
-            "activity customActivity1");
-  }
-
-  @Test
-  @Ignore
-  public void testGetVersionReplay() throws Exception {
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "testGetVersionSeriesHistory.json", TestGetVersionSeriesWorkflowImpl.class);
+    WorkflowStub untyped = WorkflowStub.fromTyped(workflowStub);
+    List<HistoryEvent> markers =
+        testWorkflowRule.getHistoryEvents(
+            untyped.getExecution().getWorkflowId(), EventType.EVENT_TYPE_MARKER_RECORDED);
+    assertEquals(10, markers.size());
   }
 
   public static class TestGetVersionSeriesWorkflowImpl implements TestWorkflow1 {
@@ -96,11 +78,12 @@ public class GetVersionSeriesTest {
               VariousTestActivities.class,
               SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < 20; i++) {
         // Test adding a version check in non-replay code.
         int maxSupported = i / 2 + 1;
         int version =
-            Workflow.getVersion("s1", String.valueOf(i), Workflow.DEFAULT_VERSION, maxSupported);
+            Workflow.getVersion(
+                "s1", String.valueOf(maxSupported), Workflow.DEFAULT_VERSION, maxSupported);
         assertEquals(version, maxSupported);
         testActivities.activity2("activity2", 2);
       }
