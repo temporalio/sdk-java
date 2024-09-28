@@ -26,5 +26,5 @@ import io.nexusrpc.Service;
 @Service
 public interface TestNexusService {
   @Operation
-  String operation(String name);
+  String operation(String input);
 }

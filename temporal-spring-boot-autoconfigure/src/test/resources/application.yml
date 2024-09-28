@@ -85,7 +85,7 @@ spring:
       - task-queue: UnitTest
         capacity:
           max-concurrent-workflow-task-executors: 1
-          max-concurrent-nexus-executors: 1
+          max-concurrent-nexus-task-executors: 1
           max-concurrent-activity-executors: 1
           max-concurrent-local-activity-executors: 1
           max-concurrent-workflow-task-pollers: 1

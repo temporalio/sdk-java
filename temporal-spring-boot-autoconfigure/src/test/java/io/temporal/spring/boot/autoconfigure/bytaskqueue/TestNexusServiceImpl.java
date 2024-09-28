@@ -30,7 +30,6 @@ import org.springframework.stereotype.Component;
 @NexusServiceImpl(taskQueues = "${default-queue.name:UnitTest}")
 @ServiceImpl(service = TestNexusService.class)
 public class TestNexusServiceImpl {
-
   @OperationImpl
   public OperationHandler<String, String> operation() {
     // Implemented inline
