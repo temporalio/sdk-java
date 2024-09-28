@@ -20,7 +20,6 @@
 
 package io.temporal.workflow
 
-import com.google.protobuf.ByteString
 import io.nexusrpc.Operation
 import io.nexusrpc.Service
 import io.nexusrpc.handler.OperationContext
@@ -29,13 +28,6 @@ import io.nexusrpc.handler.OperationImpl
 import io.nexusrpc.handler.OperationStartDetails
 import io.nexusrpc.handler.ServiceImpl
 import io.nexusrpc.handler.SynchronousOperationFunction
-import io.temporal.api.common.v1.Payload
-import io.temporal.api.nexus.v1.Endpoint
-import io.temporal.api.nexus.v1.EndpointSpec
-import io.temporal.api.nexus.v1.EndpointTarget
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointResponse
-import io.temporal.api.operatorservice.v1.DeleteNexusEndpointRequest
 import io.temporal.client.WorkflowClientOptions
 import io.temporal.client.WorkflowOptions
 import io.temporal.common.converter.DefaultDataConverter
@@ -44,9 +36,7 @@ import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.internal.async.FunctionWrappingUtil
 import io.temporal.internal.sync.AsyncInternal
 import io.temporal.testing.internal.SDKTestWorkflowRule
-import org.junit.After
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.time.Duration
@@ -64,8 +54,6 @@ class KotlinAsyncNexusTest {
         .build()
     )
     .build()
-
-  private var endpoint: Endpoint? = null
 
   @Service
   interface TestNexusService {
@@ -95,7 +83,6 @@ class KotlinAsyncNexusTest {
       val nexusService = Workflow.newNexusServiceStub(
         TestNexusService::class.java,
         NexusServiceOptions {
-          setEndpoint("test-endpoint-" + Workflow.getInfo().taskQueue)
           setOperationOptions(
             NexusOperationOptions {
               setScheduleToCloseTimeout(Duration.ofSeconds(10))
@@ -121,49 +108,5 @@ class KotlinAsyncNexusTest {
     val options = WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.taskQueue).build()
     val workflowStub = client.newWorkflowStub(TestWorkflow::class.java, options)
     workflowStub.execute()
-  }
-
-  @Before
-  fun setUp() {
-    endpoint = createTestEndpoint(
-      getTestEndpointSpecBuilder("test-endpoint-" + testWorkflowRule.taskQueue)
-    )
-  }
-
-  @After
-  fun tearDown() {
-    testWorkflowRule
-      .testEnvironment
-      .operatorServiceStubs
-      .blockingStub()
-      .deleteNexusEndpoint(
-        DeleteNexusEndpointRequest.newBuilder()
-          .setId(endpoint!!.id)
-          .setVersion(endpoint!!.version)
-          .build()
-      )
-  }
-
-  private fun getTestEndpointSpecBuilder(name: String): EndpointSpec.Builder {
-    return EndpointSpec.newBuilder()
-      .setName(name)
-      .setDescription(Payload.newBuilder().setData(ByteString.copyFromUtf8("test endpoint")))
-      .setTarget(
-        EndpointTarget.newBuilder()
-          .setWorker(
-            EndpointTarget.Worker.newBuilder()
-              .setNamespace(testWorkflowRule.testEnvironment.namespace)
-              .setTaskQueue(testWorkflowRule.taskQueue)
-          )
-      )
-  }
-
-  private fun createTestEndpoint(spec: EndpointSpec.Builder): Endpoint {
-    val resp: CreateNexusEndpointResponse = testWorkflowRule
-      .testEnvironment
-      .operatorServiceStubs
-      .blockingStub()
-      .createNexusEndpoint(CreateNexusEndpointRequest.newBuilder().setSpec(spec).build())
-    return resp.endpoint
   }
 }
