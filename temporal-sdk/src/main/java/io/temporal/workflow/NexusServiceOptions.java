@@ -23,6 +23,7 @@ package io.temporal.workflow;
 import io.temporal.common.Experimental;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Options for configuring a NexusService in a Workflow.
@@ -131,7 +132,7 @@ public final class NexusServiceOptions {
   private final Map<String, NexusOperationOptions> operationMethodOptions;
   private final String endpoint;
 
-  NexusServiceOptions(
+  private NexusServiceOptions(
       String endpoint,
       NexusOperationOptions operationOptions,
       Map<String, NexusOperationOptions> operationMethodOptions) {
@@ -141,6 +142,10 @@ public final class NexusServiceOptions {
         (operationMethodOptions == null)
             ? Collections.emptyMap()
             : Collections.unmodifiableMap(operationMethodOptions);
+  }
+
+  public NexusServiceOptions.Builder toBuilder() {
+    return new NexusServiceOptions.Builder(this);
   }
 
   public NexusOperationOptions getOperationOptions() {
@@ -153,5 +158,33 @@ public final class NexusServiceOptions {
 
   public Map<String, NexusOperationOptions> getOperationMethodOptions() {
     return operationMethodOptions;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    NexusServiceOptions that = (NexusServiceOptions) o;
+    return Objects.equals(operationOptions, that.operationOptions)
+        && Objects.equals(operationMethodOptions, that.operationMethodOptions)
+        && Objects.equals(endpoint, that.endpoint);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(operationOptions, operationMethodOptions, endpoint);
+  }
+
+  @Override
+  public String toString() {
+    return "NexusServiceOptions{"
+        + "operationOptions="
+        + operationOptions
+        + ", operationMethodOptions="
+        + operationMethodOptions
+        + ", endpoint='"
+        + endpoint
+        + '\''
+        + '}';
   }
 }

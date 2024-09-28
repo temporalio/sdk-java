@@ -20,6 +20,7 @@ dependencies {
 
     // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
     compileOnly project(':temporal-sdk')
+    implementation "io.nexusrpc:nexus-sdk:$nexusVersion"
 
     implementation "org.jetbrains.kotlin:kotlin-reflect"
 
