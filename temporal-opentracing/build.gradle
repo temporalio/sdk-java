@@ -7,6 +7,7 @@ ext {
 dependencies {
     // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
     compileOnly project(':temporal-sdk')
+    implementation "io.nexusrpc:nexus-sdk:$nexusVersion"
     api group: 'io.opentracing', name: 'opentracing-api', version: "$opentracingVersion"
 
     implementation "com.google.guava:guava:$guavaVersion"

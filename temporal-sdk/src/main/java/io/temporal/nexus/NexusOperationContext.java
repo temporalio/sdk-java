@@ -26,7 +26,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
 /**
  * Context object passed to a Nexus operation implementation. Use {@link
- * Nexus#getExecutionContext()} from a Nexus Operation implementation to access.
+ * Nexus#getOperationContext()} from a Nexus Operation implementation to access.
  */
 @Experimental
 public interface NexusOperationContext {

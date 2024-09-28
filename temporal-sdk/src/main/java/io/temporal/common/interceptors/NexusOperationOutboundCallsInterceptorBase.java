@@ -18,35 +18,22 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.nexus;
+package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.client.WorkflowClient;
-import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
-import io.temporal.nexus.NexusOperationContext;
+import io.temporal.common.Experimental;
 
-public class NexusOperationContextImpl implements NexusOperationContext {
-  private final NexusOperationOutboundCallsInterceptor outbound;
-  private final String taskQueue;
-  private final WorkflowClient client;
+/** Convenience base class for {@link NexusOperationOutboundCallsInterceptor} implementations. */
+@Experimental
+public class NexusOperationOutboundCallsInterceptorBase implements NexusOperationOutboundCallsInterceptor {
+  private final NexusOperationOutboundCallsInterceptor next;
 
-  public NexusOperationContextImpl(
-          NexusOperationOutboundCallsInterceptor outbound, String taskQueue, WorkflowClient client) {
-    this.outbound = outbound;
-    this.taskQueue = taskQueue;
-    this.client = client;
+  public NexusOperationOutboundCallsInterceptorBase(NexusOperationOutboundCallsInterceptor next) {
+    this.next = next;
   }
 
   @Override
   public Scope getMetricsScope() {
-    return outbound.getMetricsScope();
-  }
-
-  public WorkflowClient getWorkflowClient() {
-    return client;
-  }
-
-  public String getTaskQueue() {
-    return taskQueue;
+    return next.getMetricsScope();
   }
 }
