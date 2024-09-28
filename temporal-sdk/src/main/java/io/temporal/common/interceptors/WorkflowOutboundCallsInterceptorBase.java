@@ -107,6 +107,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public int getVersion(String seriesId, String iterationId, int minSupported, int maxSupported) {
+    return next.getVersion(seriesId, iterationId, minSupported, maxSupported);
+  }
+
+  @Override
   public void continueAsNew(ContinueAsNewInput input) {
     next.continueAsNew(input);
   }

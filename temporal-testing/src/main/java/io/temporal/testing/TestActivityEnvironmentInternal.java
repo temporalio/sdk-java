@@ -431,6 +431,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public int getVersion(String seriesId, String iterationId, int minSupported, int maxSupported) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public void continueAsNew(ContinueAsNewInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
