@@ -30,7 +30,9 @@ import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
@@ -177,10 +179,32 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
     OperationCancelDetails operationCancelDetails =
         OperationCancelDetails.newBuilder().setOperationId(task.getOperationId()).build();
-
-    serviceHandler.cancelOperation(ctx.build(), operationCancelDetails);
+    try {
+      serviceHandler.cancelOperation(ctx.build(), operationCancelDetails);
+    } catch (Throwable failure) {
+      convertKnownFailures(failure);
+    }
 
     return CancelOperationResponse.newBuilder().build();
+  }
+
+  private void convertKnownFailures(Throwable failure) {
+    if (failure instanceof ApplicationFailure) {
+      if (((ApplicationFailure) failure).isNonRetryable()) {
+        throw new OperationHandlerException(
+            OperationHandlerException.ErrorType.BAD_REQUEST, failure.getMessage());
+      }
+      throw new OperationHandlerException(
+          OperationHandlerException.ErrorType.INTERNAL, failure.getMessage());
+    }
+    if (failure instanceof WorkflowException) {
+      throw new OperationHandlerException(
+          OperationHandlerException.ErrorType.BAD_REQUEST, failure.getMessage());
+    }
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    throw new RuntimeException(failure);
   }
 
   private StartOperationResponse handleStartOperation(
@@ -222,6 +246,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                       .putAllMetadata(e.getFailureInfo().getMetadata())
                       .build())
               .build());
+    } catch (Throwable failure) {
+      convertKnownFailures(failure);
     }
     return startResponseBuilder.build();
   }
