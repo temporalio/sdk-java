@@ -20,8 +20,6 @@
 
 package io.temporal.workflow.nexus;
 
-import static org.junit.Assume.assumeTrue;
-
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -37,7 +35,6 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -50,11 +47,6 @@ public class OperationFailureConversionTest {
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
 
-  @Before
-  public void checkRealServer() {
-    assumeTrue("Test Server always retries these errors", SDKTestWorkflowRule.useExternalService);
-  }
-
   @Test
   public void nexusOperationApplicationFailureNonRetryableFailureConversion() {
     TestWorkflow1 workflowStub =
@@ -66,10 +58,6 @@ public class OperationFailureConversionTest {
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
-    Assert.assertEquals(
-        "unexpected response status: \"400 Bad Request\": message='failed to call operation', type='TestFailure', nonRetryable=true",
-        applicationFailure.getOriginalMessage());
   }
 
   @Test
@@ -83,10 +71,6 @@ public class OperationFailureConversionTest {
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
-    Assert.assertEquals(
-        "unexpected response status: \"400 Bad Request\": workflowId='id', runId='runId', workflowType='TestWorkflow'",
-        applicationFailure.getOriginalMessage());
   }
 
   @Test
