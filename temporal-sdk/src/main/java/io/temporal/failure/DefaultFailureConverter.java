@@ -179,6 +179,7 @@ public final class DefaultFailureConverter implements FailureConverter {
         {
           NexusOperationFailureInfo info = failure.getNexusOperationExecutionFailureInfo();
           return new NexusOperationFailure(
+              failure.getMessage(),
               info.getScheduledEventId(),
               info.getEndpoint(),
               info.getService(),
