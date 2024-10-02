@@ -2455,7 +2455,8 @@ class StateMachines {
   static RetryPolicy defaultNexusRetryPolicy() {
     return RetryPolicy.newBuilder()
         .addAllNonRetryableErrorTypes(
-            Arrays.asList("INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
+            Arrays.asList(
+                "BAD_REQUEST", "INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
         .setInitialInterval(Durations.fromSeconds(1))
         .setMaximumInterval(Durations.fromHours(1))
         .setBackoffCoefficient(2.0)
