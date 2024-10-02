@@ -37,7 +37,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowHandleFuncTest extends BaseNexusTest {
+public class WorkflowHandleFuncTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -45,11 +45,6 @@ public class WorkflowHandleFuncTest extends BaseNexusTest {
               TestNexus.class, TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl.class)
           .setNexusServiceImplementation(new TestNexusServiceFuncImpl())
           .build();
-
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
-  }
 
   @Test
   public void handleTests() {
@@ -67,10 +62,7 @@ public class WorkflowHandleFuncTest extends BaseNexusTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(10))
               .build();
       NexusServiceOptions serviceOptions =
-          NexusServiceOptions.newBuilder()
-              .setEndpoint(getEndpointName())
-              .setOperationOptions(options)
-              .build();
+          NexusServiceOptions.newBuilder().setOperationOptions(options).build();
 
       TestNexusServiceFunc serviceStub =
           Workflow.newNexusServiceStub(TestNexusServiceFunc.class, serviceOptions);
