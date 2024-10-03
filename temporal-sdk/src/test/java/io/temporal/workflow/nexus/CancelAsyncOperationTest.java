@@ -34,7 +34,6 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -63,9 +62,6 @@ public class CancelAsyncOperationTest {
 
   @Test
   public void asyncOperationCancelled() {
-    Assume.assumeTrue(
-        "Test server does not return correct error", testWorkflowRule.isUseExternalService());
-
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     WorkflowFailedException exception =
