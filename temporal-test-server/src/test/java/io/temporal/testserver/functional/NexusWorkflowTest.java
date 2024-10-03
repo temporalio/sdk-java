@@ -287,8 +287,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation canceled", cause.getMessage());
-      Assert.assertNotNull(cause.getApplicationFailureInfo());
-      Assert.assertTrue(cause.getApplicationFailureInfo().getNonRetryable());
+      Assert.assertTrue(cause.hasCanceledFailureInfo());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -529,7 +528,9 @@ public class NexusWorkflowTest {
           events.get(0).getNexusOperationCanceledEventAttributes().getFailure();
       assertOperationFailureInfo(operationId, failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
-      Assert.assertFalse(failure.hasCause());
+      io.temporal.api.failure.v1.Failure cause = failure.getCause();
+      Assert.assertEquals("operation canceled", cause.getMessage());
+      Assert.assertTrue(cause.hasCanceledFailureInfo());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
