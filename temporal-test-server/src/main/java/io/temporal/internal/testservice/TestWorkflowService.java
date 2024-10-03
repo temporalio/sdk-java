@@ -813,7 +813,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
 
       if (request.getResponse().hasCancelOperation()) {
-        mutableState.cancelNexusOperation(tt.getOperationRef(), null);
+        Failure canceled =
+            Failure.newBuilder()
+                .setMessage("operation canceled")
+                .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+                .build();
+        mutableState.cancelNexusOperation(tt.getOperationRef(), canceled);
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();
         if (startResp.hasOperationError()) {
@@ -913,8 +918,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         Failure canceled =
             Failure.newBuilder()
                 .setMessage("operation canceled")
-                .setApplicationFailureInfo(
-                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
+                .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
                 .build();
         target.cancelNexusOperation(ref, canceled);
         break;
