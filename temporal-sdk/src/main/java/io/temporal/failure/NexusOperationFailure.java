@@ -38,13 +38,17 @@ public final class NexusOperationFailure extends TemporalFailure {
   private final String operationId;
 
   public NexusOperationFailure(
+      String message,
       long scheduledEventId,
       String endpoint,
       String service,
       String operation,
       String operationId,
       Throwable cause) {
-    super(getMessage(scheduledEventId, endpoint, service, operation, operationId), null, cause);
+    super(
+        getMessage(message, scheduledEventId, endpoint, service, operation, operationId),
+        message,
+        cause);
     this.scheduledEventId = scheduledEventId;
     this.endpoint = endpoint;
     this.service = service;
@@ -53,6 +57,7 @@ public final class NexusOperationFailure extends TemporalFailure {
   }
 
   public static String getMessage(
+      String originalMessage,
       long scheduledEventId,
       String endpoint,
       String service,
@@ -60,9 +65,16 @@ public final class NexusOperationFailure extends TemporalFailure {
       String operationId) {
     return "Nexus Operation with operation='"
         + operation
+        + "service='"
+        + service
+        + "' endpoint='"
+        + endpoint
+        + "' failed: '"
+        + originalMessage
         + "'. "
         + "scheduledEventId="
-        + scheduledEventId;
+        + scheduledEventId
+        + (operationId == null ? "" : ", operationId=" + operationId);
   }
 
   public long getScheduledEventId() {
