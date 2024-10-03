@@ -44,7 +44,6 @@ public class TerminateWorkflowAsyncOperationTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class, AsyncWorkflowOperationTest.TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(true)
           .build();
 
   @Test
