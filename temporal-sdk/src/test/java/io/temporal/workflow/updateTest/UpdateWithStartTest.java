@@ -175,7 +175,7 @@ public class UpdateWithStartTest {
             TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class, createOptions());
     UpdateWithStartWorkflowOperation<String> updateOp1 = newUpdateOp.apply(stubF1::update, 1);
     WorkflowUpdateHandle<String> handle1 =
-        WorkflowClient.updateWithStart(stubF1::func1, 1, updateOp1);
+        WorkflowClient.updateWithStart(stubF1::func1, "1", updateOp1);
 
     // 2 args
     TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc stubF2 =
