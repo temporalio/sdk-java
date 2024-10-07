@@ -56,6 +56,9 @@ import io.temporal.payload.codec.PayloadCodec;
  * PayloadConverter#withContext(SerializationContext)} and using the modified instance when
  * applicable.
  *
+ * <p>Nexus operations inside a workflow do NOT have a {@link WorkflowSerializationContext} because
+ * it is not available in the operation handler.
+ *
  * <p>Note: Serialization Context is experimental feature, the class and field structure of {@link
  * SerializationContext} objects may change in the future. There may be also situation where the
  * context is expected, but is not currently provided.
