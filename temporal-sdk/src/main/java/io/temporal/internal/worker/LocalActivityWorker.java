@@ -127,6 +127,14 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     slotQueue.submitAttempt(reservationDat, isRetry, task);
   }
 
+  private RetryOptions getRetryOptions(PollActivityTaskQueueResponseOrBuilder activityTask) {
+    if (isRetryPolicyNotSet(activityTask)) {
+      return RetryOptions.getDefaultInstance();
+    } else {
+      return RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
+    }
+  }
+
   /**
    * @param executionContext execution context of the activity
    * @param activityTask activity task
@@ -154,11 +162,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       throw (Error) attemptThrowable;
     }
 
-    if (isRetryPolicyNotSet(activityTask)) {
-      return new RetryDecision(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET, null);
-    }
-
-    RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
+    RetryOptions retryOptions = getRetryOptions(activityTask);
 
     if (RetryOptionsUtils.isNotRetryable(retryOptions, attemptThrowable)) {
       return new RetryDecision(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, null);
@@ -368,11 +372,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         @Nullable Failure previousLocalExecutionFailure) {
       int currentAttempt = activityTask.getAttempt();
 
-      if (isRetryPolicyNotSet(activityTask)) {
-        return RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET;
-      }
-
-      RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
+      RetryOptions retryOptions = getRetryOptions(activityTask);
 
       if (previousLocalExecutionFailure != null
           && previousLocalExecutionFailure.hasApplicationFailureInfo()
