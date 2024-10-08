@@ -250,6 +250,25 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (request.hasRetryPolicy()) {
       request.setRetryPolicy(validateAndOverrideRetryPolicy(request.getRetryPolicy()));
     }
+    if (request.getLinksCount() > 0) {
+      if (request.getLinksCount() > 10) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                String.format(
+                    "cannot attach more than %d links per request, got %d",
+                    10, request.getLinksCount()))
+            .asRuntimeException();
+      }
+      for (Link l : request.getLinksList()) {
+        if (l.getSerializedSize() > 4000) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription(
+                  String.format(
+                      "link exceeds allowed size of %d, got %d", 4000, l.getSerializedSize()))
+              .asRuntimeException();
+        }
+      }
+    }
     return request;
   }
 
