@@ -2974,8 +2974,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setParentNamespaceId(p.getExecutionId().getNamespace())
                 .setParentExecution(p.getExecutionId().getExecution()));
 
-    if (this.startRequest.getCompletionCallbacksCount() > 0) {}
-
     List<CallbackInfo> callbacks =
         this.startRequest.getCompletionCallbacksList().stream()
             .map(TestWorkflowMutableStateImpl::constructCallbackInfo)
