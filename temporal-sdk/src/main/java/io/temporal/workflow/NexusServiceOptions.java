@@ -20,6 +20,7 @@
 
 package io.temporal.workflow;
 
+import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import java.util.Collections;
 import java.util.Map;
@@ -68,9 +69,12 @@ public final class NexusServiceOptions {
     /**
      * Sets the endpoint for the NexusService.
      *
-     * @param endpoint the endpoint for the NexusService
+     * @param endpoint the endpoint for the NexusService, cannot be empty.
      */
     public NexusServiceOptions.Builder setEndpoint(String endpoint) {
+      // We allow a null endpoint here because it possible a valid endpoint will be merged in later
+      Preconditions.checkArgument(
+          endpoint == null || !endpoint.isEmpty(), "endpoint cannot be empty if set");
       this.endpoint = endpoint;
       return this;
     }
