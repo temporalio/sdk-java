@@ -74,7 +74,7 @@ public final class NexusServiceOptions {
     public NexusServiceOptions.Builder setEndpoint(String endpoint) {
       // We allow a null endpoint here because it possible a valid endpoint will be merged in later
       Preconditions.checkArgument(
-          endpoint == null || !endpoint.equals(""), "endpoint cannot be empty if set");
+          endpoint == null || !endpoint.isEmpty(), "endpoint cannot be empty if set");
       this.endpoint = endpoint;
       return this;
     }

@@ -733,9 +733,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
       ExecuteNexusOperationInput<R> input) {
     Preconditions.checkArgument(
-        input.getEndpoint() != null && !input.getEndpoint().equals(""), "endpoint must be set");
+        input.getEndpoint() != null && !input.getEndpoint().isEmpty(), "endpoint must be set");
     Preconditions.checkArgument(
-        input.getService() != null && !input.getService().equals(""), "service must be set");
+        input.getService() != null && !input.getService().isEmpty(), "service must be set");
 
     if (CancellationScope.current().isCancelRequested()) {
       CanceledFailure canceledFailure =
