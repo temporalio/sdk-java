@@ -2281,6 +2281,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               timerService.lockTimeSkipping(
                   "nexusOperationRetryTimer " + operation.getData().operationId);
           boolean unlockTimer = false;
+          data.isBackingOff = false;
 
           try {
             data.nexusTask.setDeadline(Timestamps.add(ctx.currentTime(), data.requestTimeout));
@@ -3142,8 +3143,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setScheduleToCloseTimeout(data.scheduledEvent.getScheduleToCloseTimeout())
             .setState(convertNexusOperationState(sm.getState(), data))
             .setAttempt(data.getAttempt())
-            .setLastAttemptCompleteTime(Timestamps.fromMillis(data.lastAttemptCompleteTime))
-            .setNextAttemptScheduleTime(Timestamps.fromMillis(data.nextAttemptScheduleTime));
+            .setLastAttemptCompleteTime(data.lastAttemptCompleteTime)
+            .setNextAttemptScheduleTime(data.nextAttemptScheduleTime);
 
     data.retryState.getPreviousRunFailure().ifPresent(builder::setLastAttemptFailure);
 
@@ -3153,8 +3154,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setRequestedTime(data.cancelRequestedTime)
               .setState(convertNexusOperationCancellationState(sm.getState(), data))
               .setAttempt(data.getAttempt())
-              .setLastAttemptCompleteTime(Timestamps.fromMillis(data.lastAttemptCompleteTime))
-              .setNextAttemptScheduleTime(Timestamps.fromMillis(data.nextAttemptScheduleTime));
+              .setLastAttemptCompleteTime(data.lastAttemptCompleteTime)
+              .setNextAttemptScheduleTime(data.nextAttemptScheduleTime);
       data.retryState.getPreviousRunFailure().ifPresent(cancelInfo::setLastAttemptFailure);
       builder.setCancellationInfo(cancelInfo);
     }
@@ -3165,7 +3166,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private static PendingNexusOperationState convertNexusOperationState(
       State state, NexusOperationData data) {
     // Terminal states have already been filtered out, so only handle pending states.
-    if (data.getAttempt() > 1) {
+    if (data.isBackingOff) {
       return PendingNexusOperationState.PENDING_NEXUS_OPERATION_STATE_BACKING_OFF;
     }
     switch (state) {
@@ -3181,7 +3182,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private static NexusOperationCancellationState convertNexusOperationCancellationState(
       State state, NexusOperationData data) {
     // Terminal states have already been filtered out, so only handle pending states.
-    if (data.getAttempt() > 1) {
+    if (data.isBackingOff) {
       return NexusOperationCancellationState.NEXUS_OPERATION_CANCELLATION_STATE_BACKING_OFF;
     }
     if (state == State.INITIATED) {

@@ -352,9 +352,10 @@ class StateMachines {
     Timestamp cancelRequestedTime;
 
     TestServiceRetryState retryState;
-    long lastAttemptCompleteTime;
+    boolean isBackingOff = false;
     Duration nextBackoffInterval;
-    long nextAttemptScheduleTime;
+    Timestamp lastAttemptCompleteTime;
+    Timestamp nextAttemptScheduleTime;
     String identity;
 
     public NexusOperationData(Endpoint endpoint) {
@@ -871,7 +872,10 @@ class StateMachines {
       ctx.onCommit(
           (historySize) -> {
             data.retryState = nextAttempt;
-            data.nextAttemptScheduleTime = ctx.currentTime().getSeconds();
+            data.isBackingOff = true;
+            data.lastAttemptCompleteTime = ctx.currentTime();
+            data.nextAttemptScheduleTime =
+                Timestamps.add(ProtobufTimeUtils.getCurrentProtoTime(), data.nextBackoffInterval);
             task.setTaskToken(
                 new NexusTaskToken(
                         ctx.getExecutionId(),
@@ -928,6 +932,7 @@ class StateMachines {
         historySize -> {
           data.nexusTask = cancelTask;
           data.cancelRequestedTime = ctx.currentTime();
+          data.isBackingOff = false;
         });
   }
 
