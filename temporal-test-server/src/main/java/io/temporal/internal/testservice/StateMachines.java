@@ -689,7 +689,7 @@ class StateMachines {
     NexusTaskToken taskToken = new NexusTaskToken(ref, data.getAttempt(), false);
 
     Link link =
-        WorkflowEventToNexusLink(
+        workflowEventToNexusLink(
             io.temporal.api.common.v1.Link.WorkflowEvent.newBuilder()
                 .setNamespace(ctx.getNamespace())
                 .setWorkflowId(ctx.getExecution().getWorkflowId())
@@ -755,7 +755,7 @@ class StateMachines {
           .equals(io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor().getFullName())) {
         continue;
       }
-      event.addLinks(NexusLinkToWorkflowEvent(l));
+      event.addLinks(nexusLinkToWorkflowEvent(l));
     }
 
     ctx.addEvent(event.build());

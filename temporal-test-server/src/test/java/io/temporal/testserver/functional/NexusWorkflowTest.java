@@ -160,7 +160,7 @@ public class NexusWorkflowTest {
                   .setIdentity("test")
                   .addAllLinks(
                       startReq.getStartOperation().getLinksList().stream()
-                          .map(LinkConverter::NexusLinkToWorkflowEvent)
+                          .map(LinkConverter::nexusLinkToWorkflowEvent)
                           .collect(Collectors.toList()))
                   .addCompletionCallbacks(
                       Callback.newBuilder()
@@ -241,7 +241,7 @@ public class NexusWorkflowTest {
                       .setIdentity("test")
                       .addAllLinks(
                           startReq.getStartOperation().getLinksList().stream()
-                              .map(LinkConverter::NexusLinkToWorkflowEvent)
+                              .map(LinkConverter::nexusLinkToWorkflowEvent)
                               .collect(Collectors.toList()))
                       .addCompletionCallbacks(
                           Callback.newBuilder()
@@ -347,7 +347,7 @@ public class NexusWorkflowTest {
                       .setIdentity("test")
                       .addAllLinks(
                           startReq.getStartOperation().getLinksList().stream()
-                              .map(LinkConverter::NexusLinkToWorkflowEvent)
+                              .map(LinkConverter::nexusLinkToWorkflowEvent)
                               .collect(Collectors.toList()))
                       .addCompletionCallbacks(
                           Callback.newBuilder()
@@ -444,7 +444,7 @@ public class NexusWorkflowTest {
                   .setIdentity("test")
                   .addAllLinks(
                       startReq.getStartOperation().getLinksList().stream()
-                          .map(LinkConverter::NexusLinkToWorkflowEvent)
+                          .map(LinkConverter::nexusLinkToWorkflowEvent)
                           .collect(Collectors.toList()))
                   .addCompletionCallbacks(
                       Callback.newBuilder()
