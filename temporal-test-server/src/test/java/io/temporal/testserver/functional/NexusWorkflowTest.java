@@ -38,6 +38,7 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.internal.testservice.LinkConverter;
 import io.temporal.internal.testservice.NexusTaskToken;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
@@ -45,6 +46,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -156,6 +158,10 @@ public class NexusWorkflowTest {
                   .setTaskQueue(handlerWFTaskQueue)
                   .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                   .setIdentity("test")
+                  .addAllLinks(
+                      startReq.getStartOperation().getLinksList().stream()
+                          .map(LinkConverter::NexusLinkToWorkflowEvent)
+                          .collect(Collectors.toList()))
                   .addCompletionCallbacks(
                       Callback.newBuilder()
                           .setNexus(
@@ -233,6 +239,10 @@ public class NexusWorkflowTest {
                       .setTaskQueue(handlerWFTaskQueue)
                       .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                       .setIdentity("test")
+                      .addAllLinks(
+                          startReq.getStartOperation().getLinksList().stream()
+                              .map(LinkConverter::NexusLinkToWorkflowEvent)
+                              .collect(Collectors.toList()))
                       .addCompletionCallbacks(
                           Callback.newBuilder()
                               .setNexus(
@@ -335,6 +345,10 @@ public class NexusWorkflowTest {
                       .setTaskQueue(handlerWFTaskQueue)
                       .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                       .setIdentity("test")
+                      .addAllLinks(
+                          startReq.getStartOperation().getLinksList().stream()
+                              .map(LinkConverter::NexusLinkToWorkflowEvent)
+                              .collect(Collectors.toList()))
                       .addCompletionCallbacks(
                           Callback.newBuilder()
                               .setNexus(
@@ -428,6 +442,10 @@ public class NexusWorkflowTest {
                   .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                   .setWorkflowRunTimeout(Durations.fromSeconds(1))
                   .setIdentity("test")
+                  .addAllLinks(
+                      startReq.getStartOperation().getLinksList().stream()
+                          .map(LinkConverter::NexusLinkToWorkflowEvent)
+                          .collect(Collectors.toList()))
                   .addCompletionCallbacks(
                       Callback.newBuilder()
                           .setNexus(

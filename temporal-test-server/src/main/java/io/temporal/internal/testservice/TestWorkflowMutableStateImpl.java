@@ -2974,6 +2974,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setParentNamespaceId(p.getExecutionId().getNamespace())
                 .setParentExecution(p.getExecutionId().getExecution()));
 
+    if (this.startRequest.getCompletionCallbacksCount() > 0) {}
+
+    List<CallbackInfo> callbacks =
+        this.startRequest.getCompletionCallbacksList().stream()
+            .map(TestWorkflowMutableStateImpl::constructCallbackInfo)
+            .collect(Collectors.toList());
+
     List<PendingActivityInfo> pendingActivities =
         this.activities.values().stream()
             .filter(sm -> !isTerminalState(sm.getState()))
@@ -2998,6 +3005,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .addAllPendingActivities(pendingActivities)
         .addAllPendingNexusOperations(pendingNexusOperations)
         .addAllPendingChildren(pendingChildren)
+        .addAllCallbacks(callbacks)
         .build();
   }
 
@@ -3122,7 +3130,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     data.retryState.getPreviousRunFailure().ifPresent(builder::setLastAttemptFailure);
 
-    // TODO(pj): support cancellation info
+    if (data.nexusTask.getTask().getRequest().hasCancelOperation()) {
+      NexusOperationCancellationInfo.Builder cancelInfo =
+          NexusOperationCancellationInfo.newBuilder()
+              .setRequestedTime(data.cancelRequestedTime)
+              .setState(convertNexusOperationCancellationState(sm.getState(), data))
+              .setAttempt(data.getAttempt())
+              .setLastAttemptCompleteTime(Timestamps.fromMillis(data.lastAttemptCompleteTime))
+              .setNextAttemptScheduleTime(Timestamps.fromMillis(data.nextAttemptScheduleTime));
+      data.retryState.getPreviousRunFailure().ifPresent(cancelInfo::setLastAttemptFailure);
+      builder.setCancellationInfo(cancelInfo);
+    }
 
     return builder.build();
   }
@@ -3141,6 +3159,30 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       default:
         return PendingNexusOperationState.PENDING_NEXUS_OPERATION_STATE_UNSPECIFIED;
     }
+  }
+
+  private static NexusOperationCancellationState convertNexusOperationCancellationState(
+      State state, NexusOperationData data) {
+    // Terminal states have already been filtered out, so only handle pending states.
+    if (data.getAttempt() > 1) {
+      return NexusOperationCancellationState.NEXUS_OPERATION_CANCELLATION_STATE_BACKING_OFF;
+    }
+    if (state == State.INITIATED) {
+      return NexusOperationCancellationState.NEXUS_OPERATION_CANCELLATION_STATE_SCHEDULED;
+    }
+    return NexusOperationCancellationState.NEXUS_OPERATION_CANCELLATION_STATE_UNSPECIFIED;
+  }
+
+  private static CallbackInfo constructCallbackInfo(Callback completionCallback) {
+    // Currently we only support completion callbacks and the test server implementation assumes
+    // that callbacks are always delivered successfully upon workflow completion. So we are not
+    // currently setting state or attempt related fields.
+    return CallbackInfo.newBuilder()
+        .setCallback(completionCallback)
+        .setTrigger(
+            CallbackInfo.Trigger.newBuilder()
+                .setWorkflowClosed(CallbackInfo.WorkflowClosed.getDefaultInstance()))
+        .build();
   }
 
   private static void populateWorkflowExecutionInfoFromHistory(
