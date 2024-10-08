@@ -27,7 +27,9 @@ import com.uber.m3.tally.RootScopeBuilder;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.serviceclient.MetricsTag;
@@ -57,10 +59,10 @@ public class SyncClientOperationTest {
           .build();
 
   @Test
-  public void syncClientOperation() {
+  public void syncClientOperationSuccess() {
     TestUpdatedWorkflow workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestUpdatedWorkflow.class);
-    Assert.assertTrue(workflowStub.execute().startsWith("Update ID:"));
+    Assert.assertTrue(workflowStub.execute(false).startsWith("Update ID:"));
 
     // Test metrics all tasks should have
     Map<String, String> nexusWorkerTags =
@@ -82,11 +84,36 @@ public class SyncClientOperationTest {
     reporter.assertCounter("operation", operationTags, 1);
   }
 
+  @Test
+  public void syncClientOperationFail() {
+    TestUpdatedWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestUpdatedWorkflow.class);
+    Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute(true));
+
+    // Test metrics all failed tasks should have
+    Map<String, String> nexusWorkerTags =
+        ImmutableMap.<String, String>builder()
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
+            .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.NEXUS_WORKER.getValue())
+            .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
+            .buildKeepingLast();
+    reporter.assertTimer(MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, nexusWorkerTags);
+    Map<String, String> operationTags =
+        ImmutableMap.<String, String>builder()
+            .putAll(nexusWorkerTags)
+            .put(MetricsTag.NEXUS_SERVICE, "TestNexusService1")
+            .put(MetricsTag.NEXUS_OPERATION, "operation")
+            .buildKeepingLast();
+    reporter.assertTimer(MetricsType.NEXUS_EXEC_LATENCY, operationTags);
+    reporter.assertTimer(MetricsType.NEXUS_TASK_E2E_LATENCY, operationTags);
+    reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, operationTags, 1);
+  }
+
   @WorkflowInterface
   public interface TestUpdatedWorkflow {
 
     @WorkflowMethod
-    String execute();
+    String execute(boolean fail);
 
     @UpdateMethod
     String update(String arg);
@@ -94,7 +121,7 @@ public class SyncClientOperationTest {
 
   public static class TestNexus implements TestUpdatedWorkflow {
     @Override
-    public String execute() {
+    public String execute(boolean fail) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
@@ -104,7 +131,7 @@ public class SyncClientOperationTest {
       // Try to call a synchronous operation in a blocking way
       TestNexusServices.TestNexusService1 serviceStub =
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
-      return serviceStub.operation(Workflow.getInfo().getWorkflowId());
+      return serviceStub.operation(fail ? "" : Workflow.getInfo().getWorkflowId());
     }
 
     @Override
@@ -120,6 +147,9 @@ public class SyncClientOperationTest {
       // Implemented inline
       return WorkflowClientOperationHandlers.sync(
           (ctx, details, client, id) -> {
+            if (id.isEmpty()) {
+              throw ApplicationFailure.newNonRetryableFailure("Invalid ID", "TestError");
+            }
             Nexus.getOperationContext().getMetricsScope().counter("operation").inc(1);
             return client
                 .newWorkflowStub(TestUpdatedWorkflow.class, id)
