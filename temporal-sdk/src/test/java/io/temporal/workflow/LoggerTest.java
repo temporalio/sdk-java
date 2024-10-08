@@ -36,6 +36,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,12 +73,20 @@ public class LoggerTest {
 
   @WorkflowInterface
   public interface TestWorkflow {
+    @UpdateMethod
+    void update(String id);
+
     @WorkflowMethod
     void execute(String id);
   }
 
   public static class TestLoggingInWorkflow implements LoggerTest.TestWorkflow {
     private final Logger workflowLogger = Workflow.getLogger(TestLoggingInWorkflow.class);
+
+    @Override
+    public void update(String id) {
+      workflowLogger.info("Updating workflow {}.", id);
+    }
 
     @Override
     public void execute(String id) {
@@ -107,7 +117,7 @@ public class LoggerTest {
   }
 
   @Test
-  public void testWorkflowLogger() {
+  public void testWorkflowLogger() throws ExecutionException, InterruptedException {
     Worker worker = env.newWorker(taskQueue);
     worker.registerWorkflowImplementationTypes(
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);
@@ -122,14 +132,18 @@ public class LoggerTest {
     LoggerTest.TestWorkflow workflow =
         workflowClient.newWorkflowStub(LoggerTest.TestWorkflow.class, options);
     String wfId = UUID.randomUUID().toString();
-    workflow.execute(wfId);
+    CompletableFuture<Void> result = WorkflowClient.execute(workflow::execute, wfId);
+    workflow.update(wfId);
+    result.get();
 
-    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfId)));
-    assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfId)));
-    assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfId)));
+    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfId), false));
+    assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfId), false));
+    assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfId), false));
+    // Assert the update log is present
+    assertEquals(1, matchingLines(String.format("Updating workflow %s.", wfId), true));
   }
 
-  private int matchingLines(String message) {
+  private int matchingLines(String message, boolean isUpdateMethod) {
     int i = 0;
     // Make copy to avoid ConcurrentModificationException
     List<ILoggingEvent> list = new ArrayList<>(listAppender.list);
@@ -139,6 +153,10 @@ public class LoggerTest {
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_TYPE));
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.RUN_ID));
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.TASK_QUEUE));
+        if (isUpdateMethod) {
+          assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.UPDATE_ID));
+          assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.UPDATE_NAME));
+        }
         i++;
       }
     }
