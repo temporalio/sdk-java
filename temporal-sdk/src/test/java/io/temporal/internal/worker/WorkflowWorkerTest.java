@@ -266,9 +266,15 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             slotSupplier);
 
+    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
+        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
+
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     when(client.blockingStub()).thenReturn(blockingStub);
+    when(client.futureStub()).thenReturn(futureStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
     PollWorkflowTaskQueueResponse pollResponse =
