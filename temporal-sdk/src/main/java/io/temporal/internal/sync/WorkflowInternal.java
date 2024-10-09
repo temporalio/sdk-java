@@ -24,7 +24,6 @@ import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
@@ -41,7 +40,8 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.WorkflowThreadMarker;
-import io.temporal.internal.common.ActivityOptionUtils;
+import io.temporal.internal.common.MergedActivityOptions;
+import io.temporal.internal.common.MergedLocalActivityOptions;
 import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
@@ -318,29 +318,13 @@ public final class WorkflowInternal {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
     SyncWorkflowContext context = getRootWorkflowContext();
-    options = (options == null) ? context.getDefaultActivityOptions() : options;
-
-    Map<String, ActivityOptions> mergedActivityOptionsMap;
-    @Nonnull Map<String, ActivityOptions> predefinedActivityOptions = context.getActivityOptions();
-    if (activityMethodOptions != null
-        && !activityMethodOptions.isEmpty()
-        && predefinedActivityOptions.isEmpty()) {
-      // we need to merge only in this case
-      mergedActivityOptionsMap = new HashMap<>(predefinedActivityOptions);
-      ActivityOptionUtils.mergePredefinedActivityOptions(
-          mergedActivityOptionsMap, activityMethodOptions);
-    } else {
-      mergedActivityOptionsMap =
-          MoreObjects.firstNonNull(
-              activityMethodOptions,
-              MoreObjects.firstNonNull(predefinedActivityOptions, Collections.emptyMap()));
-    }
+    MergedActivityOptions activityOptions =
+        new MergedActivityOptions(context.getActivityOptions(), options, activityMethodOptions);
 
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface,
-            options,
-            mergedActivityOptionsMap,
+            activityOptions,
             context.getWorkflowOutboundInterceptor(),
             () -> assertNotReadOnly("schedule activity"));
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -361,31 +345,14 @@ public final class WorkflowInternal {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
     SyncWorkflowContext context = getRootWorkflowContext();
-    options = (options == null) ? context.getDefaultLocalActivityOptions() : options;
-
-    Map<String, LocalActivityOptions> mergedLocalActivityOptionsMap;
-    @Nonnull
-    Map<String, LocalActivityOptions> predefinedLocalActivityOptions =
-        context.getLocalActivityOptions();
-    if (activityMethodOptions != null
-        && !activityMethodOptions.isEmpty()
-        && predefinedLocalActivityOptions.isEmpty()) {
-      // we need to merge only in this case
-      mergedLocalActivityOptionsMap = new HashMap<>(predefinedLocalActivityOptions);
-      ActivityOptionUtils.mergePredefinedLocalActivityOptions(
-          mergedLocalActivityOptionsMap, activityMethodOptions);
-    } else {
-      mergedLocalActivityOptionsMap =
-          MoreObjects.firstNonNull(
-              activityMethodOptions,
-              MoreObjects.firstNonNull(predefinedLocalActivityOptions, Collections.emptyMap()));
-    }
+    MergedLocalActivityOptions activityOptions =
+        new MergedLocalActivityOptions(
+            context.getLocalActivityOptions(), options, activityMethodOptions);
 
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
             activityInterface,
-            options,
-            mergedLocalActivityOptionsMap,
+            activityOptions,
             WorkflowInternal.getWorkflowOutboundInterceptor(),
             () -> assertNotReadOnly("schedule local activity"));
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);

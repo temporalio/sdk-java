@@ -57,8 +57,9 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.*;
-import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.common.MergedActivityOptions;
+import io.temporal.internal.common.MergedLocalActivityOptions;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
@@ -115,10 +116,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private WorkflowInboundCallsInterceptor headInboundInterceptor;
   private WorkflowOutboundCallsInterceptor headOutboundInterceptor;
 
-  private ActivityOptions defaultActivityOptions = null;
-  private Map<String, ActivityOptions> activityOptionsMap;
-  private LocalActivityOptions defaultLocalActivityOptions = null;
-  private Map<String, LocalActivityOptions> localActivityOptionsMap;
+  private final MergedActivityOptions activityOptions;
+  private final MergedLocalActivityOptions localActivityOptions;
+
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   // Map of all running update handlers. Key is the update Id of the update request.
@@ -145,14 +145,22 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     this.signalDispatcher = signalDispatcher;
     this.queryDispatcher = queryDispatcher;
     this.updateDispatcher = updateDispatcher;
+    MergedActivityOptions activityOptions = null;
+    MergedLocalActivityOptions localActivityOptions = null;
     if (workflowImplementationOptions != null) {
-      this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
-      this.activityOptionsMap = new HashMap<>(workflowImplementationOptions.getActivityOptions());
-      this.defaultLocalActivityOptions =
-          workflowImplementationOptions.getDefaultLocalActivityOptions();
-      this.localActivityOptionsMap =
-          new HashMap<>(workflowImplementationOptions.getLocalActivityOptions());
+      activityOptions =
+          new MergedActivityOptions(
+              null,
+              workflowImplementationOptions.getDefaultActivityOptions(),
+              workflowImplementationOptions.getActivityOptions());
+      localActivityOptions =
+          new MergedLocalActivityOptions(
+              null,
+              workflowImplementationOptions.getDefaultLocalActivityOptions(),
+              workflowImplementationOptions.getLocalActivityOptions());
     }
+    this.activityOptions = new MergedActivityOptions(activityOptions);
+    this.localActivityOptions = new MergedLocalActivityOptions(localActivityOptions);
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
             ? WorkflowImplementationOptions.getDefaultInstance()
@@ -201,61 +209,28 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     updateDispatcher.setInboundCallsInterceptor(head);
   }
 
-  public ActivityOptions getDefaultActivityOptions() {
-    return defaultActivityOptions;
+  public MergedActivityOptions getActivityOptions() {
+    return activityOptions;
   }
 
-  public @Nonnull Map<String, ActivityOptions> getActivityOptions() {
-    return activityOptionsMap != null
-        ? Collections.unmodifiableMap(activityOptionsMap)
-        : Collections.emptyMap();
-  }
-
-  public LocalActivityOptions getDefaultLocalActivityOptions() {
-    return defaultLocalActivityOptions;
-  }
-
-  public @Nonnull Map<String, LocalActivityOptions> getLocalActivityOptions() {
-    return localActivityOptionsMap != null
-        ? Collections.unmodifiableMap(localActivityOptionsMap)
-        : Collections.emptyMap();
+  public MergedLocalActivityOptions getLocalActivityOptions() {
+    return localActivityOptions;
   }
 
   public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-    this.defaultActivityOptions =
-        (this.defaultActivityOptions == null)
-            ? defaultActivityOptions
-            : this.defaultActivityOptions.toBuilder()
-                .mergeActivityOptions(defaultActivityOptions)
-                .build();
+    activityOptions.setDefaultOptions(defaultActivityOptions);
   }
 
   public void applyActivityOptions(Map<String, ActivityOptions> activityTypeToOption) {
-    Objects.requireNonNull(activityTypeToOption);
-    if (this.activityOptionsMap == null) {
-      this.activityOptionsMap = new HashMap<>(activityTypeToOption);
-      return;
-    }
-    ActivityOptionUtils.mergePredefinedActivityOptions(activityOptionsMap, activityTypeToOption);
+    activityOptions.applyOptionsMap(activityTypeToOption);
   }
 
   public void setDefaultLocalActivityOptions(LocalActivityOptions defaultLocalActivityOptions) {
-    this.defaultLocalActivityOptions =
-        (this.defaultLocalActivityOptions == null)
-            ? defaultLocalActivityOptions
-            : this.defaultLocalActivityOptions.toBuilder()
-                .mergeActivityOptions(defaultLocalActivityOptions)
-                .build();
+    localActivityOptions.setDefaultOptions(defaultLocalActivityOptions);
   }
 
   public void applyLocalActivityOptions(Map<String, LocalActivityOptions> activityTypeToOption) {
-    Objects.requireNonNull(activityTypeToOption);
-    if (this.localActivityOptionsMap == null) {
-      this.localActivityOptionsMap = new HashMap<>(activityTypeToOption);
-      return;
-    }
-    ActivityOptionUtils.mergePredefinedLocalActivityOptions(
-        localActivityOptionsMap, activityTypeToOption);
+    localActivityOptions.applyOptionsMap(activityTypeToOption);
   }
 
   @Override
