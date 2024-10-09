@@ -278,11 +278,14 @@ final class NexusWorker implements SuspendableWorker {
       Stopwatch sw = metricsScope.timer(MetricsType.NEXUS_EXEC_LATENCY).start();
       try {
         result = handler.handle(task, metricsScope);
-        if (result.getHandlerError() != null) {
+        if (result.getHandlerError() != null
+            || (result.getResponse().hasStartOperation()
+                && result.getResponse().getStartOperation().hasOperationError())) {
           metricsScope.counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER).inc(1);
         }
       } catch (TimeoutException e) {
         log.warn("Nexus task timed out while processing", e);
+        metricsScope.counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER).inc(1);
         return;
       } catch (Throwable e) {
         // handler.handle if expected to never throw an exception and return result
