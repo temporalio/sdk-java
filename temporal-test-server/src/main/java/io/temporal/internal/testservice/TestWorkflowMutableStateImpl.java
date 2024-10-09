@@ -250,26 +250,63 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (request.hasRetryPolicy()) {
       request.setRetryPolicy(validateAndOverrideRetryPolicy(request.getRetryPolicy()));
     }
-    if (request.getLinksCount() > 0) {
-      if (request.getLinksCount() > 10) {
+
+    validateLinks(request.getLinksList());
+
+    return request;
+  }
+
+  private void validateLinks(List<Link> links) {
+    if (links == null || links.isEmpty()) {
+      return;
+    }
+
+    if (links.size() > 10) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription(
+              String.format(
+                  "cannot attach more than %d links per request, got %d", 10, links.size()))
+          .asRuntimeException();
+    }
+
+    for (Link l : links) {
+      if (l.getSerializedSize() > 4000) {
         throw Status.INVALID_ARGUMENT
             .withDescription(
                 String.format(
-                    "cannot attach more than %d links per request, got %d",
-                    10, request.getLinksCount()))
+                    "link exceeds allowed size of %d, got %d", 4000, l.getSerializedSize()))
             .asRuntimeException();
       }
-      for (Link l : request.getLinksList()) {
-        if (l.getSerializedSize() > 4000) {
+
+      if (l.getVariantCase() == Link.VariantCase.WORKFLOW_EVENT) {
+        if (l.getWorkflowEvent().getNamespace().isEmpty()) {
           throw Status.INVALID_ARGUMENT
-              .withDescription(
-                  String.format(
-                      "link exceeds allowed size of %d, got %d", 4000, l.getSerializedSize()))
+              .withDescription("workflow event link must not have an empty namespace field")
               .asRuntimeException();
         }
+        if (l.getWorkflowEvent().getWorkflowId().isEmpty()) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription("workflow event link must not have an empty workflow ID field")
+              .asRuntimeException();
+        }
+        if (l.getWorkflowEvent().getRunId().isEmpty()) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription("workflow event link must not have an empty run ID field")
+              .asRuntimeException();
+        }
+        if (l.getWorkflowEvent().getEventRef().getEventType() == EventType.EVENT_TYPE_UNSPECIFIED
+            && l.getWorkflowEvent().getEventRef().getEventId() != 0) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription(
+                  "workflow event link ref cannot have an unspecified event type and a non-zero event ID")
+              .asRuntimeException();
+        }
+      } else {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("unsupported link variant")
+            .asRuntimeException();
       }
     }
-    return request;
   }
 
   private void update(UpdateProcedure updater) {
