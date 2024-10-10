@@ -20,6 +20,7 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.testservice.LinkConverter.*;
 import static io.temporal.internal.testservice.StateMachines.Action.CANCEL;
 import static io.temporal.internal.testservice.StateMachines.Action.COMPLETE;
 import static io.temporal.internal.testservice.StateMachines.Action.CONTINUE_AS_NEW;
@@ -60,6 +61,7 @@ import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.*;
+import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -347,11 +349,13 @@ class StateMachines {
     RetryPolicy retryPolicy = defaultNexusRetryPolicy();
 
     long scheduledEventId = NO_EVENT_ID;
+    Timestamp cancelRequestedTime;
 
     TestServiceRetryState retryState;
-    long lastAttemptCompleteTime;
+    boolean isBackingOff = false;
     Duration nextBackoffInterval;
-    long nextAttemptScheduleTime;
+    Timestamp lastAttemptCompleteTime;
+    Timestamp nextAttemptScheduleTime;
     String identity;
 
     public NexusOperationData(Endpoint endpoint) {
@@ -685,6 +689,18 @@ class StateMachines {
     NexusOperationRef ref = new NexusOperationRef(ctx.getExecutionId(), scheduledEventId);
     NexusTaskToken taskToken = new NexusTaskToken(ref, data.getAttempt(), false);
 
+    Link link =
+        workflowEventToNexusLink(
+            io.temporal.api.common.v1.Link.WorkflowEvent.newBuilder()
+                .setNamespace(ctx.getNamespace())
+                .setWorkflowId(ctx.getExecution().getWorkflowId())
+                .setRunId(ctx.getExecution().getRunId())
+                .setEventRef(
+                    io.temporal.api.common.v1.Link.WorkflowEvent.EventReference.newBuilder()
+                        .setEventId(scheduledEventId)
+                        .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED))
+                .build());
+
     PollNexusTaskQueueResponse.Builder pollResponse =
         PollNexusTaskQueueResponse.newBuilder()
             .setTaskToken(taskToken.toBytes())
@@ -697,6 +713,7 @@ class StateMachines {
                             .setService(attr.getService())
                             .setOperation(attr.getOperation())
                             .setPayload(attr.getInput())
+                            .addLinks(link)
                             .setCallback("http://test-env/operations")
                             // The test server uses this to lookup the operation
                             .putCallbackHeader(
@@ -725,15 +742,24 @@ class StateMachines {
       NexusOperationData data,
       StartOperationResponse.Async resp,
       long notUsed) {
-    ctx.addEvent(
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED)
             .setNexusOperationStartedEventAttributes(
                 NexusOperationStartedEventAttributes.newBuilder()
                     .setOperationId(resp.getOperationId())
                     .setScheduledEventId(data.scheduledEventId)
-                    .setRequestId(data.scheduledEvent.getRequestId()))
-            .build());
+                    .setRequestId(data.scheduledEvent.getRequestId()));
+
+    for (Link l : resp.getLinksList()) {
+      if (!l.getType()
+          .equals(io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor().getFullName())) {
+        continue;
+      }
+      event.addLinks(nexusLinkToWorkflowEvent(l));
+    }
+
+    ctx.addEvent(event.build());
     ctx.onCommit(historySize -> data.operationId = resp.getOperationId());
   }
 
@@ -846,7 +872,10 @@ class StateMachines {
       ctx.onCommit(
           (historySize) -> {
             data.retryState = nextAttempt;
-            data.nextAttemptScheduleTime = ctx.currentTime().getSeconds();
+            data.isBackingOff = true;
+            data.lastAttemptCompleteTime = ctx.currentTime();
+            data.nextAttemptScheduleTime =
+                Timestamps.add(ProtobufTimeUtils.getCurrentProtoTime(), data.nextBackoffInterval);
             task.setTaskToken(
                 new NexusTaskToken(
                         ctx.getExecutionId(),
@@ -899,7 +928,12 @@ class StateMachines {
     // Test server only supports worker targets, so just push directly to Nexus task queue without
     // invoking Nexus client.
     ctx.addNexusTask(cancelTask);
-    ctx.onCommit(historySize -> data.nexusTask = cancelTask);
+    ctx.onCommit(
+        historySize -> {
+          data.nexusTask = cancelTask;
+          data.cancelRequestedTime = ctx.currentTime();
+          data.isBackingOff = false;
+        });
   }
 
   private static void reportNexusOperationCancellation(
@@ -1238,12 +1272,14 @@ class StateMachines {
       a.setParentWorkflowNamespace(parentExecutionId.getNamespace());
       a.setParentWorkflowExecution(parentExecutionId.getExecution());
     }
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
-            .setWorkflowExecutionStartedEventAttributes(a)
-            .build();
-    ctx.addEvent(event);
+            .setWorkflowExecutionStartedEventAttributes(a);
+    if (request.getLinksCount() > 0) {
+      event.addAllLinks(request.getLinksList());
+    }
+    ctx.addEvent(event.build());
   }
 
   private static void completeWorkflow(
