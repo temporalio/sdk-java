@@ -23,7 +23,7 @@ package io.temporal.workflow;
 import io.temporal.common.converter.EncodedValues;
 
 /**
- * Use DynamicQueryHandler to process any query dynamically. This is useful for a library level code
+ * Use DynamicQueryHandler to process any query dynamically. This is useful for library-level code
  * and implementation of DSLs.
  *
  * <p>Use {@link Workflow#registerListener(Object)} to register an implementation of the
