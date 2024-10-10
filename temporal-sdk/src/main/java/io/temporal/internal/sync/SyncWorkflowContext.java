@@ -278,6 +278,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     ActivityOutput<Optional<Payloads>> output =
         executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
 
+    // Avoid passing the input to the output handle as it causes the input to be retained for the
+    // duration of the operation.
+    Type resultType = input.getResultType();
+    Class<T> resultClass = input.getResultClass();
     return new ActivityOutput<>(
         output.getActivityId(),
         output
@@ -285,9 +289,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             .handle(
                 (r, f) -> {
                   if (f == null) {
-                    return input.getResultType() != Void.TYPE
+                    return resultType != Void.TYPE
                         ? dataConverterWithActivityContext.fromPayloads(
-                            0, r, input.getResultClass(), input.getResultType())
+                            0, r, resultClass, resultType)
                         : null;
                   } else {
                     throw dataConverterWithActivityContext.failureToException(
@@ -412,13 +416,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         null,
         serializedResult);
 
+    // Avoid passing the input to the output handle as it causes the input to be retained for the
+    // duration of the operation.
+    Type resultType = input.getResultType();
+    Class<R> resultClass = input.getResultClass();
     Promise<R> result =
         serializedResult.handle(
             (r, f) -> {
               if (f == null) {
-                return input.getResultClass() != Void.TYPE
-                    ? dataConverterWithActivityContext.fromPayloads(
-                        0, r, input.getResultClass(), input.getResultType())
+                return resultClass != Void.TYPE
+                    ? dataConverterWithActivityContext.fromPayloads(0, r, resultClass, resultType)
                     : null;
               } else {
                 throw dataConverterWithActivityContext.failureToException(
@@ -708,11 +715,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               return null;
             });
 
+    // Avoid passing the input to the output handle as it causes the input to be retained for the
+    // duration of the operation.
+    Type resultType = input.getResultType();
+    Class<R> resultClass = input.getResultClass();
     Promise<R> result =
         resultPromise.thenApply(
             (b) ->
-                dataConverterWithChildWorkflowContext.fromPayloads(
-                    0, b, input.getResultClass(), input.getResultType()));
+                dataConverterWithChildWorkflowContext.fromPayloads(0, b, resultClass, resultType));
     return new ChildWorkflowOutput<>(result, executionPromise);
   }
 
