@@ -20,6 +20,9 @@
 
 package io.temporal.internal.common;
 
+import io.nexusrpc.Link;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 
 public class NexusUtil {
@@ -40,6 +43,14 @@ public class NexusUtil {
     } catch (NumberFormatException | NullPointerException e) {
       throw new IllegalArgumentException("Invalid timeout format: " + timeout);
     }
+  }
+
+  public static Link nexusProtoLinkToLink(io.temporal.api.nexus.v1.Link nexusLink)
+      throws URISyntaxException {
+    return Link.newBuilder()
+        .setType(nexusLink.getType())
+        .setUri(new URI(nexusLink.getUrl()))
+        .build();
   }
 
   private NexusUtil() {}

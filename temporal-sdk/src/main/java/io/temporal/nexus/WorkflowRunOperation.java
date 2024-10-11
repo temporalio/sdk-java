@@ -20,13 +20,20 @@
 
 package io.temporal.nexus;
 
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
+
 import io.nexusrpc.OperationInfo;
 import io.nexusrpc.handler.*;
 import io.nexusrpc.handler.OperationHandler;
+import io.temporal.api.common.v1.Link;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationContextImpl;
+import java.net.URISyntaxException;
 
 class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
   private final WorkflowHandleFactory<T, R> handleFactory;
@@ -49,7 +56,32 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
             operationStartDetails.getCallbackUrl(),
             operationStartDetails.getCallbackHeaders(),
             nexusCtx.getTaskQueue());
-    return OperationStartResult.async(handle.getInvoker().invoke(nexusRequest).getWorkflowId());
+
+    WorkflowExecution workflowExec = handle.getInvoker().invoke(nexusRequest);
+
+    // Create the link information about the new workflow and return to the caller.
+    Link.WorkflowEvent workflowEventLink =
+        Link.WorkflowEvent.newBuilder()
+            .setNamespace(nexusCtx.getNamespace())
+            .setWorkflowId(workflowExec.getWorkflowId())
+            .setRunId(workflowExec.getRunId())
+            .setEventRef(
+                Link.WorkflowEvent.EventReference.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
+            .build();
+    io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(workflowEventLink);
+    try {
+      OperationStartResult.Builder<R> result =
+          OperationStartResult.<R>newBuilder().setAsyncOperationId(workflowExec.getWorkflowId());
+      if (nexusLink != null) {
+        result.addLink(nexusProtoLinkToLink(nexusLink));
+      }
+      return result.build();
+    } catch (URISyntaxException e) {
+      // Not expected as the link is constructed by the SDK.
+      throw new OperationHandlerException(
+          OperationHandlerException.ErrorType.BAD_REQUEST, "failed to construct result URL", e);
+    }
   }
 
   @Override

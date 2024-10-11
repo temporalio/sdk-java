@@ -25,11 +25,14 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.nexus.NexusOperationContext;
 
 public class NexusOperationContextImpl implements NexusOperationContext {
+  private final String namespace;
   private final String taskQueue;
   private final WorkflowClient client;
   private final Scope metricsScope;
 
-  public NexusOperationContextImpl(String taskQueue, WorkflowClient client, Scope metricsScope) {
+  public NexusOperationContextImpl(
+      String namespace, String taskQueue, WorkflowClient client, Scope metricsScope) {
+    this.namespace = namespace;
     this.taskQueue = taskQueue;
     this.client = client;
     this.metricsScope = metricsScope;
@@ -46,5 +49,9 @@ public class NexusOperationContextImpl implements NexusOperationContext {
 
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  public String getNamespace() {
+    return namespace;
   }
 }

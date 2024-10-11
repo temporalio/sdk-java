@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.internal.common;
 
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 public class LinkConverter {
 
-  private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
+  private static final Logger log = LoggerFactory.getLogger(LinkConverter.class);
 
   private static final String linkPathFormat = "temporal:///namespaces/%s/workflows/%s/%s/history";
 

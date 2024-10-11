@@ -38,7 +38,7 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.internal.testservice.LinkConverter;
+import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.testservice.NexusTaskToken;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
