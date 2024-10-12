@@ -784,6 +784,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
   private static boolean isRetryPolicyNotSet(
       PollActivityTaskQueueResponseOrBuilder pollActivityTask) {
     return !pollActivityTask.hasScheduleToCloseTimeout()
+        && !pollActivityTask.hasStartToCloseTimeout()
         && (!pollActivityTask.hasRetryPolicy()
             || pollActivityTask.getRetryPolicy().getMaximumAttempts() <= 0);
   }
