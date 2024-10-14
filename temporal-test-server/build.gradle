@@ -21,7 +21,6 @@ dependencies {
         //needed for the generated grpc stubs and is not a part of JDK since java 9
         compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
     }
-    implementation "io.nexusrpc:nexus-sdk:$nexusVersion"
 
     implementation "com.google.guava:guava:$guavaVersion"
     implementation("com.cronutils:cron-utils:${cronUtilsVersion}") {
