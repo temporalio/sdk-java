@@ -20,22 +20,17 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
+
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.workflow.Functions;
-import java.lang.ref.WeakReference;
 import javax.annotation.Nullable;
 
 class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     extends EntityStateMachineBase<State, ExplicitEvent, Data> {
-
-  // Holds a reference to the command that was created by this state machine.
-  // Used to cancel the command if needed. We use a weak reference to avoid holding
-  // the command in memory longer than needed. This is safe because if no other state machine holds
-  // a reference
-  // to the command then cancelling it wouldn't have any effect.
-  private WeakReference<CancellableCommand> commandRef;
-
+  private CancellableCommand command;
   private long initialCommandEventId;
 
   public EntityStateMachineInitialCommand(
@@ -57,15 +52,22 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     if (command.getCommandType() == CommandType.COMMAND_TYPE_UNSPECIFIED) {
       throw new IllegalArgumentException("unspecified command type");
     }
-    CancellableCommand cancellableCommand = new CancellableCommand(command, this);
-    this.commandRef = new WeakReference<>(cancellableCommand);
-    commandSink.apply(cancellableCommand);
+    this.command = new CancellableCommand(command, this);
+    commandSink.apply(this.command);
   }
 
   protected final void cancelCommand() {
-    if (commandRef.get() != null) {
-      commandRef.get().cancel();
+    if (command != null) {
+      command.cancel();
     }
+  }
+
+  public WorkflowStateMachines.HandleEventStatus handleEvent(
+      HistoryEvent event, boolean hasNextEvent) {
+    if (isCommandEvent(event)) {
+      command = null;
+    }
+    return super.handleEvent(event, hasNextEvent);
   }
 
   protected long getInitialCommandEventId() {
