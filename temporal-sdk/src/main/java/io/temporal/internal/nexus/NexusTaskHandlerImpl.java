@@ -48,8 +48,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private static final Logger log = LoggerFactory.getLogger(NexusTaskHandlerImpl.class);
