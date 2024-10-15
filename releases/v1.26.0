@@ -1,0 +1,76 @@
+# Highlights
+
+## Nexus (Pre-Release)
+
+Note: This feature requires a server version 1.25+ and must be enabled. For self hosted [see](https://github.com/temporalio/temporal/blob/main/docs/architecture/nexus.md#trying-nexus-out), for Temporal Cloud Nexus support is available as public preview.
+
+Temporal Nexus is a new feature of the Temporal platform designed to connect durable executions across team, namespace, region, and cloud boundaries. It promotes a more modular architecture for sharing a subset of your team’s capabilities via well-defined service API contracts for other teams to use, that abstract underlying Temporal primitives, likeWorkflows, or execute arbitrary code.
+
+Learn more at [temporal.io/nexus](https://temporal.io/nexus).
+
+More Java specific docs and samples coming soon.
+
+## Update-With-Start **(Private Preview)**
+
+Note: This feature requires a server version 1.24+ and must be enabled. For self hosted you can set `frontend.enableExecuteMultiOperation` for Temporal Cloud please reach out to your Temporal account team or [Temporal Support Team](https://docs.temporal.io/cloud/support#support-ticket) to enable update with start in your namespace.
+
+This release add support for Workflow Update-With-Start. Update-With-Start allows users to send a Workflow Update request along with a Start Workflow request in the same RPC. Users can think of Update-With-Start as analogous to Signal-With-Start except for Updates instead of Signals. To make a Update with start request users can call `WorkflowClient.updateWithStart`.
+
+## Workflow Init
+
+Added a new annotation `@WorkflowInit` users can add to the constructor of their workflow implementations. The constructor annotated with this annotation is called when a new workflow instance is created. It will be called before the the main workflow method and any signal or update handlers. The constructor must be public and take the same arguments as the workflow method. All normal workflow constraints also apply in the constructor.
+
+## Upsert Memo
+
+Added a new Workflow API `Workflow.upsertMemo` . This allows users to modify a workflows memo field inside the workflow. Normal determinism constraints apply to `upsertMemo`.
+
+## User Metadata (Public Preview)
+
+Note: This feature requires a server version 1.25+
+
+This release add support for user metadata inside Workflows. This lets users set custom metadata on Workflow executions and certain APIs inside workflow that will be visible on the UI.
+
+Currently the Java SDK support:
+
+- Fixed "summary" and "details" on workflow start
+- Fixed "summary" and "details" on child workflows
+- Details on timer names through `TimerOptions`
+
+# **💥 BREAKING CHANGES**
+
+## Workflow Update
+
+- Changed the return type of `DynamicUpdateHandler::handleExecute`  from `EncodedValues` → `Object` to align with other dynamic handlers in the Java SDK.
+- Renamed `io.temporal.client.UpdateHandle` to `io.temporal.client.WorkflowUpdateHandle` to align with other SDKs.
+
+## Workflow Registration
+
+The SDK will now attempt to perform more validation on workflows at registration time rather then waiting until the workflow is invoked. Specifically the SDK now checks if a workflow has a default public constructor at registration time instead of invocation time.
+
+# Bugfixes
+
+Refactored SDK internals to avoid holding onto large user payloads like activity or child workflow inputs after the operation was scheduled.
+
+# What's Changed
+
+2024-09-03 - ecd26b79 - Rename UpdateHandle to WorkflowUpdateHandle (#2204)
+2024-09-05 - add6c4e8 - Add support for upsert memo (#2202)
+2024-09-12 - a173dbeb - Fix Dynamic Update Handler return type (#2210)
+2024-09-13 - 2163b8fe - Test server support for async Nexus operations (#2198)
+2024-09-16 - 03f71824 - Add support for user meta data  (#2218)
+2024-09-16 - 21d15aef - Add workflow init support  (#2222)
+2024-09-17 - 6f0cf07e - Fix timeout during operation retry (#2221)
+2024-09-17 - 7525c657 - Test Server: Fix Nexus operation cancel before start (#2223)
+2024-09-23 - 0e58687f - Add getMetricsScope interceptor (#2224)
+2024-09-23 - 6150dc16 - Fill in namespace capabilities in describe response (#2228)
+2024-09-23 - 71e89f9a - Block invalid calls in Await (#2225)
+2024-09-23 - 97322ec2 - Update Test Server Capabilities (#2226)
+2024-09-25 - 238c5e14 - Update-with-Start (#2199)
+2024-09-25 - 52aa9e85 - Add option to configure the deadline of getSystemInfo (#2240)
+2024-10-01 - 156f4f15 - SDKTestWorkflowRule wasn't calling shutdown (#2243)
+2024-10-03 - 089bbea7 - Set CanceledFailureInfo for all canceled Nexus outcomes (#2253)
+2024-10-08 - d1dc2e18 - Add update info to MDC context (#2259)
+2024-10-10 - 393045d5 - Test server support for bidi links (#2258)
+2024-10-10 - 92692b40 - Call shutdown RPC on worker shutdown (#2264)
+2024-10-15 - af7b5b7d - Fix memory leak of command inputs (#2262)
+2024-10-15 - eff3ca20 - Merge Nexus into Master (#2270)
