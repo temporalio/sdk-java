@@ -81,7 +81,7 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
     } catch (URISyntaxException e) {
       // Not expected as the link is constructed by the SDK.
       throw new OperationHandlerException(
-          OperationHandlerException.ErrorType.BAD_REQUEST, "failed to construct result URL", e);
+          OperationHandlerException.ErrorType.INTERNAL, "failed to construct result URL", e);
     }
   }
 

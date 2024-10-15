@@ -116,7 +116,8 @@ public class LinkConverter {
               eventRef.setEventId(Long.parseLong(param[1]));
               continue;
             case "eventType":
-              // Have to handle the SCREAMING_CASE enum or the traditional temporal PascalCase enum to EventType
+              // Have to handle the SCREAMING_CASE enum or the traditional temporal PascalCase enum
+              // to EventType
               if (param[1].startsWith(EVENT_TYPE_PREFIX)) {
                 eventRef.setEventType(EventType.valueOf(param[1]));
               } else {
