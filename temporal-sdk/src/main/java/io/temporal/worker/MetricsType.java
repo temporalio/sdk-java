@@ -143,6 +143,29 @@ public final class MetricsType {
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_used";
 
   //
+  // Nexus Worker
+  //
+  @Experimental
+  public static final String NEXUS_POLL_NO_TASK_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "nexus_poll_no_task";
+
+  @Experimental
+  public static final String NEXUS_SCHEDULE_TO_START_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "nexus_task_schedule_to_start_latency";
+
+  @Experimental
+  public static final String NEXUS_EXEC_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "nexus_task_execution_latency";
+
+  @Experimental
+  public static final String NEXUS_EXEC_FAILED_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "nexus_task_execution_failed";
+
+  @Experimental
+  public static final String NEXUS_TASK_E2E_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "nexus_task_endtoend_latency";
+
+  //
   // Worker Factory
   //
 

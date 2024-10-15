@@ -52,12 +52,12 @@ public class WorkflowIdReusePolicyTest {
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test1ArgWorkflowFunc.class, workflowOptions);
-    Assert.assertEquals(1, stubF1_1.func1(1));
+    Assert.assertEquals("1", stubF1_1.func1("1"));
     Test1ArgWorkflowFunc stubF1_2 =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test1ArgWorkflowFunc.class, workflowOptions);
-    Assert.assertEquals(1, stubF1_2.func1(2));
+    Assert.assertEquals("1", stubF1_2.func1("2"));
 
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
@@ -70,7 +70,7 @@ public class WorkflowIdReusePolicyTest {
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test1ArgWorkflowFunc.class, workflowOptions);
-    Assert.assertEquals(2, stubF1_3.func1(2));
+    Assert.assertEquals("2", stubF1_3.func1("2"));
 
     // Setting WorkflowIdReusePolicy to RejectDuplicate or AllowDuplicateFailedOnly does not work as
     // expected. See https://github.com/uber/cadence-java-client/issues/295.

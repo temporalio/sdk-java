@@ -18,10 +18,10 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.internal.common;
 
-import static io.temporal.internal.testservice.LinkConverter.nexusLinkToWorkflowEvent;
-import static io.temporal.internal.testservice.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.Link;

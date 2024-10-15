@@ -40,4 +40,6 @@ public final class LoggerTag {
   public static final String ATTEMPT = "Attempt";
   public static final String UPDATE_ID = "UpdateId";
   public static final String UPDATE_NAME = "UpdateName";
+  public static final String NEXUS_SERVICE = "NexusService";
+  public static final String NEXUS_OPERATION = "NexusOperation";
 }

@@ -892,6 +892,27 @@ public final class WorkflowStateMachines {
     };
   }
 
+  public Functions.Proc startNexusOperation(
+      ScheduleNexusOperationCommandAttributes attributes,
+      Functions.Proc2<Optional<String>, Failure> startedCallback,
+      Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
+    checkEventLoopExecuting();
+    NexusOperationStateMachine operation =
+        NexusOperationStateMachine.newInstance(
+            attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
+    return () -> {
+      if (operation.isCancellable()) {
+        operation.cancel();
+      }
+      if (!operation.isFinalState()) {
+        requestCancelNexusOperation(
+            RequestCancelNexusOperationCommandAttributes.newBuilder()
+                .setScheduledEventId(operation.getInitialCommandEventId())
+                .build());
+      }
+    };
+  }
+
   private void notifyChildCanceled(
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     CanceledFailure failure = new CanceledFailure("Child canceled");
@@ -921,6 +942,14 @@ public final class WorkflowStateMachines {
     checkEventLoopExecuting();
     CancelExternalStateMachine.newInstance(
         attributes, completionCallback, commandSink, stateMachineSink);
+  }
+
+  /**
+   * @param attributes attributes to use to cancel a nexus operation
+   */
+  public void requestCancelNexusOperation(RequestCancelNexusOperationCommandAttributes attributes) {
+    checkEventLoopExecuting();
+    CancelNexusOperationStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }
 
   public void upsertSearchAttributes(SearchAttributes attributes) {
@@ -1196,6 +1225,40 @@ public final class WorkflowStateMachines {
               eventAttributes.getTimerId());
         }
         break;
+      case COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION:
+        {
+          ScheduleNexusOperationCommandAttributes commandAttributes =
+              command.getScheduleNexusOperationCommandAttributes();
+          NexusOperationScheduledEventAttributes eventAttributes =
+              event.getNexusOperationScheduledEventAttributes();
+          assertMatch(
+              command,
+              event,
+              "operation",
+              commandAttributes.getOperation(),
+              eventAttributes.getOperation());
+          assertMatch(
+              command,
+              event,
+              "service",
+              commandAttributes.getService(),
+              eventAttributes.getService());
+        }
+        break;
+      case COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION:
+        {
+          RequestCancelNexusOperationCommandAttributes commandAttributes =
+              command.getRequestCancelNexusOperationCommandAttributes();
+          NexusOperationCancelRequestedEventAttributes eventAttributes =
+              event.getNexusOperationCancelRequestedEventAttributes();
+          assertMatch(
+              command,
+              event,
+              "scheduleEventId",
+              commandAttributes.getScheduledEventId(),
+              eventAttributes.getScheduledEventId());
+        }
+        break;
       case COMMAND_TYPE_CANCEL_TIMER:
       case COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION:
       case COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
@@ -1343,7 +1406,21 @@ public final class WorkflowStateMachines {
             event.getWorkflowTaskTimedOutEventAttributes().getScheduledEventId());
       case EVENT_TYPE_WORKFLOW_TASK_FAILED:
         return OptionalLong.of(event.getWorkflowTaskFailedEventAttributes().getScheduledEventId());
-
+      case EVENT_TYPE_NEXUS_OPERATION_STARTED:
+        return OptionalLong.of(
+            event.getNexusOperationStartedEventAttributes().getScheduledEventId());
+      case EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
+        return OptionalLong.of(
+            event.getNexusOperationCompletedEventAttributes().getScheduledEventId());
+      case EVENT_TYPE_NEXUS_OPERATION_FAILED:
+        return OptionalLong.of(
+            event.getNexusOperationFailedEventAttributes().getScheduledEventId());
+      case EVENT_TYPE_NEXUS_OPERATION_CANCELED:
+        return OptionalLong.of(
+            event.getNexusOperationCanceledEventAttributes().getScheduledEventId());
+      case EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
+        return OptionalLong.of(
+            event.getNexusOperationTimedOutEventAttributes().getScheduledEventId());
       case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
       case EVENT_TYPE_TIMER_STARTED:
       case EVENT_TYPE_MARKER_RECORDED:
@@ -1363,6 +1440,8 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ADMITTED:
       case EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED:
+      case EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
+      case EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED:
         return OptionalLong.of(event.getEventId());
 
       default:

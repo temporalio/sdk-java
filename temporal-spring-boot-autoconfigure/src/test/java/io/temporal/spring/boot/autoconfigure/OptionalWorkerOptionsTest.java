@@ -113,6 +113,10 @@ public class OptionalWorkerOptionsTest {
                 1,
                 options.getMaxConcurrentLocalActivityExecutionSize(),
                 "Values from the Spring Config should be respected");
+            assertEquals(
+                1,
+                options.getMaxConcurrentNexusExecutionSize(),
+                "Values from the Spring Config should be respected");
 
             assertEquals(
                 1,
@@ -121,6 +125,10 @@ public class OptionalWorkerOptionsTest {
             assertEquals(
                 1,
                 options.getMaxConcurrentActivityTaskPollers(),
+                "Values from the Spring Config should be respected");
+            assertEquals(
+                1,
+                options.getMaxConcurrentNexusTaskPollers(),
                 "Values from the Spring Config should be respected");
 
             assertEquals(

@@ -26,7 +26,8 @@ public class WorkerMetricsTag {
   public enum WorkerType implements MetricsTag.TagValue {
     WORKFLOW_WORKER("WorkflowWorker"),
     ACTIVITY_WORKER("ActivityWorker"),
-    LOCAL_ACTIVITY_WORKER("LocalActivityWorker");
+    LOCAL_ACTIVITY_WORKER("LocalActivityWorker"),
+    NEXUS_WORKER("NexusWorker");
 
     WorkerType(String value) {
       this.value = value;

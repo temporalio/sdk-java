@@ -69,6 +69,17 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
         LocalActivitySlotInfo.class, resourceBasedController, options);
   }
 
+  /**
+   * Construct a slot supplier for nexus tasks with the given resource controller and options.
+   *
+   * <p>The resource controller must be the same among all slot suppliers in a worker. If you want
+   * to use resource-based tuning for all slot suppliers, prefer {@link ResourceBasedTuner}.
+   */
+  public static ResourceBasedSlotSupplier<NexusSlotInfo> createForNexus(
+      ResourceBasedController resourceBasedController, ResourceBasedSlotOptions options) {
+    return new ResourceBasedSlotSupplier<>(NexusSlotInfo.class, resourceBasedController, options);
+  }
+
   private ResourceBasedSlotSupplier(
       Class<SI> clazz,
       ResourceBasedController resourceBasedController,
@@ -91,7 +102,8 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
                       ? ResourceBasedTuner.DEFAULT_WORKFLOW_SLOT_OPTIONS.getRampThrottle()
                       : options.getRampThrottle())
               .build();
-    } else {
+    } else if (ActivitySlotInfo.class.isAssignableFrom(clazz)
+        || LocalActivitySlotInfo.class.isAssignableFrom(clazz)) {
       this.options =
           ResourceBasedSlotOptions.newBuilder()
               .setMinimumSlots(
@@ -105,6 +117,22 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
               .setRampThrottle(
                   options.getRampThrottle() == null
                       ? ResourceBasedTuner.DEFAULT_ACTIVITY_SLOT_OPTIONS.getRampThrottle()
+                      : options.getRampThrottle())
+              .build();
+    } else {
+      this.options =
+          ResourceBasedSlotOptions.newBuilder()
+              .setMinimumSlots(
+                  options.getMinimumSlots() == 0
+                      ? ResourceBasedTuner.DEFAULT_NEXUS_SLOT_OPTIONS.getMinimumSlots()
+                      : options.getMinimumSlots())
+              .setMaximumSlots(
+                  options.getMaximumSlots() == 0
+                      ? ResourceBasedTuner.DEFAULT_NEXUS_SLOT_OPTIONS.getMaximumSlots()
+                      : options.getMaximumSlots())
+              .setRampThrottle(
+                  options.getRampThrottle() == null
+                      ? ResourceBasedTuner.DEFAULT_NEXUS_SLOT_OPTIONS.getRampThrottle()
                       : options.getRampThrottle())
               .build();
     }

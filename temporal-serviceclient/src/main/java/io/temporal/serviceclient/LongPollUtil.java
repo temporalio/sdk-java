@@ -30,6 +30,7 @@ class LongPollUtil {
       MethodDescriptor<ReqT, RespT> method, CallOptions callOptions) {
     if (method == WorkflowServiceGrpc.getPollWorkflowTaskQueueMethod()
         || method == WorkflowServiceGrpc.getPollActivityTaskQueueMethod()
+        || method == WorkflowServiceGrpc.getPollNexusTaskQueueMethod()
         || method == WorkflowServiceGrpc.getUpdateWorkflowExecutionMethod()
         || method == WorkflowServiceGrpc.getExecuteMultiOperationMethod()
         || method == WorkflowServiceGrpc.getPollWorkflowExecutionUpdateMethod()) {

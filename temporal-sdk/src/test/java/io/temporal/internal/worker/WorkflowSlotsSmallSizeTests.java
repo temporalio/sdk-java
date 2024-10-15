@@ -33,10 +33,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.tuning.ActivitySlotInfo;
-import io.temporal.worker.tuning.CompositeTuner;
-import io.temporal.worker.tuning.LocalActivitySlotInfo;
-import io.temporal.worker.tuning.WorkflowSlotInfo;
+import io.temporal.worker.tuning.*;
 import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -56,12 +53,15 @@ public class WorkflowSlotsSmallSizeTests {
   private final int MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 2;
   private final int MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 2;
   private final int MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 2;
+  private final int MAX_CONCURRENT_NEXUS_EXECUTION_SIZE = 2;
   private final CountingSlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier =
       new CountingSlotSupplier<>(MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE);
   private final CountingSlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier =
       new CountingSlotSupplier<>(MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE);
   private final CountingSlotSupplier<LocalActivitySlotInfo> localActivitySlotSupplier =
       new CountingSlotSupplier<>(MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE);
+  private final CountingSlotSupplier<NexusSlotInfo> nexusSlotSupplier =
+      new CountingSlotSupplier<>(MAX_CONCURRENT_NEXUS_EXECUTION_SIZE);
   static Semaphore parallelSemRunning = new Semaphore(0);
   static Semaphore parallelSemBlocked = new Semaphore(0);
 
@@ -81,7 +81,8 @@ public class WorkflowSlotsSmallSizeTests {
                       new CompositeTuner(
                           workflowTaskSlotSupplier,
                           activityTaskSlotSupplier,
-                          localActivitySlotSupplier))
+                          localActivitySlotSupplier,
+                          nexusSlotSupplier))
                   .build())
           .setActivityImplementations(new TestActivitySemaphoreImpl())
           .setWorkflowTypes(ParallelActivities.class)

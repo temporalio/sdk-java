@@ -20,7 +20,7 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.LinkConverter.*;
+import static io.temporal.internal.common.LinkConverter.*;
 import static io.temporal.internal.testservice.StateMachines.Action.CANCEL;
 import static io.temporal.internal.testservice.StateMachines.Action.COMPLETE;
 import static io.temporal.internal.testservice.StateMachines.Action.CONTINUE_AS_NEW;
@@ -715,6 +715,7 @@ class StateMachines {
                             .setPayload(attr.getInput())
                             .addLinks(link)
                             .setCallback("http://test-env/operations")
+                            .setRequestId(UUID.randomUUID().toString())
                             // The test server uses this to lookup the operation
                             .putCallbackHeader(
                                 "operation-reference", ref.toBytes().toStringUtf8())));
@@ -2454,7 +2455,8 @@ class StateMachines {
   static RetryPolicy defaultNexusRetryPolicy() {
     return RetryPolicy.newBuilder()
         .addAllNonRetryableErrorTypes(
-            Arrays.asList("INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
+            Arrays.asList(
+                "BAD_REQUEST", "INVALID_ARGUMENT", "NOT_FOUND", "DEADLINE_EXCEEDED", "CANCELLED"))
         .setInitialInterval(Durations.fromSeconds(1))
         .setMaximumInterval(Durations.fromHours(1))
         .setBackoffCoefficient(2.0)

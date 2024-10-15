@@ -30,6 +30,7 @@ public class WorkerProperties {
   private final @Nullable String name;
   private final @Nullable Collection<Class<?>> workflowClasses;
   private final @Nullable Collection<String> activityBeans;
+  private final @Nullable Collection<String> nexusServiceBeans;
   private final @Nullable CapacityConfigurationProperties capacity;
   private final @Nullable RateLimitsConfigurationProperties rateLimits;
   private final @Nullable BuildIdConfigurationProperties buildId;
@@ -40,6 +41,7 @@ public class WorkerProperties {
       @Nullable String name,
       @Nullable Collection<Class<?>> workflowClasses,
       @Nullable Collection<String> activityBeans,
+      @Nullable Collection<String> nexusServiceBeans,
       @Nullable CapacityConfigurationProperties capacity,
       @Nullable RateLimitsConfigurationProperties rateLimits,
       @Nullable BuildIdConfigurationProperties buildId) {
@@ -47,6 +49,7 @@ public class WorkerProperties {
     this.taskQueue = taskQueue;
     this.workflowClasses = workflowClasses;
     this.activityBeans = activityBeans;
+    this.nexusServiceBeans = nexusServiceBeans;
     this.capacity = capacity;
     this.rateLimits = rateLimits;
     this.buildId = buildId;
@@ -87,12 +90,19 @@ public class WorkerProperties {
     return buildId;
   }
 
+  @Nullable
+  public Collection<String> getNexusServiceBeans() {
+    return nexusServiceBeans;
+  }
+
   public static class CapacityConfigurationProperties {
     private final @Nullable Integer maxConcurrentWorkflowTaskExecutors;
     private final @Nullable Integer maxConcurrentActivityExecutors;
     private final @Nullable Integer maxConcurrentLocalActivityExecutors;
+    private final @Nullable Integer maxConcurrentNexusTaskExecutors;
     private final @Nullable Integer maxConcurrentWorkflowTaskPollers;
     private final @Nullable Integer maxConcurrentActivityTaskPollers;
+    private final @Nullable Integer maxConcurrentNexusTaskPollers;
 
     /**
      * @param maxConcurrentWorkflowTaskExecutors defines {@link
@@ -101,23 +111,31 @@ public class WorkerProperties {
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityExecutionSize(int)}
      * @param maxConcurrentLocalActivityExecutors defines {@link
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentLocalActivityExecutionSize(int)}
+     * @param maxConcurrentNexusTaskExecutors defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentNexusTaskPollers(int)} (int)}
      * @param maxConcurrentWorkflowTaskPollers defines {@link
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentWorkflowTaskPollers(int)}
      * @param maxConcurrentActivityTaskPollers defines {@link
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityTaskPollers(int)}
+     * @param maxConcurrentNexusTaskPollers defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentNexusTaskPollers(int)} (int)}
      */
     @ConstructorBinding
     public CapacityConfigurationProperties(
         @Nullable Integer maxConcurrentWorkflowTaskExecutors,
         @Nullable Integer maxConcurrentActivityExecutors,
         @Nullable Integer maxConcurrentLocalActivityExecutors,
+        @Nullable Integer maxConcurrentNexusTaskExecutors,
         @Nullable Integer maxConcurrentWorkflowTaskPollers,
-        @Nullable Integer maxConcurrentActivityTaskPollers) {
+        @Nullable Integer maxConcurrentActivityTaskPollers,
+        @Nullable Integer maxConcurrentNexusTaskPollers) {
       this.maxConcurrentWorkflowTaskExecutors = maxConcurrentWorkflowTaskExecutors;
       this.maxConcurrentActivityExecutors = maxConcurrentActivityExecutors;
       this.maxConcurrentLocalActivityExecutors = maxConcurrentLocalActivityExecutors;
+      this.maxConcurrentNexusTaskExecutors = maxConcurrentNexusTaskExecutors;
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
       this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
+      this.maxConcurrentNexusTaskPollers = maxConcurrentNexusTaskPollers;
     }
 
     @Nullable
@@ -136,6 +154,11 @@ public class WorkerProperties {
     }
 
     @Nullable
+    public Integer getMaxConcurrentNexusTasksExecutors() {
+      return maxConcurrentNexusTaskExecutors;
+    }
+
+    @Nullable
     public Integer getMaxConcurrentWorkflowTaskPollers() {
       return maxConcurrentWorkflowTaskPollers;
     }
@@ -143,6 +166,11 @@ public class WorkerProperties {
     @Nullable
     public Integer getMaxConcurrentActivityTaskPollers() {
       return maxConcurrentActivityTaskPollers;
+    }
+
+    @Nullable
+    public Integer getMaxConcurrentNexusTaskPollers() {
+      return maxConcurrentNexusTaskPollers;
     }
   }
 

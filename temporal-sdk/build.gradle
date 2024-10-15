@@ -8,6 +8,7 @@ dependencies {
     api project(':temporal-serviceclient')
     api "com.google.code.gson:gson:$gsonVersion"
     api "io.micrometer:micrometer-core"
+    api "io.nexusrpc:nexus-sdk:$nexusVersion"
 
     implementation "com.google.guava:guava:$guavaVersion"
     api "com.fasterxml.jackson.core:jackson-databind"

@@ -25,6 +25,7 @@ class WorkerThreadsNameHelper {
   private static final String LOCAL_ACTIVITY_POLL_THREAD_NAME_PREFIX =
       "Local Activity Poller taskQueue=";
   private static final String ACTIVITY_POLL_THREAD_NAME_PREFIX = "Activity Poller taskQueue=";
+  private static final String NEXUS_POLL_THREAD_NAME_PREFIX = "Nexus Poller taskQueue=";
   public static final String SHUTDOWN_MANAGER_THREAD_NAME_PREFIX = "TemporalShutdownManager";
   public static final String ACTIVITY_HEARTBEAT_THREAD_NAME_PREFIX = "TemporalActivityHeartbeat-";
 
@@ -64,5 +65,9 @@ class WorkerThreadsNameHelper {
 
   public static String getLocalActivitySchedulerThreadPrefix(String namespace, String taskQueue) {
     return LOCAL_ACTIVITY_SCHEDULER_THREAD_NAME_PREFIX + namespace + "-" + taskQueue;
+  }
+
+  public static String getNexusPollerThreadPrefix(String namespace, String taskQueue) {
+    return NEXUS_POLL_THREAD_NAME_PREFIX + "\"" + taskQueue + "\", namespace=\"" + namespace + "\"";
   }
 }

@@ -57,7 +57,7 @@ public class ChildAsyncWorkflowTest {
       Assert.assertEquals("func", Async.function(stubF::func).get());
       Test1ArgWorkflowFunc stubF1 =
           Workflow.newChildWorkflowStub(Test1ArgWorkflowFunc.class, workflowOptions);
-      assertEquals(1, (int) Async.function(stubF1::func1, 1).get());
+      assertEquals("1", Async.function(stubF1::func1, "1").get());
       Test2ArgWorkflowFunc stubF2 =
           Workflow.newChildWorkflowStub(Test2ArgWorkflowFunc.class, workflowOptions);
       assertEquals("12", Async.function(stubF2::func2, "1", 2).get());

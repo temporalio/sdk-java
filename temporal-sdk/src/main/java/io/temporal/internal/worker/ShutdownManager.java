@@ -20,6 +20,8 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.common.GrpcUtils.isChannelShutdownException;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -134,13 +136,18 @@ public class ShutdownManager implements Closeable {
         () -> {
           try {
             shutdownRequest.get();
-          } catch (StatusRuntimeException e) {
-            // If the server does not support shutdown, ignore the exception
-            if (Status.Code.UNIMPLEMENTED.equals(e.getStatus().getCode())) {
-              return;
-            }
-            log.warn("failed to call shutdown worker", e);
           } catch (Exception e) {
+            if (e instanceof ExecutionException) {
+              e = (Exception) e.getCause();
+            }
+            if (e instanceof StatusRuntimeException) {
+              // If the server does not support shutdown, ignore the exception
+              if (Status.Code.UNIMPLEMENTED.equals(
+                      ((StatusRuntimeException) e).getStatus().getCode())
+                  || isChannelShutdownException((StatusRuntimeException) e)) {
+                return;
+              }
+            }
             log.warn("failed to call shutdown worker", e);
           } finally {
             future.complete(null);

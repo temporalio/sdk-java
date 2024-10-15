@@ -18,7 +18,10 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.internal.common;
+
+import static io.temporal.internal.common.ProtoEnumNameUtils.EVENT_TYPE_PREFIX;
+import static io.temporal.internal.common.ProtoEnumNameUtils.simplifiedToUniqueName;
 
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
@@ -32,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 public class LinkConverter {
 
-  private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
+  private static final Logger log = LoggerFactory.getLogger(LinkConverter.class);
 
   private static final String linkPathFormat = "temporal:///namespaces/%s/workflows/%s/%s/history";
 
@@ -113,7 +116,14 @@ public class LinkConverter {
               eventRef.setEventId(Long.parseLong(param[1]));
               continue;
             case "eventType":
-              eventRef.setEventType(EventType.valueOf(param[1]));
+              // Have to handle the SCREAMING_CASE enum or the traditional temporal PascalCase enum
+              // to EventType
+              if (param[1].startsWith(EVENT_TYPE_PREFIX)) {
+                eventRef.setEventType(EventType.valueOf(param[1]));
+              } else {
+                eventRef.setEventType(
+                    EventType.valueOf(simplifiedToUniqueName(param[1], EVENT_TYPE_PREFIX)));
+              }
           }
         }
         we.setEventRef(eventRef);

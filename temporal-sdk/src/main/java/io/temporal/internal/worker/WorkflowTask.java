@@ -42,7 +42,7 @@ public class WorkflowTask {
   }
 
   /**
-   * Completion handle function that must be called by the handler whenever activity processing is
+   * Completion handle function that must be called by the handler whenever workflow processing is
    * completed.
    */
   @Nonnull
