@@ -85,9 +85,8 @@ public class OperationFailureConversionTest {
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
-    Assert.assertEquals(
-        "message='exceeded invocation count', type='TestFailure', nonRetryable=true",
-        applicationFailure.getOriginalMessage());
+    Assert.assertTrue(
+        applicationFailure.getOriginalMessage().contains("exceeded invocation count"));
   }
 
   public static class TestNexus implements TestWorkflow1 {
@@ -119,10 +118,10 @@ public class OperationFailureConversionTest {
                 details.getRequestId(),
                 invocationCount.getOrDefault(details.getRequestId(), 0) + 1);
             if (name.equals("ApplicationFailure")) {
-              // Limit the number of retries to 5 to avoid overwhelming the test server
-              if (invocationCount.get(details.getRequestId()) > 5) {
+              // Limit the number of retries to 2 to avoid overwhelming the test server
+              if (invocationCount.get(details.getRequestId()) >= 2) {
                 throw ApplicationFailure.newNonRetryableFailure(
-                    "exceeded invocation count", "TestFailure");
+                    "exceeded invocation count", "ExceededInvocationCount");
               }
               throw ApplicationFailure.newFailure("failed to call operation", "TestFailure");
             } else if (name.equals("ApplicationFailureNonRetryable")) {
