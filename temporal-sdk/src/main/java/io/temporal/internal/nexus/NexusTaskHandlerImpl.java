@@ -20,8 +20,9 @@
 
 package io.temporal.internal.nexus;
 
+import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
+
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.FailureInfo;
 import io.nexusrpc.Header;
@@ -39,10 +40,12 @@ import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.worker.TypeAlreadyRegisteredException;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,7 +119,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
 
       CurrentNexusOperationContext.set(
-          new NexusOperationContextImpl(taskQueue, client, metricsScope));
+          new NexusOperationContextImpl(namespace, taskQueue, client, metricsScope));
 
       switch (request.getVariantCase()) {
         case START_OPERATION:
@@ -241,8 +244,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   }
 
   private StartOperationResponse handleStartOperation(
-      OperationContext.Builder ctx, StartOperationRequest task)
-      throws InvalidProtocolBufferException {
+      OperationContext.Builder ctx, StartOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
 
     OperationStartDetails.Builder operationStartDetails =
@@ -250,6 +252,19 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             .setCallbackUrl(task.getCallback())
             .setRequestId(task.getRequestId());
     task.getCallbackHeaderMap().forEach(operationStartDetails::putCallbackHeader);
+    task.getLinksList()
+        .forEach(
+            link -> {
+              try {
+                operationStartDetails.addLink(nexusProtoLinkToLink(link));
+              } catch (URISyntaxException e) {
+                log.error("failed to parse link url: " + link.getUrl(), e);
+                throw new OperationHandlerException(
+                    OperationHandlerException.ErrorType.BAD_REQUEST,
+                    "Invalid link URL: " + link.getUrl(),
+                    e);
+              }
+            });
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
@@ -267,6 +282,15 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         startResponseBuilder.setAsyncSuccess(
             StartOperationResponse.Async.newBuilder()
                 .setOperationId(result.getAsyncOperationId())
+                .addAllLinks(
+                    result.getLinks().stream()
+                        .map(
+                            link ->
+                                io.temporal.api.nexus.v1.Link.newBuilder()
+                                    .setType(link.getType())
+                                    .setUrl(link.getUri().toString())
+                                    .build())
+                        .collect(Collectors.toList()))
                 .build());
       }
     } catch (OperationUnsuccessfulException e) {

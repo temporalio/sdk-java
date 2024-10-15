@@ -20,7 +20,7 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.LinkConverter.*;
+import static io.temporal.internal.common.LinkConverter.*;
 import static io.temporal.internal.testservice.StateMachines.Action.CANCEL;
 import static io.temporal.internal.testservice.StateMachines.Action.COMPLETE;
 import static io.temporal.internal.testservice.StateMachines.Action.CONTINUE_AS_NEW;

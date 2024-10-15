@@ -22,6 +22,7 @@ package io.temporal.client;
 
 import com.google.common.base.Objects;
 import io.temporal.api.common.v1.Callback;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.*;
@@ -82,6 +83,7 @@ public final class WorkflowOptions {
         .setStaticDetails(o.getStaticDetails())
         .setRequestId(o.getRequestId())
         .setCompletionCallbacks(o.getCompletionCallbacks())
+        .setLinks(o.getLinks())
         .validateBuildWithDefaults();
   }
 
@@ -125,6 +127,8 @@ public final class WorkflowOptions {
 
     private List<Callback> completionCallbacks;
 
+    private List<Link> links;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -150,6 +154,7 @@ public final class WorkflowOptions {
       this.staticDetails = options.staticDetails;
       this.requestId = options.requestId;
       this.completionCallbacks = options.completionCallbacks;
+      this.links = options.links;
     }
 
     /**
@@ -444,6 +449,17 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * Links to be associated with the workflow.
+     *
+     * <p>WARNING: Not intended for User Code.
+     */
+    @Experimental
+    public Builder setLinks(List<Link> links) {
+      this.links = links;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -464,7 +480,8 @@ public final class WorkflowOptions {
           staticSummary,
           staticDetails,
           requestId,
-          completionCallbacks);
+          completionCallbacks,
+          links);
     }
 
     /**
@@ -490,7 +507,8 @@ public final class WorkflowOptions {
           staticSummary,
           staticDetails,
           requestId,
-          completionCallbacks);
+          completionCallbacks,
+          links);
     }
   }
 
@@ -532,6 +550,8 @@ public final class WorkflowOptions {
 
   private final List<Callback> completionCallbacks;
 
+  private final List<Link> links;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -551,7 +571,8 @@ public final class WorkflowOptions {
       String staticSummary,
       String staticDetails,
       String requestId,
-      List<Callback> completionCallbacks) {
+      List<Callback> completionCallbacks,
+      List<Link> links) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -571,6 +592,7 @@ public final class WorkflowOptions {
     this.staticDetails = staticDetails;
     this.requestId = requestId;
     this.completionCallbacks = completionCallbacks;
+    this.links = links;
   }
 
   public String getWorkflowId() {
@@ -648,14 +670,21 @@ public final class WorkflowOptions {
   }
 
   @Experimental
-  public List<Callback> getCompletionCallbacks() {
+  public @Nullable List<Callback> getCompletionCallbacks() {
     return completionCallbacks;
   }
 
+  @Experimental
+  public @Nullable List<Link> getLinks() {
+    return links;
+  }
+
+  @Experimental
   public String getStaticSummary() {
     return staticSummary;
   }
 
+  @Experimental
   public String getStaticDetails() {
     return staticDetails;
   }
@@ -687,7 +716,8 @@ public final class WorkflowOptions {
         && Objects.equal(staticSummary, that.staticSummary)
         && Objects.equal(staticDetails, that.staticDetails)
         && Objects.equal(requestId, that.requestId)
-        && Objects.equal(completionCallbacks, that.completionCallbacks);
+        && Objects.equal(completionCallbacks, that.completionCallbacks)
+        && Objects.equal(links, that.links);
   }
 
   @Override
@@ -711,7 +741,8 @@ public final class WorkflowOptions {
         staticSummary,
         staticDetails,
         requestId,
-        completionCallbacks);
+        completionCallbacks,
+        links);
   }
 
   @Override
@@ -758,6 +789,8 @@ public final class WorkflowOptions {
         + requestId
         + ", completionCallbacks="
         + completionCallbacks
+        + ", links="
+        + links
         + '}';
   }
 }

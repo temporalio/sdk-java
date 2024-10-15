@@ -28,9 +28,14 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import java.util.Arrays;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
+  private static final Logger log = LoggerFactory.getLogger(InternalUtils.class);
+
   public static TaskQueue createStickyTaskQueue(
       String stickyTaskQueueName, String normalTaskQueueName) {
     return TaskQueue.newBuilder()
@@ -83,6 +88,28 @@ public final class InternalUtils {
                         .build()));
     if (options.getTaskQueue() == null) {
       nexusWorkflowOptions.setTaskQueue(request.getTaskQueue());
+    }
+    if (request.getLinks() != null) {
+      nexusWorkflowOptions.setLinks(
+          request.getLinks().stream()
+              .map(
+                  (link) -> {
+                    if (io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor()
+                        .getFullName()
+                        .equals(link.getType())) {
+                      io.temporal.api.nexus.v1.Link nexusLink =
+                          io.temporal.api.nexus.v1.Link.newBuilder()
+                              .setType(link.getType())
+                              .setUrl(link.getUri().toString())
+                              .build();
+                      return LinkConverter.nexusLinkToWorkflowEvent(nexusLink);
+                    } else {
+                      log.warn("ignoring unsupported link data type: {}", link.getType());
+                      return null;
+                    }
+                  })
+              .filter(link -> link != null)
+              .collect(Collectors.toList()));
     }
     return stub.newInstance(nexusWorkflowOptions.build());
   }
