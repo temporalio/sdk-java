@@ -45,6 +45,9 @@ dependencies {
     shadow "com.google.guava:failureaccess:1.0.1"
     shadow "com.google.guava:guava:$guavaVersion"
 
+    // nexus
+    shadow "io.nexusrpc:nexus-sdk:$nexusVersion"
+
     // grpc
     shadow "io.grpc:grpc-protobuf-lite:$grpcVersion"
     shadow "io.grpc:grpc-protobuf:$grpcVersion"
