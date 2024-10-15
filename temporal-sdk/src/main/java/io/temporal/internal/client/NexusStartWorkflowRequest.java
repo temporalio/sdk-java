@@ -20,6 +20,8 @@
 
 package io.temporal.internal.client;
 
+import io.nexusrpc.Link;
+import java.util.List;
 import java.util.Map;
 
 public final class NexusStartWorkflowRequest {
@@ -27,13 +29,19 @@ public final class NexusStartWorkflowRequest {
   private final String callbackUrl;
   private final Map<String, String> callbackHeaders;
   private final String taskQueue;
+  private final List<Link> links;
 
   public NexusStartWorkflowRequest(
-      String requestId, String callbackUrl, Map<String, String> callbackHeaders, String taskQueue) {
+      String requestId,
+      String callbackUrl,
+      Map<String, String> callbackHeaders,
+      String taskQueue,
+      List<Link> links) {
     this.requestId = requestId;
     this.callbackUrl = callbackUrl;
     this.callbackHeaders = callbackHeaders;
     this.taskQueue = taskQueue;
+    this.links = links;
   }
 
   public String getRequestId() {
@@ -50,5 +58,9 @@ public final class NexusStartWorkflowRequest {
 
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  public List<Link> getLinks() {
+    return links;
   }
 }

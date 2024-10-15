@@ -55,7 +55,8 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
             operationStartDetails.getRequestId(),
             operationStartDetails.getCallbackUrl(),
             operationStartDetails.getCallbackHeaders(),
-            nexusCtx.getTaskQueue());
+            nexusCtx.getTaskQueue(),
+            operationStartDetails.getLinks());
 
     WorkflowExecution workflowExec = handle.getInvoker().invoke(nexusRequest);
 

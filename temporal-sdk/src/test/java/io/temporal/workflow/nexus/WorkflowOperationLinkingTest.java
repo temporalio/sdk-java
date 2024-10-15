@@ -46,6 +46,7 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class, TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
+          .setUseExternalService(true)
           .build();
 
   @Override
@@ -59,11 +60,9 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("Hello from operation workflow " + testWorkflowRule.getTaskQueue(), result);
+    String originalWorkflowId = WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId();
     History history =
-        testWorkflowRule
-            .getWorkflowClient()
-            .fetchHistory(WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId())
-            .getHistory();
+        testWorkflowRule.getWorkflowClient().fetchHistory(originalWorkflowId).getHistory();
     // Assert that the operation started event has a link to the workflow execution started event
     HistoryEvent nexusStartedEvent =
         getEventOfType(history, EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED);
@@ -71,6 +70,16 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
     Assert.assertEquals(
         EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
         nexusStartedEvent.getLinks(0).getWorkflowEvent().getEventRef().getEventType());
+    // Assert that the started workflow has a link to the original workflow
+    History linkedHistory =
+        testWorkflowRule
+            .getWorkflowClient()
+            .fetchHistory(nexusStartedEvent.getLinks(0).getWorkflowEvent().getWorkflowId())
+            .getHistory();
+    HistoryEvent linkedStartedEvent = linkedHistory.getEventsList().get(0);
+    Assert.assertEquals(1, linkedStartedEvent.getLinksCount());
+    Assert.assertEquals(
+        originalWorkflowId, linkedStartedEvent.getLinks(0).getWorkflowEvent().getWorkflowId());
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {

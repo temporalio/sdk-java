@@ -96,6 +96,10 @@ final class WorkflowClientRequestFactory {
       options.getCompletionCallbacks().forEach(request::addCompletionCallbacks);
     }
 
+    if (options.getLinks() != null) {
+      options.getLinks().forEach(request::addLinks);
+    }
+
     String taskQueue = options.getTaskQueue();
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
