@@ -20,16 +20,17 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
+
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nullable;
 
 class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     extends EntityStateMachineBase<State, ExplicitEvent, Data> {
-
   private CancellableCommand command;
-
   private long initialCommandEventId;
 
   public EntityStateMachineInitialCommand(
@@ -56,7 +57,17 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
   }
 
   protected final void cancelCommand() {
-    command.cancel();
+    if (command != null) {
+      command.cancel();
+    }
+  }
+
+  public WorkflowStateMachines.HandleEventStatus handleEvent(
+      HistoryEvent event, boolean hasNextEvent) {
+    if (isCommandEvent(event)) {
+      command = null;
+    }
+    return super.handleEvent(event, hasNextEvent);
   }
 
   protected long getInitialCommandEventId() {

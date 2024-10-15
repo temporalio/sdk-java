@@ -275,6 +275,7 @@ final class ActivityStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK)
             .setScheduleActivityTaskCommandAttributes(parameters.getAttributes())
             .build());
+    parameters = null; // avoiding retaining large input for the duration of the activity
   }
 
   private void setStartedCommandEventId() {
@@ -455,7 +456,6 @@ final class ActivityStateMachine
                 RequestCancelActivityTaskCommandAttributes.newBuilder()
                     .setScheduledEventId(getInitialCommandEventId()))
             .build());
-    parameters = null; // avoid retaining large input for the duration of the activity
   }
 
   public static class FailureResult {
