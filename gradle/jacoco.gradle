@@ -76,6 +76,7 @@ subprojects {
         // Some tests don't work with Jacoco.
         // It's not a bug, they are just written assuming that they are working not with a proxy, but a pure instance.
         exclude 'io/temporal/workflow/KotlinAsyncChildWorkflowTest.class'
+        exclude 'io/temporal/workflow/KotlinAsyncNexusTest.class'
     }
 
     testCodeCoverageReport.dependsOn jacocoTestReport
