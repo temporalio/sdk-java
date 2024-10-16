@@ -28,12 +28,13 @@ import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
-import io.temporal.failure.TimeoutFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,7 +83,10 @@ public class OperationFailureConversionTest {
             WorkflowFailedException.class, () -> workflowStub.execute("ApplicationFailure"));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof TimeoutFailure);
+    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
+    Assert.assertTrue(
+        applicationFailure.getOriginalMessage().contains("exceeded invocation count"));
   }
 
   public static class TestNexus implements TestWorkflow1 {
@@ -104,11 +108,21 @@ public class OperationFailureConversionTest {
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public class TestNexusServiceImpl {
+    Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
+
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (ctx, details, name) -> {
+            invocationCount.put(
+                details.getRequestId(),
+                invocationCount.getOrDefault(details.getRequestId(), 0) + 1);
             if (name.equals("ApplicationFailure")) {
+              // Limit the number of retries to 2 to avoid overwhelming the test server
+              if (invocationCount.get(details.getRequestId()) >= 2) {
+                throw ApplicationFailure.newNonRetryableFailure(
+                    "exceeded invocation count", "ExceededInvocationCount");
+              }
               throw ApplicationFailure.newFailure("failed to call operation", "TestFailure");
             } else if (name.equals("ApplicationFailureNonRetryable")) {
               throw ApplicationFailure.newNonRetryableFailure(
