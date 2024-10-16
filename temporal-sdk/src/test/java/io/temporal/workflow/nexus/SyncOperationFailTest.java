@@ -20,27 +20,41 @@
 
 package io.temporal.workflow.nexus;
 
+import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+
+import com.google.common.collect.ImmutableMap;
+import com.uber.m3.tally.RootScopeBuilder;
 import io.nexusrpc.OperationUnsuccessfulException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowFailedException;
+import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.MetricsType;
+import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.*;
 
 public class SyncOperationFailTest {
+  private final TestStatsReporter reporter = new TestStatsReporter();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
+          .setMetricsScope(
+              new RootScopeBuilder()
+                  .reporter(reporter)
+                  .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
           .build();
 
   @Test
@@ -54,6 +68,16 @@ public class SyncOperationFailTest {
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
     Assert.assertEquals("failed to call operation", applicationFailure.getOriginalMessage());
+    Map<String, String> execFailedTags =
+        ImmutableMap.<String, String>builder()
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
+            .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.NEXUS_WORKER.getValue())
+            .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
+            .put(MetricsTag.NEXUS_SERVICE, "TestNexusService1")
+            .put(MetricsTag.NEXUS_OPERATION, "operation")
+            .put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed")
+            .buildKeepingLast();
+    reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 4);
   }
 
   public static class TestNexus implements TestWorkflow1 {
