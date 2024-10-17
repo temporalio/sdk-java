@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.tally.Scope;
+import io.nexusrpc.OperationUnsuccessfulException;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.SearchAttributeUpdate;
@@ -129,6 +130,12 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     return new TracingActivityInboundCallsInterceptor(trace, next);
   }
 
+  @Override
+  public NexusOperationInboundCallsInterceptor interceptNexusOperation(
+      NexusOperationInboundCallsInterceptor next) {
+    return new TracingNexusOperationInboundCallsInterceptor(trace, next);
+  }
+
   public static class FilteredTrace {
 
     private final List<String> impl = Collections.synchronizedList(new ArrayList<>());
@@ -189,7 +196,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
         ExecuteNexusOperationInput<R> input) {
       if (!WorkflowUnsafe.isReplaying()) {
-        trace.add("executeNexusOperation " + input.getOperation());
+        trace.add("executeNexusOperation " + input.getService() + "." + input.getOperation());
       }
       return next.executeNexusOperation(input);
     }
@@ -465,6 +472,44 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     public ActivityOutput execute(ActivityInput input) {
       trace.add((local ? "local " : "") + "activity " + type);
       return next.execute(input);
+    }
+  }
+
+  private static class TracingNexusOperationInboundCallsInterceptor
+      implements NexusOperationInboundCallsInterceptor {
+    private final NexusOperationInboundCallsInterceptor next;
+    private final FilteredTrace trace;
+
+    public TracingNexusOperationInboundCallsInterceptor(
+        FilteredTrace trace, NexusOperationInboundCallsInterceptor next) {
+      this.trace = trace;
+      this.next = next;
+    }
+
+    @Override
+    public void init(NexusOperationOutboundCallsInterceptor outboundCalls) {
+      next.init(outboundCalls);
+    }
+
+    @Override
+    public StartOperationOutput startOperation(StartOperationInput input)
+        throws OperationUnsuccessfulException {
+      trace.add(
+          "startNexusOperation "
+              + input.getOperationContext().getService()
+              + "."
+              + input.getOperationContext().getOperation());
+      return next.startOperation(input);
+    }
+
+    @Override
+    public CancelOperationOutput cancelOperation(CancelOperationInput input) {
+      trace.add(
+          "cancelNexusOperation "
+              + input.getOperationContext().getService()
+              + "."
+              + input.getOperationContext().getOperation());
+      return next.cancelOperation(input);
     }
   }
 }

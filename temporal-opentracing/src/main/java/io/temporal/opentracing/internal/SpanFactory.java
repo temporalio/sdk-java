@@ -59,6 +59,18 @@ public class SpanFactory {
     return createSpan(context, tracer, null, References.FOLLOWS_FROM);
   }
 
+  public Tracer.SpanBuilder createNexusOperationExecuteSpan(
+      Tracer tracer, String serviceName, String operationName, String workflowId, String runId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.EXECUTE_NEXUS_OPERATION)
+            .setActionName(serviceName + "." + operationName)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, null, References.CHILD_OF);
+  }
+
   public Tracer.SpanBuilder createChildWorkflowStartSpan(
       Tracer tracer,
       String childWorkflowType,
@@ -171,6 +183,26 @@ public class SpanFactory {
             .setRunId(runId)
             .build();
     return createSpan(context, tracer, activityStartSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createStartNexusOperationSpan(
+      Tracer tracer, String serviceName, String operationName, SpanContext nexusStartSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.START_NEXUS_OPERATION)
+            .setActionName(serviceName + "." + operationName)
+            .build();
+    return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createCancelNexusOperationSpan(
+      Tracer tracer, String serviceName, String operationName, SpanContext nexusStartSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.CANCEL_NEXUS_OPERATION)
+            .setActionName(serviceName + "." + operationName)
+            .build();
+    return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createWorkflowStartUpdateSpan(
