@@ -20,6 +20,8 @@
 
 package io.temporal.internal.nexus;
 
+import static org.mockito.Mockito.mock;
+
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -32,8 +34,10 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Request;
 import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
@@ -59,16 +63,20 @@ public class NexusTaskHandlerImplTest {
 
   @Test
   public void nexusTaskHandlerImplStartNoService() {
+    WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     // Verify if no service is registered, start should return false
     Assert.assertFalse(nexusTaskHandlerImpl.start());
   }
 
   @Test
   public void nexusTaskHandlerImplStart() {
+    WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImpl()});
     // Verify if any services are registered, start should return true
@@ -77,8 +85,10 @@ public class NexusTaskHandlerImplTest {
 
   @Test
   public void startSyncTask() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImpl()});
     nexusTaskHandlerImpl.start();
@@ -115,8 +125,10 @@ public class NexusTaskHandlerImplTest {
 
   @Test
   public void syncTimeoutTask() {
+    WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImpl2()});
     nexusTaskHandlerImpl.start();
@@ -140,8 +152,10 @@ public class NexusTaskHandlerImplTest {
 
   @Test
   public void startAsyncSyncOperation() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
-        new NexusTaskHandlerImpl(null, NAMESPACE, TASK_QUEUE, dataConverter);
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
         new Object[] {new TestNexusServiceImplAsync()});
     nexusTaskHandlerImpl.start();

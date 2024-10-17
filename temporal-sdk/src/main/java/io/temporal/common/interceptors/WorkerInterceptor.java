@@ -95,4 +95,16 @@ public interface WorkerInterceptor {
   WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next);
 
   ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next);
+
+  /**
+   * Called when Nexus task is received. May create a {@link NexusOperationInboundCallsInterceptor}
+   * instance. The instance must forward all the calls to {@code next} {@link
+   * NexusOperationInboundCallsInterceptor}, but it may change the input parameters.
+   *
+   * @param next an existing interceptor instance to be proxied by the interceptor created inside
+   *     this method
+   * @return an interceptor that passes all the calls to {@code next}
+   */
+  NexusOperationInboundCallsInterceptor interceptNexusOperation(
+      NexusOperationInboundCallsInterceptor next);
 }

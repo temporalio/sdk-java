@@ -21,10 +21,7 @@
 package io.temporal.opentracing;
 
 import io.temporal.common.interceptors.*;
-import io.temporal.opentracing.internal.ContextAccessor;
-import io.temporal.opentracing.internal.OpenTracingActivityInboundCallsInterceptor;
-import io.temporal.opentracing.internal.OpenTracingWorkflowInboundCallsInterceptor;
-import io.temporal.opentracing.internal.SpanFactory;
+import io.temporal.opentracing.internal.*;
 
 public class OpenTracingWorkerInterceptor implements WorkerInterceptor {
   private final OpenTracingOptions options;
@@ -50,6 +47,13 @@ public class OpenTracingWorkerInterceptor implements WorkerInterceptor {
   @Override
   public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
     return new OpenTracingActivityInboundCallsInterceptor(
+        next, options, spanFactory, contextAccessor);
+  }
+
+  @Override
+  public NexusOperationInboundCallsInterceptor interceptNexusOperation(
+      NexusOperationInboundCallsInterceptor next) {
+    return new OpenTracingNexusOperationInboundCallsInterceptor(
         next, options, spanFactory, contextAccessor);
   }
 }

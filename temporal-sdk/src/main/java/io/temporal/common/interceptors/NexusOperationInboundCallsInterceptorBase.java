@@ -20,20 +20,32 @@
 
 package io.temporal.common.interceptors;
 
-public class WorkerInterceptorBase implements WorkerInterceptor {
-  @Override
-  public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-    return next;
+import io.nexusrpc.OperationUnsuccessfulException;
+import io.temporal.common.Experimental;
+
+/** Convenience base class for {@link NexusOperationInboundCallsInterceptor} implementations. */
+@Experimental
+public class NexusOperationInboundCallsInterceptorBase
+    implements NexusOperationInboundCallsInterceptor {
+  private final NexusOperationInboundCallsInterceptor next;
+
+  public NexusOperationInboundCallsInterceptorBase(NexusOperationInboundCallsInterceptor next) {
+    this.next = next;
   }
 
   @Override
-  public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-    return next;
+  public void init(NexusOperationOutboundCallsInterceptor outboundCalls) {
+    next.init(outboundCalls);
   }
 
   @Override
-  public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      NexusOperationInboundCallsInterceptor next) {
-    return next;
+  public StartOperationOutput startOperation(StartOperationInput input)
+      throws OperationUnsuccessfulException {
+    return next.startOperation(input);
+  }
+
+  @Override
+  public CancelOperationOutput cancelOperation(CancelOperationInput input) {
+    return next.cancelOperation(input);
   }
 }
