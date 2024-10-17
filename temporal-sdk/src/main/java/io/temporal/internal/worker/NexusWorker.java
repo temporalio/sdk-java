@@ -21,6 +21,7 @@
 package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.TASK_FAILURE_TYPE;
 
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
@@ -40,6 +41,7 @@ import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOpt
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.tuning.*;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -278,14 +280,29 @@ final class NexusWorker implements SuspendableWorker {
       Stopwatch sw = metricsScope.timer(MetricsType.NEXUS_EXEC_LATENCY).start();
       try {
         result = handler.handle(task, metricsScope);
-        if (result.getHandlerError() != null
-            || (result.getResponse().hasStartOperation()
-                && result.getResponse().getStartOperation().hasOperationError())) {
-          metricsScope.counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER).inc(1);
+        if (result.getHandlerError() != null) {
+          metricsScope
+              .tagged(
+                  Collections.singletonMap(
+                      TASK_FAILURE_TYPE,
+                      "handler_error_" + result.getHandlerError().getErrorType()))
+              .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+              .inc(1);
+        } else if (result.getResponse().hasStartOperation()
+            && result.getResponse().getStartOperation().hasOperationError()) {
+          String operationState =
+              result.getResponse().getStartOperation().getOperationError().getOperationState();
+          metricsScope
+              .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "operation_" + operationState))
+              .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+              .inc(1);
         }
       } catch (TimeoutException e) {
         log.warn("Nexus task timed out while processing", e);
-        metricsScope.counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER).inc(1);
+        metricsScope
+            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "internal_sdk_error"))
+            .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+            .inc(1);
         return;
       } catch (Throwable e) {
         // handler.handle if expected to never throw an exception and return result
