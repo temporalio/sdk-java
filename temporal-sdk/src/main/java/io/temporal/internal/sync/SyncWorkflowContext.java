@@ -865,7 +865,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             "Cannot have both typed search attributes and search attributes");
       }
       attributes.setSearchAttributes(SearchAttributesUtil.encode(searchAttributes));
-    } else if (options.getTypedSearchAttributes() != null) {
+    } else if (options.getTypedSearchAttributes() != null
+        && options.getTypedSearchAttributes().size() > 0) {
       attributes.setSearchAttributes(
           SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
@@ -1261,7 +1262,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               "Cannot have typed search attributes and search attributes");
         }
         attributes.setSearchAttributes(SearchAttributesUtil.encode(searchAttributes));
-      } else if (options.getTypedSearchAttributes() != null) {
+      } else if (options.getTypedSearchAttributes() != null
+          && options.getTypedSearchAttributes().size() > 0) {
         attributes.setSearchAttributes(
             SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
       }
