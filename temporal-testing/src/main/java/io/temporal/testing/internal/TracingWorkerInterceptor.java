@@ -292,6 +292,14 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public int getVersion(String seriesId, String iterationId, int minSupported, int maxSupported) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("getVersionSeries");
+      }
+      return next.getVersion(seriesId, iterationId, minSupported, maxSupported);
+    }
+
+    @Override
     public void continueAsNew(ContinueAsNewInput input) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("continueAsNew");
