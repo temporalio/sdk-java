@@ -24,6 +24,7 @@ plugins {
 
 allprojects {
     repositories {
+        mavenLocal()
         mavenCentral()
     }
 }
@@ -32,7 +33,7 @@ ext {
     // Platforms
     grpcVersion = '1.54.1' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
     jacksonVersion = '2.14.2' // [2.9.0,)
-    nexusVersion = '0.2.0-alpha'
+    nexusVersion = '0.3.0'
     // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
     micrometerVersion = project.hasProperty("edgeDepsTest") ? '1.10.5' : '1.9.9' // [1.0.0,)
 
