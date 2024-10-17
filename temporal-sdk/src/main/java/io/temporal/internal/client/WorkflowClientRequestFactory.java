@@ -132,7 +132,8 @@ final class WorkflowClientRequestFactory {
             "Cannot have search attributes and typed search attributes");
       }
       request.setSearchAttributes(SearchAttributesUtil.encode(options.getSearchAttributes()));
-    } else if (options.getTypedSearchAttributes() != null) {
+    } else if (options.getTypedSearchAttributes() != null
+        && options.getTypedSearchAttributes().size() > 0) {
       request.setSearchAttributes(
           SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }

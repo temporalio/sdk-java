@@ -191,6 +191,32 @@ public class TypedSearchAttributesTest {
   }
 
   @Test
+  public void testEmptyTypedSearchAttributeKey() {
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setTypedSearchAttributes(io.temporal.common.SearchAttributes.EMPTY)
+            .build();
+    TestSignaledWorkflow stubF =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+    WorkflowExecution executionF = WorkflowClient.start(stubF::execute);
+
+    GetWorkflowExecutionHistoryResponse historyResp =
+        WorkflowClientHelper.getHistoryPage(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            SDKTestWorkflowRule.NAMESPACE,
+            executionF,
+            ByteString.EMPTY,
+            new NoopScope());
+    HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
+    SearchAttributes searchAttrFromEvent =
+        startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
+
+    io.temporal.common.SearchAttributes decoded =
+        SearchAttributesUtil.decodeTyped(searchAttrFromEvent);
+    assertEquals(io.temporal.common.SearchAttributes.EMPTY, decoded);
+  }
+
+  @Test
   public void testSearchAttributesPresentInChildWorkflow() {
     NoArgsWorkflow client = testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     client.execute();
