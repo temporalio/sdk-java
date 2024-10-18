@@ -34,11 +34,11 @@ ext {
     jacksonVersion = '2.14.2' // [2.9.0,)
     nexusVersion = '0.2.0-alpha'
     // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
-    micrometerVersion = project.hasProperty("edgeDepsTest") ? '1.10.5' : '1.9.9' // [1.0.0,)
+    micrometerVersion = project.hasProperty("edgeDepsTest") ? '1.13.6' : '1.9.9' // [1.0.0,)
 
     // stay on 1.x for a while to don't use any APIs from 2.x which may break our users which still stay on 1.x
     // also slf4j 2.x is not compatible with spring boot 2.x
-    slf4jVersion = project.hasProperty("edgeDepsTest") ? '2.0.6' : '1.7.36' // [1.4.0,)
+    slf4jVersion = project.hasProperty("edgeDepsTest") ? '2.0.16' : '1.7.36' // [1.4.0,)
     // [3.12.0,)
     // 3.12 is brought by min gRPC 1.38.
     // We can't move pass 3.22.0 because 3.22.2 deprecates some methods used by generated code produced by
@@ -57,7 +57,7 @@ ext {
 
     // Spring Boot 3 requires Java 17, java-sdk builds against 2.x version because we support Java 8.
     // We do test compatibility with Spring Boot 3 in integration tests.
-    springBootVersion = project.hasProperty("edgeDepsTest") ? '3.0.4' : '2.7.18'// [2.4.0,)
+    springBootVersion = project.hasProperty("edgeDepsTest") ? '3.3.4' : '2.7.18'// [2.4.0,)
 
     // test scoped
     // we don't upgrade to 1.3 and 1.4 because they require slf4j 2.x
