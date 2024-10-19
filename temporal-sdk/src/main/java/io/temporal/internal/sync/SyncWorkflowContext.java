@@ -817,6 +817,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     ? dataConverter.fromPayload(
                         b.get(), input.getResultClass(), input.getResultType())
                     : null);
+    // We register an empty handler to make sure that this promise is always "accessed" and never
+    // leads to a log about it being completed exceptionally and non-accessed.
+    // The "main" operation promise is the one returned from the execute method and that
+    // promise will always be logged if not accessed.
+    operationPromise.handle((ex, failure) -> null);
     return new ExecuteNexusOperationOutput<>(result, operationPromise);
   }
 
