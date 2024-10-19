@@ -93,6 +93,7 @@ public class ServiceStubsOptions {
    * Interval at which server will be pinged in order to determine if connections are still alive.
    */
   protected final Duration keepAliveTime;
+
   /**
    * Amount of time that client would wait for the keep alive ping response from the server before
    * closing the connection.
