@@ -786,7 +786,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             timeoutNexusRequest(
                 scheduleEventId, "StartNexusOperation", operation.getData().getAttempt()),
         "StartNexusOperation request timeout");
-    if (attr.hasScheduleToCloseTimeout()) {
+    if (attr.hasScheduleToCloseTimeout()
+        && Durations.toMillis(attr.getScheduleToCloseTimeout()) > 0) {
       ctx.addTimer(
           ProtobufTimeUtils.toJavaDuration(attr.getScheduleToCloseTimeout()),
           () ->
