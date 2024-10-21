@@ -30,7 +30,6 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -65,10 +64,7 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String input) {
-      NexusOperationOptions options =
-          NexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(10))
-              .build();
+      NexusOperationOptions options = NexusOperationOptions.newBuilder().build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder()
               .setEndpoint(getEndpointName())

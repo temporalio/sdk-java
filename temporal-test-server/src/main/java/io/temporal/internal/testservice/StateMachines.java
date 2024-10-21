@@ -661,7 +661,8 @@ class StateMachines {
       long workflowTaskCompletedId) {
     Duration expirationInterval = attr.getScheduleToCloseTimeout();
     Timestamp expirationTime =
-        (attr.hasScheduleToCloseTimeout())
+        (attr.hasScheduleToCloseTimeout()
+                && Durations.toMillis(attr.getScheduleToCloseTimeout()) > 0)
             ? Timestamps.add(ctx.currentTime(), expirationInterval)
             : Timestamp.getDefaultInstance();
     TestServiceRetryState retryState = new TestServiceRetryState(data.retryPolicy, expirationTime);
