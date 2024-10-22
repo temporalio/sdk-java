@@ -22,12 +22,11 @@ package io.temporal.client;
 
 import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
-
-import javax.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
 
 /**
  * UpdateWithStartWorkflowOperation is an update workflow request that can be executed together with
@@ -286,8 +285,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private final CompletableFuture<WorkflowUpdateHandle<R>> handle;
 
-  @Nullable
-  private final Functions.Proc updateRequest;
+  @Nullable private final Functions.Proc updateRequest;
 
   private UpdateWithStartWorkflowOperation(
       UpdateOptions<R> options, Functions.Proc updateRequest, Object[] updateArgs) {
@@ -370,7 +368,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
     StringBuilder sb = new StringBuilder();
     sb.append("UpdateWithStartWorkflowOperation{options=").append(options);
     if (updateRequest != null) {
-      sb.append(", request=").append(updateRequest);
+      sb.append(", updateRequest=").append(updateRequest);
     }
     if (updateArgs != null) {
       sb.append(", updateArgs=").append(Arrays.toString(updateArgs));
