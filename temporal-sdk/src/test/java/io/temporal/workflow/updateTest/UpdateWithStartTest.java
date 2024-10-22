@@ -218,12 +218,19 @@ public class UpdateWithStartTest {
         WorkflowClient.updateWithStart(stubF6::func6, "1", 2, 3, 4, 5, 6, updateOp6);
 
     assertEquals("0", handle0.getResultAsync().get());
+    assertEquals("func", WorkflowStub.fromTyped(stubF).getResult(String.class));
     assertEquals("1", handle1.getResultAsync().get());
+    assertEquals("1", WorkflowStub.fromTyped(stubF1).getResult(String.class));
     assertEquals("2", handle2.getResultAsync().get());
+    assertEquals("12", WorkflowStub.fromTyped(stubF2).getResult(String.class));
     assertEquals("3", handle3.getResultAsync().get());
+    assertEquals("123", WorkflowStub.fromTyped(stubF3).getResult(String.class));
     assertEquals("4", handle4.getResultAsync().get());
+    assertEquals("1234", WorkflowStub.fromTyped(stubF4).getResult(String.class));
     assertEquals("5", handle5.getResultAsync().get());
+    assertEquals("12345", WorkflowStub.fromTyped(stubF5).getResult(String.class));
     assertEquals("6", handle6.getResultAsync().get());
+    assertEquals("123456", WorkflowStub.fromTyped(stubF6).getResult(String.class));
   }
 
   @Test

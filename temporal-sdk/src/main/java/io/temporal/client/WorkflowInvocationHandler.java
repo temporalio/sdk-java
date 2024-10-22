@@ -490,7 +490,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
           throw new IllegalArgumentException(
               "Method '" + method.getName() + "' is not a WorkflowMethod");
         }
-        this.operation.prepareStart(untyped);
+        this.operation.prepareStart(untyped, args);
         state = State.UPDATE_RECEIVED;
       } else {
         throw new IllegalArgumentException(

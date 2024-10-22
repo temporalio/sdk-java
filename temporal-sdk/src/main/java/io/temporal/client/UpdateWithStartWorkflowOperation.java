@@ -276,7 +276,11 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private UpdateOptions<R> options;
 
+  // set by constructor (untyped) or `prepareUpdate` (typed)
   private Object[] updateArgs;
+
+  // set by `prepareStart`
+  private Object[] workflowArgs;
 
   private final CompletableFuture<WorkflowUpdateHandle<R>> handle;
 
@@ -294,9 +298,13 @@ public final class UpdateWithStartWorkflowOperation<R> {
     WorkflowInvocationHandler.initAsyncInvocation(
         WorkflowInvocationHandler.InvocationType.UPDATE_WITH_START, this);
     try {
+      // invokes `prepareUpdate` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
       request.apply();
+
+      // invokes `prepareStart` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
       workflow.apply();
-      stub.updateWithStart(this, this.updateArgs);
+
+      stub.updateWithStart(this, this.workflowArgs);
       return this.handle.get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -311,6 +319,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
     }
   }
 
+  /** Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}. */
   void prepareUpdate(
       WorkflowStub stub, String updateName, Class resultClass, Type resultType, Object[] args) {
     setStub(stub);
@@ -323,8 +332,10 @@ public final class UpdateWithStartWorkflowOperation<R> {
             .build();
   }
 
-  void prepareStart(WorkflowStub stub) {
+  /** Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}. */
+  void prepareStart(WorkflowStub stub, Object[] args) {
     setStub(stub);
+    this.workflowArgs = args;
   }
 
   /** Returns the result of the update request. */
