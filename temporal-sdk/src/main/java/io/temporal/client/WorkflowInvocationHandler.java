@@ -444,14 +444,14 @@ class WorkflowInvocationHandler implements InvocationHandler {
   private static class UpdateWithStartInvocationHandler implements SpecificInvocationHandler {
 
     enum State {
-      NOT_STARTED,
+      INIT,
       START_RECEIVED,
       UPDATE_RECEIVED,
     }
 
     private final UpdateWithStartWorkflowOperation operation;
 
-    private State state = State.NOT_STARTED;
+    private State state = State.INIT;
 
     public UpdateWithStartInvocationHandler(UpdateWithStartWorkflowOperation operation) {
       this.operation = operation;
@@ -471,7 +471,15 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
 
-      if (state == State.NOT_STARTED) {
+      if (state == State.INIT) {
+        WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+        if (workflowMethod == null) {
+          throw new IllegalArgumentException(
+              "Method '" + method.getName() + "' is not a WorkflowMethod");
+        }
+        this.operation.prepareStart(untyped, args);
+        state = State.START_RECEIVED;
+      } else if (state == State.START_RECEIVED) {
         UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
         if (updateMethod == null) {
           throw new IllegalArgumentException(
@@ -483,14 +491,6 @@ class WorkflowInvocationHandler implements InvocationHandler {
             method.getReturnType(),
             method.getGenericReturnType(),
             args);
-        state = State.START_RECEIVED;
-      } else if (state == State.START_RECEIVED) {
-        WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-        if (workflowMethod == null) {
-          throw new IllegalArgumentException(
-              "Method '" + method.getName() + "' is not a WorkflowMethod");
-        }
-        this.operation.prepareStart(untyped, args);
         state = State.UPDATE_RECEIVED;
       } else {
         throw new IllegalArgumentException(

@@ -284,26 +284,27 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private final CompletableFuture<WorkflowUpdateHandle<R>> handle;
 
-  private final Functions.Proc request;
+  private final Functions.Proc updateRequest;
 
   private UpdateWithStartWorkflowOperation(
-      UpdateOptions<R> options, Functions.Proc request, Object[] updateArgs) {
+      UpdateOptions<R> options, Functions.Proc updateRequest, Object[] updateArgs) {
     this.options = options;
     this.updateArgs = updateArgs;
     this.handle = new CompletableFuture<>();
-    this.request = request;
+    this.updateRequest = updateRequest;
   }
 
-  WorkflowUpdateHandle<R> invoke(Functions.Proc workflow) {
+  WorkflowUpdateHandle<R> invoke(Functions.Proc workflowRequest) {
     WorkflowInvocationHandler.initAsyncInvocation(
         WorkflowInvocationHandler.InvocationType.UPDATE_WITH_START, this);
     try {
-      // invokes `prepareUpdate` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
-      request.apply();
+        // invokes `prepareStart` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
+        workflowRequest.apply();
 
-      // invokes `prepareStart` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
-      workflow.apply();
-
+      if (updateRequest != null) { // only present when using typed API
+          // invokes `prepareUpdate` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
+          updateRequest.apply();
+      }
       stub.updateWithStart(this, this.workflowArgs);
       return this.handle.get();
     } catch (InterruptedException e) {
@@ -365,8 +366,8 @@ public final class UpdateWithStartWorkflowOperation<R> {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("UpdateWithStartWorkflowOperation{options=").append(options);
-    if (request != null) {
-      sb.append(", request=").append(request);
+    if (updateRequest != null) {
+      sb.append(", request=").append(updateRequest);
     }
     if (updateArgs != null) {
       sb.append(", updateArgs=").append(Arrays.toString(updateArgs));
