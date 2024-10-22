@@ -278,6 +278,8 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private Object[] updateArgs;
 
+  private Object[] workflowArgs;
+
   private final CompletableFuture<WorkflowUpdateHandle<R>> handle;
 
   private final Functions.Proc request;
@@ -296,7 +298,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
     try {
       request.apply();
       workflow.apply();
-      stub.updateWithStart(this, this.updateArgs);
+      stub.updateWithStart(this, this.workflowArgs);
       return this.handle.get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -323,8 +325,9 @@ public final class UpdateWithStartWorkflowOperation<R> {
             .build();
   }
 
-  void prepareStart(WorkflowStub stub) {
+  void prepareStart(WorkflowStub stub, Object[] args) {
     setStub(stub);
+    this.workflowArgs = args;
   }
 
   /** Returns the result of the update request. */
