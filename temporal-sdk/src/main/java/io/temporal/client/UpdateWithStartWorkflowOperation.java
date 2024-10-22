@@ -22,6 +22,8 @@ package io.temporal.client;
 
 import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
+
+import javax.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.*;
@@ -284,6 +286,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private final CompletableFuture<WorkflowUpdateHandle<R>> handle;
 
+  @Nullable
   private final Functions.Proc updateRequest;
 
   private UpdateWithStartWorkflowOperation(
@@ -298,12 +301,12 @@ public final class UpdateWithStartWorkflowOperation<R> {
     WorkflowInvocationHandler.initAsyncInvocation(
         WorkflowInvocationHandler.InvocationType.UPDATE_WITH_START, this);
     try {
-        // invokes `prepareStart` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
-        workflowRequest.apply();
+      // invokes `prepareStart` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
+      workflowRequest.apply();
 
       if (updateRequest != null) { // only present when using typed API
-          // invokes `prepareUpdate` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
-          updateRequest.apply();
+        // invokes `prepareUpdate` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
+        updateRequest.apply();
       }
       stub.updateWithStart(this, this.workflowArgs);
       return this.handle.get();
