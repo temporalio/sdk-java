@@ -84,8 +84,35 @@ public class UpdateWithStartTest {
     assertEquals(options.getWorkflowId(), handle1.getExecution().getWorkflowId());
     assertEquals("Hello Update", handle1.getResultAsync().get());
 
-    WorkflowUpdateHandle<String> updHandle = updateOp.getUpdateHandle().get();
-    assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
+    WorkflowUpdateHandle<String> handle2 = updateOp.getUpdateHandle().get();
+    assertEquals(updateOp.getResult(), handle2.getResultAsync().get());
+
+    workflow.complete();
+
+    assertEquals("Hello Update complete", WorkflowStub.fromTyped(workflow).getResult(String.class));
+  }
+
+  @Test
+  public void startAndSendUpdateTogetherUsingUntypedWorkflowOperation()
+      throws ExecutionException, InterruptedException {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    WorkflowOptions options = createOptions();
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
+
+    UpdateWithStartWorkflowOperation<String> updateOp =
+        UpdateWithStartWorkflowOperation.newBuilder(
+                "update", String.class, new Object[] {1, "Hello Update"}) // untyped!
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+
+    WorkflowUpdateHandle<String> handle1 =
+        WorkflowClient.updateWithStart(workflow::execute, updateOp);
+    assertEquals("Hello Update", handle1.getResultAsync().get());
+
+    WorkflowUpdateHandle<String> handle2 = updateOp.getUpdateHandle().get();
+    assertEquals(updateOp.getResult(), handle2.getResultAsync().get());
 
     workflow.complete();
 
@@ -110,8 +137,8 @@ public class UpdateWithStartTest {
         WorkflowClient.updateWithStart(workflow::execute, updateOp);
     assertNull(handle1.getResultAsync().get());
 
-    WorkflowUpdateHandle<Void> updHandle = updateOp.getUpdateHandle().get();
-    assertEquals(updateOp.getResult(), updHandle.getResultAsync().get());
+    WorkflowUpdateHandle<Void> handle2 = updateOp.getUpdateHandle().get();
+    assertEquals(updateOp.getResult(), handle2.getResultAsync().get());
 
     assertEquals("Hello Update", WorkflowStub.fromTyped(workflow).getResult(String.class));
   }
