@@ -22,8 +22,6 @@ package io.temporal.client;
 
 import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
-
-import javax.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.*;
@@ -321,9 +319,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
     }
   }
 
-  /**
-   * Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}.
-   */
+  /** Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}. */
   void prepareUpdate(
       WorkflowStub stub, String updateName, Class resultClass, Type resultType, Object[] args) {
     setStub(stub);
@@ -336,9 +332,7 @@ public final class UpdateWithStartWorkflowOperation<R> {
             .build();
   }
 
-  /**
-   * Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}.
-   */
+  /** Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}. */
   void prepareStart(WorkflowStub stub, Object[] args) {
     setStub(stub);
     this.workflowArgs = args;
