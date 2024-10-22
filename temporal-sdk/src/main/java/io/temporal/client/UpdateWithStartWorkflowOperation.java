@@ -22,6 +22,8 @@ package io.temporal.client;
 
 import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
+
+import javax.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.*;
@@ -276,8 +278,10 @@ public final class UpdateWithStartWorkflowOperation<R> {
 
   private UpdateOptions<R> options;
 
+  // set by constructor (untyped) or `prepareUpdate` (typed)
   private Object[] updateArgs;
 
+  // set by `prepareStart`
   private Object[] workflowArgs;
 
   private final CompletableFuture<WorkflowUpdateHandle<R>> handle;
@@ -296,8 +300,12 @@ public final class UpdateWithStartWorkflowOperation<R> {
     WorkflowInvocationHandler.initAsyncInvocation(
         WorkflowInvocationHandler.InvocationType.UPDATE_WITH_START, this);
     try {
+      // invokes `prepareUpdate` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
       request.apply();
+
+      // invokes `prepareStart` via WorkflowInvocationHandler.UpdateWithStartInvocationHandler
       workflow.apply();
+
       stub.updateWithStart(this, this.workflowArgs);
       return this.handle.get();
     } catch (InterruptedException e) {
@@ -313,6 +321,9 @@ public final class UpdateWithStartWorkflowOperation<R> {
     }
   }
 
+  /**
+   * Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}.
+   */
   void prepareUpdate(
       WorkflowStub stub, String updateName, Class resultClass, Type resultType, Object[] args) {
     setStub(stub);
@@ -325,6 +336,9 @@ public final class UpdateWithStartWorkflowOperation<R> {
             .build();
   }
 
+  /**
+   * Invoked by {@link WorkflowInvocationHandler.UpdateWithStartInvocationHandler}.
+   */
   void prepareStart(WorkflowStub stub, Object[] args) {
     setStub(stub);
     this.workflowArgs = args;
