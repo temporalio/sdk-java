@@ -516,7 +516,15 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     WorkflowImplementationOptions workflowImplementationOptions =
         new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
             .createWorkflowImplementationOptions();
-
+    // TODO(https://github.com/temporalio/sdk-java/issues/2290) Currently because workflow implementations are created
+    // as been instances, we cannot have a constructor annotated with @WorkflowInit. We will need to construct the
+    // workflow instances a different way if workflow init is used.
+    if (workflowMetadata.getWorkflowInit() != null) {
+      throw new BeanDefinitionValidationException(
+              "Currently Workflow implementation cannot have a constructor annotated with @WorkflowInit in SpringBoot. "
+                      + " This is a know limitation and will be fixed in future releases. Please remove the @WorkflowInit annotation from: "
+                      + clazz);
+    }
     for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
