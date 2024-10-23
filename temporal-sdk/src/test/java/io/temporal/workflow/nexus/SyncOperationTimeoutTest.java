@@ -79,6 +79,12 @@ public class SyncOperationTimeoutTest {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, name) -> {
+            // Simulate a long running operation
+            try {
+              Thread.sleep(2000);
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
             throw new RuntimeException("failed to call operation");
           });
     }
