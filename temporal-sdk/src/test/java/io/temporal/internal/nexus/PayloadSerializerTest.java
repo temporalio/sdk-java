@@ -20,8 +20,11 @@
 
 package io.temporal.internal.nexus;
 
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import java.util.Collections;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,5 +44,29 @@ public class PayloadSerializerTest {
     PayloadSerializer.Content content = payloadSerializer.serialize(null);
     payloadSerializer.deserialize(content, String.class);
     Assert.assertEquals(null, payloadSerializer.deserialize(content, String.class));
+  }
+
+  @Test
+  public void testInteger() {
+    PayloadSerializer.Content content = payloadSerializer.serialize(1);
+    payloadSerializer.deserialize(content, Integer.class);
+    Assert.assertEquals(1, payloadSerializer.deserialize(content, Integer.class));
+  }
+
+  @Test
+  public void testHashMap() {
+    Map<String, Integer> map = Collections.singletonMap("key", 0);
+    PayloadSerializer.Content content = payloadSerializer.serialize(map);
+    payloadSerializer.deserialize(content, map.getClass());
+    Assert.assertEquals(map, payloadSerializer.deserialize(content, map.getClass()));
+  }
+
+  @Test
+  public void testProto() {
+    WorkflowExecution exec =
+        WorkflowExecution.newBuilder().setWorkflowId("id").setRunId("runId").build();
+    PayloadSerializer.Content content = payloadSerializer.serialize(exec);
+    payloadSerializer.deserialize(content, WorkflowExecution.class);
+    Assert.assertEquals(exec, payloadSerializer.deserialize(content, WorkflowExecution.class));
   }
 }

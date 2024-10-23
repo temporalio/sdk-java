@@ -3180,9 +3180,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setScheduledEventId(data.scheduledEventId)
             .setScheduleToCloseTimeout(data.scheduledEvent.getScheduleToCloseTimeout())
             .setState(convertNexusOperationState(sm.getState(), data))
-            .setAttempt(data.getAttempt())
-            .setLastAttemptCompleteTime(data.lastAttemptCompleteTime)
-            .setNextAttemptScheduleTime(data.nextAttemptScheduleTime);
+            .setAttempt(data.getAttempt());
+    if (data.lastAttemptCompleteTime != null) {
+      builder.setLastAttemptCompleteTime(data.lastAttemptCompleteTime);
+    }
+    if (data.nextAttemptScheduleTime != null) {
+      builder.setNextAttemptScheduleTime(data.nextAttemptScheduleTime);
+    }
 
     data.retryState.getPreviousRunFailure().ifPresent(builder::setLastAttemptFailure);
 

@@ -52,7 +52,10 @@ class PayloadSerializer implements Serializer {
   public @Nullable Object deserialize(Content content, Type type) {
     try {
       Payload payload = Payload.parseFrom(content.getData());
-      return dataConverter.fromPayload(payload, type.getClass(), type);
+      if (!(type instanceof Class)) {
+        throw new IllegalArgumentException("Type must be a class");
+      }
+      return dataConverter.fromPayload(payload, (Class<?>) type, type);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
