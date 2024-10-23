@@ -44,6 +44,7 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,7 +67,11 @@ public class OperationFailMetricTest {
     return ImmutableMap.<String, String>builder()
         .putAll(MetricsTag.defaultTags(NAMESPACE))
         .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.NEXUS_WORKER.getValue())
-        .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
+        .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue());
+  }
+
+  private ImmutableMap.Builder<String, String> getOperationTags() {
+    return getBaseTags()
         .put(MetricsTag.NEXUS_SERVICE, "TestNexusService1")
         .put(MetricsTag.NEXUS_OPERATION, "operation");
   }
@@ -79,10 +84,16 @@ public class OperationFailMetricTest {
     Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("fail"));
 
     Map<String, String> execFailedTags =
-        getBaseTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
+        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
         });
   }
@@ -94,12 +105,18 @@ public class OperationFailMetricTest {
     Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("handlererror"));
 
     Map<String, String> execFailedTags =
-        getBaseTags()
+        getOperationTags()
             .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
         });
   }
@@ -112,12 +129,18 @@ public class OperationFailMetricTest {
         WorkflowFailedException.class, () -> workflowStub.execute("already-started"));
 
     Map<String, String> execFailedTags =
-        getBaseTags()
+        getOperationTags()
             .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
         });
   }
@@ -130,12 +153,18 @@ public class OperationFailMetricTest {
         WorkflowFailedException.class, () -> workflowStub.execute("retryable-application-failure"));
 
     Map<String, String> execFailedTags =
-        getBaseTags()
+        getOperationTags()
             .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(
               MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, c -> c >= 1);
         });
@@ -150,12 +179,18 @@ public class OperationFailMetricTest {
         () -> workflowStub.execute("non-retryable-application-failure"));
 
     Map<String, String> execFailedTags =
-        getBaseTags()
+        getOperationTags()
             .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
         });
   }
@@ -167,10 +202,14 @@ public class OperationFailMetricTest {
     Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("sleep"));
 
     Map<String, String> execFailedTags =
-        getBaseTags().put(MetricsTag.TASK_FAILURE_TYPE, "internal_sdk_error").buildKeepingLast();
+        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "timeout").buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
         });
   }
@@ -181,12 +220,18 @@ public class OperationFailMetricTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("error"));
     Map<String, String> execFailedTags =
-        getBaseTags()
+        getOperationTags()
             .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(
               MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, c -> c >= 1);
         });
@@ -210,11 +255,19 @@ public class OperationFailMetricTest {
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public class TestNexusServiceImpl {
+    Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
+
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, operation) -> {
+            invocationCount.put(
+                details.getRequestId(),
+                invocationCount.getOrDefault(details.getRequestId(), 0) + 1);
+            if (invocationCount.get(details.getRequestId()) > 1) {
+              throw new OperationUnsuccessfulException("exceeded invocation count");
+            }
             switch (operation) {
               case "success":
                 return operation;
@@ -243,6 +296,7 @@ public class OperationFailMetricTest {
                 // Should never happen
                 Assert.fail();
             }
+            return operation;
           });
     }
   }

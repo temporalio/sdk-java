@@ -300,11 +300,15 @@ final class NexusWorker implements SuspendableWorker {
       } catch (TimeoutException e) {
         log.warn("Nexus task timed out while processing", e);
         metricsScope
-            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "internal_sdk_error"))
+            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "timeout"))
             .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
             .inc(1);
         return;
       } catch (Throwable e) {
+        metricsScope
+            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "internal_sdk_error"))
+            .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+            .inc(1);
         // handler.handle if expected to never throw an exception and return result
         // that can be used for a workflow callback if this method throws, it's a bug.
         log.error("[BUG] Code that expected to never throw an exception threw an exception", e);
