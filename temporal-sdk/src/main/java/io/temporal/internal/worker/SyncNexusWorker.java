@@ -49,7 +49,12 @@ public class SyncNexusWorker implements SuspendableWorker {
     this.taskQueue = taskQueue;
 
     this.taskHandler =
-        new NexusTaskHandlerImpl(client, namespace, taskQueue, options.getDataConverter());
+        new NexusTaskHandlerImpl(
+            client,
+            namespace,
+            taskQueue,
+            options.getDataConverter(),
+            options.getWorkerInterceptors());
     this.worker =
         new NexusWorker(
             client.getWorkflowServiceStubs(),
