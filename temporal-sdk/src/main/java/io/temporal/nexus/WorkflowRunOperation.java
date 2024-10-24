@@ -73,7 +73,7 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
     io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(workflowEventLink);
     try {
       OperationStartResult.Builder<R> result =
-          OperationStartResult.<R>newBuilder().setAsyncOperationId(workflowExec.getWorkflowId());
+          OperationStartResult.<R>newAsyncBuilder(workflowExec.getWorkflowId());
       if (nexusLink != null) {
         result.addLink(nexusProtoLinkToLink(nexusLink));
       }

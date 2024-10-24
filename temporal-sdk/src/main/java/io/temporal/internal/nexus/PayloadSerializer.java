@@ -24,6 +24,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.nexusrpc.Serializer;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DataConverter;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -52,7 +53,14 @@ class PayloadSerializer implements Serializer {
   public @Nullable Object deserialize(Content content, Type type) {
     try {
       Payload payload = Payload.parseFrom(content.getData());
-      return dataConverter.fromPayload(payload, type.getClass(), type);
+      if ((type instanceof Class)) {
+        return dataConverter.fromPayload(payload, (Class<?>) type, type);
+      } else if (type instanceof ParameterizedType) {
+        return dataConverter.fromPayload(
+            payload, (Class<?>) ((ParameterizedType) type).getRawType(), type);
+      } else {
+        throw new IllegalArgumentException("Unsupported type: " + type);
+      }
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
