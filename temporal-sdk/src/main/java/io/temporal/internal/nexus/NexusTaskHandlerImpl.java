@@ -223,7 +223,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     if (failure instanceof Error) {
       throw (Error) failure;
     }
-    throw new RuntimeException(failure);
+    throw failure instanceof RuntimeException
+        ? (RuntimeException) failure
+        : new RuntimeException(failure);
   }
 
   private OperationStartResult<HandlerResultContent> startOperation(

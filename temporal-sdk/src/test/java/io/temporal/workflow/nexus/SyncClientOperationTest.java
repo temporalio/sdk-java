@@ -106,7 +106,12 @@ public class SyncClientOperationTest {
             .buildKeepingLast();
     reporter.assertTimer(MetricsType.NEXUS_EXEC_LATENCY, operationTags);
     reporter.assertTimer(MetricsType.NEXUS_TASK_E2E_LATENCY, operationTags);
-    reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, operationTags, 1);
+    Map<String, String> execFailedTags =
+        ImmutableMap.<String, String>builder()
+            .putAll(operationTags)
+            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .buildKeepingLast();
+    reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
   }
 
   @WorkflowInterface
