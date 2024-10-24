@@ -33,6 +33,7 @@ class StateUtils {
   private static Payload nullPayload = DefaultDataConverter.STANDARD_INSTANCE.toPayload(null).get();
   private static Payload emptyListPayload =
       DefaultDataConverter.STANDARD_INSTANCE.toPayload(new String[] {}).get();
+
   /**
    * @return true if the workflow was completed not by workflow task completion result
    */

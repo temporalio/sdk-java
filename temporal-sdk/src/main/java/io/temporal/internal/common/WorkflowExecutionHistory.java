@@ -45,6 +45,7 @@ import java.util.List;
 public class WorkflowExecutionHistory {
   protected static final String DEFAULT_WORKFLOW_ID = "workflow_id_in_replay";
   private static final Gson GSON_PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
+
   // we stay on using the old API that uses a JsonParser instance instead of static methods
   // to give users a larger range of supported version
   @SuppressWarnings("deprecation")

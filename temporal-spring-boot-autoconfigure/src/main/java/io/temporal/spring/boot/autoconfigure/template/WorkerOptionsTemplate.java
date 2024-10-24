@@ -82,8 +82,7 @@ class WorkerOptionsTemplate {
       if (buildIdConfigurations != null) {
         Optional.ofNullable(buildIdConfigurations.getWorkerBuildId())
             .ifPresent(options::setBuildId);
-        Optional.ofNullable(buildIdConfigurations.getEnabledWorkerVersioning())
-            .ifPresent(options::setUseBuildIdForVersioning);
+        options.setUseBuildIdForVersioning(buildIdConfigurations.getEnabledWorkerVersioning());
       }
     }
     if (customizer != null) {

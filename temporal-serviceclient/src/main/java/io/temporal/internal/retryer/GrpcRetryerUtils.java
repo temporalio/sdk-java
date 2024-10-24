@@ -52,9 +52,9 @@ class GrpcRetryerUtils {
     Status.Code code = currentException.getStatus().getCode();
 
     switch (code) {
-        // CANCELLED and DEADLINE_EXCEEDED usually considered non-retryable in GRPC world, for
-        // example:
-        // https://github.com/grpc-ecosystem/go-grpc-middleware/blob/master/retry/retry.go#L287
+      // CANCELLED and DEADLINE_EXCEEDED usually considered non-retryable in GRPC world, for
+      // example:
+      // https://github.com/grpc-ecosystem/go-grpc-middleware/blob/master/retry/retry.go#L287
       case CANCELLED:
         return new CancellationException("The gRPC request was cancelled");
       case INVALID_ARGUMENT:
