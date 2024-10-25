@@ -11,7 +11,7 @@ description = '''Temporal Workflow Java SDK Kotlin'''
 tasks.withType(KotlinCompile).all {
     kotlinOptions {
         freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-        jvmTarget = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_17 : JavaVersion.VERSION_1_8
+        jvmTarget = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
         languageVersion = "${project.hasProperty("edgeDepsTest") ? '1.8' : (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16) ? '1.5' : '1.4')}"
     }
 }
