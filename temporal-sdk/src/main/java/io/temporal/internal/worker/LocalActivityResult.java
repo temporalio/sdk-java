@@ -34,6 +34,7 @@ public final class LocalActivityResult {
   private final @Nullable RespondActivityTaskCompletedRequest executionCompleted;
   private final @Nullable ExecutionFailedResult executionFailed;
   private final @Nullable RespondActivityTaskCanceledRequest executionCanceled;
+
   /**
    * If present, it will cause an immediate WFT failure instead of providing LA result to the
    * workflow code.

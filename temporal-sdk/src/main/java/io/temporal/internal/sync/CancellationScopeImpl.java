@@ -57,6 +57,7 @@ class CancellationScopeImpl implements CancellationScope {
   private final Runnable runnable;
   private CancellationScopeImpl parent;
   private final Set<CancellationScopeImpl> children = new HashSet<>();
+
   /**
    * When disconnected scope has no parent and thus doesn't receive cancellation requests from it.
    */

@@ -101,6 +101,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final SelfAdvancingTimer timerService;
   private final LongSupplier clock;
   private final ExecutionId executionId;
+
   /** Parent workflow if this workflow was started as a child workflow. */
   private final Optional<TestWorkflowMutableState> parent;
 
@@ -123,6 +124,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       new HashMap<>();
   private final Map<String, StateMachine<UpdateWorkflowExecutionData>> updates = new HashMap<>();
   private final StateMachine<WorkflowData> workflow;
+
   /** A single workflow task state machine is used for the whole workflow lifecycle. */
   private final StateMachine<WorkflowTaskData> workflowTaskStateMachine;
 

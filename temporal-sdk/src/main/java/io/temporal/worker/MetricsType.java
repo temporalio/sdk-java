@@ -56,6 +56,7 @@ public final class MetricsType {
       TEMPORAL_METRICS_PREFIX + "workflow_task_schedule_to_start_latency";
   public static final String WORKFLOW_TASK_EXECUTION_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_latency";
+
   /** Total latency of a workflow task which can include multiple forced decision tasks */
   public static final String WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_total_latency";
@@ -66,6 +67,7 @@ public final class MetricsType {
   /** Workflow task failed, possibly failing workflow or reporting failure to the service. */
   public static final String WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_failed";
+
   /**
    * Workflow task failed with unhandled exception without replying to the service.<br>
    * This typically happens when workflow task fails second time in a row.<br>
@@ -95,6 +97,7 @@ public final class MetricsType {
       TEMPORAL_METRICS_PREFIX + "activity_execution_failed";
   public static final String ACTIVITY_EXEC_CANCELLED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_execution_cancelled";
+
   /**
    * @deprecated use {@link #ACTIVITY_EXEC_CANCELLED_COUNTER}
    */
@@ -115,6 +118,7 @@ public final class MetricsType {
 
   public static final String LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_execution_cancelled";
+
   /**
    * @deprecated use {@link #LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER}
    */
@@ -124,6 +128,7 @@ public final class MetricsType {
 
   public static final String LOCAL_ACTIVITY_EXEC_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_execution_failed";
+
   /**
    * @deprecated use {@link #LOCAL_ACTIVITY_EXEC_FAILED_COUNTER}
    */
@@ -173,6 +178,7 @@ public final class MetricsType {
   public static final String STICKY_CACHE_HIT = TEMPORAL_METRICS_PREFIX + "sticky_cache_hit";
   // tagged with namespace, task_queue, worker_type, workflow_type
   public static final String STICKY_CACHE_MISS = TEMPORAL_METRICS_PREFIX + "sticky_cache_miss";
+
   // tagged with namespace, task_queue, worker_type, workflow_type
   @Deprecated
   // This metric in its current form is useless, it's not possible for users to interpret it for any
@@ -190,6 +196,7 @@ public final class MetricsType {
   //  Otherwise deprecate it everywhere and remove from docs.
   public static final String STICKY_CACHE_TOTAL_FORCED_EVICTION =
       TEMPORAL_METRICS_PREFIX + "sticky_cache_total_forced_eviction";
+
   // tagged with namespace, task_queue, worker_type, workflow_type
   public static final String STICKY_CACHE_THREAD_FORCED_EVICTION =
       TEMPORAL_METRICS_PREFIX + "sticky_cache_thread_forced_eviction";
