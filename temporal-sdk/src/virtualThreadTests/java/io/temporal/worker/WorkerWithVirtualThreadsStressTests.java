@@ -1,0 +1,255 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.temporal.worker;
+
+import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+import static org.junit.Assert.assertEquals;
+
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityOptions;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.TestEnvironmentOptions;
+import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
+import io.temporal.workflow.*;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@RunWith(Parameterized.class)
+public class WorkerWithVirtualThreadsStressTests {
+
+  @Parameterized.Parameter public boolean useExternalService;
+
+  @Parameterized.Parameters(name = "{1}")
+  public static Object[] data() {
+    if (!ExternalServiceTestConfigurator.isUseExternalService()) {
+      return new Object[][] {{false, "TestService"}};
+    } else {
+      return new Object[][] {{true, "Docker"}};
+    }
+  }
+
+  @Parameterized.Parameter(1)
+  public String testType;
+
+  @Rule public TestName testName = new TestName();
+
+  @Test
+  public void longHistoryWorkflowsCompleteSuccessfully() throws InterruptedException {
+
+    // Arrange
+    String taskQueueName = "veryLongWorkflow";
+
+    TestEnvironmentWrapper wrapper =
+        new TestEnvironmentWrapper(
+            WorkerFactoryOptions.newBuilder().setEnableVirtualWorkflowThreads(true).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
+    worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new ActivitiesImpl());
+    factory.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(taskQueueName)
+            .setWorkflowRunTimeout(Duration.ofSeconds(250))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
+            .build();
+    WorkflowStub workflow =
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
+
+    // Act
+    // This will yield around 10000 events which is above the page limit returned by the server.
+    WorkflowParams w = new WorkflowParams();
+    w.TemporalSleepSeconds = 0;
+    w.ChainSequence = 50;
+    w.ConcurrentCount = 50;
+    w.PayloadSizeBytes = 10000;
+    w.TaskQueueName = taskQueueName;
+
+    workflow.start(w);
+    assertEquals("I'm done", workflow.getResult(String.class));
+    wrapper.close();
+  }
+
+  @Test(timeout = 60000)
+  public void highConcurrentWorkflowsVirtualThreads() {
+    // Arrange
+    String taskQueueName = "veryLongWorkflow";
+
+    TestEnvironmentWrapper wrapper =
+        new TestEnvironmentWrapper(
+            WorkerFactoryOptions.newBuilder().setEnableVirtualWorkflowThreads(true).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
+    worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new ActivitiesImpl());
+    factory.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(taskQueueName)
+            .setWorkflowRunTimeout(Duration.ofSeconds(250))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
+            .build();
+    WorkflowStub workflow =
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
+
+    // Act
+    WorkflowParams w = new WorkflowParams();
+    w.TemporalSleepSeconds = 0;
+    w.ChainSequence = 1;
+    w.ConcurrentCount = 1000;
+    w.PayloadSizeBytes = 100;
+    w.TaskQueueName = taskQueueName;
+
+    workflow.start(w);
+    assertEquals("I'm done", workflow.getResult(String.class));
+    wrapper.close();
+  }
+
+  // Todo: refactor TestEnvironment to toggle between real and test service.
+  private class TestEnvironmentWrapper {
+
+    private TestWorkflowEnvironment testEnv;
+    WorkflowServiceStubs service;
+    private WorkerFactory factory;
+
+    public TestEnvironmentWrapper(WorkerFactoryOptions options) {
+      options = WorkerFactoryOptions.newBuilder(options).validateAndBuildWithDefaults();
+      WorkflowClientOptions clientOptions =
+          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
+      if (ExternalServiceTestConfigurator.isUseExternalService()) {
+        service =
+            WorkflowServiceStubs.newServiceStubs(
+                WorkflowServiceStubsOptions.newBuilder()
+                    .setTarget(ExternalServiceTestConfigurator.getTemporalServiceAddress())
+                    .build());
+        WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
+        factory = WorkerFactory.newInstance(client, options);
+      } else {
+        TestEnvironmentOptions testOptions =
+            TestEnvironmentOptions.newBuilder()
+                .setWorkflowClientOptions(clientOptions)
+                .setWorkerFactoryOptions(options)
+                .build();
+        testEnv = TestWorkflowEnvironment.newInstance(testOptions);
+      }
+    }
+
+    private WorkerFactory getWorkerFactory() {
+      return useExternalService ? factory : testEnv.getWorkerFactory();
+    }
+
+    private WorkflowClient getWorkflowClient() {
+      return useExternalService ? factory.getWorkflowClient() : testEnv.getWorkflowClient();
+    }
+
+    private void close() {
+      if (useExternalService) {
+        factory.shutdownNow();
+        factory.awaitTermination(5, TimeUnit.SECONDS);
+        service.shutdownNow();
+        service.awaitTermination(5, TimeUnit.SECONDS);
+      } else {
+        testEnv.close();
+      }
+    }
+  }
+
+  public static class WorkflowParams {
+
+    public int ChainSequence;
+    public int ConcurrentCount;
+    public String TaskQueueName;
+    public int PayloadSizeBytes;
+    public int TemporalSleepSeconds;
+  }
+
+  @WorkflowInterface
+  public interface ActivitiesWorkflow {
+
+    @WorkflowMethod
+    String execute(WorkflowParams params);
+  }
+
+  public static class ActivitiesWorkflowImpl implements ActivitiesWorkflow {
+
+    @Override
+    public String execute(WorkflowParams params) {
+      SleepActivity activity =
+          Workflow.newActivityStub(
+              SleepActivity.class,
+              ActivityOptions.newBuilder()
+                  .setTaskQueue(params.TaskQueueName)
+                  .setScheduleToStartTimeout(Duration.ofMinutes(1))
+                  .setStartToCloseTimeout(Duration.ofMinutes(1))
+                  .setHeartbeatTimeout(Duration.ofSeconds(20))
+                  .build());
+
+      for (int i = 0; i < params.ChainSequence; i++) {
+        List<Promise<Void>> promises = new ArrayList<>();
+        for (int j = 0; j < params.ConcurrentCount; j++) {
+          byte[] bytes = new byte[params.PayloadSizeBytes];
+          new Random().nextBytes(bytes);
+          Promise<Void> promise = Async.procedure(activity::sleep, i, j, bytes);
+          promises.add(promise);
+        }
+
+        for (Promise<Void> promise : promises) {
+          promise.get();
+        }
+
+        Workflow.sleep(Duration.ofSeconds(params.TemporalSleepSeconds));
+      }
+      return "I'm done";
+    }
+  }
+
+  @ActivityInterface
+  public interface SleepActivity {
+    void sleep(int chain, int concurrency, byte[] bytes);
+  }
+
+  public static class ActivitiesImpl implements SleepActivity {
+    private static final Logger log = LoggerFactory.getLogger("sleep-activity");
+
+    @Override
+    public void sleep(int chain, int concurrency, byte[] bytes) {
+      log.trace("sleep called");
+    }
+  }
+}

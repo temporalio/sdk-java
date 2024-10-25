@@ -31,6 +31,35 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
 
+// Temporal SDK supports Java 8 or later so to support virutal threads 
+// we need to compile the code with Java 21 and package it in a multi-release jar.
+sourceSets {
+    java21 {
+        java {
+            srcDirs = ['src/main/java21']
+        }
+    }
+}
+
+dependencies {
+    java21Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
+}
+
+tasks.named('compileJava21Java') {
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+jar {
+    into('META-INF/versions/21') {
+        from sourceSets.java21.output
+    }
+    manifest.attributes(
+            'Multi-Release': 'true'
+    )
+}
+
 task registerNamespace(type: JavaExec) {
     getMainClass().set('io.temporal.internal.docker.RegisterTestNamespace')
     classpath = sourceSets.test.runtimeClasspath
@@ -49,4 +78,40 @@ task testResourceIndependent(type: Test) {
         includeCategories 'io.temporal.worker.IndependentResourceBasedTests'
         maxParallelForks = 1
     }
+}
+
+// To test the virtual thread support we need to run a seprate test suite with Java 21
+testing {
+    suites {
+        virtualThreadTests(JvmTestSuite) {
+            useJUnit(junitVersion)
+            dependencies {
+                implementation project()
+                implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+                implementation project(':temporal-testing')
+
+                implementation "junit:junit:${junitVersion}"
+                implementation "org.mockito:mockito-core:${mockitoVersion}"
+                implementation 'pl.pragmatists:JUnitParams:1.1.1'
+                implementation("com.jayway.jsonpath:json-path:$jsonPathVersion"){
+                    exclude group: 'org.slf4j', module: 'slf4j-api'
+                }
+            }
+
+            targets {
+                all {
+                    testTask.configure {
+                        javaLauncher = javaToolchains.launcherFor {
+                            languageVersion = JavaLanguageVersion.of(21)
+                        }
+                        shouldRunAfter(test)
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn(testing.suites.virtualThreadTests)
 }
