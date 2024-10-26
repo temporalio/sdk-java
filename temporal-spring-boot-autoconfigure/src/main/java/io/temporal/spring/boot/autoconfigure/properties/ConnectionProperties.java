@@ -36,6 +36,8 @@ public class ConnectionProperties {
 
   private final @Nullable MTLSProperties mtls;
 
+  private final @Nullable String apiKey;
+
   /**
    * @param target {@link WorkflowServiceStubsOptions.Builder#setTarget(String)} also support
    *     "local" alias for local temporal setup
@@ -44,10 +46,11 @@ public class ConnectionProperties {
    */
   @ConstructorBinding
   public ConnectionProperties(
-      @Nonnull String target, @Nullable Boolean enableHttps, @Nullable MTLSProperties mtls) {
+      @Nonnull String target, @Nullable Boolean enableHttps, @Nullable MTLSProperties mtls, @Nullable String apiKey) {
     this.target = target;
     this.enableHttps = Boolean.TRUE.equals(enableHttps);
     this.mtls = mtls;
+    this.apiKey = apiKey;
   }
 
   @Nonnull
@@ -63,6 +66,11 @@ public class ConnectionProperties {
   @Nullable
   public MTLSProperties getMTLS() {
     return mtls;
+  }
+
+  @Nullable
+  public String getApiKey() {
+      return apiKey;
   }
 
   public static class MTLSProperties {
