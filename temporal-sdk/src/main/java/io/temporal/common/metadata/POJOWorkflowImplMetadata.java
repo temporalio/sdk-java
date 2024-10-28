@@ -77,10 +77,18 @@ public final class POJOWorkflowImplMetadata {
 
   /**
    * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
-   * at least one workflow method.
+   * at least one workflow method. Validates the implementation can be registered.
    */
   public static POJOWorkflowImplMetadata newInstance(Class<?> implClass) {
-    return new POJOWorkflowImplMetadata(implClass, false);
+    return new POJOWorkflowImplMetadata(implClass, false, true);
+  }
+
+  /**
+   * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
+   * at least one workflow method. Does not validate the implementation can be registered.
+   */
+  public static POJOWorkflowImplMetadata newInstanceForWorkflowFactory(Class<?> implClass) {
+    return new POJOWorkflowImplMetadata(implClass, false, false);
   }
 
   /**
@@ -89,10 +97,11 @@ public final class POJOWorkflowImplMetadata {
    * signal methods.
    */
   public static POJOWorkflowImplMetadata newListenerInstance(Class<?> implClass) {
-    return new POJOWorkflowImplMetadata(implClass, true);
+    return new POJOWorkflowImplMetadata(implClass, true, false);
   }
 
-  private POJOWorkflowImplMetadata(Class<?> implClass, boolean listener) {
+  private POJOWorkflowImplMetadata(
+      Class<?> implClass, boolean listener, boolean validateConstructor) {
     if (implClass.isInterface()
         || implClass.isPrimitive()
         || implClass.isAnnotation()
@@ -166,7 +175,7 @@ public final class POJOWorkflowImplMetadata {
     this.queryMethods = ImmutableList.copyOf(queryMethods.values());
     this.updateMethods = ImmutableList.copyOf(updateMethods.values());
     this.updateValidatorMethods = ImmutableList.copyOf(updateValidatorMethods.values());
-    if (!listener) {
+    if (!listener && validateConstructor) {
       this.workflowInit =
           ReflectionUtils.getConstructor(
                   implClass,

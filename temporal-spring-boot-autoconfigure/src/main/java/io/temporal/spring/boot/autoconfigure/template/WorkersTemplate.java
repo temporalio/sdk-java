@@ -504,7 +504,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   @SuppressWarnings("unchecked")
   private <T> void configureWorkflowImplementation(Worker worker, Class<?> clazz) {
 
-    POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newInstance(clazz);
+    POJOWorkflowImplMetadata workflowMetadata =
+        POJOWorkflowImplMetadata.newInstanceForWorkflowFactory(clazz);
     List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
     if (workflowMethods.isEmpty()) {
       throw new BeanDefinitionValidationException(
