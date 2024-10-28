@@ -46,7 +46,10 @@ public class ConnectionProperties {
    */
   @ConstructorBinding
   public ConnectionProperties(
-      @Nonnull String target, @Nullable Boolean enableHttps, @Nullable MTLSProperties mtls, @Nullable String apiKey) {
+      @Nonnull String target,
+      @Nullable Boolean enableHttps,
+      @Nullable MTLSProperties mtls,
+      @Nullable String apiKey) {
     this.target = target;
     this.enableHttps = Boolean.TRUE.equals(enableHttps);
     this.mtls = mtls;
@@ -70,7 +73,7 @@ public class ConnectionProperties {
 
   @Nullable
   public String getApiKey() {
-      return apiKey;
+    return apiKey;
   }
 
   public static class MTLSProperties {

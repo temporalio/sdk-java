@@ -88,6 +88,10 @@ public final class WorkerOptions {
     private boolean useBuildIdForVersioning;
     private Duration stickyTaskQueueDrainTimeout;
     private WorkerTuner workerTuner;
+    private boolean enableVirtualThreadsOnWorkflowWorker;
+    private boolean enableVirtualThreadsOnActivityWorker;
+    private boolean enableVirtualThreadsOnLocalActivityWorker;
+    private boolean enableVirtualThreadsOnNexusWorker;
     private String identity;
 
     private Builder() {}
@@ -116,6 +120,10 @@ public final class WorkerOptions {
       this.buildId = o.buildId;
       this.stickyTaskQueueDrainTimeout = o.stickyTaskQueueDrainTimeout;
       this.identity = o.identity;
+      this.enableVirtualThreadsOnActivityWorker = o.virtualThreadsEnabledOnActivityWorker;
+      this.enableVirtualThreadsOnWorkflowWorker = o.virtualThreadsEnabledOnWorkflowWorker;
+      this.enableVirtualThreadsOnLocalActivityWorker = o.virtualThreadsEnabledOnLocalActivityWorker;
+      this.enableVirtualThreadsOnNexusWorker = o.virtualThreadsEnabledOnNexusWorker;
     }
 
     /**
@@ -423,6 +431,15 @@ public final class WorkerOptions {
       return this;
     }
 
+    @Experimental
+    public Builder setEnableVirtualThreads(boolean enable) {
+      this.enableVirtualThreadsOnWorkflowWorker = enable;
+      this.enableVirtualThreadsOnLocalActivityWorker = enable;
+      this.enableVirtualThreadsOnActivityWorker = enable;
+      this.enableVirtualThreadsOnNexusWorker = enable;
+      return this;
+    }
+
     /** Override identity of the worker primary specified in a WorkflowClient options. */
     public Builder setIdentity(String identity) {
       this.identity = identity;
@@ -450,7 +467,11 @@ public final class WorkerOptions {
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout,
-          identity);
+          identity,
+          enableVirtualThreadsOnWorkflowWorker,
+          enableVirtualThreadsOnActivityWorker,
+          enableVirtualThreadsOnLocalActivityWorker,
+          enableVirtualThreadsOnNexusWorker);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -546,7 +567,11 @@ public final class WorkerOptions {
           stickyTaskQueueDrainTimeout == null
               ? DEFAULT_STICKY_TASK_QUEUE_DRAIN_TIMEOUT
               : stickyTaskQueueDrainTimeout,
-          identity);
+          identity,
+          enableVirtualThreadsOnWorkflowWorker,
+          enableVirtualThreadsOnActivityWorker,
+          enableVirtualThreadsOnLocalActivityWorker,
+          enableVirtualThreadsOnNexusWorker);
     }
   }
 
@@ -570,6 +595,10 @@ public final class WorkerOptions {
   private final String buildId;
   private final Duration stickyTaskQueueDrainTimeout;
   private final String identity;
+  private final boolean virtualThreadsEnabledOnWorkflowWorker;
+  private final boolean virtualThreadsEnabledOnActivityWorker;
+  private final boolean virtualThreadsEnabledOnLocalActivityWorker;
+  private final boolean virtualThreadsEnabledOnNexusWorker;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -591,7 +620,11 @@ public final class WorkerOptions {
       boolean useBuildIdForVersioning,
       String buildId,
       Duration stickyTaskQueueDrainTimeout,
-      String identity) {
+      String identity,
+      boolean virtualThreadsEnabledOnWorkflowWorker,
+      boolean virtualThreadsEnabledOnActivityWorker,
+      boolean virtualThreadsEnabledOnLocalActivityWorker,
+      boolean virtualThreadsEnabledOnNexusWorker) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -612,6 +645,10 @@ public final class WorkerOptions {
     this.buildId = buildId;
     this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
     this.identity = identity;
+    this.virtualThreadsEnabledOnWorkflowWorker = virtualThreadsEnabledOnWorkflowWorker;
+    this.virtualThreadsEnabledOnActivityWorker = virtualThreadsEnabledOnActivityWorker;
+    this.virtualThreadsEnabledOnLocalActivityWorker = virtualThreadsEnabledOnLocalActivityWorker;
+    this.virtualThreadsEnabledOnNexusWorker = virtualThreadsEnabledOnNexusWorker;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -712,6 +749,22 @@ public final class WorkerOptions {
     return identity;
   }
 
+  public boolean isVirtualThreadsEnabledOnWorkflowWorker() {
+    return virtualThreadsEnabledOnActivityWorker;
+  }
+
+  public boolean isVirtualThreadsEnabledOnActivityWorker() {
+    return virtualThreadsEnabledOnActivityWorker;
+  }
+
+  public boolean isVirtualThreadsEnabledOnLocalActivityWorker() {
+    return virtualThreadsEnabledOnLocalActivityWorker;
+  }
+
+  public boolean isVirtualThreadsEnabledOnNexusWorker() {
+    return virtualThreadsEnabledOnNexusWorker;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -736,7 +789,12 @@ public final class WorkerOptions {
         && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
         && Objects.equals(buildId, that.buildId)
         && Objects.equals(stickyTaskQueueDrainTimeout, that.stickyTaskQueueDrainTimeout)
-        && Objects.equals(identity, that.identity);
+        && Objects.equals(identity, that.identity)
+        && virtualThreadsEnabledOnWorkflowWorker == that.virtualThreadsEnabledOnWorkflowWorker
+        && virtualThreadsEnabledOnActivityWorker == that.virtualThreadsEnabledOnActivityWorker
+        && virtualThreadsEnabledOnLocalActivityWorker
+            == that.virtualThreadsEnabledOnLocalActivityWorker
+        && virtualThreadsEnabledOnNexusWorker == that.virtualThreadsEnabledOnNexusWorker;
   }
 
   @Override
@@ -761,7 +819,11 @@ public final class WorkerOptions {
         useBuildIdForVersioning,
         buildId,
         stickyTaskQueueDrainTimeout,
-        identity);
+        identity,
+        virtualThreadsEnabledOnWorkflowWorker,
+        virtualThreadsEnabledOnActivityWorker,
+        virtualThreadsEnabledOnLocalActivityWorker,
+        virtualThreadsEnabledOnNexusWorker);
   }
 
   @Override
@@ -808,6 +870,14 @@ public final class WorkerOptions {
         + stickyTaskQueueDrainTimeout
         + ", identity="
         + identity
+        + ", enableVirtualThreadsOnWorkflowWorker="
+        + virtualThreadsEnabledOnWorkflowWorker
+        + ", enableVirtualThreadsOnActivityWorker="
+        + virtualThreadsEnabledOnActivityWorker
+        + ", enableVirtualThreadsOnLocalActivityWorker="
+        + virtualThreadsEnabledOnLocalActivityWorker
+        + ", enableVirtualThreadsOnNexusWorker="
+        + virtualThreadsEnabledOnNexusWorker
         + '}';
   }
 }

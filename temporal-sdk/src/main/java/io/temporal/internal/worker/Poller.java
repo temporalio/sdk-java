@@ -25,10 +25,12 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.internal.common.GrpcUtils;
+import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.worker.MetricsType;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +59,7 @@ final class Poller<T> implements SuspendableWorker {
   private final PollTask<T> pollTask;
   private final PollerOptions pollerOptions;
   private static final Logger log = LoggerFactory.getLogger(Poller.class);
-  private ThreadPoolExecutor pollExecutor;
+  private ExecutorService pollExecutor;
   private final Scope workerMetricsScope;
 
   private final AtomicReference<CountDownLatch> suspendLatch = new AtomicReference<>();
@@ -97,20 +99,35 @@ final class Poller<T> implements SuspendableWorker {
               pollerOptions.getMaximumPollRatePerSecond(),
               pollerOptions.getMaximumPollRateIntervalMilliseconds());
     }
-
-    // It is important to pass blocking queue of at least options.getPollThreadCount() capacity. As
-    // task enqueues next task the buffering is needed to queue task until the previous one releases
-    // a thread.
-    pollExecutor =
-        new ThreadPoolExecutor(
-            pollerOptions.getPollThreadCount(),
-            pollerOptions.getPollThreadCount(),
-            1,
-            TimeUnit.SECONDS,
-            new ArrayBlockingQueue<>(pollerOptions.getPollThreadCount()));
-    pollExecutor.setThreadFactory(
-        new ExecutorThreadFactory(
-            pollerOptions.getPollThreadNamePrefix(), pollerOptions.getUncaughtExceptionHandler()));
+    //
+    if (pollerOptions.isVirtualThreadsEnabled()) {
+      AtomicInteger threadIndex = new AtomicInteger();
+      pollExecutor =
+          VirtualThreadDelegate.newVirtualThreadExecutor(
+              (t) -> {
+                t.setName(
+                    pollerOptions.getPollThreadNamePrefix() + ": " + threadIndex.incrementAndGet());
+                t.setUncaughtExceptionHandler(uncaughtExceptionHandler);
+              });
+    } else {
+      // It is important to pass blocking queue of at least options.getPollThreadCount() capacity.
+      // As
+      // task enqueues next task the buffering is needed to queue task until the previous one
+      // releases
+      // a thread.
+      ThreadPoolExecutor threadPoolPoller =
+          new ThreadPoolExecutor(
+              pollerOptions.getPollThreadCount(),
+              pollerOptions.getPollThreadCount(),
+              1,
+              TimeUnit.SECONDS,
+              new ArrayBlockingQueue<>(pollerOptions.getPollThreadCount()));
+      threadPoolPoller.setThreadFactory(
+          new ExecutorThreadFactory(
+              pollerOptions.getPollThreadNamePrefix(),
+              pollerOptions.getUncaughtExceptionHandler()));
+      pollExecutor = threadPoolPoller;
+    }
 
     for (int i = 0; i < pollerOptions.getPollThreadCount(); i++) {
       pollExecutor.execute(new PollLoopTask(new PollExecutionTask()));

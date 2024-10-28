@@ -102,7 +102,8 @@ final class NexusWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              true);
+              true,
+              options.isVirtualThreadsEnabled());
       poller =
           new Poller<>(
               options.getIdentity(),

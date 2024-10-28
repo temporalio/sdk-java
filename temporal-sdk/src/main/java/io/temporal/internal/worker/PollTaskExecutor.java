@@ -22,8 +22,10 @@ package io.temporal.internal.worker;
 
 import com.google.common.base.Preconditions;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.task.VirtualThreadDelegate;
 import java.util.Objects;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.MDC;
 
@@ -41,7 +43,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   private final TaskHandler<T> handler;
   private final PollerOptions pollerOptions;
 
-  private final ThreadPoolExecutor taskExecutor;
+  private final ExecutorService taskExecutor;
   private final String pollThreadNamePrefix;
 
   PollTaskExecutor(
@@ -51,35 +53,46 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       @Nonnull TaskHandler<T> handler,
       @Nonnull PollerOptions pollerOptions,
       int workerTaskSlots,
-      boolean synchronousQueue) {
+      boolean synchronousQueue,
+      boolean enableVirtualThreads) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.identity = Objects.requireNonNull(identity);
     this.handler = Objects.requireNonNull(handler);
     this.pollerOptions = Objects.requireNonNull(pollerOptions);
 
-    this.taskExecutor =
-        new ThreadPoolExecutor(
-            // for SynchronousQueue we can afford to set it to 0, because the queue is always full
-            // or empty
-            // for LinkedBlockingQueue we have to set slots to workerTaskSlots to avoid situation
-            // when the queue grows, but the amount of threads is not, because the queue is not (and
-            // never) full
-            synchronousQueue ? 0 : workerTaskSlots,
-            workerTaskSlots,
-            10,
-            TimeUnit.SECONDS,
-            synchronousQueue ? new SynchronousQueue<>() : new LinkedBlockingQueue<>());
-    this.taskExecutor.allowCoreThreadTimeOut(true);
-
     this.pollThreadNamePrefix =
         pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
-
-    this.taskExecutor.setThreadFactory(
-        new ExecutorThreadFactory(
-            pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor"),
-            pollerOptions.getUncaughtExceptionHandler()));
-    this.taskExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
+    //
+    if (enableVirtualThreads) {
+      AtomicInteger threadIndex = new AtomicInteger();
+      this.taskExecutor =
+          VirtualThreadDelegate.newVirtualThreadExecutor(
+              (t) -> {
+                t.setName(this.pollThreadNamePrefix + ": " + threadIndex.incrementAndGet());
+                t.setUncaughtExceptionHandler(pollerOptions.getUncaughtExceptionHandler());
+              });
+    } else {
+      ThreadPoolExecutor threadPoolTaskExecutor =
+          new ThreadPoolExecutor(
+              // for SynchronousQueue we can afford to set it to 0, because the queue is always full
+              // or empty
+              // for LinkedBlockingQueue we have to set slots to workerTaskSlots to avoid situation
+              // when the queue grows, but the amount of threads is not, because the queue is not
+              // (and
+              // never) full
+              synchronousQueue ? 0 : workerTaskSlots,
+              workerTaskSlots,
+              10,
+              TimeUnit.SECONDS,
+              synchronousQueue ? new SynchronousQueue<>() : new LinkedBlockingQueue<>());
+      threadPoolTaskExecutor.allowCoreThreadTimeOut(true);
+      threadPoolTaskExecutor.setThreadFactory(
+          new ExecutorThreadFactory(
+              this.pollThreadNamePrefix, pollerOptions.getUncaughtExceptionHandler()));
+      threadPoolTaskExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
+      this.taskExecutor = threadPoolTaskExecutor;
+    }
   }
 
   @Override

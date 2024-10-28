@@ -559,10 +559,12 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+        .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnActivityWorker())
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
                 .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
+                .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnActivityWorker())
                 .build())
         .setMetricsScope(metricsScope)
         .build();
@@ -578,8 +580,10 @@ public final class Worker {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollThreadCount(options.getMaxConcurrentNexusTaskPollers())
+                .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnNexusWorker())
                 .build())
         .setMetricsScope(metricsScope)
+        .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnNexusWorker())
         .build();
   }
 
@@ -610,9 +614,13 @@ public final class Worker {
 
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
-            PollerOptions.newBuilder().setPollThreadCount(maxConcurrentWorkflowTaskPollers).build())
+            PollerOptions.newBuilder()
+                .setPollThreadCount(maxConcurrentWorkflowTaskPollers)
+                .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnWorkflowWorker())
+                .build())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
         .setStickyTaskQueueDrainTimeout(options.getStickyTaskQueueDrainTimeout())
+        .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnWorkflowWorker())
         .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
         .setMetricsScope(metricsScope.tagged(tags))
         .build();
@@ -627,6 +635,7 @@ public final class Worker {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
         .setMetricsScope(metricsScope)
+        .setEnableVirtualThreads(options.isVirtualThreadsEnabledOnLocalActivityWorker())
         .build();
   }
 
