@@ -229,6 +229,23 @@ public class POJOWorkflowImplMetadataTest {
     Assert.assertNull(meta.getWorkflowInit());
   }
 
+  @Test
+  public void testWorkflowWithConstructorArgsNoInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(WorkflowWithConstructorParameters.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "No default constructor or constructor annotated with @WorkflowInit found:"));
+    }
+    POJOWorkflowImplMetadata meta =
+        POJOWorkflowImplMetadata.newInstanceForWorkflowFactory(
+            WorkflowWithConstructorParameters.class);
+    Assert.assertEquals(1, meta.getWorkflowMethods().size());
+  }
+
   public static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
     @Override
     public void g() {}
@@ -373,6 +390,15 @@ public class POJOWorkflowImplMetadataTest {
   public static class WorkflowWithConstructor implements POJOWorkflowInterfaceMetadataTest.I {
 
     public WorkflowWithConstructor() {}
+
+    @Override
+    public void i() {}
+  }
+
+  public static class WorkflowWithConstructorParameters
+      implements POJOWorkflowInterfaceMetadataTest.I {
+
+    public WorkflowWithConstructorParameters(Integer i) {}
 
     @Override
     public void i() {}
