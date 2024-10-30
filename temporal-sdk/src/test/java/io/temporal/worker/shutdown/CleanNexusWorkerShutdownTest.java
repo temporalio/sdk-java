@@ -62,6 +62,7 @@ public class CleanNexusWorkerShutdownTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setNexusServiceImplementation(nexusServiceImpl)
+          .setUseExternalService(true)
           .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
           .build();
 

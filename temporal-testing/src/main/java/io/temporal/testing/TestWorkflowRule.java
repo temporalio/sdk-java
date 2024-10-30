@@ -113,14 +113,18 @@ public class TestWorkflowRule implements TestRule {
           if (useExternalService) {
             StringBuilder result = new StringBuilder();
             WorkflowClient client = getWorkflowClient();
+            result.append("WORKFLOW EXECUTION HISTORIES:\n");
             client
-                .listExecutions("TaskQueue = " + taskQueue)
+                .listExecutions("TaskQueue='" + taskQueue + "'")
                 .forEach(
                     (we) -> {
                       WorkflowExecution exec = we.getWorkflowExecutionInfo().getExecution();
                       result.append(exec);
                       result.append("\n\n");
-                      result.append(client.fetchHistory(exec.getWorkflowId(), exec.getRunId()).toProtoText(true));
+                      result.append(
+                          client
+                              .fetchHistory(exec.getWorkflowId(), exec.getRunId())
+                              .toProtoText(true));
                       result.append("\n");
                     });
           } else {
