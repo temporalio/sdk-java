@@ -274,7 +274,7 @@ final class NexusWorker implements SuspendableWorker {
     private void handleNexusTask(NexusTask task, Scope metricsScope) {
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
-
+      log.info("Processing Nexus task: {}", taskToken);
       NexusTaskHandler.Result result;
 
       Stopwatch sw = metricsScope.timer(MetricsType.NEXUS_EXEC_LATENCY).start();
