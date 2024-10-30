@@ -96,7 +96,6 @@ public class CleanActivityWorkerShutdownTest {
             .getExecutionHistory(execution.getWorkflowId())
             .getHistory()
             .getEventsList();
-    events.forEach(System.out::println);
     boolean found = false;
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
