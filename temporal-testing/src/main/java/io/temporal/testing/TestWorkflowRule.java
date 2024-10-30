@@ -28,10 +28,7 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -113,7 +110,23 @@ public class TestWorkflowRule implements TestRule {
       new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          if (useExternalService) {
+            StringBuilder result = new StringBuilder();
+            WorkflowClient client = getWorkflowClient();
+            client
+                .listExecutions("TaskQueue = " + taskQueue)
+                .forEach(
+                    (we) -> {
+                      WorkflowExecution exec = we.getWorkflowExecutionInfo().getExecution();
+                      result.append(exec);
+                      result.append("\n\n");
+                      result.append(client.fetchHistory(exec.getWorkflowId(), exec.getRunId()).toProtoText(true));
+                      result.append("\n");
+                    });
+          } else {
+            System.err.println(
+                "WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          }
         }
       };
 
