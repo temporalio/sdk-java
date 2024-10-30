@@ -45,6 +45,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CleanNexusWorkerShutdownTest {
 
@@ -133,6 +135,7 @@ public class CleanNexusWorkerShutdownTest {
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public static class TestNexusServiceImpl {
+    private final Logger logger = LoggerFactory.getLogger(TestNexusServiceImpl.class);
     private final CountDownLatch shutdownLatch;
     private final CountDownLatch shutdownNowLatch;
 
@@ -145,9 +148,12 @@ public class CleanNexusWorkerShutdownTest {
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (ctx, details, now) -> {
+            logger.info("Operation started");
             if (now == null) {
+              logger.info("Waiting for shutdown");
               shutdownLatch.countDown();
             } else {
+              logger.info("Waiting for shutdownNow");
               shutdownNowLatch.countDown();
             }
             try {
