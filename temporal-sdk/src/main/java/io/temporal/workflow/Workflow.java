@@ -1002,6 +1002,92 @@ public final class Workflow {
   }
 
   /**
+   * Used to perform workflow safe code changes in code that is called repeatedly like body of a
+   * loop or a signal handler.
+   *
+   * <p>Consider the following example:
+   *
+   * <pre>
+   * for (int i=0; i<100; i++) {
+   *     if (getVersion("fix1", DEFAULT_VERSION, 1) == DEFAULT_VERSION) {
+   *         // OLD CODE
+   *     } else {
+   *         // NEW CODE
+   *     }
+   * }
+   * </pre>
+   *
+   * If the change is introduced after the loop starts executing, all iterations are going to use
+   * the default version, even if most of them happen after the change. This happens because the *
+   * getVersion call returns the same version for all calls that share a changeId. The same issue *
+   * arises when changing code in callbacks like signal or update handlers. Frequently, there is a
+   * need for a new version used for newer iterations (or signal handler invocations).
+   *
+   * <p>The following solution supports updating the version of each iteration separately, as it
+   * uses a different changeId for each iteration:
+   *
+   * <pre>
+   * for (int i=0; i<100; i++) {
+   *     if (getVersion("fix1-" + i, DEFAULT_VERSION, 1) == DEFAULT_VERSION) {
+   *         // OLD CODE
+   *     } else {
+   *         // NEW CODE
+   *     }
+   * }
+   * </pre>
+   *
+   * The drawback is a marker event as well as a search attribute update for each iteration. So, it
+   * is not practical for the large number of iterations.
+   *
+   * <p>This method provides an efficient alternative to the solution that uses a different changeId
+   * for each iteration. It only inserts a marker when a version changes.
+   *
+   * <p>Here is how it could be used:
+   *
+   * <pre>
+   * for (int i=0; i<100; i++) {
+   *     if (getVersion("fix1", String.valueOf(i), DEFAULT_VERSION, 1) == DEFAULT_VERSION) {
+   *         // OLD CODE
+   *     } else {
+   *         // NEW CODE
+   *     }
+   * }
+   * </pre>
+   *
+   * Adding more branches later is OK, assuming that the series stays the same. During replay, the
+   * iterationId should return the same values as in the original execution.
+   *
+   * <pre>
+   * for (int i=0; i<100; i++) {
+   *     int v = getVersion("fix1", String.valueOf(i), DEFAULT_VERSION, 2);
+   *     if (v == DEFAULT_VERSION) {
+   *         // OLD CODE
+   *     } else if (v == 1) {
+   *         // CODE FOR THE FIRST CHANGE
+   *     } else {
+   *         // CODE FOR THE LAST CHANGE
+   *     }
+   * }
+   * </pre>
+   *
+   * All calls with the same seriesId and iterationId argument return the same value. But only if
+   * they follow each other. The moment a call with a different iteration is made, the version
+   * changes.
+   *
+   * @param seriesId identifier of a series of changes.
+   * @param iterationId identifier of each iteration over the changed code.
+   * @param minSupported min version supported for the change
+   * @param maxSupported max version supported for the change, this version is used as the current
+   *     one during the original execution.
+   * @return {@code maxSupported} when is originally executed. Original version recorded in the
+   *     history on replays.
+   */
+  public static int getVersion(
+      String seriesId, String iterationId, int minSupported, int maxSupported) {
+    return WorkflowInternal.getVersion(seriesId, iterationId, minSupported, maxSupported);
+  }
+
+  /**
    * Get scope for reporting business metrics in workflow logic. This should be used instead of
    * creating new metrics scopes as it is able to dedupe metrics during replay.
    *

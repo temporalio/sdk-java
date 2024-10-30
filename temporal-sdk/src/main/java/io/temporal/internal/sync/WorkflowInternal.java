@@ -546,6 +546,13 @@ public final class WorkflowInternal {
     return getWorkflowOutboundInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
+  public static int getVersion(
+      String seriesId, String iterationId, int minSupported, int maxSupported) {
+    assertNotReadOnly("get version");
+    return getWorkflowOutboundInterceptor()
+        .getVersion(seriesId, iterationId, minSupported, maxSupported);
+  }
+
   public static <V> Promise<Void> promiseAllOf(Iterable<Promise<V>> promises) {
     return new AllOfPromise(promises);
   }
