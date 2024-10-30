@@ -235,6 +235,7 @@ final class NexusWorker implements SuspendableWorker {
 
     @Override
     public void handle(NexusTask task) {
+      log.info("Received Nexus task: {}", task.getResponse());
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       // Extract service and operation from the request and set them as MDC and metrics
       // scope tags. If the request does not have a service or operation, do not set the tags.
