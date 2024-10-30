@@ -115,6 +115,9 @@ public interface WorkflowClient {
   /** Use this constant as a query type to get a workflow stack trace. */
   String QUERY_TYPE_STACK_TRACE = "__stack_trace";
 
+  /** Use this constant as a query type to get the workflow metadata. */
+  String QUERY_TYPE_WORKFLOW_METADATA = "__temporal_workflow_metadata";
+
   /** Replays workflow to the current state and returns empty result or error if replay failed. */
   String QUERY_TYPE_REPLAY_ONLY = "__replay_only";
 

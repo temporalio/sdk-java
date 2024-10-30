@@ -308,6 +308,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       next.registerQuery(
           new RegisterQueryInput(
               queryType,
+              input.getDescription(),
               input.getArgTypes(),
               input.getGenericArgTypes(),
               (args) -> {

@@ -41,6 +41,11 @@ public interface DynamicUpdateHandler {
 
   Object handleExecute(String updateName, EncodedValues args);
 
+  /** Short description of the Update handler. */
+  default String getDescription() {
+    return "Dynamic update handler";
+  }
+
   /** Returns the actions taken if a workflow exits with a running instance of this handler. */
   default HandlerUnfinishedPolicy getUnfinishedPolicy(String updateName) {
     return HandlerUnfinishedPolicy.WARN_AND_ABANDON;

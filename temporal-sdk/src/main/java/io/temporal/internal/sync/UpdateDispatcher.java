@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.Header;
@@ -172,5 +173,26 @@ class UpdateDispatcher {
 
   public Map<String, UpdateHandlerInfo> getRunningUpdateHandlers() {
     return runningUpdateHandlers;
+  }
+
+  public List<WorkflowInteractionDefinition> getUpdateHandlers() {
+    List<WorkflowInteractionDefinition> handlers = new ArrayList<>();
+    for (Map.Entry<String, WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest> entry :
+        updateCallbacks.entrySet()) {
+      UpdateRegistrationRequest handler = entry.getValue();
+      handlers.add(
+          WorkflowInteractionDefinition.newBuilder()
+              .setName(handler.getUpdateName())
+              .setDescription(handler.getDescription())
+              .build());
+    }
+    if (dynamicUpdateHandler != null) {
+      handlers.add(
+          WorkflowInteractionDefinition.newBuilder()
+              .setDescription(dynamicUpdateHandler.getDescription())
+              .build());
+    }
+    handlers.sort(Comparator.comparing(WorkflowInteractionDefinition::getName));
+    return handlers;
   }
 }

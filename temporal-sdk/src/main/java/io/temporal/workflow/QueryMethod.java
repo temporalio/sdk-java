@@ -43,4 +43,7 @@ public @interface QueryMethod {
    * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
    */
   String name() default "";
+
+  /** Short description of the query type. Default is an empty string. */
+  String description() default "";
 }
