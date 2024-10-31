@@ -61,8 +61,8 @@ subprojects {
 
     jacocoTestReport {
         reports {
-            xml.enabled true
-            csv.enabled true
+            xml.required = true
+            csv.required = true
         }
 
         afterEvaluate {
