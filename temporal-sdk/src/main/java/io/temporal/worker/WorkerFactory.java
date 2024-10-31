@@ -96,7 +96,7 @@ public final class WorkerFactory {
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(namespace));
 
-    if (this.factoryOptions.isEnableVirtualWorkflowThreads()) {
+    if (this.factoryOptions.isUsingVirtualWorkflowThreads()) {
       this.workflowThreadPool =
           VirtualThreadDelegate.newVirtualThreadExecutor(
               (t) -> t.setName("workflow-thread-" + workflowThreadCounter.incrementAndGet()));

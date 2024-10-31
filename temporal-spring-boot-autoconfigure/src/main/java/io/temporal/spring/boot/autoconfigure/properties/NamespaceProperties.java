@@ -83,7 +83,7 @@ public class NamespaceProperties {
      *     io.temporal.worker.WorkerFactoryOptions.Builder#setMaxWorkflowThreadCount(int)}
      * @param enableVirtualWorkflowThreads whether to enable virtual workflow threads. Defines
      *     {@link
-     *     io.temporal.worker.WorkerFactoryOptions.Builder#setEnableVirtualWorkflowThreads(boolean)}
+     *     io.temporal.worker.WorkerFactoryOptions.Builder#setUseVirtualWorkflowThreads(boolean)}
      */
     @ConstructorBinding
     public WorkflowCacheProperties(

@@ -121,7 +121,7 @@ final class WorkflowWorker implements SuspendableWorker {
               pollerOptions,
               this.slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
               true,
-              options.isVirtualThreadsEnabled());
+              options.isUsingVirtualThreads());
       stickyQueueBalancer =
           new StickyQueueBalancer(
               options.getPollerOptions().getPollThreadCount(), stickyTaskQueueName != null);

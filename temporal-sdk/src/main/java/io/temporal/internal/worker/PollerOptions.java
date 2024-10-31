@@ -62,7 +62,7 @@ public final class PollerOptions {
     private int pollThreadCount = 1;
     private String pollThreadNamePrefix;
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
-    private boolean enableVirtualThreads;
+    private boolean useVirtualThreads;
 
     private Builder() {}
 
@@ -80,7 +80,7 @@ public final class PollerOptions {
       this.pollThreadCount = options.getPollThreadCount();
       this.pollThreadNamePrefix = options.getPollThreadNamePrefix();
       this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
-      this.enableVirtualThreads = options.isVirtualThreadsEnabled();
+      this.useVirtualThreads = options.isUsingVirtualThreads();
     }
 
     /** Defines interval for measuring poll rate. Larger the interval more spiky can be the load. */
@@ -157,8 +157,8 @@ public final class PollerOptions {
     }
 
     /** Use virtual threads polling threads. */
-    public Builder setEnableVirtualThreads(boolean enableVirtualThreads) {
-      this.enableVirtualThreads = enableVirtualThreads;
+    public Builder setUseVirtualThreads(boolean useVirtualThreads) {
+      this.useVirtualThreads = useVirtualThreads;
       return this;
     }
 
@@ -189,7 +189,7 @@ public final class PollerOptions {
           pollThreadCount,
           uncaughtExceptionHandler,
           pollThreadNamePrefix,
-          enableVirtualThreads);
+          useVirtualThreads);
     }
   }
 
@@ -205,7 +205,7 @@ public final class PollerOptions {
   private final int pollThreadCount;
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
   private final String pollThreadNamePrefix;
-  private final boolean enableVirtualThreads;
+  private final boolean useVirtualThreads;
 
   private PollerOptions(
       int maximumPollRateIntervalMilliseconds,
@@ -218,7 +218,7 @@ public final class PollerOptions {
       int pollThreadCount,
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix,
-      boolean enableVirtualThreads) {
+      boolean useVirtualThreads) {
     this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
     this.maximumPollRatePerSecond = maximumPollRatePerSecond;
     this.backoffCoefficient = backoffCoefficient;
@@ -229,7 +229,7 @@ public final class PollerOptions {
     this.pollThreadCount = pollThreadCount;
     this.uncaughtExceptionHandler = uncaughtExceptionHandler;
     this.pollThreadNamePrefix = pollThreadNamePrefix;
-    this.enableVirtualThreads = enableVirtualThreads;
+    this.useVirtualThreads = useVirtualThreads;
   }
 
   public int getMaximumPollRateIntervalMilliseconds() {
@@ -272,8 +272,8 @@ public final class PollerOptions {
     return pollThreadNamePrefix;
   }
 
-  public boolean isVirtualThreadsEnabled() {
-    return enableVirtualThreads;
+  public boolean isUsingVirtualThreads() {
+    return useVirtualThreads;
   }
 
   @Override
@@ -297,8 +297,8 @@ public final class PollerOptions {
         + pollThreadCount
         + ", pollThreadNamePrefix='"
         + pollThreadNamePrefix
-        + ", enableVirtualThreads='"
-        + enableVirtualThreads
+        + ", useVirtualThreads='"
+        + useVirtualThreads
         + '\''
         + '}';
   }

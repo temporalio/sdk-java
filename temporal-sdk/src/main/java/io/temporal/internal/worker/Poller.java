@@ -99,22 +99,21 @@ final class Poller<T> implements SuspendableWorker {
               pollerOptions.getMaximumPollRatePerSecond(),
               pollerOptions.getMaximumPollRateIntervalMilliseconds());
     }
-    //
-    if (pollerOptions.isVirtualThreadsEnabled()) {
+    // If virtual threads are enabled, we use a virtual thread executor.
+    if (pollerOptions.isUsingVirtualThreads()) {
       AtomicInteger threadIndex = new AtomicInteger();
       pollExecutor =
           VirtualThreadDelegate.newVirtualThreadExecutor(
               (t) -> {
+                // TODO: Consider using a more descriptive name for the thread.
                 t.setName(
                     pollerOptions.getPollThreadNamePrefix() + ": " + threadIndex.incrementAndGet());
                 t.setUncaughtExceptionHandler(uncaughtExceptionHandler);
               });
     } else {
       // It is important to pass blocking queue of at least options.getPollThreadCount() capacity.
-      // As
-      // task enqueues next task the buffering is needed to queue task until the previous one
-      // releases
-      // a thread.
+      // As task enqueues next task the buffering is needed to queue task until the previous one
+      // releases a thread.
       ThreadPoolExecutor threadPoolPoller =
           new ThreadPoolExecutor(
               pollerOptions.getPollThreadCount(),
