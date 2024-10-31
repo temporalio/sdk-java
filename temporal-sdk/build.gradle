@@ -31,7 +31,7 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
 
-// Temporal SDK supports Java 8 or later so to support virutal threads 
+// Temporal SDK supports Java 8 or later so to support virtual threads
 // we need to compile the code with Java 21 and package it in a multi-release jar.
 sourceSets {
     java21 {
@@ -49,6 +49,7 @@ tasks.named('compileJava21Java') {
     javaCompiler = javaToolchains.compilerFor {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    options.release = 21
 }
 
 jar {

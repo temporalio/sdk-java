@@ -54,7 +54,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       @Nonnull PollerOptions pollerOptions,
       int workerTaskSlots,
       boolean synchronousQueue,
-      boolean enableVirtualThreads) {
+      boolean useVirtualThreads) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.identity = Objects.requireNonNull(identity);
@@ -63,8 +63,8 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
 
     this.pollThreadNamePrefix =
         pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
-    //
-    if (enableVirtualThreads) {
+    // If virtual threads are enabled, we use a virtual thread executor.
+    if (useVirtualThreads) {
       AtomicInteger threadIndex = new AtomicInteger();
       this.taskExecutor =
           VirtualThreadDelegate.newVirtualThreadExecutor(
