@@ -31,6 +31,7 @@ final class POJOWorkflowMethod {
   private final WorkflowMethodType type;
   private final Method method;
   private final Optional<String> nameFromAnnotation;
+  private final Optional<String> descriptionFromAnnotation;
 
   POJOWorkflowMethod(Method method) {
     this.method = Objects.requireNonNull(method);
@@ -43,6 +44,7 @@ final class POJOWorkflowMethod {
     int count = 0;
     WorkflowMethodType type = null;
     String name = null;
+    String description = null;
     if (workflowMethod != null) {
       type = WorkflowMethodType.WORKFLOW;
       count++;
@@ -56,6 +58,7 @@ final class POJOWorkflowMethod {
       }
       count++;
       name = signalMethod.name();
+      description = signalMethod.description();
     }
     if (queryMethod != null) {
       type = WorkflowMethodType.QUERY;
@@ -65,11 +68,13 @@ final class POJOWorkflowMethod {
       }
       count++;
       name = queryMethod.name();
+      description = queryMethod.description();
     }
     if (updateMethod != null) {
       type = WorkflowMethodType.UPDATE;
       count++;
       name = updateMethod.name();
+      description = updateMethod.description();
     }
     if (updateValidatorMethod != null) {
       type = WorkflowMethodType.UPDATE_VALIDATOR;
@@ -86,12 +91,18 @@ final class POJOWorkflowMethod {
       throw new IllegalArgumentException(
           method
               + " must contain exactly one annotation "
-              + "of @WorkflowMethod, @QueryMethod or @SignalMethod");
+              + "of @WorkflowMethod, @QueryMethod @UpdateMethod or @SignalMethod");
     }
     if (Strings.isNullOrEmpty(name)) {
       this.nameFromAnnotation = Optional.empty();
     } else {
       this.nameFromAnnotation = Optional.of(name);
+    }
+
+    if (Strings.isNullOrEmpty(description)) {
+      this.descriptionFromAnnotation = Optional.empty();
+    } else {
+      this.descriptionFromAnnotation = Optional.of(description);
     }
     this.type = Objects.requireNonNull(type);
   }
@@ -106,6 +117,10 @@ final class POJOWorkflowMethod {
 
   public Optional<String> getNameFromAnnotation() {
     return nameFromAnnotation;
+  }
+
+  public Optional<String> getDescriptionFromAnnotation() {
+    return descriptionFromAnnotation;
   }
 
   /** Compare and hash on method only. */

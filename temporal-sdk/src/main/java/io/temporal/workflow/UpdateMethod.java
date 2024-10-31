@@ -44,6 +44,9 @@ public @interface UpdateMethod {
    */
   String name() default "";
 
+  /** Short description of the update handler. Default is an empty string. */
+  String description() default "";
+
   /** Sets the actions taken if a workflow exits with a running instance of this handler. */
   HandlerUnfinishedPolicy unfinishedPolicy() default HandlerUnfinishedPolicy.WARN_AND_ABANDON;
 }

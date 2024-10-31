@@ -21,15 +21,14 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.DynamicQueryHandler;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,5 +101,26 @@ class QueryDispatcher {
   public void registerDynamicQueryHandler(
       WorkflowOutboundCallsInterceptor.RegisterDynamicQueryHandlerInput input) {
     dynamicQueryHandler = input.getHandler();
+  }
+
+  public List<WorkflowInteractionDefinition> getQueryHandlers() {
+    List<WorkflowInteractionDefinition> handlers = new ArrayList<>(queryCallbacks.size() + 1);
+    for (Map.Entry<String, WorkflowOutboundCallsInterceptor.RegisterQueryInput> entry :
+        queryCallbacks.entrySet()) {
+      WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = entry.getValue();
+      handlers.add(
+          WorkflowInteractionDefinition.newBuilder()
+              .setName(handler.getQueryType())
+              .setDescription(handler.getDescription())
+              .build());
+    }
+    if (dynamicQueryHandler != null) {
+      handlers.add(
+          WorkflowInteractionDefinition.newBuilder()
+              .setDescription(dynamicQueryHandler.getDescription())
+              .build());
+    }
+    handlers.sort(Comparator.comparing(WorkflowInteractionDefinition::getName));
+    return handlers;
   }
 }

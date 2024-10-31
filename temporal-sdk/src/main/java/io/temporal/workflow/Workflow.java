@@ -1364,6 +1364,27 @@ public final class Workflow {
     return WorkflowInternal.startNexusOperation(operation);
   }
 
+  /**
+   * Sets the current workflows details.
+   *
+   * @param details details to set
+   */
+  @Experimental
+  public static void setCurrentDetails(String details) {
+    WorkflowInternal.setCurrentDetails(details);
+  }
+
+  /**
+   * Get the current workflows details.
+   *
+   * @return details of the current workflow
+   */
+  @Experimental
+  @Nullable
+  public static String getCurrentDetails() {
+    return WorkflowInternal.getCurrentDetails();
+  }
+
   /** Prohibit instantiation. */
   private Workflow() {}
 }

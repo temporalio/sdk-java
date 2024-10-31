@@ -42,4 +42,9 @@ public interface DynamicSignalHandler {
   default HandlerUnfinishedPolicy getUnfinishedPolicy(String signalName) {
     return HandlerUnfinishedPolicy.WARN_AND_ABANDON;
   }
+
+  /** Short description of the Update handler. */
+  default String getDescription() {
+    return "Dynamic signal handler";
+  }
 }

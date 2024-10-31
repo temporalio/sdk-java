@@ -452,6 +452,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class SignalRegistrationRequest {
     private final String signalType;
+    private final String description;
     private final HandlerUnfinishedPolicy unfinishedPolicy;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
@@ -464,12 +465,14 @@ public interface WorkflowOutboundCallsInterceptor {
         Type[] genericArgTypes,
         Functions.Proc1<Object[]> callback) {
       this.signalType = signalType;
+      this.description = "";
       this.unfinishedPolicy = HandlerUnfinishedPolicy.WARN_AND_ABANDON;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
       this.callback = callback;
     }
 
+    // Kept for backward compatibility
     public SignalRegistrationRequest(
         String signalType,
         HandlerUnfinishedPolicy unfinishedPolicy,
@@ -477,6 +480,22 @@ public interface WorkflowOutboundCallsInterceptor {
         Type[] genericArgTypes,
         Functions.Proc1<Object[]> callback) {
       this.signalType = signalType;
+      this.description = "";
+      this.unfinishedPolicy = unfinishedPolicy;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.callback = callback;
+    }
+
+    public SignalRegistrationRequest(
+        String signalType,
+        String description,
+        HandlerUnfinishedPolicy unfinishedPolicy,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> callback) {
+      this.signalType = signalType;
+      this.description = description;
       this.unfinishedPolicy = unfinishedPolicy;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
@@ -485,6 +504,11 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getSignalType() {
       return signalType;
+    }
+
+    @Experimental
+    public String getDescription() {
+      return description;
     }
 
     public HandlerUnfinishedPolicy getUnfinishedPolicy() {
@@ -519,12 +543,14 @@ public interface WorkflowOutboundCallsInterceptor {
   @Experimental
   final class UpdateRegistrationRequest {
     private final String updateName;
+    private final String description;
     private final HandlerUnfinishedPolicy unfinishedPolicy;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
     private final Functions.Func1<Object[], Object> executeCallback;
     private final Functions.Proc1<Object[]> validateCallback;
 
+    // Kept for backward compatibility
     public UpdateRegistrationRequest(
         String updateName,
         HandlerUnfinishedPolicy unfinishedPolicy,
@@ -533,6 +559,24 @@ public interface WorkflowOutboundCallsInterceptor {
         Functions.Proc1<Object[]> validateCallback,
         Functions.Func1<Object[], Object> executeCallback) {
       this.updateName = updateName;
+      this.description = "";
+      this.unfinishedPolicy = unfinishedPolicy;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.validateCallback = validateCallback;
+      this.executeCallback = executeCallback;
+    }
+
+    public UpdateRegistrationRequest(
+        String updateName,
+        String description,
+        HandlerUnfinishedPolicy unfinishedPolicy,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> validateCallback,
+        Functions.Func1<Object[], Object> executeCallback) {
+      this.updateName = updateName;
+      this.description = description;
       this.unfinishedPolicy = unfinishedPolicy;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
@@ -542,6 +586,11 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getUpdateName() {
       return updateName;
+    }
+
+    @Experimental
+    public String getDescription() {
+      return description;
     }
 
     public HandlerUnfinishedPolicy getUnfinishedPolicy() {
@@ -580,16 +629,32 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class RegisterQueryInput {
     private final String queryType;
+    private final String description;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
     private final Functions.Func1<Object[], Object> callback;
 
+    // Kept for backward compatibility
     public RegisterQueryInput(
         String queryType,
         Class<?>[] argTypes,
         Type[] genericArgTypes,
         Functions.Func1<Object[], Object> callback) {
       this.queryType = queryType;
+      this.description = "";
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.callback = callback;
+    }
+
+    public RegisterQueryInput(
+        String queryType,
+        String description,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Func1<Object[], Object> callback) {
+      this.queryType = queryType;
+      this.description = description;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
       this.callback = callback;
@@ -597,6 +662,11 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getQueryType() {
       return queryType;
+    }
+
+    @Experimental
+    public String getDescription() {
+      return description;
     }
 
     public Class<?>[] getArgTypes() {

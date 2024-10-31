@@ -20,6 +20,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_WORKFLOW_METADATA;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
@@ -43,6 +45,9 @@ import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.UserMetadata;
+import io.temporal.api.sdk.v1.WorkflowDefinition;
+import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
+import io.temporal.api.sdk.v1.WorkflowMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
@@ -124,6 +129,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
   // Map of all running signal handlers. Key is the event Id of the signal event.
   private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
+  @Nullable private String currentDetails;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -370,6 +376,40 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public boolean isEveryHandlerFinished() {
     return updateDispatcher.getRunningUpdateHandlers().isEmpty()
         && signalDispatcher.getRunningSignalHandlers().isEmpty();
+  }
+
+  public WorkflowMetadata getWorkflowMetadata() {
+    WorkflowMetadata.Builder workflowMetadata = WorkflowMetadata.newBuilder();
+    WorkflowDefinition.Builder workflowDefinition = WorkflowDefinition.newBuilder();
+    // Set the workflow type
+    if (replayContext.getWorkflowType() != null
+        && replayContext.getWorkflowType().getName() != null) {
+      workflowDefinition.setType(replayContext.getWorkflowType().getName());
+    }
+    // Set built in queries
+    workflowDefinition.addQueryDefinitions(
+        WorkflowInteractionDefinition.newBuilder()
+            .setName(QUERY_TYPE_STACK_TRACE)
+            .setDescription("Current stack trace")
+            .build());
+    workflowDefinition.addQueryDefinitions(
+        WorkflowInteractionDefinition.newBuilder()
+            .setName(QUERY_TYPE_WORKFLOW_METADATA)
+            .setDescription("Metadata about the workflow")
+            .build());
+    // Add user defined queries
+    workflowDefinition.addAllQueryDefinitions(queryDispatcher.getQueryHandlers());
+    // Add user defined signals
+    workflowDefinition.addAllSignalDefinitions(signalDispatcher.getSignalHandlers());
+    // Add user defined update handlers
+    workflowDefinition.addAllUpdateDefinitions(updateDispatcher.getUpdateHandlers());
+    // Set the workflow definition
+    workflowMetadata.setDefinition(workflowDefinition.build());
+    // Add the current workflow details
+    if (currentDetails != null) {
+      workflowMetadata.setCurrentDetails(currentDetails);
+    }
+    return workflowMetadata.build();
   }
 
   private class ActivityCallback {
@@ -1436,6 +1476,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public void setCurrentUpdateInfo(UpdateInfo updateInfo) {
     currentUpdateInfo.set(updateInfo);
+  }
+
+  public void setCurrentDetails(String details) {
+    currentDetails = details;
+  }
+
+  @Nullable
+  public String getCurrentDetails() {
+    return currentDetails;
   }
 
   public Optional<UpdateInfo> getCurrentUpdateInfo() {

@@ -37,4 +37,9 @@ import io.temporal.common.converter.EncodedValues;
  */
 public interface DynamicQueryHandler {
   Object handle(String queryType, EncodedValues args);
+
+  /** Short description of the Query handler. */
+  default String getDescription() {
+    return "Dynamic query handler";
+  }
 }

@@ -39,6 +39,7 @@ import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.UpdateProtocolCallback;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.UpdateInfo;
 import java.util.List;
@@ -69,6 +70,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private WorkflowExecutionHandler workflowProc;
   private DeterministicRunner runner;
   private DataConverter dataConverter;
+  private DataConverter dataConverterWithWorkflowContext;
 
   public SyncWorkflow(
       String namespace,
@@ -92,6 +94,9 @@ class SyncWorkflow implements ReplayWorkflow {
     this.cache = cache;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.dataConverter = dataConverter;
+    this.dataConverterWithWorkflowContext =
+        dataConverter.withContext(
+            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));
     this.workflowContext =
         new SyncWorkflowContext(
             namespace,
@@ -237,6 +242,9 @@ class SyncWorkflow implements ReplayWorkflow {
       // stack trace query result should be readable for UI even if user specifies a custom data
       // converter
       return DefaultDataConverter.STANDARD_INSTANCE.toPayloads(runner.stackTrace());
+    }
+    if (WorkflowClient.QUERY_TYPE_WORKFLOW_METADATA.equals(query.getQueryType())) {
+      return dataConverterWithWorkflowContext.toPayloads(workflowContext.getWorkflowMetadata());
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();

@@ -63,7 +63,7 @@ public class CleanNexusWorkerShutdownTest {
           .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
           .build();
 
-  @Test
+  @Test(timeout = 20000)
   public void testShutdown() throws InterruptedException {
     TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute, null);
@@ -88,7 +88,7 @@ public class CleanNexusWorkerShutdownTest {
     assertTrue("Contains NexusOperationCompleted", found);
   }
 
-  @Test
+  @Test(timeout = 20000)
   public void testShutdownNow() throws InterruptedException {
     TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute, "now");

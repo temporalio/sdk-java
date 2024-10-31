@@ -29,6 +29,7 @@ public final class POJOWorkflowMethodMetadata {
 
   private final POJOWorkflowMethod workflowMethod;
   private final String name;
+  private final String description;
   private final Class<?> workflowInterface;
 
   POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> workflowInterface) {
@@ -47,6 +48,7 @@ public final class POJOWorkflowMethodMetadata {
     } else {
       this.name = nameFromAnnotation.orElse(methodMetadata.getMethod().getName());
     }
+    this.description = workflowMethod.getDescriptionFromAnnotation().orElse("");
   }
 
   public WorkflowMethodType getType() {
@@ -60,6 +62,10 @@ public final class POJOWorkflowMethodMetadata {
    */
   public String getName() {
     return name;
+  }
+
+  public String getDescription() {
+    return description;
   }
 
   public Method getWorkflowMethod() {

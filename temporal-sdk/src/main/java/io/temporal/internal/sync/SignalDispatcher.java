@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.EncodedValues;
@@ -158,6 +159,27 @@ class SignalDispatcher {
             + ". Dropping it.",
         exception);
     Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
+  }
+
+  public List<WorkflowInteractionDefinition> getSignalHandlers() {
+    List<WorkflowInteractionDefinition> handlers = new ArrayList<>(signalCallbacks.size() + 1);
+    for (Map.Entry<String, WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> entry :
+        signalCallbacks.entrySet()) {
+      WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler = entry.getValue();
+      handlers.add(
+          WorkflowInteractionDefinition.newBuilder()
+              .setName(handler.getSignalType())
+              .setDescription(handler.getDescription())
+              .build());
+    }
+    if (dynamicSignalHandler != null) {
+      handlers.add(
+          WorkflowInteractionDefinition.newBuilder()
+              .setDescription(dynamicSignalHandler.getDescription())
+              .build());
+    }
+    handlers.sort(Comparator.comparing(WorkflowInteractionDefinition::getName));
+    return handlers;
   }
 
   private static class SignalData {

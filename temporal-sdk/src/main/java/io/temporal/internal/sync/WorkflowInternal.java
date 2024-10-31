@@ -175,6 +175,7 @@ public final class WorkflowInternal {
           .registerQuery(
               new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
                   methodMetadata.getName(),
+                  methodMetadata.getDescription(),
                   method.getParameterTypes(),
                   method.getGenericParameterTypes(),
                   (args) -> {
@@ -192,6 +193,7 @@ public final class WorkflowInternal {
       requests.add(
           new WorkflowOutboundCallsInterceptor.SignalRegistrationRequest(
               methodMetadata.getName(),
+              methodMetadata.getDescription(),
               signalMethod.unfinishedPolicy(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
@@ -250,6 +252,7 @@ public final class WorkflowInternal {
       updateRequests.add(
           new WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest(
               methodMetadata.getName(),
+              methodMetadata.getDescription(),
               updateMethod.unfinishedPolicy(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
@@ -823,6 +826,15 @@ public final class WorkflowInternal {
 
   public static <R> NexusOperationHandle<R> startNexusOperation(Functions.Func<R> operation) {
     return StartNexusCallInternal.startNexusOperation(() -> operation.apply());
+  }
+
+  public static void setCurrentDetails(String details) {
+    getRootWorkflowContext().setCurrentDetails(details);
+  }
+
+  @Nullable
+  public static String getCurrentDetails() {
+    return getRootWorkflowContext().getCurrentDetails();
   }
 
   static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
