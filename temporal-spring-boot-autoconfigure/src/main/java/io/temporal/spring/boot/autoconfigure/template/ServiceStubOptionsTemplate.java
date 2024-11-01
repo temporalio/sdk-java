@@ -66,10 +66,6 @@ public class ServiceStubOptionsTemplate {
 
     configureMTLS(connectionProperties.getMTLS(), stubsOptionsBuilder);
 
-    if (connectionProperties.getApiKey() != null) {
-      stubsOptionsBuilder.addApiKey(() -> connectionProperties.getApiKey());
-    }
-
     if (metricsScope != null) {
       stubsOptionsBuilder.setMetricsScope(metricsScope);
     }
