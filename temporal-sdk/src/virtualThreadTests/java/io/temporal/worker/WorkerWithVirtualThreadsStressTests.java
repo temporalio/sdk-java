@@ -75,11 +75,11 @@ public class WorkerWithVirtualThreadsStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            WorkerFactoryOptions.newBuilder().setUseVirtualWorkflowThreads(true).build());
+            WorkerFactoryOptions.newBuilder().setUsingVirtualWorkflowThreads(true).build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker =
         factory.newWorker(
-            taskQueueName, WorkerOptions.newBuilder().setUseVirtualThreads(true).build());
+            taskQueueName, WorkerOptions.newBuilder().setUsingVirtualThreads(true).build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
@@ -114,11 +114,11 @@ public class WorkerWithVirtualThreadsStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            WorkerFactoryOptions.newBuilder().setUseVirtualWorkflowThreads(true).build());
+            WorkerFactoryOptions.newBuilder().setUsingVirtualWorkflowThreads(true).build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker =
         factory.newWorker(
-            taskQueueName, WorkerOptions.newBuilder().setUseVirtualThreads(true).build());
+            taskQueueName, WorkerOptions.newBuilder().setUsingVirtualThreads(true).build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();

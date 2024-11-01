@@ -74,25 +74,24 @@ public class NamespaceProperties {
   public static class WorkflowCacheProperties {
     private final @Nullable Integer maxInstances;
     private final @Nullable Integer maxThreads;
-    private final @Nullable Boolean enableVirtualWorkflowThreads;
+    private final @Nullable Boolean usingVirtualWorkflowThreads;
 
     /**
      * @param maxInstances max number of workflow instances in the cache. Defines {@link
      *     io.temporal.worker.WorkerFactoryOptions.Builder#setWorkflowCacheSize(int)}
      * @param maxThreads max number of workflow threads in the cache. Defines {@link
      *     io.temporal.worker.WorkerFactoryOptions.Builder#setMaxWorkflowThreadCount(int)}
-     * @param enableVirtualWorkflowThreads whether to enable virtual workflow threads. Defines
-     *     {@link
-     *     io.temporal.worker.WorkerFactoryOptions.Builder#setUseVirtualWorkflowThreads(boolean)}
+     * @param usingVirtualWorkflowThreads whether to enable virtual workflow threads. Defines {@link
+     *     io.temporal.worker.WorkerFactoryOptions.Builder#setUsingVirtualWorkflowThreads(boolean)}
      */
     @ConstructorBinding
     public WorkflowCacheProperties(
         @Nullable Integer maxInstances,
         @Nullable Integer maxThreads,
-        @Nullable Boolean enableVirtualWorkflowThreads) {
+        @Nullable Boolean usingVirtualWorkflowThreads) {
       this.maxInstances = maxInstances;
       this.maxThreads = maxThreads;
-      this.enableVirtualWorkflowThreads = enableVirtualWorkflowThreads;
+      this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
     }
 
     @Nullable
@@ -105,8 +104,8 @@ public class NamespaceProperties {
       return maxThreads;
     }
 
-    public @Nullable Boolean IsEnableVirtualWorkflowThreads() {
-      return enableVirtualWorkflowThreads;
+    public @Nullable Boolean isUsingVirtualWorkflowThreads() {
+      return usingVirtualWorkflowThreads;
     }
   }
 }

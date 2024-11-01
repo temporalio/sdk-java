@@ -56,7 +56,7 @@ public class WorkerFactoryOptions {
     private int maxWorkflowThreadCount;
     private WorkerInterceptor[] workerInterceptors;
     private boolean enableLoggingInReplay;
-    private boolean useVirtualWorkflowThreads;
+    private boolean usingVirtualWorkflowThreads;
 
     private Builder() {}
 
@@ -70,7 +70,7 @@ public class WorkerFactoryOptions {
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workerInterceptors = options.workerInterceptors;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
-      this.useVirtualWorkflowThreads = options.useVirtualWorkflowThreads;
+      this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
     }
 
     /**
@@ -130,8 +130,8 @@ public class WorkerFactoryOptions {
      * <p>Default is false
      */
     @Experimental
-    public Builder setUseVirtualWorkflowThreads(boolean useVirtualWorkflowThreads) {
-      this.useVirtualWorkflowThreads = useVirtualWorkflowThreads;
+    public Builder setUsingVirtualWorkflowThreads(boolean usingVirtualWorkflowThreads) {
+      this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
       return this;
     }
 
@@ -150,7 +150,7 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors,
           enableLoggingInReplay,
-          useVirtualWorkflowThreads,
+          usingVirtualWorkflowThreads,
           false);
     }
 
@@ -161,7 +161,7 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors == null ? new WorkerInterceptor[0] : workerInterceptors,
           enableLoggingInReplay,
-          useVirtualWorkflowThreads,
+          usingVirtualWorkflowThreads,
           true);
     }
   }
@@ -171,7 +171,7 @@ public class WorkerFactoryOptions {
   private final @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
   private final WorkerInterceptor[] workerInterceptors;
   private final boolean enableLoggingInReplay;
-  private final boolean useVirtualWorkflowThreads;
+  private final boolean usingVirtualWorkflowThreads;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
@@ -179,7 +179,7 @@ public class WorkerFactoryOptions {
       @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout,
       WorkerInterceptor[] workerInterceptors,
       boolean enableLoggingInReplay,
-      boolean enableVirtualWorkflowThreads,
+      boolean usingVirtualWorkflowThreads,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
@@ -206,7 +206,7 @@ public class WorkerFactoryOptions {
         workflowHostLocalTaskQueueScheduleToStartTimeout;
     this.workerInterceptors = workerInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
-    this.useVirtualWorkflowThreads = enableVirtualWorkflowThreads;
+    this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
   }
 
   public int getWorkflowCacheSize() {
@@ -232,7 +232,7 @@ public class WorkerFactoryOptions {
 
   @Experimental
   public boolean isUsingVirtualWorkflowThreads() {
-    return useVirtualWorkflowThreads;
+    return usingVirtualWorkflowThreads;
   }
 
   /**
