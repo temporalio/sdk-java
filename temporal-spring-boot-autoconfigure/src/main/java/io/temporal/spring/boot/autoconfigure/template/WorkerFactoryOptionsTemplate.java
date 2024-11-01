@@ -54,7 +54,7 @@ public class WorkerFactoryOptionsTemplate {
       Optional.ofNullable(workflowCache.getMaxInstances()).ifPresent(options::setWorkflowCacheSize);
       Optional.ofNullable(workflowCache.getMaxThreads())
           .ifPresent(options::setMaxWorkflowThreadCount);
-      Optional.ofNullable(workflowCache.IsEnableVirtualWorkflowThreads())
+      Optional.ofNullable(workflowCache.isUsingVirtualWorkflowThreads())
           .ifPresent(options::setUsingVirtualWorkflowThreads);
     }
 
