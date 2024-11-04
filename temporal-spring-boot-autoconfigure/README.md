@@ -117,6 +117,8 @@ spring.temporal:
           # max-concurrent-local-activity-executors: 200
           # max-concurrent-workflow-task-pollers: 5
           # max-concurrent-activity-task-pollers: 5
+        # virtual-thread:
+          # using-virtual-threads: true # only supported if JDK 21 or newer is used
         # rate-limits:
           # max-worker-activities-per-second: 5.0
           # max-task-queue-activities-per-second: 5.0
@@ -125,6 +127,7 @@ spring.temporal:
     # workflow-cache:
       # max-instances: 600
       # max-threads: 600
+      # using-virtual-workflow-threads: true # only supported if JDK 21 or newer is used
     # start-workers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
 ```
 </details>

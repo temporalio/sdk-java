@@ -84,6 +84,21 @@ class WorkerOptionsTemplate {
             .ifPresent(options::setBuildId);
         options.setUseBuildIdForVersioning(buildIdConfigurations.getEnabledWorkerVersioning());
       }
+
+      WorkerProperties.VirtualThreadConfigurationProperties virtualThreadConfiguration =
+          workerProperties.getVirtualThreads();
+      if (virtualThreadConfiguration != null) {
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreads())
+            .ifPresent(options::setUsingVirtualThreads);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnWorkflowWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnWorkflowWorker);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnActivityWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnActivityWorker);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnLocalActivityWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnLocalActivityWorker);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnNexusWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnNexusWorker);
+      }
     }
     if (customizer != null) {
       options = customizer.customize(options);

@@ -29,9 +29,15 @@ public class ExternalServiceTestConfigurator {
       EnvironmentVariableUtils.readBooleanFlag("USE_DOCKER_SERVICE");
   private static String TEMPORAL_SERVICE_ADDRESS =
       EnvironmentVariableUtils.readString("TEMPORAL_SERVICE_ADDRESS");
+  private static boolean USE_VIRTUAL_THREADS =
+      EnvironmentVariableUtils.readBooleanFlag("USE_VIRTUAL_THREADS");
 
   public static boolean isUseExternalService() {
     return USE_DOCKER_SERVICE;
+  }
+
+  public static boolean isUseVirtualThreads() {
+    return USE_VIRTUAL_THREADS;
   }
 
   public static String getTemporalServiceAddress() {

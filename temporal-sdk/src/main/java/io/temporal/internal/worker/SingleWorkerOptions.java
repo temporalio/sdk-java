@@ -57,6 +57,7 @@ public final class SingleWorkerOptions {
     private Duration maxHeartbeatThrottleInterval;
     private Duration defaultHeartbeatThrottleInterval;
     private Duration drainStickyTaskQueueTimeout;
+    private boolean usingVirtualThreads;
 
     private Builder() {}
 
@@ -79,6 +80,7 @@ public final class SingleWorkerOptions {
       this.buildId = options.getBuildId();
       this.useBuildIdForVersioning = options.isUsingBuildIdForVersioning();
       this.drainStickyTaskQueueTimeout = options.getDrainStickyTaskQueueTimeout();
+      this.usingVirtualThreads = options.isUsingVirtualThreads();
     }
 
     public Builder setIdentity(String identity) {
@@ -160,6 +162,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setUsingVirtualThreads(boolean usingVirtualThreads) {
+      this.usingVirtualThreads = usingVirtualThreads;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -196,7 +203,8 @@ public final class SingleWorkerOptions {
           this.defaultDeadlockDetectionTimeout,
           this.maxHeartbeatThrottleInterval,
           this.defaultHeartbeatThrottleInterval,
-          drainStickyTaskQueueTimeout);
+          drainStickyTaskQueueTimeout,
+          usingVirtualThreads);
     }
   }
 
@@ -215,6 +223,7 @@ public final class SingleWorkerOptions {
   private final Duration maxHeartbeatThrottleInterval;
   private final Duration defaultHeartbeatThrottleInterval;
   private final Duration drainStickyTaskQueueTimeout;
+  private final boolean usingVirtualThreads;
 
   private SingleWorkerOptions(
       String identity,
@@ -231,7 +240,8 @@ public final class SingleWorkerOptions {
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      Duration drainStickyTaskQueueTimeout) {
+      Duration drainStickyTaskQueueTimeout,
+      boolean usingVirtualThreads) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -247,6 +257,7 @@ public final class SingleWorkerOptions {
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.drainStickyTaskQueueTimeout = drainStickyTaskQueueTimeout;
+    this.usingVirtualThreads = usingVirtualThreads;
   }
 
   public String getIdentity() {
@@ -267,6 +278,10 @@ public final class SingleWorkerOptions {
 
   public boolean isUsingBuildIdForVersioning() {
     return useBuildIdForVersioning;
+  }
+
+  public boolean isUsingVirtualThreads() {
+    return usingVirtualThreads;
   }
 
   public Duration getDrainStickyTaskQueueTimeout() {

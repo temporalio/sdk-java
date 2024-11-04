@@ -34,6 +34,7 @@ public class WorkerProperties {
   private final @Nullable CapacityConfigurationProperties capacity;
   private final @Nullable RateLimitsConfigurationProperties rateLimits;
   private final @Nullable BuildIdConfigurationProperties buildId;
+  private final @Nullable VirtualThreadConfigurationProperties virtualThreads;
 
   @ConstructorBinding
   public WorkerProperties(
@@ -44,7 +45,8 @@ public class WorkerProperties {
       @Nullable Collection<String> nexusServiceBeans,
       @Nullable CapacityConfigurationProperties capacity,
       @Nullable RateLimitsConfigurationProperties rateLimits,
-      @Nullable BuildIdConfigurationProperties buildId) {
+      @Nullable BuildIdConfigurationProperties buildId,
+      @Nullable VirtualThreadConfigurationProperties virtualThreads) {
     this.name = name;
     this.taskQueue = taskQueue;
     this.workflowClasses = workflowClasses;
@@ -53,6 +55,7 @@ public class WorkerProperties {
     this.capacity = capacity;
     this.rateLimits = rateLimits;
     this.buildId = buildId;
+    this.virtualThreads = virtualThreads;
   }
 
   @Nonnull
@@ -88,6 +91,11 @@ public class WorkerProperties {
   @Nullable
   public BuildIdConfigurationProperties getBuildId() {
     return buildId;
+  }
+
+  @Nullable
+  public VirtualThreadConfigurationProperties getVirtualThreads() {
+    return virtualThreads;
   }
 
   @Nullable
@@ -228,6 +236,65 @@ public class WorkerProperties {
     @Nullable
     public boolean getEnabledWorkerVersioning() {
       return enabledWorkerVersioning;
+    }
+  }
+
+  public static class VirtualThreadConfigurationProperties {
+    private final @Nullable Boolean usingVirtualThreads;
+    private final @Nullable Boolean usingVirtualThreadsOnWorkflowWorker;
+    private final @Nullable Boolean usingVirtualThreadsOnActivityWorker;
+    private final @Nullable Boolean usingVirtualThreadsOnLocalActivityWorker;
+    private final @Nullable Boolean usingVirtualThreadsOnNexusWorker;
+
+    /**
+     * @param usingVirtualThreads defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setUsingVirtualThreads(boolean)}
+     * @param usingVirtualThreadsOnWorkflowWorker defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setUsingVirtualThreadsOnWorkflowWorker(boolean)}
+     * @param usingVirtualThreadsOnActivityWorker defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setUsingVirtualThreadsOnActivityWorker(boolean)}
+     * @param usingVirtualThreadsOnNexusWorker defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setUsingVirtualThreadsOnNexusWorker(boolean)}
+     * @param usingVirtualThreadsOnLocalActivityWorker defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setUsingVirtualThreadsOnLocalActivityWorker(boolean)}
+     */
+    @ConstructorBinding
+    public VirtualThreadConfigurationProperties(
+        @Nullable Boolean usingVirtualThreads,
+        @Nullable Boolean usingVirtualThreadsOnWorkflowWorker,
+        @Nullable Boolean usingVirtualThreadsOnActivityWorker,
+        @Nullable Boolean usingVirtualThreadsOnLocalActivityWorker,
+        @Nullable Boolean usingVirtualThreadsOnNexusWorker) {
+      this.usingVirtualThreads = usingVirtualThreads;
+      this.usingVirtualThreadsOnWorkflowWorker = usingVirtualThreadsOnWorkflowWorker;
+      this.usingVirtualThreadsOnActivityWorker = usingVirtualThreadsOnActivityWorker;
+      this.usingVirtualThreadsOnLocalActivityWorker = usingVirtualThreadsOnLocalActivityWorker;
+      this.usingVirtualThreadsOnNexusWorker = usingVirtualThreadsOnNexusWorker;
+    }
+
+    @Nullable
+    public Boolean isUsingVirtualThreads() {
+      return usingVirtualThreads;
+    }
+
+    @Nullable
+    public Boolean isUsingVirtualThreadsOnWorkflowWorker() {
+      return usingVirtualThreadsOnWorkflowWorker;
+    }
+
+    @Nullable
+    public Boolean isUsingVirtualThreadsOnLocalActivityWorker() {
+      return usingVirtualThreadsOnLocalActivityWorker;
+    }
+
+    @Nullable
+    public Boolean isUsingVirtualThreadsOnNexusWorker() {
+      return usingVirtualThreadsOnNexusWorker;
+    }
+
+    @Nullable
+    public Boolean isUsingVirtualThreadsOnActivityWorker() {
+      return usingVirtualThreadsOnActivityWorker;
     }
   }
 }

@@ -1,5 +1,5 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'com.gradleup.shadow' version '8.3.3'
 }
 
 description = '''Temporal Java SDK and Testing Framework with gRPC, Protobuf 3 and Guava shaded'''
@@ -78,5 +78,14 @@ shadowJar {
     mergeServiceFiles()
     archiveClassifier.set("")
 }
+
+jar {
+    manifest {
+        // The Java SDK uses a multi-release jar to support virtual threads. We need to manually set this since the
+        // shadowJar plugin doesn't do this https://github.com/GradleUp/shadow/issues/449.
+        attributes('Multi-Release': 'true')
+    }
+}
+
 
 shadowJar.shouldRunAfter(jar)

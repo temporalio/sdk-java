@@ -60,7 +60,9 @@ jobs:
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
-        java-version: "11"
+        java-version: |
+          21
+          11
         distribution: "temurin"
 
     - name: Set up Gradle
@@ -78,6 +80,13 @@ jobs:
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
       run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
+
+    - name: Run virtual thread tests
+      env:
+        USER: unittest
+        TEMPORAL_SERVICE_ADDRESS: localhost:7233
+        USE_DOCKER_SERVICE: true
+      run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Publish Test Report
       uses: mikepenz/action-junit-report@v4
