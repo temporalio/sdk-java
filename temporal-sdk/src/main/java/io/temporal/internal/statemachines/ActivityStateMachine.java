@@ -273,14 +273,16 @@ final class ActivityStateMachine
   }
 
   public void createScheduleActivityTaskCommand() {
-    addCommand(
+    Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK)
-            .setScheduleActivityTaskCommandAttributes(parameters.getAttributes())
-            .setUserMetadata(userMetadata)
-            .build());
+            .setScheduleActivityTaskCommandAttributes(parameters.getAttributes());
+    if (userMetadata != null) {
+      command.setUserMetadata(userMetadata);
+      userMetadata = null;
+    }
+    addCommand(command.build());
     parameters = null; // avoiding retaining large input for the duration of the activity
-    userMetadata = null;
   }
 
   private void setStartedCommandEventId() {
