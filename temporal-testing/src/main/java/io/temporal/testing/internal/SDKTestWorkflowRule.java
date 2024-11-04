@@ -89,6 +89,8 @@ public class SDKTestWorkflowRule implements TestRule {
   // Only enable when USE_DOCKER_SERVICE is true
   public static final boolean useExternalService =
       ExternalServiceTestConfigurator.isUseExternalService();
+  public static final boolean USE_VIRTUAL_THREADS =
+      ExternalServiceTestConfigurator.isUseVirtualThreads();
   private static final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private static final ScheduledExecutorService scheduledExecutor =
       new ScheduledThreadPoolExecutor(1);
@@ -118,6 +120,7 @@ public class SDKTestWorkflowRule implements TestRule {
     private long testTimeoutSeconds;
 
     private boolean workerFactoryOptionsAreSet = false;
+    private boolean workerOptionsAreSet = false;
     private final TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
     public Builder() {
@@ -136,7 +139,9 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public Builder setWorkerOptions(WorkerOptions options) {
-      testWorkflowRuleBuilder.setWorkerOptions(options);
+      testWorkflowRuleBuilder.setWorkerOptions(
+          WorkerOptions.newBuilder(options).setUsingVirtualThreads(USE_VIRTUAL_THREADS).build());
+      workerOptionsAreSet = true;
       return this;
     }
 
@@ -229,9 +234,14 @@ public class SDKTestWorkflowRule implements TestRule {
       if (!workerFactoryOptionsAreSet) {
         testWorkflowRuleBuilder.setWorkerFactoryOptions(
             WorkerFactoryOptions.newBuilder()
+                .setUsingVirtualWorkflowThreads(USE_VIRTUAL_THREADS)
                 .setWorkerInterceptors(
                     new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
                 .build());
+      }
+      if (!workerOptionsAreSet) {
+        testWorkflowRuleBuilder.setWorkerOptions(
+            WorkerOptions.newBuilder().setUsingVirtualThreads(USE_VIRTUAL_THREADS).build());
       }
       return new SDKTestWorkflowRule(this);
     }

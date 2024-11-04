@@ -81,10 +81,11 @@ task testResourceIndependent(type: Test) {
     }
 }
 
-// To test the virtual thread support we need to run a seprate test suite with Java 21
+// To test the virtual thread support we need to run a separate test suite with Java 21
 testing {
     suites {
-        virtualThreadTests(JvmTestSuite) {
+        // Common setup for all test suites
+        configureEach {
             useJUnit(junitVersion)
             dependencies {
                 implementation project()
@@ -98,7 +99,21 @@ testing {
                     exclude group: 'org.slf4j', module: 'slf4j-api'
                 }
             }
+            targets {
+                all {
+                    testTask.configure {
+                        testLogging {
+                            events 'passed', 'skipped', 'failed'
+                            exceptionFormat 'full'
+                            // Uncomment the following line if you want to see test logs in gradlew run.
+                            showStandardStreams true
+                        }
+                    }
+                }
+            }
+        }
 
+        virtualThreadTests(JvmTestSuite) {
             targets {
                 all {
                     testTask.configure {
@@ -106,6 +121,30 @@ testing {
                             languageVersion = JavaLanguageVersion.of(21)
                         }
                         shouldRunAfter(test)
+                    }
+                }
+            }
+        }
+
+        // Run the same test as the normal test task with virtual threads
+        testsWithVirtualThreads(JvmTestSuite) {
+            // Use the same source and resources as the main test set
+            sources {
+                java {
+                    srcDirs = ['src/test/java']
+                }
+                resources {
+                    srcDirs = ["src/test/resources"]
+                }
+            }
+
+            targets {
+                all {
+                    testTask.configure {
+                        javaLauncher = javaToolchains.launcherFor {
+                            languageVersion = JavaLanguageVersion.of(21)
+                        }
+                        environment("USE_VIRTUAL_THREADS", "false")
                     }
                 }
             }
