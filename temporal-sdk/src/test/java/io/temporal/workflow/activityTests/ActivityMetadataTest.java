@@ -24,7 +24,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -57,11 +59,11 @@ public class ActivityMetadataTest {
   @Test
   public void testActivityWithMetaData() {
     TestWorkflow1 stub = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    stub.execute(testWorkflowRule.getTaskQueue());
 
-    String workflowId = stub.execute(testWorkflowRule.getTaskQueue());
-
+    WorkflowExecution exec = WorkflowStub.fromTyped(stub).getExecution();
     WorkflowExecutionHistory workflowExecutionHistory =
-        testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
+        testWorkflowRule.getWorkflowClient().fetchHistory(exec.getWorkflowId());
     List<HistoryEvent> activityScheduledEvents =
         workflowExecutionHistory.getEvents().stream()
             .filter(HistoryEvent::hasActivityTaskScheduledEventAttributes)
