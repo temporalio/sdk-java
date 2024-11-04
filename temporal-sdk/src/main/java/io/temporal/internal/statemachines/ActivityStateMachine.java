@@ -35,6 +35,7 @@ import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -54,6 +55,7 @@ final class ActivityStateMachine
   private final String activityId;
   private final ActivityType activityType;
   private final ActivityCancellationType cancellationType;
+  private UserMetadata userMetadata;
 
   private final Functions.Proc2<Optional<Payloads>, FailureResult> completionCallback;
 
@@ -265,16 +267,21 @@ final class ActivityStateMachine
     this.activityId = scheduleAttr.getActivityId();
     this.activityType = scheduleAttr.getActivityType();
     this.cancellationType = parameters.getCancellationType();
+    this.userMetadata = parameters.getMetadata();
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
   public void createScheduleActivityTaskCommand() {
-    addCommand(
+    Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK)
-            .setScheduleActivityTaskCommandAttributes(parameters.getAttributes())
-            .build());
+            .setScheduleActivityTaskCommandAttributes(parameters.getAttributes());
+    if (userMetadata != null) {
+      command.setUserMetadata(userMetadata);
+      userMetadata = null;
+    }
+    addCommand(command.build());
     parameters = null; // avoiding retaining large input for the duration of the activity
   }
 

@@ -625,7 +625,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
 
-    return new ExecuteActivityParameters(attributes, options.getCancellationType());
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+
+    return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(

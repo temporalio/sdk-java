@@ -93,7 +93,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
@@ -173,7 +173,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
@@ -254,7 +254,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
@@ -340,7 +340,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -388,7 +388,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -490,7 +490,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -574,7 +574,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -680,7 +680,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -798,7 +798,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -918,7 +918,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -1015,7 +1015,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -1135,7 +1135,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -1244,7 +1244,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
@@ -1352,7 +1352,7 @@ public class ActivityStateMachineTest {
             ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
         ExecuteActivityParameters parameters =
             new ExecuteActivityParameters(
-                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED, null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
