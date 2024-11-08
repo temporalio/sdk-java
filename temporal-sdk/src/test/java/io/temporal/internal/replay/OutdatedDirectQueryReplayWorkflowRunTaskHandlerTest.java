@@ -159,6 +159,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                       System.currentTimeMillis(),
                       null,
                       false,
+                      null,
                       null),
                   (r, e) -> {});
               return false;

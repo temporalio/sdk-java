@@ -23,6 +23,7 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
@@ -51,6 +52,7 @@ public class ExecuteLocalActivityParameters {
   private final boolean doNotIncludeArgumentsIntoMarker;
   private final @Nullable Duration scheduleToStartTimeout;
   private @Nullable Functions.Proc onNewAttemptCallback;
+  private final UserMetadata metadata;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -58,7 +60,8 @@ public class ExecuteLocalActivityParameters {
       long originalScheduledTimestamp,
       @Nullable Failure previousLocalExecutionFailure,
       boolean doNotIncludeArgumentsIntoMarker,
-      @Nonnull Duration localRetryThreshold) {
+      @Nonnull Duration localRetryThreshold,
+      UserMetadata metadata) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.originalScheduledTimestamp = originalScheduledTimestamp;
@@ -66,6 +69,7 @@ public class ExecuteLocalActivityParameters {
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
     this.localRetryThreshold = localRetryThreshold;
     this.onNewAttemptCallback = null;
+    this.metadata = metadata;
   }
 
   public String getActivityId() {
@@ -135,5 +139,9 @@ public class ExecuteLocalActivityParameters {
 
   public void setOnNewAttemptCallback(@Nonnull Functions.Proc onNewAttemptCallback) {
     this.onNewAttemptCallback = onNewAttemptCallback;
+  }
+
+  public UserMetadata getMetadata() {
+    return metadata;
   }
 }
