@@ -266,9 +266,9 @@ public final class WorkflowHandle<R> {
    * @param args arguments to start the workflow
    * @return WorkflowHandle
    */
-  static <R> WorkflowHandle<R> fromWorkflowStub(
+  public static <R> WorkflowHandle<R> fromWorkflowStub(
       WorkflowStub stub, Class<R> resultClass, Object... args) {
-    return new WorkflowHandle(new WorkflowStubHandleInvoker(stub, args));
+    return new WorkflowHandle<>(new WorkflowStubHandleInvoker(stub, args));
   }
 
   final WorkflowHandleInvoker invoker;
