@@ -62,7 +62,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       Collections.synchronizedMap(new HashMap<>());
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private final WorkerInterceptor[] interceptors;
-  private final NexusServiceInterceptorConverter nexusServiceInterceptor;
+  private final TemporalInterceptorMiddleware nexusServiceInterceptor;
 
   public NexusTaskHandlerImpl(
       @Nonnull WorkflowClient client,
@@ -75,7 +75,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.interceptors = Objects.requireNonNull(interceptors);
-    this.nexusServiceInterceptor = new NexusServiceInterceptorConverter(interceptors);
+    this.nexusServiceInterceptor = new TemporalInterceptorMiddleware(interceptors);
   }
 
   @Override
@@ -86,7 +86,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     ServiceHandler.Builder serviceHandlerBuilder =
         ServiceHandler.newBuilder().setSerializer(new PayloadSerializer(dataConverter));
     serviceImplInstances.forEach((name, instance) -> serviceHandlerBuilder.addInstance(instance));
-    serviceHandlerBuilder.setInterceptors(nexusServiceInterceptor);
+    serviceHandlerBuilder.addOperationMiddleware(nexusServiceInterceptor);
     serviceHandler = serviceHandlerBuilder.build();
     return true;
   }

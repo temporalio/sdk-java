@@ -26,18 +26,18 @@ import io.nexusrpc.handler.*;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 
-public class NexusServiceInterceptorConverter implements ServiceHandlerInterceptor {
+public class TemporalInterceptorMiddleware implements OperationMiddleware {
   private final WorkerInterceptor[] interceptors;
   RootNexusOperationInboundCallsInterceptor rootInboundCallsInterceptor;
 
-  public NexusServiceInterceptorConverter(WorkerInterceptor[] interceptors) {
+  public TemporalInterceptorMiddleware(WorkerInterceptor[] interceptors) {
     this.interceptors = interceptors;
   }
 
   @Override
-  public OperationInterceptor interceptOperation(OperationInterceptor operationInterceptor) {
-    rootInboundCallsInterceptor =
-        new RootNexusOperationInboundCallsInterceptor(operationInterceptor);
+  public OperationHandler<Object, Object> intercept(
+      OperationHandler<Object, Object> operationHandler) {
+    rootInboundCallsInterceptor = new RootNexusOperationInboundCallsInterceptor(operationHandler);
     NexusOperationInboundCallsInterceptor inboundCallsInterceptor = rootInboundCallsInterceptor;
     for (WorkerInterceptor interceptor : interceptors) {
       inboundCallsInterceptor = interceptor.interceptNexusOperation(inboundCallsInterceptor);
@@ -49,7 +49,7 @@ public class NexusServiceInterceptorConverter implements ServiceHandlerIntercept
     return new OperationInterceptorConverter(inboundCallsInterceptor);
   }
 
-  class OperationInterceptorConverter implements OperationInterceptor {
+  static class OperationInterceptorConverter implements OperationHandler<Object, Object> {
     private final NexusOperationInboundCallsInterceptor next;
 
     public OperationInterceptorConverter(NexusOperationInboundCallsInterceptor next) {

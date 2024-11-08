@@ -21,16 +21,16 @@
 package io.temporal.internal.nexus;
 
 import io.nexusrpc.OperationUnsuccessfulException;
-import io.nexusrpc.handler.OperationInterceptor;
+import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationStartResult;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 
 public class RootNexusOperationInboundCallsInterceptor
     implements NexusOperationInboundCallsInterceptor {
-  private final OperationInterceptor operationInterceptor;
+  private final OperationHandler<Object, Object> operationInterceptor;
 
-  RootNexusOperationInboundCallsInterceptor(OperationInterceptor operationInterceptor) {
+  RootNexusOperationInboundCallsInterceptor(OperationHandler<Object, Object> operationInterceptor) {
     this.operationInterceptor = operationInterceptor;
   }
 
