@@ -31,6 +31,7 @@ import io.temporal.api.failure.v1.ActivityFailureInfo;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -63,6 +64,7 @@ final class LocalActivityStateMachine
   private final LocalActivityCallback callback;
 
   private ExecuteLocalActivityParameters localActivityParameters;
+  private @Nullable UserMetadata userMetadata;
   private final Functions.Func<Boolean> replaying;
 
   /** Accepts proposed current time. Returns accepted current time. */
@@ -211,6 +213,7 @@ final class LocalActivityStateMachine
     this.replaying = replaying;
     this.setCurrentTimeCallback = setCurrentTimeCallback;
     this.localActivityParameters = localActivityParameters;
+    this.userMetadata = localActivityParameters.getMetadata();
     this.activityId = localActivityParameters.getActivityId();
     this.activityType = localActivityParameters.getActivityType();
     this.originalScheduledTimestamp = localActivityParameters.getOriginalScheduledTimestamp();
@@ -342,11 +345,15 @@ final class LocalActivityStateMachine
           DefaultDataConverter.STANDARD_INSTANCE.toPayloads(localActivityMarkerMetadata).get());
       markerAttributes.putAllDetails(details);
     }
-    addCommand(
+    Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-            .setRecordMarkerCommandAttributes(markerAttributes.build())
-            .build());
+            .setRecordMarkerCommandAttributes(markerAttributes.build());
+    if (userMetadata != null) {
+      command.setUserMetadata(userMetadata);
+      userMetadata = null;
+    }
+    addCommand(command.build());
   }
 
   private void notifyResultFromEvent() {

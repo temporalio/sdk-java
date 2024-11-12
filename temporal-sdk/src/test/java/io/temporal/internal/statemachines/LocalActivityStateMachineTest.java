@@ -102,6 +102,7 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 true,
+                null,
                 null);
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
@@ -112,6 +113,7 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 false,
+                null,
                 null);
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
@@ -122,6 +124,7 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 true,
+                null,
                 null);
 
         builder
@@ -303,6 +306,7 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 false,
+                null,
                 null);
         builder
             .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
@@ -368,6 +372,7 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 false,
+                null,
                 null);
         // TODO: This is a workaround for the lack of support for child workflow in the test
         // framework.

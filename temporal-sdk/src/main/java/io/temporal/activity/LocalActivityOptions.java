@@ -21,6 +21,7 @@
 package io.temporal.activity;
 
 import com.google.common.base.Objects;
+import io.temporal.common.Experimental;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
@@ -56,6 +57,7 @@ public final class LocalActivityOptions {
     private Duration localRetryThreshold;
     private RetryOptions retryOptions;
     private Boolean doNotIncludeArgumentsIntoMarker;
+    private String summary;
 
     /** Copy Builder fields from the options. */
     private Builder(LocalActivityOptions options) {
@@ -68,6 +70,7 @@ public final class LocalActivityOptions {
       this.localRetryThreshold = options.getLocalRetryThreshold();
       this.retryOptions = options.getRetryOptions();
       this.doNotIncludeArgumentsIntoMarker = options.isDoNotIncludeArgumentsIntoMarker();
+      this.summary = options.getSummary();
     }
 
     /**
@@ -178,6 +181,18 @@ public final class LocalActivityOptions {
       return this;
     }
 
+    /**
+     * Single-line fixed summary for this activity that will appear in UI/CLI. This can be in
+     * single-line Temporal Markdown format.
+     *
+     * <p>Default is none/empty.
+     */
+    @Experimental
+    public Builder setSummary(String summary) {
+      this.summary = summary;
+      return this;
+    }
+
     public Builder mergeActivityOptions(LocalActivityOptions override) {
       if (override == null) {
         return this;
@@ -204,6 +219,7 @@ public final class LocalActivityOptions {
           (override.doNotIncludeArgumentsIntoMarker != null)
               ? override.doNotIncludeArgumentsIntoMarker
               : this.doNotIncludeArgumentsIntoMarker;
+      this.summary = (override.summary == null) ? this.summary : override.summary;
       return this;
     }
 
@@ -214,7 +230,8 @@ public final class LocalActivityOptions {
           scheduleToStartTimeout,
           localRetryThreshold,
           retryOptions,
-          doNotIncludeArgumentsIntoMarker);
+          doNotIncludeArgumentsIntoMarker,
+          summary);
     }
 
     public LocalActivityOptions validateAndBuildWithDefaults() {
@@ -228,7 +245,8 @@ public final class LocalActivityOptions {
           scheduleToStartTimeout,
           localRetryThreshold,
           RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
-          doNotIncludeArgumentsIntoMarker);
+          doNotIncludeArgumentsIntoMarker,
+          summary);
     }
   }
 
@@ -238,6 +256,7 @@ public final class LocalActivityOptions {
   private final Duration scheduleToStartTimeout;
   private final RetryOptions retryOptions;
   private final Boolean doNotIncludeArgumentsIntoMarker;
+  private final String summary;
 
   private LocalActivityOptions(
       Duration startToCloseTimeout,
@@ -245,13 +264,15 @@ public final class LocalActivityOptions {
       Duration scheduleToStartTimeout,
       Duration localRetryThreshold,
       RetryOptions retryOptions,
-      Boolean doNotIncludeArgumentsIntoMarker) {
+      Boolean doNotIncludeArgumentsIntoMarker,
+      String summary) {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.localRetryThreshold = localRetryThreshold;
     this.retryOptions = retryOptions;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
+    this.summary = summary;
   }
 
   public Duration getScheduleToCloseTimeout() {
@@ -278,6 +299,11 @@ public final class LocalActivityOptions {
     return doNotIncludeArgumentsIntoMarker != null && doNotIncludeArgumentsIntoMarker;
   }
 
+  @Experimental
+  public String getSummary() {
+    return summary;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -292,7 +318,8 @@ public final class LocalActivityOptions {
         && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equal(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equal(localRetryThreshold, that.localRetryThreshold)
-        && Objects.equal(retryOptions, that.retryOptions);
+        && Objects.equal(retryOptions, that.retryOptions)
+        && Objects.equal(summary, that.summary);
   }
 
   @Override
@@ -303,7 +330,8 @@ public final class LocalActivityOptions {
         scheduleToStartTimeout,
         localRetryThreshold,
         retryOptions,
-        doNotIncludeArgumentsIntoMarker);
+        doNotIncludeArgumentsIntoMarker,
+        summary);
   }
 
   @Override
@@ -319,6 +347,8 @@ public final class LocalActivityOptions {
         + retryOptions
         + ", doNotIncludeArgumentsIntoMarker="
         + isDoNotIncludeArgumentsIntoMarker()
+        + ", summary="
+        + summary
         + '}';
   }
 }

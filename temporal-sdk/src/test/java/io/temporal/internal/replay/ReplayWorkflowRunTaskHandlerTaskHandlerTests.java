@@ -151,6 +151,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             0,
             null,
             false,
+            null,
             null);
     laMeteringHelper.addNewLocalActivity(executeLA);
     laMeteringHelper.addNewLocalActivity(
@@ -160,6 +161,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             0,
             null,
             false,
+            null,
             null));
     for (int i = 0; i < 5; i++) {
       executeLA.getOnNewAttemptCallback().apply();
