@@ -35,6 +35,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class AsyncWorkflowOperationTest extends BaseNexusTest {
+  private static final String WORKFLOW_ID_PREFIX = "test-prefix";
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -86,6 +88,7 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
       Assert.assertTrue("Operation id should be present", asyncExec.getOperationId().isPresent());
       // Result should only be completed if the operation is completed
       Assert.assertFalse("Result should not be completed", asyncOpHandle.getResult().isCompleted());
+      Assert.assertTrue(asyncExec.getOperationId().get().startsWith(WORKFLOW_ID_PREFIX));
       // Unblock the operation
       Workflow.newExternalWorkflowStub(OperationWorkflow.class, asyncExec.getOperationId().get())
           .unblock();
@@ -129,7 +132,9 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
           (context, details, client, input) ->
               client.newWorkflowStub(
                       OperationWorkflow.class,
-                      WorkflowOptions.newBuilder().setWorkflowId(details.getRequestId()).build())
+                      WorkflowOptions.newBuilder()
+                          .setWorkflowId(WORKFLOW_ID_PREFIX + details.getRequestId())
+                          .build())
                   ::execute);
     }
   }
