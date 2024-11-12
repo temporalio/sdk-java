@@ -75,7 +75,7 @@ public final class InternalUtils {
     }
     WorkflowOptions options = stub.getOptions().get();
     WorkflowOptions.Builder nexusWorkflowOptions =
-        WorkflowOptions.newBuilder()
+        WorkflowOptions.newBuilder(options)
             .setRequestId(request.getRequestId())
             .setCompletionCallbacks(
                 Arrays.asList(
