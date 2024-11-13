@@ -65,7 +65,7 @@ public class ResourceBasedTunerTests {
                   .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
           .build();
 
-  @Test
+  @Test(timeout = 300 * 1000)
   public void canRunWithResourceBasedTuner() throws InterruptedException {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
     workflow.execute(5, 5, 1000);
