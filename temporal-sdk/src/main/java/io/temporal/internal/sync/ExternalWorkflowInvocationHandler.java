@@ -47,6 +47,14 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
+    // Proxy the toString method so the stub can be inspected when debugging.
+    try {
+      if (method.equals(Object.class.getMethod("toString"))) {
+        return proxyToString();
+      }
+    } catch (NoSuchMethodException e) {
+      throw new Error("unexpected", e);
+    }
     // Implement StubMarker
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
@@ -72,5 +80,15 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalStateException("unreachable");
     }
     return null;
+  }
+
+  private String proxyToString() {
+    return "ExternalWorkflowProxy{"
+        + "workflowType='"
+        + workflowMetadata.getWorkflowType().orElse("")
+        + '\''
+        + ", execution="
+        + stub.getExecution()
+        + '}';
   }
 }

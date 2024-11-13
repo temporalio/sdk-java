@@ -71,6 +71,14 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
+    // Proxy the toString method so the stub can be inspected when debugging.
+    try {
+      if (method.equals(Object.class.getMethod("toString"))) {
+        return proxyToString();
+      }
+    } catch (NoSuchMethodException e) {
+      throw new Error("unexpected", e);
+    }
     // Implement StubMarker
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
@@ -98,5 +106,15 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
               + "Use an activity that performs the update instead.");
     }
     throw new IllegalArgumentException("unreachable");
+  }
+
+  private String proxyToString() {
+    return "ChildWorkflowProxy{"
+        + "workflowType='"
+        + stub.getWorkflowType()
+        + '\''
+        + ", options="
+        + stub.getOptions()
+        + '}';
   }
 }

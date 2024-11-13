@@ -53,6 +53,14 @@ public abstract class ActivityInvocationHandlerBase implements InvocationHandler
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
+    // Proxy the toString method so the stub can be inspected when debugging.
+    try {
+      if (method.equals(Object.class.getMethod("toString"))) {
+        return proxyToString();
+      }
+    } catch (NoSuchMethodException e) {
+      throw new Error("unexpected", e);
+    }
     POJOActivityMethodMetadata methodMetadata = activityMetadata.getMethodMetadata(method);
     MethodRetry methodRetry = methodMetadata.getMethod().getAnnotation(MethodRetry.class);
     String activityType = methodMetadata.getActivityTypeName();
@@ -62,4 +70,6 @@ public abstract class ActivityInvocationHandlerBase implements InvocationHandler
 
   protected abstract Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName);
+
+  protected abstract String proxyToString();
 }

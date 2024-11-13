@@ -109,4 +109,9 @@ public interface NexusServiceStub {
    */
   <R> NexusOperationHandle<R> start(
       String operationName, Class<R> resultClass, Type resultType, Object arg);
+
+  /**
+   * @return Options used to create this stub.
+   */
+  NexusServiceOptions getOptions();
 }
