@@ -31,12 +31,14 @@ import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.tuning.*;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
@@ -322,6 +324,14 @@ public final class Worker {
   @VisibleForTesting
   public <R> void registerWorkflowImplementationFactory(
       Class<R> workflowInterface, Func<R> factory, WorkflowImplementationOptions options) {
+    workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
+  }
+
+  @VisibleForTesting
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Functions.Func1<EncodedValues, R> factory,
+      WorkflowImplementationOptions options) {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
   }
 
