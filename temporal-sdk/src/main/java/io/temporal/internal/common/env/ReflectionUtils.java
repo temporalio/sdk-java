@@ -58,7 +58,8 @@ public final class ReflectionUtils {
         throw new IllegalArgumentException(
             "Constructor with @WorkflowInit annotation must be public: " + clazz.getName());
       }
-      if (!Arrays.equals(ctor.getParameterTypes(), workflowMethod.get(0).getParameterTypes())) {
+      if (!Arrays.equals(
+          ctor.getGenericParameterTypes(), workflowMethod.get(0).getGenericParameterTypes())) {
         throw new IllegalArgumentException(
             "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method: "
                 + clazz.getName());
