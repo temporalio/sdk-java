@@ -81,7 +81,7 @@ public final class ReflectionUtils {
       defaultConstructors = ctor;
       break;
     }
-    return Optional.of(defaultConstructors);
+    return Optional.ofNullable(defaultConstructors);
   }
 
   public static String getMethodNameForStackTraceCutoff(
