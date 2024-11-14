@@ -23,6 +23,7 @@ package io.temporal.client;
 import static io.temporal.internal.common.InternalUtils.createNexusBoundStub;
 
 import com.google.common.base.Defaults;
+import com.google.common.base.Strings;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
@@ -54,6 +55,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     EXECUTE,
     SIGNAL_WITH_START,
     START_NEXUS,
+    UPDATE,
     UPDATE_WITH_START
   }
 
@@ -93,6 +95,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } else if (type == InvocationType.START_NEXUS) {
       NexusStartWorkflowRequest request = (NexusStartWorkflowRequest) value;
       invocationContext.set(new StartNexusOperationInvocationHandler(request));
+    } else if (type == InvocationType.UPDATE) {
+      UpdateOptions<?> updateOptions = (UpdateOptions) value;
+      invocationContext.set(new UpdateInvocationHandler(updateOptions));
     } else if (type == InvocationType.UPDATE_WITH_START) {
       UpdateWithStartWorkflowOperation operation = (UpdateWithStartWorkflowOperation) value;
       invocationContext.set(new UpdateWithStartInvocationHandler(operation));
@@ -432,6 +437,58 @@ class WorkflowInvocationHandler implements InvocationHandler {
       }
 
       result = createNexusBoundStub(untyped, request).start(args);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> R getResult(Class<R> resultClass) {
+      return (R) result;
+    }
+  }
+
+  private static class UpdateInvocationHandler implements SpecificInvocationHandler {
+    private final UpdateOptions<?> options;
+    private Object result;
+
+    public UpdateInvocationHandler(UpdateOptions<?> options) {
+      this.options = options;
+    }
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.UPDATE;
+    }
+
+    @Override
+    public void invoke(
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+      UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+      if (updateMethod == null) {
+        throw new IllegalArgumentException(
+            "Only a method annotated with @UpdateMethod can be used to start a Update.");
+      }
+      POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+      UpdateOptions.Builder builder = UpdateOptions.newBuilder(options);
+      if (Strings.isNullOrEmpty(options.getUpdateName())) {
+        builder.setUpdateName(methodMetadata.getName());
+      } else if (!options.getUpdateName().equals(methodMetadata.getName())) {
+        throw new IllegalArgumentException(
+            "Update name in the options doesn't match the method name: "
+                + options.getUpdateName()
+                + " != "
+                + methodMetadata.getName());
+      }
+      if (options.getResultType() == null) {
+        builder.setResultType(method.getGenericReturnType());
+      }
+      if (options.getResultClass() == null) {
+        builder.setResultClass(method.getReturnType());
+      }
+
+      result = untyped.startUpdate(builder.build(), args);
     }
 
     @Override

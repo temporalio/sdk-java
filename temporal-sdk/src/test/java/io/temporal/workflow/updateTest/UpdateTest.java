@@ -207,6 +207,52 @@ public class UpdateTest {
   }
 
   @Test
+  public void testTypedUpdate() throws ExecutionException, InterruptedException {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+
+    workflowStub.start();
+
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+    assertEquals("initial", workflowStub.query("getState", String.class));
+
+    // send an update through the sync path
+    assertEquals("Execute-Hello", workflowStub.update("update", String.class, 0, "Hello"));
+    // send an update through the async path
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(
+            TestWorkflows.WorkflowWithUpdate.class, workflowStub.getExecution().getWorkflowId());
+    WorkflowUpdateHandle<String> updateRef =
+        WorkflowClient.update(
+            workflow::update, 0, "World", UpdateOptions.<String>newBuilder().build());
+    assertEquals("Execute-World", updateRef.getResultAsync().get());
+    // send a bad update that will be rejected through the sync path
+    assertThrows(
+        WorkflowUpdateException.class,
+        () -> workflowStub.update("update", String.class, 0, "Bad Update"));
+
+    // send an update request to a bad name
+    assertThrows(
+        WorkflowUpdateException.class,
+        () -> workflowStub.update("bad_update_name", String.class, 0, "Bad Update"));
+
+    // send a bad update that will be rejected through the sync path
+    assertThrows(
+        WorkflowUpdateException.class,
+        () ->
+            workflowStub.startUpdate(
+                "update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "Bad Update"));
+
+    workflowStub.update("complete", void.class);
+
+    assertEquals("Execute-Hello Execute-World", workflowStub.getResult(String.class));
+  }
+
+  @Test
   public void testUpdateResets() {
     assumeTrue(
         "Test Server doesn't support reset workflow", SDKTestWorkflowRule.useExternalService);
