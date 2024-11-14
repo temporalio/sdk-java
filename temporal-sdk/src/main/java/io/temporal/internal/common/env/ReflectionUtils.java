@@ -32,27 +32,16 @@ import java.util.Optional;
 public final class ReflectionUtils {
   private ReflectionUtils() {}
 
-  public static Optional<Constructor<?>> getConstructor(
+  public static Optional<Constructor<?>> getWorkflowInitConstructor(
       Class<?> clazz, List<Method> workflowMethod) {
     // We iterate through all constructors to find the one annotated with @WorkflowInit
     // and check if it has the same parameters as the workflow method.
     // We check all declared constructors to find any constructors that are annotated with
-    // @WorkflowInit, but not public,
-    // to give a more informative error message.
+    // @WorkflowInit, but are not public, to give a more informative error message.
     Optional<Constructor<?>> workflowInit = Optional.empty();
-    Constructor<?> defaultConstructors = null;
     for (Constructor<?> ctor : clazz.getDeclaredConstructors()) {
       WorkflowInit wfInit = ctor.getAnnotation(WorkflowInit.class);
       if (wfInit == null) {
-        if (ctor.getParameterCount() == 0 && Modifier.isPublic(ctor.getModifiers())) {
-          if (workflowInit.isPresent() || defaultConstructors != null) {
-            throw new IllegalArgumentException(
-                "Multiple constructors annotated with @WorkflowInit or a default constructor found: "
-                    + clazz.getName());
-          }
-          defaultConstructors = ctor;
-          continue;
-        }
         continue;
       }
       if (workflowMethod.size() != 1) {
@@ -60,9 +49,9 @@ public final class ReflectionUtils {
             "Multiple interfaces implemented while using @WorkflowInit annotation. Only one is allowed: "
                 + clazz.getName());
       }
-      if (workflowInit.isPresent() || defaultConstructors != null) {
+      if (workflowInit.isPresent()) {
         throw new IllegalArgumentException(
-            "Multiple constructors annotated with @WorkflowInit or a default constructor found: "
+            "Multiple constructors annotated with @WorkflowInit found. Only one is allowed: "
                 + clazz.getName());
       }
       if (!Modifier.isPublic(ctor.getModifiers())) {
@@ -76,12 +65,23 @@ public final class ReflectionUtils {
       }
       workflowInit = Optional.of(ctor);
     }
-    if (!workflowInit.isPresent() && defaultConstructors == null) {
-      throw new IllegalArgumentException(
-          "No default constructor or constructor annotated with @WorkflowInit found: "
-              + clazz.getName());
-    }
     return workflowInit;
+  }
+
+  public static Optional<Constructor<?>> getPublicDefaultConstructor(Class<?> clazz) {
+    Constructor<?> defaultConstructors = null;
+    for (Constructor<?> ctor : clazz.getDeclaredConstructors()) {
+      if (ctor.getParameterCount() != 0) {
+        continue;
+      }
+      if (!Modifier.isPublic(ctor.getModifiers())) {
+        throw new IllegalArgumentException(
+            "Default constructor must be public: " + clazz.getName());
+      }
+      defaultConstructors = ctor;
+      break;
+    }
+    return Optional.ofNullable(defaultConstructors);
   }
 
   public static String getMethodNameForStackTraceCutoff(

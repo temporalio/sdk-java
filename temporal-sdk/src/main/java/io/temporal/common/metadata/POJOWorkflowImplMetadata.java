@@ -175,14 +175,27 @@ public final class POJOWorkflowImplMetadata {
     this.queryMethods = ImmutableList.copyOf(queryMethods.values());
     this.updateMethods = ImmutableList.copyOf(updateMethods.values());
     this.updateValidatorMethods = ImmutableList.copyOf(updateValidatorMethods.values());
-    if (!listener && validateConstructor) {
+    if (!listener) {
       this.workflowInit =
-          ReflectionUtils.getConstructor(
+          ReflectionUtils.getWorkflowInitConstructor(
                   implClass,
                   this.workflowMethods.stream()
                       .map(POJOWorkflowMethodMetadata::getWorkflowMethod)
                       .collect(Collectors.toList()))
               .orElse(null);
+      if (validateConstructor) {
+        Constructor<?> defaultConstructor =
+            ReflectionUtils.getPublicDefaultConstructor(implClass).orElse(null);
+        if (defaultConstructor == null && this.workflowInit == null) {
+          throw new IllegalArgumentException(
+              "No default constructor or constructor annotated with @WorkflowInit found: "
+                  + implClass.getName());
+        } else if (defaultConstructor != null && this.workflowInit != null) {
+          throw new IllegalArgumentException(
+              "Found both a default constructor and constructor annotated with @WorkflowInit: "
+                  + implClass.getName());
+        }
+      }
     } else {
       this.workflowInit = null;
     }

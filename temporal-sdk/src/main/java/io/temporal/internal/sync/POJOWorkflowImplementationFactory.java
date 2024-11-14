@@ -191,7 +191,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         Method executeMethod =
             workflowImplementationClass.getMethod("execute", EncodedValues.class);
         Optional<Constructor<?>> ctor =
-            ReflectionUtils.getConstructor(
+            ReflectionUtils.getWorkflowInitConstructor(
                 workflowImplementationClass, Collections.singletonList(executeMethod));
         dynamicWorkflowImplementationFactory =
             (encodedValues) -> {

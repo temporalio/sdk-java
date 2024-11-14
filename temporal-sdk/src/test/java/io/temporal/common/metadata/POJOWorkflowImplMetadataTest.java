@@ -196,7 +196,7 @@ public class POJOWorkflowImplMetadataTest {
       assertTrue(
           e.getMessage()
               .contains(
-                  "Multiple constructors annotated with @WorkflowInit or a default constructor found:"));
+                  "Found both a default constructor and constructor annotated with @WorkflowInit"));
     }
   }
 
