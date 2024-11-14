@@ -22,6 +22,7 @@ package io.temporal.common.metadata;
 
 import static org.junit.Assert.*;
 
+import io.temporal.common.converter.EncodedValuesTest;
 import io.temporal.common.metadata.testclasses.WorkflowInterfaceWithOneWorkflowMethod;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.*;
@@ -269,6 +270,12 @@ public class POJOWorkflowInterfaceMetadataTest {
   public interface I {
     @WorkflowMethod
     void i();
+  }
+
+  @WorkflowInterface
+  public interface K {
+    @WorkflowMethod
+    void f(Map<String, EncodedValuesTest.Pair> input);
   }
 
   public interface DE extends D, E {}

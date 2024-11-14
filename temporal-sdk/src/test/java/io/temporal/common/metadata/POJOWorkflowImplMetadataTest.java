@@ -23,9 +23,11 @@ package io.temporal.common.metadata;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableSet;
+import io.temporal.common.converter.EncodedValuesTest;
 import io.temporal.workflow.WorkflowInit;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.Assert;
 import org.junit.Test;
@@ -230,6 +232,26 @@ public class POJOWorkflowImplMetadataTest {
   }
 
   @Test
+  public void testWorkflowWithGenericInput() {
+    POJOWorkflowImplMetadata meta =
+        POJOWorkflowImplMetadata.newInstance(WorkflowWithGenericInput.class);
+    Assert.assertNotNull(meta.getWorkflowInit());
+  }
+
+  @Test
+  public void testWorkflowWithGenericInputMismatchedInit() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(WorkflowWithGenericInputMismatchedInit.class);
+      Assert.fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "Constructor annotated with @WorkflowInit must have the same parameters as the workflow method:"));
+    }
+  }
+
+  @Test
   public void testWorkflowWithConstructorArgsNoInit() {
     try {
       POJOWorkflowImplMetadata.newInstance(WorkflowWithConstructorParameters.class);
@@ -402,5 +424,22 @@ public class POJOWorkflowImplMetadataTest {
 
     @Override
     public void i() {}
+  }
+
+  public static class WorkflowWithGenericInput implements POJOWorkflowInterfaceMetadataTest.K {
+    @WorkflowInit
+    public WorkflowWithGenericInput(Map<String, EncodedValuesTest.Pair> input) {}
+
+    @Override
+    public void f(Map<String, EncodedValuesTest.Pair> input) {}
+  }
+
+  public static class WorkflowWithGenericInputMismatchedInit
+      implements POJOWorkflowInterfaceMetadataTest.K {
+    @WorkflowInit
+    public WorkflowWithGenericInputMismatchedInit(Map<String, Object> input) {}
+
+    @Override
+    public void f(Map<String, EncodedValuesTest.Pair> input) {}
   }
 }
