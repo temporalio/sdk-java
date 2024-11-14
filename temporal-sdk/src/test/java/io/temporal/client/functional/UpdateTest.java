@@ -170,6 +170,38 @@ public class UpdateTest {
   }
 
   @Test
+  public void updateWorkflowReuseOptions() throws ExecutionException, InterruptedException {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+
+    WorkflowExecution execution = workflowStub.start();
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+
+    UpdateOptions updateOptions =
+        UpdateOptions.newBuilder(String.class)
+            .setUpdateName("update")
+            .setFirstExecutionRunId(execution.getRunId())
+            .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
+            .build();
+    assertEquals(
+        "some-value",
+        workflowStub.startUpdate(updateOptions, 0, "some-value").getResultAsync().get());
+    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
+    // Try to send another update request with the same update options
+    assertEquals(
+        "some-other-value",
+        workflowStub.startUpdate(updateOptions, 0, "some-other-value").getResultAsync().get());
+
+    // Complete the workflow
+    workflowStub.update("complete", void.class);
+    assertEquals("complete", workflowStub.getResult(String.class));
+  }
+
+  @Test
   public void updateWithStart() throws ExecutionException, InterruptedException {
     String workflowId = UUID.randomUUID().toString();
     String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
