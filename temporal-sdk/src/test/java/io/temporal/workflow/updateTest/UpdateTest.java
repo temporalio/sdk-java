@@ -227,7 +227,7 @@ public class UpdateTest {
         workflowClient.newWorkflowStub(
             TestWorkflows.WorkflowWithUpdate.class, workflowStub.getExecution().getWorkflowId());
     WorkflowUpdateHandle<String> updateRef =
-        WorkflowClient.update(
+        WorkflowClient.executeUpdate(
             workflow::update, 0, "World", UpdateOptions.<String>newBuilder().build());
     assertEquals("Execute-World", updateRef.getResultAsync().get());
     // send a bad update that will be rejected through the sync path
