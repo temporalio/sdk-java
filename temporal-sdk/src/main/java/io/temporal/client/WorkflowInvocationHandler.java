@@ -23,6 +23,7 @@ package io.temporal.client;
 import static io.temporal.internal.common.InternalUtils.createNexusBoundStub;
 
 import com.google.common.base.Defaults;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
@@ -396,6 +397,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
         case QUERY:
           throw new IllegalArgumentException(
               "SignalWithStart batch doesn't accept methods annotated with @QueryMethod");
+        case UPDATE:
+          throw new IllegalArgumentException(
+              "SignalWithStart batch doesn't accept methods annotated with @UpdateMethod");
         case WORKFLOW:
           batch.start(untyped, args);
           break;
@@ -451,6 +455,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     private Object result;
 
     public UpdateInvocationHandler(UpdateOptions<?> options) {
+      Preconditions.checkNotNull(options, "options");
       this.options = options;
     }
 
@@ -468,7 +473,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
       if (updateMethod == null) {
         throw new IllegalArgumentException(
-            "Only a method annotated with @UpdateMethod can be used to start a Update.");
+            "Only a method annotated with @UpdateMethod can be used to start an Update.");
       }
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
       UpdateOptions.Builder builder = UpdateOptions.newBuilder(options);
