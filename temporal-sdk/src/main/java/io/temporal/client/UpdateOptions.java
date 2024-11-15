@@ -22,7 +22,7 @@ package io.temporal.client;
 
 import com.google.common.base.Objects;
 import java.lang.reflect.Type;
-import java.util.UUID;
+import javax.annotation.Nullable;
 
 public final class UpdateOptions<T> {
   public static <T> UpdateOptions.Builder<T> newBuilder() {
@@ -73,7 +73,7 @@ public final class UpdateOptions<T> {
     return updateName;
   }
 
-  public String getUpdateId() {
+  public @Nullable String getUpdateId() {
     return updateId;
   }
 
@@ -238,10 +238,6 @@ public final class UpdateOptions<T> {
 
     /** Builds StartUpdateOptions with default values. */
     public UpdateOptions<T> build() {
-      if (updateId == null || updateId.isEmpty()) {
-        updateId = UUID.randomUUID().toString();
-      }
-
       return new UpdateOptions<T>(
           updateName,
           updateId,

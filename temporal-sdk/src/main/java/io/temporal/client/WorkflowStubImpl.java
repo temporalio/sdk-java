@@ -372,13 +372,17 @@ class WorkflowStubImpl implements WorkflowStub {
     options.validate();
     WorkflowExecution targetExecution = execution.get();
     try {
+      String updateId =
+          Strings.isNullOrEmpty(options.getUpdateId())
+              ? UUID.randomUUID().toString()
+              : options.getUpdateId();
       return workflowClientInvoker.startUpdate(
           new WorkflowClientCallsInterceptor.StartUpdateInput<>(
               targetExecution,
               workflowType,
               options.getUpdateName(),
               Header.empty(),
-              options.getUpdateId(),
+              updateId,
               args,
               options.getResultClass(),
               options.getResultType(),

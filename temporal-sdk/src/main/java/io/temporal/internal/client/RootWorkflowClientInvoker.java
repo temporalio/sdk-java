@@ -25,6 +25,7 @@ import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.R
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.base.Strings;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -189,13 +190,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     UpdateWithStartWorkflowOperation<R> updateOperation = input.getUpdateOperation();
     UpdateOptions<?> updateOptions = updateOperation.getOptions();
     updateOptions.validate();
+    String updateId =
+        Strings.isNullOrEmpty(updateOptions.getUpdateId())
+            ? UUID.randomUUID().toString()
+            : updateOptions.getUpdateId();
     StartUpdateInput<?> updateInput =
         new StartUpdateInput<>(
             WorkflowExecution.newBuilder().setWorkflowId(startInput.getWorkflowId()).build(),
             Optional.of(startInput.getWorkflowType()),
             updateOptions.getUpdateName(),
             Header.empty(),
-            updateOptions.getUpdateId(),
+            updateId,
             updateOperation.getUpdateArgs(),
             updateOptions.getResultClass(),
             updateOptions.getResultType(),
