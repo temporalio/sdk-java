@@ -215,7 +215,6 @@ public class POJOWorkflowInterfaceMetadataTest {
   public void workflowInterfaceWithUpdateValidator() {
     POJOWorkflowInterfaceMetadata metadata =
         POJOWorkflowInterfaceMetadata.newInstance(GUpdate.class);
-    System.out.println(metadata);
   }
 
   @Test

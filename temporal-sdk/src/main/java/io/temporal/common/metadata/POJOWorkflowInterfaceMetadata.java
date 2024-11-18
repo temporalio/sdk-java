@@ -210,17 +210,15 @@ public final class POJOWorkflowInterfaceMetadata {
                   + methodMetadata.getWorkflowMethod().getName()
                   + "\"");
         }
-        if (Arrays.equals(
-                update.getWorkflowMethod().getGenericParameterTypes(),
-                methodMetadata.getWorkflowMethod().getGenericParameterTypes())
-            || update.getWorkflowMethod().getGenericReturnType()
-                == methodMetadata.getWorkflowMethod().getGenericReturnType()) {
+        if (!Arrays.equals(
+            update.getWorkflowMethod().getGenericParameterTypes(),
+            methodMetadata.getWorkflowMethod().getGenericParameterTypes())) {
           throw new IllegalArgumentException(
               "Update method \""
                   + update.getWorkflowMethod().getName()
-                  + "\" and validator method \""
+                  + "\" and Validator method \""
                   + methodMetadata.getWorkflowMethod().getName()
-                  + "\" have the same signature");
+                  + "\" do not have the same parameters");
         }
       }
     }
