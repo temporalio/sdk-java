@@ -211,6 +211,34 @@ public class POJOWorkflowInterfaceMetadataTest {
     return methodDefinition.make().load(this.getClass().getClassLoader()).getLoaded();
   }
 
+  @Test
+  public void workflowInterfaceWithUpdateValidator() {
+    POJOWorkflowInterfaceMetadata metadata =
+        POJOWorkflowInterfaceMetadata.newInstance(GUpdate.class);
+    System.out.println(metadata);
+  }
+
+  @Test
+  public void workflowInterfaceWithBadUpdateValidator() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> POJOWorkflowInterfaceMetadata.newInstance(GUpdateBadValidator.class));
+  }
+
+  @Test
+  public void workflowInterfaceValidatorWithNoUpdate() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> POJOWorkflowInterfaceMetadata.newInstance(GUpdateValidatorWithNoUpdate.class));
+  }
+
+  @Test
+  public void interfaceWithInvalidValidator() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> POJOWorkflowInterfaceMetadata.newImplementationInstance(J.class, true));
+  }
+
   public interface O {
     void someMethod();
   }
@@ -255,9 +283,36 @@ public class POJOWorkflowInterfaceMetadataTest {
   }
 
   @WorkflowInterface
-  interface G {
+  public interface G {
     @WorkflowMethod
     void g();
+  }
+
+  @WorkflowInterface
+  public interface GUpdate extends G {
+    @UpdateMethod
+    void update(Map<String, Integer> input);
+
+    @UpdateValidatorMethod(updateName = "update")
+    void validate(Map<String, Integer> input);
+  }
+
+  @WorkflowInterface
+  public interface GUpdateBadValidator extends G {
+    @UpdateMethod
+    void update(Map<String, Integer> input);
+
+    @UpdateValidatorMethod(updateName = "update")
+    void validate(Map<String, String> input);
+  }
+
+  @WorkflowInterface
+  public interface GUpdateValidatorWithNoUpdate extends G {
+    @UpdateMethod
+    void update(Map<String, Integer> input);
+
+    @UpdateValidatorMethod(updateName = "wrongUpdate")
+    void validate(Map<String, Integer> input);
   }
 
   @WorkflowInterface
@@ -270,6 +325,11 @@ public class POJOWorkflowInterfaceMetadataTest {
   public interface I {
     @WorkflowMethod
     void i();
+  }
+
+  public interface J {
+    @UpdateValidatorMethod(updateName = "update")
+    void validate(String input);
   }
 
   @WorkflowInterface

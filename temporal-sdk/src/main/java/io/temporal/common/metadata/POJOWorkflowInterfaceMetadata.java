@@ -20,10 +20,7 @@
 
 package io.temporal.common.metadata;
 
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
@@ -97,7 +94,7 @@ public final class POJOWorkflowInterfaceMetadata {
    * <ul>
    *   <li>{@code anInterface} to be annotated with {@link WorkflowInterface}
    *   <li>All methods of {@code anInterface} to be annotated with {@link WorkflowMethod}, {@link
-   *       QueryMethod} or {@link SignalMethod}
+   *       QueryMethod}, {@link UpdateMethod}, {@link UpdateValidatorMethod} or {@link SignalMethod}
    * </ul>
    *
    * @param anInterface interface to create metadata for
@@ -137,15 +134,17 @@ public final class POJOWorkflowInterfaceMetadata {
    * #newInstance(Class, boolean)} is that the interfaces passing here can be not annotated with
    * {@link WorkflowInterface} at all and even not having {@link WorkflowInterface} as a parent. It
    * also can have all kinds of additional methods that are not annotated with {@link
-   * WorkflowMethod}, {@link QueryMethod} or {@link SignalMethod}. Such unannotated methods or
-   * methods that are not part of some {@link WorkflowInterface} will be ignored.
+   * WorkflowMethod}, {@link QueryMethod}, {@link UpdateMethod}, {@link UpdateValidatorMethod} or
+   * {@link SignalMethod}. Such unannotated methods or methods that are not part of some {@link
+   * WorkflowInterface} will be ignored.
    *
    * @param anInterface interface to create metadata for
    * @param forceProcessWorkflowMethods if true, methods of the {@code anInterface} that are
-   *     annotated with {@link WorkflowMethod}, {@link QueryMethod} or {@link SignalMethod} are
-   *     processed like {@code current} is a workflow interface even if it is not annotated with
-   *     {@link WorkflowInterface} itself. For example, this is useful when we have a query-only
-   *     interface to register as a listener or call as a stub.
+   *     annotated with {@link WorkflowMethod}, {@link QueryMethod}, {@link UpdateMethod}, {@link
+   *     UpdateValidatorMethod} or {@link SignalMethod} are processed like {@code current} is a
+   *     workflow interface even if it is not annotated with {@link WorkflowInterface} itself. For
+   *     example, this is useful when we have a query-only interface to register as a listener or
+   *     call as a stub.
    * @return metadata for the interface
    */
   static POJOWorkflowInterfaceMetadata newImplementationInstance(
@@ -161,10 +160,11 @@ public final class POJOWorkflowInterfaceMetadata {
    * @param validateWorkflowAnnotation check if the interface has a {@link WorkflowInterface}
    *     annotation with methods
    * @param forceProcessWorkflowMethods if true, methods of the {@code anInterface} that are
-   *     annotated with {@link WorkflowMethod}, {@link QueryMethod} or {@link SignalMethod} are
-   *     processed like {@code current} is a workflow interface even if it is not annotated with
-   *     {@link WorkflowInterface} itself. For example, this is useful when we have a query-only
-   *     interface to register as a listener or call as a stub.
+   *     annotated with {@link WorkflowMethod}, {@link QueryMethod}, {@link UpdateMethod}, {@link
+   *     UpdateValidatorMethod} or {@link SignalMethod} are processed like {@code current} is a
+   *     workflow interface even if it is not annotated with {@link WorkflowInterface} itself. For
+   *     example, this is useful when we have a query-only interface to register as a listener or
+   *     call as a stub.
    */
   private static POJOWorkflowInterfaceMetadata newInstanceInternal(
       Class<?> anInterface,
@@ -187,6 +187,41 @@ public final class POJOWorkflowInterfaceMetadata {
       if (validateWorkflowAnnotation) {
         throw new IllegalArgumentException(
             "Interface doesn't contain any methods: " + anInterface.getName());
+      }
+    }
+    // Validate that all @UpdateValidatorMethod methods have corresponding @UpdateMethod
+    Map<String, POJOWorkflowMethodMetadata> updateMethods = new HashMap<>();
+    for (POJOWorkflowMethodMetadata methodMetadata : result.methods.values()) {
+      if (methodMetadata.getType() == WorkflowMethodType.UPDATE) {
+        updateMethods.put(methodMetadata.getName(), methodMetadata);
+      }
+    }
+
+    for (POJOWorkflowMethodMetadata methodMetadata : result.methods.values()) {
+      if (methodMetadata.getType() == WorkflowMethodType.UPDATE_VALIDATOR) {
+        UpdateValidatorMethod validator =
+            methodMetadata.getWorkflowMethod().getAnnotation(UpdateValidatorMethod.class);
+        POJOWorkflowMethodMetadata update = updateMethods.get(validator.updateName());
+        if (update == null) {
+          throw new IllegalArgumentException(
+              "Missing @UpdateMethod with name \""
+                  + validator.updateName()
+                  + "\" for @UpdateValidatorMethod \""
+                  + methodMetadata.getWorkflowMethod().getName()
+                  + "\"");
+        }
+        if (Arrays.equals(
+                update.getWorkflowMethod().getGenericParameterTypes(),
+                methodMetadata.getWorkflowMethod().getGenericParameterTypes())
+            || update.getWorkflowMethod().getGenericReturnType()
+                == methodMetadata.getWorkflowMethod().getGenericReturnType()) {
+          throw new IllegalArgumentException(
+              "Update method \""
+                  + update.getWorkflowMethod().getName()
+                  + "\" and validator method \""
+                  + methodMetadata.getWorkflowMethod().getName()
+                  + "\" have the same signature");
+        }
       }
     }
     return result;
