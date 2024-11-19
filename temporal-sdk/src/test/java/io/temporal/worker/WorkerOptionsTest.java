@@ -164,4 +164,14 @@ public class WorkerOptionsTest {
                 localActivitySlotSupplier,
                 nexusSlotSupplier));
   }
+
+  @Test
+  public void verifyMaxTaskQueuePerSecondsDisablesEagerExecution() {
+    // Verify that by default eager execution is enabled
+    WorkerOptions w1 = WorkerOptions.newBuilder().build();
+    assertEquals(false, w1.isEagerExecutionDisabled());
+    // Verify that setting maxTaskQueueActivitiesPerSecond disables eager
+    WorkerOptions w2 = WorkerOptions.newBuilder().setMaxTaskQueueActivitiesPerSecond(2.0).build();
+    assertEquals(true, w2.isEagerExecutionDisabled());
+  }
 }

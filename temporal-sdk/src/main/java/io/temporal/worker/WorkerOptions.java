@@ -220,6 +220,8 @@ public final class WorkerOptions {
      * it to less than 1 if needed. For example, set the number to 0.1 means you want your activity
      * to be executed once every 10 seconds. This can be used to protect down stream services from
      * flooding. The zero value of this uses the default value. Default is unlimited.
+     *
+     * <p>Setting this value to a non-zero value will disable eager execution for activities.
      */
     public Builder setMaxTaskQueueActivitiesPerSecond(double maxTaskQueueActivitiesPerSecond) {
       this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
@@ -373,7 +375,8 @@ public final class WorkerOptions {
      * the workflow task back to this worker which is faster than non-eager which may be dispatched
      * to a separate worker.
      *
-     * <p>Defaults to false, meaning that eager activity execution is permitted
+     * <p>Defaults to false, meaning that eager activity execution is permitted. Unless you set
+     * MaxTaskQueueActivitiesPerSecond, then eager execution is disabled.
      */
     public Builder setDisableEagerExecution(boolean disableEagerExecution) {
       this.disableEagerExecution = disableEagerExecution;
@@ -685,7 +688,7 @@ public final class WorkerOptions {
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
-    this.disableEagerExecution = disableEagerExecution;
+    this.disableEagerExecution = maxTaskQueueActivitiesPerSecond > 0 ? true : disableEagerExecution;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.buildId = buildId;
     this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
