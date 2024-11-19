@@ -186,6 +186,14 @@ public class UpdateTest {
         WorkflowUpdateException.class,
         () -> workflowStub.update("bad_update_name", String.class, 0, "Bad Update"));
 
+    // send an update request to a bad name through the async path
+    assertThrows(
+        WorkflowUpdateException.class,
+        () ->
+            workflowStub
+                .startUpdate("bad_update_name", WorkflowUpdateStage.COMPLETED, String.class, 0, "")
+                .getResult());
+
     // send a bad update that will be rejected through the sync path
     assertThrows(
         WorkflowUpdateException.class,
