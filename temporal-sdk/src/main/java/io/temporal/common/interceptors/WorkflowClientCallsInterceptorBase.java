@@ -87,4 +87,9 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   public TerminateOutput terminate(TerminateInput input) {
     return next.terminate(input);
   }
+
+  @Override
+  public DescribeWorkflowOutput describe(DescribeWorkflowInput input) {
+    return next.describe(input);
+  }
 }

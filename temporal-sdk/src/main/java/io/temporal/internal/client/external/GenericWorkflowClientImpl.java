@@ -303,6 +303,18 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
+  @Override
+  public DescribeWorkflowExecutionResponse describeWorkflowExecution(
+      DescribeWorkflowExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .describeWorkflowExecution(request),
+        grpcRetryerOptions);
+  }
+
   private static <T> CompletableFuture<T> toCompletableFuture(
       ListenableFuture<T> listenableFuture) {
     CompletableFuture<T> result = new CompletableFuture<>();

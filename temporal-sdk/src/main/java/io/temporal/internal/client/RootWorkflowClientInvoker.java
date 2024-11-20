@@ -693,6 +693,26 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     return new TerminateOutput();
   }
 
+  @Override
+  public DescribeWorkflowOutput describe(DescribeWorkflowInput input) {
+    DescribeWorkflowExecutionResponse response =
+        genericClient.describeWorkflowExecution(
+            DescribeWorkflowExecutionRequest.newBuilder()
+                .setNamespace(clientOptions.getNamespace())
+                .setExecution(input.getWorkflowExecution())
+                .build());
+
+    DataConverter dataConverterWithWorkflowContext =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new WorkflowSerializationContext(
+                    clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
+
+    return new DescribeWorkflowOutput(
+        new WorkflowExecutionDescription(response, dataConverterWithWorkflowContext));
+  }
+
   private static <R> R convertResultPayloads(
       Optional<Payloads> resultValue,
       Class<R> resultClass,

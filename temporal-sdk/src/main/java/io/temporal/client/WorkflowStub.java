@@ -382,6 +382,16 @@ public interface WorkflowStub {
    */
   void terminate(@Nullable String reason, Object... details);
 
+  /**
+   * Get the current description of this workflow.
+   *
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues
+   * @return the current description of this workflow
+   */
+  WorkflowExecutionDescription describe();
+
   Optional<WorkflowOptions> getOptions();
 
   /**
