@@ -222,7 +222,7 @@ public final class WorkflowStateMachines {
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
   }
 
-  public void resetStartedEvenId(long eventId) {
+  public void resetStartedEventId(long eventId) {
     // We must reset the last event we handled to be after the last WFT we really completed
     // + any command events (since the SDK "processed" those when it emitted the commands). This
     // is also equal to what we just processed in the speculative task, minus two, since we

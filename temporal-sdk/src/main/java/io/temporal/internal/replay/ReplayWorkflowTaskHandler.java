@@ -230,7 +230,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                     .setNonfirstLocalActivityExecutionAttempts(
                         result.getNonfirstLocalActivityAttempts())
                     .build())
-            .setReturnNewWorkflowTask(result.isForceWorkflowTask());
+            .setReturnNewWorkflowTask(result.isForceWorkflowTask())
+            .setCapabilities(
+                RespondWorkflowTaskCompletedRequest.Capabilities.newBuilder()
+                    .setDiscardSpeculativeWorkflowTaskWithEvents(true)
+                    .build());
 
     if (stickyTaskQueue != null
         && (stickyTaskQueueScheduleToStartTimeout == null
