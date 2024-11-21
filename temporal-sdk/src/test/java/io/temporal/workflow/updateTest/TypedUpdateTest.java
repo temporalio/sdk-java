@@ -98,57 +98,53 @@ public class TypedUpdateTest {
         UpdateOptions.<String>newBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
 
     Assert.assertEquals(
-        "func", WorkflowClient.executeUpdate(workflow::func, updateOptions).getResultAsync().get());
+        "func", WorkflowClient.startUpdate(workflow::func, updateOptions).getResultAsync().get());
     Assert.assertEquals(
         "input",
-        WorkflowClient.executeUpdate(workflow::func1, "input", updateOptions)
-            .getResultAsync()
-            .get());
+        WorkflowClient.startUpdate(workflow::func1, "input", updateOptions).getResultAsync().get());
     Assert.assertEquals(
         "input2",
-        WorkflowClient.executeUpdate(workflow::func2, "input", 2, updateOptions)
+        WorkflowClient.startUpdate(workflow::func2, "input", 2, updateOptions)
             .getResultAsync()
             .get());
     Assert.assertEquals(
         "input23",
-        WorkflowClient.executeUpdate(workflow::func3, "input", 2, 3, updateOptions)
+        WorkflowClient.startUpdate(workflow::func3, "input", 2, 3, updateOptions)
             .getResultAsync()
             .get());
     Assert.assertEquals(
         "input234",
-        WorkflowClient.executeUpdate(workflow::func4, "input", 2, 3, 4, updateOptions)
+        WorkflowClient.renameUpdate(workflow::func4, "input", 2, 3, 4, updateOptions)
             .getResultAsync()
             .get());
     Assert.assertEquals(
         "input2345",
-        WorkflowClient.executeUpdate(workflow::func5, "input", 2, 3, 4, 5, updateOptions)
+        WorkflowClient.startUpdate(workflow::func5, "input", 2, 3, 4, 5, updateOptions)
             .getResultAsync()
             .get());
     Assert.assertEquals(
         "input23456",
-        WorkflowClient.executeUpdate(workflow::func6, "input", 2, 3, 4, 5, 6, updateOptions)
+        WorkflowClient.startUpdate(workflow::func6, "input", 2, 3, 4, 5, 6, updateOptions)
             .getResultAsync()
             .get());
 
     UpdateOptions<Void> updateVoidOptions =
         UpdateOptions.<Void>newBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
-    WorkflowClient.executeUpdate(workflow::proc, updateVoidOptions).getResultAsync().get();
-    WorkflowClient.executeUpdate(workflow::proc1, "input", updateVoidOptions)
+    WorkflowClient.startUpdate(workflow::proc, updateVoidOptions).getResultAsync().get();
+    WorkflowClient.startUpdate(workflow::proc1, "input", updateVoidOptions).getResultAsync().get();
+    WorkflowClient.startUpdate(workflow::proc2, "input", 2, updateVoidOptions)
         .getResultAsync()
         .get();
-    WorkflowClient.executeUpdate(workflow::proc2, "input", 2, updateVoidOptions)
+    WorkflowClient.startUpdate(workflow::proc3, "input", 2, 3, updateVoidOptions)
         .getResultAsync()
         .get();
-    WorkflowClient.executeUpdate(workflow::proc3, "input", 2, 3, updateVoidOptions)
+    WorkflowClient.startUpdate(workflow::proc4, "input", 2, 3, 4, updateVoidOptions)
         .getResultAsync()
         .get();
-    WorkflowClient.executeUpdate(workflow::proc4, "input", 2, 3, 4, updateVoidOptions)
+    WorkflowClient.startUpdate(workflow::proc5, "input", 2, 3, 4, 5, updateVoidOptions)
         .getResultAsync()
         .get();
-    WorkflowClient.executeUpdate(workflow::proc5, "input", 2, 3, 4, 5, updateVoidOptions)
-        .getResultAsync()
-        .get();
-    WorkflowClient.executeUpdate(workflow::proc6, "input", 2, 3, 4, 5, 6, updateVoidOptions)
+    WorkflowClient.startUpdate(workflow::proc6, "input", 2, 3, 4, 5, 6, updateVoidOptions)
         .getResultAsync()
         .get();
 

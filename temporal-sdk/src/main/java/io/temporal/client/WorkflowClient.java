@@ -308,10 +308,11 @@ public interface WorkflowClient {
   WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId, @Nullable String runId);
 
   /**
-   * Allows you to update the worker-build-id based version sets for a particular task queue. This
-   * is used in conjunction with workers who specify their build id and thus opt into the feature.
+   * Allows you to startUpdate the worker-build-id based version sets for a particular task queue.
+   * This is used in conjunction with workers who specify their build id and thus opt into the
+   * feature.
    *
-   * @param taskQueue The task queue to update the version set(s) of.
+   * @param taskQueue The task queue to startUpdate the version set(s) of.
    * @param operation The operation to perform. See {@link BuildIdOperation} for more.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
@@ -580,9 +581,9 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static WorkflowUpdateHandle<Void> executeUpdate(
+  static WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc updateMethod, @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, options);
   }
 
   /**
@@ -594,9 +595,9 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static <A1> WorkflowUpdateHandle<Void> executeUpdate(
+  static <A1> WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc1<A1> updateMethod, A1 arg1, @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, options);
   }
 
   /**
@@ -609,12 +610,12 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static <A1, A2> WorkflowUpdateHandle<Void> executeUpdate(
+  static <A1, A2> WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc2<A1, A2> updateMethod,
       A1 arg1,
       A2 arg2,
       @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, options);
   }
 
   /**
@@ -628,13 +629,13 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static <A1, A2, A3> WorkflowUpdateHandle<Void> executeUpdate(
+  static <A1, A2, A3> WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc3<A1, A2, A3> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, arg3, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, options);
   }
 
   /**
@@ -649,14 +650,14 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static <A1, A2, A3, A4> WorkflowUpdateHandle<Void> executeUpdate(
+  static <A1, A2, A3, A4> WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc4<A1, A2, A3, A4> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, arg3, arg4, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, arg4, options);
   }
 
   /**
@@ -672,7 +673,7 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static <A1, A2, A3, A4, A5> WorkflowUpdateHandle<Void> executeUpdate(
+  static <A1, A2, A3, A4, A5> WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc5<A1, A2, A3, A4, A5> updateMethod,
       A1 arg1,
       A2 arg2,
@@ -680,7 +681,8 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, arg3, arg4, arg5, options);
+    return WorkflowClientInternalImpl.startUpdate(
+        updateMethod, arg1, arg2, arg3, arg4, arg5, options);
   }
 
   /**
@@ -697,7 +699,7 @@ public interface WorkflowClient {
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  static <A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<Void> executeUpdate(
+  static <A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<Void> startUpdate(
       Functions.Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
       A1 arg1,
       A2 arg2,
@@ -706,7 +708,7 @@ public interface WorkflowClient {
       A5 arg5,
       A6 arg6,
       @Nonnull UpdateOptions<Void> options) {
-    return WorkflowClientInternalImpl.update(
+    return WorkflowClientInternalImpl.startUpdate(
         updateMethod, arg1, arg2, arg3, arg4, arg5, arg6, options);
   }
 
@@ -719,9 +721,9 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R> WorkflowUpdateHandle<R> executeUpdate(
+  static <R> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func<R> updateMethod, @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, options);
   }
 
   /**
@@ -734,9 +736,9 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1> WorkflowUpdateHandle<R> executeUpdate(
+  static <R, A1> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func1<A1, R> updateMethod, A1 arg1, @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, options);
   }
 
   /**
@@ -750,12 +752,12 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2> WorkflowUpdateHandle<R> executeUpdate(
+  static <R, A1, A2> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
       A2 arg2,
       @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, options);
   }
 
   /**
@@ -770,13 +772,13 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3> WorkflowUpdateHandle<R> executeUpdate(
+  static <R, A1, A2, A3> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func3<A1, A2, A3, R> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, arg3, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, options);
   }
 
   /**
@@ -792,14 +794,14 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> executeUpdate(
+  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> renameUpdate(
       Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, arg3, arg4, options);
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, arg4, options);
   }
 
   /**
@@ -816,7 +818,7 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> executeUpdate(
+  static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
       A1 arg1,
       A2 arg2,
@@ -824,7 +826,8 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(updateMethod, arg1, arg2, arg3, arg4, arg5, options);
+    return WorkflowClientInternalImpl.startUpdate(
+        updateMethod, arg1, arg2, arg3, arg4, arg5, options);
   }
 
   /**
@@ -842,7 +845,7 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> executeUpdate(
+  static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
       A1 arg1,
       A2 arg2,
@@ -851,7 +854,7 @@ public interface WorkflowClient {
       A5 arg5,
       A6 arg6,
       @Nonnull UpdateOptions<R> options) {
-    return WorkflowClientInternalImpl.update(
+    return WorkflowClientInternalImpl.startUpdate(
         updateMethod, arg1, arg2, arg3, arg4, arg5, arg6, options);
   }
 

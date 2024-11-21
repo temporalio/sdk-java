@@ -223,7 +223,7 @@ public class UpdateTest {
             TestWorkflows.WorkflowWithUpdate.class, workflowStub.getExecution().getWorkflowId());
 
     WorkflowUpdateHandle<String> handle =
-        WorkflowClient.executeUpdate(
+        WorkflowClient.startUpdate(
             workflow::update,
             0,
             "Hello",
@@ -232,7 +232,7 @@ public class UpdateTest {
 
     assertEquals(
         "Execute-World",
-        WorkflowClient.executeUpdate(
+        WorkflowClient.startUpdate(
                 workflow::update,
                 0,
                 "World",
@@ -242,7 +242,7 @@ public class UpdateTest {
 
     assertEquals(
         "Execute-Hello",
-        WorkflowClient.executeUpdate(
+        WorkflowClient.startUpdate(
                 workflow::update,
                 0,
                 "World",
@@ -255,7 +255,7 @@ public class UpdateTest {
 
     assertEquals(
         null,
-        WorkflowClient.executeUpdate(
+        WorkflowClient.startUpdate(
                 workflow::complete,
                 UpdateOptions.<Void>newBuilder().setWaitForStage(COMPLETED).build())
             .getResultAsync()
