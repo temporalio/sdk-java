@@ -1,0 +1,12 @@
+# Bugfixes
+
+## Spring Boot
+* Fixed a issue where Workflows could not be registered if they used a constructor to autowire.
+
+## Nexus
+* Fixed a issue where some Workflow options were not passed when using `WorkflowClientOperationHandlers`.
+
+# What's Changed
+
+2024-11-21 - 01530ecd - Fix workflow implementation in springboot failing if no default constructor is present (#2300)
+2024-11-21 - 8372337a - Make sure workflow options from proxy call are propagated (#2310)
