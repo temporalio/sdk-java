@@ -794,7 +794,7 @@ public interface WorkflowClient {
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> renameUpdate(
+  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> startUpdate(
       Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
       A2 arg2,

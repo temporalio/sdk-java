@@ -114,7 +114,7 @@ public class TypedUpdateTest {
             .get());
     Assert.assertEquals(
         "input234",
-        WorkflowClient.renameUpdate(workflow::func4, "input", 2, 3, 4, updateOptions)
+        WorkflowClient.startUpdate(workflow::func4, "input", 2, 3, 4, updateOptions)
             .getResultAsync()
             .get());
     Assert.assertEquals(
