@@ -211,6 +211,33 @@ public class POJOWorkflowInterfaceMetadataTest {
     return methodDefinition.make().load(this.getClass().getClassLoader()).getLoaded();
   }
 
+  @Test
+  public void workflowInterfaceWithUpdateValidator() {
+    POJOWorkflowInterfaceMetadata metadata =
+        POJOWorkflowInterfaceMetadata.newInstance(LUpdate.class);
+  }
+
+  @Test
+  public void workflowInterfaceWithBadUpdateValidator() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> POJOWorkflowInterfaceMetadata.newInstance(LUpdateBadValidator.class));
+  }
+
+  @Test
+  public void workflowInterfaceValidatorWithNoUpdate() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> POJOWorkflowInterfaceMetadata.newInstance(LUpdateValidatorWithNoUpdate.class));
+  }
+
+  @Test
+  public void interfaceWithInvalidValidator() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> POJOWorkflowInterfaceMetadata.newImplementationInstance(J.class, true));
+  }
+
   public interface O {
     void someMethod();
   }
@@ -272,10 +299,48 @@ public class POJOWorkflowInterfaceMetadataTest {
     void i();
   }
 
+  public interface J {
+    @UpdateValidatorMethod(updateName = "update")
+    void validate(String input);
+  }
+
   @WorkflowInterface
   public interface K {
     @WorkflowMethod
     void f(Map<String, EncodedValuesTest.Pair> input);
+  }
+
+  @WorkflowInterface
+  public interface L {
+    @WorkflowMethod
+    void l();
+  }
+
+  @WorkflowInterface
+  public interface LUpdate extends L {
+    @UpdateMethod
+    void update(Map<String, Integer> input);
+
+    @UpdateValidatorMethod(updateName = "update")
+    void validate(Map<String, Integer> input);
+  }
+
+  @WorkflowInterface
+  public interface LUpdateBadValidator extends L {
+    @UpdateMethod
+    void update(Map<String, Integer> input);
+
+    @UpdateValidatorMethod(updateName = "update")
+    void validate(Map<String, String> input);
+  }
+
+  @WorkflowInterface
+  public interface LUpdateValidatorWithNoUpdate extends L {
+    @UpdateMethod
+    void update(Map<String, Integer> input);
+
+    @UpdateValidatorMethod(updateName = "wrongUpdate")
+    void validate(Map<String, Integer> input);
   }
 
   public interface DE extends D, E {}
