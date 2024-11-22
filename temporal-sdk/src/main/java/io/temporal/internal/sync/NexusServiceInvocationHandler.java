@@ -48,6 +48,15 @@ public class NexusServiceInvocationHandler implements InvocationHandler {
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    // Proxy the toString method so the stub can be inspected when debugging.
+    try {
+      if (method.equals(Object.class.getMethod("toString"))) {
+        return proxyToString();
+      }
+    } catch (NoSuchMethodException e) {
+      throw new Error("unexpected", e);
+    }
+
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
     }
@@ -68,5 +77,15 @@ public class NexusServiceInvocationHandler implements InvocationHandler {
     return getValueOrDefault(
         this.stub.execute(opName, method.getReturnType(), method.getGenericReturnType(), arg),
         method.getReturnType());
+  }
+
+  private String proxyToString() {
+    return "NexusServiceProxy{"
+        + "serviceName="
+        + serviceDef.getName()
+        + '\''
+        + ", options="
+        + stub.getOptions()
+        + '}';
   }
 }

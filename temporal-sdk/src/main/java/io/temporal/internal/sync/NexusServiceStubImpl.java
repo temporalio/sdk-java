@@ -28,10 +28,10 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 
 public class NexusServiceStubImpl implements NexusServiceStub {
-  final String name;
-  final NexusServiceOptions options;
-  final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
-  final Functions.Proc1<String> assertReadOnly;
+  private final String name;
+  private final NexusServiceOptions options;
+  private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
+  private final Functions.Proc1<String> assertReadOnly;
 
   public NexusServiceStubImpl(
       String name,
@@ -118,6 +118,11 @@ public class NexusServiceStubImpl implements NexusServiceStub {
                 arg,
                 mergedOptions,
                 Collections.emptyMap()));
-    return new NexusOperationHandleImpl(result.getOperationExecution(), result.getResult());
+    return new NexusOperationHandleImpl<>(result.getOperationExecution(), result.getResult());
+  }
+
+  @Override
+  public NexusServiceOptions getOptions() {
+    return options;
   }
 }

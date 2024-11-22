@@ -83,4 +83,9 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
     return function;
   }
+
+  @Override
+  protected String proxyToString() {
+    return "ActivityProxy{" + "options=" + options + '}';
+  }
 }

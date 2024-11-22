@@ -79,4 +79,9 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
     return function;
   }
+
+  @Override
+  protected String proxyToString() {
+    return "LocalActivityProxy{" + "options='" + options + '}';
+  }
 }
