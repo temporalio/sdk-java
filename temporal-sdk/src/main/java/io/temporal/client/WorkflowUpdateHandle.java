@@ -57,6 +57,7 @@ public interface WorkflowUpdateHandle<T> {
    *
    * @param timeout maximum time to wait and perform the background long polling
    * @param unit unit of timeout
+   * @throws WorkflowUpdateTimeoutOrCancelledException if the timeout is reached.
    * @return the result of the workflow update
    */
   T getResult(long timeout, TimeUnit unit);
