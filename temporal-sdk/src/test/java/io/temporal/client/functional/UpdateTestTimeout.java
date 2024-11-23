@@ -88,7 +88,7 @@ public class UpdateTestTimeout {
   }
 
   @Test
-  public void WorkflowUpdateGetResultTimeout() throws ExecutionException, InterruptedException {
+  public void WorkflowUpdateGetResultAsyncTimeout() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     String workflowType = BlockingWorkflow.class.getSimpleName();
     WorkflowStub workflowStub =
@@ -110,6 +110,40 @@ public class UpdateTestTimeout {
     assertThat(
         executionException.getCause(),
         is(instanceOf(WorkflowUpdateTimeoutOrCancelledException.class)));
+    stopWatch.stop();
+    long elapsedSeconds = stopWatch.elapsed(TimeUnit.SECONDS);
+    assertTrue(
+        "We shouldn't return too early or too late by the timeout, took "
+            + elapsedSeconds
+            + " seconds",
+        elapsedSeconds >= 1 && elapsedSeconds <= 3);
+
+    // Complete workflow, since the update is accepted it will not block completion
+    workflowStub.update("complete", void.class);
+    assertEquals("complete", workflowStub.getResult(String.class));
+  }
+
+  @Test
+  public void WorkflowUpdateGetResultTimeout() {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowType = BlockingWorkflow.class.getSimpleName();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+
+    workflowStub.start();
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+
+    WorkflowUpdateHandle<String> handle =
+        workflowStub.startUpdate(
+            "update", WorkflowUpdateStage.ACCEPTED, String.class, 10_000, "some-value");
+
+    // Verify get throws the correct exception in around the right amount of time
+    Stopwatch stopWatch = Stopwatch.createStarted();
+    assertThrows(
+        WorkflowUpdateTimeoutOrCancelledException.class,
+        () -> handle.getResult(2, TimeUnit.SECONDS));
     stopWatch.stop();
     long elapsedSeconds = stopWatch.elapsed(TimeUnit.SECONDS);
     assertTrue(

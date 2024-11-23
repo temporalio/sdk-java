@@ -46,6 +46,23 @@ public interface WorkflowUpdateHandle<T> {
   String getId();
 
   /**
+   * Returns the result of the workflow update.
+   *
+   * @return the result of the workflow update
+   */
+  T getResult();
+
+  /**
+   * Returns the result of the workflow update.
+   *
+   * @param timeout maximum time to wait and perform the background long polling
+   * @param unit unit of timeout
+   * @throws WorkflowUpdateTimeoutOrCancelledException if the timeout is reached.
+   * @return the result of the workflow update
+   */
+  T getResult(long timeout, TimeUnit unit);
+
+  /**
    * Returns a {@link CompletableFuture} with the update workflow execution request result,
    * potentially waiting for the update to complete.
    *

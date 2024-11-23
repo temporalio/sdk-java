@@ -50,6 +50,16 @@ public final class CompletedWorkflowUpdateHandleImpl<T> implements WorkflowUpdat
   }
 
   @Override
+  public T getResult() {
+    return result;
+  }
+
+  @Override
+  public T getResult(long timeout, TimeUnit unit) {
+    return result;
+  }
+
+  @Override
   public CompletableFuture<T> getResultAsync() {
     return CompletableFuture.completedFuture(result);
   }

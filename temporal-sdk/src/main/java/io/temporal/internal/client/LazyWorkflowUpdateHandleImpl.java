@@ -20,7 +20,6 @@
 
 package io.temporal.internal.client;
 
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowException;
@@ -30,10 +29,7 @@ import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Type;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 @Experimental
 public final class LazyWorkflowUpdateHandleImpl<T> implements WorkflowUpdateHandle<T> {
@@ -97,19 +93,16 @@ public final class LazyWorkflowUpdateHandleImpl<T> implements WorkflowUpdateHand
             failure -> {
               if (failure instanceof CompletionException) {
                 // unwrap the CompletionException
-                failure = ((Throwable) failure).getCause();
+                failure = failure.getCause();
               }
-              failure = CheckedExceptionWrapper.unwrap((Throwable) failure);
+              failure = CheckedExceptionWrapper.unwrap(failure);
               if (failure instanceof Error) {
                 throw (Error) failure;
               }
               if (failure instanceof StatusRuntimeException) {
                 StatusRuntimeException sre = (StatusRuntimeException) failure;
-                if (Status.Code.NOT_FOUND.equals(sre.getStatus().getCode())) {
-                  // Currently no way to tell if the NOT_FOUND was because the workflow ID
-                  // does not exist or because the update ID does not exist.
-                  throw sre;
-                }
+                // Currently no way to tell if the NOT_FOUND was because the workflow ID
+                // does not exist or because the update ID does not exist.
                 throw sre;
               } else if (failure instanceof WorkflowException) {
                 throw (WorkflowException) failure;
@@ -118,6 +111,34 @@ public final class LazyWorkflowUpdateHandleImpl<T> implements WorkflowUpdateHand
               }
               throw new WorkflowServiceException(execution, workflowType, failure);
             });
+  }
+
+  @Override
+  public T getResult() {
+    try {
+      return getResultAsync().get();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      throw (cause instanceof RuntimeException
+          ? (RuntimeException) cause
+          : new RuntimeException(cause));
+    }
+  }
+
+  @Override
+  public T getResult(long timeout, TimeUnit unit) {
+    try {
+      return getResultAsync(timeout, unit).get();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      throw (cause instanceof RuntimeException
+          ? (RuntimeException) cause
+          : new RuntimeException(cause));
+    }
   }
 
   @Override

@@ -22,6 +22,7 @@ package io.temporal.client.functional;
 
 import static org.junit.Assert.*;
 
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.client.*;
@@ -54,12 +55,18 @@ public class UpdateTest {
   }
 
   @Test
-  public void pollUpdateNonExistentWorkflow() throws ExecutionException, InterruptedException {
+  public void pollUpdateNonExistentWorkflow() {
     WorkflowStub workflowStub =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("non-existing-id");
     // Getting the update handle to a nonexistent workflow is fine
     WorkflowUpdateHandle<String> handle = workflowStub.getUpdateHandle("update-id", String.class);
-    assertThrows(Exception.class, () -> handle.getResultAsync().get());
+    ExecutionException e =
+        assertThrows(ExecutionException.class, () -> handle.getResultAsync().get());
+    assertTrue(e.getCause() instanceof StatusRuntimeException);
+    StatusRuntimeException sre = (StatusRuntimeException) e.getCause();
+    assertEquals(io.grpc.Status.Code.NOT_FOUND, sre.getStatus().getCode());
+    sre = assertThrows(StatusRuntimeException.class, () -> handle.getResult());
+    assertEquals(io.grpc.Status.Code.NOT_FOUND, sre.getStatus().getCode());
   }
 
   @Test
@@ -127,7 +134,7 @@ public class UpdateTest {
 
     // Try to get the result of an invalid update
     WorkflowUpdateHandle<String> handle = workflowStub.getUpdateHandle(updateId, String.class);
-    assertThrows(Exception.class, () -> handle.getResultAsync().get());
+    assertThrows(ExecutionException.class, () -> handle.getResultAsync().get());
 
     assertEquals(
         "some-value",
@@ -192,9 +199,10 @@ public class UpdateTest {
         workflowStub.startUpdate(updateOptions, 0, "some-value").getResultAsync().get());
     testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
     // Try to send another update request with the same update options
-    assertEquals(
-        "some-other-value",
-        workflowStub.startUpdate(updateOptions, 0, "some-other-value").getResultAsync().get());
+    WorkflowUpdateHandle<String> handle =
+        workflowStub.startUpdate(updateOptions, 0, "some-other-value");
+    assertEquals("some-other-value", handle.getResultAsync().get());
+    assertEquals("some-other-value", handle.getResult());
 
     // Complete the workflow
     workflowStub.update("complete", void.class);
