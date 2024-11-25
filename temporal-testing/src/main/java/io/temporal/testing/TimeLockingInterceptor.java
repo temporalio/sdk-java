@@ -193,6 +193,11 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
       return new TimeLockingWorkflowStub(locker, next.newInstance(options));
     }
 
+    @Override
+    public WorkflowExecutionDescription describe() {
+      return next.describe();
+    }
+
     /** Unlocks time skipping before blocking calls and locks back after completion. */
     private class TimeLockingFuture<R> extends CompletableFuture<R> {
 

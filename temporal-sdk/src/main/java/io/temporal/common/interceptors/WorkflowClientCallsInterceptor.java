@@ -94,6 +94,8 @@ public interface WorkflowClientCallsInterceptor {
 
   TerminateOutput terminate(TerminateInput input);
 
+  DescribeWorkflowOutput describe(DescribeWorkflowInput input);
+
   final class WorkflowStartInput {
     private final String workflowId;
     private final String workflowType;
@@ -601,4 +603,28 @@ public interface WorkflowClientCallsInterceptor {
   }
 
   final class TerminateOutput {}
+
+  final class DescribeWorkflowInput {
+    private final WorkflowExecution workflowExecution;
+
+    public DescribeWorkflowInput(WorkflowExecution workflowExecution) {
+      this.workflowExecution = workflowExecution;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+  }
+
+  final class DescribeWorkflowOutput {
+    private final WorkflowExecutionDescription description;
+
+    public DescribeWorkflowOutput(WorkflowExecutionDescription description) {
+      this.description = description;
+    }
+
+    public WorkflowExecutionDescription getDescription() {
+      return description;
+    }
+  }
 }

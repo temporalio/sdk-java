@@ -3024,7 +3024,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         // No setAutoResetPoints - the test environment doesn't support that feature
         .setSearchAttributes(visibilityStore.getSearchAttributesForExecution(executionId))
         .setStatus(this.getWorkflowExecutionStatus())
-        .setHistoryLength(fullHistory.size());
+        .setHistoryLength(fullHistory.size())
+        .setTaskQueue(this.getStartRequest().getTaskQueue().getName());
 
     populateWorkflowExecutionInfoFromHistory(executionInfo, fullHistory);
 

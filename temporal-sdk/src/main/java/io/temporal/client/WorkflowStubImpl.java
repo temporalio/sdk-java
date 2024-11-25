@@ -447,6 +447,21 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
+  public WorkflowExecutionDescription describe() {
+    checkStarted();
+    WorkflowExecution targetExecution = execution.get();
+    try {
+      WorkflowClientCallsInterceptor.DescribeWorkflowOutput result =
+          workflowClientInvoker.describe(
+              new WorkflowClientCallsInterceptor.DescribeWorkflowInput(targetExecution));
+      return result.getDescription();
+    } catch (Exception e) {
+      Throwable failure = throwAsWorkflowFailureException(e, targetExecution);
+      throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), failure);
+    }
+  }
+
+  @Override
   public Optional<WorkflowOptions> getOptions() {
     return Optional.ofNullable(options);
   }
