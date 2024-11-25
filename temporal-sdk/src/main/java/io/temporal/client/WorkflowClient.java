@@ -308,11 +308,10 @@ public interface WorkflowClient {
   WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId, @Nullable String runId);
 
   /**
-   * Allows you to startUpdate the worker-build-id based version sets for a particular task queue.
-   * This is used in conjunction with workers who specify their build id and thus opt into the
-   * feature.
+   * Allows you to update the worker-build-id based version sets for a particular task queue. This
+   * is used in conjunction with workers who specify their build id and thus opt into the feature.
    *
-   * @param taskQueue The task queue to startUpdate the version set(s) of.
+   * @param taskQueue The task queue to update the version set(s) of.
    * @param operation The operation to perform. See {@link BuildIdOperation} for more.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
