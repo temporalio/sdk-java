@@ -573,7 +573,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a zero argument workflow update with a void return type
+   * Start a zero argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -586,7 +586,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a one argument workflow update with a void return type
+   * Start a one argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -600,7 +600,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a two argument workflow update with a void return type
+   * Start a two argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -618,7 +618,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a three argument workflow update with a void return type
+   * Start a three argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -638,7 +638,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a four argument workflow update with a void return type
+   * Start a four argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -660,7 +660,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a five argument workflow update with a void return type
+   * Start a five argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -685,7 +685,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a six argument workflow update with a void return type
+   * Start a six argument workflow update with a void return type
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -712,7 +712,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a zero argument update workflow request asynchronously.
+   * Start a zero argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -726,7 +726,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a one argument update workflow request asynchronously.
+   * Start a one argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -741,7 +741,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a two argument update workflow request asynchronously.
+   * Start a two argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -760,7 +760,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a three argument update workflow request asynchronously.
+   * Start a three argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -781,7 +781,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a four argument update workflow request asynchronously.
+   * Start a four argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -804,7 +804,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a five argument update workflow request asynchronously.
+   * Start a five argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -830,7 +830,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes a six argument update workflow request asynchronously.
+   * Start a six argument update workflow request asynchronously.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
