@@ -537,6 +537,127 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return execute(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
   }
 
+  public static WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc updateMethod, UpdateOptions<?> options) {
+    enforceNonWorkflowThread();
+    WorkflowInvocationHandler.initAsyncInvocation(InvocationType.UPDATE, options);
+    try {
+      updateMethod.apply();
+      return WorkflowInvocationHandler.getAsyncInvocationResult(WorkflowUpdateHandle.class);
+    } finally {
+      WorkflowInvocationHandler.closeAsyncInvocation();
+    }
+  }
+
+  public static <A1> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc1<A1> updateMethod, A1 arg1, UpdateOptions<Void> options) {
+    return startUpdate(() -> updateMethod.apply(arg1), options);
+  }
+
+  public static <A1, A2> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc2<A1, A2> updateMethod, A1 arg1, A2 arg2, UpdateOptions<Void> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2), options);
+  }
+
+  public static <A1, A2, A3> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc3<A1, A2, A3> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<Void> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3), options);
+  }
+
+  public static <A1, A2, A3, A4> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc4<A1, A2, A3, A4> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<Void> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4), options);
+  }
+
+  public static <A1, A2, A3, A4, A5> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc5<A1, A2, A3, A4, A5> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<Void> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options);
+  }
+
+  public static <A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<Void> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options);
+  }
+
+  public static <R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func<R> updateMethod, UpdateOptions<R> options) {
+    return (WorkflowUpdateHandle<R>) startUpdate((Functions.Proc) updateMethod::apply, options);
+  }
+
+  public static <A1, R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func1<A1, R> updateMethod, A1 arg1, UpdateOptions<R> options) {
+    return startUpdate(() -> updateMethod.apply(arg1), options);
+  }
+
+  public static <A1, A2, R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func2<A1, A2, R> updateMethod, A1 arg1, A2 arg2, UpdateOptions<R> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2), options);
+  }
+
+  public static <A1, A2, A3, R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func3<A1, A2, A3, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<R> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3), options);
+  }
+
+  public static <A1, A2, A3, A4, R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func4<A1, A2, A3, A4, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<R> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4), options);
+  }
+
+  public static <A1, A2, A3, A4, A5, R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<R> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options);
+  }
+
+  public static <A1, A2, A3, A4, A5, A6, R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options) {
+    return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options);
+  }
+
   Stream<HistoryEvent> streamHistory(WorkflowExecution execution) {
     Preconditions.checkNotNull(execution, "execution is required");
 

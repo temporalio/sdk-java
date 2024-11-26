@@ -573,6 +573,291 @@ public interface WorkflowClient {
   }
 
   /**
+   * Start a zero argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc updateMethod, @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, options);
+  }
+
+  /**
+   * Start a one argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static <A1> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc1<A1> updateMethod, A1 arg1, @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, options);
+  }
+
+  /**
+   * Start a two argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static <A1, A2> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc2<A1, A2> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, options);
+  }
+
+  /**
+   * Start a three argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static <A1, A2, A3> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc3<A1, A2, A3> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, options);
+  }
+
+  /**
+   * Start a four argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param arg4 fourth update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static <A1, A2, A3, A4> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc4<A1, A2, A3, A4> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, arg4, options);
+  }
+
+  /**
+   * Start a five argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param arg4 fourth update method parameter
+   * @param arg5 fifth update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static <A1, A2, A3, A4, A5> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc5<A1, A2, A3, A4, A5> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(
+        updateMethod, arg1, arg2, arg3, arg4, arg5, options);
+  }
+
+  /**
+   * Start a six argument workflow update with a void return type
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param arg4 fourth update method parameter
+   * @param arg5 fifth update method parameter
+   * @param arg6 sixth update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  static <A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<Void> startUpdate(
+      Functions.Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      @Nonnull UpdateOptions<Void> options) {
+    return WorkflowClientInternalImpl.startUpdate(
+        updateMethod, arg1, arg2, arg3, arg4, arg5, arg6, options);
+  }
+
+  /**
+   * Start a zero argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func<R> updateMethod, @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, options);
+  }
+
+  /**
+   * Start a one argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R, A1> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func1<A1, R> updateMethod, A1 arg1, @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, options);
+  }
+
+  /**
+   * Start a two argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R, A1, A2> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func2<A1, A2, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, options);
+  }
+
+  /**
+   * Start a three argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R, A1, A2, A3> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func3<A1, A2, A3, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, options);
+  }
+
+  /**
+   * Start a four argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param arg4 fourth update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func4<A1, A2, A3, A4, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(updateMethod, arg1, arg2, arg3, arg4, options);
+  }
+
+  /**
+   * Start a five argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param arg4 fourth update method parameter
+   * @param arg5 firth update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(
+        updateMethod, arg1, arg2, arg3, arg4, arg5, options);
+  }
+
+  /**
+   * Start a six argument update workflow request asynchronously.
+   *
+   * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
+   *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update method parameter
+   * @param arg2 second update method parameter
+   * @param arg3 third update method parameter
+   * @param arg4 fourth update method parameter
+   * @param arg5 firth update method parameter
+   * @param arg6 sixth update method parameter
+   * @param options update options
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> startUpdate(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      @Nonnull UpdateOptions<R> options) {
+    return WorkflowClientInternalImpl.startUpdate(
+        updateMethod, arg1, arg2, arg3, arg4, arg5, arg6, options);
+  }
+
+  /**
    * Executes zero argument workflow with void return type together with an update workflow request.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link

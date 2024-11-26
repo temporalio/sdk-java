@@ -20,6 +20,8 @@
 
 package io.temporal.workflow.updateTest;
 
+import static io.temporal.client.WorkflowUpdateStage.ACCEPTED;
+import static io.temporal.client.WorkflowUpdateStage.COMPLETED;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
@@ -174,7 +176,7 @@ public class UpdateTest {
     assertEquals("Execute-Hello", workflowStub.update("update", String.class, 0, "Hello"));
     // send an update through the async path
     WorkflowUpdateHandle<String> updateRef =
-        workflowStub.startUpdate("update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "World");
+        workflowStub.startUpdate("update", ACCEPTED, String.class, 0, "World");
     assertEquals("Execute-World", updateRef.getResultAsync().get());
     // send a bad update that will be rejected through the sync path
     assertThrows(
@@ -197,11 +199,67 @@ public class UpdateTest {
     // send a bad update that will be rejected through the sync path
     assertThrows(
         WorkflowUpdateException.class,
-        () ->
-            workflowStub.startUpdate(
-                "update", WorkflowUpdateStage.ACCEPTED, String.class, 0, "Bad Update"));
+        () -> workflowStub.startUpdate("update", ACCEPTED, String.class, 0, "Bad Update"));
 
     workflowStub.update("complete", void.class);
+
+    assertEquals("Execute-Hello Execute-World", workflowStub.getResult(String.class));
+  }
+
+  @Test
+  public void testAsyncTypedUpdate() throws ExecutionException, InterruptedException {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    String workflowType = TestWorkflows.WorkflowWithUpdate.class.getSimpleName();
+    WorkflowStub workflowStub =
+        workflowClient.newUntypedWorkflowStub(
+            workflowType,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+    workflowStub.start();
+
+    assertEquals("initial", workflowStub.query("getState", String.class));
+
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(
+            TestWorkflows.WorkflowWithUpdate.class, workflowStub.getExecution().getWorkflowId());
+
+    WorkflowUpdateHandle<String> handle =
+        WorkflowClient.startUpdate(
+            workflow::update,
+            0,
+            "Hello",
+            UpdateOptions.<String>newBuilder().setWaitForStage(COMPLETED).build());
+    assertEquals("Execute-Hello", handle.getResultAsync().get());
+
+    assertEquals(
+        "Execute-World",
+        WorkflowClient.startUpdate(
+                workflow::update,
+                0,
+                "World",
+                UpdateOptions.<String>newBuilder().setWaitForStage(ACCEPTED).build())
+            .getResultAsync()
+            .get());
+
+    assertEquals(
+        "Execute-Hello",
+        WorkflowClient.startUpdate(
+                workflow::update,
+                0,
+                "World",
+                UpdateOptions.<String>newBuilder()
+                    .setWaitForStage(COMPLETED)
+                    .setUpdateId(handle.getId())
+                    .build())
+            .getResultAsync()
+            .get());
+
+    assertEquals(
+        null,
+        WorkflowClient.startUpdate(
+                workflow::complete,
+                UpdateOptions.<Void>newBuilder().setWaitForStage(COMPLETED).build())
+            .getResultAsync()
+            .get());
 
     assertEquals("Execute-Hello Execute-World", workflowStub.getResult(String.class));
   }
