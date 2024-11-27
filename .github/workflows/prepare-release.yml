@@ -149,7 +149,13 @@ jobs:
       - name: Temporary tag
         run: git tag "$INPUT_TAG"
 
-      - name: Build native test server
+      - name: Build native test server (non-Docker)
+        if: matrix.os_family != 'Linux'
+        run: |
+          ./gradlew -x :temporal-serviceclient:updateSubmodules :temporal-test-server:build
+
+      - name: Build native test server (Docker)
+        if: matrix.os_family == 'Linux'
         run: |
           docker run \
             --rm -v "$(pwd):/workspace" -w /workspace \
