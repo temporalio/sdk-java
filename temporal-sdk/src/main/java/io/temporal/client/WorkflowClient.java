@@ -857,151 +857,167 @@ public interface WorkflowClient {
         updateMethod, arg1, arg2, arg3, arg4, arg5, arg6, options);
   }
 
+  // TODO: UwS
   /**
    * Executes zero argument workflow with void return type together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc workflow, @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(workflow);
+  static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc updateMethod,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        updateMethod, options, withStartOperation);
   }
 
   /**
    * Executes one argument workflow with void return type together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc1<A1> workflow,
+  static <R, A1> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc1<A1> updateMethod,
       A1 arg1,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1), options, withStartOperation);
   }
 
   /**
    * Executes two argument workflow with void return type together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc2<A1, A2> workflow,
+  static <R, A1, A2> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc2<A1, A2> updateMethod,
       A1 arg1,
       A2 arg2,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
   }
 
   /**
    * Executes three argument workflow with void return type together with an update workflow
    * request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc3<A1, A2, A3> workflow,
+  static <R, A1, A2, A3> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc3<A1, A2, A3> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
   }
 
   /**
    * Executes four argument workflow with void return type together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param arg4 fourth workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc4<A1, A2, A3, A4> workflow,
+  static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc4<A1, A2, A3, A4> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
   }
 
   /**
    * Executes five argument workflow with void return type together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param arg4 fourth workflow function parameter
-   * @param arg5 fifth workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc5<A1, A2, A3, A4, A5> workflow,
+  static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc5<A1, A2, A3, A4, A5> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
   }
 
   /**
    * Executes six argument workflow with void return type together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param arg4 fourth workflow function parameter
-   * @param arg5 fifth workflow function parameter
-   * @param arg6 sixth workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param arg6 sixth update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow,
+  static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       A5 arg5,
       A6 arg6,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
   }
 
   /**
@@ -1009,148 +1025,484 @@ public interface WorkflowClient {
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param updateOperation update workflow operation
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func<R> workflow, @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(
-        () -> {
-          workflow.apply();
-        });
+  static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Func<R> workflow,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        workflow::apply, options, withStartOperation);
   }
 
   /**
    * Executes one argument workflow together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow argument
-   * @param updateOperation update workflow operation
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <A1, R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func1<A1, R> workflow,
+  static <A1, R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Func1<A1, R> updateMethod,
       A1 arg1,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1), options, withStartOperation);
   }
 
   /**
    * Executes two argument workflow together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <A1, A2, R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func2<A1, A2, R> workflow,
+  static <A1, A2, R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
       A2 arg2,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
   }
 
   /**
    * Executes three argument workflow together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <A1, A2, A3, R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func3<A1, A2, A3, R> workflow,
+  static <A1, A2, A3, R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Functions.Func3<A1, A2, A3, R> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
   }
 
   /**
    * Executes four argument workflow together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param arg4 fourth workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <A1, A2, A3, A4, R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func4<A1, A2, A3, A4, R> workflow,
+  static <A1, A2, A3, A4, R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
   }
 
   /**
    * Executes five argument workflow together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first workflow function parameter
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param arg4 fourth workflow function parameter
-   * @param arg5 fifth workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <A1, A2, A3, A4, A5, R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func5<A1, A2, A3, A4, A5, R> workflow,
+  static <A1, A2, A3, A4, A5, R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
   }
 
   /**
    * Executes six argument workflow together with an update workflow request.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow argument
-   * @param arg2 second workflow function parameter
-   * @param arg3 third workflow function parameter
-   * @param arg4 fourth workflow function parameter
-   * @param arg5 fifth workflow function parameter
-   * @param arg6 sixth workflow function parameter
-   * @param updateOperation update workflow operation
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param arg6 sixth update function parameter
+   * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  static <A1, A2, A3, A4, A5, A6, R> WorkflowUpdateHandle<R> updateWithStart(
-      Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow,
+  static <A1, A2, A3, A4, A5, A6, R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
       A1 arg1,
       A2 arg2,
       A3 arg3,
       A4 arg4,
       A5 arg5,
       A6 arg6,
-      @Nonnull UpdateWithStartWorkflowOperation<R> updateOperation) {
-    return updateOperation.invoke(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.startUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
+  }
+
+  // TODO: UwS
+  /**
+   * Executes zero argument workflow with void return type together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param withStartOperation start workflow operation
+   * @return WorkflowUpdateHandle that can be used to get the result of the update
+   */
+  @Experimental
+  static <R> R executeUpdateWithStart(
+      Functions.Proc updateMethod,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        updateMethod, options, withStartOperation);
+  }
+
+  /**
+   * Executes one argument workflow with void return type together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R, A1> R executeUpdateWithStart(
+      Proc1<A1> updateMethod,
+      A1 arg1,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1), options, withStartOperation);
+  }
+
+  /**
+   * Executes two argument workflow with void return type together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R, A1, A2> R executeUpdateWithStart(
+      Proc2<A1, A2> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
+  }
+
+  /**
+   * Executes three argument workflow with void return type together with an update workflow
+   * request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R, A1, A2, A3> R executeUpdateWithStart(
+      Proc3<A1, A2, A3> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
+  }
+
+  /**
+   * Executes four argument workflow with void return type together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R, A1, A2, A3, A4> R executeUpdateWithStart(
+      Proc4<A1, A2, A3, A4> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
+  }
+
+  /**
+   * Executes five argument workflow with void return type together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R, A1, A2, A3, A4, A5> R executeUpdateWithStart(
+      Proc5<A1, A2, A3, A4, A5> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
+  }
+
+  /**
+   * Executes six argument workflow with void return type together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param arg6 sixth update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R, A1, A2, A3, A4, A5, A6> R executeUpdateWithStart(
+      Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
+  }
+
+  /**
+   * Executes zero argument workflow.
+   *
+   * @param workflow The only supported value is method reference to a proxy created through {@link
+   *     #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <R> R executeUpdateWithStart(
+      Func<R> workflow,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        workflow::apply, options, withStartOperation);
+  }
+
+  /**
+   * Executes one argument workflow together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow argument
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <A1, R> R executeUpdateWithStart(
+      Func1<A1, R> updateMethod,
+      A1 arg1,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1), options, withStartOperation);
+  }
+
+  /**
+   * Executes two argument workflow together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <A1, A2, R> R executeUpdateWithStart(
+      Functions.Func2<A1, A2, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
+  }
+
+  /**
+   * Executes three argument workflow together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <A1, A2, A3, R> R executeUpdateWithStart(
+      Functions.Func3<A1, A2, A3, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
+  }
+
+  /**
+   * Executes four argument workflow together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <A1, A2, A3, A4, R> R executeUpdateWithStart(
+      Functions.Func4<A1, A2, A3, A4, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
+  }
+
+  /**
+   * Executes five argument workflow together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first update function parameter
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <A1, A2, A3, A4, A5, R> R executeUpdateWithStart(
+      Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
+  }
+
+  /**
+   * Executes six argument workflow together with an update workflow request.
+   *
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param arg1 first workflow argument
+   * @param arg2 second update function parameter
+   * @param arg3 third update function parameter
+   * @param arg4 fourth update function parameter
+   * @param arg5 fifth update function parameter
+   * @param arg6 sixth update function parameter
+   * @param withStartOperation start workflow operation
+   * @return update result
+   */
+  @Experimental
+  static <A1, A2, A3, A4, A5, A6, R> R executeUpdateWithStart(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      @Nonnull UpdateOptions<R> options,
+      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+    return WorkflowClientInternalImpl.executeUpdateWithStart(
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
   }
 
   /**

@@ -69,7 +69,7 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
     }
 
     @Override
-    public String update(Integer i) {
+    public String update2(String a1, int a2) {
       throw new UnsupportedOperationException();
     }
   }

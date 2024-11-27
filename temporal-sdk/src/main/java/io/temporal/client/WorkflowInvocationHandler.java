@@ -36,10 +36,7 @@ import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import io.temporal.internal.sync.StubMarker;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.UpdateMethod;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -77,12 +74,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       new ThreadLocal<>();
 
   /** Must call {@link #closeAsyncInvocation()} if this one was called. */
-  static void initAsyncInvocation(InvocationType type) {
-    initAsyncInvocation(type, null);
-  }
-
-  /** Must call {@link #closeAsyncInvocation()} if this one was called. */
-  static <T> void initAsyncInvocation(InvocationType type, T value) {
+  static void initAsyncInvocation(InvocationType type, Object... values) {
     if (invocationContext.get() != null) {
       throw new IllegalStateException("already in start invocation");
     }
@@ -91,17 +83,18 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } else if (type == InvocationType.EXECUTE) {
       invocationContext.set(new ExecuteWorkflowInvocationHandler());
     } else if (type == InvocationType.SIGNAL_WITH_START) {
-      SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
+      SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) values[0];
       invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
     } else if (type == InvocationType.START_NEXUS) {
-      NexusStartWorkflowRequest request = (NexusStartWorkflowRequest) value;
+      NexusStartWorkflowRequest request = (NexusStartWorkflowRequest) values[0];
       invocationContext.set(new StartNexusOperationInvocationHandler(request));
     } else if (type == InvocationType.UPDATE) {
-      UpdateOptions<?> updateOptions = (UpdateOptions) value;
+      UpdateOptions<?> updateOptions = (UpdateOptions<?>) values[0];
       invocationContext.set(new UpdateInvocationHandler(updateOptions));
     } else if (type == InvocationType.UPDATE_WITH_START) {
-      UpdateWithStartWorkflowOperation operation = (UpdateWithStartWorkflowOperation) value;
-      invocationContext.set(new UpdateWithStartInvocationHandler(operation));
+      UpdateOptions<?> options = (UpdateOptions<?>) values[0];
+      WithStartWorkflowOperation<?> startOp = (WithStartWorkflowOperation<?>) values[1];
+      invocationContext.set(new UpdateWithStartInvocationHandler(options, startOp));
     } else {
       throw new IllegalArgumentException("Unexpected InvocationType: " + type);
     }
@@ -115,7 +108,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     return invocation.getResult(resultClass);
   }
 
-  /** Closes async invocation created through {@link #initAsyncInvocation(InvocationType)} */
+  /** Closes async invocation created through {@link #initAsyncInvocation} */
   static void closeAsyncInvocation() {
     invocationContext.remove();
   }
@@ -511,12 +504,18 @@ class WorkflowInvocationHandler implements InvocationHandler {
       UPDATE_RECEIVED,
     }
 
-    private final UpdateWithStartWorkflowOperation operation;
-
+    private final UpdateOptions<?> baseUpdateOptions;
+    private Object[] updateArgs;
+    private UpdateOptions updateOptions;
+    private final WithStartWorkflowOperation<?> startOp;
     private State state = State.INIT;
+    private WorkflowUpdateHandle<?> result;
+    private WorkflowStub stub;
 
-    public UpdateWithStartInvocationHandler(UpdateWithStartWorkflowOperation operation) {
-      this.operation = operation;
+    public UpdateWithStartInvocationHandler(
+        UpdateOptions<?> baseUpdateOptions, WithStartWorkflowOperation<?> startOp) {
+      this.baseUpdateOptions = baseUpdateOptions;
+      this.startOp = startOp;
     }
 
     @Override
@@ -534,35 +533,53 @@ class WorkflowInvocationHandler implements InvocationHandler {
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
 
       if (state == State.INIT) {
-        WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-        if (workflowMethod == null) {
-          throw new IllegalArgumentException(
-              "Method '" + method.getName() + "' is not a WorkflowMethod");
-        }
-        this.operation.prepareStart(untyped, args);
-        state = State.START_RECEIVED;
-      } else if (state == State.START_RECEIVED) {
         UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
         if (updateMethod == null) {
           throw new IllegalArgumentException(
               "Method '" + method.getName() + "' is not an UpdateMethod");
         }
-        this.operation.prepareUpdate(
-            untyped,
-            methodMetadata.getName(),
-            method.getReturnType(),
-            method.getGenericReturnType(),
-            args);
+        this.setStub(untyped);
+        this.updateArgs = args;
+        this.updateOptions =
+            this.baseUpdateOptions.toBuilder()
+                .setUpdateName(methodMetadata.getName())
+                .setResultClass(method.getReturnType())
+                .setResultType(method.getGenericReturnType())
+                .build();
         state = State.UPDATE_RECEIVED;
+      } else if (state == State.UPDATE_RECEIVED) {
+        WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+        if (workflowMethod == null) {
+          throw new IllegalArgumentException(
+              "Method '" + method.getName() + "' is not a WorkflowMethod");
+        }
+        this.setStub(untyped);
+        this.startOp.setStub(untyped);
+        this.startOp.setArgs(args);
+        this.startOp.setResultClass(method.getReturnType());
+        state = State.START_RECEIVED;
       } else {
         throw new IllegalArgumentException(
             "UpdateWithStartInvocationHandler called too many times");
       }
+
+      if (startOp.getStub() != null) {
+        this.result = untyped.startUpdateWithStart(updateOptions, updateArgs, startOp);
+      }
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <R> R getResult(Class<R> resultClass) {
-      throw new IllegalStateException("No result is expected");
+      return (R) result;
+    }
+
+    private void setStub(WorkflowStub stub) {
+      if (this.stub != null && stub != this.stub) {
+        throw new IllegalArgumentException(
+            "WithStartWorkflowOperation invoked on different workflow stubs");
+      }
+      this.stub = stub;
     }
   }
 }

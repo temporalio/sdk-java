@@ -1144,7 +1144,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage("INVALID_ARGUMENT: CronSchedule is not allowed.")
                 .build(),
-            null);
+            null); // updated aborted
       }
 
       if (startRequest.getRequestEagerExecution()) {
@@ -1153,7 +1153,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage("INVALID_ARGUMENT: RequestEagerExecution is not supported.")
                 .build(),
-            null);
+            null); // update aborted
+      }
+
+      if (startRequest.hasWorkflowStartDelay()) {
+        throw multiOperationExecutionFailure(
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: WorkflowStartDelay is not supported.")
+                .build(),
+            null); // update aborted
       }
 
       UpdateWorkflowExecutionRequest updateRequest;
@@ -1191,17 +1200,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage(
-                    "INVALID_ARGUMENT: WorkflowId is not consistent with previous operation(s)")
+                    "INVALID_ARGUMENT: Update operation's WorkflowId is not consistent with Start operation's WorkflowId")
                 .build());
-      }
-
-      if (startRequest.hasWorkflowStartDelay()) {
-        throw multiOperationExecutionFailure(
-            MultiOperationExecutionFailure.OperationStatus.newBuilder()
-                .setCode(Status.INVALID_ARGUMENT.getCode().value())
-                .setMessage("INVALID_ARGUMENT: WorkflowStartDelay is not supported.")
-                .build(),
-            null);
       }
 
       @Nullable Deadline deadline = getUpdatePollDeadline();

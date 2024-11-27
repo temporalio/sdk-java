@@ -62,8 +62,9 @@ public interface WorkflowClientCallsInterceptor {
   WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
 
   /**
-   * Intercepts calls from {@link WorkflowStub#updateWithStart} and {@link
-   * WorkflowClient#updateWithStart}.
+   * Intercepts calls from {@link WorkflowStub#startUpdateWithStart} and {@link
+   * WorkflowStub#executeUpdateWithStart} as well as {@link WorkflowClient#startUpdateWithStart} ans
+   * {@link WorkflowClient#executeUpdateWithStart}.
    */
   @Experimental
   <R> WorkflowUpdateWithStartOutput<R> updateWithStart(WorkflowUpdateWithStartInput<R> input);
@@ -233,21 +234,20 @@ public interface WorkflowClientCallsInterceptor {
 
   final class WorkflowUpdateWithStartInput<R> {
     private final WorkflowStartInput workflowStartInput;
-    private final UpdateWithStartWorkflowOperation<R> updateOperation;
+    private final StartUpdateInput<R> workflowUpdateInput;
 
     public WorkflowUpdateWithStartInput(
-        WorkflowStartInput workflowStartInput,
-        UpdateWithStartWorkflowOperation<R> updateOperation) {
+        WorkflowStartInput workflowStartInput, StartUpdateInput<R> workflowUpdateInput) {
       this.workflowStartInput = workflowStartInput;
-      this.updateOperation = updateOperation;
+      this.workflowUpdateInput = workflowUpdateInput;
     }
 
     public WorkflowStartInput getWorkflowStartInput() {
       return workflowStartInput;
     }
 
-    public UpdateWithStartWorkflowOperation<R> getUpdateOperation() {
-      return updateOperation;
+    public StartUpdateInput<R> getStartUpdateInput() {
+      return workflowUpdateInput;
     }
   }
 

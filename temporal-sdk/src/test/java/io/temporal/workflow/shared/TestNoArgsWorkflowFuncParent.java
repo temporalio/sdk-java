@@ -46,7 +46,7 @@ public class TestNoArgsWorkflowFuncParent
   }
 
   @Override
-  public String update(Integer i) {
+  public String update() {
     throw new UnsupportedOperationException();
   }
 }

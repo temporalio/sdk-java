@@ -66,7 +66,7 @@ public class StatusUtils {
       }
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
-          "failure getting grcp failure of " + failureType + " from " + details, e);
+          "Failure to construct gRPC error of type " + failureType + " from " + details, e);
     }
     return null;
   }

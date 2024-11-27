@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -157,16 +158,26 @@ public interface WorkflowStub {
   WorkflowExecution start(Object... args);
 
   /**
-   * Execute a workflow together with an update workflow request.
+   * TODO: UwS
    *
-   * @param updateOperation update workflow operation
-   * @param startArgs workflow start arguments
    * @param <R> type of the update workflow result
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  <R> WorkflowUpdateHandle<R> updateWithStart(
-      UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs);
+  <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      UpdateOptions<R> options, Object[] updateArgs, WithStartWorkflowOperation<?> startOp);
+
+  /**
+   * TODO: UwS
+   *
+   * @param <R> type of the update workflow result
+   * @return update result
+   */
+  @Experimental
+  <R> R executeUpdateWithStart(
+      @Nonnull UpdateOptions<R> updateOptions,
+      Object[] updateArgs,
+      @Nonnull WithStartWorkflowOperation<?> startOp);
 
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
