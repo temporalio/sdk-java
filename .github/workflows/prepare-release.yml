@@ -156,14 +156,10 @@ jobs:
 
       - name: Build native test server (Docker)
         if: matrix.os_family == 'Linux'
-        run: |
-          docker run \
-            --rm -v "$(pwd):/workspace" -w /workspace \
-            ghcr.io/graalvm/graalvm-community:21-ol7 \
-            sh -c '
-              yum install -y git && \
-              ./gradlew -x :temporal-serviceclient:updateSubmodules :temporal-test-server:build
-            '
+        uses: docker://openjdk:21-jdk-oraclelinux7
+        with:
+          args: |
+            sh -c 'yum install -y git && ./gradlew -x :temporal-serviceclient:updateSubmodules :temporal-test-server:build'
 
       # path ends in a wildcard because on windows the file ends in '.exe'
       # path excludes *.txt because native-image also writes a build manifest txt file
