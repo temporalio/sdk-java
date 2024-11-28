@@ -28,6 +28,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +80,13 @@ public final class InternalUtils {
       throw new IllegalArgumentException(
           "WorkflowId is expected to be set on WorkflowOptions when used with Nexus");
     }
+    // Add the Nexus operation ID to the headers if it is not already present to support fabricating
+    // a NexusOperationStarted event if the completion is received before the response to a
+    // StartOperation request.
+    Map<String, String> headers = new HashMap<>(request.getCallbackHeaders());
+    if (!headers.containsKey("nexus-operation-id")) {
+      headers.put("nexus-operation-id", options.getWorkflowId());
+    }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)
             .setRequestId(request.getRequestId())
@@ -87,7 +96,7 @@ public final class InternalUtils {
                         .setNexus(
                             Callback.Nexus.newBuilder()
                                 .setUrl(request.getCallbackUrl())
-                                .putAllHeader(request.getCallbackHeaders())
+                                .putAllHeader(headers)
                                 .build())
                         .build()));
     if (options.getTaskQueue() == null) {
