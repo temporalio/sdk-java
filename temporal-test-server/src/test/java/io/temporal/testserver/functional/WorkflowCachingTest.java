@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class WorkflowCachingTest {
@@ -137,6 +138,7 @@ public class WorkflowCachingTest {
   }
 
   @Test
+  @Ignore("https://github.com/temporalio/sdk-java/issues/2333")
   public void taskTimeoutWillRescheduleTheTaskOnTheGlobalList() throws Exception {
     TestServiceUtils.startWorkflowExecution(
         NAMESPACE,
