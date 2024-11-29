@@ -63,7 +63,7 @@ public interface WorkflowClientCallsInterceptor {
 
   /**
    * Intercepts calls from {@link WorkflowStub#startUpdateWithStart} and {@link
-   * WorkflowStub#executeUpdateWithStart} as well as {@link WorkflowClient#startUpdateWithStart} ans
+   * WorkflowStub#executeUpdateWithStart} as well as {@link WorkflowClient#startUpdateWithStart} and
    * {@link WorkflowClient#executeUpdateWithStart}.
    */
   @Experimental
