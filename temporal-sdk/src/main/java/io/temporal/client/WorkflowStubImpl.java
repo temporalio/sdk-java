@@ -132,9 +132,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
-      @Nonnull UpdateOptions<R> updateOptions,
-      Object[] updateArgs,
-      @Nonnull WithStartWorkflowOperation<?> startOp) {
+      UpdateOptions<R> updateOptions, Object[] updateArgs, WithStartWorkflowOperation<?> startOp) {
     if (options == null) {
       throw new IllegalStateException(
           "Required parameter WorkflowOptions is missing in WorkflowStub");
@@ -190,9 +188,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R executeUpdateWithStart(
-      @Nonnull UpdateOptions<R> updateOptions,
-      Object[] updateArgs,
-      @Nonnull WithStartWorkflowOperation<?> startOp) {
+      UpdateOptions<R> updateOptions, Object[] updateArgs, WithStartWorkflowOperation<?> startOp) {
     return startUpdateWithStart(updateOptions, updateArgs, startOp).getResult();
   }
 

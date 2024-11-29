@@ -26,7 +26,13 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 
-/** TODO: UwS */
+/**
+ * WithStartWorkflowOperation is a start workflow request that can be executed together with an
+ * update workflow request. See {@link WorkflowClient#startUpdateWithStart} and {@link
+ * WorkflowClient#executeUpdateWithStart}.
+ *
+ * @param <R> type of the workflow result
+ */
 @Experimental
 public final class WithStartWorkflowOperation<R> {
 
@@ -39,7 +45,7 @@ public final class WithStartWorkflowOperation<R> {
   private WithStartWorkflowOperation() {}
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a zero argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a zero argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -53,11 +59,11 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a one argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a one argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
+   * @param arg1 first workflow method parameter
    */
   public <A1> WithStartWorkflowOperation(Functions.Func1<A1, R> startMethod, A1 arg1) {
     this.startMethod = () -> startMethod.apply(arg1);
@@ -65,12 +71,12 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a two argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a two argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
    */
   public <A1, A2> WithStartWorkflowOperation(
       Functions.Func2<A1, A2, R> startMethod, A1 arg1, A2 arg2) {
@@ -79,13 +85,13 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a three argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a three argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
    */
   public <A1, A2, A3> WithStartWorkflowOperation(
       Functions.Func3<A1, A2, A3, R> startMethod, A1 arg1, A2 arg2, A3 arg3) {
@@ -94,14 +100,14 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a four argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a four argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
-   * @param arg4 fourth request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
+   * @param arg4 fourth workflow method parameter
    */
   public <A1, A2, A3, A4> WithStartWorkflowOperation(
       Functions.Func4<A1, A2, A3, A4, R> startMethod, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
@@ -110,15 +116,15 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a five argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a five argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
-   * @param arg4 fourth request function parameter
-   * @param arg5 fifth request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
+   * @param arg4 fourth workflow method parameter
+   * @param arg5 fifth workflow method parameter
    */
   public <A1, A2, A3, A4, A5> WithStartWorkflowOperation(
       Functions.Func5<A1, A2, A3, A4, A5, R> startMethod,
@@ -132,16 +138,16 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a six argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a six argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
-   * @param arg4 fourth request function parameter
-   * @param arg5 fifth request function parameter
-   * @param arg6 sixth request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
+   * @param arg4 fourth workflow method parameter
+   * @param arg5 fifth workflow method parameter
+   * @param arg6 sixth workflow method parameter
    */
   public <A1, A2, A3, A4, A5, A6> WithStartWorkflowOperation(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> startMethod,
@@ -156,7 +162,7 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a zero argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a zero argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -170,11 +176,11 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a one argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a one argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
+   * @param arg1 first workflow method parameter
    */
   public <A1> WithStartWorkflowOperation(Functions.Proc1<A1> startMethod, A1 arg1) {
     this.startMethod = () -> startMethod.apply(arg1);
@@ -182,12 +188,12 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a two argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a two argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
    */
   public <A1, A2> WithStartWorkflowOperation(
       Functions.Proc2<A1, A2> startMethod, A1 arg1, A2 arg2) {
@@ -196,13 +202,13 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a three argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a three argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
    */
   public <A1, A2, A3> WithStartWorkflowOperation(
       Functions.Proc3<A1, A2, A3> startMethod, A1 arg1, A2 arg2, A3 arg3) {
@@ -211,14 +217,14 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a four argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a four argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
-   * @param arg4 fourth request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
+   * @param arg4 fourth workflow method parameter
    */
   public <A1, A2, A3, A4> WithStartWorkflowOperation(
       Functions.Proc4<A1, A2, A3, A4> startMethod, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
@@ -227,15 +233,15 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a five argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a five argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
-   * @param arg4 fourth request function parameter
-   * @param arg5 fifth request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
+   * @param arg4 fourth workflow method parameter
+   * @param arg5 fifth workflow method parameter
    */
   public <A1, A2, A3, A4, A5> WithStartWorkflowOperation(
       Functions.Proc5<A1, A2, A3, A4, A5> startMethod,
@@ -249,16 +255,16 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Returns a new {@link WithStartWorkflowOperation} for a six argument request.
+   * Creates a new {@link WithStartWorkflowOperation} for a six argument workflow method.
    *
    * @param startMethod method reference annotated with @WorkflowMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
-   * @param arg1 first request function parameter
-   * @param arg2 second request function parameter
-   * @param arg3 third request function parameter
-   * @param arg4 fourth request function parameter
-   * @param arg5 fifth request function parameter
-   * @param arg6 sixth request function parameter
+   * @param arg1 first workflow method parameter
+   * @param arg2 second workflow method parameter
+   * @param arg3 third workflow method parameter
+   * @param arg4 fourth workflow method parameter
+   * @param arg5 fifth workflow method parameter
+   * @param arg6 sixth workflow method parameter
    */
   public <A1, A2, A3, A4, A5, A6> WithStartWorkflowOperation(
       Functions.Proc6<A1, A2, A3, A4, A5, A6> startMethod,
@@ -272,6 +278,13 @@ public final class WithStartWorkflowOperation<R> {
     this.args = new Object[] {arg1, arg2, arg3, arg4, arg5, arg6};
   }
 
+  /**
+   * Creates a new {@link WithStartWorkflowOperation} from an untyped workflow stub.
+   *
+   * @param stub workflow stub to use
+   * @param resultClass class of the workflow return value
+   * @param args arguments to start the workflow
+   */
   public WithStartWorkflowOperation(
       WorkflowStub stub, Class<? extends R> resultClass, Object... args) {
     this.stub = stub;
@@ -279,9 +292,22 @@ public final class WithStartWorkflowOperation<R> {
     this.args = args;
   }
 
-  /** Returns the result of the update request. */
+  /**
+   * Obtains workflow result.
+   *
+   * @return the result of the workflow
+   */
   public R getResult() {
     return this.stub.getResult(this.resultClass);
+  }
+
+  /**
+   * Mark the operation as having been invoked.
+   *
+   * @return false if the operation was already invoked
+   */
+  boolean markInvoked() {
+    return invoked.compareAndSet(false, true);
   }
 
   @Nullable
@@ -323,14 +349,5 @@ public final class WithStartWorkflowOperation<R> {
 
   void setStub(WorkflowStub stub) {
     this.stub = stub;
-  }
-
-  /**
-   * Mark the operation as having been invoked.
-   *
-   * @return false if the operation was already invoked
-   */
-  boolean markInvoked() {
-    return invoked.compareAndSet(false, true);
   }
 }
