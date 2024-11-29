@@ -664,7 +664,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
       WithStartWorkflowOperation<?> startOp) {
     enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(
-        InvocationType.UPDATE_WITH_START, options, startOp);
+        InvocationType.UPDATE_WITH_START,
+        new WorkflowInvocationHandler.UpdateWithStartOptions(options, startOp));
     try {
       updateMethod.apply();
 

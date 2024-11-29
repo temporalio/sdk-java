@@ -74,7 +74,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
       new ThreadLocal<>();
 
   /** Must call {@link #closeAsyncInvocation()} if this one was called. */
-  static void initAsyncInvocation(InvocationType type, Object... values) {
+  static void initAsyncInvocation(InvocationType type) {
+    initAsyncInvocation(type, null);
+  }
+
+  /** Must call {@link #closeAsyncInvocation()} if this one was called. */
+  static <T> void initAsyncInvocation(InvocationType type, T value) {
     if (invocationContext.get() != null) {
       throw new IllegalStateException("already in start invocation");
     }
@@ -83,18 +88,19 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } else if (type == InvocationType.EXECUTE) {
       invocationContext.set(new ExecuteWorkflowInvocationHandler());
     } else if (type == InvocationType.SIGNAL_WITH_START) {
-      SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) values[0];
+      SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
       invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
     } else if (type == InvocationType.START_NEXUS) {
-      NexusStartWorkflowRequest request = (NexusStartWorkflowRequest) values[0];
+      NexusStartWorkflowRequest request = (NexusStartWorkflowRequest) value;
       invocationContext.set(new StartNexusOperationInvocationHandler(request));
     } else if (type == InvocationType.UPDATE) {
-      UpdateOptions<?> updateOptions = (UpdateOptions<?>) values[0];
+      UpdateOptions<?> updateOptions = (UpdateOptions<?>) value;
       invocationContext.set(new UpdateInvocationHandler(updateOptions));
     } else if (type == InvocationType.UPDATE_WITH_START) {
-      UpdateOptions<?> options = (UpdateOptions<?>) values[0];
-      WithStartWorkflowOperation<?> startOp = (WithStartWorkflowOperation<?>) values[1];
-      invocationContext.set(new UpdateWithStartInvocationHandler(options, startOp));
+      UpdateWithStartOptions updateWithStartOptions = (UpdateWithStartOptions) value;
+      invocationContext.set(
+          new UpdateWithStartInvocationHandler(
+              updateWithStartOptions.options, updateWithStartOptions.startOp));
     } else {
       throw new IllegalArgumentException("Unexpected InvocationType: " + type);
     }
@@ -580,6 +586,16 @@ class WorkflowInvocationHandler implements InvocationHandler {
             "WithStartWorkflowOperation invoked on different workflow stubs");
       }
       this.stub = stub;
+    }
+  }
+
+  static class UpdateWithStartOptions {
+    UpdateOptions<?> options;
+    WithStartWorkflowOperation<?> startOp;
+
+    public UpdateWithStartOptions(UpdateOptions<?> options, WithStartWorkflowOperation<?> startOp) {
+      this.options = options;
+      this.startOp = startOp;
     }
   }
 }
