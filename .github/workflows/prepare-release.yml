@@ -24,6 +24,11 @@ on:
         description: "Publish Java Artifacts"
         required: true
         default: "true"
+      do_create_release:
+        type: boolean
+        description: "Create Github draft release"
+        required: true
+        default: "true"
 env:
   INPUT_REF: ${{ github.event.inputs.ref }}
   INPUT_TAG: ${{ github.event.inputs.tag }}
@@ -31,6 +36,7 @@ env:
 jobs:
   create_draft_release:
     name: Create Github draft release
+    if: github.event.inputs.do_create_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Audit gh version
@@ -92,7 +98,7 @@ jobs:
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Set up signing key
         run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
@@ -123,12 +129,12 @@ jobs:
   build_native_images:
     name: Build native test server
     needs: create_draft_release
-    if: github.event.inputs.do_build_native_images == 'true'
+    if: github.event.inputs.do_build_native_images == 'true' && ${{ always() }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: buildjet-2vcpu-ubuntu-1804
+          - runner: ubuntu-latest
             os_family: linux
             arch: amd64
           - runner: macos-13
@@ -138,43 +144,45 @@ jobs:
             os_family: windows
             arch: amd64
     runs-on: ${{ matrix.runner }}
-    env:
-      # This is required to allow continuing usage of Node 16 for actions,
-      # as Node 20 won't run on the builder we use for linux builds
-      # (Node 20 require glibc 2.28+, but ubuntu-1804 has glibc 2.27).
-      # https://github.blog/changelog/2024-05-17-updated-dates-for-actions-runner-using-node20-instead-of-node16-by-default/
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Checkout repo
-        # FIXME: v4+ requires Node 20
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
+          submodules: recursive
           ref: ${{ env.INPUT_REF }}
 
       # See comment on temporary tag above. tldr: this is a local tag; never
       # gets pushed
       - name: Temporary tag
         run: git tag "$INPUT_TAG"
-
+      
       - name: Set up Java
-        # FIXME: v4+ requires Node 20
-        uses: actions/setup-java@v3
+        if: matrix.os_family != 'Linux'
+        uses: actions/setup-java@v4
         with:
           java-version: "11"
           distribution: "temurin"
 
       - name: Set up Gradle
-        # FIXME: v3+ requires Node 20
-        uses: gradle/gradle-build-action@v2
-      
-      - name: Build native test server
-        run: ./gradlew :temporal-test-server:build
+        if: matrix.os_family != 'Linux'
+        uses: gradle/actions/setup-gradle@v4
 
+      - name: Build native test server (non-Docker)
+        if: matrix.os_family != 'Linux'
+        run: |
+          ./gradlew :temporal-test-server:build
+
+      - name: Build native test server (Docker)
+        if: matrix.os_family == 'Linux'
+        run: |
+          docker run \
+            --rm -w /github/workspace -v "$(pwd):/github/workspace" \
+            $(docker build -q ./docker/native-image) \
+            sh -c "./gradlew :temporal-test-server:build"
       # path ends in a wildcard because on windows the file ends in '.exe'
       # path excludes *.txt because native-image also writes a build manifest txt file
       - name: Upload executable to workflow
-        # FIXME: v4+ requires Node 20
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_family }}_${{ matrix.arch }}
           path: |
@@ -185,7 +193,7 @@ jobs:
 
   attach_to_release:
     name: Attach native executables to release
-    needs: build_native_images
+    needs: [build_native_images, create_draft_release]
     runs-on: ubuntu-latest
     steps:
       - name: Audit gh version
@@ -193,8 +201,7 @@ jobs:
 
       # when no artifact is specified, all artifacts are downloaded and expanded into CWD
       - name: Fetch executables
-        # Need v3 here to stay compatible with the build_native_images job.
-        uses: actions/download-artifact@v3-node20
+        uses: actions/download-artifact@v4
 
       # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
       # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and

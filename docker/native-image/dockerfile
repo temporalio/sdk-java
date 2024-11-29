@@ -1,0 +1,8 @@
+FROM ubuntu:18.04
+ENV JAVA_HOME=/opt/java/openjdk
+COPY --from=eclipse-temurin:21 $JAVA_HOME $JAVA_HOME
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+RUN apt-get update
+RUN apt-get install -y git build-essential zlib1g-dev
+# Avoid errors like: "fatal: detected dubious ownership in repository"
+RUN git config --global --add safe.directory '*'
