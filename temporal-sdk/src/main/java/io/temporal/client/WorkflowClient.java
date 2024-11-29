@@ -1023,18 +1023,18 @@ public interface WorkflowClient {
   /**
    * Executes zero argument workflow.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param withStartOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
-      Func<R> workflow,
+      Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
       @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        workflow::apply, options, withStartOperation);
+        updateMethod::apply, options, withStartOperation);
   }
 
   /**
@@ -1347,18 +1347,18 @@ public interface WorkflowClient {
   /**
    * Executes zero argument workflow.
    *
-   * @param workflow The only supported value is method reference to a proxy created through {@link
-   *     #newWorkflowStub(Class, WorkflowOptions)}.
+   * @param updateMethod The only supported value is method reference to a proxy created through
+   *  {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param withStartOperation start workflow operation
    * @return update result
    */
   @Experimental
   static <R> R executeUpdateWithStart(
-      Func<R> workflow,
+      Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
       @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        workflow::apply, options, withStartOperation);
+            updateMethod::apply, options, withStartOperation);
   }
 
   /**
