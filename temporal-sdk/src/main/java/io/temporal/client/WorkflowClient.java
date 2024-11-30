@@ -863,16 +863,16 @@ public interface WorkflowClient {
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        updateMethod, options, withStartOperation);
+        updateMethod, options, startOperation);
   }
 
   /**
@@ -882,7 +882,7 @@ public interface WorkflowClient {
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -890,9 +890,9 @@ public interface WorkflowClient {
       Proc1<A1> updateMethod,
       A1 arg1,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1), options, withStartOperation);
+        () -> updateMethod.apply(arg1), options, startOperation);
   }
 
   /**
@@ -903,7 +903,7 @@ public interface WorkflowClient {
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -912,9 +912,9 @@ public interface WorkflowClient {
       A1 arg1,
       A2 arg2,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2), options, startOperation);
   }
 
   /**
@@ -926,7 +926,7 @@ public interface WorkflowClient {
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -936,9 +936,9 @@ public interface WorkflowClient {
       A2 arg2,
       A3 arg3,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3), options, startOperation);
   }
 
   /**
@@ -951,7 +951,7 @@ public interface WorkflowClient {
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -962,9 +962,9 @@ public interface WorkflowClient {
       A3 arg3,
       A4 arg4,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, startOperation);
   }
 
   /**
@@ -978,7 +978,7 @@ public interface WorkflowClient {
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -990,9 +990,9 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, startOperation);
   }
 
   /**
@@ -1007,7 +1007,7 @@ public interface WorkflowClient {
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
    * @param arg6 sixth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1020,9 +1020,9 @@ public interface WorkflowClient {
       A5 arg5,
       A6 arg6,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, startOperation);
   }
 
   /**
@@ -1031,16 +1031,16 @@ public interface WorkflowClient {
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        updateMethod::apply, options, withStartOperation);
+        updateMethod::apply, options, startOperation);
   }
 
   /**
@@ -1050,7 +1050,7 @@ public interface WorkflowClient {
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow argument
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1058,9 +1058,9 @@ public interface WorkflowClient {
       Func1<A1, R> updateMethod,
       A1 arg1,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1), options, withStartOperation);
+        () -> updateMethod.apply(arg1), options, startOperation);
   }
 
   /**
@@ -1071,7 +1071,7 @@ public interface WorkflowClient {
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1080,9 +1080,9 @@ public interface WorkflowClient {
       A1 arg1,
       A2 arg2,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2), options, startOperation);
   }
 
   /**
@@ -1094,7 +1094,7 @@ public interface WorkflowClient {
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1104,9 +1104,9 @@ public interface WorkflowClient {
       A2 arg2,
       A3 arg3,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3), options, startOperation);
   }
 
   /**
@@ -1119,7 +1119,7 @@ public interface WorkflowClient {
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1130,9 +1130,9 @@ public interface WorkflowClient {
       A3 arg3,
       A4 arg4,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, startOperation);
   }
 
   /**
@@ -1146,7 +1146,7 @@ public interface WorkflowClient {
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1158,9 +1158,9 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, startOperation);
   }
 
   /**
@@ -1175,7 +1175,7 @@ public interface WorkflowClient {
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
    * @param arg6 sixth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
@@ -1188,9 +1188,9 @@ public interface WorkflowClient {
       A5 arg5,
       A6 arg6,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.startUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, startOperation);
   }
 
   /**
@@ -1199,16 +1199,16 @@ public interface WorkflowClient {
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
   static <R> R executeUpdateWithStart(
       Functions.Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        updateMethod, options, withStartOperation);
+        updateMethod, options, startOperation);
   }
 
   /**
@@ -1218,7 +1218,7 @@ public interface WorkflowClient {
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1226,9 +1226,9 @@ public interface WorkflowClient {
       Proc1<A1> updateMethod,
       A1 arg1,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1), options, withStartOperation);
+        () -> updateMethod.apply(arg1), options, startOperation);
   }
 
   /**
@@ -1239,7 +1239,7 @@ public interface WorkflowClient {
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1248,9 +1248,9 @@ public interface WorkflowClient {
       A1 arg1,
       A2 arg2,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2), options, startOperation);
   }
 
   /**
@@ -1262,7 +1262,7 @@ public interface WorkflowClient {
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1272,9 +1272,9 @@ public interface WorkflowClient {
       A2 arg2,
       A3 arg3,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3), options, startOperation);
   }
 
   /**
@@ -1287,7 +1287,7 @@ public interface WorkflowClient {
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1298,9 +1298,9 @@ public interface WorkflowClient {
       A3 arg3,
       A4 arg4,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, startOperation);
   }
 
   /**
@@ -1314,7 +1314,7 @@ public interface WorkflowClient {
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1326,9 +1326,9 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, startOperation);
   }
 
   /**
@@ -1343,7 +1343,7 @@ public interface WorkflowClient {
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
    * @param arg6 sixth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1356,9 +1356,9 @@ public interface WorkflowClient {
       A5 arg5,
       A6 arg6,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, startOperation);
   }
 
   /**
@@ -1366,16 +1366,16 @@ public interface WorkflowClient {
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
   static <R> R executeUpdateWithStart(
       Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        updateMethod::apply, options, withStartOperation);
+        updateMethod::apply, options, startOperation);
   }
 
   /**
@@ -1384,7 +1384,7 @@ public interface WorkflowClient {
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow argument
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1392,9 +1392,9 @@ public interface WorkflowClient {
       Func1<A1, R> updateMethod,
       A1 arg1,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1), options, withStartOperation);
+        () -> updateMethod.apply(arg1), options, startOperation);
   }
 
   /**
@@ -1404,7 +1404,7 @@ public interface WorkflowClient {
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1413,9 +1413,9 @@ public interface WorkflowClient {
       A1 arg1,
       A2 arg2,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2), options, startOperation);
   }
 
   /**
@@ -1426,7 +1426,7 @@ public interface WorkflowClient {
    * @param arg1 first update function parameter
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1436,9 +1436,9 @@ public interface WorkflowClient {
       A2 arg2,
       A3 arg3,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3), options, startOperation);
   }
 
   /**
@@ -1450,7 +1450,7 @@ public interface WorkflowClient {
    * @param arg2 second update function parameter
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1461,9 +1461,9 @@ public interface WorkflowClient {
       A3 arg3,
       A4 arg4,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4), options, startOperation);
   }
 
   /**
@@ -1476,7 +1476,7 @@ public interface WorkflowClient {
    * @param arg3 third update function parameter
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1488,9 +1488,9 @@ public interface WorkflowClient {
       A4 arg4,
       A5 arg5,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5), options, startOperation);
   }
 
   /**
@@ -1504,7 +1504,7 @@ public interface WorkflowClient {
    * @param arg4 fourth update function parameter
    * @param arg5 fifth update function parameter
    * @param arg6 sixth update function parameter
-   * @param withStartOperation start workflow operation
+   * @param startOperation start workflow operation
    * @return update result
    */
   @Experimental
@@ -1517,9 +1517,9 @@ public interface WorkflowClient {
       A5 arg5,
       A6 arg6,
       @Nonnull UpdateOptions<R> options,
-      @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
+      @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, withStartOperation);
+        () -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options, startOperation);
   }
 
   /**
