@@ -22,6 +22,7 @@ package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.common.Experimental;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
@@ -157,7 +158,10 @@ public interface WorkflowStub {
   WorkflowExecution start(Object... args);
 
   /**
-   * TODO
+   * Asynchronously update a workflow execution by invoking its update handler, and start the
+   * workflow according to the option's {@link WorkflowIdConflictPolicy}. It returns a handle to the
+   * update request. If {@link WorkflowUpdateStage#COMPLETED} is specified, in the options, the
+   * handle will not be returned until the update is completed.
    *
    * @param updateOptions options that will be used to configure and start a new update request
    * @param updateArgs update method arguments
@@ -170,7 +174,9 @@ public interface WorkflowStub {
       UpdateOptions<R> updateOptions, Object[] updateArgs, WithStartWorkflowOperation<?> startOp);
 
   /**
-   * TODO
+   * Synchronously update a workflow execution by invoking its update handler, and start the
+   * workflow according to the option's {@link WorkflowIdConflictPolicy}. It returns the update
+   * result.
    *
    * @param updateOptions options that will be used to configure and start a new update request
    * @param updateArgs update method arguments

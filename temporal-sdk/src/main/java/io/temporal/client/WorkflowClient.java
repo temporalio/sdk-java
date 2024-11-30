@@ -858,7 +858,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a zero argument update workflow request asynchronously, along with a workflow start request.
+   * Start a zero argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -875,7 +876,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a one argument update workflow request asynchronously, along with a workflow start request.
+   * Start a one argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -894,7 +896,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a two argument update workflow request asynchronously, along with a workflow start request.
+   * Start a two argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -915,7 +918,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a three argument update workflow request asynchronously, along with a workflow start request.
+   * Start a three argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -938,7 +942,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a four argument update workflow request asynchronously, along with a workflow start request.
+   * Start a four argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -963,7 +968,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a five argument update workflow request asynchronously, along with a workflow start request.
+   * Start a five argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -990,7 +996,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a six argument update workflow request asynchronously, along with a workflow start request.
+   * Start a six argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1019,7 +1026,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a zero argument update workflow request asynchronously, along with a workflow start request.
+   * Start a zero argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1036,7 +1044,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a one argument update workflow request asynchronously, along with a workflow start request.
+   * Start a one argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1055,7 +1064,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a two argument update workflow request asynchronously, along with a workflow start request.
+   * Start a two argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1076,7 +1086,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a three argument update workflow request asynchronously, along with a workflow start request.
+   * Start a three argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1099,7 +1110,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a four argument update workflow request asynchronously, along with a workflow start request.
+   * Start a four argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1124,7 +1136,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a five argument update workflow request asynchronously, along with a workflow start request.
+   * Start a five argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1151,7 +1164,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a six argument update workflow request asynchronously, along with a workflow start request.
+   * Start a six argument update workflow request asynchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1180,7 +1194,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a zero argument update workflow request synchronously, along with a workflow start request.
+   * Execute a zero argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1197,7 +1212,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a one argument update workflow request synchronously, along with a workflow start request.
+   * Execute a one argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1216,7 +1232,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a two argument update workflow request synchronously, along with a workflow start request.
+   * Execute a two argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1237,7 +1254,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a three argument update workflow request synchronously, along with a workflow start request.
+   * Execute a three argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1260,7 +1278,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a four argument update workflow request synchronously, along with a workflow start request.
+   * Execute a four argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1285,7 +1304,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a five argument update workflow request synchronously, along with a workflow start request.
+   * Execute a five argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1312,7 +1332,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Execute a six argument update workflow request synchronously, along with a workflow start request.
+   * Execute a six argument update workflow request synchronously, along with a workflow start
+   * request.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
