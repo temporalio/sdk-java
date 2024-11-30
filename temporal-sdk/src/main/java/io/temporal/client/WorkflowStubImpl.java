@@ -139,7 +139,7 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     if (options.getWorkflowIdConflictPolicy() == null) {
       throw new IllegalStateException(
-          "Required parameter WorkflowIdConflictPolicy in WorkflowOptions is missing in WorkflowStub");
+          "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start");
     }
     if (!startOp.markInvoked()) {
       throw new IllegalStateException("WithStartWorkflowOperation was already executed");

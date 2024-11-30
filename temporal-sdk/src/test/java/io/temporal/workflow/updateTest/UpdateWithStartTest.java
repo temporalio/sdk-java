@@ -791,7 +791,7 @@ public class UpdateWithStartTest {
     } catch (IllegalStateException e) {
       assertEquals(
           e.getMessage(),
-          "Required parameter WorkflowIdConflictPolicy in WorkflowOptions is missing in WorkflowStub");
+          "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start");
     }
   }
 

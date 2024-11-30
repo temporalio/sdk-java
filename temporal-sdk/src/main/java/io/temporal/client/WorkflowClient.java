@@ -871,8 +871,7 @@ public interface WorkflowClient {
       Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
       @Nonnull WithStartWorkflowOperation<?> startOperation) {
-    return WorkflowClientInternalImpl.startUpdateWithStart(
-        updateMethod, options, startOperation);
+    return WorkflowClientInternalImpl.startUpdateWithStart(updateMethod, options, startOperation);
   }
 
   /**
@@ -1207,8 +1206,7 @@ public interface WorkflowClient {
       Functions.Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
       @Nonnull WithStartWorkflowOperation<?> startOperation) {
-    return WorkflowClientInternalImpl.executeUpdateWithStart(
-        updateMethod, options, startOperation);
+    return WorkflowClientInternalImpl.executeUpdateWithStart(updateMethod, options, startOperation);
   }
 
   /**
