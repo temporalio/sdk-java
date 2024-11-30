@@ -67,7 +67,7 @@ public class UpdateWithStartTest {
               TestMultiArgWorkflowImpl.class)
           .build();
 
-  private <T> Results updateWithStart(
+  private <T> Results assertUpdateWithStart(
       Class<T> stubClass,
       Object[] args,
       Function<T, WithStartWorkflowOperation<String>> startOperationProvider,
@@ -179,7 +179,7 @@ public class UpdateWithStartTest {
   public void startWorkflowAndUpdate() throws ExecutionException, InterruptedException {
     // no arg
     Results results =
-        updateWithStart(
+        assertUpdateWithStart(
             TestNoArgsWorkflowFunc.class,
             new Object[] {},
             (TestNoArgsWorkflowFunc stub) -> new WithStartWorkflowOperation<>(stub::func),
@@ -192,7 +192,7 @@ public class UpdateWithStartTest {
     assertEquals("func", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             TestNoArgsWorkflowProc.class,
             new Object[] {},
             (TestNoArgsWorkflowProc stub) -> new WithStartWorkflowOperation<>(stub::proc),
@@ -206,7 +206,7 @@ public class UpdateWithStartTest {
 
     // 1 arg
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test1ArgWorkflowFunc.class,
             new Object[] {"1"},
             (Test1ArgWorkflowFunc stub) -> new WithStartWorkflowOperation<>(stub::func1, "1"),
@@ -220,7 +220,7 @@ public class UpdateWithStartTest {
     assertEquals("1", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test1ArgWorkflowProc.class,
             new Object[] {"1"},
             (Test1ArgWorkflowProc stub) -> new WithStartWorkflowOperation<>(stub::proc1, "1"),
@@ -235,7 +235,7 @@ public class UpdateWithStartTest {
 
     // 2 args
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test2ArgWorkflowFunc.class,
             new Object[] {"1", 2},
             (Test2ArgWorkflowFunc stub) -> new WithStartWorkflowOperation<>(stub::func2, "1", 2),
@@ -249,7 +249,7 @@ public class UpdateWithStartTest {
     assertEquals("12", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test2ArgWorkflowProc.class,
             new Object[] {"1", 2},
             (Test2ArgWorkflowProc stub) -> new WithStartWorkflowOperation<>(stub::proc2, "1", 2),
@@ -264,7 +264,7 @@ public class UpdateWithStartTest {
 
     // 3 args
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test3ArgWorkflowFunc.class,
             new Object[] {"1", 2, 3},
             (Test3ArgWorkflowFunc stub) -> new WithStartWorkflowOperation<>(stub::func3, "1", 2, 3),
@@ -278,7 +278,7 @@ public class UpdateWithStartTest {
     assertEquals("123", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test3ArgWorkflowProc.class,
             new Object[] {"1", 2, 3},
             (Test3ArgWorkflowProc stub) -> new WithStartWorkflowOperation<>(stub::proc3, "1", 2, 3),
@@ -293,7 +293,7 @@ public class UpdateWithStartTest {
 
     // 4 args
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test4ArgWorkflowFunc.class,
             new Object[] {"1", 2, 3, 4},
             (Test4ArgWorkflowFunc stub) ->
@@ -308,7 +308,7 @@ public class UpdateWithStartTest {
     assertEquals("1234", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test4ArgWorkflowProc.class,
             new Object[] {"1", 2, 3, 4},
             (Test4ArgWorkflowProc stub) ->
@@ -324,7 +324,7 @@ public class UpdateWithStartTest {
 
     // 5 args
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test5ArgWorkflowFunc.class,
             new Object[] {"1", 2, 3, 4, 5},
             (Test5ArgWorkflowFunc stub) ->
@@ -339,7 +339,7 @@ public class UpdateWithStartTest {
     assertEquals("12345", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test5ArgWorkflowProc.class,
             new Object[] {"1", 2, 3, 4, 5},
             (Test5ArgWorkflowProc stub) ->
@@ -355,7 +355,7 @@ public class UpdateWithStartTest {
 
     // 6 args
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test6ArgWorkflowFunc.class,
             new Object[] {"1", 2, 3, 4, 5, 6},
             (Test6ArgWorkflowFunc stub) ->
@@ -370,7 +370,7 @@ public class UpdateWithStartTest {
     assertEquals("123456", results.workflowResult);
 
     results =
-        updateWithStart(
+        assertUpdateWithStart(
             Test6ArgWorkflowProc.class,
             new Object[] {"1", 2, 3, 4, 5, 6},
             (Test6ArgWorkflowProc stub) ->
