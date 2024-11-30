@@ -628,6 +628,34 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  public void failWhenUpdateNamesDoNotMatch() {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    WorkflowOptions options = createWorkflowOptions();
+    TestWorkflows.TestUpdatedWorkflow workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.TestUpdatedWorkflow.class, options);
+
+    WithStartWorkflowOperation<String> startOp =
+        new WithStartWorkflowOperation<>(workflow::execute);
+
+    try {
+      WorkflowUpdateHandle<String> updHandle =
+          WorkflowClient.startUpdateWithStart(
+              workflow::update,
+              "Hello Update",
+              createUpdateOptions().toBuilder()
+                  .setUpdateName("custom_update_name") // custom name!
+                  .build(),
+              startOp);
+      fail("unreachable");
+    } catch (IllegalArgumentException e) {
+      assertEquals(
+          e.getMessage(),
+          "Update name in the options doesn't match the method name: custom_update_name != testUpdate");
+    }
+  }
+
+  @Test
   public void failServerSideWhenStartIsInvalid() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 

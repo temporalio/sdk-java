@@ -474,8 +474,20 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException(
             "Only a method annotated with @UpdateMethod can be used to start an Update.");
       }
+      result = untyped.startUpdate(mergeUpdateOptions(options, workflowMetadata, method), args);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> R getResult(Class<R> resultClass) {
+      return (R) result;
+    }
+
+    static UpdateOptions<?> mergeUpdateOptions(
+        UpdateOptions<?> options, POJOWorkflowInterfaceMetadata workflowMetadata, Method method) {
       POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
       UpdateOptions.Builder builder = UpdateOptions.newBuilder(options);
+
       if (Strings.isNullOrEmpty(options.getUpdateName())) {
         builder.setUpdateName(methodMetadata.getName());
       } else if (!options.getUpdateName().equals(methodMetadata.getName())) {
@@ -491,14 +503,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       if (options.getResultClass() == null) {
         builder.setResultClass(method.getReturnType());
       }
-
-      result = untyped.startUpdate(builder.build(), args);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <R> R getResult(Class<R> resultClass) {
-      return (R) result;
+      return builder.build();
     }
   }
 
@@ -510,7 +515,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       UPDATE_RECEIVED,
     }
 
-    private final UpdateOptions<?> baseUpdateOptions;
+    private final UpdateOptions<?> userProvidedUpdateOptions;
     private Object[] updateArgs;
     private UpdateOptions updateOptions;
     private final WithStartWorkflowOperation<?> startOp;
@@ -519,8 +524,10 @@ class WorkflowInvocationHandler implements InvocationHandler {
     private WorkflowStub stub;
 
     public UpdateWithStartInvocationHandler(
-        UpdateOptions<?> baseUpdateOptions, WithStartWorkflowOperation<?> startOp) {
-      this.baseUpdateOptions = baseUpdateOptions;
+        UpdateOptions<?> options, WithStartWorkflowOperation<?> startOp) {
+      Preconditions.checkNotNull(options, "options");
+      Preconditions.checkNotNull(startOp, "startOp");
+      this.userProvidedUpdateOptions = options;
       this.startOp = startOp;
     }
 
@@ -542,22 +549,19 @@ class WorkflowInvocationHandler implements InvocationHandler {
         UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
         if (updateMethod == null) {
           throw new IllegalArgumentException(
-              "Method '" + method.getName() + "' is not an UpdateMethod");
+              "Method '" + method.getName() + "' is not an @UpdateMethod");
         }
         this.setStub(untyped);
         this.updateArgs = args;
         this.updateOptions =
-            this.baseUpdateOptions.toBuilder()
-                .setUpdateName(methodMetadata.getName())
-                .setResultClass(method.getReturnType())
-                .setResultType(method.getGenericReturnType())
-                .build();
+            UpdateInvocationHandler.mergeUpdateOptions(
+                userProvidedUpdateOptions, workflowMetadata, method);
         state = State.UPDATE_RECEIVED;
       } else if (state == State.UPDATE_RECEIVED) {
         WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
         if (workflowMethod == null) {
           throw new IllegalArgumentException(
-              "Method '" + method.getName() + "' is not a WorkflowMethod");
+              "Method '" + method.getName() + "' is not a @WorkflowMethod");
         }
         this.setStub(untyped);
         this.startOp.setStub(untyped);

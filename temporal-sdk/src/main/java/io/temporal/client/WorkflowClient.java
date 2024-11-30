@@ -1348,7 +1348,7 @@ public interface WorkflowClient {
    * Executes zero argument workflow.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
-   *  {@link #newWorkflowStub(Class, WorkflowOptions)}.
+   *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
    * @param withStartOperation start workflow operation
    * @return update result
    */
@@ -1358,7 +1358,7 @@ public interface WorkflowClient {
       @Nonnull UpdateOptions<R> options,
       @Nonnull WithStartWorkflowOperation<?> withStartOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-            updateMethod::apply, options, withStartOperation);
+        updateMethod::apply, options, withStartOperation);
   }
 
   /**
