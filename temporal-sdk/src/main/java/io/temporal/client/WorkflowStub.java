@@ -83,10 +83,11 @@ public interface WorkflowStub {
    * @param <R> type of the update return value
    * @param args update method arguments
    * @return update result
-   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or completed and
-   *     can't be signalled
+   * @throws WorkflowUpdateException if the update is rejected or failed during it's execution by
+   *     the workflow.
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or is completed.
    * @throws WorkflowServiceException for all other failures including networking and service
-   *     availability issues
+   *     availability issues.
    */
   @Experimental
   <R> R update(String updateName, Class<R> resultClass, Object... args);
@@ -103,6 +104,9 @@ public interface WorkflowStub {
    * @param <R> type of the update return value
    * @param args update method arguments
    * @return update handle that can be used to get the result of the update.
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or completed.
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues.
    */
   @Experimental
   <R> WorkflowUpdateHandle<R> startUpdate(
@@ -116,6 +120,9 @@ public interface WorkflowStub {
    * @param options options that will be used to configure and start a new update request.
    * @param args update method arguments
    * @return update handle that can be used to get the result of the update.
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or completed.
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues.
    */
   @Experimental
   <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args);

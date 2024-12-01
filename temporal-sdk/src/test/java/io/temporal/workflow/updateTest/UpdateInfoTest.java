@@ -72,8 +72,7 @@ public class UpdateInfoTest {
         WorkflowUpdateException.class,
         () ->
             stub.startUpdate(updateOptionsBuilder.setUpdateId("reject").build(), 0, "")
-                .getResultAsync());
-
+                .getResult());
     workflow.complete();
     String result =
         testWorkflowRule

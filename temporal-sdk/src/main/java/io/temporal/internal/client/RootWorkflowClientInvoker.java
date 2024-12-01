@@ -533,12 +533,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               result.getUpdateRef().getWorkflowExecution(),
               resultValue);
         case FAILURE:
-          throw new WorkflowUpdateException(
-              result.getUpdateRef().getWorkflowExecution(),
+          return new CompletedWorkflowUpdateHandleImpl<>(
               result.getUpdateRef().getUpdateId(),
-              input.getUpdateName(),
-              dataConverterWithWorkflowContext.failureToException(
-                  result.getOutcome().getFailure()));
+              result.getUpdateRef().getWorkflowExecution(),
+              new WorkflowUpdateException(
+                  result.getUpdateRef().getWorkflowExecution(),
+                  result.getUpdateRef().getUpdateId(),
+                  input.getUpdateName(),
+                  dataConverterWithWorkflowContext.failureToException(
+                      result.getOutcome().getFailure())));
         default:
           throw new RuntimeException(
               "Received unexpected outcome from update request: "
