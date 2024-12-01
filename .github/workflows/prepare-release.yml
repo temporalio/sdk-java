@@ -24,11 +24,6 @@ on:
         description: "Publish Java Artifacts"
         required: true
         default: "true"
-      do_create_release:
-        type: boolean
-        description: "Create Github draft release"
-        required: true
-        default: "true"
 env:
   INPUT_REF: ${{ github.event.inputs.ref }}
   INPUT_TAG: ${{ github.event.inputs.tag }}
@@ -36,7 +31,6 @@ env:
 jobs:
   create_draft_release:
     name: Create Github draft release
-    if: github.event.inputs.do_create_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Audit gh version
@@ -129,7 +123,7 @@ jobs:
   build_native_images:
     name: Build native test server
     needs: create_draft_release
-    if: github.event.inputs.do_build_native_images == 'true' && ${{ always() }}
+    if: github.event.inputs.do_build_native_images == 'true'
     strategy:
       fail-fast: false
       matrix:
