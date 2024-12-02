@@ -814,7 +814,7 @@ public class UpdateWithStartTest {
           startOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
-      assertEquals(e.getMessage(), "Method 'execute' is not an UpdateMethod");
+      assertEquals(e.getMessage(), "Method 'execute' is not an @UpdateMethod");
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
@@ -841,7 +841,7 @@ public class UpdateWithStartTest {
           startOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
-      assertEquals(e.getMessage(), "Method 'update' is not a WorkflowMethod");
+      assertEquals(e.getMessage(), "Method 'update' is not a @WorkflowMethod");
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
