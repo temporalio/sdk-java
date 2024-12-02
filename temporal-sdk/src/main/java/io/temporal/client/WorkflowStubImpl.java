@@ -189,7 +189,10 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public <R> R executeUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, WithStartWorkflowOperation<?> startOp) {
-    return startUpdateWithStart(updateOptions, updateArgs, startOp).getResult();
+    updateOptions.validateWaitForCompleted();
+    UpdateOptions<R> optionsWithWaitStageCompleted =
+        updateOptions.toBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
+    return startUpdateWithStart(optionsWithWaitStageCompleted, updateArgs, startOp).getResult();
   }
 
   private WorkflowExecution signalWithStartWithOptions(

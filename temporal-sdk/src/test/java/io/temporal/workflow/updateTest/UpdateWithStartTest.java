@@ -134,7 +134,7 @@ public class UpdateWithStartTest {
     untypedStub = WorkflowStub.fromTyped(typedStub);
     typedStartOp = startOperationProvider.apply(typedStub);
     try {
-      updHandle = untypedStub.startUpdateWithStart(untypedUpdateOptions, args, typedStartOp);
+      untypedStub.startUpdateWithStart(untypedUpdateOptions, args, typedStartOp);
       fail("unreachable");
     } catch (IllegalStateException e) {
       assertEquals(
@@ -793,6 +793,54 @@ public class UpdateWithStartTest {
           e.getMessage(),
           "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start");
     }
+  }
+
+  @Test
+  public void failWhenWaitPolicyIsIncompatible() {
+
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+
+    WorkflowOptions options = createWorkflowOptions();
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
+
+    // typed
+    try {
+      WithStartWorkflowOperation<String> startOp =
+          new WithStartWorkflowOperation<>(workflow::execute);
+      WorkflowClient.executeUpdateWithStart(
+          workflow::update,
+          0,
+          "Hello Update",
+          UpdateOptions.newBuilder(String.class)
+              .setWaitForStage(
+                  WorkflowUpdateStage.ACCEPTED) // incompatible with `executeUpdateWithStart`
+              .build(),
+          startOp);
+      fail("unreachable");
+    } catch (IllegalArgumentException e) {
+      assertEquals(e.getMessage(), "waitForStage must be unspecified or COMPLETED");
+    }
+
+    // untyped
+    try {
+      WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
+      WithStartWorkflowOperation<String> startOp =
+          new WithStartWorkflowOperation<>(workflowStub, String.class);
+      workflowStub.executeUpdateWithStart(
+          UpdateOptions.newBuilder(String.class)
+              .setUpdateName("update")
+              .setWaitForStage(
+                  WorkflowUpdateStage.ADMITTED) // incompatible with `executeUpdateWithStart`
+              .build(),
+          new Object[] {0, "Hello Update"},
+          startOp);
+      fail("unreachable");
+    } catch (IllegalArgumentException e) {
+      assertEquals(e.getMessage(), "waitForStage must be unspecified or COMPLETED");
+    }
+
+    ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
   }
 
   @Test

@@ -660,12 +660,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   public static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Proc updateMethod,
-      UpdateOptions<R> options,
+      UpdateOptions<R> updateOptions,
       WithStartWorkflowOperation<?> startOp) {
     enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(
         InvocationType.UPDATE_WITH_START,
-        new WorkflowInvocationHandler.UpdateWithStartOptions(options, startOp));
+        new WorkflowInvocationHandler.UpdateWithStartOptions(updateOptions, startOp));
     try {
       updateMethod.apply();
 
@@ -681,9 +681,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   public static <R> R executeUpdateWithStart(
       Functions.Proc updateMethod,
-      UpdateOptions<R> options,
+      UpdateOptions<R> updateOptions,
       WithStartWorkflowOperation<?> startOp) {
-    return startUpdateWithStart(updateMethod, options, startOp).getResult();
+    updateOptions.validateWaitForCompleted();
+    UpdateOptions<R> optionsWithWaitStageCompleted =
+        updateOptions.toBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
+    return startUpdateWithStart(updateMethod, optionsWithWaitStageCompleted, startOp).getResult();
   }
 
   Stream<HistoryEvent> streamHistory(WorkflowExecution execution) {
