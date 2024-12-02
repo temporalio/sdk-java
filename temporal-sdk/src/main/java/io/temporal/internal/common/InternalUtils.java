@@ -74,6 +74,10 @@ public final class InternalUtils {
       throw new IllegalArgumentException("Options are expected to be set on the stub");
     }
     WorkflowOptions options = stub.getOptions().get();
+    if (options.getWorkflowId() == null) {
+      throw new IllegalArgumentException(
+          "WorkflowId is expected to be set on WorkflowOptions when used with Nexus");
+    }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)
             .setRequestId(request.getRequestId())
