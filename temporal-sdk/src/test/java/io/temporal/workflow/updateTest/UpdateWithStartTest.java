@@ -707,7 +707,7 @@ public class UpdateWithStartTest {
           "Hello Update",
           UpdateOptions.newBuilder(String.class)
               .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
-              .setFirstExecutionRunId(UUID.randomUUID().toString())
+              .setFirstExecutionRunId(UUID.randomUUID().toString()) // using invalid option
               .build(),
           startOp);
       fail("unreachable");
