@@ -1389,10 +1389,10 @@ public interface WorkflowClient {
   static <A1, R> R executeUpdateWithStart(
       Func1<A1, R> updateMethod,
       A1 arg1,
-      @Nonnull UpdateOptions<R> options,
+      @Nonnull UpdateOptions<R> updateOptions,
       @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1), options, startOperation);
+        () -> updateMethod.apply(arg1), updateOptions, startOperation);
   }
 
   /**
@@ -1410,10 +1410,10 @@ public interface WorkflowClient {
       Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
       A2 arg2,
-      @Nonnull UpdateOptions<R> options,
+      @Nonnull UpdateOptions<R> updateOptions,
       @Nonnull WithStartWorkflowOperation<?> startOperation) {
     return WorkflowClientInternalImpl.executeUpdateWithStart(
-        () -> updateMethod.apply(arg1, arg2), options, startOperation);
+        () -> updateMethod.apply(arg1, arg2), updateOptions, startOperation);
   }
 
   /**
