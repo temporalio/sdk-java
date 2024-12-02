@@ -478,8 +478,8 @@ public class UpdateWithStartTest {
             .build();
 
     assertThrows(
-        WorkflowServiceException.class,
-        () -> WorkflowClient.updateWithStart(workflow::execute, updateOp));
+        WorkflowUpdateException.class,
+        () -> WorkflowClient.updateWithStart(workflow::execute, updateOp).getResult());
   }
 
   @Test

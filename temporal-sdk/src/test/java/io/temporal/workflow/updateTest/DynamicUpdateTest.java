@@ -72,7 +72,7 @@ public class DynamicUpdateTest {
         WorkflowUpdateException.class,
         () ->
             stub.startUpdate("reject", WorkflowUpdateStage.COMPLETED, String.class, "update input")
-                .getResultAsync());
+                .getResult());
 
     stub.startUpdate("complete", WorkflowUpdateStage.COMPLETED, Void.class).getResultAsync().get();
 

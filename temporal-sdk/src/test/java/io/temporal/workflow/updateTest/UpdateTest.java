@@ -199,7 +199,10 @@ public class UpdateTest {
     // send a bad update that will be rejected through the sync path
     assertThrows(
         WorkflowUpdateException.class,
-        () -> workflowStub.startUpdate("update", ACCEPTED, String.class, 0, "Bad Update"));
+        () ->
+            workflowStub
+                .startUpdate("update", ACCEPTED, String.class, 0, "Bad Update")
+                .getResult());
 
     workflowStub.update("complete", void.class);
 
