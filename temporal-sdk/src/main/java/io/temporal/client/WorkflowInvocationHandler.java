@@ -543,8 +543,6 @@ class WorkflowInvocationHandler implements InvocationHandler {
         Method method,
         Object[] args) {
 
-      POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
-
       if (state == State.INIT) {
         UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
         if (updateMethod == null) {
