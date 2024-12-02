@@ -585,13 +585,14 @@ public class UpdateWithStartTest {
         WorkflowUpdateException.class,
         () ->
             WorkflowClient.startUpdateWithStart(
-                workflow::update,
-                -1, // cause for rejection
-                "Hello Update",
-                UpdateOptions.newBuilder(String.class)
-                    .setWaitForStage(WorkflowUpdateStage.COMPLETED)
-                    .build(),
-                startOp).getResult());
+                    workflow::update,
+                    -1, // cause for rejection
+                    "Hello Update",
+                    UpdateOptions.newBuilder(String.class)
+                        .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+                        .build(),
+                    startOp)
+                .getResult());
   }
 
   @Test
