@@ -61,7 +61,7 @@ public class SyncOperationTimeoutTest {
     public String execute(String input) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder().setOperationOptions(options).build();
@@ -74,14 +74,22 @@ public class SyncOperationTimeoutTest {
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public class TestNexusServiceImpl {
+    int attempt = 0;
+
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, name) -> {
-            // Simulate a long running operation
+            // Fail the first attempt with a retry-able exception. This tests
+            // the schedule-to-close timeout applies across attempts.
+            attempt += 1;
+            if (attempt == 1) {
+              throw new RuntimeException("test exception");
+            }
+            // Simulate a long-running operation
             try {
-              Thread.sleep(2000);
+              Thread.sleep(6000);
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
             }

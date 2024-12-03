@@ -783,7 +783,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     nexusOperations.put(scheduleEventId, operation);
 
     operation.action(Action.INITIATE, ctx, attr, workflowTaskCompletedId);
-    // Record the current attempt of this
+    // Record the current attempt of this request to be used in the timeout handler
+    // of this request to make sure we are timing out the correct request.
     int attempt = operation.getData().getAttempt();
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
@@ -791,6 +792,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         "StartNexusOperation request timeout");
     if (attr.hasScheduleToCloseTimeout()
         && Durations.toMillis(attr.getScheduleToCloseTimeout()) > 0) {
+      // ScheduleToCloseTimeout is the total time from the start of the operation to the end of the
+      // operation
+      // so the attempt is not relevant here.
       ctx.addTimer(
           ProtobufTimeUtils.toJavaDuration(attr.getScheduleToCloseTimeout()),
           () ->
@@ -979,6 +983,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ActivityTaskScheduledEventAttributes scheduledEvent =
         activityStateMachine.getData().scheduledEvent;
     int attempt = activityStateMachine.getData().getAttempt();
+    // TODO(quinn) If the first attempt fails, it is not clear this timer will work as expected
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(scheduledEvent.getScheduleToCloseTimeout()),
         () ->
