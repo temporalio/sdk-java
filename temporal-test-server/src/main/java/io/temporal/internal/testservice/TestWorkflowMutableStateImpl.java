@@ -62,6 +62,7 @@ import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
 import io.temporal.internal.testservice.StateMachines.CancelExternalData;
 import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
+import io.temporal.internal.testservice.StateMachines.NexusOperationData;
 import io.temporal.internal.testservice.StateMachines.SignalExternalData;
 import io.temporal.internal.testservice.StateMachines.State;
 import io.temporal.internal.testservice.StateMachines.TimerData;
@@ -782,11 +783,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     nexusOperations.put(scheduleEventId, operation);
 
     operation.action(Action.INITIATE, ctx, attr, workflowTaskCompletedId);
+    // Record the current attempt of this
+    int attempt = operation.getData().getAttempt();
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
-        () ->
-            timeoutNexusRequest(
-                scheduleEventId, "StartNexusOperation", operation.getData().getAttempt()),
+        () -> timeoutNexusRequest(scheduleEventId, "StartNexusOperation", attempt),
         "StartNexusOperation request timeout");
     if (attr.hasScheduleToCloseTimeout()
         && Durations.toMillis(attr.getScheduleToCloseTimeout()) > 0) {
