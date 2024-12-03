@@ -96,7 +96,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     ScheduledFuture<?> timeoutTask = null;
     AtomicBoolean timedOut = new AtomicBoolean(false);
     try {
-      String timeoutString = headers.get(Header.REQUEST_TIMEOUT);
+      // Parse request timeout, use the context headers to get the timeout
+      // since they are case-insensitive.
+      String timeoutString = ctx.getHeaders().get(Header.REQUEST_TIMEOUT);
       if (timeoutString != null) {
         try {
           Duration timeout = NexusUtil.parseRequestTimeout(timeoutString);
