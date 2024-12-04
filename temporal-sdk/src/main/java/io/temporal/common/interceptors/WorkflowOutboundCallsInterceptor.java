@@ -286,13 +286,14 @@ public interface WorkflowOutboundCallsInterceptor {
       this.resultType = resultType;
       this.arg = arg;
       this.options = options;
-      this.headers = headers.entrySet().stream()
+      this.headers =
+          headers.entrySet().stream()
               .collect(
-                      Collectors.toMap(
-                              (k) -> k.getKey().toLowerCase(),
-                              Map.Entry::getValue,
-                              (a, b) -> a,
-                              () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
+                  Collectors.toMap(
+                      (k) -> k.getKey().toLowerCase(),
+                      Map.Entry::getValue,
+                      (a, b) -> a,
+                      () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
     }
 
     public String getService() {
