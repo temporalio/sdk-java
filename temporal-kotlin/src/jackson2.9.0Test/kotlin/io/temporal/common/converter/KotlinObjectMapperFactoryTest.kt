@@ -20,16 +20,14 @@
 
 package io.temporal.common.converter
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.fasterxml.jackson.module.kotlin.PackageVersion
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
-class KotlinObjectMapperFactory {
-  companion object {
-    @JvmStatic
-    fun new(): ObjectMapper {
-      val mapper = JacksonJsonPayloadConverter.newDefaultObjectMapper()
-
-      return mapper.registerKotlinModule()
-    }
+class KotlinObjectMapperFactoryTest {
+  @Test
+  fun `test jackson 2 9 0`() {
+    assertEquals(PackageVersion.VERSION.toString(), "2.9.0")
+    KotlinObjectMapperFactory.new()
   }
 }
