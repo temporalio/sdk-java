@@ -30,7 +30,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
@@ -77,16 +76,14 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
 
     @Override
     public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
-        UpdateOptions<R> options, Object[] updateArgs, WithStartWorkflowOperation<?> startOp) {
-      return next.startUpdateWithStart(options, updateArgs, startOp);
+        UpdateOptions<R> options, Object[] updateArgs, Object[] startArgs) {
+      return next.startUpdateWithStart(options, updateArgs, startArgs);
     }
 
     @Override
     public <R> R executeUpdateWithStart(
-        @Nonnull UpdateOptions<R> updateOptions,
-        Object[] updateArgs,
-        @Nonnull WithStartWorkflowOperation<?> startOp) {
-      return next.executeUpdateWithStart(updateOptions, updateArgs, startOp);
+        UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
+      return next.executeUpdateWithStart(updateOptions, updateArgs, startArgs);
     }
 
     @Override

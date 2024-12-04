@@ -279,20 +279,6 @@ public final class WithStartWorkflowOperation<R> {
   }
 
   /**
-   * Creates a new {@link WithStartWorkflowOperation} from an untyped workflow stub.
-   *
-   * @param stub workflow stub to use
-   * @param resultClass class of the workflow return value
-   * @param args arguments to start the workflow
-   */
-  public WithStartWorkflowOperation(
-      WorkflowStub stub, Class<? extends R> resultClass, Object... args) {
-    this.stub = stub;
-    this.resultClass = resultClass;
-    this.args = args;
-  }
-
-  /**
    * Obtains workflow result.
    *
    * @return the result of the workflow
@@ -319,24 +305,15 @@ public final class WithStartWorkflowOperation<R> {
     this.resultClass = resultClass;
   }
 
-  WorkflowStub getStub() {
-    return stub;
-  }
-
-  Object[] getArgs() {
-    return this.args;
-  }
-
-  void setArgs(Object[] args) {
-    this.args = args;
-  }
-
   // equals/hashCode intentionally left as default
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("WithStartWorkflowOperation{args=").append(Arrays.toString(args));
+    if (stub != null) {
+      sb.append(", stub=").append(stub);
+    }
     if (startMethod != null) {
       sb.append(", startMethod=").append(startMethod);
     }

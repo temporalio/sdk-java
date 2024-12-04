@@ -165,15 +165,13 @@ public interface WorkflowStub {
    *
    * @param updateOptions options that will be used to configure and start a new update request
    * @param updateArgs update method arguments
-   * @param startOperation workflow start operation
+   * @param starArgs workflow start arguments
    * @param <R> type of the update workflow result
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
   <R> WorkflowUpdateHandle<R> startUpdateWithStart(
-      UpdateOptions<R> updateOptions,
-      Object[] updateArgs,
-      WithStartWorkflowOperation<?> startOperation);
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] starArgs);
 
   /**
    * Synchronously update a workflow execution by invoking its update handler, and start the
@@ -182,15 +180,13 @@ public interface WorkflowStub {
    *
    * @param updateOptions options that will be used to configure and start a new update request
    * @param updateArgs update method arguments
-   * @param startOperation workflow start operation
+   * @param starArgs workflow start arguments
    * @param <R> type of the update workflow result
    * @return update result
    */
   @Experimental
   <R> R executeUpdateWithStart(
-      UpdateOptions<R> updateOptions,
-      Object[] updateArgs,
-      WithStartWorkflowOperation<?> startOperation);
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] starArgs);
 
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 

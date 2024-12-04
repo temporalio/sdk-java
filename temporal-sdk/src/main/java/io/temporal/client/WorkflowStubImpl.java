@@ -132,7 +132,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
-      UpdateOptions<R> updateOptions, Object[] updateArgs, WithStartWorkflowOperation<?> startOp) {
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
     if (options == null) {
       throw new IllegalStateException(
           "Required parameter WorkflowOptions is missing in WorkflowStub");
@@ -140,13 +140,6 @@ class WorkflowStubImpl implements WorkflowStub {
     if (options.getWorkflowIdConflictPolicy() == null) {
       throw new IllegalStateException(
           "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start");
-    }
-    if (!startOp.markInvoked()) {
-      throw new IllegalStateException("WithStartWorkflowOperation was already executed");
-    }
-    if (startOp.getStub() == null) {
-      throw new IllegalStateException(
-          "WithStartWorkflowOperation was created with different WorkflowStub");
     }
     updateOptions.validate();
 
@@ -156,7 +149,7 @@ class WorkflowStubImpl implements WorkflowStub {
       // gather inputs
       WorkflowClientCallsInterceptor.WorkflowStartInput startInput =
           new WorkflowClientCallsInterceptor.WorkflowStartInput(
-              workflowId, workflowType.get(), Header.empty(), startOp.getArgs(), options);
+              workflowId, workflowType.get(), Header.empty(), startArgs, options);
       WorkflowClientCallsInterceptor.StartUpdateInput<R> updateInput =
           startUpdateInput(
               updateOptions,
@@ -188,11 +181,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R executeUpdateWithStart(
-      UpdateOptions<R> updateOptions, Object[] updateArgs, WithStartWorkflowOperation<?> startOp) {
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
     updateOptions.validateWaitForCompleted();
     UpdateOptions<R> optionsWithWaitStageCompleted =
         updateOptions.toBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
-    return startUpdateWithStart(optionsWithWaitStageCompleted, updateArgs, startOp).getResult();
+    return startUpdateWithStart(optionsWithWaitStageCompleted, updateArgs, startArgs).getResult();
   }
 
   private WorkflowExecution signalWithStartWithOptions(

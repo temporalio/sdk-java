@@ -88,7 +88,7 @@ public class UpdateWithStartTest {
             .setUpdateName(updateName)
             .build();
 
-    // === everything typed
+    // === typed
 
     // startUpdateWithStart
     T typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
@@ -107,70 +107,20 @@ public class UpdateWithStartTest {
     assertEquals(theUpdateResult, updResult);
     assertEquals(theWorkflowResult, typedStartOp.getResult());
 
-    // === untyped start & typed update
+    // === untyped
 
     // startUpdateWithStart
     typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
     WorkflowStub untypedStub = WorkflowStub.fromTyped(typedStub);
-    WithStartWorkflowOperation<String> untypedStartOp =
-        new WithStartWorkflowOperation<>(untypedStub, String.class, args);
-    updHandle = updateHandleProvider.apply(typedStub, untypedStartOp);
+    updHandle = untypedStub.startUpdateWithStart(untypedUpdateOptions, args, args);
     assertEquals(theUpdateResult, updHandle.getResultAsync().get());
     assertEquals(theUpdateResult, updHandle.getResult());
-    assertEquals(theWorkflowResult, untypedStartOp.getResult());
 
     // executeUpdateWithStart
     typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
     untypedStub = WorkflowStub.fromTyped(typedStub);
-    untypedStartOp = new WithStartWorkflowOperation<>(untypedStub, String.class, args);
-    updResult = updateResultProvider.apply(typedStub, untypedStartOp);
+    updResult = untypedStub.executeUpdateWithStart(untypedUpdateOptions, args, args);
     assertEquals(theUpdateResult, updResult);
-    assertEquals(theWorkflowResult, untypedStartOp.getResult());
-
-    // === typed start & untyped update
-
-    // startUpdateWithStart
-    typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
-    untypedStub = WorkflowStub.fromTyped(typedStub);
-    typedStartOp = startOperationProvider.apply(typedStub);
-    try {
-      untypedStub.startUpdateWithStart(untypedUpdateOptions, args, typedStartOp);
-      fail("unreachable");
-    } catch (IllegalStateException e) {
-      assertEquals(
-          "WithStartWorkflowOperation was created with different WorkflowStub", e.getMessage());
-    }
-
-    // executeUpdateWithStart
-    typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
-    untypedStub = WorkflowStub.fromTyped(typedStub);
-    typedStartOp = startOperationProvider.apply(typedStub);
-    try {
-      untypedStub.executeUpdateWithStart(untypedUpdateOptions, args, typedStartOp);
-      fail("unreachable");
-    } catch (IllegalStateException e) {
-      assertEquals(
-          "WithStartWorkflowOperation was created with different WorkflowStub", e.getMessage());
-    }
-
-    // === everything untyped
-
-    // startUpdateWithStart
-    typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
-    untypedStub = WorkflowStub.fromTyped(typedStub);
-    untypedStartOp = new WithStartWorkflowOperation<>(untypedStub, String.class, args);
-    updHandle = untypedStub.startUpdateWithStart(untypedUpdateOptions, args, untypedStartOp);
-    assertEquals(theUpdateResult, updHandle.getResultAsync().get());
-    assertEquals(theUpdateResult, updHandle.getResult());
-    assertEquals(theWorkflowResult, untypedStartOp.getResult());
-
-    // executeUpdateWithStart
-    typedStub = client.newWorkflowStub(stubClass, createWorkflowOptions());
-    untypedStub = WorkflowStub.fromTyped(typedStub);
-    untypedStartOp = new WithStartWorkflowOperation<>(untypedStub, String.class, args);
-    updResult = untypedStub.executeUpdateWithStart(untypedUpdateOptions, args, untypedStartOp);
-    assertEquals(theUpdateResult, updResult);
-    assertEquals(theWorkflowResult, untypedStartOp.getResult());
 
     return new Results(theWorkflowResult, theUpdateResult);
   }
@@ -747,11 +697,9 @@ public class UpdateWithStartTest {
   public void failWhenWorkflowOptionsIsMissing() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
-    WorkflowStub workflowStub =
+    WorkflowOptions options = createWorkflowOptions();
+    WorkflowStub workflow =
         workflowClient.newUntypedWorkflowStub("workflow-id"); // no WorkflowOptions!
-    WithStartWorkflowOperation<String> startOp =
-        new WithStartWorkflowOperation<>(workflowStub, String.class);
-
     UpdateOptions<String> updateOptions =
         UpdateOptions.newBuilder(String.class)
             .setUpdateName("update")
@@ -760,10 +708,13 @@ public class UpdateWithStartTest {
             .build();
 
     try {
-      workflowStub.startUpdateWithStart(updateOptions, new Object[] {0, "Hello Update"}, startOp);
+      workflow.startUpdateWithStart(
+          updateOptions, new Object[] {0, "Hello Update"}, new Object[] {});
     } catch (IllegalStateException e) {
       assertEquals(e.getMessage(), "Required parameter WorkflowOptions is missing in WorkflowStub");
     }
+
+    ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
   }
 
   @Test
@@ -777,8 +728,6 @@ public class UpdateWithStartTest {
                 .toBuilder() // no WorkflowIdConflictPolicy!
                 .setWorkflowId(UUID.randomUUID().toString())
                 .build());
-    WithStartWorkflowOperation<String> startOp =
-        new WithStartWorkflowOperation<>(workflowStub, String.class);
 
     UpdateOptions<String> updateOptions =
         UpdateOptions.newBuilder(String.class)
@@ -788,7 +737,8 @@ public class UpdateWithStartTest {
             .build();
 
     try {
-      workflowStub.startUpdateWithStart(updateOptions, new Object[] {0, "Hello Update"}, startOp);
+      workflowStub.startUpdateWithStart(
+          updateOptions, new Object[] {0, "Hello Update"}, new Object[] {});
     } catch (IllegalStateException e) {
       assertEquals(
           e.getMessage(),
@@ -798,7 +748,6 @@ public class UpdateWithStartTest {
 
   @Test
   public void failWhenWaitPolicyIsIncompatible() {
-
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
     WorkflowOptions options = createWorkflowOptions();
@@ -826,8 +775,6 @@ public class UpdateWithStartTest {
     // untyped
     try {
       WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
-      WithStartWorkflowOperation<String> startOp =
-          new WithStartWorkflowOperation<>(workflowStub, String.class);
       workflowStub.executeUpdateWithStart(
           UpdateOptions.newBuilder(String.class)
               .setUpdateName("update")
@@ -835,7 +782,7 @@ public class UpdateWithStartTest {
                   WorkflowUpdateStage.ADMITTED) // incompatible with `executeUpdateWithStart`
               .build(),
           new Object[] {0, "Hello Update"},
-          startOp);
+          new Object[] {});
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(e.getMessage(), "waitForStage must be unspecified or COMPLETED");

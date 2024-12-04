@@ -232,11 +232,9 @@ public class UpdateTest {
                     WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
                 .setWorkflowId(workflowId)
                 .build());
-    WithStartWorkflowOperation<String> startOp1 =
-        new WithStartWorkflowOperation<>(workflowStub1, String.class);
     WorkflowUpdateHandle<String> updateHandle1 =
         workflowStub1.startUpdateWithStart(
-            updateOptions, new Object[] {0, "Hello Update 1"}, startOp1);
+            updateOptions, new Object[] {0, "Hello Update 1"}, new Object[] {});
 
     assertEquals("Hello Update 1", updateHandle1.getResult());
 
@@ -250,19 +248,15 @@ public class UpdateTest {
                     WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
                 .setWorkflowId(workflowId)
                 .build());
-    WithStartWorkflowOperation<String> startOp2 =
-        new WithStartWorkflowOperation<>(workflowStub2, String.class);
     WorkflowUpdateHandle<String> updateHandle2 =
         workflowStub2.startUpdateWithStart(
-            updateOptions, new Object[] {0, "Hello Update 2"}, startOp2);
+            updateOptions, new Object[] {0, "Hello Update 2"}, new Object[] {});
 
     assertEquals("Hello Update 2", updateHandle2.getResult());
 
     // send update
     workflowStub2.update("complete", void.class);
 
-    assertEquals("complete", startOp1.getResult());
-    assertEquals("complete", startOp2.getResult());
     assertEquals("complete", workflowStub1.getResult(String.class));
     assertEquals("complete", workflowStub2.getResult(String.class));
   }
@@ -290,11 +284,9 @@ public class UpdateTest {
                     WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
                 .setWorkflowId(workflowId)
                 .build());
-    WithStartWorkflowOperation<String> startOp1 =
-        new WithStartWorkflowOperation<>(workflowStub1, String.class);
     String updateResult1 =
         workflowStub1.executeUpdateWithStart(
-            updateOptions, new Object[] {0, "Hello Update 1"}, startOp1);
+            updateOptions, new Object[] {0, "Hello Update 1"}, new Object[] {});
 
     assertEquals("Hello Update 1", updateResult1);
 
@@ -308,19 +300,15 @@ public class UpdateTest {
                     WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
                 .setWorkflowId(workflowId)
                 .build());
-    WithStartWorkflowOperation<String> startOp2 =
-        new WithStartWorkflowOperation<>(workflowStub2, String.class);
     String updateResult2 =
         workflowStub2.executeUpdateWithStart(
-            updateOptions, new Object[] {0, "Hello Update 2"}, startOp2);
+            updateOptions, new Object[] {0, "Hello Update 2"}, new Object[] {});
 
     assertEquals("Hello Update 2", updateResult2);
 
     // send update
     workflowStub2.update("complete", void.class);
 
-    assertEquals("complete", startOp1.getResult());
-    assertEquals("complete", startOp2.getResult());
     assertEquals("complete", workflowStub1.getResult(String.class));
     assertEquals("complete", workflowStub2.getResult(String.class));
   }

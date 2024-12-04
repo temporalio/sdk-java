@@ -517,6 +517,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     private final UpdateOptions<?> userProvidedUpdateOptions;
     private Object[] updateArgs;
+    private Object[] startArgs;
     private UpdateOptions updateOptions;
     private final WithStartWorkflowOperation<?> startOp;
     private State state = State.INIT;
@@ -561,18 +562,19 @@ class WorkflowInvocationHandler implements InvocationHandler {
           throw new IllegalArgumentException(
               "Method '" + method.getName() + "' is not a @WorkflowMethod");
         }
+        if (!startOp.markInvoked()) {
+          throw new IllegalStateException("WithStartWorkflowOperation was already executed");
+        }
         this.setStub(untyped);
+        this.startArgs = args;
         this.startOp.setStub(untyped);
-        this.startOp.setArgs(args);
         this.startOp.setResultClass(method.getReturnType());
         state = State.START_RECEIVED;
+
+        this.result = untyped.startUpdateWithStart(updateOptions, updateArgs, this.startArgs);
       } else {
         throw new IllegalArgumentException(
             "UpdateWithStartInvocationHandler called too many times");
-      }
-
-      if (startOp.getStub() != null) {
-        this.result = untyped.startUpdateWithStart(updateOptions, updateArgs, startOp);
       }
     }
 
