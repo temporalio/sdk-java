@@ -23,8 +23,7 @@ package io.temporal.workflow.updateTest;
 import static io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import com.uber.m3.tally.Scope;
 import io.grpc.Context;
@@ -34,9 +33,11 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.update.v1.UpdateRef;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.serviceclient.StatusUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -438,10 +439,9 @@ public class UpdateWithStartTest {
 
     WorkflowClient workflowClient =
         WorkflowClient.newInstance(client, WorkflowClientOptions.newBuilder().build());
-    WorkflowOptions options = createWorkflowOptions();
     TestWorkflows.WorkflowWithUpdate workflow =
-        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
-
+        workflowClient.newWorkflowStub(
+            TestWorkflows.WorkflowWithUpdate.class, createWorkflowOptions());
     WithStartWorkflowOperation<String> startOp =
         new WithStartWorkflowOperation<>(workflow::execute);
     WorkflowUpdateHandle<String> updHandle =
@@ -449,6 +449,61 @@ public class UpdateWithStartTest {
             workflow::update, 0, "Hello Update", createUpdateOptions(), startOp);
 
     assertEquals("run_id", updHandle.getExecution().getRunId());
+    verify(blockingStub, times(2)).executeMultiOperation(any());
+  }
+
+  @Test
+  public void handleSuccessfulStartButUpdateOnlyErr() {
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.withDeadline(any())).thenReturn(blockingStub);
+
+    Scope scope = mock(Scope.class);
+    when(scope.tagged(any())).thenReturn(scope);
+
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+    when(client.blockingStub()).thenReturn(blockingStub);
+    when(client.getOptions())
+        .thenReturn(WorkflowServiceStubsOptions.newBuilder().setMetricsScope(scope).build());
+
+    // This is expected to be very rare, but possible. It occurs when one step was successful,
+    // but the step had an unexpected server-side error that could not be remedied by retries.
+    // Using "Unimplemented" to skip client retries
+    when(blockingStub.executeMultiOperation(any()))
+        .thenThrow(
+            // successful start, failed update
+            StatusUtils.newException(
+                Status.UNIMPLEMENTED.withDescription("MultiOperation could not be executed"),
+                MultiOperationExecutionFailure.newBuilder()
+                    .addStatuses(
+                        MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                            .setMessage("")
+                            .setCode(Status.Code.OK.value()))
+                    .addStatuses(
+                        MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                            .setMessage("internal error")
+                            .setCode(Status.Code.UNIMPLEMENTED.value()))
+                    .build(),
+                MultiOperationExecutionFailure.getDescriptor()));
+
+    WorkflowClient workflowClient =
+        WorkflowClient.newInstance(client, WorkflowClientOptions.newBuilder().build());
+    WorkflowOptions options = createWorkflowOptions();
+    TestWorkflows.WorkflowWithUpdate workflow =
+        workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
+    WithStartWorkflowOperation<String> startOp =
+        new WithStartWorkflowOperation<>(workflow::execute);
+
+    try {
+      WorkflowClient.startUpdateWithStart(
+          workflow::update, 0, "Hello Update", createUpdateOptions(), startOp);
+      fail("unreachable");
+    } catch (WorkflowServiceException e) {
+      assertEquals(e.getCause().getMessage(), "UNIMPLEMENTED: internal error");
+    }
   }
 
   @Test
@@ -590,14 +645,13 @@ public class UpdateWithStartTest {
         new WithStartWorkflowOperation<>(workflow::execute);
 
     try {
-      WorkflowUpdateHandle<String> updHandle =
-          WorkflowClient.startUpdateWithStart(
-              workflow::update,
-              "Hello Update",
-              createUpdateOptions().toBuilder()
-                  .setUpdateName("custom_update_name") // custom name!
-                  .build(),
-              startOp);
+      WorkflowClient.startUpdateWithStart(
+          workflow::update,
+          "Hello Update",
+          createUpdateOptions().toBuilder()
+              .setUpdateName("custom_update_name") // custom name!
+              .build(),
+          startOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(

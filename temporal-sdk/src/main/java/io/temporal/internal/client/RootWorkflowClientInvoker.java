@@ -256,16 +256,18 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         }
 
         MultiOperationExecutionFailure.OperationStatus startStatus = failure.getStatuses(0);
-        if (startStatus.getDetailsCount() == 0
-            || !startStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
+        if (startStatus.getCode() != Status.Code.OK.value()
+            && (startStatus.getDetailsCount() == 0
+                || !startStatus.getDetails(0).is(MultiOperationExecutionAborted.class))) {
           throw Status.fromCodeValue(startStatus.getCode())
               .withDescription(startStatus.getMessage())
               .asRuntimeException();
         }
 
         MultiOperationExecutionFailure.OperationStatus updateStatus = failure.getStatuses(1);
-        if (updateStatus.getDetailsCount() == 0
-            || !updateStatus.getDetails(0).is(MultiOperationExecutionAborted.class)) {
+        if (updateStatus.getCode() != Status.Code.OK.value()
+            && (updateStatus.getDetailsCount() == 0
+                || !updateStatus.getDetails(0).is(MultiOperationExecutionAborted.class))) {
           throw Status.fromCodeValue(updateStatus.getCode())
               .withDescription(updateStatus.getMessage())
               .asRuntimeException();
