@@ -26,6 +26,7 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.workflow.*;
 import java.lang.reflect.Type;
 import java.util.Collections;
+import java.util.HashMap;
 
 public class NexusServiceStubImpl implements NexusServiceStub {
   private final String name;
@@ -90,7 +91,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
                 resultType,
                 arg,
                 mergedOptions,
-                Collections.emptyMap()));
+                new HashMap<>()));
     return result.getResult();
   }
 
@@ -117,7 +118,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
                 resultType,
                 arg,
                 mergedOptions,
-                Collections.emptyMap()));
+                new HashMap<>()));
     return new NexusOperationHandleImpl<>(result.getOperationExecution(), result.getResult());
   }
 
