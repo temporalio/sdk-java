@@ -53,7 +53,7 @@ public class OpenTracingWorkerInterceptor implements WorkerInterceptor {
 
   @Override
   public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-          OperationContext context, NexusOperationInboundCallsInterceptor next) {
+      OperationContext context, NexusOperationInboundCallsInterceptor next) {
     return new OpenTracingNexusOperationInboundCallsInterceptor(
         next, options, spanFactory, contextAccessor);
   }
