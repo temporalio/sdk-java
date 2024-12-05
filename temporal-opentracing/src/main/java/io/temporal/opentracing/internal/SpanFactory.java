@@ -59,11 +59,11 @@ public class SpanFactory {
     return createSpan(context, tracer, null, References.FOLLOWS_FROM);
   }
 
-  public Tracer.SpanBuilder createNexusOperationExecuteSpan(
+  public Tracer.SpanBuilder createStartNexusOperationSpan(
       Tracer tracer, String serviceName, String operationName, String workflowId, String runId) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
-            .setSpanOperationType(SpanOperationType.EXECUTE_NEXUS_OPERATION)
+            .setSpanOperationType(SpanOperationType.START_NEXUS_OPERATION)
             .setActionName(serviceName + "." + operationName)
             .setWorkflowId(workflowId)
             .setRunId(runId)
@@ -189,7 +189,7 @@ public class SpanFactory {
       Tracer tracer, String serviceName, String operationName, SpanContext nexusStartSpanContext) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
-            .setSpanOperationType(SpanOperationType.START_NEXUS_OPERATION)
+            .setSpanOperationType(SpanOperationType.RUN_START_NEXUS_OPERATION)
             .setActionName(serviceName + "." + operationName)
             .build();
     return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
@@ -199,7 +199,7 @@ public class SpanFactory {
       Tracer tracer, String serviceName, String operationName, SpanContext nexusStartSpanContext) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
-            .setSpanOperationType(SpanOperationType.CANCEL_NEXUS_OPERATION)
+            .setSpanOperationType(SpanOperationType.RUN_CANCEL_NEXUS_OPERATION)
             .setActionName(serviceName + "." + operationName)
             .build();
     return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);

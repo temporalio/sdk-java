@@ -30,8 +30,6 @@ import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
-import java.util.HashMap;
-import java.util.Map;
 
 public class OpenTracingWorkflowOutboundCallsInterceptor
     extends WorkflowOutboundCallsInterceptorBase {
@@ -106,21 +104,13 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
       ExecuteNexusOperationInput<R> input) {
     if (!WorkflowUnsafe.isReplaying()) {
-      Map<String, String> headers = new HashMap(input.getHeaders());
       Span nexusOperationExecuteSpan =
           contextAccessor.writeSpanContextToHeader(
-              () -> createNexusOperationExecuteSpanBuilder(input).start(), headers, tracer);
+              () -> createStartNexusOperationSpanBuilder(input).start(),
+              input.getHeaders(),
+              tracer);
       try (Scope ignored = tracer.scopeManager().activate(nexusOperationExecuteSpan)) {
-        return super.executeNexusOperation(
-            new ExecuteNexusOperationInput(
-                input.getEndpoint(),
-                input.getService(),
-                input.getOperation(),
-                input.getResultClass(),
-                input.getResultType(),
-                input.getArg(),
-                input.getOptions(),
-                headers));
+        return super.executeNexusOperation(input);
       } finally {
         nexusOperationExecuteSpan.finish();
       }
@@ -205,10 +195,10 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
         parentWorkflowInfo.getRunId());
   }
 
-  private <R> Tracer.SpanBuilder createNexusOperationExecuteSpanBuilder(
+  private <R> Tracer.SpanBuilder createStartNexusOperationSpanBuilder(
       ExecuteNexusOperationInput<R> input) {
     WorkflowInfo parentWorkflowInfo = Workflow.getInfo();
-    return spanFactory.createNexusOperationExecuteSpan(
+    return spanFactory.createStartNexusOperationSpan(
         tracer,
         input.getService(),
         input.getOperation(),

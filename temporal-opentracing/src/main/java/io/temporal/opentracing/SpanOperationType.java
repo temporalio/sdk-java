@@ -35,9 +35,9 @@ public enum SpanOperationType {
   HANDLE_QUERY("HandleQuery"),
   HANDLE_SIGNAL("HandleSignal"),
   HANDLE_UPDATE("HandleUpdate"),
-  EXECUTE_NEXUS_OPERATION("ExecuteNexusOperation"),
   START_NEXUS_OPERATION("StartNexusOperation"),
-  CANCEL_NEXUS_OPERATION("CancelNexusOperation");
+  RUN_START_NEXUS_OPERATION("RunStartNexusOperationHandler"),
+  RUN_CANCEL_NEXUS_OPERATION("RunCancelNexusOperationHandler");
 
   private final String defaultPrefix;
 
