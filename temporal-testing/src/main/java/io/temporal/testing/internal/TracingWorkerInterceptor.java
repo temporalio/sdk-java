@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.handler.OperationContext;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.SearchAttributeUpdate;
@@ -132,7 +133,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
   @Override
   public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      NexusOperationInboundCallsInterceptor next) {
+      OperationContext context, NexusOperationInboundCallsInterceptor next) {
     return new TracingNexusOperationInboundCallsInterceptor(trace, next);
   }
 

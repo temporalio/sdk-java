@@ -20,6 +20,7 @@
 
 package io.temporal.common.interceptors;
 
+import io.nexusrpc.handler.OperationContext;
 import io.temporal.common.Experimental;
 
 /**
@@ -106,5 +107,5 @@ public interface WorkerInterceptor {
    * @return an interceptor that passes all the calls to {@code next}
    */
   NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      NexusOperationInboundCallsInterceptor next);
+      OperationContext context, NexusOperationInboundCallsInterceptor next);
 }

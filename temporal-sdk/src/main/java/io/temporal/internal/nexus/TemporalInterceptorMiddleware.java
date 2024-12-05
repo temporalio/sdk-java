@@ -36,11 +36,12 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
 
   @Override
   public OperationHandler<Object, Object> intercept(
-      OperationHandler<Object, Object> operationHandler) {
+      OperationContext context, OperationHandler<Object, Object> operationHandler) {
     rootInboundCallsInterceptor = new RootNexusOperationInboundCallsInterceptor(operationHandler);
     NexusOperationInboundCallsInterceptor inboundCallsInterceptor = rootInboundCallsInterceptor;
     for (WorkerInterceptor interceptor : interceptors) {
-      inboundCallsInterceptor = interceptor.interceptNexusOperation(inboundCallsInterceptor);
+      inboundCallsInterceptor =
+          interceptor.interceptNexusOperation(context, inboundCallsInterceptor);
     }
 
     inboundCallsInterceptor.init(

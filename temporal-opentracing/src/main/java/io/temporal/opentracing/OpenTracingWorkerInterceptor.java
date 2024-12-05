@@ -20,6 +20,7 @@
 
 package io.temporal.opentracing;
 
+import io.nexusrpc.handler.OperationContext;
 import io.temporal.common.interceptors.*;
 import io.temporal.opentracing.internal.*;
 
@@ -52,7 +53,7 @@ public class OpenTracingWorkerInterceptor implements WorkerInterceptor {
 
   @Override
   public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      NexusOperationInboundCallsInterceptor next) {
+          OperationContext context, NexusOperationInboundCallsInterceptor next) {
     return new OpenTracingNexusOperationInboundCallsInterceptor(
         next, options, spanFactory, contextAccessor);
   }

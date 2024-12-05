@@ -20,6 +20,8 @@
 
 package io.temporal.common.interceptors;
 
+import io.nexusrpc.handler.OperationContext;
+
 public class WorkerInterceptorBase implements WorkerInterceptor {
   @Override
   public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
@@ -33,7 +35,7 @@ public class WorkerInterceptorBase implements WorkerInterceptor {
 
   @Override
   public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      NexusOperationInboundCallsInterceptor next) {
+      OperationContext context, NexusOperationInboundCallsInterceptor next) {
     return next;
   }
 }
