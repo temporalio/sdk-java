@@ -4,41 +4,87 @@
 
 ### WorkflowClient
 
-- `WorkflowClient.updateWithStart`  has been renamed to `WorkflowClient.startUpdateWithStart`.
-- Instead of taking the workflow method, workflow arguments and a `UpdateWithStartWorkflowOperation` , `WorkflowClient.startUpdateWithStart`  now takes the update method, update arguments and a `WithStartWorkflowOperation` . `WithStartWorkflowOperation` holds to the workflow method and workflow arguments to be executed together with the update request.
+- `WorkflowClient.updateWithStart` has been renamed to `WorkflowClient.startUpdateWithStart`.
+- Instead of taking the workflow method, workflow arguments and a `UpdateWithStartWorkflowOperation`, `WorkflowClient.startUpdateWithStart` now takes the update method, update arguments and a `WithStartWorkflowOperation`. `WithStartWorkflowOperation` contains the workflow method and workflow arguments to be executed together with the update request.
 
 ### WorkflowStub
 
-- `WorkflowStub.updateWithStart`  has been renamed to `WorkflowStub.startUpdateWithStart`
-- `WorkflowStub.startUpdateWithStart`  now just takes the `UpdateOptions`, update arguments and workflow arguments
+- `WorkflowStub.updateWithStart` has been renamed to `WorkflowStub.startUpdateWithStart`.
+- `WorkflowStub.startUpdateWithStart` now just takes the `UpdateOptions`, update arguments and workflow arguments.
 
 ## Update **(Public Preview)**
 
-- The SDK now preforms more rigorous type validation when registering a Workflow with an `@UpdateValidatorMethod` to make sure the type parameters match the linked `@UpdateMethod`
-- The SDK will no longer sometimes throw `WorkflowUpdateException`  when calling `WorkflowStub.startUpdate`  if the update is rejected. `WorkflowUpdateException`  is now consistently throw when getting the result of the update
-- `UpdateOptionsBuilder`  no longer generates a update ID when built. Now a unique UUID is generated when the options are used. This is similar to how `WorkflowOptions`  and workflow ID work.
+- The SDK now preforms more rigorous type validation when registering a Workflow with an `@UpdateValidatorMethod` to make sure the type parameters match the linked `@UpdateMethod`.
+- The SDK will no longer sometimes throw `WorkflowUpdateException`  when calling `WorkflowStub.startUpdate`  if the update is rejected. `WorkflowUpdateException` is now consistently throw when getting the result of the update
+- `UpdateOptionsBuilder` no longer generates a update ID when built. Now a unique UUID is generated when the options are used. This is similar to how `WorkflowOptions` and workflow ID work.
 
 ## Nexus **(Public Preview)**
 
-- Workflow started by a Nexus operation now require the Workflow ID to be specified
-- The SDK now preforms more rigorous type validation when registering a Nexus Service to make sure it implements the service properly
+- Workflow started by a Nexus operation now require the Workflow ID to be specified in the `WorkflowOptions`.
+- The SDK now preforms more rigorous type validation when registering a Nexus Service to make sure it implements the service properly.
 - All header maps for Nexus operations are now properly case-insensitive.
 
 # **Highlights**
 
 ## Virtual Threads **(Public Preview)**
 
-The Java SDK now has experimental support for virtual threads when using a JVM with a version of 21 or higher. Virtual threads can be used inside workflows by enabling `WorkerFactoryOptions.setUsingVirtualWorkflowThreads` . Users can also use virtual threads for task processing in a worker by enabling `WorkerOptions.setUsingVirtualThreads` .
+The Java SDK now has experimental support for virtual threads when using a JVM with a version of 21 or higher. Virtual threads can be used inside workflows by enabling `WorkerFactoryOptions.setUsingVirtualWorkflowThreads`. Users can also use virtual threads for task processing in a worker by enabling `WorkerOptions.setUsingVirtualThreads`.
 
 ## Nexus **(Public Preview)**
 
-`WorkerInterceptor`  now has support for intercepting Nexus workers.
+`WorkerInterceptor` now has support for intercepting Nexus workers.
 
 ## Update **(Public Preview)**
 
-`WorkflowClient` now has a set of static methods called `startUpdate`  that can be used to start an update, but not immediately wait on the result. This is a type safe analog to `WorkflowStub.startUpdate`.
+`WorkflowClient` now has a set of static methods called `startUpdate` that can be used to start an update, but not immediately wait on the result. This is a type safe analog to `WorkflowStub.startUpdate`.
 
 ## Workflow Metadata **(Public Preview)**
 
 - The Java SDK now exposes a fixed summary option for local and normal activities.
-- The Java SDK now support `__temporal_workflow_metadata`  query, this query allows users to get details about a workflow like its’ current description and what signal, update, and query handlers are registered
+- The Java SDK now support `__temporal_workflow_metadata`  query, this query allows users to get details about a workflow like its’ current description and what signal, update, and query handlers are registered.
+
+# What's Changed
+
+2024-10-16 - acfadbfd - Avoid spamming retries in nexusOperationApplicationFailureFailureConversion (#2272)
+2024-10-16 - eb64ec3e - Fix code coverage (#2275)
+2024-10-17 - 25f55366 - Fix Null pointer exception on passing empty search attribute (#2277)
+2024-10-21 - 0ce1d6ec - Bump edge test dependencies (#2279)
+2024-10-21 - 301e1290 - Fix test server operation timeout (#2282)
+2024-10-21 - ac3526b7 - Avoid warning from un-accessed operation promise (#2280)
+2024-10-22 - 34106777 - Fix UpdateWithStart untyped operation (#2288)
+2024-10-22 - 7bcade2c - Fix UpdateWithStart workflow args (#2286)
+2024-10-24 - 27d998af - Add failure_reason to nexus_task_execution_failed (#2274)
+2024-10-24 - 805833c3 - Release v1.26.1 (#2293)
+2024-10-24 - 93e30d7f - Avoid SyncOperationTimeoutTest spamming the test server (#2292)
+2024-10-24 - b8c4b7bf - Fix proto decoding in a Nexus Operation (#2281)
+2024-10-25 - 2ded9853 - Bump Java edge dependency version to 21 (#2296)
+2024-10-25 - 6efbde3c - Update gradle 7.6.1 -> 8.10.2 (#2294)
+2024-10-29 - 0b192d32 - Fix workflow implementation in springboot failing if no default constructor is present (#2300)
+2024-10-30 - c96f8d61 - Add workflow metadata query (#2301)
+2024-10-31 - 37081cce - Fix jacoco coverage (#2304)
+2024-10-31 - b45e40d4 - Remove feature branch (#2303)
+2024-11-03 - f6bf576e - Add support for virtual workflow threads (#2297)
+2024-11-04 - c8a27ce9 - Add activity summary (#2306)
+2024-11-12 - 24990dbc - Ad support for local activity metadata (#2309)
+2024-11-12 - 83f47efb - Make sure workflow options from proxy call are propagated (#2310)
+2024-11-12 - b53f304f - Expose fromWorkflowStub (#2311)
+2024-11-13 - 02ff5cd3 - Add timeout to canRunWithResourceBasedTuner (#2313)
+2024-11-14 - 4cee4e08 - Validate with generic parameter types for workflow init (#2318)
+2024-11-14 - 7ab0f6c9 - Refactor workflow init validation (#2316)
+2024-11-15 - 2a688839 - Generate update ID at call time if not set (#2319)
+2024-11-22 - 16b0bb92 - Disable eager activities if task queue rate limits is set (#2325)
+2024-11-22 - 1d86a574 - Support toString on workflow proxy types (#2315)
+2024-11-22 - c6f0b58c - Do runtime check to ensure update validator has the same parameters as the update it validates (#2323)
+2024-11-23 - 74022f16 - Add getResult to WorkflowUpdateHandle (#2324)
+2024-11-25 - a2dd3694 - Add high-level workflow describe (#2326)
+2024-11-26 - 89021d0e - Add type safe API to execute an async update workflow request (#2320)
+2024-12-01 - fcc03431 - Fix CI after GHA's drop of node16 actions (#2338)
+2024-12-02 - 5212a34e - Skip flaky test (#2334)
+2024-12-02 - 7245bf8b - Require workflow ID to be set for Nexus (#2330)
+2024-12-02 - e3ef9b4e - Standardized update failure exception (#2339)
+2024-12-03 - 8782de33 - Make nexus header check case-insensitive (#2335)
+2024-12-03 - cbcf26cb - Fix unbalanced locks in test server for Nexus (#2341)
+2024-12-04 - c7fcf12f - Make headers in ExecuteNexusOperationInput case insensitive (#2342)
+2024-12-06 - 30f391f8 - Add Nexus Worker interceptor (#2278)
+2024-12-06 - 70733752 - Add operation Id to callback headers (#2336)
+2024-12-06 - 9ac1af3d - New Update-with-Start API (#2337)
