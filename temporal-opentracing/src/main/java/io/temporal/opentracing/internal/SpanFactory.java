@@ -64,7 +64,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_NEXUS_OPERATION)
-            .setActionName(serviceName + "." + operationName)
+            .setActionName(serviceName + "/" + operationName)
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
@@ -190,7 +190,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.RUN_START_NEXUS_OPERATION)
-            .setActionName(serviceName + "." + operationName)
+            .setActionName(serviceName + "/" + operationName)
             .build();
     return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
   }
@@ -200,7 +200,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.RUN_CANCEL_NEXUS_OPERATION)
-            .setActionName(serviceName + "." + operationName)
+            .setActionName(serviceName + "/" + operationName)
             .build();
     return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
   }

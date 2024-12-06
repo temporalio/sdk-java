@@ -137,7 +137,7 @@ public class NexusOperationTest {
    *                                                  |
    *                                                child
    *                                                  v
-   *                                       StartNexusOperation:TestNexusService.operation -follow> RunNexusOperationHandler:TestNexusService.operation
+   *                                       StartNexusOperation:TestNexusService/operation -follow> RunNexusOperationHandler:TestNexusService/operation
    *                                                                                                                             |
    *                                                                                                                           child
    *                                                                                                                             v
@@ -175,7 +175,7 @@ public class NexusOperationTest {
     MockSpan executeNexusOperationSpan = spansHelper.getByParentSpan(workflowRunSpan).get(0);
     assertEquals(workflowRunSpan.context().spanId(), executeNexusOperationSpan.parentId());
     assertEquals(
-        "StartNexusOperation:TestNexusService.operation",
+        "StartNexusOperation:TestNexusService/operation",
         executeNexusOperationSpan.operationName());
 
     List<MockSpan> startNexusOperationSpans =
@@ -184,7 +184,7 @@ public class NexusOperationTest {
     MockSpan startNexusOperationSpan = startNexusOperationSpans.get(0);
     assertEquals(executeNexusOperationSpan.context().spanId(), startNexusOperationSpan.parentId());
     assertEquals(
-        "RunStartNexusOperationHandler:TestNexusService.operation",
+        "RunStartNexusOperationHandler:TestNexusService/operation",
         startNexusOperationSpan.operationName());
 
     MockSpan startOtherWorkflowSpan = spansHelper.getByParentSpan(startNexusOperationSpan).get(0);
