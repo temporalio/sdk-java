@@ -20,22 +20,21 @@
 
 package io.temporal.common.interceptors;
 
-import io.nexusrpc.handler.OperationContext;
+import com.uber.m3.tally.Scope;
+import io.temporal.common.Experimental;
 
-public class WorkerInterceptorBase implements WorkerInterceptor {
-  @Override
-  public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-    return next;
+/** Convenience base class for {@link NexusOperationOutboundCallsInterceptor} implementations. */
+@Experimental
+public class NexusOperationOutboundCallsInterceptorBase
+    implements NexusOperationOutboundCallsInterceptor {
+  private final NexusOperationOutboundCallsInterceptor next;
+
+  public NexusOperationOutboundCallsInterceptorBase(NexusOperationOutboundCallsInterceptor next) {
+    this.next = next;
   }
 
   @Override
-  public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-    return next;
-  }
-
-  @Override
-  public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      OperationContext context, NexusOperationInboundCallsInterceptor next) {
-    return next;
+  public Scope getMetricsScope() {
+    return next.getMetricsScope();
   }
 }

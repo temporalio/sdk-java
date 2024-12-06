@@ -33,6 +33,7 @@ import io.temporal.api.nexus.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
@@ -46,6 +47,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,13 +61,21 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private final Map<String, ServiceImplInstance> serviceImplInstances =
       Collections.synchronizedMap(new HashMap<>());
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+  private final WorkerInterceptor[] interceptors;
+  private final TemporalInterceptorMiddleware nexusServiceInterceptor;
 
   public NexusTaskHandlerImpl(
-      WorkflowClient client, String namespace, String taskQueue, DataConverter dataConverter) {
-    this.client = client;
-    this.namespace = namespace;
-    this.taskQueue = taskQueue;
-    this.dataConverter = dataConverter;
+      @Nonnull WorkflowClient client,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull DataConverter dataConverter,
+      @Nonnull WorkerInterceptor[] interceptors) {
+    this.client = Objects.requireNonNull(client);
+    this.namespace = Objects.requireNonNull(namespace);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.dataConverter = Objects.requireNonNull(dataConverter);
+    this.interceptors = Objects.requireNonNull(interceptors);
+    this.nexusServiceInterceptor = new TemporalInterceptorMiddleware(interceptors);
   }
 
   @Override
@@ -76,6 +86,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     ServiceHandler.Builder serviceHandlerBuilder =
         ServiceHandler.newBuilder().setSerializer(new PayloadSerializer(dataConverter));
     serviceImplInstances.forEach((name, instance) -> serviceHandlerBuilder.addInstance(instance));
+    serviceHandlerBuilder.addOperationMiddleware(nexusServiceInterceptor);
     serviceHandler = serviceHandlerBuilder.build();
     return true;
   }
@@ -121,7 +132,11 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
 
       CurrentNexusOperationContext.set(
-          new NexusOperationContextImpl(namespace, taskQueue, client, metricsScope));
+          new NexusOperationContextImpl(
+              namespace,
+              taskQueue,
+              client,
+              new RootNexusOperationOutboundCallsInterceptor(metricsScope)));
 
       switch (request.getVariantCase()) {
         case START_OPERATION:

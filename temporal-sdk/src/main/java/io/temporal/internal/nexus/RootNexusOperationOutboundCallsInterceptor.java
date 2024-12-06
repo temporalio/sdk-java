@@ -18,24 +18,21 @@
  * limitations under the License.
  */
 
-package io.temporal.common.interceptors;
+package io.temporal.internal.nexus;
 
-import io.nexusrpc.handler.OperationContext;
+import com.uber.m3.tally.Scope;
+import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 
-public class WorkerInterceptorBase implements WorkerInterceptor {
-  @Override
-  public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-    return next;
+public class RootNexusOperationOutboundCallsInterceptor
+    implements NexusOperationOutboundCallsInterceptor {
+  private final Scope scope;
+
+  RootNexusOperationOutboundCallsInterceptor(Scope scope) {
+    this.scope = scope;
   }
 
   @Override
-  public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-    return next;
-  }
-
-  @Override
-  public NexusOperationInboundCallsInterceptor interceptNexusOperation(
-      OperationContext context, NexusOperationInboundCallsInterceptor next) {
-    return next;
+  public Scope getMetricsScope() {
+    return scope;
   }
 }

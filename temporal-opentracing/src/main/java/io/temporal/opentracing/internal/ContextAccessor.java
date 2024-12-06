@@ -24,6 +24,8 @@ import com.google.common.reflect.TypeToken;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapAdapter;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
@@ -71,5 +73,21 @@ public class ContextAccessor {
         StdConverterBackwardsCompatAdapter.fromPayload(
             payload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);
     return codec.decode(serializedSpanContext, tracer);
+  }
+
+  public Span writeSpanContextToHeader(
+      Supplier<Span> spanSupplier, Map<String, String> header, Tracer tracer) {
+    Span span = spanSupplier.get();
+    writeSpanContextToHeader(span.context(), header, tracer);
+    return span;
+  }
+
+  public void writeSpanContextToHeader(
+      SpanContext spanContext, Map<String, String> header, Tracer tracer) {
+    tracer.inject(spanContext, Format.Builtin.HTTP_HEADERS, new TextMapAdapter(header));
+  }
+
+  public SpanContext readSpanContextFromHeader(Map<String, String> header, Tracer tracer) {
+    return tracer.extract(Format.Builtin.HTTP_HEADERS, new TextMapAdapter(header));
   }
 }
