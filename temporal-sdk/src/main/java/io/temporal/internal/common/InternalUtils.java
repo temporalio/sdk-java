@@ -93,7 +93,7 @@ public final class InternalUtils {
                     (a, b) -> a,
                     () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
     if (!headers.containsKey(Header.OPERATION_ID)) {
-      headers.put(Header.OPERATION_ID, options.getWorkflowId());
+      headers.put(Header.OPERATION_ID.toLowerCase(), options.getWorkflowId());
     }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)
