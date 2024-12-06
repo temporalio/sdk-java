@@ -110,6 +110,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final InProcessGRPCServer inProcessServer;
   private final WorkflowServiceStubs workflowServiceStubs;
 
+  private final MultiOperationExecutionFailure.OperationStatus abortedOperation =
+      MultiOperationExecutionFailure.OperationStatus.newBuilder()
+          .setCode(Status.ABORTED.getCode().value())
+          .setMessage("Operation was aborted.")
+          .addDetails(
+              ProtoUtils.packAny(
+                  MultiOperationExecutionAborted.newBuilder().build(),
+                  MultiOperationExecutionAborted.getDescriptor()))
+          .build();
+
   TestWorkflowService(
       TestWorkflowStore store,
       TestVisibilityStore visibilityStore,
@@ -1144,7 +1154,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage("INVALID_ARGUMENT: CronSchedule is not allowed.")
                 .build(),
-            null);
+            abortedOperation); // updated aborted
       }
 
       if (startRequest.getRequestEagerExecution()) {
@@ -1153,7 +1163,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage("INVALID_ARGUMENT: RequestEagerExecution is not supported.")
                 .build(),
-            null);
+            abortedOperation); // update aborted
+      }
+
+      if (startRequest.hasWorkflowStartDelay()) {
+        throw multiOperationExecutionFailure(
+            MultiOperationExecutionFailure.OperationStatus.newBuilder()
+                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                .setMessage("INVALID_ARGUMENT: WorkflowStartDelay is not supported.")
+                .build(),
+            abortedOperation); // update aborted
       }
 
       UpdateWorkflowExecutionRequest updateRequest;
@@ -1167,7 +1186,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
       if (!updateRequest.getWorkflowExecution().getRunId().isEmpty()) {
         throw multiOperationExecutionFailure(
-            null, // start aborted
+            abortedOperation, // start aborted
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage("INVALID_ARGUMENT: RunId is not allowed.")
@@ -1176,7 +1195,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
       if (!updateRequest.getFirstExecutionRunId().isEmpty()) {
         throw multiOperationExecutionFailure(
-            null, // start aborted
+            abortedOperation, // start aborted
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage("INVALID_ARGUMENT: FirstExecutionRunId is not allowed.")
@@ -1187,21 +1206,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           .getWorkflowId()
           .equals(updateRequest.getWorkflowExecution().getWorkflowId())) {
         throw multiOperationExecutionFailure(
-            null, // start aborted
+            abortedOperation, // start aborted
             MultiOperationExecutionFailure.OperationStatus.newBuilder()
                 .setCode(Status.INVALID_ARGUMENT.getCode().value())
                 .setMessage(
-                    "INVALID_ARGUMENT: WorkflowId is not consistent with previous operation(s)")
+                    "INVALID_ARGUMENT: Update operation's WorkflowId is not consistent with Start operation's WorkflowId")
                 .build());
-      }
-
-      if (startRequest.hasWorkflowStartDelay()) {
-        throw multiOperationExecutionFailure(
-            MultiOperationExecutionFailure.OperationStatus.newBuilder()
-                .setCode(Status.INVALID_ARGUMENT.getCode().value())
-                .setMessage("INVALID_ARGUMENT: WorkflowStartDelay is not supported.")
-                .build(),
-            null);
       }
 
       @Nullable Deadline deadline = getUpdatePollDeadline();
@@ -1214,7 +1224,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               updateHandle.set(ms.updateWorkflowExecution(updateRequest, deadline));
             } catch (StatusRuntimeException e) {
               throw multiOperationExecutionFailure(
-                  null, // ie start aborted
+                  abortedOperation, // ie start aborted
                   MultiOperationExecutionFailure.OperationStatus.newBuilder()
                       .setCode(e.getStatus().getCode().value())
                       .setMessage(e.getMessage())
@@ -1237,7 +1247,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setCode(e.getStatus().getCode().value())
                 .setMessage(e.getMessage())
                 .build(),
-            null); // ie update aborted
+            abortedOperation); // ie update aborted
       }
 
       // if the workflow wasn't started, only send the Update request
@@ -1269,19 +1279,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private StatusRuntimeException multiOperationExecutionFailure(
       MultiOperationExecutionFailure.OperationStatus... operationStatuses) {
     Status status = null;
-    for (int i = 0; i < operationStatuses.length; i++) {
-      MultiOperationExecutionFailure.OperationStatus operationStatus = operationStatuses[i];
-      if (operationStatus == null) {
-        // convert to aborted failure
-        operationStatuses[i] =
-            MultiOperationExecutionFailure.OperationStatus.newBuilder()
-                .setCode(Status.ABORTED.getCode().value())
-                .setMessage("Operation was aborted.")
-                .addDetails(
-                    ProtoUtils.packAny(
-                        MultiOperationExecutionAborted.newBuilder().build(),
-                        MultiOperationExecutionAborted.getDescriptor()))
-                .build();
+    for (MultiOperationExecutionFailure.OperationStatus operationStatus : operationStatuses) {
+      if (operationStatus == abortedOperation) {
         continue;
       }
       if (status != null) {

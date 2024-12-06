@@ -131,43 +131,61 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> WorkflowUpdateHandle<R> updateWithStart(
-      UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs) {
+  public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
     if (options == null) {
-      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+      throw new IllegalStateException(
+          "Required parameter WorkflowOptions is missing in WorkflowStub");
     }
-    if (!updateOperation.markInvoked()) {
-      throw new IllegalStateException("UpdateWithStartWorkflowOperation was already executed");
+    if (options.getWorkflowIdConflictPolicy() == null) {
+      throw new IllegalStateException(
+          "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start");
     }
-    checkExecutionIsNotStarted();
+    updateOptions.validate();
+
     String workflowId = getWorkflowIdForStart(options);
     WorkflowExecution workflowExecution = null;
     try {
+      // gather inputs
       WorkflowClientCallsInterceptor.WorkflowStartInput startInput =
           new WorkflowClientCallsInterceptor.WorkflowStartInput(
               workflowId, workflowType.get(), Header.empty(), startArgs, options);
+      WorkflowClientCallsInterceptor.StartUpdateInput<R> updateInput =
+          startUpdateInput(
+              updateOptions,
+              updateArgs,
+              WorkflowExecution.newBuilder().setWorkflowId(workflowId).build());
       WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<R> input =
           new WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<>(
-              startInput, updateOperation);
+              startInput, updateInput);
+
       WorkflowClientCallsInterceptor.WorkflowUpdateWithStartOutput<R> output =
           workflowClientInvoker.updateWithStart(input);
+
+      // gather outputs
       workflowExecution = output.getWorkflowStartOutput().getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
-      WorkflowUpdateHandle<R> updateHandle = output.getUpdateHandle();
-      updateOperation.setUpdateHandle(updateHandle);
-      return updateHandle;
+      return output.getUpdateHandle();
     } catch (StatusRuntimeException e) {
       throw wrapStartException(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {
       if (workflowExecution == null) {
-        // if start failed with exception - there could be no valid workflow execution populated
-        // from the server.
-        // WorkflowServiceException requires not null workflowExecution, so we have to provide
-        // an WorkflowExecution instance with just a workflowId
+        // If start failed with exception there could be no valid workflow execution populated
+        // from the server. WorkflowServiceException requires not null WorkflowExecution, so we have
+        // to provide a WorkflowExecution instance with just a workflowId.
         workflowExecution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
       }
       throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     }
+  }
+
+  @Override
+  public <R> R executeUpdateWithStart(
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
+    updateOptions.validateWaitForCompleted();
+    UpdateOptions<R> optionsWithWaitStageCompleted =
+        updateOptions.toBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
+    return startUpdateWithStart(optionsWithWaitStageCompleted, updateArgs, startArgs).getResult();
   }
 
   private WorkflowExecution signalWithStartWithOptions(
@@ -372,28 +390,36 @@ class WorkflowStubImpl implements WorkflowStub {
     options.validate();
     WorkflowExecution targetExecution = execution.get();
     try {
-      String updateId =
-          Strings.isNullOrEmpty(options.getUpdateId())
-              ? UUID.randomUUID().toString()
-              : options.getUpdateId();
-      return workflowClientInvoker.startUpdate(
-          new WorkflowClientCallsInterceptor.StartUpdateInput<>(
-              targetExecution,
-              workflowType,
-              options.getUpdateName(),
-              Header.empty(),
-              updateId,
-              args,
-              options.getResultClass(),
-              options.getResultType(),
-              options.getFirstExecutionRunId(),
-              WaitPolicy.newBuilder()
-                  .setLifecycleStage(options.getWaitForStage().getProto())
-                  .build()));
+      WorkflowClientCallsInterceptor.StartUpdateInput<R> input =
+          startUpdateInput(options, args, targetExecution);
+      return workflowClientInvoker.startUpdate(input);
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), throwable);
     }
+  }
+
+  private <R> WorkflowClientCallsInterceptor.StartUpdateInput<R> startUpdateInput(
+      UpdateOptions<R> options, Object[] args, WorkflowExecution targetExecution) {
+    String updateId =
+        Strings.isNullOrEmpty(options.getUpdateId())
+            ? UUID.randomUUID().toString()
+            : options.getUpdateId();
+    WorkflowClientCallsInterceptor.StartUpdateInput<R> input =
+        new WorkflowClientCallsInterceptor.StartUpdateInput<>(
+            targetExecution,
+            workflowType,
+            options.getUpdateName(),
+            Header.empty(),
+            updateId,
+            args,
+            options.getResultClass(),
+            options.getResultType(),
+            options.getFirstExecutionRunId(),
+            WaitPolicy.newBuilder()
+                .setLifecycleStage(options.getWaitForStage().getProto())
+                .build());
+    return input;
   }
 
   @Override

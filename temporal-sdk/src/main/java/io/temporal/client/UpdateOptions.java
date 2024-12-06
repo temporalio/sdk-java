@@ -154,6 +154,13 @@ public final class UpdateOptions<T> {
     }
   }
 
+  void validateWaitForCompleted() {
+    if (waitForStage != null && waitForStage != WorkflowUpdateStage.COMPLETED) {
+      throw new IllegalArgumentException(
+          "waitForStage must be unspecified or " + WorkflowUpdateStage.COMPLETED);
+    }
+  }
+
   public static final class Builder<T> {
     private String updateName;
     private String updateId;

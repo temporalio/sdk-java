@@ -658,6 +658,37 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return startUpdate(() -> updateMethod.apply(arg1, arg2, arg3, arg4, arg5, arg6), options);
   }
 
+  public static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      Functions.Proc updateMethod,
+      UpdateOptions<R> updateOptions,
+      WithStartWorkflowOperation<?> startOp) {
+    enforceNonWorkflowThread();
+    WorkflowInvocationHandler.initAsyncInvocation(
+        InvocationType.UPDATE_WITH_START,
+        new WorkflowInvocationHandler.UpdateWithStartOptions(updateOptions, startOp));
+    try {
+      updateMethod.apply();
+
+      if (startOp.getStartMethod() != null) { // only present when using typed API
+        startOp.getStartMethod().apply();
+      }
+
+      return WorkflowInvocationHandler.getAsyncInvocationResult(WorkflowUpdateHandle.class);
+    } finally {
+      WorkflowInvocationHandler.closeAsyncInvocation();
+    }
+  }
+
+  public static <R> R executeUpdateWithStart(
+      Functions.Proc updateMethod,
+      UpdateOptions<R> updateOptions,
+      WithStartWorkflowOperation<?> startOp) {
+    updateOptions.validateWaitForCompleted();
+    UpdateOptions<R> optionsWithWaitStageCompleted =
+        updateOptions.toBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build();
+    return startUpdateWithStart(updateMethod, optionsWithWaitStageCompleted, startOp).getResult();
+  }
+
   Stream<HistoryEvent> streamHistory(WorkflowExecution execution) {
     Preconditions.checkNotNull(execution, "execution is required");
 

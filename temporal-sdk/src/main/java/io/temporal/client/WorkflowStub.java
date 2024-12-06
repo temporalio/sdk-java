@@ -22,6 +22,7 @@ package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.common.Experimental;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
@@ -157,16 +158,35 @@ public interface WorkflowStub {
   WorkflowExecution start(Object... args);
 
   /**
-   * Execute a workflow together with an update workflow request.
+   * Asynchronously update a workflow execution by invoking its update handler, and start the
+   * workflow according to the option's {@link WorkflowIdConflictPolicy}. It returns a handle to the
+   * update request. If {@link WorkflowUpdateStage#COMPLETED} is specified, in the options, the
+   * handle will not be returned until the update is completed.
    *
-   * @param updateOperation update workflow operation
+   * @param updateOptions options that will be used to configure and start a new update request
+   * @param updateArgs update method arguments
    * @param startArgs workflow start arguments
    * @param <R> type of the update workflow result
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
   @Experimental
-  <R> WorkflowUpdateHandle<R> updateWithStart(
-      UpdateWithStartWorkflowOperation<R> updateOperation, Object... startArgs);
+  <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
+
+  /**
+   * Synchronously update a workflow execution by invoking its update handler, and start the
+   * workflow according to the option's {@link WorkflowIdConflictPolicy}. It returns the update
+   * result.
+   *
+   * @param updateOptions options that will be used to configure and start a new update request
+   * @param updateArgs update method arguments
+   * @param startArgs workflow start arguments
+   * @param <R> type of the update workflow result
+   * @return update result
+   */
+  @Experimental
+  <R> R executeUpdateWithStart(
+      UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 

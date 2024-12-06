@@ -29,6 +29,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.update.v1.Input;
@@ -60,21 +61,22 @@ public class MultiOperationTest {
   @Test
   public void startAndUpdate() throws ExecutionException, InterruptedException {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
-    String workflowId = UUID.randomUUID().toString();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
+            .setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
             .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setWorkflowId(workflowId)
+            .setWorkflowId(UUID.randomUUID().toString())
             .build();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
-    UpdateWithStartWorkflowOperation<Void> updateOp =
-        UpdateWithStartWorkflowOperation.newBuilder(
-                workflow::update, TestWorkflows.UpdateType.COMPLETE)
-            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
-            .build();
+    WithStartWorkflowOperation<String> startOp =
+        new WithStartWorkflowOperation<>(workflow::execute);
     WorkflowUpdateHandle<Void> updHandle =
-        WorkflowClient.updateWithStart(workflow::execute, updateOp);
+        WorkflowClient.startUpdateWithStart(
+            workflow::update,
+            TestWorkflows.UpdateType.COMPLETE,
+            UpdateOptions.<Void>newBuilder().setWaitForStage(WorkflowUpdateStage.COMPLETED).build(),
+            startOp);
     assertNull(updHandle.getResultAsync().get());
   }
 
