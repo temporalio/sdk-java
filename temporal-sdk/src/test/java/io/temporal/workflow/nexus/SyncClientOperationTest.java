@@ -70,8 +70,8 @@ public class SyncClientOperationTest {
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "registerUpdateHandlers update",
             "newThread workflow-method",
-            "executeNexusOperation TestNexusService1.operation",
-            "startNexusOperation TestNexusService1.operation");
+            "executeNexusOperation TestNexusService1 operation",
+            "startNexusOperation TestNexusService1 operation");
     // Test metrics all tasks should have
     Map<String, String> nexusWorkerTags =
         ImmutableMap.<String, String>builder()

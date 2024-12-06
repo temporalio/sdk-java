@@ -197,7 +197,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
         ExecuteNexusOperationInput<R> input) {
       if (!WorkflowUnsafe.isReplaying()) {
-        trace.add("executeNexusOperation " + input.getService() + "." + input.getOperation());
+        trace.add("executeNexusOperation " + input.getService() + " " + input.getOperation());
       }
       return next.executeNexusOperation(input);
     }
@@ -499,7 +499,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       trace.add(
           "startNexusOperation "
               + input.getOperationContext().getService()
-              + "."
+              + " "
               + input.getOperationContext().getOperation());
       return next.startOperation(input);
     }
@@ -509,7 +509,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       trace.add(
           "cancelNexusOperation "
               + input.getOperationContext().getService()
-              + "."
+              + " "
               + input.getOperationContext().getOperation());
       return next.cancelOperation(input);
     }

@@ -65,9 +65,9 @@ public class CancelAsyncOperationTest {
         .setExpected(
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
-            "executeNexusOperation TestNexusService1.operation",
-            "startNexusOperation TestNexusService1.operation",
-            "cancelNexusOperation TestNexusService1.operation");
+            "executeNexusOperation TestNexusService1 operation",
+            "startNexusOperation TestNexusService1 operation",
+            "cancelNexusOperation TestNexusService1 operation");
   }
 
   @Test
@@ -85,13 +85,13 @@ public class CancelAsyncOperationTest {
         .setExpected(
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
-            "executeNexusOperation TestNexusService1.operation",
-            "startNexusOperation TestNexusService1.operation",
+            "executeNexusOperation TestNexusService1 operation",
+            "startNexusOperation TestNexusService1 operation",
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "registerSignalHandlers unblock",
             "newThread workflow-method",
             "await await",
-            "cancelNexusOperation TestNexusService1.operation");
+            "cancelNexusOperation TestNexusService1 operation");
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
