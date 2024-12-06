@@ -20,7 +20,7 @@
 
 package io.temporal.workflow.nexus;
 
-import static org.junit.Assume.assumeTrue;
+import static org.junit.Assume.assumeFalse;
 
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
@@ -51,7 +51,7 @@ public class CancelAsyncOperationTest {
 
   @Before
   public void checkRealServer() {
-    assumeTrue(
+    assumeFalse(
         "Test flakes on real server because of delays in the Nexus Registry",
         SDKTestWorkflowRule.useExternalService);
   }
