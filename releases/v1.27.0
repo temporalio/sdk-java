@@ -4,39 +4,39 @@
 
 ### WorkflowClient
 
-- `WorkflowClient.updateWithStart`  has been renamed to `WorkflowClient.startUpdateWithStart`.
-- Instead of taking the workflow method, workflow arguments and a `UpdateWithStartWorkflowOperation` , `WorkflowClient.startUpdateWithStart`  now takes the update method, update arguments and a `WithStartWorkflowOperation` . `WithStartWorkflowOperation` holds to the workflow method and workflow arguments to be executed together with the update request.
+- `WorkflowClient.updateWithStart` has been renamed to `WorkflowClient.startUpdateWithStart`.
+- Instead of taking the workflow method, workflow arguments and a `UpdateWithStartWorkflowOperation`, `WorkflowClient.startUpdateWithStart` now takes the update method, update arguments and a `WithStartWorkflowOperation`. `WithStartWorkflowOperation` contains the workflow method and workflow arguments to be executed together with the update request.
 
 ### WorkflowStub
 
-- `WorkflowStub.updateWithStart`  has been renamed to `WorkflowStub.startUpdateWithStart`
-- `WorkflowStub.startUpdateWithStart`  now just takes the `UpdateOptions`, update arguments and workflow arguments
+- `WorkflowStub.updateWithStart` has been renamed to `WorkflowStub.startUpdateWithStart`.
+- `WorkflowStub.startUpdateWithStart` now just takes the `UpdateOptions`, update arguments and workflow arguments.
 
 ## Update **(Public Preview)**
 
-- The SDK now preforms more rigorous type validation when registering a Workflow with an `@UpdateValidatorMethod` to make sure the type parameters match the linked `@UpdateMethod`
-- The SDK will no longer sometimes throw `WorkflowUpdateException`  when calling `WorkflowStub.startUpdate`  if the update is rejected. `WorkflowUpdateException`  is now consistently throw when getting the result of the update
-- `UpdateOptionsBuilder`  no longer generates a update ID when built. Now a unique UUID is generated when the options are used. This is similar to how `WorkflowOptions`  and workflow ID work.
+- The SDK now preforms more rigorous type validation when registering a Workflow with an `@UpdateValidatorMethod` to make sure the type parameters match the linked `@UpdateMethod`.
+- The SDK will no longer sometimes throw `WorkflowUpdateException`  when calling `WorkflowStub.startUpdate`  if the update is rejected. `WorkflowUpdateException` is now consistently throw when getting the result of the update
+- `UpdateOptionsBuilder` no longer generates a update ID when built. Now a unique UUID is generated when the options are used. This is similar to how `WorkflowOptions` and workflow ID work.
 
 ## Nexus **(Public Preview)**
 
-- Workflow started by a Nexus operation now require the Workflow ID to be specified
-- The SDK now preforms more rigorous type validation when registering a Nexus Service to make sure it implements the service properly
+- Workflow started by a Nexus operation now require the Workflow ID to be specified in the `WorkflowOptions`.
+- The SDK now preforms more rigorous type validation when registering a Nexus Service to make sure it implements the service properly.
 - All header maps for Nexus operations are now properly case-insensitive.
 
 # **Highlights**
 
 ## Virtual Threads **(Public Preview)**
 
-The Java SDK now has experimental support for virtual threads when using a JVM with a version of 21 or higher. Virtual threads can be used inside workflows by enabling `WorkerFactoryOptions.setUsingVirtualWorkflowThreads` . Users can also use virtual threads for task processing in a worker by enabling `WorkerOptions.setUsingVirtualThreads` .
+The Java SDK now has experimental support for virtual threads when using a JVM with a version of 21 or higher. Virtual threads can be used inside workflows by enabling `WorkerFactoryOptions.setUsingVirtualWorkflowThreads`. Users can also use virtual threads for task processing in a worker by enabling `WorkerOptions.setUsingVirtualThreads`.
 
 ## Nexus **(Public Preview)**
 
-`WorkerInterceptor`  now has support for intercepting Nexus workers.
+`WorkerInterceptor` now has support for intercepting Nexus workers.
 
 ## Update **(Public Preview)**
 
-`WorkflowClient` now has a set of static methods called `startUpdate`  that can be used to start an update, but not immediately wait on the result. This is a type safe analog to `WorkflowStub.startUpdate`.
+`WorkflowClient` now has a set of static methods called `startUpdate` that can be used to start an update, but not immediately wait on the result. This is a type safe analog to `WorkflowStub.startUpdate`.
 
 ## Workflow Metadata **(Public Preview)**
 
