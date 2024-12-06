@@ -35,8 +35,11 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.junit.Assume.assumeTrue;
 
 public class CancelAsyncOperationTest {
   @Rule
@@ -46,6 +49,11 @@ public class CancelAsyncOperationTest {
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
 
+  @Before
+  public void checkRealServer() {
+    assumeTrue(
+            "Test flakes on real server because of delays in the Nexus Registry", SDKTestWorkflowRule.useExternalService);
+  }
   @Test
   public void asyncOperationImmediatelyCancelled() {
     TestWorkflows.TestWorkflow1 workflowStub =
