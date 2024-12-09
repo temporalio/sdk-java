@@ -33,6 +33,7 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
@@ -77,7 +78,11 @@ public class SyncOperationFailTest {
             .put(MetricsTag.NEXUS_OPERATION, "operation")
             .put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed")
             .buildKeepingLast();
-    reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 4);
+    Eventually.assertEventually(
+        Duration.ofSeconds(1),
+        () -> {
+          reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 4);
+        });
   }
 
   public static class TestNexus implements TestWorkflow1 {

@@ -42,9 +42,7 @@ import io.temporal.opentracing.OpenTracingSpanContextCodec;
 import io.temporal.opentracing.OpenTracingWorkerInterceptor;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.List;
 import org.junit.After;
@@ -55,7 +53,7 @@ public class JaegerTest {
 
   private final InMemoryReporter reporter = new InMemoryReporter();
   private final Sampler sampler = new ConstSampler(true);
-  ;
+
   private final Tracer tracer =
       new JaegerTracer.Builder("temporal-test").withReporter(reporter).withSampler(sampler).build();
 

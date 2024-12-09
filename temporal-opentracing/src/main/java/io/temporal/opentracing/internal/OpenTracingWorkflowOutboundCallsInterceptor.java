@@ -101,6 +101,25 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   }
 
   @Override
+  public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
+      ExecuteNexusOperationInput<R> input) {
+    if (!WorkflowUnsafe.isReplaying()) {
+      Span nexusOperationExecuteSpan =
+          contextAccessor.writeSpanContextToHeader(
+              () -> createStartNexusOperationSpanBuilder(input).start(),
+              input.getHeaders(),
+              tracer);
+      try (Scope ignored = tracer.scopeManager().activate(nexusOperationExecuteSpan)) {
+        return super.executeNexusOperation(input);
+      } finally {
+        nexusOperationExecuteSpan.finish();
+      }
+    } else {
+      return super.executeNexusOperation(input);
+    }
+  }
+
+  @Override
   public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
     if (!WorkflowUnsafe.isReplaying()) {
       WorkflowInfo workflowInfo = Workflow.getInfo();
@@ -172,6 +191,17 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
         input.getWorkflowType(),
         input.getWorkflowId(),
         Workflow.currentTimeMillis(),
+        parentWorkflowInfo.getWorkflowId(),
+        parentWorkflowInfo.getRunId());
+  }
+
+  private <R> Tracer.SpanBuilder createStartNexusOperationSpanBuilder(
+      ExecuteNexusOperationInput<R> input) {
+    WorkflowInfo parentWorkflowInfo = Workflow.getInfo();
+    return spanFactory.createStartNexusOperationSpan(
+        tracer,
+        input.getService(),
+        input.getOperation(),
         parentWorkflowInfo.getWorkflowId(),
         parentWorkflowInfo.getRunId());
   }

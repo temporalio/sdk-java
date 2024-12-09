@@ -21,6 +21,7 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
+import io.nexusrpc.Header;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -28,6 +29,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +81,20 @@ public final class InternalUtils {
       throw new IllegalArgumentException(
           "WorkflowId is expected to be set on WorkflowOptions when used with Nexus");
     }
+    // Add the Nexus operation ID to the headers if it is not already present to support fabricating
+    // a NexusOperationStarted event if the completion is received before the response to a
+    // StartOperation request.
+    Map<String, String> headers =
+        request.getCallbackHeaders().entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    (k) -> k.getKey().toLowerCase(),
+                    Map.Entry::getValue,
+                    (a, b) -> a,
+                    () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
+    if (!headers.containsKey(Header.OPERATION_ID)) {
+      headers.put(Header.OPERATION_ID.toLowerCase(), options.getWorkflowId());
+    }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)
             .setRequestId(request.getRequestId())
@@ -87,7 +104,7 @@ public final class InternalUtils {
                         .setNexus(
                             Callback.Nexus.newBuilder()
                                 .setUrl(request.getCallbackUrl())
-                                .putAllHeader(request.getCallbackHeaders())
+                                .putAllHeader(headers)
                                 .build())
                         .build()));
     if (options.getTaskQueue() == null) {
