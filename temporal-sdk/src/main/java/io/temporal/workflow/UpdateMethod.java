@@ -20,7 +20,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -34,7 +33,6 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-@Experimental
 public @interface UpdateMethod {
   /**
    * Name of the update handler. Default is method name.

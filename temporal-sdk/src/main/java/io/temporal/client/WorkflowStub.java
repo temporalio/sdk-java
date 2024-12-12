@@ -90,7 +90,6 @@ public interface WorkflowStub {
    * @throws WorkflowServiceException for all other failures including networking and service
    *     availability issues.
    */
-  @Experimental
   <R> R update(String updateName, Class<R> resultClass, Object... args);
 
   /**
@@ -109,7 +108,6 @@ public interface WorkflowStub {
    * @throws WorkflowServiceException for all other failures including networking and service
    *     availability issues.
    */
-  @Experimental
   <R> WorkflowUpdateHandle<R> startUpdate(
       String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args);
 
@@ -125,7 +123,6 @@ public interface WorkflowStub {
    * @throws WorkflowServiceException for all other failures including networking and service
    *     availability issues.
    */
-  @Experimental
   <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args);
 
   /**
@@ -137,7 +134,6 @@ public interface WorkflowStub {
    * @param <R> type of the update return value.
    * @return update handle that can be used to get the result of the update.
    */
-  @Experimental
   <R> WorkflowUpdateHandle<R> getUpdateHandle(String updateId, Class<R> resultClass);
 
   /**
@@ -151,7 +147,6 @@ public interface WorkflowStub {
    * @param resultType type of the update return value. Differs from resultClass for generic types.
    * @return update handle that can be used to get the result of the update.
    */
-  @Experimental
   <R> WorkflowUpdateHandle<R> getUpdateHandle(
       String updateId, Class<R> resultClass, Type resultType);
 

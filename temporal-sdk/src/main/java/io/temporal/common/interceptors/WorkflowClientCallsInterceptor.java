@@ -85,10 +85,8 @@ public interface WorkflowClientCallsInterceptor {
 
   <R> QueryOutput<R> query(QueryInput<R> input);
 
-  @Experimental
   <R> WorkflowUpdateHandle<R> startUpdate(StartUpdateInput<R> input);
 
-  @Experimental
   <R> PollWorkflowUpdateOutput<R> pollWorkflowUpdate(PollWorkflowUpdateInput<R> input);
 
   CancelOutput cancel(CancelInput input);
@@ -428,7 +426,6 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class StartUpdateInput<R> {
     private final WorkflowExecution workflowExecution;
     private final Optional<String> workflowType;
@@ -505,7 +502,6 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class PollWorkflowUpdateInput<R> {
     private final WorkflowExecution workflowExecution;
     private long timeout;
@@ -561,7 +557,6 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class PollWorkflowUpdateOutput<R> {
     private final CompletableFuture<R> result;
 

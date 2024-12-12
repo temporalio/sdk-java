@@ -222,13 +222,11 @@ public final class POJOWorkflowImplMetadata {
   }
 
   /** List of update methods an object implements across all the workflow interfaces. */
-  @Experimental
   public List<POJOWorkflowMethodMetadata> getUpdateMethods() {
     return updateMethods;
   }
 
   /** List of update validator methods an object implements across all the workflow interfaces. */
-  @Experimental
   public List<POJOWorkflowMethodMetadata> getUpdateValidatorMethods() {
     return updateValidatorMethods;
   }

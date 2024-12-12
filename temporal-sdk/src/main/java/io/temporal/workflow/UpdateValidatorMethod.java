@@ -20,7 +20,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -36,7 +35,6 @@ import javax.annotation.Nonnull;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-@Experimental
 public @interface UpdateValidatorMethod {
 
   /**

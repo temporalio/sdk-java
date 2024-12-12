@@ -143,7 +143,6 @@ public interface WorkflowInboundCallsInterceptor {
     }
   }
 
-  @Experimental
   final class UpdateInput {
     private final String updateName;
     private final Header header;
@@ -168,7 +167,6 @@ public interface WorkflowInboundCallsInterceptor {
     }
   }
 
-  @Experimental
   final class UpdateOutput {
     private final Object result;
 
@@ -212,14 +210,12 @@ public interface WorkflowInboundCallsInterceptor {
    * Called when update workflow execution request is delivered to a workflow execution, before the
    * update is executed.
    */
-  @Experimental
   void validateUpdate(UpdateInput input);
 
   /**
    * Called when update workflow execution request is delivered to a workflow execution, after
    * passing the validator.
    */
-  @Experimental
   UpdateOutput executeUpdate(UpdateInput input);
 
   /**
