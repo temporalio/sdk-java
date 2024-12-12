@@ -39,11 +39,9 @@ public interface GenericWorkflowClient {
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryParameters);
 
-  @Experimental
   UpdateWorkflowExecutionResponse update(
       @Nonnull UpdateWorkflowExecutionRequest updateParameters, @Nonnull Deadline deadline);
 
-  @Experimental
   CompletableFuture<PollWorkflowExecutionUpdateResponse> pollUpdateAsync(
       @Nonnull PollWorkflowExecutionUpdateRequest request, @Nonnull Deadline deadline);
 

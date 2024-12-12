@@ -552,7 +552,6 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  @Experimental
   final class UpdateRegistrationRequest {
     private final String updateName;
     private final String description;
@@ -626,7 +625,6 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  @Experimental
   final class RegisterUpdateHandlersInput {
     private final List<UpdateRegistrationRequest> requests;
 
@@ -718,7 +716,6 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  @Experimental
   final class RegisterDynamicUpdateHandlerInput {
     private final DynamicUpdateHandler handler;
 
@@ -769,14 +766,12 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void registerSignalHandlers(RegisterSignalHandlersInput input);
 
-  @Experimental
   void registerUpdateHandlers(RegisterUpdateHandlersInput input);
 
   void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput handler);
 
   void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input);
 
-  @Experimental
   void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input);
 
   UUID randomUUID();

@@ -23,11 +23,9 @@ package io.temporal.internal.client;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowUpdateException;
 import io.temporal.client.WorkflowUpdateHandle;
-import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-@Experimental
 public final class CompletedWorkflowUpdateHandleImpl<T> implements WorkflowUpdateHandle<T> {
 
   private final String id;

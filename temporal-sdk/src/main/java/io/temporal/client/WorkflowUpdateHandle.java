@@ -21,7 +21,6 @@
 package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -29,7 +28,6 @@ import java.util.concurrent.TimeUnit;
  * WorkflowUpdateHandle is a handle to an update workflow execution request that can be used to get
  * the status of that update request.
  */
-@Experimental
 public interface WorkflowUpdateHandle<T> {
   /**
    * Gets the workflow execution this update request was sent to.

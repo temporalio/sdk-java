@@ -25,13 +25,11 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowUpdateHandle;
-import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Type;
 import java.util.concurrent.*;
 
-@Experimental
 public final class LazyWorkflowUpdateHandleImpl<T> implements WorkflowUpdateHandle<T> {
 
   private final WorkflowClientCallsInterceptor workflowClientInvoker;
