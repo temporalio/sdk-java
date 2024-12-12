@@ -200,6 +200,66 @@ public class NexusWorkflowTest {
   }
 
   @Test
+  public void testNexusOperationAsyncCompletionBeforeStart() {
+    WorkflowStub callerStub = newWorkflowStub("TestNexusOperationAsyncCompletionWorkflow");
+    WorkflowExecution callerExecution = callerStub.start();
+
+    // Get first WFT and respond with ScheduleNexusOperation command
+    PollWorkflowTaskQueueResponse callerTask = pollWorkflowTask();
+    completeWorkflowTask(callerTask.getTaskToken(), newScheduleOperationCommand());
+
+    // Poll for Nexus task with start request but do not complete it
+    Request startReq;
+    try {
+      startReq = pollNexusTask().get().getRequest();
+    } catch (Exception e) {
+      Assert.fail(e.getMessage());
+      return;
+    }
+
+    // Manually start handler WF with callback
+    TaskQueue handlerWFTaskQueue = TaskQueue.newBuilder().setName("nexus-handler-tq").build();
+    testWorkflowRule
+        .getWorkflowClient()
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .startWorkflowExecution(
+            StartWorkflowExecutionRequest.newBuilder()
+                .setRequestId(UUID.randomUUID().toString())
+                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                .setWorkflowId("TestNexusOperationAsyncHandlerWorkflow")
+                .setWorkflowType(WorkflowType.newBuilder().setName("EchoNexusHandlerWorkflowImpl"))
+                .setTaskQueue(handlerWFTaskQueue)
+                .setInput(Payloads.newBuilder().addPayloads(defaultInput))
+                .setIdentity("test")
+                .addAllLinks(
+                    startReq.getStartOperation().getLinksList().stream()
+                        .map(LinkConverter::nexusLinkToWorkflowEvent)
+                        .collect(Collectors.toList()))
+                .addCompletionCallbacks(
+                    Callback.newBuilder()
+                        .setNexus(
+                            Callback.Nexus.newBuilder()
+                                .setUrl(startReq.getStartOperation().getCallback())
+                                .putAllHeader(startReq.getStartOperation().getCallbackHeaderMap())))
+                .build());
+
+    // Complete handler workflow
+    PollWorkflowTaskQueueResponse handlerTask = pollWorkflowTask(handlerWFTaskQueue);
+    completeWorkflow(
+        handlerTask.getTaskToken(),
+        Payload.newBuilder().setData(ByteString.copyFromUtf8("operation result")).build());
+
+    // Verify operation start and completion are recorded and triggers caller workflow progress
+    callerTask = pollWorkflowTask();
+    testWorkflowRule.assertHistoryEvent(
+        callerExecution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED);
+    testWorkflowRule.assertHistoryEvent(
+        callerExecution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED);
+    completeWorkflow(callerTask.getTaskToken());
+  }
+
+  @Test
   public void testNexusOperationAsyncHandlerCanceled() {
     String operationId = UUID.randomUUID().toString();
     CompletableFuture<Request> nexusPoller =
