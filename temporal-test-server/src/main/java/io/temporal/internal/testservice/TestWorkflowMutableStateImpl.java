@@ -21,6 +21,7 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.*;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.StateMachines.*;
 import static io.temporal.internal.testservice.StateUtils.mergeMemo;
@@ -1711,9 +1712,24 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         log.warn("skipping non-nexus completion callback");
         continue;
       }
+
       String serializedRef = cb.getNexus().getHeaderOrThrow("operation-reference");
       NexusOperationRef ref = NexusOperationRef.fromBytes(serializedRef.getBytes());
-      service.completeNexusOperation(ref, completionEvent.get());
+
+      io.temporal.api.nexus.v1.Link startLink =
+          workflowEventToNexusLink(
+              Link.WorkflowEvent.newBuilder()
+                  .setNamespace(ctx.getNamespace())
+                  .setWorkflowId(ctx.getExecution().getWorkflowId())
+                  .setRunId(ctx.getExecution().getRunId())
+                  .setEventRef(
+                      Link.WorkflowEvent.EventReference.newBuilder()
+                          .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+                          .build())
+                  .build());
+
+      service.completeNexusOperation(
+          ref, ctx.getExecution().getWorkflowId(), startLink, completionEvent.get());
     }
   }
 
@@ -2245,6 +2261,32 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           StateMachine<NexusOperationData> operation =
               getPendingNexusOperation(ref.getScheduledEventId());
+          operation.action(Action.COMPLETE, ctx, result, 0);
+          nexusOperations.remove(ref.getScheduledEventId());
+          scheduleWorkflowTask(ctx);
+          ctx.unlockTimer("completeNexusOperation");
+        });
+  }
+
+  @Override
+  public void completeAsyncNexusOperation(
+      NexusOperationRef ref,
+      Payload result,
+      String operationID,
+      io.temporal.api.nexus.v1.Link startLink) {
+    update(
+        ctx -> {
+          StateMachine<NexusOperationData> operation =
+              getPendingNexusOperation(ref.getScheduledEventId());
+          if (operation.getState() == State.INITIATED) {
+            // Received completion before start, so fabricate started event.
+            StartOperationResponse.Async start =
+                StartOperationResponse.Async.newBuilder()
+                    .setOperationId(operationID)
+                    .addLinks(startLink)
+                    .build();
+            operation.action(Action.START, ctx, start, 0);
+          }
           operation.action(Action.COMPLETE, ctx, result, 0);
           nexusOperations.remove(ref.getScheduledEventId());
           scheduleWorkflowTask(ctx);

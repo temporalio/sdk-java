@@ -28,6 +28,7 @@ import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
@@ -115,6 +116,9 @@ interface TestWorkflowMutableState {
   void cancelNexusOperation(NexusOperationRef ref, Failure failure);
 
   void completeNexusOperation(NexusOperationRef ref, Payload result);
+
+  void completeAsyncNexusOperation(
+      NexusOperationRef ref, Payload result, String operationID, Link startLink);
 
   void failNexusOperation(NexusOperationRef ref, Failure failure);
 
