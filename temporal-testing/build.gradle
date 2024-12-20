@@ -1,5 +1,6 @@
 plugins {
     id 'application'
+    id 'org.graalvm.buildtools.native' version '0.10.4'
 }
 
 description = '''Temporal Workflow Java SDK testing'''
@@ -31,6 +32,18 @@ dependencies {
 
     testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter'
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
+
+graalvmNative {
+    // Dependency resolution is looking for a library compatible with JVM runtime version 8,
+    // but 'org.graalvm.buildtools:junit-platform-native:0.10.4' is only compatible with JVM runtime version 11 or newer.
+    testSupport = false
+
+    agent {
+        metadataCopy {
+            outputDirectories.add("temporal-test-server/src/main/resources/META-INF/native-image/io.temporal/temporal-test-server")
+        }
+    }
 }
 
 test {
