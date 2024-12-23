@@ -79,4 +79,16 @@ subprojects {
             println ""
         }
     }
+    afterEvaluate { subproject ->
+        jar {
+            manifest {
+                attributes(
+                        "Implementation-Title": subproject.description,
+                        "Implementation-Version": subproject.version,
+                        "Implementation-Vendor": "Temporal Technologies Inc.",
+                        'Build-Time': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                )
+            }
+        }
+    }
 }
