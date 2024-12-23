@@ -46,12 +46,17 @@ public interface ManualActivityCompletionClient {
    */
   void fail(@Nonnull Throwable failure);
 
+  /**
+   * Records heartbeat for an activity
+   *
+   * @param details to record with the heartbeat
+   */
   void recordHeartbeat(@Nullable Object details) throws CanceledFailure;
 
   /**
    * Confirms successful cancellation to the server.
    *
-   * @param details
+   * @param details to record with the cancellation
    */
   void reportCancellation(@Nullable Object details);
 }
