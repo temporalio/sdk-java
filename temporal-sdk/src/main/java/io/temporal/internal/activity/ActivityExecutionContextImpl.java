@@ -45,7 +45,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @see ActivityExecutionContext
  */
 @ThreadSafe
-class ActivityExecutionContextImpl implements ActivityExecutionContext {
+class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final Lock lock = new ReentrantLock();
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
@@ -164,5 +164,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   @Override
   public ActivityInfo getInfo() {
     return info;
+  }
+
+  @Override
+  public Object getLastHeartbeatValue() {
+    return heartbeatContext.getLastHeartbeatDetails();
   }
 }
