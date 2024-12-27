@@ -125,6 +125,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setWorkflowExecution(input.getWorkflowExecution())
             .setIdentity(clientOptions.getIdentity())
             .setNamespace(clientOptions.getNamespace())
+            .setRequestId(UUID.randomUUID().toString())
             .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
 
     DataConverter dataConverterWitSignalContext =
