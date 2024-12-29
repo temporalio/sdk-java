@@ -25,14 +25,14 @@ import java.util.Optional;
 
 public class NexusOperationExecutionImpl implements NexusOperationExecution {
 
-  private final Optional<String> operationId;
+  private final Optional<String> operationToken;
 
-  public NexusOperationExecutionImpl(Optional<String> operationId) {
-    this.operationId = operationId;
+  public NexusOperationExecutionImpl(Optional<String> operationToken) {
+    this.operationToken = operationToken;
   }
 
   @Override
-  public Optional<String> getOperationId() {
-    return operationId;
+  public Optional<String> getOperationToken() {
+    return operationToken;
   }
 }

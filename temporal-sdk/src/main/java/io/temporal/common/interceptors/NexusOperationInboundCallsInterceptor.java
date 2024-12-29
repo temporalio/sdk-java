@@ -20,7 +20,7 @@
 
 package io.temporal.common.interceptors;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.common.Experimental;
 
@@ -103,10 +103,9 @@ public interface NexusOperationInboundCallsInterceptor {
    *
    * @param input input to the operation start.
    * @return result of the operation start.
-   * @throws OperationUnsuccessfulException if the operation start failed.
+   * @throws io.nexusrpc.OperationException if the operation start failed.
    */
-  StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException;
+  StartOperationOutput startOperation(StartOperationInput input) throws OperationException;
 
   /**
    * Intercepts a call to cancel a Nexus operation.

@@ -23,10 +23,11 @@ package io.temporal.failure;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
-import io.nexusrpc.handler.OperationHandlerException;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.failure.v1.*;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
@@ -73,12 +74,14 @@ public final class DefaultFailureConverter implements FailureConverter {
 
   @Override
   @Nonnull
-  public TemporalFailure failureToException(
+  public RuntimeException failureToException(
       @Nonnull Failure failure, @Nonnull DataConverter dataConverter) {
     Preconditions.checkNotNull(failure, "failure");
     Preconditions.checkNotNull(dataConverter, "dataConverter");
-    TemporalFailure result = failureToExceptionImpl(failure, dataConverter);
-    result.setFailure(failure);
+    RuntimeException result = failureToExceptionImpl(failure, dataConverter);
+    if (result instanceof TemporalFailure) {
+      ((TemporalFailure) result).setFailure(failure);
+    }
     if (failure.getSource().equals(JAVA_SDK) && !failure.getStackTrace().isEmpty()) {
       StackTraceElement[] stackTrace = parseStackTrace(failure.getStackTrace());
       result.setStackTrace(stackTrace);
@@ -86,8 +89,8 @@ public final class DefaultFailureConverter implements FailureConverter {
     return result;
   }
 
-  private TemporalFailure failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
-    TemporalFailure cause =
+  private RuntimeException failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
+    Exception cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:
@@ -185,8 +188,22 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.getEndpoint(),
               info.getService(),
               info.getOperation(),
-              info.getOperationId(),
+              info.getOperationToken().isEmpty() ? info.getOperationId() : info.getOperationToken(),
               cause);
+        }
+      case NEXUS_HANDLER_FAILURE_INFO:
+        {
+          NexusHandlerFailureInfo info = failure.getNexusHandlerFailureInfo();
+          HandlerException.RetryBehavior retryBehavior = HandlerException.RetryBehavior.UNSPECIFIED;
+          switch (info.getRetryBehavior()) {
+            case NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE:
+              retryBehavior = HandlerException.RetryBehavior.RETRYABLE;
+              break;
+            case NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE:
+              retryBehavior = HandlerException.RetryBehavior.NON_RETRYABLE;
+              break;
+          }
+          return new HandlerException(info.getType(), cause, retryBehavior);
         }
       case FAILUREINFO_NOT_SET:
       default:
@@ -303,16 +320,34 @@ public final class DefaultFailureConverter implements FailureConverter {
       failure.setCanceledFailureInfo(info);
     } else if (throwable instanceof NexusOperationFailure) {
       NexusOperationFailure no = (NexusOperationFailure) throwable;
-      NexusOperationFailureInfo.Builder info =
+      NexusOperationFailureInfo.Builder op =
           NexusOperationFailureInfo.newBuilder()
               .setScheduledEventId(no.getScheduledEventId())
               .setEndpoint(no.getEndpoint())
               .setService(no.getService())
               .setOperation(no.getOperation())
-              .setOperationId(no.getOperationId());
-      failure.setNexusOperationExecutionFailureInfo(info);
-    } else if (OperationHandlerException) {
-
+              .setOperationId(no.getOperationToken())
+              .setOperationToken(no.getOperationToken());
+      failure.setNexusOperationExecutionFailureInfo(op);
+    } else if (throwable instanceof HandlerException) {
+      HandlerException he = (HandlerException) throwable;
+      NexusHandlerErrorRetryBehavior retryBehavior =
+          NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_UNSPECIFIED;
+      switch (he.getRetryBehavior()) {
+        case RETRYABLE:
+          retryBehavior =
+              NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE;
+          break;
+        case NON_RETRYABLE:
+          retryBehavior =
+              NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE;
+          break;
+      }
+      NexusHandlerFailureInfo.Builder info =
+          NexusHandlerFailureInfo.newBuilder()
+              .setType(he.getRawErrorType())
+              .setRetryBehavior(retryBehavior);
+      failure.setNexusHandlerFailureInfo(info);
     } else {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()

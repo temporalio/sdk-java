@@ -20,13 +20,12 @@
 
 package io.temporal.internal.nexus;
 
+import static io.temporal.internal.common.NexusUtil.exceptionToNexusFailure;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
-import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
-import io.nexusrpc.FailureInfo;
 import io.nexusrpc.Header;
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
@@ -54,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private static final Logger log = LoggerFactory.getLogger(NexusTaskHandlerImpl.class);
+
   private final DataConverter dataConverter;
   private final String namespace;
   private final String taskQueue;
@@ -123,12 +123,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                   timeout.toMillis(),
                   java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (IllegalArgumentException e) {
-          return new Result(
-              HandlerError.newBuilder()
-                  .setErrorType(OperationHandlerException.ErrorType.BAD_REQUEST.toString())
-                  .setFailure(
-                      Failure.newBuilder().setMessage("cannot parse request timeout").build())
-                  .build());
+          throw new HandlerException(
+              HandlerException.ErrorType.BAD_REQUEST,
+              new RuntimeException("Invalid request timeout header", e));
         }
       }
 
@@ -145,23 +142,21 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               handleCancelledOperation(ctx, request.getCancelOperation());
           return new Result(Response.newBuilder().setCancelOperation(cancelResponse).build());
         default:
-          return new Result(
-              HandlerError.newBuilder()
-                  .setErrorType(OperationHandlerException.ErrorType.NOT_IMPLEMENTED.toString())
-                  .setFailure(Failure.newBuilder().setMessage("unknown request type").build())
-                  .build());
+          throw new HandlerException(
+              HandlerException.ErrorType.NOT_IMPLEMENTED,
+              new RuntimeException("Unknown request type: " + request.getVariantCase()));
       }
-    } catch (OperationHandlerException e) {
+    } catch (HandlerException e) {
       return new Result(
           HandlerError.newBuilder()
               .setErrorType(e.getErrorType().toString())
-              .setFailure(createFailure(e.getFailureInfo()))
+              .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
               .build());
     } catch (Throwable e) {
       return new Result(
           HandlerError.newBuilder()
-              .setErrorType(OperationHandlerException.ErrorType.INTERNAL.toString())
-              .setFailure(Failure.newBuilder().setMessage(e.toString()).build())
+              .setErrorType(HandlerException.ErrorType.INTERNAL.toString())
+              .setFailure(exceptionToNexusFailure(e, dataConverter))
               .build());
     } finally {
       // If the task timed out, we should not send a response back to the server
@@ -174,20 +169,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
       CurrentNexusOperationContext.unset();
     }
-  }
-
-  private Failure createFailure(FailureInfo failInfo) {
-    Failure.Builder failure = Failure.newBuilder();
-    if (failInfo.getMessage() != null) {
-      failure.setMessage(failInfo.getMessage());
-    }
-    if (failInfo.getDetailsJson() != null) {
-      failure.setDetails(ByteString.copyFromUtf8(failInfo.getDetailsJson()));
-    }
-    if (!failInfo.getMetadata().isEmpty()) {
-      failure.putAllMetadata(failInfo.getMetadata());
-    }
-    return failure.build();
   }
 
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {
@@ -210,7 +191,12 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     ctx.setService(task.getService()).setOperation(task.getOperation());
 
     OperationCancelDetails operationCancelDetails =
-        OperationCancelDetails.newBuilder().setOperationId(task.getOperationId()).build();
+        OperationCancelDetails.newBuilder()
+            .setOperationToken(
+                task.getOperationToken().isEmpty()
+                    ? task.getOperationId()
+                    : task.getOperationToken())
+            .build();
     try {
       cancelOperation(ctx.build(), operationCancelDetails);
     } catch (Throwable failure) {
@@ -222,17 +208,13 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private void convertKnownFailures(Throwable e) {
     Throwable failure = CheckedExceptionWrapper.unwrap(e);
+    if (failure instanceof WorkflowException) {
+      throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, failure);
+    }
     if (failure instanceof ApplicationFailure) {
       if (((ApplicationFailure) failure).isNonRetryable()) {
-        throw new OperationHandlerException(
-            OperationHandlerException.ErrorType.BAD_REQUEST, failure.getMessage());
+        throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, failure);
       }
-      throw new OperationHandlerException(
-          OperationHandlerException.ErrorType.INTERNAL, failure.getMessage());
-    }
-    if (failure instanceof WorkflowException) {
-      throw new OperationHandlerException(
-          OperationHandlerException.ErrorType.BAD_REQUEST, failure.getMessage());
     }
     if (failure instanceof Error) {
       throw (Error) failure;
@@ -244,7 +226,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private OperationStartResult<HandlerResultContent> startOperation(
       OperationContext context, OperationStartDetails details, HandlerInputContent input)
-      throws OperationUnsuccessfulException {
+      throws OperationException {
     try {
       return serviceHandler.startOperation(context, details, input);
     } catch (Throwable e) {
@@ -275,10 +257,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                 operationStartDetails.addLink(nexusProtoLinkToLink(link));
               } catch (URISyntaxException e) {
                 log.error("failed to parse link url: " + link.getUrl(), e);
-                throw new OperationHandlerException(
-                    OperationHandlerException.ErrorType.BAD_REQUEST,
-                    "Invalid link URL: " + link.getUrl(),
-                    e);
+                throw new HandlerException(
+                    HandlerException.ErrorType.BAD_REQUEST,
+                    new RuntimeException("Invalid link URL: " + link.getUrl(), e));
               }
             });
 
@@ -286,37 +267,43 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
 
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
+    OperationContext context = ctx.build();
     try {
-      OperationStartResult<HandlerResultContent> result =
-          startOperation(ctx.build(), operationStartDetails.build(), input.build());
-      if (result.isSync()) {
-        startResponseBuilder.setSyncSuccess(
-            StartOperationResponse.Sync.newBuilder()
-                .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
-                .build());
-      } else {
-        startResponseBuilder.setAsyncSuccess(
-            StartOperationResponse.Async.newBuilder()
-                .setOperationId(result.getAsyncOperationId())
-                .addAllLinks(
-                    result.getLinks().stream()
-                        .map(
-                            link ->
-                                io.temporal.api.nexus.v1.Link.newBuilder()
-                                    .setType(link.getType())
-                                    .setUrl(link.getUri().toString())
-                                    .build())
-                        .collect(Collectors.toList()))
-                .build());
+      try {
+        OperationStartResult<HandlerResultContent> result =
+            startOperation(context, operationStartDetails.build(), input.build());
+        if (result.isSync()) {
+          startResponseBuilder.setSyncSuccess(
+              StartOperationResponse.Sync.newBuilder()
+                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                  .build());
+        } else {
+          startResponseBuilder.setAsyncSuccess(
+              StartOperationResponse.Async.newBuilder()
+                  .setOperationId(result.getAsyncOperationToken())
+                  .setOperationToken(result.getAsyncOperationToken())
+                  .addAllLinks(
+                      context.getLinks().stream()
+                          .map(
+                              link ->
+                                  io.temporal.api.nexus.v1.Link.newBuilder()
+                                      .setType(link.getType())
+                                      .setUrl(link.getUri().toString())
+                                      .build())
+                          .collect(Collectors.toList()))
+                  .build());
+        }
+      } catch (OperationException e) {
+        throw e;
+      } catch (Throwable failure) {
+        convertKnownFailures(failure);
       }
-    } catch (OperationUnsuccessfulException e) {
+    } catch (OperationException e) {
       startResponseBuilder.setOperationError(
           UnsuccessfulOperationError.newBuilder()
               .setOperationState(e.getState().toString().toLowerCase())
-              .setFailure(createFailure(e.getFailureInfo()))
+              .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
               .build());
-    } catch (Throwable failure) {
-      convertKnownFailures(failure);
     }
     return startResponseBuilder.build();
   }
