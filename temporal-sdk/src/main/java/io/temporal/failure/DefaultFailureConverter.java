@@ -23,6 +23,7 @@ package io.temporal.failure;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import io.nexusrpc.handler.OperationHandlerException;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
@@ -189,7 +190,8 @@ public final class DefaultFailureConverter implements FailureConverter {
         }
       case FAILUREINFO_NOT_SET:
       default:
-        throw new IllegalArgumentException("Failure info not set");
+        // All unknown types are considered to be retryable ApplicationError.
+        return ApplicationFailure.newFromValues(failure.getMessage(), "", false, null, cause, null);
     }
   }
 
@@ -303,6 +305,8 @@ public final class DefaultFailureConverter implements FailureConverter {
               .setOperation(no.getOperation())
               .setOperationId(no.getOperationId());
       failure.setNexusOperationExecutionFailureInfo(info);
+    } else if (OperationHandlerException) {
+
     } else {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
