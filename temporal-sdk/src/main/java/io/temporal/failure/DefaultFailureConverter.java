@@ -311,8 +311,6 @@ public final class DefaultFailureConverter implements FailureConverter {
               .setOperation(no.getOperation())
               .setOperationId(no.getOperationId());
       failure.setNexusOperationExecutionFailureInfo(info);
-    } else if (OperationHandlerException) {
-
     } else {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
