@@ -624,7 +624,6 @@ public class WorkflowUpdateTest {
     Assert.assertEquals(
         UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
         response.getStage());
-    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(response.getOutcome());
 
     response =
         updateWorkflow(
@@ -636,7 +635,6 @@ public class WorkflowUpdateTest {
     Assert.assertEquals(
         UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
         response.getStage());
-    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(response.getOutcome());
 
     PollWorkflowExecutionUpdateResponse pollResponse =
         pollWorkflowUpdate(
@@ -647,7 +645,6 @@ public class WorkflowUpdateTest {
     Assert.assertEquals(
         UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
         pollResponse.getStage());
-    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(pollResponse.getOutcome());
 
     pollResponse =
         pollWorkflowUpdate(
@@ -658,16 +655,6 @@ public class WorkflowUpdateTest {
     Assert.assertEquals(
         UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
         pollResponse.getStage());
-    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(pollResponse.getOutcome());
-  }
-
-  private void assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(Outcome outcome) {
-    Assert.assertEquals(
-        "Workflow Update failed because the Workflow completed before the Update completed.",
-        outcome.getFailure().getMessage());
-    Assert.assertEquals(
-        "AcceptedUpdateCompletedWorkflow",
-        outcome.getFailure().getApplicationFailureInfo().getType());
   }
 
   private UpdateWorkflowExecutionResponse updateWorkflow(

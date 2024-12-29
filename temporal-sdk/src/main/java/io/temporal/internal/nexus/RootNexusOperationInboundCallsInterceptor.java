@@ -20,7 +20,7 @@
 
 package io.temporal.internal.nexus;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationStartResult;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
@@ -40,8 +40,7 @@ public class RootNexusOperationInboundCallsInterceptor
   }
 
   @Override
-  public StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException {
+  public StartOperationOutput startOperation(StartOperationInput input) throws OperationException {
     OperationStartResult result =
         operationInterceptor.start(
             input.getOperationContext(), input.getStartDetails(), input.getInput());

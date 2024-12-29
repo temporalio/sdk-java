@@ -103,7 +103,7 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
       // Signal the operation to unblock, this makes sure the operation doesn't complete before the
       // operation
       // started event is written to history
-      Workflow.newExternalWorkflowStub(OperationWorkflow.class, asyncExec.getOperationId().get())
+      Workflow.newExternalWorkflowStub(OperationWorkflow.class, asyncExec.getOperationToken().get())
           .unblock();
       return asyncOpHandle.getResult().get();
     }

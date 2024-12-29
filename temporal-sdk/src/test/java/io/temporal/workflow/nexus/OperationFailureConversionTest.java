@@ -20,11 +20,10 @@
 
 package io.temporal.workflow.nexus;
 
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
@@ -58,20 +57,10 @@ public class OperationFailureConversionTest {
             () -> workflowStub.execute("ApplicationFailureNonRetryable"));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-  }
-
-  @Test
-  public void nexusOperationWorkflowExecutionAlreadyStartedFailureConversion() {
-    TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
-    WorkflowFailedException exception =
-        Assert.assertThrows(
-            WorkflowFailedException.class,
-            () -> workflowStub.execute("WorkflowExecutionAlreadyStarted"));
-    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
-    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
+    Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
+    HandlerException handlerException = (HandlerException) nexusFailure.getCause();
+    Assert.assertTrue(handlerException.getMessage().contains("failed to call operation"));
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
   }
 
   @Test
@@ -83,10 +72,10 @@ public class OperationFailureConversionTest {
             WorkflowFailedException.class, () -> workflowStub.execute("ApplicationFailure"));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
-    Assert.assertTrue(
-        applicationFailure.getOriginalMessage().contains("exceeded invocation count"));
+    Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
+    HandlerException handlerFailure = (HandlerException) nexusFailure.getCause();
+    Assert.assertTrue(handlerFailure.getMessage().contains("exceeded invocation count"));
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerFailure.getErrorType());
   }
 
   public static class TestNexus implements TestWorkflow1 {
@@ -127,11 +116,6 @@ public class OperationFailureConversionTest {
             } else if (name.equals("ApplicationFailureNonRetryable")) {
               throw ApplicationFailure.newNonRetryableFailure(
                   "failed to call operation", "TestFailure");
-            } else if (name.equals("WorkflowExecutionAlreadyStarted")) {
-              throw new WorkflowExecutionAlreadyStarted(
-                  WorkflowExecution.newBuilder().setWorkflowId("id").setRunId("runId").build(),
-                  "TestWorkflow",
-                  new RuntimeException("already started"));
             }
             Assert.fail();
             return "fail";

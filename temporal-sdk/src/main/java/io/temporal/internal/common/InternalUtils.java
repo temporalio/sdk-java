@@ -79,6 +79,7 @@ public final class InternalUtils {
    * @return a new stub bound to the same workflow as the given stub, but with the Nexus callback
    *     URL and headers set
    */
+  @SuppressWarnings("deprecation") // Check the OPERATION_ID header for backwards compatibility
   public static WorkflowStub createNexusBoundStub(
       WorkflowStub stub, NexusStartWorkflowRequest request) {
     if (!stub.getOptions().isPresent()) {
@@ -102,6 +103,9 @@ public final class InternalUtils {
                     () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
     if (!headers.containsKey(Header.OPERATION_ID)) {
       headers.put(Header.OPERATION_ID.toLowerCase(), options.getWorkflowId());
+    }
+    if (!headers.containsKey(Header.OPERATION_TOKEN)) {
+      headers.put(Header.OPERATION_TOKEN.toLowerCase(), options.getWorkflowId());
     }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)

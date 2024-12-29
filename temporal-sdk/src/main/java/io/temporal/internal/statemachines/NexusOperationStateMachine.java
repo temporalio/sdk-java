@@ -191,9 +191,12 @@ final class NexusOperationStateMachine
         startedCallback.apply(Optional.empty(), null);
       } else {
         async = true;
+        String operationToken =
+            currentEvent.getNexusOperationStartedEventAttributes().getOperationToken();
+        String operationId =
+            currentEvent.getNexusOperationStartedEventAttributes().getOperationId();
         startedCallback.apply(
-            Optional.of(currentEvent.getNexusOperationStartedEventAttributes().getOperationId()),
-            null);
+            Optional.of(operationToken.isEmpty() ? operationId : operationToken), null);
       }
     }
   }
