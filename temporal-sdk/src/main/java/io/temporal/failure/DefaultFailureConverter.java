@@ -190,7 +190,13 @@ public final class DefaultFailureConverter implements FailureConverter {
       case FAILUREINFO_NOT_SET:
       default:
         // All unknown types are considered to be retryable ApplicationError.
-        return ApplicationFailure.newFromValues(failure.getMessage(), "", false, null, cause, null);
+        return ApplicationFailure.newFromValues(
+            failure.getMessage(),
+            "",
+            false,
+            new EncodedValues(Optional.empty(), dataConverter),
+            cause,
+            null);
     }
   }
 

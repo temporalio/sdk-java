@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.failure.TerminatedFailure;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -54,10 +55,19 @@ public class TerminateWorkflowAsyncOperationTest {
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute(""));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-    Assert.assertEquals(
-        "operation terminated",
-        ((ApplicationFailure) nexusFailure.getCause()).getOriginalMessage());
+    // TODO: Test server needs to be fixed to return the correct type
+    Assert.assertTrue(
+        nexusFailure.getCause() instanceof ApplicationFailure
+            || nexusFailure.getCause() instanceof TerminatedFailure);
+    if (nexusFailure.getCause() instanceof ApplicationFailure) {
+      Assert.assertEquals(
+          "operation terminated",
+          ((ApplicationFailure) nexusFailure.getCause()).getOriginalMessage());
+    } else {
+      Assert.assertEquals(
+          "operation terminated",
+          ((TerminatedFailure) nexusFailure.getCause()).getOriginalMessage());
+    }
   }
 
   @Service
