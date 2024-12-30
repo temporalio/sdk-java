@@ -58,17 +58,6 @@ public class SyncOperationCancelledTest {
         "operation canceled before it was started", canceledFailure.getOriginalMessage());
   }
 
-  @Test
-  public void syncOperationCancelled() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
-    WorkflowFailedException exception =
-        Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute(""));
-    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
-    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof CanceledFailure);
-  }
-
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String input) {
