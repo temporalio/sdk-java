@@ -554,7 +554,28 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     || request.getForceCreateNewWorkflowTask())) {
               scheduleWorkflowTask(ctx);
             }
-
+            if (completed) {
+              updates.forEach(
+                  (k, updateStateMachine) -> {
+                    if (!(updateStateMachine.getState() == StateMachines.State.COMPLETED
+                        || updateStateMachine.getState() == StateMachines.State.FAILED)) {
+                      updateStateMachine.action(
+                          Action.COMPLETE,
+                          ctx,
+                          Message.newBuilder()
+                              .setBody(
+                                  Any.pack(
+                                      Response.newBuilder()
+                                          .setOutcome(
+                                              Outcome.newBuilder()
+                                                  .setFailure(FAILED_UPDATE_ON_WF_COMPLETION)
+                                                  .build())
+                                          .build()))
+                              .build(),
+                          workflowTaskCompletedId);
+                    }
+                  });
+            }
             workflowTaskStateMachine.getData().bufferedEvents.clear();
             Map<String, ConsistentQuery> queries = data.consistentQueryRequests;
             Map<String, WorkflowQueryResult> queryResultsMap = request.getQueryResultsMap();
