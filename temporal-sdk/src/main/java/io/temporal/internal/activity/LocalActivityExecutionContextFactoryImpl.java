@@ -21,14 +21,14 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityExecutionContext;
 
 public class LocalActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
 
   public LocalActivityExecutionContextFactoryImpl() {}
 
   @Override
-  public ActivityExecutionContext createContext(ActivityInfoInternal info, Scope metricsScope) {
+  public InternalActivityExecutionContext createContext(
+      ActivityInfoInternal info, Scope metricsScope) {
     return new LocalActivityExecutionContextImpl(info, metricsScope);
   }
 }

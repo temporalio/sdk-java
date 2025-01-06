@@ -21,7 +21,6 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -61,7 +60,8 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   }
 
   @Override
-  public ActivityExecutionContext createContext(ActivityInfoInternal info, Scope metricsScope) {
+  public InternalActivityExecutionContext createContext(
+      ActivityInfoInternal info, Scope metricsScope) {
     return new ActivityExecutionContextImpl(
         service,
         namespace,
