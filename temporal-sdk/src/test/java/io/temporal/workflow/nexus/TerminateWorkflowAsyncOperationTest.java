@@ -55,7 +55,8 @@ public class TerminateWorkflowAsyncOperationTest {
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute(""));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    // TODO(https://github.com/temporalio/sdk-java/issues/2358): Test server needs to be fixed to return the correct type
+    // TODO(https://github.com/temporalio/sdk-java/issues/2358): Test server needs to be fixed to
+    // return the correct type
     Assert.assertTrue(
         nexusFailure.getCause() instanceof ApplicationFailure
             || nexusFailure.getCause() instanceof TerminatedFailure);
