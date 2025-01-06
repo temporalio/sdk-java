@@ -158,7 +158,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       return new Result(
           HandlerError.newBuilder()
               .setErrorType(e.getErrorType().toString())
-              .setFailure(createFailure(e.getFailureInfo()))
+              .setFailure(createFailure(e.getCause()))
               .build());
     } catch (Throwable e) {
       return new Result(
@@ -179,18 +179,12 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
   }
 
-  private Failure createFailure(FailureInfo failInfo) {
-    Failure.Builder failure = Failure.newBuilder();
-    if (failInfo.getMessage() != null) {
-      failure.setMessage(failInfo.getMessage());
-    }
-    if (failInfo.getDetailsJson() != null) {
-      failure.setDetails(ByteString.copyFromUtf8(failInfo.getDetailsJson()));
-    }
-    if (!failInfo.getMetadata().isEmpty()) {
-      failure.putAllMetadata(failInfo.getMetadata());
-    }
-    return failure.build();
+  private Failure createFailure(Throwable exception) {
+    io.temporal.api.failure.v1.Failure failure = dataConverter.exceptionToFailure(exception);
+    return Failure.newBuilder()
+            .setMessage(failure.getMessage())
+            .setDetails(failure.toByteString())
+            .putAllMetadata(Collections.singletonMap("type", "NexusFailureType")).build();
   }
 
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {
@@ -280,8 +274,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                 log.error("failed to parse link url: " + link.getUrl(), e);
                 throw new OperationHandlerException(
                     OperationHandlerException.ErrorType.BAD_REQUEST,
-                    "Invalid link URL: " + link.getUrl(),
-                    e);
+                    new RuntimeException("Invalid link URL: " + link.getUrl(), e));
               }
             });
 
@@ -316,7 +309,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       startResponseBuilder.setOperationError(
           UnsuccessfulOperationError.newBuilder()
               .setOperationState(e.getState().toString().toLowerCase())
-              .setFailure(createFailure(e.getFailureInfo()))
+              .setFailure(createFailure(e.getCause()))
               .build());
     } catch (Throwable failure) {
       convertKnownFailures(failure);
