@@ -56,7 +56,6 @@ import junitparams.Parameters;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
 import org.junit.*;
-import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 
 /**
@@ -70,13 +69,11 @@ import org.junit.runner.RunWith;
  */
 @RunWith(JUnitParamsRunner.class)
 public class ActivityTimeoutTest {
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).build();
-
   // TODO This test takes longer than it should to complete because
   //  of the cached heartbeat that prevents a quick shutdown
-  public @Rule Timeout timeout = Timeout.seconds(15);
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder().setTestTimeoutSeconds(15).setDoNotStart(true).build();
 
   /**
    * An activity reaches startToClose timeout once, max retries are set to 1. o
