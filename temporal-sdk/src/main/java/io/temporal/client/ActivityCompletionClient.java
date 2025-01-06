@@ -38,26 +38,81 @@ import javax.annotation.Nonnull;
  */
 public interface ActivityCompletionClient {
 
+  /**
+   * Completes the activity execution successfully.
+   *
+   * @param taskToken token of the activity attempt to complete
+   * @param result of the activity execution
+   */
   <R> void complete(byte[] taskToken, R result) throws ActivityCompletionException;
 
+  /**
+   * Completes the activity execution successfully.
+   *
+   * @param workflowId id of the workflow that started the activity
+   * @param runId optional run id of the workflow that started the activity
+   * @param activityId id of the activity
+   * @param result of the activity execution
+   */
   <R> void complete(String workflowId, Optional<String> runId, String activityId, R result)
       throws ActivityCompletionException;
 
+  /**
+   * Completes the activity execution with failure.
+   *
+   * @param taskToken token of the activity attempt to complete
+   * @param result the exception to be used as a failure details object
+   */
   void completeExceptionally(byte[] taskToken, Exception result) throws ActivityCompletionException;
 
+  /**
+   * Completes the activity execution with failure.
+   *
+   * @param workflowId id of the workflow that started the activity
+   * @param runId optional run id of the workflow that started the activity
+   * @param activityId id of the activity
+   * @param result the exception to be used as a failure details object
+   */
   void completeExceptionally(
       String workflowId, Optional<String> runId, String activityId, Exception result)
       throws ActivityCompletionException;
 
+  /**
+   * Confirms successful cancellation to the server.
+   *
+   * @param taskToken token of the activity attempt
+   * @param details details to record with the cancellation
+   */
   <V> void reportCancellation(byte[] taskToken, V details) throws ActivityCompletionException;
 
+  /**
+   * Confirms successful cancellation to the server.
+   *
+   * @param workflowId id of the workflow that started the activity
+   * @param runId optional run id of the workflow that started the activity
+   * @param activityId id of the activity
+   * @param details details to record with the cancellation
+   */
   <V> void reportCancellation(
       String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException;
 
+  /**
+   * Records a heartbeat for an activity.
+   *
+   * @param taskToken token of the activity attempt
+   * @param details details to record with the heartbeat
+   * @throws ActivityCompletionException if activity should stop executing
+   */
   <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException;
 
   /**
+   * Records a heartbeat for an activity.
+   *
+   * @param workflowId id of the workflow that started the activity
+   * @param runId optional run id of the workflow that started the activity
+   * @param activityId id of the activity
+   * @param details details to record with the heartbeat
    * @throws ActivityCompletionException if activity should stop executing
    */
   <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
