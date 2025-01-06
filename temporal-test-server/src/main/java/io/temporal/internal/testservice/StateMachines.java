@@ -300,6 +300,7 @@ class StateMachines {
     TestServiceRetryState retryState;
     Duration nextBackoffInterval;
     String identity;
+    Timestamp lastAttemptCompleteTime;
 
     ActivityTaskData(
         TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
@@ -2112,6 +2113,7 @@ class StateMachines {
       ctx.onCommit(
           (historySize) -> {
             data.retryState = nextAttempt;
+            data.lastAttemptCompleteTime = ctx.currentTime();
             task.setAttempt(nextAttempt.getAttempt());
             task.setCurrentAttemptScheduledTime(ctx.currentTime());
           });

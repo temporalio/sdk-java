@@ -486,6 +486,8 @@ final class WorkflowWorker implements SuspendableWorker {
       }
     }
 
+    // TODO: Suppress warning until the SDK supports deployment
+    @SuppressWarnings("deprecation")
     private RespondWorkflowTaskCompletedResponse sendTaskCompleted(
         ByteString taskToken,
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
@@ -514,6 +516,8 @@ final class WorkflowWorker implements SuspendableWorker {
           grpcRetryOptions);
     }
 
+    // TODO: Suppress warning until the SDK supports deployment
+    @SuppressWarnings("deprecation")
     private void sendTaskFailed(
         ByteString taskToken,
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
