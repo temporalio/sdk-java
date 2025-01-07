@@ -29,7 +29,6 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
-import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
@@ -199,7 +198,7 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
 
   @Override
   @Nonnull
-  public TemporalFailure failureToException(@Nonnull Failure failure) {
+  public RuntimeException failureToException(@Nonnull Failure failure) {
     Preconditions.checkNotNull(failure, "failure");
     return ConverterUtils.withContext(dataConverter, serializationContext)
         .failureToException(this.decodeFailure(failure.toBuilder()).build());

@@ -266,13 +266,15 @@ public class OperationFailMetricTest {
                 details.getRequestId(),
                 invocationCount.getOrDefault(details.getRequestId(), 0) + 1);
             if (invocationCount.get(details.getRequestId()) > 1) {
-              throw new OperationUnsuccessfulException("exceeded invocation count");
+              throw OperationUnsuccessfulException.Failure(
+                  new RuntimeException("exceeded invocation count"));
             }
             switch (operation) {
               case "success":
                 return operation;
               case "fail":
-                throw new OperationUnsuccessfulException("fail");
+                throw OperationUnsuccessfulException.Failure(
+                    new RuntimeException("intentional failure"));
               case "handlererror":
                 throw new OperationHandlerException(
                     OperationHandlerException.ErrorType.BAD_REQUEST, "handlererror");
