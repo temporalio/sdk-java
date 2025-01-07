@@ -355,8 +355,12 @@ final class WorkflowWorker implements SuspendableWorker {
 
           if (!locked) {
             throw new UnableToAcquireLockException(
-                "Workflow lock for the run id hasn't been released by one of previous execution attempts, "
-                    + "consider increasing workflow task timeout.");
+                "Workflow lock for the run id hasn't been released by one of previous execution attempts.  "
+                    + "This likely means the workflow task timed out, and the Service attempted to "
+                    + "retry the task on the same Worker while the timed out Task had not finished yet.  "
+                    + "We suggest investigating why the Workflow Task timed out. This could mean "
+                    + "looking at Worker resource utilization at the time in which this exception was thrown or "
+                    + "increasing workflow task timeout.");
           }
         }
 
