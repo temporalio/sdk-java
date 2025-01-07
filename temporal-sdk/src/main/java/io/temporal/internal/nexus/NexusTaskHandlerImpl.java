@@ -22,9 +22,7 @@ package io.temporal.internal.nexus;
 
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
-import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
-import io.nexusrpc.FailureInfo;
 import io.nexusrpc.Header;
 import io.nexusrpc.OperationUnsuccessfulException;
 import io.nexusrpc.handler.*;
@@ -182,9 +180,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private Failure createFailure(Throwable exception) {
     io.temporal.api.failure.v1.Failure failure = dataConverter.exceptionToFailure(exception);
     return Failure.newBuilder()
-            .setMessage(failure.getMessage())
-            .setDetails(failure.toByteString())
-            .putAllMetadata(Collections.singletonMap("type", "NexusFailureType")).build();
+        .setMessage(failure.getMessage())
+        .setDetails(failure.toByteString())
+        .putAllMetadata(Collections.singletonMap("type", "NexusFailureType"))
+        .build();
   }
 
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {

@@ -22,7 +22,6 @@ package io.temporal.common.converter;
 
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
-import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.context.SerializationContext;
 import javax.annotation.Nonnull;
 
@@ -49,7 +48,7 @@ public interface FailureConverter {
    * @throws NullPointerException if either failure or dataConverter is null
    */
   @Nonnull
-  TemporalFailure failureToException(
+  RuntimeException failureToException(
       @Nonnull Failure failure, @Nonnull DataConverter dataConverter);
 
   /**

@@ -149,7 +149,8 @@ public class SyncOperationFailTest {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, name) -> {
-            throw new OperationUnsuccessfulException("failed to call operation");
+            throw OperationUnsuccessfulException.Failure(
+                new RuntimeException("failed to call operation"));
           });
     }
   }

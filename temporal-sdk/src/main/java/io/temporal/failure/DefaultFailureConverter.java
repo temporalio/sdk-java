@@ -73,12 +73,14 @@ public final class DefaultFailureConverter implements FailureConverter {
 
   @Override
   @Nonnull
-  public TemporalFailure failureToException(
+  public RuntimeException failureToException(
       @Nonnull Failure failure, @Nonnull DataConverter dataConverter) {
     Preconditions.checkNotNull(failure, "failure");
     Preconditions.checkNotNull(dataConverter, "dataConverter");
-    TemporalFailure result = failureToExceptionImpl(failure, dataConverter);
-    result.setFailure(failure);
+    RuntimeException result = failureToExceptionImpl(failure, dataConverter);
+    if (result instanceof TemporalFailure) {
+      ((TemporalFailure) result).setFailure(failure);
+    }
     if (failure.getSource().equals(JAVA_SDK) && !failure.getStackTrace().isEmpty()) {
       StackTraceElement[] stackTrace = parseStackTrace(failure.getStackTrace());
       result.setStackTrace(stackTrace);
@@ -86,8 +88,8 @@ public final class DefaultFailureConverter implements FailureConverter {
     return result;
   }
 
-  private TemporalFailure failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
-    TemporalFailure cause =
+  private RuntimeException failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
+    Exception cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:
@@ -191,7 +193,8 @@ public final class DefaultFailureConverter implements FailureConverter {
       case NEXUS_HANDLER_FAILURE_INFO:
         {
           NexusHandlerFailureInfo info = failure.getNexusHandlerFailureInfo();
-          return new OperationHandlerException(OperationHandlerException.ErrorType.valueOf(info.getType()), cause);
+          return new OperationHandlerException(
+              OperationHandlerException.ErrorType.valueOf(info.getType()), cause);
         }
       case FAILUREINFO_NOT_SET:
       default:
@@ -318,8 +321,8 @@ public final class DefaultFailureConverter implements FailureConverter {
       failure.setNexusOperationExecutionFailureInfo(op);
     } else if (throwable instanceof OperationHandlerException) {
       OperationHandlerException oe = (OperationHandlerException) throwable;
-      NexusHandlerFailureInfo.Builder info = NexusHandlerFailureInfo.newBuilder()
-              .setType(oe.getErrorType().toString());
+      NexusHandlerFailureInfo.Builder info =
+          NexusHandlerFailureInfo.newBuilder().setType(oe.getErrorType().toString());
       failure.setNexusHandlerFailureInfo(info);
     } else {
       ApplicationFailureInfo.Builder info =
