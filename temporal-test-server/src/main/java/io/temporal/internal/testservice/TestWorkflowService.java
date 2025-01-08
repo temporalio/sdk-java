@@ -50,10 +50,7 @@ import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
-import io.temporal.api.nexus.v1.HandlerError;
-import io.temporal.api.nexus.v1.Request;
-import io.temporal.api.nexus.v1.StartOperationResponse;
-import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
+import io.temporal.api.nexus.v1.*;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
@@ -899,7 +896,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  public void completeNexusOperation(NexusOperationRef ref, HistoryEvent completionEvent) {
+  public void completeNexusOperation(
+      NexusOperationRef ref, String operationID, Link startLink, HistoryEvent completionEvent) {
     TestWorkflowMutableState target = getMutableState(ref.getExecutionId());
 
     switch (completionEvent.getEventType()) {
@@ -912,7 +910,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         // Nexus does not support it.
         Payload p =
             (result.getPayloadsCount() > 0) ? result.getPayloads(0) : Payload.getDefaultInstance();
-        target.completeNexusOperation(ref, p);
+        target.completeAsyncNexusOperation(ref, p, operationID, startLink);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         Failure f =
