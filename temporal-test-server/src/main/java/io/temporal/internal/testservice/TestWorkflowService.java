@@ -24,12 +24,12 @@ import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPD
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-import com.google.protobuf.Timestamp;
+import com.google.protobuf.*;
+import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
@@ -43,10 +43,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.api.failure.v1.ApplicationFailureInfo;
-import io.temporal.api.failure.v1.CanceledFailureInfo;
-import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
+import io.temporal.api.failure.v1.*;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
@@ -89,6 +86,11 @@ import org.slf4j.LoggerFactory;
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
+  private static final JsonFormat.Printer JSON_PRINTER = JsonFormat.printer();
+  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
+
+  private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
+
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
   // key->WorkflowId
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
@@ -806,6 +808,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  private static Failure wrapNexusOperationFailure(Failure cause) {
+    return Failure.newBuilder()
+        .setMessage("nexus operation completed unsuccessfully")
+        .setNexusOperationExecutionFailureInfo(NexusOperationFailureInfo.newBuilder().build())
+        .setCause(cause)
+        .build();
+  }
+
   @Override
   public void respondNexusTaskCompleted(
       RespondNexusTaskCompletedRequest request,
@@ -839,12 +849,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                     .setDetails(nexusFailureMetadataToPayloads(opError.getFailure())));
             mutableState.cancelNexusOperation(tt.getOperationRef(), b.build());
           } else {
-            b.setApplicationFailureInfo(
-                ApplicationFailureInfo.newBuilder()
-                    .setType("NexusOperationFailure")
-                    .setDetails(nexusFailureMetadataToPayloads(opError.getFailure()))
-                    .setNonRetryable(true));
-            mutableState.failNexusOperation(tt.getOperationRef(), b.build());
+            mutableState.failNexusOperation(
+                tt.getOperationRef(),
+                wrapNexusOperationFailure(nexusFailureToAPIFailure(opError.getFailure(), false)));
           }
         } else if (startResp.hasAsyncSuccess()) {
           // Start event is only recorded for async success
@@ -913,13 +920,41 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         target.completeAsyncNexusOperation(ref, p, operationID, startLink);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+        //        // Unset message so it's not serialized in the details.
+        //        var message string
+        //        message, failure.Message = failure.Message, ""
+        //        data, err := protojson.Marshal(failure)
+        //        failure.Message = message
+        //
+        //        if err != nil {
+        //        return nexus.Failure{}, err
+        //      }
+        //      return nexus.Failure{
+        //        Message: failure.GetMessage(),
+        //                Metadata: map[string]string{
+        //          "type": failureTypeString,
+        //        },
+        //        Details: data,
+        //      }, nil
+        Failure wfFailure =
+            completionEvent.getWorkflowExecutionFailedEventAttributes().getFailure();
+        String wfFailureMessage = wfFailure.getMessage();
+        String json = "";
+        try {
+          json = JSON_PRINTER.print(wfFailure.toBuilder().setMessage("").build());
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException(e);
+        }
+        io.temporal.api.nexus.v1.Failure nexusFailure =
+            io.temporal.api.nexus.v1.Failure.newBuilder()
+                .setMessage(wfFailureMessage)
+                .putMetadata("type", FAILURE_TYPE_STRING)
+                .setDetails(ByteString.copyFromUtf8(json))
+                .build();
+
         Failure f =
             Failure.newBuilder()
-                .setMessage(
-                    completionEvent
-                        .getWorkflowExecutionFailedEventAttributes()
-                        .getFailure()
-                        .getMessage())
+                .setNexusHandlerFailureInfo(NexusHandlerFailureInfo.newBuilder().build())
                 .build();
         target.failNexusOperation(ref, f);
         break;
@@ -932,22 +967,22 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         target.cancelNexusOperation(ref, canceled);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
-        Failure terminated =
-            Failure.newBuilder()
-                .setMessage("operation terminated")
-                .setApplicationFailureInfo(
-                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
-                .build();
-        target.failNexusOperation(ref, terminated);
+        target.failNexusOperation(
+            ref,
+            wrapNexusOperationFailure(
+                Failure.newBuilder()
+                    .setMessage("operation terminated")
+                    .setTerminatedFailureInfo(TerminatedFailureInfo.getDefaultInstance())
+                    .build()));
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
-        Failure timedOut =
-            Failure.newBuilder()
-                .setMessage("operation exceeded internal timeout")
-                .setApplicationFailureInfo(
-                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
-                .build();
-        target.failNexusOperation(ref, timedOut);
+        target.failNexusOperation(
+            ref,
+            wrapNexusOperationFailure(
+                Failure.newBuilder()
+                    .setMessage("operation exceeded internal timeout")
+                    .setTimeoutFailureInfo(TimeoutFailureInfo.newBuilder().build())
+                    .build()));
         break;
       default:
         throw Status.INTERNAL
@@ -959,12 +994,90 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private static Failure handlerErrorToFailure(HandlerError err) {
     return Failure.newBuilder()
         .setMessage(err.getFailure().getMessage())
-        .setApplicationFailureInfo(
-            ApplicationFailureInfo.newBuilder()
-                .setType(err.getErrorType())
-                .setDetails(nexusFailureMetadataToPayloads(err.getFailure())))
+        .setNexusHandlerFailureInfo(
+            NexusHandlerFailureInfo.newBuilder().setType(err.getErrorType()).build())
+        .setCause(nexusFailureToAPIFailure(err.getFailure(), false))
         .build();
   }
+
+  /**
+   * nexusFailureToAPIFailure converts a Nexus Failure to an API proto Failure. If the failure
+   * metadata "type" field is set to the fullname of the temporal API Failure message, the failure
+   * is reconstructed using protojson.Unmarshal on the failure details field.
+   */
+  private static Failure nexusFailureToAPIFailure(
+      io.temporal.api.nexus.v1.Failure failure, boolean retryable) {
+    Failure.Builder apiFailure = Failure.newBuilder();
+    if (failure.getMetadataMap().containsKey("type")
+        && failure.getMetadataMap().get("type").equals(FAILURE_TYPE_STRING)) {
+      try {
+        JSON_PARSER.merge(failure.getDetails().toString(UTF_8), apiFailure);
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      Payloads payloads = nexusFailureMetadataToPayloads(failure);
+      ApplicationFailureInfo.Builder applicationFailureInfo = ApplicationFailureInfo.newBuilder();
+      applicationFailureInfo.setType("NexusFailure");
+      applicationFailureInfo.setDetails(payloads);
+      applicationFailureInfo.setNonRetryable(!retryable);
+      apiFailure.setApplicationFailureInfo(applicationFailureInfo.build());
+    }
+    apiFailure.setMessage(failure.getMessage());
+    return apiFailure.build();
+  }
+
+  //  func UnsuccessfulOperationErrorToTemporalFailure(opErr *nexus.UnsuccessfulOperationError)
+  // (*failurepb.Failure, error) {
+  //    var nexusFailure nexus.Failure
+  //    failureErr, ok := opErr.Cause.(*nexus.FailureError)
+  //    if ok {
+  //      nexusFailure = failureErr.Failure
+  //    } else if opErr.Cause != nil {
+  //      nexusFailure = nexus.Failure{Message: opErr.Cause.Error()}
+  //    } else {
+  //      nexusFailure = nexus.Failure{Message: "canceled"}
+  //    }
+  //    // Canceled must be translated into a CanceledFailure to match the SDK expectation.
+  //    if opErr.State == nexus.OperationStateCanceled {
+  //      if nexusFailure.Metadata != nil && nexusFailure.Metadata["type"] == failureTypeString {
+  //        temporalFailure, err := NexusFailureToAPIFailure(nexusFailure, false)
+  //        if err != nil {
+  //          return nil, err
+  //        }
+  //        if temporalFailure.GetCanceledFailureInfo() != nil {
+  //          // We already have a CanceledFailure, use it.
+  //          return temporalFailure, nil
+  //        }
+  //        // Fallback to encoding the Nexus failure into a Temporal canceled failure, we expect
+  // operations that end up
+  //        // as canceled to have a CanceledFailureInfo object.
+  //      }
+  //      payloads, err := nexusFailureMetadataToPayloads(nexusFailure)
+  //      if err != nil {
+  //        return nil, err
+  //      }
+  //      return &failurepb.Failure{
+  //        Message: nexusFailure.Message,
+  //                FailureInfo: &failurepb.Failure_CanceledFailureInfo{
+  //          CanceledFailureInfo: &failurepb.CanceledFailureInfo{
+  //            Details: payloads,
+  //          },
+  //        },
+  //      }, nil
+  //    }
+  //    return NexusFailureToAPIFailure(nexusFailure, false)
+  //  }
+  //  private static Failure unsuccessfulOperationErrorToTemporalFailure(UnsuccessfulOperationError
+  // opError) {
+  //    if (opError.getOperationState().equals("canceled")) {
+  //      return Failure.newBuilder()
+  //              .setMessage()
+  //              .setCanceledFailureInfo(CanceledFailureInfo.newBuilder()
+  //                      .setDetails().build()).build();
+  //    }
+  //    return nexusFailureToAPIFailure(opError.getFailure(), false);
+  //  }
 
   private static Payloads nexusFailureMetadataToPayloads(io.temporal.api.nexus.v1.Failure failure) {
     Map<String, ByteString> metadata =

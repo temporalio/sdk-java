@@ -20,8 +20,6 @@
 
 package io.temporal.workflow.nexus;
 
-import static org.junit.Assume.assumeFalse;
-
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -37,24 +35,17 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class CancelAsyncOperationTest {
+public class CancelWorkflowAsyncOperationTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class, AsyncWorkflowOperationTest.TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
+          .setUseExternalService(true)
           .build();
-
-  @Before
-  public void checkRealServer() {
-    assumeFalse(
-        "Test flakes on real server because of delays in the Nexus Registry",
-        SDKTestWorkflowRule.useExternalService);
-  }
 
   @Test
   public void asyncOperationImmediatelyCancelled() {
@@ -70,14 +61,17 @@ public class CancelAsyncOperationTest {
     Assert.assertEquals(
         "operation canceled before it was started", canceledFailure.getOriginalMessage());
 
-    testWorkflowRule
-        .getInterceptor(TracingWorkerInterceptor.class)
-        .setExpected(
-            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
-            "newThread workflow-method",
-            "executeNexusOperation TestNexusService1 operation",
-            "startNexusOperation TestNexusService1 operation",
-            "cancelNexusOperation TestNexusService1 operation");
+    // Due to Service registry delay this can be flaky on the real server.
+    if (!testWorkflowRule.isUseExternalService()) {
+      testWorkflowRule
+          .getInterceptor(TracingWorkerInterceptor.class)
+          .setExpected(
+              "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+              "newThread workflow-method",
+              "executeNexusOperation TestNexusService1 operation",
+              "startNexusOperation TestNexusService1 operation",
+              "cancelNexusOperation TestNexusService1 operation");
+    }
   }
 
   @Test
@@ -85,23 +79,28 @@ public class CancelAsyncOperationTest {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     WorkflowFailedException exception =
-        Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute(""));
+        Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("block"));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof CanceledFailure);
+    CanceledFailure canceledFailure = (CanceledFailure) nexusFailure.getCause();
+    Assert.assertEquals("operation canceled", canceledFailure.getOriginalMessage());
 
-    testWorkflowRule
-        .getInterceptor(TracingWorkerInterceptor.class)
-        .setExpected(
-            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
-            "newThread workflow-method",
-            "executeNexusOperation TestNexusService1 operation",
-            "startNexusOperation TestNexusService1 operation",
-            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
-            "registerSignalHandlers unblock",
-            "newThread workflow-method",
-            "await await",
-            "cancelNexusOperation TestNexusService1 operation");
+    // Due to Service registry delay this can be flaky on the real server.
+    if (!testWorkflowRule.isUseExternalService()) {
+      testWorkflowRule
+          .getInterceptor(TracingWorkerInterceptor.class)
+          .setExpected(
+              "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+              "newThread workflow-method",
+              "executeNexusOperation TestNexusService1 operation",
+              "startNexusOperation TestNexusService1 operation",
+              "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+              "registerSignalHandlers unblock",
+              "newThread workflow-method",
+              "await await",
+              "cancelNexusOperation TestNexusService1 operation");
+    }
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
@@ -118,12 +117,16 @@ public class CancelAsyncOperationTest {
       Workflow.newCancellationScope(
               () -> {
                 NexusOperationHandle<String> handle =
-                    Workflow.startNexusOperation(serviceStub::operation, "block");
-                if (input.isEmpty()) {
+                    Workflow.startNexusOperation(serviceStub::operation, input);
+                if (!input.equals("immediately")) {
                   handle.getExecution().get();
                 }
                 CancellationScope.current().cancel();
-                handle.getResult().get();
+                Workflow.newDetachedCancellationScope(
+                        () -> {
+                          handle.getResult().get();
+                        })
+                    .run();
               })
           .run();
       return "Should not get here";

@@ -23,7 +23,7 @@ package io.temporal.failure;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
-import io.nexusrpc.handler.OperationHandlerException;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
@@ -193,8 +193,7 @@ public final class DefaultFailureConverter implements FailureConverter {
       case NEXUS_HANDLER_FAILURE_INFO:
         {
           NexusHandlerFailureInfo info = failure.getNexusHandlerFailureInfo();
-          return new OperationHandlerException(
-              OperationHandlerException.ErrorType.valueOf(info.getType()), cause);
+          return new HandlerException(HandlerException.ErrorType.valueOf(info.getType()), cause);
         }
       case FAILUREINFO_NOT_SET:
       default:
@@ -319,8 +318,8 @@ public final class DefaultFailureConverter implements FailureConverter {
               .setOperation(no.getOperation())
               .setOperationId(no.getOperationId());
       failure.setNexusOperationExecutionFailureInfo(op);
-    } else if (throwable instanceof OperationHandlerException) {
-      OperationHandlerException oe = (OperationHandlerException) throwable;
+    } else if (throwable instanceof HandlerException) {
+      HandlerException oe = (HandlerException) throwable;
       NexusHandlerFailureInfo.Builder info =
           NexusHandlerFailureInfo.newBuilder().setType(oe.getErrorType().toString());
       failure.setNexusHandlerFailureInfo(info);

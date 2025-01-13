@@ -20,7 +20,7 @@
 
 package io.temporal.nexus;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
 import io.temporal.client.WorkflowClient;
@@ -37,5 +37,5 @@ public interface SynchronousWorkflowClientOperationFunction<T, R> {
   @Nullable
   R apply(
       OperationContext ctx, OperationStartDetails details, WorkflowClient client, @Nullable T input)
-      throws OperationUnsuccessfulException;
+      throws OperationException;
 }
