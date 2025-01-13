@@ -999,58 +999,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return apiFailure.build();
   }
 
-  //  func UnsuccessfulOperationErrorToTemporalFailure(opErr *nexus.UnsuccessfulOperationError)
-  // (*failurepb.Failure, error) {
-  //    var nexusFailure nexus.Failure
-  //    failureErr, ok := opErr.Cause.(*nexus.FailureError)
-  //    if ok {
-  //      nexusFailure = failureErr.Failure
-  //    } else if opErr.Cause != nil {
-  //      nexusFailure = nexus.Failure{Message: opErr.Cause.Error()}
-  //    } else {
-  //      nexusFailure = nexus.Failure{Message: "canceled"}
-  //    }
-  //    // Canceled must be translated into a CanceledFailure to match the SDK expectation.
-  //    if opErr.State == nexus.OperationStateCanceled {
-  //      if nexusFailure.Metadata != nil && nexusFailure.Metadata["type"] == failureTypeString {
-  //        temporalFailure, err := NexusFailureToAPIFailure(nexusFailure, false)
-  //        if err != nil {
-  //          return nil, err
-  //        }
-  //        if temporalFailure.GetCanceledFailureInfo() != nil {
-  //          // We already have a CanceledFailure, use it.
-  //          return temporalFailure, nil
-  //        }
-  //        // Fallback to encoding the Nexus failure into a Temporal canceled failure, we expect
-  // operations that end up
-  //        // as canceled to have a CanceledFailureInfo object.
-  //      }
-  //      payloads, err := nexusFailureMetadataToPayloads(nexusFailure)
-  //      if err != nil {
-  //        return nil, err
-  //      }
-  //      return &failurepb.Failure{
-  //        Message: nexusFailure.Message,
-  //                FailureInfo: &failurepb.Failure_CanceledFailureInfo{
-  //          CanceledFailureInfo: &failurepb.CanceledFailureInfo{
-  //            Details: payloads,
-  //          },
-  //        },
-  //      }, nil
-  //    }
-  //    return NexusFailureToAPIFailure(nexusFailure, false)
-  //  }
-  //  private static Failure unsuccessfulOperationErrorToTemporalFailure(UnsuccessfulOperationError
-  // opError) {
-  //    if (opError.getOperationState().equals("canceled")) {
-  //      return Failure.newBuilder()
-  //              .setMessage()
-  //              .setCanceledFailureInfo(CanceledFailureInfo.newBuilder()
-  //                      .setDetails().build()).build();
-  //    }
-  //    return nexusFailureToAPIFailure(opError.getFailure(), false);
-  //  }
-
   private static Payloads nexusFailureMetadataToPayloads(io.temporal.api.nexus.v1.Failure failure) {
     Map<String, ByteString> metadata =
         failure.getMetadataMap().entrySet().stream()
