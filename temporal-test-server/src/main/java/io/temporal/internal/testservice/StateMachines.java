@@ -51,14 +51,13 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
-import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.*;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.NexusOperationFailureInfo;
-import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.api.nexus.v1.Link;
@@ -818,6 +817,31 @@ class StateMachines {
 
   private static State failNexusOperation(
       RequestContext ctx, NexusOperationData data, Failure failure, long notUsed) {
+    // Nexus operation failures are never retryable
+    if (failure.hasNexusOperationExecutionFailureInfo()) {
+      // Populate the failure with the operation details
+      ctx.addEvent(
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_FAILED)
+              .setNexusOperationFailedEventAttributes(
+                  NexusOperationFailedEventAttributes.newBuilder()
+                      .setRequestId(data.scheduledEvent.getRequestId())
+                      .setScheduledEventId(data.scheduledEventId)
+                      .setFailure(
+                          failure.toBuilder()
+                              .setNexusOperationExecutionFailureInfo(
+                                  failure.getNexusOperationExecutionFailureInfo().toBuilder()
+                                      .setEndpoint(data.scheduledEvent.getEndpoint())
+                                      .setService(data.scheduledEvent.getService())
+                                      .setOperation(data.scheduledEvent.getOperation())
+                                      .setOperationId(data.operationId)
+                                      .setScheduledEventId(data.scheduledEventId)
+                                      .build())
+                              .build()))
+              .build());
+      return FAILED;
+    }
+
     RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
     if (retryState == RetryState.RETRY_STATE_IN_PROGRESS
         || retryState == RetryState.RETRY_STATE_TIMEOUT) {
@@ -853,6 +877,42 @@ class StateMachines {
     return FAILED;
   }
 
+  //  func isRetryableHandlerError(eType nexus.HandlerErrorType) bool {
+  //    switch eType {
+  //      case nexus.HandlerErrorTypeResourceExhausted,
+  //              nexus.HandlerErrorTypeInternal,
+  //              nexus.HandlerErrorTypeUnavailable,
+  //              nexus.HandlerErrorTypeUpstreamTimeout:
+  //        return true
+  //      case nexus.HandlerErrorTypeBadRequest,
+  //              nexus.HandlerErrorTypeUnauthenticated,
+  //              nexus.HandlerErrorTypeUnauthorized,
+  //              nexus.HandlerErrorTypeNotFound,
+  //              nexus.HandlerErrorTypeNotImplemented:
+  //        return false
+  //      default:
+  //        // Default to retryable in case other error types are added in the future.
+  //        // It's better to retry than unexpectedly fail.
+  //        return true
+  //    }
+  //  }
+  private static boolean isRetryableHandlerError(HandlerException.ErrorType errorType) {
+    switch (errorType) {
+      case BAD_REQUEST:
+      case UNAUTHORIZED:
+      case UNAUTHENTICATED:
+      case NOT_FOUND:
+      case NOT_IMPLEMENTED:
+        return false;
+      case RESOURCE_EXHAUSTED:
+      case INTERNAL:
+      case UNAVAILABLE:
+      case UPSTREAM_TIMEOUT:
+      default:
+        return true;
+    }
+  }
+
   private static RetryState attemptNexusOperationRetry(
       RequestContext ctx, Optional<Failure> failure, NexusOperationData data) {
     Optional<ApplicationFailureInfo> info = failure.map(Failure::getApplicationFailureInfo);
@@ -864,6 +924,13 @@ class StateMachines {
       if (info.get().hasNextRetryDelay()) {
         nextRetryDelay =
             Optional.of(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
+      }
+    }
+
+    if (failure.get().hasNexusHandlerFailureInfo()) {
+      NexusHandlerFailureInfo handlerFailure = failure.get().getNexusHandlerFailureInfo();
+      if (!isRetryableHandlerError(HandlerException.ErrorType.valueOf(handlerFailure.getType()))) {
+        return RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
       }
     }
 

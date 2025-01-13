@@ -22,9 +22,12 @@ package io.temporal.internal.nexus;
 
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.Header;
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
@@ -51,6 +54,11 @@ import org.slf4j.LoggerFactory;
 
 public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private static final Logger log = LoggerFactory.getLogger(NexusTaskHandlerImpl.class);
+  private static final JsonFormat.Printer JSON_PRINTER = JsonFormat.printer();
+  private static final String TEMPORAL_FAILURE_TYPE_STRING =
+      io.temporal.api.failure.v1.Failure.getDescriptor().getFullName();
+  private static final Map<String, String> NEXUS_FAILURE_METADATA =
+      Collections.singletonMap("type", TEMPORAL_FAILURE_TYPE_STRING);
   private final DataConverter dataConverter;
   private final String namespace;
   private final String taskQueue;
@@ -122,7 +130,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         } catch (IllegalArgumentException e) {
           return new Result(
               HandlerError.newBuilder()
-                  .setErrorType(OperationHandlerException.ErrorType.BAD_REQUEST.toString())
+                  .setErrorType(HandlerException.ErrorType.BAD_REQUEST.toString())
                   .setFailure(
                       Failure.newBuilder().setMessage("cannot parse request timeout").build())
                   .build());
@@ -148,20 +156,20 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         default:
           return new Result(
               HandlerError.newBuilder()
-                  .setErrorType(OperationHandlerException.ErrorType.NOT_IMPLEMENTED.toString())
+                  .setErrorType(HandlerException.ErrorType.NOT_IMPLEMENTED.toString())
                   .setFailure(Failure.newBuilder().setMessage("unknown request type").build())
                   .build());
       }
-    } catch (OperationHandlerException e) {
+    } catch (HandlerException e) {
       return new Result(
           HandlerError.newBuilder()
               .setErrorType(e.getErrorType().toString())
-              .setFailure(createFailure(e.getCause()))
+              .setFailure(exceptionToNexusFailure(e.getCause()))
               .build());
     } catch (Throwable e) {
       return new Result(
           HandlerError.newBuilder()
-              .setErrorType(OperationHandlerException.ErrorType.INTERNAL.toString())
+              .setErrorType(HandlerException.ErrorType.INTERNAL.toString())
               .setFailure(Failure.newBuilder().setMessage(e.toString()).build())
               .build());
     } finally {
@@ -177,12 +185,21 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
   }
 
-  private Failure createFailure(Throwable exception) {
+  private Failure exceptionToNexusFailure(Throwable exception) {
     io.temporal.api.failure.v1.Failure failure = dataConverter.exceptionToFailure(exception);
+    String details;
+    try {
+      details =
+          JSON_PRINTER
+              .omittingInsignificantWhitespace()
+              .print(failure.toBuilder().setMessage("").build());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
     return Failure.newBuilder()
         .setMessage(failure.getMessage())
-        .setDetails(failure.toByteString())
-        .putAllMetadata(Collections.singletonMap("type", "NexusFailureType"))
+        .setDetails(ByteString.copyFromUtf8(details))
+        .putAllMetadata(NEXUS_FAILURE_METADATA)
         .build();
   }
 
@@ -210,25 +227,22 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     try {
       cancelOperation(ctx.build(), operationCancelDetails);
     } catch (Throwable failure) {
-      convertKnownFailures(failure);
+      // convertKnownFailures(failure);
+      throw failure;
     }
 
     return CancelOperationResponse.newBuilder().build();
   }
 
-  private void convertKnownFailures(Throwable e) {
+  private void convertKnownFailures(Throwable e) throws OperationException {
     Throwable failure = CheckedExceptionWrapper.unwrap(e);
+    if (failure instanceof WorkflowException) {
+      throw OperationException.failure(failure);
+    }
     if (failure instanceof ApplicationFailure) {
       if (((ApplicationFailure) failure).isNonRetryable()) {
-        throw new OperationHandlerException(
-            OperationHandlerException.ErrorType.BAD_REQUEST, failure.getMessage());
+        throw OperationException.failure(failure);
       }
-      throw new OperationHandlerException(
-          OperationHandlerException.ErrorType.INTERNAL, failure.getMessage());
-    }
-    if (failure instanceof WorkflowException) {
-      throw new OperationHandlerException(
-          OperationHandlerException.ErrorType.BAD_REQUEST, failure.getMessage());
     }
     if (failure instanceof Error) {
       throw (Error) failure;
@@ -240,7 +254,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private OperationStartResult<HandlerResultContent> startOperation(
       OperationContext context, OperationStartDetails details, HandlerInputContent input)
-      throws OperationUnsuccessfulException {
+      throws OperationException {
     try {
       return serviceHandler.startOperation(context, details, input);
     } catch (Throwable e) {
@@ -271,8 +285,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                 operationStartDetails.addLink(nexusProtoLinkToLink(link));
               } catch (URISyntaxException e) {
                 log.error("failed to parse link url: " + link.getUrl(), e);
-                throw new OperationHandlerException(
-                    OperationHandlerException.ErrorType.BAD_REQUEST,
+                throw new HandlerException(
+                    HandlerException.ErrorType.BAD_REQUEST,
                     new RuntimeException("Invalid link URL: " + link.getUrl(), e));
               }
             });
@@ -282,36 +296,40 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
     try {
-      OperationStartResult<HandlerResultContent> result =
-          startOperation(ctx.build(), operationStartDetails.build(), input.build());
-      if (result.isSync()) {
-        startResponseBuilder.setSyncSuccess(
-            StartOperationResponse.Sync.newBuilder()
-                .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
-                .build());
-      } else {
-        startResponseBuilder.setAsyncSuccess(
-            StartOperationResponse.Async.newBuilder()
-                .setOperationId(result.getAsyncOperationId())
-                .addAllLinks(
-                    result.getLinks().stream()
-                        .map(
-                            link ->
-                                io.temporal.api.nexus.v1.Link.newBuilder()
-                                    .setType(link.getType())
-                                    .setUrl(link.getUri().toString())
-                                    .build())
-                        .collect(Collectors.toList()))
-                .build());
+      try {
+        OperationStartResult<HandlerResultContent> result =
+            startOperation(ctx.build(), operationStartDetails.build(), input.build());
+        if (result.isSync()) {
+          startResponseBuilder.setSyncSuccess(
+              StartOperationResponse.Sync.newBuilder()
+                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                  .build());
+        } else {
+          startResponseBuilder.setAsyncSuccess(
+              StartOperationResponse.Async.newBuilder()
+                  .setOperationId(result.getAsyncOperationId())
+                  .addAllLinks(
+                      result.getLinks().stream()
+                          .map(
+                              link ->
+                                  io.temporal.api.nexus.v1.Link.newBuilder()
+                                      .setType(link.getType())
+                                      .setUrl(link.getUri().toString())
+                                      .build())
+                          .collect(Collectors.toList()))
+                  .build());
+        }
+      } catch (OperationException e) {
+        throw e;
+      } catch (Throwable failure) {
+        convertKnownFailures(failure);
       }
-    } catch (OperationUnsuccessfulException e) {
+    } catch (OperationException e) {
       startResponseBuilder.setOperationError(
           UnsuccessfulOperationError.newBuilder()
               .setOperationState(e.getState().toString().toLowerCase())
-              .setFailure(createFailure(e.getCause()))
+              .setFailure(exceptionToNexusFailure(e.getCause()))
               .build());
-    } catch (Throwable failure) {
-      convertKnownFailures(failure);
     }
     return startResponseBuilder.build();
   }

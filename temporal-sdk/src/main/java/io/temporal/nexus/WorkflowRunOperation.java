@@ -80,7 +80,7 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
       return result.build();
     } catch (URISyntaxException e) {
       // Not expected as the link is constructed by the SDK.
-      throw new OperationHandlerException(OperationHandlerException.ErrorType.INTERNAL, e);
+      throw new HandlerException(HandlerException.ErrorType.INTERNAL, e);
     }
   }
 
