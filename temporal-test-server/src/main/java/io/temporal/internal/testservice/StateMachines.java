@@ -300,6 +300,7 @@ class StateMachines {
     TestServiceRetryState retryState;
     Duration nextBackoffInterval;
     String identity;
+    Timestamp lastAttemptCompleteTime;
 
     ActivityTaskData(
         TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
@@ -1955,9 +1956,11 @@ class StateMachines {
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
     if (request instanceof RespondActivityTaskFailedRequest) {
       RespondActivityTaskFailedRequest req = (RespondActivityTaskFailedRequest) request;
+      data.heartbeatDetails = req.getLastHeartbeatDetails();
       return failActivityTaskByRequestType(ctx, data, req.getFailure(), req.getIdentity());
     } else if (request instanceof RespondActivityTaskFailedByIdRequest) {
       RespondActivityTaskFailedByIdRequest req = (RespondActivityTaskFailedByIdRequest) request;
+      data.heartbeatDetails = req.getLastHeartbeatDetails();
       return failActivityTaskByRequestType(ctx, data, req.getFailure(), req.getIdentity());
     } else {
       throw new IllegalArgumentException("Unknown request: " + request);
@@ -2112,6 +2115,7 @@ class StateMachines {
       ctx.onCommit(
           (historySize) -> {
             data.retryState = nextAttempt;
+            data.lastAttemptCompleteTime = ctx.currentTime();
             task.setAttempt(nextAttempt.getAttempt());
             task.setCurrentAttemptScheduledTime(ctx.currentTime());
           });

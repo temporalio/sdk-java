@@ -189,7 +189,14 @@ public final class DefaultFailureConverter implements FailureConverter {
         }
       case FAILUREINFO_NOT_SET:
       default:
-        throw new IllegalArgumentException("Failure info not set");
+        // All unknown types are considered to be retryable ApplicationError.
+        return ApplicationFailure.newFromValues(
+            failure.getMessage(),
+            "",
+            false,
+            new EncodedValues(Optional.empty(), dataConverter),
+            cause,
+            null);
     }
   }
 

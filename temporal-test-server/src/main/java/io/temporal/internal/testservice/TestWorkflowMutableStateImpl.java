@@ -21,6 +21,7 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.*;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.StateMachines.*;
 import static io.temporal.internal.testservice.StateUtils.mergeMemo;
@@ -28,6 +29,7 @@ import static io.temporal.internal.testservice.TestServiceRetryState.validateAnd
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -86,6 +88,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
+  static final Failure FAILED_UPDATE_ON_WF_COMPLETION =
+      Failure.newBuilder()
+          .setMessage(
+              "Workflow Update failed because the Workflow completed before the Update completed.")
+          .setSource("Server")
+          .setApplicationFailureInfo(
+              ApplicationFailureInfo.newBuilder()
+                  .setType("AcceptedUpdateCompletedWorkflow")
+                  .setNonRetryable(true)
+                  .build())
+          .build();
 
   /**
    * If the implementation throws an exception, changes accumulated in the RequestContext will not
@@ -541,6 +554,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     || request.getForceCreateNewWorkflowTask())) {
               scheduleWorkflowTask(ctx);
             }
+
             workflowTaskStateMachine.getData().bufferedEvents.clear();
             Map<String, ConsistentQuery> queries = data.consistentQueryRequests;
             Map<String, WorkflowQueryResult> queryResultsMap = request.getQueryResultsMap();
@@ -1671,15 +1685,51 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       return;
     }
 
+    updates.forEach(
+        (k, updateStateMachine) -> {
+          if (!(updateStateMachine.getState() == StateMachines.State.COMPLETED
+              || updateStateMachine.getState() == StateMachines.State.FAILED)) {
+            updateStateMachine.action(
+                Action.COMPLETE,
+                ctx,
+                Message.newBuilder()
+                    .setBody(
+                        Any.pack(
+                            Response.newBuilder()
+                                .setOutcome(
+                                    Outcome.newBuilder()
+                                        .setFailure(FAILED_UPDATE_ON_WF_COMPLETION)
+                                        .build())
+                                .build()))
+                    .build(),
+                completionEvent.get().getEventId());
+          }
+        });
+
     for (Callback cb : startRequest.getCompletionCallbacksList()) {
       if (!cb.hasNexus()) {
         // test server only supports nexus callbacks currently
         log.warn("skipping non-nexus completion callback");
         continue;
       }
+
       String serializedRef = cb.getNexus().getHeaderOrThrow("operation-reference");
       NexusOperationRef ref = NexusOperationRef.fromBytes(serializedRef.getBytes());
-      service.completeNexusOperation(ref, completionEvent.get());
+
+      io.temporal.api.nexus.v1.Link startLink =
+          workflowEventToNexusLink(
+              Link.WorkflowEvent.newBuilder()
+                  .setNamespace(ctx.getNamespace())
+                  .setWorkflowId(ctx.getExecution().getWorkflowId())
+                  .setRunId(ctx.getExecution().getRunId())
+                  .setEventRef(
+                      Link.WorkflowEvent.EventReference.newBuilder()
+                          .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+                          .build())
+                  .build());
+
+      service.completeNexusOperation(
+          ref, ctx.getExecution().getWorkflowId(), startLink, completionEvent.get());
     }
   }
 
@@ -2211,6 +2261,32 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           StateMachine<NexusOperationData> operation =
               getPendingNexusOperation(ref.getScheduledEventId());
+          operation.action(Action.COMPLETE, ctx, result, 0);
+          nexusOperations.remove(ref.getScheduledEventId());
+          scheduleWorkflowTask(ctx);
+          ctx.unlockTimer("completeNexusOperation");
+        });
+  }
+
+  @Override
+  public void completeAsyncNexusOperation(
+      NexusOperationRef ref,
+      Payload result,
+      String operationID,
+      io.temporal.api.nexus.v1.Link startLink) {
+    update(
+        ctx -> {
+          StateMachine<NexusOperationData> operation =
+              getPendingNexusOperation(ref.getScheduledEventId());
+          if (operation.getState() == State.INITIATED) {
+            // Received completion before start, so fabricate started event.
+            StartOperationResponse.Async start =
+                StartOperationResponse.Async.newBuilder()
+                    .setOperationId(operationID)
+                    .addLinks(startLink)
+                    .build();
+            operation.action(Action.START, ctx, start, 0);
+          }
           operation.action(Action.COMPLETE, ctx, result, 0);
           nexusOperations.remove(ref.getScheduledEventId());
           scheduleWorkflowTask(ctx);
@@ -3101,6 +3177,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       builder.setLastWorkerIdentity(activityTaskData.identity);
     }
 
+    if (activityTaskData.lastAttemptCompleteTime != null) {
+      builder.setLastAttemptCompleteTime(activityTaskData.lastAttemptCompleteTime);
+    }
+
     // Some ids are only present in the schedule event...
     if (activityTaskData.scheduledEvent != null) {
       populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
@@ -3145,12 +3225,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private static void populatePendingActivityInfoFromPollResponse(
       PendingActivityInfo.Builder builder, PollActivityTaskQueueResponseOrBuilder task) {
-    // In golang, we set one but never both of these fields, depending on the activity state
-    if (builder.getState() == PendingActivityState.PENDING_ACTIVITY_STATE_SCHEDULED) {
-      builder.setScheduledTime(task.getScheduledTime());
-    } else {
-      builder.setLastStartedTime(task.getStartedTime());
-    }
+    builder.setScheduledTime(task.getScheduledTime());
+    builder.setLastStartedTime(task.getStartedTime());
   }
 
   private static void populatePendingActivityInfoFromHeartbeatDetails(

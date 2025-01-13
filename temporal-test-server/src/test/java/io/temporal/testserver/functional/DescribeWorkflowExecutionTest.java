@@ -175,6 +175,7 @@ public class DescribeWorkflowExecutionTest {
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
             // going to run against the real server.
+            .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
             .setExpirationTime(actual.getExpirationTime())
             .build();
@@ -266,8 +267,10 @@ public class DescribeWorkflowExecutionTest {
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
             // going to run against the real server.
+            .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
             .setExpirationTime(actual.getExpirationTime())
+            .setLastAttemptCompleteTime(actual.getLastAttemptCompleteTime())
             // this ends up being a dummy value, but if it weren't, we still wouldn't expect to know
             // it.
             .setLastWorkerIdentity(actual.getLastWorkerIdentity())
@@ -333,6 +336,7 @@ public class DescribeWorkflowExecutionTest {
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
             // going to run against the real server.
+            .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
             .setExpirationTime(actual.getExpirationTime())
             // this ends up being a dummy value, but if it weren't, we still wouldn't expect to know

@@ -20,8 +20,6 @@
 
 package io.temporal.testserver.functional;
 
-import static org.junit.Assume.assumeFalse;
-
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
@@ -548,7 +546,6 @@ public class WorkflowUpdateTest {
   @Test
   public void getCompletedUpdateOfCompletedWorkflow() {
     // Assert that we can get and poll a completed update from a completed workflow.
-    assumeFalse("Skipping as real server has a bug", SDKTestWorkflowRule.useExternalService);
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
@@ -593,7 +590,7 @@ public class WorkflowUpdateTest {
 
   @Test
   public void getIncompleteUpdateOfCompletedWorkflow() {
-    // Assert that we can't get an incomplete update of a completed workflow. Expect a NOT_FOUND
+    // Assert that the server fails an incomplete update if the workflow is completed.
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
 
@@ -617,48 +614,60 @@ public class WorkflowUpdateTest {
     workflowStub.signal();
     workflowStub.execute();
 
-    StatusRuntimeException exception =
-        Assert.assertThrows(
-            StatusRuntimeException.class,
-            () ->
-                updateWorkflow(
-                    exec,
-                    "updateId",
-                    UpdateWorkflowExecutionLifecycleStage
-                        .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
-                    TestWorkflows.UpdateType.BLOCK));
-    Assert.assertEquals(Status.NOT_FOUND.getCode(), exception.getStatus().getCode());
-    exception =
-        Assert.assertThrows(
-            StatusRuntimeException.class,
-            () ->
-                updateWorkflow(
-                    exec,
-                    "updateId",
-                    UpdateWorkflowExecutionLifecycleStage
-                        .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED,
-                    TestWorkflows.UpdateType.BLOCK));
-    Assert.assertEquals(Status.NOT_FOUND.getCode(), exception.getStatus().getCode());
-    exception =
-        Assert.assertThrows(
-            StatusRuntimeException.class,
-            () ->
-                pollWorkflowUpdate(
-                    exec,
-                    "updateId",
-                    UpdateWorkflowExecutionLifecycleStage
-                        .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED));
-    Assert.assertEquals(Status.NOT_FOUND.getCode(), exception.getStatus().getCode());
-    exception =
-        Assert.assertThrows(
-            StatusRuntimeException.class,
-            () ->
-                pollWorkflowUpdate(
-                    exec,
-                    "updateId",
-                    UpdateWorkflowExecutionLifecycleStage
-                        .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED));
-    Assert.assertEquals(Status.NOT_FOUND.getCode(), exception.getStatus().getCode());
+    response =
+        updateWorkflow(
+            exec,
+            "updateId",
+            UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+            TestWorkflows.UpdateType.BLOCK);
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        response.getStage());
+    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(response.getOutcome());
+
+    response =
+        updateWorkflow(
+            exec,
+            "updateId",
+            UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED,
+            TestWorkflows.UpdateType.BLOCK);
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        response.getStage());
+    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(response.getOutcome());
+
+    PollWorkflowExecutionUpdateResponse pollResponse =
+        pollWorkflowUpdate(
+            exec,
+            "updateId",
+            UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED);
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        pollResponse.getStage());
+    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(pollResponse.getOutcome());
+
+    pollResponse =
+        pollWorkflowUpdate(
+            exec,
+            "updateId",
+            UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED);
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        pollResponse.getStage());
+    assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(pollResponse.getOutcome());
+  }
+
+  private void assertUpdateOutcomeIsAcceptedUpdateCompletedWorkflow(Outcome outcome) {
+    Assert.assertEquals(
+        "Workflow Update failed because the Workflow completed before the Update completed.",
+        outcome.getFailure().getMessage());
+    Assert.assertEquals(
+        "AcceptedUpdateCompletedWorkflow",
+        outcome.getFailure().getApplicationFailureInfo().getType());
   }
 
   private UpdateWorkflowExecutionResponse updateWorkflow(
