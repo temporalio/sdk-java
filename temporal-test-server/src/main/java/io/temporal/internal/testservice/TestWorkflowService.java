@@ -44,6 +44,7 @@ import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.*;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
@@ -920,49 +921,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         target.completeAsyncNexusOperation(ref, p, operationID, startLink);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
-        //        // Unset message so it's not serialized in the details.
-        //        var message string
-        //        message, failure.Message = failure.Message, ""
-        //        data, err := protojson.Marshal(failure)
-        //        failure.Message = message
-        //
-        //        if err != nil {
-        //        return nexus.Failure{}, err
-        //      }
-        //      return nexus.Failure{
-        //        Message: failure.GetMessage(),
-        //                Metadata: map[string]string{
-        //          "type": failureTypeString,
-        //        },
-        //        Details: data,
-        //      }, nil
         Failure wfFailure =
             completionEvent.getWorkflowExecutionFailedEventAttributes().getFailure();
-        String wfFailureMessage = wfFailure.getMessage();
-        String json = "";
-        try {
-          json = JSON_PRINTER.print(wfFailure.toBuilder().setMessage("").build());
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException(e);
-        }
-        io.temporal.api.nexus.v1.Failure nexusFailure =
-            io.temporal.api.nexus.v1.Failure.newBuilder()
-                .setMessage(wfFailureMessage)
-                .putMetadata("type", FAILURE_TYPE_STRING)
-                .setDetails(ByteString.copyFromUtf8(json))
-                .build();
-
-        Failure f =
-            Failure.newBuilder()
-                .setNexusHandlerFailureInfo(NexusHandlerFailureInfo.newBuilder().build())
-                .build();
-        target.failNexusOperation(ref, f);
+        target.failNexusOperation(ref, wrapNexusOperationFailure(wfFailure));
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+        CanceledFailureInfo.Builder cancelFailure = CanceledFailureInfo.newBuilder();
+        if (completionEvent.getWorkflowExecutionCanceledEventAttributes().hasDetails()) {
+          cancelFailure.setDetails(
+              completionEvent.getWorkflowExecutionCanceledEventAttributes().getDetails());
+        }
         Failure canceled =
             Failure.newBuilder()
                 .setMessage("operation canceled")
-                .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+                .setCanceledFailureInfo(cancelFailure.build())
                 .build();
         target.cancelNexusOperation(ref, canceled);
         break;

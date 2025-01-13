@@ -20,11 +20,9 @@
 
 package io.temporal.internal.nexus;
 
+import static io.temporal.internal.common.NexusUtil.exceptionToNexusFailure;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.Header;
 import io.nexusrpc.OperationException;
@@ -54,11 +52,7 @@ import org.slf4j.LoggerFactory;
 
 public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private static final Logger log = LoggerFactory.getLogger(NexusTaskHandlerImpl.class);
-  private static final JsonFormat.Printer JSON_PRINTER = JsonFormat.printer();
-  private static final String TEMPORAL_FAILURE_TYPE_STRING =
-      io.temporal.api.failure.v1.Failure.getDescriptor().getFullName();
-  private static final Map<String, String> NEXUS_FAILURE_METADATA =
-      Collections.singletonMap("type", TEMPORAL_FAILURE_TYPE_STRING);
+
   private final DataConverter dataConverter;
   private final String namespace;
   private final String taskQueue;
@@ -128,12 +122,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                   timeout.toMillis(),
                   java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (IllegalArgumentException e) {
-          return new Result(
-              HandlerError.newBuilder()
-                  .setErrorType(HandlerException.ErrorType.BAD_REQUEST.toString())
-                  .setFailure(
-                      Failure.newBuilder().setMessage("cannot parse request timeout").build())
-                  .build());
+          throw new HandlerException(
+              HandlerException.ErrorType.BAD_REQUEST,
+              new RuntimeException("Invalid request timeout header", e));
         }
       }
 
@@ -154,23 +145,21 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               handleCancelledOperation(ctx, request.getCancelOperation());
           return new Result(Response.newBuilder().setCancelOperation(cancelResponse).build());
         default:
-          return new Result(
-              HandlerError.newBuilder()
-                  .setErrorType(HandlerException.ErrorType.NOT_IMPLEMENTED.toString())
-                  .setFailure(Failure.newBuilder().setMessage("unknown request type").build())
-                  .build());
+          throw new HandlerException(
+              HandlerException.ErrorType.NOT_IMPLEMENTED,
+              new RuntimeException("Unknown request type: " + request.getVariantCase()));
       }
     } catch (HandlerException e) {
       return new Result(
           HandlerError.newBuilder()
               .setErrorType(e.getErrorType().toString())
-              .setFailure(exceptionToNexusFailure(e.getCause()))
+              .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
               .build());
     } catch (Throwable e) {
       return new Result(
           HandlerError.newBuilder()
               .setErrorType(HandlerException.ErrorType.INTERNAL.toString())
-              .setFailure(Failure.newBuilder().setMessage(e.toString()).build())
+              .setFailure(exceptionToNexusFailure(e, dataConverter))
               .build());
     } finally {
       // If the task timed out, we should not send a response back to the server
@@ -183,24 +172,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
       CurrentNexusOperationContext.unset();
     }
-  }
-
-  private Failure exceptionToNexusFailure(Throwable exception) {
-    io.temporal.api.failure.v1.Failure failure = dataConverter.exceptionToFailure(exception);
-    String details;
-    try {
-      details =
-          JSON_PRINTER
-              .omittingInsignificantWhitespace()
-              .print(failure.toBuilder().setMessage("").build());
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e);
-    }
-    return Failure.newBuilder()
-        .setMessage(failure.getMessage())
-        .setDetails(ByteString.copyFromUtf8(details))
-        .putAllMetadata(NEXUS_FAILURE_METADATA)
-        .build();
   }
 
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {
@@ -328,7 +299,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       startResponseBuilder.setOperationError(
           UnsuccessfulOperationError.newBuilder()
               .setOperationState(e.getState().toString().toLowerCase())
-              .setFailure(exceptionToNexusFailure(e.getCause()))
+              .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
               .build());
     }
     return startResponseBuilder.build();
