@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
@@ -182,6 +183,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public Object newChildThread(Runnable runnable, boolean detached, String name) {
     return next.newChildThread(runnable, detached, name);
+  }
+
+  @Override
+  public Executor newCallbackExecutor() {
+    return next.newCallbackExecutor();
   }
 
   @Override

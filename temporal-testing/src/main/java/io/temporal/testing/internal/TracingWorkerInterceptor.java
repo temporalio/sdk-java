@@ -36,6 +36,7 @@ import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -431,6 +432,15 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         trace.add("newThread " + name);
       }
       return next.newChildThread(runnable, detached, name);
+    }
+
+    @Override
+    public Executor newCallbackExecutor() {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("newCallbackExecutor ");
+      }
+
+      return next.newCallbackExecutor();
     }
 
     @Override

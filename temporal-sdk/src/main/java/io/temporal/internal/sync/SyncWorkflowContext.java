@@ -78,6 +78,7 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
@@ -410,6 +411,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       workflowMetadata.setCurrentDetails(currentDetails);
     }
     return workflowMetadata.build();
+  }
+
+  private class DirectExecutor implements Executor {
+    public void execute(Runnable r) {
+      r.run();
+    }
   }
 
   private class ActivityCallback {
@@ -1417,6 +1424,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public Object newChildThread(Runnable runnable, boolean detached, String name) {
     return runner.newWorkflowThread(runnable, detached, name);
+  }
+
+  @Override
+  public Executor newCallbackExecutor() {
+    return new DirectExecutor();
   }
 
   @Override
