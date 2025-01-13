@@ -24,6 +24,8 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -94,6 +96,23 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
           .unblock();
       // Wait for the operation to complete
       Assert.assertEquals("Hello from operation workflow block", asyncOpHandle.getResult().get());
+      // Try to call an asynchronous operation that will fail
+      try {
+        String ignore = serviceStub.operation("fail");
+      } catch (NexusOperationFailure e) {
+        Assert.assertEquals("TestNexusService1", e.getService());
+        Assert.assertEquals("operation", e.getOperation());
+        Assert.assertTrue(e.getOperationId().startsWith(WORKFLOW_ID_PREFIX));
+        Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
+        ApplicationFailure applicationFailure = (ApplicationFailure) e.getCause();
+        Assert.assertEquals("simulated failure", applicationFailure.getOriginalMessage());
+        Assert.assertEquals("SimulatedFailureType", applicationFailure.getType());
+        Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
+        Assert.assertTrue(applicationFailure.getCause() instanceof ApplicationFailure);
+        ApplicationFailure cause = (ApplicationFailure) applicationFailure.getCause();
+        Assert.assertEquals("simulated cause", cause.getOriginalMessage());
+        Assert.assertEquals("SimulatedCause", cause.getType());
+      }
       return asyncResult;
     }
   }
@@ -114,6 +133,12 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
     public String execute(String arg) {
       if (arg.equals("block")) {
         Workflow.await(() -> unblocked);
+      } else if (arg.equals("fail")) {
+        throw ApplicationFailure.newFailureWithCause(
+            "simulated failure",
+            "SimulatedFailureType",
+            ApplicationFailure.newFailure("simulated cause", "SimulatedCause"),
+            "foo");
       }
       return "Hello from operation workflow " + arg;
     }
