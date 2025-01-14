@@ -29,6 +29,7 @@ import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -40,6 +41,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   private final List<Functions.Proc> handlers = new ArrayList<>();
   private final DeterministicRunnerImpl runner;
   private boolean registeredWithRunner;
+  private Executor callbackExecutor;
 
   @SuppressWarnings("unchecked")
   static Promise<Object> promiseAnyOf(Promise<?>[] promises) {
@@ -62,7 +64,10 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   }
 
   CompletablePromiseImpl() {
-    runner = DeterministicRunnerImpl.currentThreadInternal().getRunner();
+    WorkflowThread workflowThread = DeterministicRunnerImpl.currentThreadInternal();
+    runner = workflowThread.getRunner();
+    callbackExecutor =
+        workflowThread.getWorkflowContext().getWorkflowOutboundInterceptor().newCallbackExecutor();
   }
 
   @Override
@@ -275,9 +280,14 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
    * @return true if there were any handlers invoked
    */
   private boolean invokeHandlers() {
-    for (Functions.Proc handler : handlers) {
-      handler.apply();
-    }
+    // execute synchronously to this thread, but under the context established in the constructor
+    callbackExecutor.execute(
+        () -> {
+          for (Functions.Proc handler : handlers) {
+            handler.apply();
+          }
+        });
+
     return !handlers.isEmpty();
   }
 }

@@ -498,6 +498,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public Executor newCallbackExecutor() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public long currentTimeMillis() {
       throw new UnsupportedOperationException("not implemented");
     }

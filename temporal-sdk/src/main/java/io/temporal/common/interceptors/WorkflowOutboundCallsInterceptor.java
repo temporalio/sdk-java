@@ -31,6 +31,7 @@ import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.Executor;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -797,6 +798,18 @@ public interface WorkflowOutboundCallsInterceptor {
    * @return created WorkflowThread
    */
   Object newChildThread(Runnable runnable, boolean detached, String name);
+
+  /**
+   * Intercepts the point where a new callback is being prepared for deferment and allows
+   * interceptors to provide a wrapped execution environment for running the callback at a later
+   * time.
+   *
+   * <p>The executor's execute() function _must_ fully execute the provided Runnable within the
+   * caller's thread or determinism guarantees could be violated.
+   *
+   * @return created Executor
+   */
+  Executor newCallbackExecutor();
 
   long currentTimeMillis();
 }
