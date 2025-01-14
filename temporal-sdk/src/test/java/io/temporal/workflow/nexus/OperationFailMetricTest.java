@@ -397,7 +397,7 @@ public class OperationFailMetricTest {
               case "error":
                 throw new Error("error");
               case "canceled":
-                throw OperationException.cancelled(new RuntimeException("canceled"));
+                throw OperationException.canceled(new RuntimeException("canceled"));
               default:
                 // Should never happen
                 Assert.fail();

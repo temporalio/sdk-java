@@ -139,6 +139,12 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
             "SimulatedFailureType",
             ApplicationFailure.newFailure("simulated cause", "SimulatedCause"),
             "foo");
+      } else if (arg.equals("ignore-cancel")) {
+        Workflow.newDetachedCancellationScope(
+                () -> {
+                  Workflow.await(() -> unblocked);
+                })
+            .run();
       }
       return "Hello from operation workflow " + arg;
     }

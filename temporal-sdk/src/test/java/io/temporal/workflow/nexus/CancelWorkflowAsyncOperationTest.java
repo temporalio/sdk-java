@@ -27,6 +27,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -44,7 +45,6 @@ public class CancelWorkflowAsyncOperationTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class, AsyncWorkflowOperationTest.TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(true)
           .build();
 
   @Test
@@ -103,12 +103,43 @@ public class CancelWorkflowAsyncOperationTest {
     }
   }
 
+  @Test
+  public void asyncOperationCanceledIgnore() {
+    // Test that an async operation can ignore a cancellation request
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    WorkflowFailedException exception =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("ignore-cancel"));
+    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
+    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
+    Assert.assertTrue(nexusFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure timeoutFailure = (TimeoutFailure) nexusFailure.getCause();
+    Assert.assertEquals("operation timed out", timeoutFailure.getOriginalMessage());
+
+    // Due to Service registry delay this can be flaky on the real server.
+    if (!testWorkflowRule.isUseExternalService()) {
+      testWorkflowRule
+          .getInterceptor(TracingWorkerInterceptor.class)
+          .setExpected(
+              "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+              "newThread workflow-method",
+              "executeNexusOperation TestNexusService1 operation",
+              "startNexusOperation TestNexusService1 operation",
+              "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+              "registerSignalHandlers unblock",
+              "newThread workflow-method",
+              "await await",
+              "cancelNexusOperation TestNexusService1 operation");
+    }
+  }
+
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String input) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder().setOperationOptions(options).build();
