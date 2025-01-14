@@ -198,7 +198,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     try {
       cancelOperation(ctx.build(), operationCancelDetails);
     } catch (Throwable failure) {
-      // FIX BEFORE MERGED - Right now the Go SDK is returning operation errors for cancel operations
+      // FIX BEFORE MERGED - Right now the Go SDK is returning operation errors for cancel
+      // operations
       // convertKnownFailures(failure);
       throw failure;
     }
