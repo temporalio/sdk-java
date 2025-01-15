@@ -36,7 +36,6 @@ import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
@@ -94,7 +93,6 @@ public final class Worker {
     this.taskQueue = taskQueue;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
-    WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
     Map<String, String> tags =
@@ -114,7 +112,7 @@ public final class Worker {
 
       activityWorker =
           new SyncActivityWorker(
-              service,
+              client,
               namespace,
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
@@ -161,9 +159,10 @@ public final class Worker {
             ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentLocalActivityExecutionSize())
             : this.options.getWorkerTuner().getLocalActivitySlotSupplier();
     attachMetricsToResourceController(taggedScope, localActivitySlotSupplier);
+
     workflowWorker =
         new SyncWorkflowWorker(
-            service,
+            client,
             namespace,
             taskQueue,
             singleWorkerOptions,

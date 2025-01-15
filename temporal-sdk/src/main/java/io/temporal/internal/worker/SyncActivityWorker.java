@@ -20,10 +20,10 @@
 
 package io.temporal.internal.worker;
 
+import io.temporal.client.WorkflowClient;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.ActivitySlotInfo;
 import io.temporal.worker.tuning.SlotSupplier;
 import java.time.Duration;
@@ -47,7 +47,7 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final ActivityWorker worker;
 
   public SyncActivityWorker(
-      WorkflowServiceStubs service,
+      WorkflowClient client,
       String namespace,
       String taskQueue,
       double taskQueueActivitiesPerSecond,
@@ -69,7 +69,7 @@ public class SyncActivityWorker implements SuspendableWorker {
                 null));
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
-            service,
+            client,
             identity,
             namespace,
             options.getMaxHeartbeatThrottleInterval(),
@@ -86,7 +86,7 @@ public class SyncActivityWorker implements SuspendableWorker {
             options.getContextPropagators());
     this.worker =
         new ActivityWorker(
-            service,
+            client.getWorkflowServiceStubs(),
             namespace,
             taskQueue,
             taskQueueActivitiesPerSecond,

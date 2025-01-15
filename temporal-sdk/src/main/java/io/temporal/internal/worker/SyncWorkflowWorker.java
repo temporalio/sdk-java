@@ -24,6 +24,7 @@ import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
@@ -31,7 +32,6 @@ import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
@@ -75,7 +75,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private boolean runningLocalActivityWorker;
 
   public SyncWorkflowWorker(
-      @Nonnull WorkflowServiceStubs service,
+      @Nonnull WorkflowClient client,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull SingleWorkerOptions singleWorkerOptions,
@@ -101,7 +101,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             namespace);
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
-        new LocalActivityExecutionContextFactoryImpl();
+        new LocalActivityExecutionContextFactoryImpl(client);
     laTaskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
@@ -126,12 +126,12 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             stickyTaskQueue,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
-            service,
+            client.getWorkflowServiceStubs(),
             laWorker.getLocalActivityScheduler());
 
     workflowWorker =
         new WorkflowWorker(
-            service,
+            client.getWorkflowServiceStubs(),
             namespace,
             taskQueue,
             stickyTaskQueueName,
@@ -152,7 +152,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             null,
             Duration.ZERO,
-            service,
+            client.getWorkflowServiceStubs(),
             laWorker.getLocalActivityScheduler());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);

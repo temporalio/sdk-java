@@ -21,15 +21,15 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class ActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
-  private final WorkflowServiceStubs service;
+  private final WorkflowClient client;
   private final String identity;
   private final String namespace;
   private final Duration maxHeartbeatThrottleInterval;
@@ -39,14 +39,14 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
 
   public ActivityExecutionContextFactoryImpl(
-      WorkflowServiceStubs service,
+      WorkflowClient client,
       String identity,
       String namespace,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
-    this.service = Objects.requireNonNull(service);
+    this.client = Objects.requireNonNull(client);
     this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);
     this.maxHeartbeatThrottleInterval = Objects.requireNonNull(maxHeartbeatThrottleInterval);
@@ -56,14 +56,14 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
     this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
     this.manualCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            service, namespace, identity, dataConverter);
+            client.getWorkflowServiceStubs(), namespace, identity, dataConverter);
   }
 
   @Override
   public InternalActivityExecutionContext createContext(
       ActivityInfoInternal info, Scope metricsScope) {
     return new ActivityExecutionContextImpl(
-        service,
+        client,
         namespace,
         info,
         dataConverter,
