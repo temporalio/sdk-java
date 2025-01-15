@@ -632,7 +632,12 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setPollThreadCount(1)
+                .setPollerTaskExecutorOverride(
+                    factoryOptions.getOverrideLocalActivityTaskExecutor())
+                .build())
         .setMetricsScope(metricsScope)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnLocalActivityWorker())
         .build();

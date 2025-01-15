@@ -63,8 +63,10 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
 
     this.pollThreadNamePrefix =
         pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
-    // If virtual threads are enabled, we use a virtual thread executor.
-    if (useVirtualThreads) {
+    if (pollerOptions.getPollerTaskExecutorOverride() != null) {
+      this.taskExecutor = pollerOptions.getPollerTaskExecutorOverride();
+    } else if (useVirtualThreads) {
+      // If virtual threads are enabled, we use a virtual thread executor.
       AtomicInteger threadIndex = new AtomicInteger();
       this.taskExecutor =
           VirtualThreadDelegate.newVirtualThreadExecutor(
@@ -76,11 +78,9 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       ThreadPoolExecutor threadPoolTaskExecutor =
           new ThreadPoolExecutor(
               // for SynchronousQueue we can afford to set it to 0, because the queue is always full
-              // or empty
-              // for LinkedBlockingQueue we have to set slots to workerTaskSlots to avoid situation
-              // when the queue grows, but the amount of threads is not, because the queue is not
-              // (and
-              // never) full
+              // or empty for LinkedBlockingQueue we have to set slots to workerTaskSlots to avoid
+              // situation when the queue grows, but the amount of threads is not, because the queue
+              // is not (and never) full
               synchronousQueue ? 0 : workerTaskSlots,
               workerTaskSlots,
               10,
