@@ -22,6 +22,7 @@ package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
@@ -140,4 +141,10 @@ public interface ActivityExecutionContext {
    * WorkflowServiceStubsOptions.Builder#setMetricsScope(Scope)} when a worker starts up.
    */
   Scope getMetricsScope();
+
+  /**
+   * Get a {@link WorkflowClient} that can be used to start interact with the Temporal service from
+   * an activity.
+   */
+  WorkflowClient getWorkflowClient();
 }

@@ -25,6 +25,7 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -84,5 +85,10 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   @Override
   public Scope getMetricsScope() {
     return next.getMetricsScope();
+  }
+
+  @Override
+  public WorkflowClient getWorkflowClient() {
+    return next.getWorkflowClient();
   }
 }
