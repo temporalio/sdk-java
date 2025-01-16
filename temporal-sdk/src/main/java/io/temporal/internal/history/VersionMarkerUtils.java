@@ -21,6 +21,7 @@
 package io.temporal.internal.history;
 
 import com.google.common.base.Preconditions;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -54,6 +55,14 @@ public class VersionMarkerUtils {
    */
   public static boolean hasVersionMarkerStructure(HistoryEvent event) {
     return MarkerUtils.verifyMarkerName(event, MARKER_NAME);
+  }
+
+  /**
+   * @param command {@code Command} to inspect
+   * @return true if the command has a correct structure for a version marker
+   */
+  public static boolean hasVersionMarkerStructure(Command command) {
+    return MarkerUtils.verifyMarkerName(command, MARKER_NAME);
   }
 
   @Nullable
