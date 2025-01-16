@@ -1119,7 +1119,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
     CompletablePromise<Integer> result = Workflow.newPromise();
-    boolean markerExists =
+    Integer versionToUse =
         replayContext.getVersion(
             changeId,
             minSupported,
@@ -1140,12 +1140,33 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
      * because it can lead to non-deterministic scheduling.
      * */
     if (replayContext.isReplaying()
-        && !markerExists
+        && versionToUse == null
         && replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION)
         && minSupported == DEFAULT_VERSION) {
       return DEFAULT_VERSION;
     }
 
+    /*
+     * Previously the SDK would yield on the getVersion call to the scheduler. This is not ideal because it can lead to non-deterministic
+     * scheduling if the getVersion call was removed.
+     * */
+    if (replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
+      // This can happen if we are replaying a workflow and encounter a getVersion call that did not
+      // exist on the original execution.
+      // and the range does not include the default version.
+      if (versionToUse == null) {
+        versionToUse = DEFAULT_VERSION;
+      }
+      if (versionToUse < minSupported || versionToUse > maxSupported) {
+        throw new UnsupportedVersion(
+            new UnsupportedVersion.UnsupportedVersionException(
+                String.format(
+                    "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
+                    versionToUse, changeId, minSupported, maxSupported)));
+      }
+      return versionToUse;
+    }
+    // Legacy behavior if SKIP_YIELD_ON_VERSION is not set
     try {
       return result.get();
     } catch (UnsupportedVersion.UnsupportedVersionException ex) {

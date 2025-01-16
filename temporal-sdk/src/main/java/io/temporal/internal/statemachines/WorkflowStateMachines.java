@@ -60,7 +60,7 @@ public final class WorkflowStateMachines {
   /** Initial set of SDK flags that will be set on all new workflow executions. */
   private static final List<SdkFlag> initialFlags =
       Collections.unmodifiableList(
-          Collections.singletonList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+          Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION, SdkFlag.SKIP_YIELD_ON_VERSION));
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -1074,7 +1074,7 @@ public final class WorkflowStateMachines {
         stateMachineSink);
   }
 
-  public boolean getVersion(
+  public Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,

@@ -284,7 +284,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param callback used to return version
    * @return True if the identifier is not present in history
    */
-  boolean getVersion(
+  Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,

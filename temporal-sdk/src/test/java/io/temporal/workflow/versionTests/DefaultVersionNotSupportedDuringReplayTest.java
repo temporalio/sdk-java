@@ -28,6 +28,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -64,6 +65,9 @@ public class DefaultVersionNotSupportedDuringReplayTest {
         try {
           Workflow.getVersion("test_change", 2, 3);
         } catch (UnsupportedVersion e) {
+          Assert.assertEquals(
+              "Version -1 of changeId test_change is not supported. Supported v is between 2 and 3.",
+              e.getMessage());
           unsupportedVersionExceptionThrown.signal();
           throw e;
         }
