@@ -102,7 +102,7 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       } catch (Throwable e) {
         // Fail the workflow task if something went wrong executing the local activity (at the
         // executor level, otherwise, the LA handler itself should be handling errors)
-        log.error("Unexpected error executing local activity", e);
+        log.error("Unexpected error submitting local activity task to worker", e);
         if (slotPermit != null) {
           slotSupplier.releaseSlot(SlotReleaseReason.error(new RuntimeException(e)), slotPermit);
         }

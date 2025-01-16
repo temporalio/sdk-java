@@ -20,6 +20,7 @@
 
 package io.temporal.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -147,6 +148,7 @@ public class WorkerFactoryOptions {
     }
 
     /** For internal use only. Overrides the local activity task ExecutorService. */
+    @VisibleForTesting
     Builder setOverrideLocalActivityTaskExecutor(
         ExecutorService overrideLocalActivityTaskExecutor) {
       this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
