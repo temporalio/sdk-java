@@ -52,8 +52,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       @Nonnull String identity,
       @Nonnull TaskHandler<T> handler,
       @Nonnull PollerOptions pollerOptions,
-      int workerTaskSlots,
-      boolean synchronousQueue,
+      int threadPoolMax,
       boolean useVirtualThreads) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -76,16 +75,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
               });
     } else {
       ThreadPoolExecutor threadPoolTaskExecutor =
-          new ThreadPoolExecutor(
-              // for SynchronousQueue we can afford to set it to 0, because the queue is always full
-              // or empty for LinkedBlockingQueue we have to set slots to workerTaskSlots to avoid
-              // situation when the queue grows, but the amount of threads is not, because the queue
-              // is not (and never) full
-              synchronousQueue ? 0 : workerTaskSlots,
-              workerTaskSlots,
-              10,
-              TimeUnit.SECONDS,
-              synchronousQueue ? new SynchronousQueue<>() : new LinkedBlockingQueue<>());
+          new ThreadPoolExecutor(0, threadPoolMax, 10, TimeUnit.SECONDS, new SynchronousQueue<>());
       threadPoolTaskExecutor.allowCoreThreadTimeOut(true);
       threadPoolTaskExecutor.setThreadFactory(
           new ExecutorThreadFactory(
