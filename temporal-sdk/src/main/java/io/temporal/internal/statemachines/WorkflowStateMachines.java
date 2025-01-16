@@ -525,6 +525,8 @@ public final class WorkflowStateMachines {
         continue;
       }
 
+      // This checks if the next event is a version marker, but the next command is not a version
+      // marker. This can happen if a getVersion call was removed.
       if (VersionMarkerUtils.hasVersionMarkerStructure(event)
           && !VersionMarkerUtils.hasVersionMarkerStructure(command.getCommand())) {
         if (handleNonMatchingVersionMarker(event)) {
