@@ -109,7 +109,8 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
         if (request != null) {
           LocalActivityExecutionContext executionContext = request.task.getExecutionContext();
           executionContext.callback(
-              LocalActivityResult.processingFailed(executionContext.getActivityId(), 1, e));
+              LocalActivityResult.processingFailed(
+                  executionContext.getActivityId(), request.task.getAttemptTask().getAttempt(), e));
         }
       }
     }
