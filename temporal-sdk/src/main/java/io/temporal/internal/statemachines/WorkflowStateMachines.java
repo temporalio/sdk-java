@@ -525,6 +525,26 @@ public final class WorkflowStateMachines {
         continue;
       }
 
+      // This checks if the next event is a version marker, but the next command is not a version
+      // marker. This can happen if a getVersion call was removed.
+      if (VersionMarkerUtils.hasVersionMarkerStructure(event)
+          && !VersionMarkerUtils.hasVersionMarkerStructure(command.getCommand())) {
+        if (handleNonMatchingVersionMarker(event)) {
+          // this event is a version marker for removed getVersion call.
+          // Handle the version marker as unmatched and return even if there is no commands to match
+          // it against.
+          return;
+        } else {
+          throw new NonDeterministicException(
+              "Event "
+                  + event.getEventId()
+                  + " of type "
+                  + event.getEventType()
+                  + " does not"
+                  + " match command type "
+                  + command.getCommandType());
+        }
+      }
       // Note that handleEvent can cause a command cancellation in case of
       // 1. MutableSideEffect
       // 2. Version State Machine during replay cancels the command and enters SKIPPED state

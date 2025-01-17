@@ -20,6 +20,7 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.internal.statemachines.StateMachineCommandUtils.createFakeMarkerCommand;
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -200,7 +201,7 @@ final class VersionStateMachine {
     }
 
     void createFakeCommand() {
-      addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
+      addCommand(createFakeMarkerCommand(VersionMarkerUtils.MARKER_NAME));
     }
 
     private void validateVersionAndThrow(boolean preloaded) {
