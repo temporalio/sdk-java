@@ -20,9 +20,10 @@
 
 package io.temporal.workflow.versionTests;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
+import io.temporal.internal.Issue;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -36,7 +37,8 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionMultithreadingRemoveTest {
+@Issue("https://github.com/temporalio/sdk-java/issues/2307")
+public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
 
   private static boolean hasReplayed;
 
@@ -45,7 +47,6 @@ public class GetVersionMultithreadingRemoveTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionWorkflowImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
-          .setUseExternalService(true)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()
@@ -55,6 +56,7 @@ public class GetVersionMultithreadingRemoveTest {
 
   @Test
   public void testGetVersionMultithreadingRemoval() {
+    assumeTrue("This test only passes if SKIP_YIELD_ON_VERSION is enabled", setVersioningFlag);
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());

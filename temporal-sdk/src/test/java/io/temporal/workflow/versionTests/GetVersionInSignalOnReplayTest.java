@@ -38,7 +38,7 @@ import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionInSignalOnReplayTest {
+public class GetVersionInSignalOnReplayTest extends BaseVersionTest {
   public static boolean hasReplayedSignal;
 
   @Rule

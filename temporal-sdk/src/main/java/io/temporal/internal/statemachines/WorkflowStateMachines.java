@@ -58,9 +58,9 @@ public final class WorkflowStateMachines {
   }
 
   /** Initial set of SDK flags that will be set on all new workflow executions. */
-  private static final List<SdkFlag> initialFlags =
-      Collections.unmodifiableList(
-          Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION, SdkFlag.SKIP_YIELD_ON_VERSION));
+  @VisibleForTesting
+  public static List<SdkFlag> initialFlags =
+      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -659,6 +659,13 @@ public final class WorkflowStateMachines {
    */
   public boolean tryUseSdkFlag(SdkFlag flag) {
     return flags.tryUseSdkFlag(flag);
+  }
+
+  /**
+   * @return True if the SDK flag is set in the workflow execution
+   */
+  public boolean checkSdkFlag(SdkFlag flag) {
+    return flags.checkSdkFlag(flag);
   }
 
   /**

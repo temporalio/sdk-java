@@ -332,6 +332,11 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public boolean checkSdkFlag(SdkFlag flag) {
+      return false;
+    }
+
+    @Override
     public Optional<String> getCurrentBuildId() {
       return Optional.empty();
     }

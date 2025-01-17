@@ -418,6 +418,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
   boolean tryUseSdkFlag(SdkFlag flag);
 
   /**
+   * @return true if this flag is currently set.
+   */
+  boolean checkSdkFlag(SdkFlag flag);
+
+  /**
    * @return The Build ID of the worker which executed the current Workflow Task. May be empty the
    *     task was completed by a worker without a Build ID. If this worker is the one executing this
    *     task for the first time and has a Build ID set, then its ID will be used. This value may

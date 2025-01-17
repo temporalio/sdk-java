@@ -34,7 +34,7 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionRemovalBeforeMarkerTest {
+public class GetVersionRemovalBeforeMarkerTest extends BaseVersionTest {
   private static boolean hasReplayed;
 
   @Rule

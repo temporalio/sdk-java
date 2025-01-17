@@ -37,7 +37,7 @@ import org.junit.Test;
  * replayed on a code version that doesn't support the {@link
  * io.temporal.workflow.Workflow#DEFAULT_VERSION} anymore
  */
-public class DefaultVersionNotSupportedDuringReplayTest {
+public class DefaultVersionNotSupportedDuringReplayTest extends BaseVersionTest {
 
   private static final Signal unsupportedVersionExceptionThrown = new Signal();
 
