@@ -688,7 +688,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               new AttemptTaskHandlerImpl(handler),
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              false,
               options.isUsingVirtualThreads());
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);

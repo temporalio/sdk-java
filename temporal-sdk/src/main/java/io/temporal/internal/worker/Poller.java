@@ -342,7 +342,7 @@ final class Poller<T> implements SuspendableWorker {
 
     /**
      * Some exceptions are considered normal during shutdown {@link #shouldIgnoreDuringShutdown} and
-     * we log them in the most quite manner.
+     * we log them in the most quiet manner.
      *
      * @param t thread where the exception happened
      * @param e the exception itself
