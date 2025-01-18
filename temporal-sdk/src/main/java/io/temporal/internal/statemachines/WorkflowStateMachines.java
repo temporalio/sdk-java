@@ -491,7 +491,7 @@ public final class WorkflowStateMachines {
    * <p>Command events always follow a WorkflowTaskCompleted event.
    *
    * <p>The handling consists of verifying that the next command in the commands queue matches the
-   * event, the command state machine is notified about the event and the command is removed from the
+   * event. The command state machine is notified about the event and the command is removed from the
    * commands queue.
    */
   private void handleCommandEvent(HistoryEvent event) {
