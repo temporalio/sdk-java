@@ -33,7 +33,11 @@ import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
-import io.temporal.worker.*;
+import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -54,6 +58,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
@@ -62,6 +67,7 @@ import org.springframework.context.annotation.DependsOn;
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class RootNamespaceAutoConfiguration {
+
   private static final Logger log = LoggerFactory.getLogger(RootNamespaceAutoConfiguration.class);
 
   private final ConfigurableListableBeanFactory beanFactory;
@@ -95,7 +101,6 @@ public class RootNamespaceAutoConfiguration {
         AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
         properties,
-        properties,
         workflowServiceStubs,
         chosenDataConverter,
         otTracer,
@@ -108,23 +113,27 @@ public class RootNamespaceAutoConfiguration {
   }
 
   /** Client */
+  @Primary
   @Bean(name = "temporalClientTemplate")
   public ClientTemplate clientTemplate(
       @Qualifier("temporalRootNamespaceTemplate") NamespaceTemplate rootNamespaceTemplate) {
     return rootNamespaceTemplate.getClientTemplate();
   }
 
+  @Primary
   @Bean(name = "temporalWorkflowClient")
   public WorkflowClient client(ClientTemplate clientTemplate) {
     return clientTemplate.getWorkflowClient();
   }
 
+  @Primary
   @Bean(name = "temporalScheduleClient")
   public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
     return clientTemplate.getScheduleClient();
   }
 
   /** Workers */
+  @Primary
   @Bean(name = "temporalWorkersTemplate")
   @Conditional(WorkersPresentCondition.class)
   // add an explicit dependency on the existence of the expected client bean,
@@ -135,6 +144,7 @@ public class RootNamespaceAutoConfiguration {
     return temporalRootNamespaceTemplate.getWorkersTemplate();
   }
 
+  @Primary
   @Bean(name = "temporalWorkerFactory", destroyMethod = "shutdown")
   @Conditional(WorkersPresentCondition.class)
   public WorkerFactory workerFactory(
@@ -142,6 +152,7 @@ public class RootNamespaceAutoConfiguration {
     return workersTemplate.getWorkerFactory();
   }
 
+  @Primary
   @Bean(name = "temporalWorkers")
   @Conditional(WorkersPresentCondition.class)
   public Collection<Worker> workers(
@@ -152,6 +163,7 @@ public class RootNamespaceAutoConfiguration {
     return workers;
   }
 
+  @Primary
   @ConditionalOnProperty(prefix = "spring.temporal", name = "start-workers", matchIfMissing = true)
   @Conditional(WorkersPresentCondition.class)
   @Bean
