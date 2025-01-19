@@ -43,20 +43,13 @@ import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.context.ApplicationContext;
 
 public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryAware {
-
-  protected static final Logger log = LoggerFactory.getLogger(NonRootBeanPostProcessor.class);
-
-  private ApplicationContext applicationContext;
 
   private ConfigurableListableBeanFactory beanFactory;
 
