@@ -24,6 +24,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -48,6 +49,10 @@ public class ParallelLocalActivitiesTest {
           .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .setTestTimeoutSeconds(20)
+          // Use a number lower than the number of concurrent activities to ensure that the
+          // queueing of LAs when task executor is full works
+          .setWorkerOptions(
+              WorkerOptions.newBuilder().setMaxConcurrentLocalActivityExecutionSize(50).build())
           .build();
 
   @Test

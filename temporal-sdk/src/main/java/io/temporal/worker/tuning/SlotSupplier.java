@@ -30,7 +30,8 @@ import java.util.Optional;
  * at once.
  *
  * @param <SI> The type of information that will be used to reserve a slot. The three info types are
- *     {@link WorkflowSlotInfo}, {@link ActivitySlotInfo}, and {@link LocalActivitySlotInfo}.
+ *     {@link WorkflowSlotInfo}, {@link ActivitySlotInfo}, {@link LocalActivitySlotInfo}, and {@link
+ *     NexusSlotInfo}.
  */
 @Experimental
 public interface SlotSupplier<SI extends SlotInfo> {
@@ -77,11 +78,11 @@ public interface SlotSupplier<SI extends SlotInfo> {
   void releaseSlot(SlotReleaseContext<SI> ctx);
 
   /**
-   * Because we currently use thread pools to execute tasks, there must be *some* defined
-   * upper-limit on the size of the thread pool for each kind of task. You must not hand out more
-   * permits than this number. If unspecified, the default is {@link Integer#MAX_VALUE}. Be aware
-   * that if your implementation hands out unreasonable numbers of permits, you could easily
-   * oversubscribe the worker, and cause it to run out of resources.
+   * Because we use thread pools to execute tasks when virtual threads are not enabled, there must
+   * be *some* defined upper-limit on the size of the thread pool for each kind of task. You must
+   * not hand out more permits than this number. If unspecified, the default is {@link
+   * Integer#MAX_VALUE}. Be aware that if your implementation hands out unreasonable numbers of
+   * permits, you could easily oversubscribe the worker, and cause it to run out of resources.
    *
    * <p>If a non-empty value is returned, it is assumed to be meaningful, and the worker will emit
    * {@link io.temporal.worker.MetricsType#WORKER_TASK_SLOTS_AVAILABLE} metrics based on this value.

@@ -22,6 +22,7 @@ package io.temporal.internal.worker;
 
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
 import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.*;
 import javax.annotation.Nullable;
@@ -77,10 +78,11 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
   }
 
   private void processQueue() {
-    try {
-      while (running || !requestQueue.isEmpty()) {
-        QueuedLARequest request = requestQueue.take();
-        SlotPermit slotPermit;
+    while (running || !requestQueue.isEmpty()) {
+      SlotPermit slotPermit = null;
+      QueuedLARequest request = null;
+      try {
+        request = requestQueue.take();
         try {
           slotPermit = slotSupplier.reserveSlot(request.data);
         } catch (InterruptedException e) {
@@ -95,9 +97,22 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
         }
         request.task.getExecutionContext().setPermit(slotPermit);
         afterReservedCallback.apply(request.task);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } catch (Throwable e) {
+        // Fail the workflow task if something went wrong executing the local activity (at the
+        // executor level, otherwise, the LA handler itself should be handling errors)
+        log.error("Unexpected error submitting local activity task to worker", e);
+        if (slotPermit != null) {
+          slotSupplier.releaseSlot(SlotReleaseReason.error(new RuntimeException(e)), slotPermit);
+        }
+        if (request != null) {
+          LocalActivityExecutionContext executionContext = request.task.getExecutionContext();
+          executionContext.callback(
+              LocalActivityResult.processingFailed(
+                  executionContext.getActivityId(), request.task.getAttemptTask().getAttempt(), e));
+        }
       }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
     }
   }
 
