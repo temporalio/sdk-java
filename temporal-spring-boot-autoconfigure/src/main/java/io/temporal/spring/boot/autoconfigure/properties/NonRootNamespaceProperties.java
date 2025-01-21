@@ -21,7 +21,6 @@
 package io.temporal.spring.boot.autoconfigure.properties;
 
 import com.google.common.base.MoreObjects;
-import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -31,28 +30,27 @@ import org.springframework.boot.context.properties.ConstructorBinding;
 public class NonRootNamespaceProperties extends NamespaceProperties {
 
   public static final String NAMESPACE_NON_ROOT = "non-root-" + UUID.randomUUID();
+
+  /**
+   * The bean register name prefix. <br>
+   * NOTE: Currently we register a series beans with the same alias. <br>
+   * - NamespaceTemplate <br>
+   * - ClientTemplate <br>
+   * - WorkersTemplate <br>
+   * - WorkflowClient <br>
+   * - ScheduleClient <br>
+   * - WorkerFactory <br>
+   * You guys can use this alias to get the beans. <br>
+   * for example if you set spring.temporal.namespace[0].alias=foo <br>
+   * We can get bean via @Autowired @Qualifier("fooNamespaceTemplate") NamespaceTemplate
+   * namespaceTemplate; <br>
+   */
   private final @Nonnull String alias;
-
-  /** Whether to auto-register the namespace. The default is false. */
-  private final @Nullable Boolean namespaceAutoRegister;
-
-  /** The retention period for workflow history. The default is 3 days. */
-  private final @Nullable Duration retentionPeriod;
-
-  /** The state of the history archival. The default is false means disable. */
-  private final @Nullable Boolean historyArchivalState;
-
-  /** The state of the visibility archival. The default is false means disable. */
-  private final @Nullable Boolean visibilityArchivalState;
 
   @ConstructorBinding
   public NonRootNamespaceProperties(
       @Nonnull String alias,
       @Nullable String namespace,
-      @Nullable Boolean namespaceAutoRegister,
-      @Nullable Boolean historyArchivalState,
-      @Nullable Boolean visibilityArchivalState,
-      @Nullable Duration retentionPeriod,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
       @Nullable WorkflowCacheProperties workflowCache) {
@@ -62,34 +60,10 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
         workers,
         workflowCache);
     this.alias = alias;
-    this.namespaceAutoRegister = namespaceAutoRegister;
-    this.retentionPeriod = retentionPeriod;
-    this.historyArchivalState = historyArchivalState;
-    this.visibilityArchivalState = visibilityArchivalState;
   }
 
   @Nonnull
   public String getAlias() {
     return alias;
-  }
-
-  @Nullable
-  public Boolean getNamespaceAutoRegister() {
-    return namespaceAutoRegister;
-  }
-
-  @Nullable
-  public Duration getRetentionPeriod() {
-    return retentionPeriod;
-  }
-
-  @Nullable
-  public Boolean getHistoryArchivalState() {
-    return historyArchivalState;
-  }
-
-  @Nullable
-  public Boolean getVisibilityArchivalState() {
-    return visibilityArchivalState;
   }
 }

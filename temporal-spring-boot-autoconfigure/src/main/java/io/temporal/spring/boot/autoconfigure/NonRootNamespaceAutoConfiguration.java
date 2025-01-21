@@ -20,21 +20,12 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
-import com.google.protobuf.util.Durations;
-import io.grpc.Status.Code;
-import io.grpc.StatusRuntimeException;
 import io.opentracing.Tracer;
-import io.temporal.api.enums.v1.ArchivalState;
-import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
-import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc.WorkflowServiceBlockingStub;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
-import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
@@ -44,10 +35,8 @@ import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate.Registered
 import io.temporal.worker.WorkerFactoryOptions.Builder;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Optional;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,8 +73,6 @@ public class NonRootNamespaceAutoConfiguration {
       TemporalProperties properties,
       WorkflowServiceStubs workflowServiceStubs,
       @Autowired List<DataConverter> dataConverters,
-      @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
-          DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
@@ -100,13 +87,11 @@ public class NonRootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
-    DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NonRootBeanPostProcessor(
         properties,
         properties.getNamespaces(),
         workflowServiceStubs,
-        chosenDataConverter,
+        dataConverters,
         otTracer,
         testWorkflowEnvironment,
         workerFactoryCustomizer,
@@ -118,27 +103,20 @@ public class NonRootNamespaceAutoConfiguration {
 
   @Bean
   public NonRootNamespaceEventListener nonRootNamespaceEventListener(
-      TemporalProperties temporalProperties,
-      WorkflowServiceStubs workflowServiceStubs,
-      @Lazy List<WorkersTemplate> workersTemplates) {
-    return new NonRootNamespaceEventListener(
-        temporalProperties, workflowServiceStubs, workersTemplates);
+      TemporalProperties temporalProperties, @Lazy List<WorkersTemplate> workersTemplates) {
+    return new NonRootNamespaceEventListener(temporalProperties, workersTemplates);
   }
 
   public static class NonRootNamespaceEventListener
       implements ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
 
     private final TemporalProperties temporalProperties;
-    private final WorkflowServiceStubs workflowServiceStubs;
     private final List<WorkersTemplate> workersTemplates;
     private ApplicationContext applicationContext;
 
     public NonRootNamespaceEventListener(
-        TemporalProperties temporalProperties,
-        WorkflowServiceStubs workflowServiceStubs,
-        List<WorkersTemplate> workersTemplates) {
+        TemporalProperties temporalProperties, List<WorkersTemplate> workersTemplates) {
       this.temporalProperties = temporalProperties;
-      this.workflowServiceStubs = workflowServiceStubs;
       this.workersTemplates = workersTemplates;
     }
 
@@ -155,15 +133,6 @@ public class NonRootNamespaceAutoConfiguration {
 
     private void onStart() {
       if (temporalProperties.getNamespaces() != null) {
-        WorkflowServiceGrpc.WorkflowServiceBlockingStub workflowServiceStub =
-            workflowServiceStubs.blockingStub();
-        for (NonRootNamespaceProperties nonRootNamespaceProperties :
-            temporalProperties.getNamespaces()) {
-          if (Boolean.TRUE.equals(nonRootNamespaceProperties.getNamespaceAutoRegister())) {
-            this.namespaceRegister(workflowServiceStub, nonRootNamespaceProperties);
-          }
-        }
-
         this.startWorkers();
       }
     }
@@ -207,59 +176,6 @@ public class NonRootNamespaceAutoConfiguration {
                 log.info("start workers for non-root namespace");
                 workersTemplate.getWorkerFactory().start();
               });
-    }
-
-    private void namespaceRegister(
-        WorkflowServiceBlockingStub workflowServiceStub,
-        NonRootNamespaceProperties nonRootNamespaceProperties) {
-      String namespace = nonRootNamespaceProperties.getNamespace();
-      Duration retentionPeriod =
-          Optional.of(nonRootNamespaceProperties)
-              .map(NonRootNamespaceProperties::getRetentionPeriod)
-              .orElse(Duration.ofDays(3));
-      ArchivalState historyArchivalState =
-          Optional.of(nonRootNamespaceProperties)
-              .map(NonRootNamespaceProperties::getHistoryArchivalState)
-              .map(this::getArchivalState)
-              .orElse(ArchivalState.ARCHIVAL_STATE_DISABLED);
-      ArchivalState visibilityArchivalState =
-          Optional.of(nonRootNamespaceProperties)
-              .map(NonRootNamespaceProperties::getVisibilityArchivalState)
-              .map(this::getArchivalState)
-              .orElse(ArchivalState.ARCHIVAL_STATE_DISABLED);
-      log.debug(
-          "register namespace [{}] with retention period [{}], history archival state [{}], visibility archival state [{}]",
-          namespace,
-          retentionPeriod,
-          historyArchivalState,
-          visibilityArchivalState);
-
-      try {
-        workflowServiceStub.describeNamespace(
-            DescribeNamespaceRequest.newBuilder().setNamespace(namespace).build());
-        log.debug("Namespace already exists: {}", namespace);
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Code.NOT_FOUND) {
-          workflowServiceStub.registerNamespace(
-              RegisterNamespaceRequest.newBuilder()
-                  .setNamespace(namespace)
-                  .setWorkflowExecutionRetentionPeriod(Durations.fromDays(retentionPeriod.toDays()))
-                  .setHistoryArchivalState(historyArchivalState)
-                  .setVisibilityArchivalState(visibilityArchivalState)
-                  .build());
-          log.info("Namespace created: {}", nonRootNamespaceProperties);
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    private ArchivalState getArchivalState(Boolean state) {
-      if (state) {
-        return ArchivalState.ARCHIVAL_STATE_ENABLED;
-      } else {
-        return ArchivalState.ARCHIVAL_STATE_DISABLED;
-      }
     }
 
     @Override
