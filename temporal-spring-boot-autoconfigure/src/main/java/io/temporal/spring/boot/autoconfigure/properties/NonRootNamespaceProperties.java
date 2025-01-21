@@ -20,16 +20,13 @@
 
 package io.temporal.spring.boot.autoconfigure.properties;
 
-import com.google.common.base.MoreObjects;
 import java.util.List;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
 public class NonRootNamespaceProperties extends NamespaceProperties {
 
-  public static final String NAMESPACE_NON_ROOT = "non-root-" + UUID.randomUUID();
 
   /**
    * The bean register name prefix. <br>
@@ -43,19 +40,18 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
    * You guys can use this alias to get the beans. <br>
    * for example if you set spring.temporal.namespace[0].alias=foo <br>
    * We can get bean via @Autowired @Qualifier("fooNamespaceTemplate") NamespaceTemplate
-   * namespaceTemplate; <br>
    */
   private final @Nonnull String alias;
 
   @ConstructorBinding
   public NonRootNamespaceProperties(
       @Nonnull String alias,
-      @Nullable String namespace,
+      @Nonnull String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
       @Nullable WorkflowCacheProperties workflowCache) {
     super(
-        MoreObjects.firstNonNull(namespace, NAMESPACE_NON_ROOT),
+        namespace,
         workersAutoDiscovery,
         workers,
         workflowCache);

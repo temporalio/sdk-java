@@ -58,7 +58,6 @@ public class MultiNamespaceTest {
     Assertions.assertTrue(applicationContext.containsBean("ns2WorkerFactory"));
   }
 
-
   @EnableAutoConfiguration
   public static class Configuration {}
 }
