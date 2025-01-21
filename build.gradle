@@ -38,12 +38,12 @@ ext {
     // stay on 1.x for a while to don't use any APIs from 2.x which may break our users which still stay on 1.x
     // also slf4j 2.x is not compatible with spring boot 2.x
     slf4jVersion = project.hasProperty("edgeDepsTest") ? '2.0.16' : '1.7.36' // [1.4.0,)
-    // [3.12.0,)
+    // [3.25.5,)
     // 3.12 is brought by min gRPC 1.38.
     // We can't move pass 3.22.0 because 3.22.2 deprecates some methods used by generated code produced by
     // the old protoc we keep for compatibility of our generated code with old protobuf-java versions.
     // Which leads to build failure because of -Werror.
-    protoVersion = '3.22.0'
+    protoVersion = project.hasProperty("edgeDepsTest") ? '4.29.3' : '3.25.5'
     annotationApiVersion = '1.3.2'
     guavaVersion = '32.0.1-jre' // [10.0,)
     tallyVersion = '0.13.0' // [0.4.0,)
