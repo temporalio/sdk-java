@@ -104,7 +104,7 @@ final class TestServiceRetryState {
     RetryPolicy retryPolicy = getRetryPolicy();
     // check if error is non-retryable
     List<String> nonRetryableErrorTypes = retryPolicy.getNonRetryableErrorTypesList();
-    if (nonRetryableErrorTypes != null && errorType.isPresent()) {
+    if (errorType.isPresent()) {
       String type = errorType.get();
       for (String err : nonRetryableErrorTypes) {
         if (type.equals(err)) {

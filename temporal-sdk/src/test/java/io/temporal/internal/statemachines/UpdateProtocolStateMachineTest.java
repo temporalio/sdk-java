@@ -941,7 +941,7 @@ public class UpdateProtocolStateMachineTest {
                 (r) -> {
                   message.getCallbacks().complete(converter.toPayloads("update result"), null);
                 });
-        if (message.getMessage().getProtocolInstanceId() == "message_update") {
+        if (message.getMessage().getProtocolInstanceId().equals("message_update")) {
           builder.add((r) -> stateMachines.completeWorkflow(Optional.empty()));
         }
       }

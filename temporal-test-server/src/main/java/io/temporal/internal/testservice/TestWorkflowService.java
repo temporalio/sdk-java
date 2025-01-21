@@ -1348,8 +1348,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
               .setIdentity(r.getIdentity())
               .setWorkflowType(r.getWorkflowType())
-              .setCronSchedule(r.getCronSchedule())
-              .setRequestId(r.getRequestId());
+              .setCronSchedule(r.getCronSchedule());
       if (r.hasRetryPolicy()) {
         startRequest.setRetryPolicy(r.getRetryPolicy());
       }
