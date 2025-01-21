@@ -32,14 +32,10 @@ import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.core.env.Environment;
 
 public class NonRootNamespaceTemplate extends NamespaceTemplate {
-
-  protected static final Logger log = LoggerFactory.getLogger(NonRootNamespaceTemplate.class);
 
   private BeanFactory beanFactory;
 

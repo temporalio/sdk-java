@@ -27,7 +27,6 @@ import org.springframework.boot.context.properties.ConstructorBinding;
 
 public class NonRootNamespaceProperties extends NamespaceProperties {
 
-
   /**
    * The bean register name prefix. <br>
    * NOTE: Currently we register a series beans with the same alias. <br>
@@ -50,11 +49,7 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
       @Nullable WorkflowCacheProperties workflowCache) {
-    super(
-        namespace,
-        workersAutoDiscovery,
-        workers,
-        workflowCache);
+    super(namespace, workersAutoDiscovery, workers, workflowCache);
     this.alias = alias;
   }
 

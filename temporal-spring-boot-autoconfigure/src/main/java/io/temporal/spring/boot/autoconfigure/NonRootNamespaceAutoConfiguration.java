@@ -23,7 +23,6 @@ package io.temporal.spring.boot.autoconfigure;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
@@ -72,7 +71,6 @@ public class NonRootNamespaceAutoConfiguration {
   public NonRootBeanPostProcessor nonRootBeanPostProcessor(
       TemporalProperties properties,
       WorkflowServiceStubs workflowServiceStubs,
-      @Autowired List<DataConverter> dataConverters,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
@@ -88,10 +86,8 @@ public class NonRootNamespaceAutoConfiguration {
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
     return new NonRootBeanPostProcessor(
-        properties,
         properties.getNamespaces(),
         workflowServiceStubs,
-        dataConverters,
         otTracer,
         testWorkflowEnvironment,
         workerFactoryCustomizer,

@@ -29,7 +29,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
-import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NonRootNamespaceTemplate;
@@ -46,6 +45,7 @@ import javax.annotation.Nullable;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
@@ -53,15 +53,10 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private ConfigurableListableBeanFactory beanFactory;
 
-  private final @Nonnull TemporalProperties temporalProperties;
-
-  private final @Nonnull TemporalProperties properties;
   private final @Nullable List<NonRootNamespaceProperties> namespaceProperties;
   private final @Nonnull WorkflowServiceStubs workflowServiceStubs;
-  private final @Nullable DataConverter dataConverter;
   private final @Nullable Tracer tracer;
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
-
   private final @Nullable TemporalOptionsCustomizer<Builder> workerFactoryCustomizer;
   private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
   private final @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer;
@@ -71,10 +66,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
       workflowImplementationCustomizer;
 
   public NonRootBeanPostProcessor(
-      @Nonnull TemporalProperties properties,
       @Nullable List<NonRootNamespaceProperties> namespaceProperties,
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
-      @Nullable DataConverter dataConverter,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable TemporalOptionsCustomizer<Builder> workerFactoryCustomizer,
@@ -84,11 +77,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
       @Nullable
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
-    this.temporalProperties = properties;
-    this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
-    this.dataConverter = dataConverter;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
     this.workerFactoryCustomizer = workerFactoryCustomizer;
@@ -101,21 +91,29 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
     if (bean instanceof NamespaceTemplate && beanName.equals("temporalRootNamespaceTemplate")) {
-      if (temporalProperties.getNamespaces() != null) {
-        temporalProperties.getNamespaces().forEach(this::injectNonPrimaryBean);
+      if (namespaceProperties != null) {
+        namespaceProperties.forEach(this::injectNonPrimaryBean);
       }
     }
     return bean;
   }
 
   private void injectNonPrimaryBean(NonRootNamespaceProperties ns) {
-
+    String beanPrefix = ns.getAlias();
+    DataConverter dataConverterByNamespace = null;
+    try {
+      dataConverterByNamespace =
+          beanFactory.getBean(
+              beanPrefix + DataConverter.class.getSimpleName(), DataConverter.class);
+    } catch (NoSuchBeanDefinitionException ignore) {
+      // Made non-namespace data converter optional
+    }
     NonRootNamespaceTemplate namespaceTemplate =
         new NonRootNamespaceTemplate(
             beanFactory,
             ns,
             workflowServiceStubs,
-            dataConverter,
+            dataConverterByNamespace,
             tracer,
             testWorkflowEnvironment,
             workerFactoryCustomizer,
@@ -133,7 +131,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     ScheduleClient scheduleClient = clientTemplate.getScheduleClient();
     WorkersTemplate workersTemplate = namespaceTemplate.getWorkersTemplate();
     WorkerFactory workerFactory = workersTemplate.getWorkerFactory();
-    String beanPrefix = ns.getAlias();
     beanFactory.registerSingleton(
         beanPrefix + NamespaceTemplate.class.getSimpleName(), namespaceTemplate);
     beanFactory.registerSingleton(
