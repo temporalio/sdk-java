@@ -339,11 +339,9 @@ public class ScheduleProtoUtil {
   public io.temporal.client.schedules.ScheduleSpec protoToScheduleSpec(
       @Nonnull ScheduleSpec scheduleSpec) {
     Objects.requireNonNull(scheduleSpec);
-    scheduleSpec.getTimezoneName();
     io.temporal.client.schedules.ScheduleSpec.Builder specBuilder =
         io.temporal.client.schedules.ScheduleSpec.newBuilder()
-            .setTimeZoneName(
-                    scheduleSpec.getTimezoneName());
+            .setTimeZoneName(scheduleSpec.getTimezoneName());
 
     if (scheduleSpec.hasJitter()) {
       specBuilder.setJitter(ProtobufTimeUtils.toJavaDuration(scheduleSpec.getJitter()));
@@ -452,7 +450,7 @@ public class ScheduleProtoUtil {
           ProtobufTimeUtils.toJavaDuration(startWfAction.getWorkflowTaskTimeout()));
 
       wfOptionsBuilder.setRetryOptions(
-              RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
+          RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
 
       if (startWfAction.hasMemo()) {
         Map<String, Object> memos = new HashMap<>();
