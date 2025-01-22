@@ -30,11 +30,14 @@ import java.util.Optional;
 
 class LocalActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final WorkflowClient client;
+  private final Object activity;
   private final ActivityInfo info;
   private final Scope metricsScope;
 
-  LocalActivityExecutionContextImpl(WorkflowClient client, ActivityInfo info, Scope metricsScope) {
+  LocalActivityExecutionContextImpl(
+      WorkflowClient client, Object activity, ActivityInfo info, Scope metricsScope) {
     this.client = client;
+    this.activity = activity;
     this.info = info;
     this.metricsScope = metricsScope;
   }
@@ -99,5 +102,10 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   @Override
   public WorkflowClient getWorkflowClient() {
     return client;
+  }
+
+  @Override
+  public Object getInstance() {
+    return activity;
   }
 }

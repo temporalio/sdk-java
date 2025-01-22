@@ -32,7 +32,7 @@ public class LocalActivityExecutionContextFactoryImpl implements ActivityExecuti
 
   @Override
   public InternalActivityExecutionContext createContext(
-      ActivityInfoInternal info, Scope metricsScope) {
-    return new LocalActivityExecutionContextImpl(client, info, metricsScope);
+      ActivityInfoInternal info, Object activity, Scope metricsScope) {
+    return new LocalActivityExecutionContextImpl(client, activity, info, metricsScope);
   }
 }

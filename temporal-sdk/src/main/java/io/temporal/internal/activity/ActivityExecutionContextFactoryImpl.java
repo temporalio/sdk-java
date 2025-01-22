@@ -61,10 +61,11 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
 
   @Override
   public InternalActivityExecutionContext createContext(
-      ActivityInfoInternal info, Scope metricsScope) {
+      ActivityInfoInternal info, Object activity, Scope metricsScope) {
     return new ActivityExecutionContextImpl(
         client,
         namespace,
+        activity,
         info,
         dataConverter,
         heartbeatExecutor,

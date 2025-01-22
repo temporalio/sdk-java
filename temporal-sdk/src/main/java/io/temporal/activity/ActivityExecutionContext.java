@@ -147,4 +147,7 @@ public interface ActivityExecutionContext {
    * an activity.
    */
   WorkflowClient getWorkflowClient();
+
+  /** Get the currently running activity instance. */
+  Object getInstance();
 }
