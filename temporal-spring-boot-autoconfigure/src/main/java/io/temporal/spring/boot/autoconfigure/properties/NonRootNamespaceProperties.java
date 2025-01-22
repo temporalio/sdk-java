@@ -29,7 +29,7 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
 
   /**
    * The bean register name prefix. <br>
-   * NOTE: Currently we register a series beans with the same alias. <br>
+   * NOTE: Currently we register a series beans with the same alias. if user set alias, will use it. otherwise use namespace as prefix.
    * - NamespaceTemplate <br>
    * - ClientTemplate <br>
    * - WorkersTemplate <br>
@@ -40,11 +40,11 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
    * for example if you set spring.temporal.namespace[0].alias=foo <br>
    * We can get bean via @Autowired @Qualifier("fooNamespaceTemplate") NamespaceTemplate
    */
-  private final @Nonnull String alias;
+  private final @Nullable String alias;
 
   @ConstructorBinding
   public NonRootNamespaceProperties(
-      @Nonnull String alias,
+      @Nullable String alias,
       @Nonnull String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
@@ -53,7 +53,7 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
     this.alias = alias;
   }
 
-  @Nonnull
+  @Nullable
   public String getAlias() {
     return alias;
   }

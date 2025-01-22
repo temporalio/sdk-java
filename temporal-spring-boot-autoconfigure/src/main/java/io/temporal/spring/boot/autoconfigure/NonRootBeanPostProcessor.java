@@ -20,6 +20,7 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import com.google.common.base.MoreObjects;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -99,7 +100,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   }
 
   private void injectNonPrimaryBean(NonRootNamespaceProperties ns) {
-    String beanPrefix = ns.getAlias();
+    String beanPrefix = MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace());
     DataConverter dataConverterByNamespace = null;
     try {
       dataConverterByNamespace =
