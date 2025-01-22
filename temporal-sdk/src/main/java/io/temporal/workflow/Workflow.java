@@ -29,6 +29,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -1383,6 +1384,20 @@ public final class Workflow {
   @Nullable
   public static String getCurrentDetails() {
     return WorkflowInternal.getCurrentDetails();
+  }
+
+  /**
+   * Get the currently running workflow instance.
+   *
+   * @apiNote The instance is only available after it has been initialized. This function will
+   *     return null if called before the workflow has been initialized. For example, this could
+   *     happen if the function is called from a {@link WorkflowInit} constructor or {@link
+   *     io.temporal.common.interceptors.WorkflowInboundCallsInterceptor#init(WorkflowOutboundCallsInterceptor)}.
+   */
+  @Experimental
+  @Nullable
+  public static Object getInstance() {
+    return WorkflowInternal.getInstance();
   }
 
   /** Prohibit instantiation. */

@@ -101,6 +101,7 @@ class SyncWorkflow implements ReplayWorkflow {
         new SyncWorkflowContext(
             namespace,
             workflowExecution,
+            workflow,
             signalDispatcher,
             queryDispatcher,
             updateDispatcher,

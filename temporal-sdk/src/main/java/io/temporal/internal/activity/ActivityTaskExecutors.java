@@ -76,7 +76,7 @@ final class ActivityTaskExecutors {
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       InternalActivityExecutionContext context =
-          executionContextFactory.createContext(info, metricsScope);
+          executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
       ActivitySerializationContext serializationContext =
           new ActivitySerializationContext(
@@ -144,6 +144,8 @@ final class ActivityTaskExecutors {
 
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();
 
+    abstract Object getActivity();
+
     abstract Object[] provideArgs(
         Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
 
@@ -204,6 +206,11 @@ final class ActivityTaskExecutors {
     }
 
     @Override
+    Object getActivity() {
+      return activity;
+    }
+
+    @Override
     Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
       return dataConverterWithActivityContext.fromPayloads(
           input, method.getParameterTypes(), method.getGenericParameterTypes());
@@ -239,6 +246,11 @@ final class ActivityTaskExecutors {
     ActivityInboundCallsInterceptor createRootInboundInterceptor() {
       return new RootActivityInboundCallsInterceptor.DynamicActivityInboundCallsInterceptor(
           activity);
+    }
+
+    @Override
+    Object getActivity() {
+      return activity;
     }
 
     @Override

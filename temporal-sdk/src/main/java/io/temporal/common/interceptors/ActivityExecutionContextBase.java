@@ -91,4 +91,9 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   public WorkflowClient getWorkflowClient() {
     return next.getWorkflowClient();
   }
+
+  @Override
+  public Object getInstance() {
+    return next.getInstance();
+  }
 }
