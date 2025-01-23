@@ -34,11 +34,12 @@ spring.temporal:
       workers:
         - task-queue: UnitTest
     - namespace: namespace2
-      alias: ns2
       start-workers: true
       connection:
-        enable-https: true
-        target: localhost
+        mtls:
+          key-file: /path/to/key.key
+          cert-chain-file: /path/to/cert.pem
+        target: local
       workersAutoDiscovery:
         packages:
           - io.temporal.spring.boot.autoconfigure.byworkername

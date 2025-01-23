@@ -61,9 +61,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private static final Logger log = LoggerFactory.getLogger(NonRootBeanPostProcessor.class);
 
-  /**
-   * link {@code *Options.Builder} to customize
-   */
+  /** link {@code *Options.Builder} to customize */
   private static final String OPTIONS_BUILDER_SUFFIX = "Options.Builder";
 
   private static final String CUSTOMIZER_SUFFIX = "Customizer";
@@ -104,7 +102,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     if (dataConverterByNamespace != null && dataConverterByNamespace.useInRootNamespace()) {
       log.warn(
           "DataConverter bean {} set used in root namespace, but find by name indicate it used in non-root namespace."
-          + "\nYou can override useInRootNamespace and return false to suppress this log.",
+              + "\nYou can override useInRootNamespace and return false to suppress this warn.",
           beanPrefix + DataConverter.class.getSimpleName());
     }
 
@@ -123,8 +121,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, ScheduleClientOptions.Builder.class);
     TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
         workflowImplementationCustomizer =
-        findBeanByNameSpaceForTemporalCustomizer(
-            beanPrefix, WorkflowImplementationOptions.Builder.class);
+            findBeanByNameSpaceForTemporalCustomizer(
+                beanPrefix, WorkflowImplementationOptions.Builder.class);
 
     // it not set namespace connection properties, use root connection properties
     ConnectionProperties connectionProperties =
@@ -212,10 +210,10 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         //        print tips once
         log.info(
             "No TemporalOptionsCustomizer found for {}. \n You can add Customizer bean to do customization. \n "
-            + "Note: bean name should start with namespace name and end with Customizer, and the middle part should be the customizer "
-            + "target class name. \n "
-            + "Example: @Bean(\"namespaceNameWorkerFactoryCustomizer\") is a customizer bean for WorkerFactory via "
-            + "TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>",
+                + "Note: bean name should start with namespace name and end with Customizer, and the middle part should be the customizer "
+                + "target class name. \n "
+                + "Example: @Bean(\"namespaceNameWorkerFactoryCustomizer\") is a customizer bean for WorkerFactory via "
+                + "TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>",
             genericOptionsBuilderClass.getSimpleName());
       }
       return null;
