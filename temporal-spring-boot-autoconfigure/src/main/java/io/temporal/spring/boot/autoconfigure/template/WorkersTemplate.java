@@ -34,7 +34,6 @@ import io.temporal.spring.boot.NexusServiceImpl;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
-import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.Worker;
@@ -111,8 +110,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     this.workflowImplementationCustomizer = workflowImplementationCustomizer;
   }
 
-  public boolean isNonRootTemplate() {
-    return namespaceProperties instanceof NonRootNamespaceProperties;
+  public NamespaceProperties getNamespaceProperties() {
+    return namespaceProperties;
   }
 
   public WorkerFactory getWorkerFactory() {

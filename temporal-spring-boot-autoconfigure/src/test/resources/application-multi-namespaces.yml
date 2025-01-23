@@ -27,6 +27,7 @@ spring.temporal:
   namespaces:
     - namespace: namespace1
       alias: ns1
+      start-workers: false
       workersAutoDiscovery:
         packages:
           - io.temporal.spring.boot.autoconfigure.bytaskqueue
@@ -34,6 +35,10 @@ spring.temporal:
         - task-queue: UnitTest
     - namespace: namespace2
       alias: ns2
+      start-workers: true
+      connection:
+        enable-https: true
+        target: localhost
       workersAutoDiscovery:
         packages:
           - io.temporal.spring.boot.autoconfigure.byworkername

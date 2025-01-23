@@ -24,13 +24,14 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 public class NonRootNamespaceProperties extends NamespaceProperties {
 
   /**
    * The bean register name prefix. <br>
-   * NOTE: Currently we register a series beans with the same alias. if user set alias, will use it. otherwise use namespace as prefix.
-   * - NamespaceTemplate <br>
+   * NOTE: Currently we register a series beans with the same alias. if user set alias, will use it.
+   * otherwise use namespace as prefix. - NamespaceTemplate <br>
    * - ClientTemplate <br>
    * - WorkersTemplate <br>
    * - WorkflowClient <br>
@@ -42,19 +43,45 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
    */
   private final @Nullable String alias;
 
+  /**
+   * Indicate start workers when application start in the namespace. if not set, will use the root
+   * namespace startWorkers.
+   */
+  private final @Nullable Boolean startWorkers;
+
+  /**
+   * Connection properties for the namespace. if not set, will use the root namespace connection
+   * properties.
+   */
+  private final @NestedConfigurationProperty @Nullable ConnectionProperties connection;
+
   @ConstructorBinding
   public NonRootNamespaceProperties(
       @Nullable String alias,
       @Nonnull String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
-      @Nullable WorkflowCacheProperties workflowCache) {
+      @Nullable WorkflowCacheProperties workflowCache,
+      @Nullable ConnectionProperties connection,
+      @Nullable Boolean startWorkers) {
     super(namespace, workersAutoDiscovery, workers, workflowCache);
     this.alias = alias;
+    this.connection = connection;
+    this.startWorkers = startWorkers;
   }
 
   @Nullable
   public String getAlias() {
     return alias;
+  }
+
+  @Nullable
+  public ConnectionProperties getConnection() {
+    return connection;
+  }
+
+  @Nullable
+  public Boolean getStartWorkers() {
+    return startWorkers;
   }
 }

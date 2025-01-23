@@ -20,22 +20,17 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import com.google.common.base.MoreObjects;
+import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.schedules.ScheduleClientOptions;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
+import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
-import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate.RegisteredActivityInfo;
-import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate.RegisteredInfo;
-import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate.RegisteredWorkflowInfo;
-import io.temporal.worker.WorkerFactoryOptions.Builder;
-import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,36 +65,19 @@ public class NonRootNamespaceAutoConfiguration {
   @Bean
   public NonRootBeanPostProcessor nonRootBeanPostProcessor(
       TemporalProperties properties,
-      WorkflowServiceStubs workflowServiceStubs,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<Builder> workerFactoryCustomizer,
-      @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
-      @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
-      @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-              workflowImplementationCustomizer) {
+      @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable
+          Scope metricsScope) {
     return new NonRootBeanPostProcessor(
-        properties.getNamespaces(),
-        workflowServiceStubs,
-        otTracer,
-        testWorkflowEnvironment,
-        workerFactoryCustomizer,
-        workerCustomizer,
-        clientCustomizer,
-        scheduleCustomizer,
-        workflowImplementationCustomizer);
+        properties, otTracer, testWorkflowEnvironment, metricsScope);
   }
 
   @Bean
   public NonRootNamespaceEventListener nonRootNamespaceEventListener(
-      TemporalProperties temporalProperties, @Lazy List<WorkersTemplate> workersTemplates) {
+      TemporalProperties temporalProperties,
+      @Nullable @Lazy List<WorkersTemplate> workersTemplates) {
     return new NonRootNamespaceEventListener(temporalProperties, workersTemplates);
   }
 
@@ -128,50 +106,53 @@ public class NonRootNamespaceAutoConfiguration {
     }
 
     private void onStart() {
-      if (temporalProperties.getNamespaces() != null) {
-        this.startWorkers();
-      }
+      this.executeByNamespace(
+          (nonRootNamespaceProperties, workersTemplate) -> {
+            String namespace = nonRootNamespaceProperties.getNamespace();
+            Boolean startWorkers =
+                Optional.of(nonRootNamespaceProperties)
+                    .map(NonRootNamespaceProperties::getStartWorkers)
+                    .orElse(temporalProperties.getStartWorkers());
+            startWorkers = MoreObjects.firstNonNull(startWorkers, Boolean.TRUE);
+            if (!startWorkers) {
+              log.info("skip start workers for non-root namespace [{}]", namespace);
+              return;
+            }
+
+            workersTemplate
+                .getWorkers()
+                .forEach(
+                    worker ->
+                        log.debug(
+                            "register worker :[{}] in worker queue [{}]",
+                            worker.getTaskQueue(),
+                            namespace));
+            workersTemplate.getWorkerFactory().start();
+            log.info("started workers for non-root namespace [{}]", namespace);
+          });
     }
 
     private void onStop() {
-      workersTemplates.stream()
-          .filter(WorkersTemplate::isNonRootTemplate)
-          .forEach(
-              workersTemplate -> {
-                log.info("shutdown workers for non-root namespace");
-                workersTemplate.getWorkerFactory().shutdown();
-              });
+      this.executeByNamespace(
+          (nonRootNamespaceProperties, workersTemplate) -> {
+            log.info("shutdown workers for non-root namespace");
+            workersTemplate.getWorkerFactory().shutdown();
+          });
     }
 
-    private void startWorkers() {
-      workersTemplates.stream()
-          .filter(WorkersTemplate::isNonRootTemplate)
-          .forEach(
-              workersTemplate -> {
-                for (Entry<String, RegisteredInfo> entry :
-                    workersTemplate.getRegisteredInfo().entrySet()) {
-                  String workerQueue = entry.getKey();
-                  RegisteredInfo info = entry.getValue();
-                  info.getRegisteredActivityInfo().stream()
-                      .map(RegisteredActivityInfo::getClassName)
-                      .forEach(
-                          activityType ->
-                              log.debug(
-                                  "register activity :[{}}] in worker queue [{}]",
-                                  activityType,
-                                  workerQueue));
-                  info.getRegisteredWorkflowInfo().stream()
-                      .map(RegisteredWorkflowInfo::getClassName)
-                      .forEach(
-                          workflowType ->
-                              log.debug(
-                                  "register workflow :[{}}] in worker queue [{}]",
-                                  workflowType,
-                                  workerQueue));
-                }
-                log.info("start workers for non-root namespace");
-                workersTemplate.getWorkerFactory().start();
-              });
+    private void executeByNamespace(
+        BiConsumer<NonRootNamespaceProperties, WorkersTemplate> consumer) {
+      if (temporalProperties.getNamespaces() == null) {
+        return;
+      }
+      for (WorkersTemplate workersTemplate : workersTemplates) {
+        NamespaceProperties namespaceProperties = workersTemplate.getNamespaceProperties();
+        if (namespaceProperties instanceof NonRootNamespaceProperties) {
+          NonRootNamespaceProperties nonRootNamespaceProperties =
+              (NonRootNamespaceProperties) namespaceProperties;
+          consumer.accept(nonRootNamespaceProperties, workersTemplate);
+        }
+      }
     }
 
     @Override
