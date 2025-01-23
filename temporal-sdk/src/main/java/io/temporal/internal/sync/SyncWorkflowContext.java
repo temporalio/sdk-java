@@ -101,6 +101,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private final String namespace;
   private final WorkflowExecution workflowExecution;
+  private final SyncWorkflowDefinition workflowDefinition;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final DataConverter dataConverter;
   // to be used in this class, should not be passed down. Pass the original #dataConverter instead
@@ -125,15 +126,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
-  // Map of all running update handlers. Key is the update Id of the update request.
+  // Map of all running update handlers. Key is the update ID of the update request.
   private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
-  // Map of all running signal handlers. Key is the event Id of the signal event.
+  // Map of all running signal handlers. Key is the event ID of the signal event.
   private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
   @Nullable private String currentDetails;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
       @Nonnull WorkflowExecution workflowExecution,
+      @Nullable SyncWorkflowDefinition workflowDefinition,
       SignalDispatcher signalDispatcher,
       QueryDispatcher queryDispatcher,
       UpdateDispatcher updateDispatcher,
@@ -142,6 +144,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       List<ContextPropagator> contextPropagators) {
     this.namespace = namespace;
     this.workflowExecution = workflowExecution;
+    this.workflowDefinition = workflowDefinition;
     this.dataConverter = dataConverter;
     this.dataConverterWithCurrentWorkflowContext =
         dataConverter.withContext(
@@ -1490,6 +1493,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public void setCurrentDetails(String details) {
     currentDetails = details;
+  }
+
+  @Nullable
+  public Object getInstance() {
+    return workflowDefinition.getInstance();
   }
 
   @Nullable

@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -315,6 +316,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     private final Class<?> workflowImplementationClass;
     private final Method workflowMethod;
     private final Constructor<?> ctor;
+    private RootWorkflowInboundCallsInterceptor rootWorkflowInvoker;
     private WorkflowInboundCallsInterceptor workflowInvoker;
     // don't pass it down to other classes, it's a "cached" instance for internal usage only
     private final DataConverter dataConverterWithWorkflowContext;
@@ -333,7 +335,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     @Override
     public void initialize(Optional<Payloads> input) {
       SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
-      workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext, input);
+      rootWorkflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext, input);
+      workflowInvoker = rootWorkflowInvoker;
       for (WorkerInterceptor workerInterceptor : workerInterceptors) {
         workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
       }
@@ -357,6 +360,13 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       return dataConverterWithWorkflowContext.toPayloads(result.getResult());
     }
 
+    @Nullable
+    @Override
+    public Object getInstance() {
+      Objects.requireNonNull(rootWorkflowInvoker, "getInstance called before initialize.");
+      return rootWorkflowInvoker.getInstance();
+    }
+
     private class RootWorkflowInboundCallsInterceptor
         extends BaseRootWorkflowInboundCallsInterceptor {
       private Object workflow;
@@ -366,6 +376,10 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
           SyncWorkflowContext workflowContext, Optional<Payloads> input) {
         super(workflowContext);
         this.input = input;
+      }
+
+      public Object getInstance() {
+        return workflow;
       }
 
       @Override

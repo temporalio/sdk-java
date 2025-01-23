@@ -48,6 +48,7 @@ import javax.annotation.concurrent.ThreadSafe;
 class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final Lock lock = new ReentrantLock();
   private final WorkflowClient client;
+  private final Object activity;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private final HeartbeatContext heartbeatContext;
@@ -61,6 +62,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   ActivityExecutionContextImpl(
       WorkflowClient client,
       String namespace,
+      Object activity,
       ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
@@ -71,6 +73,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval) {
     this.client = client;
+    this.activity = activity;
     this.metricsScope = metricsScope;
     this.info = info;
     this.completionHandle = completionHandle;
@@ -176,5 +179,10 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public WorkflowClient getWorkflowClient() {
     return client;
+  }
+
+  @Override
+  public Object getInstance() {
+    return activity;
   }
 }
