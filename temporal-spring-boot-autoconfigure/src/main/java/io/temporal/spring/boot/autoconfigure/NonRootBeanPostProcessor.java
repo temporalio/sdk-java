@@ -61,7 +61,9 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private static final Logger log = LoggerFactory.getLogger(NonRootBeanPostProcessor.class);
 
-  /** link {@code *Options.Builder} to customize */
+  /**
+   * link {@code *Options.Builder} to customize
+   */
   private static final String OPTIONS_BUILDER_SUFFIX = "Options.Builder";
 
   private static final String CUSTOMIZER_SUFFIX = "Customizer";
@@ -99,6 +101,12 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   private void injectBeanByNonRootNamespace(NonRootNamespaceProperties ns) {
     String beanPrefix = MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace());
     DataConverter dataConverterByNamespace = findBeanByNamespace(beanPrefix, DataConverter.class);
+    if (dataConverterByNamespace != null && dataConverterByNamespace.useInRootNamespace()) {
+      log.warn(
+          "DataConverter bean {} set used in root namespace, but find by name indicate it used in non-root namespace."
+          + "\nYou can override useInRootNamespace and return false to suppress this log.",
+          beanPrefix + DataConverter.class.getSimpleName());
+    }
 
     // found regarding namespace customizer bean, it can be optional
     TemporalOptionsCustomizer<Builder> workFactoryCustomizer =
@@ -115,8 +123,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, ScheduleClientOptions.Builder.class);
     TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
         workflowImplementationCustomizer =
-            findBeanByNameSpaceForTemporalCustomizer(
-                beanPrefix, WorkflowImplementationOptions.Builder.class);
+        findBeanByNameSpaceForTemporalCustomizer(
+            beanPrefix, WorkflowImplementationOptions.Builder.class);
 
     // it not set namespace connection properties, use root connection properties
     ConnectionProperties connectionProperties =
@@ -158,8 +166,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     beanFactory.registerSingleton(
         beanPrefix + ServiceStubsTemplate.class.getSimpleName(), serviceStubsTemplate);
     beanFactory.registerSingleton(
-        beanPrefix + WorkflowServiceStubs.class.getSimpleName(),
-        workflowServiceStubs);
+        beanPrefix + WorkflowServiceStubs.class.getSimpleName(), workflowServiceStubs);
     beanFactory.registerSingleton(
         beanPrefix + NamespaceTemplate.class.getSimpleName(), namespaceTemplate);
     beanFactory.registerSingleton(
@@ -202,13 +209,13 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     } catch (BeansException e) {
       log.warn("No TemporalOptionsCustomizer found for {}. ", builderCanonicalName);
       if (genericOptionsBuilderClass.isAssignableFrom(Builder.class)) {
-//        print tips once
+        //        print tips once
         log.info(
             "No TemporalOptionsCustomizer found for {}. \n You can add Customizer bean to do customization. \n "
-                + "Note: bean name should start with namespace name and end with Customizer, and the middle part should be the customizer "
-                + "target class name. \n "
-                + "Example: @Bean(\"namespaceNameWorkerFactoryCustomizer\") is a customizer bean for WorkerFactory via "
-                + "TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>",
+            + "Note: bean name should start with namespace name and end with Customizer, and the middle part should be the customizer "
+            + "target class name. \n "
+            + "Example: @Bean(\"namespaceNameWorkerFactoryCustomizer\") is a customizer bean for WorkerFactory via "
+            + "TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>",
             genericOptionsBuilderClass.getSimpleName());
       }
       return null;

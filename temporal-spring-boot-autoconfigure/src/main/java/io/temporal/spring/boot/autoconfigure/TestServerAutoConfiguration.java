@@ -57,6 +57,7 @@ import org.springframework.context.annotation.Configuration;
     havingValue = "true")
 @AutoConfigureAfter({OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 public class TestServerAutoConfiguration {
+
   private static final Logger log = LoggerFactory.getLogger(TestServerAutoConfiguration.class);
 
   @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
@@ -76,13 +77,13 @@ public class TestServerAutoConfiguration {
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkerFactoryCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkflowClientCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalScheduleClientCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkflowServiceStubsCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
               workflowServiceStubsCustomizer) {
     DataConverter chosenDataConverter =

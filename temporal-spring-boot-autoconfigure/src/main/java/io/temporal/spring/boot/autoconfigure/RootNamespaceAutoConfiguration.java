@@ -86,15 +86,15 @@ public class RootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkerFactoryCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkerCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkflowClientCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalScheduleClientCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkflowImplementationCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
     DataConverter chosenDataConverter =

@@ -70,6 +70,10 @@ import javax.annotation.Nonnull;
  */
 public interface DataConverter {
 
+  default boolean useInRootNamespace() {
+    return true;
+  }
+
   /**
    * @deprecated use {@link GlobalDataConverter#get()}
    */

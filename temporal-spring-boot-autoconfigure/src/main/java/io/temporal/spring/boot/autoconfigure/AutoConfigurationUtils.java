@@ -22,13 +22,19 @@ package io.temporal.spring.boot.autoconfigure;
 
 import io.temporal.common.converter.DataConverter;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 
 class AutoConfigurationUtils {
+
   @Nullable
   static DataConverter choseDataConverter(
       List<DataConverter> dataConverters, DataConverter mainDataConverter) {
+    dataConverters =
+        dataConverters.stream()
+            .filter(DataConverter::useInRootNamespace)
+            .collect(Collectors.toList());
     DataConverter chosenDataConverter = null;
     if (dataConverters.size() == 1) {
       chosenDataConverter = dataConverters.get(0);

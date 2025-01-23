@@ -49,7 +49,7 @@ public class ServiceStubsAutoConfiguration {
       @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable Scope metricsScope,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Autowired(required = false) @Nullable
+      @Qualifier("temporalWorkflowServiceStubsCustomizer") @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
               workflowServiceStubsCustomizer) {
     return new ServiceStubsTemplate(
