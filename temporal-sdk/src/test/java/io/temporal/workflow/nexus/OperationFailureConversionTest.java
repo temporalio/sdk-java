@@ -59,6 +59,9 @@ public class OperationFailureConversionTest {
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
+    Assert.assertTrue(applicationFailure.getMessage().contains("failed to call operation"));
+    Assert.assertEquals("TestFailure", applicationFailure.getType());
   }
 
   @Test
@@ -72,6 +75,9 @@ public class OperationFailureConversionTest {
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
+    Assert.assertEquals(
+        "io.temporal.client.WorkflowExecutionAlreadyStarted", applicationFailure.getType());
   }
 
   @Test
@@ -85,8 +91,8 @@ public class OperationFailureConversionTest {
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
     Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
-    Assert.assertTrue(
-        applicationFailure.getOriginalMessage().contains("exceeded invocation count"));
+    Assert.assertTrue(applicationFailure.getMessage().contains("exceeded invocation count"));
+    Assert.assertEquals("ExceededInvocationCount", applicationFailure.getType());
   }
 
   public static class TestNexus implements TestWorkflow1 {

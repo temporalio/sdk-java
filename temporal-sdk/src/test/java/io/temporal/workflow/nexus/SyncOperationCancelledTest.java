@@ -20,6 +20,7 @@
 
 package io.temporal.workflow.nexus;
 
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -58,6 +59,20 @@ public class SyncOperationCancelledTest {
         "operation canceled before it was started", canceledFailure.getOriginalMessage());
   }
 
+  @Test
+  public void syncOperationCanceledInStartHandler() {
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    WorkflowFailedException exception =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("cancel-in-handler"));
+    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
+    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
+    Assert.assertTrue(nexusFailure.getCause() instanceof CanceledFailure);
+    CanceledFailure canceledFailure = (CanceledFailure) nexusFailure.getCause();
+    Assert.assertEquals("operation canceled in handler", canceledFailure.getOriginalMessage());
+  }
+
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String input) {
@@ -71,11 +86,13 @@ public class SyncOperationCancelledTest {
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
       Workflow.newCancellationScope(
               () -> {
-                Promise<String> promise = Async.function(serviceStub::operation, "to be cancelled");
-                if (input.isEmpty()) {
+                Promise<String> promise = Async.function(serviceStub::operation, input);
+                if (!input.equals("immediately")) {
                   Workflow.sleep(Duration.ofSeconds(1));
                 }
-                CancellationScope.current().cancel();
+                if (!input.equals("cancel-in-handler")) {
+                  CancellationScope.current().cancel();
+                }
                 promise.get();
               })
           .run();
@@ -89,7 +106,11 @@ public class SyncOperationCancelledTest {
     public OperationHandler<String, String> operation() {
       // Implemented inline
       return OperationHandler.sync(
-          (ctx, details, name) -> {
+          (ctx, details, input) -> {
+            if (input.equals("cancel-in-handler")) {
+              throw OperationException.canceled(
+                  new RuntimeException("operation canceled in handler"));
+            }
             throw new RuntimeException("failed to call operation");
           });
     }

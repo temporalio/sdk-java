@@ -88,7 +88,8 @@ public class CodecDataConverterTest {
       throw ApplicationFailure.newFailureWithCause("Message", "Type", causeException);
     } catch (ApplicationFailure originalException) {
       Failure failure = dataConverter.exceptionToFailure(originalException);
-      TemporalFailure decodedException = dataConverter.failureToException(failure);
+      TemporalFailure decodedException =
+          (TemporalFailure) dataConverter.failureToException(failure);
 
       assertEquals("Message", decodedException.getOriginalMessage());
       assertEquals(
