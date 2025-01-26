@@ -170,7 +170,7 @@ public class WorkflowCachingTest {
 
     // Assert Full history
     // Make sure first is workflow execution started
-    assertNotNull(response.getHistory().getEvents(0).getWorkflowExecutionStartedEventAttributes());
+    assertTrue(response.getHistory().getEvents(0).hasWorkflowExecutionStartedEventAttributes());
     // 10 is the expected number of events for the full history.
     assertEquals(
         "Expected 10 events, but got: " + new WorkflowExecutionHistory(response.getHistory()),

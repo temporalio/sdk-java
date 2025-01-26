@@ -453,7 +453,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation terminated", cause.getMessage());
-      Assert.assertNotNull(cause.getApplicationFailureInfo());
+      Assert.assertTrue(cause.hasApplicationFailureInfo());
       Assert.assertTrue(cause.getApplicationFailureInfo().getNonRetryable());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
@@ -531,7 +531,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation exceeded internal timeout", cause.getMessage());
-      Assert.assertNotNull(cause.getApplicationFailureInfo());
+      Assert.assertTrue(cause.hasApplicationFailureInfo());
       Assert.assertTrue(cause.getApplicationFailureInfo().getNonRetryable());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
@@ -657,7 +657,7 @@ public class NexusWorkflowTest {
     Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
     io.temporal.api.failure.v1.Failure cause = failure.getCause();
     Assert.assertEquals("operation canceled before it was started", cause.getMessage());
-    Assert.assertNotNull(cause.getCanceledFailureInfo());
+    Assert.assertTrue(cause.hasCanceledFailureInfo());
   }
 
   @Test(timeout = 15000)
@@ -706,7 +706,7 @@ public class NexusWorkflowTest {
     Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
     io.temporal.api.failure.v1.Failure cause = failure.getCause();
     Assert.assertEquals("operation timed out", cause.getMessage());
-    Assert.assertNotNull(cause.getTimeoutFailureInfo());
+    Assert.assertTrue(cause.hasTimeoutFailureInfo());
     Assert.assertEquals(
         TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, cause.getTimeoutFailureInfo().getTimeoutType());
   }
@@ -754,7 +754,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation timed out", cause.getMessage());
-      Assert.assertNotNull(cause.getTimeoutFailureInfo());
+      Assert.assertTrue(cause.hasTimeoutFailureInfo());
       Assert.assertEquals(
           TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
           cause.getTimeoutFailureInfo().getTimeoutType());
@@ -838,7 +838,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation timed out", cause.getMessage());
-      Assert.assertNotNull(cause.getTimeoutFailureInfo());
+      Assert.assertTrue(cause.hasTimeoutFailureInfo());
       Assert.assertEquals(
           TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
           cause.getTimeoutFailureInfo().getTimeoutType());
@@ -889,7 +889,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("deliberate test failure", cause.getMessage());
-      Assert.assertNotNull(cause.getApplicationFailureInfo());
+      Assert.assertTrue(cause.hasApplicationFailureInfo());
       Assert.assertEquals("NexusOperationFailure", cause.getApplicationFailureInfo().getType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
@@ -952,7 +952,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("deliberate terminal error", cause.getMessage());
-      Assert.assertNotNull(cause.getApplicationFailureInfo());
+      Assert.assertTrue(cause.hasApplicationFailureInfo());
       Assert.assertEquals("INVALID_ARGUMENT", cause.getApplicationFailureInfo().getType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
