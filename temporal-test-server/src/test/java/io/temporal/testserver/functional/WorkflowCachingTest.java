@@ -23,7 +23,6 @@ package io.temporal.testserver.functional;
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.api.enums.v1.EventType;
