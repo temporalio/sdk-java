@@ -22,6 +22,7 @@ package io.temporal.workflow.updateTest;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -46,11 +47,14 @@ public class SpeculativeUpdateTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUpdateWorkflowImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
-          .setUseExternalService(true)
           .build();
 
   @Test(timeout = 60000)
   public void speculativeUpdateRejected() {
+    assumeTrue(
+        "Test Server doesn't support speculative update yet",
+        SDKTestWorkflowRule.useExternalService);
+
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
@@ -58,8 +62,6 @@ public class SpeculativeUpdateTest {
             .setWorkflowId(workflowId)
             .build();
     WorkflowWithUpdate workflow = workflowClient.newWorkflowStub(WorkflowWithUpdate.class, options);
-    // To execute workflow client.execute() would do. But we want to start workflow and immediately
-    // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
 
     workflow.update(3, "test value");
