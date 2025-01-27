@@ -449,8 +449,10 @@ public class ScheduleProtoUtil {
       wfOptionsBuilder.setWorkflowTaskTimeout(
           ProtobufTimeUtils.toJavaDuration(startWfAction.getWorkflowTaskTimeout()));
 
-      wfOptionsBuilder.setRetryOptions(
-          RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
+      if (startWfAction.hasRetryPolicy()) {
+        wfOptionsBuilder.setRetryOptions(
+                RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
+      }
 
       if (startWfAction.hasMemo()) {
         Map<String, Object> memos = new HashMap<>();

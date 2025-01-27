@@ -501,8 +501,6 @@ class WorkflowStubImpl implements WorkflowStub {
   private void checkStarted() {
     if (execution.get() == null) {
       throw new IllegalStateException("Null workflowId. Was workflow started?");
-    } else {
-      execution.get().getWorkflowId();
     }
   }
 
