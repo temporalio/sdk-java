@@ -451,7 +451,7 @@ public class ScheduleProtoUtil {
 
       if (startWfAction.hasRetryPolicy()) {
         wfOptionsBuilder.setRetryOptions(
-                RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
+            RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
       }
 
       if (startWfAction.hasMemo()) {

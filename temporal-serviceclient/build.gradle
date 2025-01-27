@@ -29,8 +29,10 @@ dependencies {
     testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
 
-    testRuntimeOnly "com.google.protobuf:protobuf-java:4.29.3"
-    testRuntimeOnly "com.google.protobuf:protobuf-java-util:4.29.3"
+    if (project.hasProperty("edgeDepsTest")) {
+        testRuntimeOnly "com.google.protobuf:protobuf-java:4.29.3"
+        testRuntimeOnly "com.google.protobuf:protobuf-java-util:4.29.3"
+    }
     testRuntimeOnly "ch.qos.logback:logback-classic:${logbackVersion}"
 }
 
