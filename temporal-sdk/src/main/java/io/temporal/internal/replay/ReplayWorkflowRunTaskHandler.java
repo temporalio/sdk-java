@@ -218,7 +218,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public void resetStartedEvenId(Long eventId) {
+  public void resetStartedEventId(Long eventId) {
     workflowStateMachines.resetStartedEventId(eventId);
   }
 
