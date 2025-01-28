@@ -33,7 +33,7 @@ import java.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionAndTimerTest {
+public class GetVersionAndTimerTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRuleWithoutVersion =

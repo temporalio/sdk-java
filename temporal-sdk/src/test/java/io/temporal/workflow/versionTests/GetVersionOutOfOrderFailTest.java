@@ -75,6 +75,9 @@ public class GetVersionOutOfOrderFailTest {
     assertEquals(
         NonDeterministicException.class.getName(),
         ((ApplicationFailure) e.getCause().getCause().getCause()).getType());
+    assertEquals(
+        "[TMPRL1100] getVersion call before the existing version marker event. The most probable cause is retroactive addition of a getVersion call with an existing 'changeId'",
+        ((ApplicationFailure) e.getCause().getCause().getCause()).getOriginalMessage());
   }
 
   @Test

@@ -34,7 +34,7 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionMultipleCallsTest {
+public class GetVersionMultipleCallsTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()

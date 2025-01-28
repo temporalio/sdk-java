@@ -261,6 +261,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public boolean checkSdkFlag(SdkFlag flag) {
+    return workflowStateMachines.checkSdkFlag(flag);
+  }
+
+  @Override
   public Optional<String> getCurrentBuildId() {
     String curTaskBID = workflowStateMachines.getCurrentTaskBuildId();
     // The current task started id == 0 check is to avoid setting the build id to this worker's ID
@@ -324,7 +329,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public boolean getVersion(
+  public Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,

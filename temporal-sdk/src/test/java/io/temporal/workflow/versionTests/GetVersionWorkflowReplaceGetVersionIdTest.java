@@ -34,7 +34,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GetVersionWorkflowReplaceGetVersionIdTest {
+public class GetVersionWorkflowReplaceGetVersionIdTest extends BaseVersionTest {
 
   private static final Logger log =
       LoggerFactory.getLogger(GetVersionWorkflowReplaceGetVersionIdTest.class);

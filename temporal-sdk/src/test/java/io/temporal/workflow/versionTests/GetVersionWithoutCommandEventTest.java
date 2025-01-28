@@ -34,7 +34,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionWithoutCommandEventTest {
+public class GetVersionWithoutCommandEventTest extends BaseVersionTest {
 
   private static CompletableFuture<Boolean> executionStarted = new CompletableFuture<>();
 
