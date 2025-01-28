@@ -39,7 +39,7 @@ public class StatusUtils {
    * @return true if the given failure is found, false otherwise
    */
   public static boolean hasFailure(
-      StatusRuntimeException exception, Class<? extends GeneratedMessageV3> failureType) {
+      StatusRuntimeException exception, Class<? extends Message> failureType) {
     Preconditions.checkNotNull(exception, "exception cannot be null");
     com.google.rpc.Status status = StatusProto.fromThrowable(exception);
     if (status.getDetailsCount() == 0) {
@@ -52,7 +52,7 @@ public class StatusUtils {
   /**
    * @return a failure of a given type from the StatusRuntimeException object
    */
-  public static <T extends GeneratedMessageV3> T getFailure(
+  public static <T extends Message> T getFailure(
       StatusRuntimeException exception, Class<T> failureType) {
     Preconditions.checkNotNull(exception, "exception cannot be null");
     com.google.rpc.Status status = StatusProto.fromThrowable(exception);
@@ -72,7 +72,7 @@ public class StatusUtils {
   }
 
   /** Create StatusRuntimeException with given details. */
-  public static <T extends GeneratedMessageV3> StatusRuntimeException newException(
+  public static <T extends Message> StatusRuntimeException newException(
       io.grpc.Status status, T details, Descriptors.Descriptor detailsDescriptor) {
     Preconditions.checkNotNull(status, "status cannot be null");
     Status protoStatus =

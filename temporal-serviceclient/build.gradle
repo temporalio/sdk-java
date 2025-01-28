@@ -13,6 +13,7 @@ dependencies {
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
     api "io.grpc:grpc-services" //Standard gRPC HealthCheck Response class
+    api "io.grpc:grpc-inprocess" //For the in-process time skipping test server
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API
     if (JavaVersion.current().isJava9Compatible()) {
         //needed for the generated grpc stubs and is not a part of JDK since java 9
@@ -28,6 +29,10 @@ dependencies {
     testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
 
+    if (project.hasProperty("edgeDepsTest")) {
+        testRuntimeOnly "com.google.protobuf:protobuf-java:4.29.3"
+        testRuntimeOnly "com.google.protobuf:protobuf-java-util:4.29.3"
+    }
     testRuntimeOnly "ch.qos.logback:logback-classic:${logbackVersion}"
 }
 
@@ -72,7 +77,7 @@ protobuf {
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
     // with the oldest supported versions of protoc and grpc artifacts.
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.10.1' + (System.getProperty("os.arch") == 'aarch64' && System.getProperty("os.name") == 'Mac OS X' ? ':osx-x86_64' : '')
+        artifact = 'com.google.protobuf:protoc:3.25.5' + (System.getProperty("os.arch") == 'aarch64' && System.getProperty("os.name") == 'Mac OS X' ? ':osx-x86_64' : '')
     }
     plugins {
         grpc {

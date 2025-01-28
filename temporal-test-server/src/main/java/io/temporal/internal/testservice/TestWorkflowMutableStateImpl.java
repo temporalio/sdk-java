@@ -3396,7 +3396,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx, SignalWorkflowExecutionRequest signalRequest) {
     WorkflowExecutionSignaledEventAttributes.Builder a =
         WorkflowExecutionSignaledEventAttributes.newBuilder()
-            .setInput(startRequest.getInput())
             .setIdentity(signalRequest.getIdentity())
             .setInput(signalRequest.getInput())
             .setSignalName(signalRequest.getSignalName());
@@ -3412,7 +3411,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx, SignalExternalWorkflowExecutionCommandAttributes d) {
     WorkflowExecutionSignaledEventAttributes.Builder a =
         WorkflowExecutionSignaledEventAttributes.newBuilder()
-            .setInput(startRequest.getInput())
             .setInput(d.getInput())
             .setSignalName(d.getSignalName());
     HistoryEvent executionSignaled =

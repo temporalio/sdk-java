@@ -385,8 +385,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     WorkflowMetadata.Builder workflowMetadata = WorkflowMetadata.newBuilder();
     WorkflowDefinition.Builder workflowDefinition = WorkflowDefinition.newBuilder();
     // Set the workflow type
-    if (replayContext.getWorkflowType() != null
-        && replayContext.getWorkflowType().getName() != null) {
+    if (replayContext.getWorkflowType() != null) {
       workflowDefinition.setType(replayContext.getWorkflowType().getName());
     }
     // Set built in queries
