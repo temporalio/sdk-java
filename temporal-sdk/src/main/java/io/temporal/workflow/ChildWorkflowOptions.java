@@ -197,12 +197,12 @@ public final class ChildWorkflowOptions {
 
     /**
      * Maximum execution time of a single workflow task. Default is 10 seconds. Maximum accepted
-     * value is 60 seconds.
+     * value is 120 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
-      if (roundUpToSeconds(workflowTaskTimeout) > 60) {
+      if (roundUpToSeconds(workflowTaskTimeout) > 120) {
         throw new IllegalArgumentException(
-            "WorkflowTaskTimeout over one minute: " + workflowTaskTimeout);
+            "WorkflowTaskTimeout over two minute: " + workflowTaskTimeout);
       }
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
