@@ -20,6 +20,9 @@
 
 package io.temporal.workflow
 
+import io.temporal.activity.ActivityInterface
+import io.temporal.activity.ActivityOptions
+import io.temporal.activity.setRetryOptions
 import io.temporal.client.WorkflowClientOptions
 import io.temporal.client.WorkflowOptions
 import io.temporal.common.converter.DefaultDataConverter
@@ -28,17 +31,18 @@ import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.testing.internal.SDKTestWorkflowRule
 import org.junit.Rule
 import org.junit.Test
+import java.time.Duration
 
-class KotlinChildWorkflowStubExtTest {
+class KotlinActivityStubExtTest {
 
   @Rule
   @JvmField
   var testWorkflowRule: SDKTestWorkflowRule = SDKTestWorkflowRule.newBuilder()
     .setWorkflowTypes(
-      ParentWorkflowImpl::class.java,
-      AsyncParentWorkflowImpl::class.java,
-      ChildWorkflowImpl::class.java
+      SyncWorkflowImpl::class.java,
+      AsyncWorkflowImpl::class.java
     )
+    .setActivityImplementations(ActivityImpl())
     .setWorkflowClientOptions(
       WorkflowClientOptions.newBuilder()
         .setDataConverter(DefaultDataConverter(JacksonJsonPayloadConverter(KotlinObjectMapperFactory.new())))
@@ -47,57 +51,68 @@ class KotlinChildWorkflowStubExtTest {
     .build()
 
   @WorkflowInterface
-  interface ChildWorkflow {
-    @WorkflowMethod
-    fun execute(argument: String): Int
-  }
-
-  class ChildWorkflowImpl : ChildWorkflow {
-    override fun execute(argument: String): Int {
-      return 0
-    }
-  }
-
-  @WorkflowInterface
-  interface ParentWorkflow {
+  interface SyncWorkflow {
     @WorkflowMethod
     fun execute()
   }
 
-  class ParentWorkflowImpl : ParentWorkflow {
+  class SyncWorkflowImpl : SyncWorkflow {
+
     override fun execute() {
-      val childWorkflow = Workflow.newUntypedChildWorkflowStub("ChildWorkflow")
-      childWorkflow.execute<Any>("test-argument")
+      val activity = Workflow.newUntypedActivityStub(
+        ActivityOptions {
+          setStartToCloseTimeout(Duration.ofSeconds(5))
+          setRetryOptions { setMaximumAttempts(1) }
+        }
+      )
+
+      activity.execute<Unit>("Run", "test-argument")
     }
   }
 
   @WorkflowInterface
-  interface AsyncParentWorkflow {
+  interface AsyncWorkflow {
     @WorkflowMethod
     fun execute()
   }
 
-  class AsyncParentWorkflowImpl : AsyncParentWorkflow {
+  class AsyncWorkflowImpl : AsyncWorkflow {
     override fun execute() {
-      val childWorkflow = Workflow.newUntypedChildWorkflowStub("ChildWorkflow")
-      val promise = childWorkflow.executeAsync<Any>("test-argument")
+      val activity = Workflow.newUntypedActivityStub(
+        ActivityOptions {
+          setStartToCloseTimeout(Duration.ofSeconds(5))
+          setRetryOptions { setMaximumAttempts(1) }
+        }
+      )
+
+      val promise = activity.executeAsync<Unit>("Run", "test-argument")
       promise.get()
     }
   }
 
+  @ActivityInterface
+  interface TestActivity {
+    fun run(arg: String)
+  }
+
+  class ActivityImpl : TestActivity {
+    override fun run(arg: String) {
+    }
+  }
+
   @Test
-  fun `execute on untyped child workflow should spread varargs`() {
+  fun `execute on untyped activity stub should spread varargs`() {
     val client = testWorkflowRule.workflowClient
     val options = WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.taskQueue).build()
-    val workflowStub = client.newWorkflowStub(ParentWorkflow::class.java, options)
+    val workflowStub = client.newWorkflowStub(SyncWorkflow::class.java, options)
     workflowStub.execute()
   }
 
   @Test
-  fun `executeAsync on untyped child workflow should spread varargs`() {
+  fun `executeAsync on untyped activity stub should spread varargs`() {
     val client = testWorkflowRule.workflowClient
     val options = WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.taskQueue).build()
-    val workflowStub = client.newWorkflowStub(AsyncParentWorkflow::class.java, options)
+    val workflowStub = client.newWorkflowStub(AsyncWorkflow::class.java, options)
     workflowStub.execute()
   }
 }
