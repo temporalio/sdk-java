@@ -89,6 +89,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
+    workflowServiceStubs =
+        new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
     this.metricsScope =
