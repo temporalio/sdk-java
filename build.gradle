@@ -37,7 +37,7 @@ ext {
 
     // stay on 1.x for a while to don't use any APIs from 2.x which may break our users which still stay on 1.x
     // also slf4j 2.x is not compatible with spring boot 2.x
-    slf4jVersion = project.hasProperty("edgeDepsTest") ? '2.0.16' : '1.7.36' // [1.4.0,)
+    slf4jVersion = project.hasProperty("edgeDepsTest") ? '1.7.36' : '1.7.36' // [1.4.0,)
     // [3.25.5,)
     // 3.25.5 is required because of our protoc compiler 25.x. The proto version must be the same or greater then the protoc version.
     // We use this version of protoc because it will generate code that is compatible with protobuf-java 3.x and 4.x.

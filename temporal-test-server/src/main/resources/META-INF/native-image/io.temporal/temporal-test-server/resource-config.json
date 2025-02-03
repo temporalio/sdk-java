@@ -1,7 +1,15 @@
 {
   "resources":{
   "includes":[{
-      "pattern":"\\QMETA-INF/services/io.grpc.ServerProvider\\E"
-    }]},
+    "pattern":"\\QMETA-INF/services/io.grpc.ServerProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.nio.channels.spi.SelectorProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.time.zone.ZoneRulesProvider\\E"
+  }, {
+    "pattern":"\\Qorg/slf4j/impl/StaticLoggerBinder.class\\E"
+  }]},
   "bundles":[]
 }

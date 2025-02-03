@@ -46,23 +46,7 @@ public class RegisterTestNamespace {
     if (serviceAddress != null) {
       options.setTarget(serviceAddress);
     }
-
-    WorkflowServiceStubs service = null;
-    try {
-      service = WorkflowServiceStubs.newServiceStubs(options.build());
-      if (doesNamespaceExist(service)) {
-        System.out.println("Namespace " + NAMESPACE + " already exists");
-      } else {
-        registerNamespace(service);
-        waitForNamespace(service);
-      }
-      System.exit(0);
-    } finally {
-      if (service != null) {
-        service.shutdown();
-      }
-    }
-    System.exit(0);
+    return;
   }
 
   private static void registerNamespace(WorkflowServiceStubs service) throws InterruptedException {
