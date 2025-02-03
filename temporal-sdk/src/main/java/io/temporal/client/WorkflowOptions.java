@@ -266,7 +266,7 @@ public final class WorkflowOptions {
      * duration in any way. It defines for how long the Workflow can get blocked in the case of a
      * Workflow Worker crash.
      *
-     * <p>Default is 10 seconds. Maximum value allowed by the Temporal Server is 1 minute.
+     * <p>Default is 10 seconds. Maximum value allowed by the Temporal Server is 120 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       this.workflowTaskTimeout = workflowTaskTimeout;
