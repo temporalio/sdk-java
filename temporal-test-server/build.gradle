@@ -1,13 +1,6 @@
-buildscript {
-    ext {
-        // 0.11.0 and later are build on JDK 11 bytecode version
-        graalVersion = "${JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11) ? '0.12.0' : '0.10.0'}"
-    }
-}
-
 plugins {
     id 'application'
-    id 'com.palantir.graal' version "${graalVersion}"
+    id 'org.graalvm.buildtools.native' version '0.10.4'
     id 'com.google.protobuf' version '0.9.2'
 }
 
@@ -37,6 +30,13 @@ dependencies {
 
 application {
     getMainClass().set('io.temporal.testserver.TestServer')
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+            vendor = JvmVendorSpec.GRAAL_VM
+        }
+    }
 }
 
 jar {
@@ -99,28 +99,41 @@ idea {
 }
 
 
-graal {
-  outputName "temporal-test-server"
-  mainClass application.getMainClass().get()
-  javaVersion '17'
-  graalVersion '22.3.1'
+graalvmNative {
+    toolchainDetection = true
+    agent {
+        defaultMode = "standard" // Default agent mode if one isn't specified using `-Pagent=mode_name`
 
-  // Don't fallback to running a JVM
-  option "--no-fallback"
+    }
+    binaries{
+        main {
+            mainClass =  application.getMainClass().get()
+            sharedLibrary = false
+            // Signal handling so that ^C actually stops the process
+            buildArgs.add("--install-exit-handlers")
+            // If we're on linux, static link everything but libc. Otherwise link
+            // everything dynamically (note the '-' rather than '+' in front of
+            // StaticExecutable)
+            if (isLinux()) {
+                buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
+            }
+            buildArgs.add("-H:+UnlockExperimentalVMOptions")
+            buildArgs.add("-O4")
 
-  // Signal handling so that ^C actually stops the process
-  option "--install-exit-handlers"
 
-  // If we're on linux, static link everything but libc. Otherwise link
-  // everything dynamically (note the '-' rather than '+' in fromt of
-  // StaticExecutable)
-  option isLinux()
-    ? "-H:+StaticExecutableWithDynamicLibC"
-    : "-H:-StaticExecutable"
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(21)
+                vendor = JvmVendorSpec.GRAAL_VM
+            }
+        }
+    }
+    binaries.all {
+        verbose = true
+    }
 }
 
 def isLinux() {
   return System.properties['os.name'].toLowerCase().contains('linux')
 }
 
-tasks.build.dependsOn('nativeImage')
+tasks.build.dependsOn('nativeCompile')
