@@ -202,7 +202,7 @@ public final class ChildWorkflowOptions {
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       if (roundUpToSeconds(workflowTaskTimeout) > 120) {
         throw new IllegalArgumentException(
-            "WorkflowTaskTimeout over two minute: " + workflowTaskTimeout);
+            "WorkflowTaskTimeout over two minutes: " + workflowTaskTimeout);
       }
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
