@@ -34,16 +34,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
+/** Inject the namespace into the gRPC header */
 class NamespaceInjectWorkflowServiceStubs implements WorkflowServiceStubs {
   private static Metadata.Key<String> TEMPORAL_NAMESPACE_HEADER_KEY =
       Metadata.Key.of("temporal-namespace", Metadata.ASCII_STRING_MARSHALLER);
   private final Metadata metadata;
-  private WorkflowServiceStubs next;
-  private String namespace;
+  private final WorkflowServiceStubs next;
 
   public NamespaceInjectWorkflowServiceStubs(WorkflowServiceStubs next, String namespace) {
     this.next = next;
-    this.namespace = namespace;
     this.metadata = new Metadata();
     metadata.put(TEMPORAL_NAMESPACE_HEADER_KEY, namespace);
   }
