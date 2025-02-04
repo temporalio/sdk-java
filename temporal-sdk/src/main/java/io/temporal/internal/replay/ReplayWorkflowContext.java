@@ -284,7 +284,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param callback used to return version
    * @return True if the identifier is not present in history
    */
-  boolean getVersion(
+  Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
@@ -416,6 +416,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return true if this flag may currently be used.
    */
   boolean tryUseSdkFlag(SdkFlag flag);
+
+  /**
+   * @return true if this flag is currently set.
+   */
+  boolean checkSdkFlag(SdkFlag flag);
 
   /**
    * @return The Build ID of the worker which executed the current Workflow Task. May be empty the

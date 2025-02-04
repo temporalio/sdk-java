@@ -88,8 +88,7 @@ public class DynamicUpdateTest {
     CompletablePromise<Void> promise = Workflow.newPromise();
     List<String> updates = new ArrayList<>();
 
-    @Override
-    public String execute(String input) {
+    public TestDynamicUpdateWorkflowImpl() {
       Workflow.registerListener(
           new DynamicUpdateHandler() {
             @Override
@@ -109,6 +108,10 @@ public class DynamicUpdateTest {
               return "update:" + args.get(0, String.class);
             }
           });
+    }
+
+    @Override
+    public String execute(String input) {
       promise.get();
       return updates.stream().reduce("", (a, b) -> a + " " + b);
     }

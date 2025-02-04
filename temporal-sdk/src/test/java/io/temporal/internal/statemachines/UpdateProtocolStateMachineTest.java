@@ -547,7 +547,7 @@ public class UpdateProtocolStateMachineTest {
       assertNotNull(rejection);
       assertEquals(request, rejection.getRejectedRequest());
       // Simulate the server request to reset the workflow event ID
-      stateMachines.resetStartedEvenId(3);
+      stateMachines.resetStartedEventId(3);
       // Create a new history after the reset event ID
       /*
           1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
@@ -941,7 +941,7 @@ public class UpdateProtocolStateMachineTest {
                 (r) -> {
                   message.getCallbacks().complete(converter.toPayloads("update result"), null);
                 });
-        if (message.getMessage().getProtocolInstanceId() == "message_update") {
+        if (message.getMessage().getProtocolInstanceId().equals("message_update")) {
           builder.add((r) -> stateMachines.completeWorkflow(Optional.empty()));
         }
       }

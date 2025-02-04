@@ -58,9 +58,9 @@ public final class WorkflowStateMachines {
   }
 
   /** Initial set of SDK flags that will be set on all new workflow executions. */
-  private static final List<SdkFlag> initialFlags =
-      Collections.unmodifiableList(
-          Collections.singletonList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+  @VisibleForTesting
+  public static List<SdkFlag> initialFlags =
+      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -222,7 +222,7 @@ public final class WorkflowStateMachines {
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
   }
 
-  public void resetStartedEvenId(long eventId) {
+  public void resetStartedEventId(long eventId) {
     // We must reset the last event we handled to be after the last WFT we really completed
     // + any command events (since the SDK "processed" those when it emitted the commands). This
     // is also equal to what we just processed in the speculative task, minus two, since we
@@ -662,6 +662,13 @@ public final class WorkflowStateMachines {
   }
 
   /**
+   * @return True if the SDK flag is set in the workflow execution
+   */
+  public boolean checkSdkFlag(SdkFlag flag) {
+    return flags.checkSdkFlag(flag);
+  }
+
+  /**
    * @return Set of all new flags set since the last call
    */
   public EnumSet<SdkFlag> takeNewSdkFlags() {
@@ -1074,7 +1081,7 @@ public final class WorkflowStateMachines {
         stateMachineSink);
   }
 
-  public boolean getVersion(
+  public Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,

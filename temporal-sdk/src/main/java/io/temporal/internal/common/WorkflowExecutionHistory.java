@@ -71,7 +71,7 @@ public class WorkflowExecutionHistory {
 
   private static void checkHistory(History history) {
     List<HistoryEvent> events = history.getEventsList();
-    if (events == null || events.size() == 0) {
+    if (events.size() == 0) {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);

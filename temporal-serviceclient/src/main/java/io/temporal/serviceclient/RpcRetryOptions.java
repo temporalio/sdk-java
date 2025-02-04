@@ -24,7 +24,7 @@ import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcR
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
@@ -57,7 +57,7 @@ public final class RpcRetryOptions {
 
   public static class DoNotRetryItem {
     private final Status.Code code;
-    private final Class<? extends GeneratedMessageV3> detailsClass;
+    private final Class<? extends Message> detailsClass;
 
     /**
      * @param code errors with this code will be considered non retryable. {@link
@@ -68,7 +68,7 @@ public final class RpcRetryOptions {
      *     retryable.
      */
     public DoNotRetryItem(
-        @Nonnull Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
+        @Nonnull Status.Code code, @Nullable Class<? extends Message> detailsClass) {
       this.code = Preconditions.checkNotNull(code, "code");
       this.detailsClass = detailsClass;
     }
@@ -77,7 +77,7 @@ public final class RpcRetryOptions {
       return code;
     }
 
-    public Class<? extends GeneratedMessageV3> getDetailsClass() {
+    public Class<? extends Message> getDetailsClass() {
       return detailsClass;
     }
   }
@@ -252,7 +252,7 @@ public final class RpcRetryOptions {
      *     with the {@code code} code are non retryable.
      */
     public Builder addDoNotRetry(
-        Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
+        Status.Code code, @Nullable Class<? extends Message> detailsClass) {
       doNotRetry.add(new DoNotRetryItem(code, detailsClass));
       return this;
     }

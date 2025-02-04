@@ -42,7 +42,7 @@ import org.junit.Test;
  * io.temporal.internal.statemachines.VersionStateMachineTest#testRecordAfterCommandCancellation}
  */
 @Issue("https://github.com/temporalio/sdk-java/issues/615")
-public class GetVersionAfterScopeCancellationTest {
+public class GetVersionAfterScopeCancellationTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

@@ -34,7 +34,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GetVersionAddNewBeforeTest {
+public class GetVersionAddNewBeforeTest extends BaseVersionTest {
 
   private static final Logger log = LoggerFactory.getLogger(GetVersionAddNewBeforeTest.class);
   private static int versionFoo;

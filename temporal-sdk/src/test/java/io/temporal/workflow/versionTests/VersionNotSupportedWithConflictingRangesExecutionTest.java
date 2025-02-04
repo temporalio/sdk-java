@@ -42,7 +42,7 @@ import org.junit.Test;
  * Verifies a situation with a workflow having two getVersion calls.These calls have version ranges
  * that are incompatible with each other.
  */
-public class VersionNotSupportedWithConflictingRangesExecutionTest {
+public class VersionNotSupportedWithConflictingRangesExecutionTest extends BaseVersionTest {
 
   private static boolean hasReplayed;
 

@@ -30,6 +30,10 @@ public enum SdkFlag {
    * Changes behavior of GetVersion to not yield if no previous call existed in history.
    */
   SKIP_YIELD_ON_DEFAULT_VERSION(1),
+  /*
+   * Changes behavior of GetVersion to never yield.
+   */
+  SKIP_YIELD_ON_VERSION(2),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;

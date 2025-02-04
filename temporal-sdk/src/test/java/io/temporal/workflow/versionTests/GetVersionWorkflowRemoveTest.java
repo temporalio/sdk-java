@@ -36,7 +36,7 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionWorkflowRemoveTest {
+public class GetVersionWorkflowRemoveTest extends BaseVersionTest {
 
   private static boolean hasReplayed;
 

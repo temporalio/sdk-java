@@ -288,7 +288,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public boolean getVersion(
+    public Integer getVersion(
         String changeId,
         int minSupported,
         int maxSupported,
@@ -328,6 +328,11 @@ public class DummySyncWorkflowContext {
 
     @Override
     public boolean tryUseSdkFlag(SdkFlag flag) {
+      return false;
+    }
+
+    @Override
+    public boolean checkSdkFlag(SdkFlag flag) {
       return false;
     }
 

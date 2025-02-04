@@ -434,8 +434,8 @@ class TestHistoryBuilder {
     } else if (attributes instanceof Number) {
       attributes = newAttributes(type, ((Number) attributes).intValue());
     }
-    if (attributes instanceof com.google.protobuf.GeneratedMessageV3.Builder) {
-      attributes = ((com.google.protobuf.GeneratedMessageV3.Builder) attributes).build();
+    if (attributes instanceof com.google.protobuf.Message.Builder) {
+      attributes = ((com.google.protobuf.Message.Builder) attributes).build();
     }
     HistoryEvent.Builder result =
         HistoryEvent.newBuilder()

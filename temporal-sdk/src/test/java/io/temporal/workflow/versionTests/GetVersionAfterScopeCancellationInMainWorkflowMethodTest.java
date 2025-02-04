@@ -35,7 +35,7 @@ import org.junit.Test;
 
 /** This test reproduces a clash in cancellation scopes with getVersion described here: */
 @Issue("https://github.com/temporalio/sdk-java/issues/648")
-public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest {
+public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

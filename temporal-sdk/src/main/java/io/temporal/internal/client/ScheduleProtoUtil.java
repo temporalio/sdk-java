@@ -341,8 +341,7 @@ public class ScheduleProtoUtil {
     Objects.requireNonNull(scheduleSpec);
     io.temporal.client.schedules.ScheduleSpec.Builder specBuilder =
         io.temporal.client.schedules.ScheduleSpec.newBuilder()
-            .setTimeZoneName(
-                scheduleSpec.getTimezoneName() == null ? "" : scheduleSpec.getTimezoneName());
+            .setTimeZoneName(scheduleSpec.getTimezoneName());
 
     if (scheduleSpec.hasJitter()) {
       specBuilder.setJitter(ProtobufTimeUtils.toJavaDuration(scheduleSpec.getJitter()));
@@ -450,7 +449,7 @@ public class ScheduleProtoUtil {
       wfOptionsBuilder.setWorkflowTaskTimeout(
           ProtobufTimeUtils.toJavaDuration(startWfAction.getWorkflowTaskTimeout()));
 
-      if (startWfAction.getRetryPolicy() != null) {
+      if (startWfAction.hasRetryPolicy()) {
         wfOptionsBuilder.setRetryOptions(
             RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
       }
