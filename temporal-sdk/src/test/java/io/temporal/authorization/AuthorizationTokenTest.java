@@ -33,6 +33,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.After;
@@ -43,6 +44,8 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
 public class AuthorizationTokenTest {
+  private static Metadata.Key<String> TEMPORAL_NAMESPACE_HEADER_KEY =
+      Metadata.Key.of("temporal-namespace", Metadata.ASCII_STRING_MARSHALLER);
   private static final String TASK_QUEUE = "test-workflow";
   private static final String AUTH_TOKEN = "Bearer <token>";
 
@@ -89,7 +92,8 @@ public class AuthorizationTokenTest {
                           new GrpcRequest(
                               method.getBareMethodName(),
                               headers.get(
-                                  AuthorizationGrpcMetadataProvider.AUTHORIZATION_HEADER_KEY)));
+                                  AuthorizationGrpcMetadataProvider.AUTHORIZATION_HEADER_KEY),
+                              headers.get(TEMPORAL_NAMESPACE_HEADER_KEY)));
                       super.start(responseListener, headers);
                     }
                   }
@@ -121,9 +125,18 @@ public class AuthorizationTokenTest {
     assertEquals("TestWorkflow1-input1", result);
 
     assertFalse(loggedRequests.isEmpty());
+    // These methods are not namespace specific
+    List<String> methodsToSkip =
+        Arrays.asList("GetSystemInfo", "Check", "UnlockTimeSkipping", "LockTimeSkipping");
     for (GrpcRequest grpcRequest : loggedRequests) {
       assertEquals(
           "All requests should have an auth token", AUTH_TOKEN, grpcRequest.authTokenValue);
+      if (!methodsToSkip.contains(grpcRequest.methodName)) {
+        assertEquals(
+            "All requests should have a namespace " + grpcRequest.methodName,
+            testEnvironment.getNamespace(),
+            grpcRequest.namespace);
+      }
     }
   }
 
@@ -139,10 +152,12 @@ public class AuthorizationTokenTest {
   private static class GrpcRequest {
     final String methodName;
     final String authTokenValue;
+    final String namespace;
 
-    GrpcRequest(String methodName, String authTokenValue) {
+    GrpcRequest(String methodName, String authTokenValue, String namespace) {
       this.methodName = methodName;
       this.authTokenValue = authTokenValue;
+      this.namespace = namespace;
     }
   }
 }

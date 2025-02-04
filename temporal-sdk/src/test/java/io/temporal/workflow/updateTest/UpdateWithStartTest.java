@@ -396,6 +396,7 @@ public class UpdateWithStartTest {
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.withInterceptors(any())).thenReturn(blockingStub);
     when(blockingStub.withDeadline(any())).thenReturn(blockingStub);
 
     Scope scope = mock(Scope.class);
@@ -457,6 +458,7 @@ public class UpdateWithStartTest {
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.withInterceptors(any())).thenReturn(blockingStub);
     when(blockingStub.withDeadline(any())).thenReturn(blockingStub);
 
     Scope scope = mock(Scope.class);
