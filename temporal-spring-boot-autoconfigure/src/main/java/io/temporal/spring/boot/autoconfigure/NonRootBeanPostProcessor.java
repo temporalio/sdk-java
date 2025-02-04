@@ -99,12 +99,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   private void injectBeanByNonRootNamespace(NonRootNamespaceProperties ns) {
     String beanPrefix = MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace());
     DataConverter dataConverterByNamespace = findBeanByNamespace(beanPrefix, DataConverter.class);
-    if (dataConverterByNamespace != null && dataConverterByNamespace.useInRootNamespace()) {
-      log.warn(
-          "DataConverter bean {} set used in root namespace, but find by name indicate it used in non-root namespace."
-              + "\nYou can override useInRootNamespace and return false to suppress this warn.",
-          beanPrefix + DataConverter.class.getSimpleName());
-    }
 
     // found regarding namespace customizer bean, it can be optional
     TemporalOptionsCustomizer<Builder> workFactoryCustomizer =

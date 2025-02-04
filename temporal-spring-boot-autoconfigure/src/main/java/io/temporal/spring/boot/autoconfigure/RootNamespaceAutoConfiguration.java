@@ -82,21 +82,21 @@ public class RootNamespaceAutoConfiguration {
       WorkflowServiceStubs workflowServiceStubs,
       @Autowired List<DataConverter> dataConverters,
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
-          DataConverter mainDataConverter,
+      DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Qualifier("temporalWorkerFactoryCustomizer") @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Qualifier("temporalWorkerCustomizer") @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
-      @Qualifier("temporalWorkflowClientCustomizer") @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Qualifier("temporalScheduleClientCustomizer") @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
-      @Qualifier("temporalWorkflowImplementationCustomizer") @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-              workflowImplementationCustomizer) {
+      TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Autowired(required = false) @Nullable
+      TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+      @Autowired(required = false) @Nullable
+      TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
+      @Autowired(required = false) @Nullable
+      TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+      @Autowired(required = false) @Nullable
+      TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+      @Autowired(required = false) @Nullable
+      TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+          workflowImplementationCustomizer) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
@@ -112,7 +112,9 @@ public class RootNamespaceAutoConfiguration {
         workflowImplementationCustomizer);
   }
 
-  /** Client */
+  /**
+   * Client
+   */
   @Primary
   @Bean(name = "temporalClientTemplate")
   public ClientTemplate clientTemplate(
@@ -132,7 +134,9 @@ public class RootNamespaceAutoConfiguration {
     return clientTemplate.getScheduleClient();
   }
 
-  /** Workers */
+  /**
+   * Workers
+   */
   @Primary
   @Bean(name = "temporalWorkersTemplate")
   @Conditional(WorkersPresentCondition.class)
@@ -172,6 +176,7 @@ public class RootNamespaceAutoConfiguration {
   }
 
   public static class WorkerFactoryStarter implements ApplicationListener<ApplicationReadyEvent> {
+
     private final WorkerFactory workerFactory;
 
     public WorkerFactoryStarter(WorkerFactory workerFactory) {
