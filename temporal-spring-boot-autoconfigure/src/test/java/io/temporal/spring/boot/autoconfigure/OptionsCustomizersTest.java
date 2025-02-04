@@ -73,7 +73,8 @@ public class OptionsCustomizersTest {
   public static class Configuration {
 
     @Bean
-    public TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer() {
+    public TemporalOptionsCustomizer<WorkflowClientOptions.Builder>
+        temporalWorkflowClientCustomizer() {
       return getReturningMock();
     }
 
@@ -83,18 +84,19 @@ public class OptionsCustomizersTest {
     }
 
     @Bean
-    public TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer() {
+    public TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
+        temporalWorkerFactoryCustomizer() {
       return getReturningMock();
     }
 
     @Bean
     public TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-        WorkflowImplementationCustomizer() {
+        temporalWorkflowImplementationCustomizer() {
       return getReturningMock();
     }
 
     @Bean
-    public WorkerOptionsCustomizer workerCustomizer() {
+    public WorkerOptionsCustomizer temporalWorkerCustomizer() {
       WorkerOptionsCustomizer mock = mock(WorkerOptionsCustomizer.class);
       when(mock.customize(any())).thenAnswer(invocation -> invocation.getArgument(0)).getMock();
       when(mock.customize(any(), any(), any()))

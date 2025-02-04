@@ -57,6 +57,7 @@ import org.springframework.context.annotation.Configuration;
     havingValue = "true")
 @AutoConfigureAfter({OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 public class TestServerAutoConfiguration {
+
   private static final Logger log = LoggerFactory.getLogger(TestServerAutoConfiguration.class);
 
   @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
