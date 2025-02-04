@@ -40,8 +40,8 @@ class AutoConfigurationUtils {
             DataConverter.class,
             dataConverters.size(),
             "Several DataConverter beans found in the Spring context. "
-            + "Explicitly name 'mainDataConverter' the one bean "
-            + "that should be used by Temporal Spring Boot AutoConfiguration.");
+                + "Explicitly name 'mainDataConverter' the one bean "
+                + "that should be used by Temporal Spring Boot AutoConfiguration.");
       }
     }
     return chosenDataConverter;

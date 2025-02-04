@@ -77,13 +77,13 @@ public class TestServerAutoConfiguration {
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer,
-      @Qualifier("temporalWorkerFactoryCustomizer") @Autowired(required = false) @Nullable
+      @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Qualifier("temporalWorkflowClientCustomizer") @Autowired(required = false) @Nullable
+      @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Qualifier("temporalScheduleClientCustomizer") @Autowired(required = false) @Nullable
+      @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
-      @Qualifier("temporalWorkflowServiceStubsCustomizer") @Autowired(required = false) @Nullable
+      @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
               workflowServiceStubsCustomizer) {
     DataConverter chosenDataConverter =
