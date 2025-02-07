@@ -31,7 +31,6 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.nexus.Nexus;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -158,13 +157,14 @@ public class SyncClientOperationTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline
-      return WorkflowClientOperationHandlers.sync(
-          (ctx, details, client, id) -> {
+      return OperationHandler.sync(
+          (ctx, details, id) -> {
             if (id.isEmpty()) {
               throw ApplicationFailure.newNonRetryableFailure("Invalid ID", "TestError");
             }
             Nexus.getOperationContext().getMetricsScope().counter("operation").inc(1);
-            return client
+            return Nexus.getOperationContext()
+                .getWorkflowClient()
                 .newWorkflowStub(TestUpdatedWorkflow.class, id)
                 .update("Update from operation");
           });
