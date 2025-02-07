@@ -46,6 +46,7 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
   private final Scope metricsScope;
   private final PollNexusTaskQueueRequest pollRequest;
 
+  @SuppressWarnings("deprecation")
   public NexusPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
@@ -77,6 +78,7 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public NexusTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);

@@ -119,6 +119,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowTask poll() {
     boolean isSuccessful = false;
     SlotPermit permit;
