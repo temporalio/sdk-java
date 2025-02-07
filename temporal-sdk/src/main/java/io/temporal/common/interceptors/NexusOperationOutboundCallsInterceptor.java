@@ -21,6 +21,7 @@
 package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
 
 /**
@@ -41,4 +42,7 @@ import io.temporal.common.Experimental;
 public interface NexusOperationOutboundCallsInterceptor {
   /** Intercepts call to get the metric scope in a Nexus operation. */
   Scope getMetricsScope();
+
+  /** Intercepts call to get the workflow client in a Nexus operation. */
+  WorkflowClient getWorkflowClient();
 }

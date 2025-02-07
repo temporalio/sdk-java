@@ -24,6 +24,7 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -129,12 +130,14 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return WorkflowClientOperationHandlers.fromWorkflowMethod(
-          (context, details, client, input) ->
-              client.newWorkflowStub(
-                      OperationWorkflow.class,
-                      WorkflowOptions.newBuilder()
-                          .setWorkflowId(WORKFLOW_ID_PREFIX + details.getRequestId())
-                          .build())
+          (context, details, input) ->
+              Nexus.getOperationContext()
+                      .getWorkflowClient()
+                      .newWorkflowStub(
+                          OperationWorkflow.class,
+                          WorkflowOptions.newBuilder()
+                              .setWorkflowId(WORKFLOW_ID_PREFIX + details.getRequestId())
+                              .build())
                   ::execute);
     }
   }

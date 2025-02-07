@@ -28,7 +28,7 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
+import io.temporal.nexus.Nexus;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -86,9 +86,13 @@ public class ProtoOperationTest {
     @OperationImpl
     public OperationHandler<DescribeWorkflowExecutionRequest, DescribeWorkflowExecutionResponse>
         describeWorkflow() {
-      return WorkflowClientOperationHandlers.sync(
-          (context, details, client, input) ->
-              client.getWorkflowServiceStubs().blockingStub().describeWorkflowExecution(input));
+      return OperationHandler.sync(
+          (context, details, input) ->
+              Nexus.getOperationContext()
+                  .getWorkflowClient()
+                  .getWorkflowServiceStubs()
+                  .blockingStub()
+                  .describeWorkflowExecution(input));
     }
   }
 }

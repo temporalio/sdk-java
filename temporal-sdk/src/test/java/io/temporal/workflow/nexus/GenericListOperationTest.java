@@ -26,7 +26,6 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.common.converter.EncodedValuesTest;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.Workflow;
@@ -81,8 +80,8 @@ public class GenericListOperationTest {
     @OperationImpl
     public OperationHandler<List<EncodedValuesTest.Pair>, List<EncodedValuesTest.Pair>>
         operation() {
-      return WorkflowClientOperationHandlers.sync(
-          (context, details, client, input) -> {
+      return OperationHandler.sync(
+          (context, details, input) -> {
             return input;
           });
     }

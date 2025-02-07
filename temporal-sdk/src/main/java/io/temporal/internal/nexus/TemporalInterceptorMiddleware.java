@@ -44,9 +44,10 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
           interceptor.interceptNexusOperation(context, inboundCallsInterceptor);
     }
 
+    InternalNexusOperationContext temporalNexusContext = CurrentNexusOperationContext.get();
     inboundCallsInterceptor.init(
         new RootNexusOperationOutboundCallsInterceptor(
-            CurrentNexusOperationContext.get().getMetricsScope()));
+            temporalNexusContext.getMetricsScope(), temporalNexusContext.getWorkflowClient()));
     return new OperationInterceptorConverter(inboundCallsInterceptor);
   }
 

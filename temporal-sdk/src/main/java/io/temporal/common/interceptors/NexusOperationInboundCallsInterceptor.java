@@ -28,7 +28,8 @@ import io.temporal.common.Experimental;
  * Intercepts inbound calls to a Nexus operation on the worker side.
  *
  * <p>An instance should be created in {@link
- * WorkerInterceptor#interceptNexusOperation(NexusOperationInboundCallsInterceptor)}.
+ * WorkerInterceptor#interceptNexusOperation(OperationContext,
+ * NexusOperationInboundCallsInterceptor)}.
  *
  * <p>Prefer extending {@link NexusOperationInboundCallsInterceptorBase} and overriding only the
  * methods you need instead of implementing this interface directly. {@link

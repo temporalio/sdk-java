@@ -40,6 +40,5 @@ public interface WorkflowMethodFactory<T, R> {
    * provided {@link WorkflowClient}.
    */
   @Nullable
-  Functions.Func1<T, R> apply(
-      OperationContext context, OperationStartDetails details, WorkflowClient client, T input);
+  Functions.Func1<T, R> apply(OperationContext context, OperationStartDetails details, T input);
 }

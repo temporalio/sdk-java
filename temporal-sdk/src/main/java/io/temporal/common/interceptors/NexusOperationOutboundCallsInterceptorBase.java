@@ -21,6 +21,7 @@
 package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
 
 /** Convenience base class for {@link NexusOperationOutboundCallsInterceptor} implementations. */
@@ -36,5 +37,10 @@ public class NexusOperationOutboundCallsInterceptorBase
   @Override
   public Scope getMetricsScope() {
     return next.getMetricsScope();
+  }
+
+  @Override
+  public WorkflowClient getWorkflowClient() {
+    return next.getWorkflowClient();
   }
 }
