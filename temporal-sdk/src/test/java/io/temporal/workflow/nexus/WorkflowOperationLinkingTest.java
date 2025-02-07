@@ -31,7 +31,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.nexus.Nexus;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
+import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -137,7 +137,7 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return WorkflowClientOperationHandlers.fromWorkflowMethod(
+      return WorkflowRunOperation.fromWorkflowMethod(
           (context, details, input) ->
               Nexus.getOperationContext()
                       .getWorkflowClient()
