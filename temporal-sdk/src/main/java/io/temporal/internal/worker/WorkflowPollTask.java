@@ -54,6 +54,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   private final PollWorkflowTaskQueueRequest pollRequest;
   private final PollWorkflowTaskQueueRequest stickyPollRequest;
 
+  @SuppressWarnings("deprecation")
   public WorkflowPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,

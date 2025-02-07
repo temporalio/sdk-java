@@ -87,6 +87,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public ActivityTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
