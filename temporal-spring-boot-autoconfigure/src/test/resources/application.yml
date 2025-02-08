@@ -20,9 +20,6 @@
 
 spring.temporal:
   connection:
-    mtls:
-      key-file: /path/to/key.key
-      cert-chain-file: /path/to/cert.pem
     target: local
   test-server:
     enabled: true
@@ -123,6 +120,18 @@ spring:
         key-file: classpath:pkcs8-pk.pem
         cert-chain-file: classpath:pkcs8-crt-chain.pem
         server-name: myservername
+      target: 127.0.0.1:7233
+    test-server:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: api-key-auth
+  temporal:
+    connection:
+      apiKey: my-api-key
       target: 127.0.0.1:7233
     test-server:
       enabled: false

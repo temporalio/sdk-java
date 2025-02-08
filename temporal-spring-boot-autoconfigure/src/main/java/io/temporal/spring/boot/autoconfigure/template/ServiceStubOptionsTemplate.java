@@ -64,6 +64,12 @@ public class ServiceStubOptionsTemplate {
 
     stubsOptionsBuilder.setEnableHttps(Boolean.TRUE.equals(connectionProperties.isEnableHttps()));
 
+    if (connectionProperties.getApiKey() != null && connectionProperties.getApiKey().isEmpty()) {
+      stubsOptionsBuilder.addApiKey(() -> connectionProperties.getApiKey());
+      // Unless HTTPS is explicitly disabled, enable it by default for API keys
+      stubsOptionsBuilder.setEnableHttps(connectionProperties.isEnableHttps() != null);
+    }
+
     configureMTLS(connectionProperties.getMTLS(), stubsOptionsBuilder);
 
     if (metricsScope != null) {
