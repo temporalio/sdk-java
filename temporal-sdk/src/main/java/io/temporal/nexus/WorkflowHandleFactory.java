@@ -37,6 +37,5 @@ public interface WorkflowHandleFactory<T, R> {
    * through the provided {@link WorkflowClient}.
    */
   @Nullable
-  WorkflowHandle<R> apply(
-      OperationContext context, OperationStartDetails details, WorkflowClient client, T input);
+  WorkflowHandle<R> apply(OperationContext context, OperationStartDetails details, T input);
 }

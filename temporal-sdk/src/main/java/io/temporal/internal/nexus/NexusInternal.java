@@ -26,6 +26,6 @@ public final class NexusInternal {
   private NexusInternal() {}
 
   public static NexusOperationContext getOperationContext() {
-    return CurrentNexusOperationContext.get();
+    return CurrentNexusOperationContext.get().getUserFacingContext();
   }
 }

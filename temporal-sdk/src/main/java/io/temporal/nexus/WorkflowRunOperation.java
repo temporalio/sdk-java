@@ -32,7 +32,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
-import io.temporal.internal.nexus.NexusOperationContextImpl;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
 import java.net.URISyntaxException;
 
 class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
@@ -45,10 +45,9 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
   @Override
   public OperationStartResult<R> start(
       OperationContext ctx, OperationStartDetails operationStartDetails, T input) {
-    NexusOperationContextImpl nexusCtx = CurrentNexusOperationContext.get();
+    InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
 
-    WorkflowHandle handle =
-        handleFactory.apply(ctx, operationStartDetails, nexusCtx.getWorkflowClient(), input);
+    WorkflowHandle handle = handleFactory.apply(ctx, operationStartDetails, input);
 
     NexusStartWorkflowRequest nexusRequest =
         new NexusStartWorkflowRequest(
@@ -73,7 +72,7 @@ class RunWorkflowOperation<T, R> implements OperationHandler<T, R> {
     io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(workflowEventLink);
     try {
       OperationStartResult.Builder<R> result =
-          OperationStartResult.<R>newAsyncBuilder(workflowExec.getWorkflowId());
+          OperationStartResult.newAsyncBuilder(workflowExec.getWorkflowId());
       if (nexusLink != null) {
         result.addLink(nexusProtoLinkToLink(nexusLink));
       }

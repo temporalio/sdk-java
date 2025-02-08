@@ -25,7 +25,6 @@ import io.nexusrpc.Service;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.NexusServiceStub;
@@ -82,7 +81,7 @@ public class VoidOperationTest {
   public static class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<Void, Void> noop() {
-      return WorkflowClientOperationHandlers.sync((context, details, client, input) -> null);
+      return OperationHandler.sync((context, details, input) -> null);
     }
   }
 }
