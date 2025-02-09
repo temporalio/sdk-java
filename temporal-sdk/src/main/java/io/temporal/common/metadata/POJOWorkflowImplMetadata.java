@@ -22,6 +22,7 @@ package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
 import io.temporal.common.Experimental;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.env.ReflectionUtils;
 import java.lang.reflect.Constructor;
 import java.util.*;
@@ -145,6 +146,8 @@ public final class POJOWorkflowImplMetadata {
                   + methodMetadata.getWorkflowMethod()
                   + "\"");
         }
+        // Validate the method name is not using any reserved prefixes or names.
+        InternalUtils.checkMethodName(methodMetadata);
         switch (methodMetadata.getType()) {
           case WORKFLOW:
             workflowMethods.put(methodMetadata.getName(), methodMetadata);

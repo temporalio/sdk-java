@@ -23,6 +23,7 @@ package io.temporal.common.metadata;
 import com.google.common.collect.ImmutableList;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
+import io.temporal.internal.common.InternalUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -90,6 +91,7 @@ public final class POJOActivityImplMetadata {
       activityInterfaces.add(interfaceMetadata);
       List<POJOActivityMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
       for (POJOActivityMethodMetadata methodMetadata : methods) {
+        InternalUtils.checkMethodName(methodMetadata);
         POJOActivityMethodMetadata registeredMM =
             byName.put(methodMetadata.getActivityTypeName(), methodMetadata);
         if (registeredMM != null && !registeredMM.equals(methodMetadata)) {
