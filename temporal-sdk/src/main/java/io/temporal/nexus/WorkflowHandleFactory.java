@@ -26,9 +26,8 @@ import io.temporal.client.WorkflowClient;
 import javax.annotation.Nullable;
 
 /**
- * Function interface for {@link
- * WorkflowClientOperationHandlers#fromWorkflowHandle(WorkflowHandleFactory)} representing the
- * workflow to associate with each operation call.
+ * Function interface for {@link WorkflowRunOperation#fromWorkflowHandle(WorkflowHandleFactory)}
+ * representing the workflow to associate with each operation call.
  */
 @FunctionalInterface
 public interface WorkflowHandleFactory<T, R> {
