@@ -20,6 +20,35 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_UNSPECIFIED;
+import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED;
+import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED;
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED;
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
+import static io.temporal.internal.testservice.StateMachines.Action;
+import static io.temporal.internal.testservice.StateMachines.ActivityTaskData;
+import static io.temporal.internal.testservice.StateMachines.CancelExternalData;
+import static io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
+import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
+import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
+import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
+import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
+import static io.temporal.internal.testservice.StateMachines.NexusOperationData;
+import static io.temporal.internal.testservice.StateMachines.SignalExternalData;
+import static io.temporal.internal.testservice.StateMachines.State;
+import static io.temporal.internal.testservice.StateMachines.TimerData;
+import static io.temporal.internal.testservice.StateMachines.UpdateWorkflowExecutionData;
+import static io.temporal.internal.testservice.StateMachines.WorkflowData;
+import static io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
+import static io.temporal.internal.testservice.StateMachines.newActivityStateMachine;
+import static io.temporal.internal.testservice.StateMachines.newNexusOperation;
+import static io.temporal.internal.testservice.StateUtils.mergeMemo;
+import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Any;
@@ -134,10 +163,6 @@ import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.serviceclient.StatusUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -162,35 +187,9 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_UNSPECIFIED;
-import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED;
-import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED;
-import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED;
-import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
-import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
-import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_UNSPECIFIED;
-import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
-import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
-import static io.temporal.internal.testservice.StateMachines.Action;
-import static io.temporal.internal.testservice.StateMachines.ActivityTaskData;
-import static io.temporal.internal.testservice.StateMachines.CancelExternalData;
-import static io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
-import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
-import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
-import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
-import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
-import static io.temporal.internal.testservice.StateMachines.NexusOperationData;
-import static io.temporal.internal.testservice.StateMachines.SignalExternalData;
-import static io.temporal.internal.testservice.StateMachines.State;
-import static io.temporal.internal.testservice.StateMachines.TimerData;
-import static io.temporal.internal.testservice.StateMachines.UpdateWorkflowExecutionData;
-import static io.temporal.internal.testservice.StateMachines.WorkflowData;
-import static io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
-import static io.temporal.internal.testservice.StateMachines.newActivityStateMachine;
-import static io.temporal.internal.testservice.StateMachines.newNexusOperation;
-import static io.temporal.internal.testservice.StateUtils.mergeMemo;
-import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   static final Failure FAILED_UPDATE_ON_WF_COMPLETION =
