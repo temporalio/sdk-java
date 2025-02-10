@@ -25,26 +25,23 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 import io.temporal.nexus.NexusOperationContext;
 
-public class NexusOperationContextImpl implements NexusOperationContext {
+public class InternalNexusOperationContext {
   private final String namespace;
   private final String taskQueue;
+  private final Scope metricScope;
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
 
-  public NexusOperationContextImpl(
-      String namespace,
-      String taskQueue,
-      WorkflowClient client,
-      NexusOperationOutboundCallsInterceptor outboundCalls) {
+  public InternalNexusOperationContext(
+      String namespace, String taskQueue, Scope metricScope, WorkflowClient client) {
     this.namespace = namespace;
     this.taskQueue = taskQueue;
+    this.metricScope = metricScope;
     this.client = client;
-    this.outboundCalls = outboundCalls;
   }
 
-  @Override
   public Scope getMetricsScope() {
-    return outboundCalls.getMetricsScope();
+    return metricScope;
   }
 
   public WorkflowClient getWorkflowClient() {
@@ -61,5 +58,24 @@ public class NexusOperationContextImpl implements NexusOperationContext {
 
   public void setOutboundInterceptor(NexusOperationOutboundCallsInterceptor outboundCalls) {
     this.outboundCalls = outboundCalls;
+  }
+
+  public NexusOperationContext getUserFacingContext() {
+    if (outboundCalls == null) {
+      throw new IllegalStateException("Outbound interceptor is not set");
+    }
+    return new NexusOperationContextImpl();
+  }
+
+  private class NexusOperationContextImpl implements NexusOperationContext {
+    @Override
+    public Scope getMetricsScope() {
+      return outboundCalls.getMetricsScope();
+    }
+
+    @Override
+    public WorkflowClient getWorkflowClient() {
+      return outboundCalls.getWorkflowClient();
+    }
   }
 }

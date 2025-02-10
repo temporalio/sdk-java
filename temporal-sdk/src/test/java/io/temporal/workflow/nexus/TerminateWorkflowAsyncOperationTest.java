@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TerminatedFailure;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -109,18 +110,25 @@ public class TerminateWorkflowAsyncOperationTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return WorkflowClientOperationHandlers.fromWorkflowMethod(
-          (context, details, client, input) ->
-              client.newWorkflowStub(
-                      AsyncWorkflowOperationTest.OperationWorkflow.class,
-                      WorkflowOptions.newBuilder().setWorkflowId(details.getRequestId()).build())
+          (context, details, input) ->
+              Nexus.getOperationContext()
+                      .getWorkflowClient()
+                      .newWorkflowStub(
+                          AsyncWorkflowOperationTest.OperationWorkflow.class,
+                          WorkflowOptions.newBuilder()
+                              .setWorkflowId(details.getRequestId())
+                              .build())
                   ::execute);
     }
 
     @OperationImpl
     public OperationHandler<String, String> terminate() {
-      return WorkflowClientOperationHandlers.sync(
-          (context, details, client, workflowId) -> {
-            client.newUntypedWorkflowStub(workflowId).terminate("terminate for test");
+      return OperationHandler.sync(
+          (context, details, workflowId) -> {
+            Nexus.getOperationContext()
+                .getWorkflowClient()
+                .newUntypedWorkflowStub(workflowId)
+                .terminate("terminate for test");
             return "terminated";
           });
     }

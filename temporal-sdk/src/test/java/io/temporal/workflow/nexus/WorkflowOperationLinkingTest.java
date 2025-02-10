@@ -30,6 +30,7 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -137,10 +138,14 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return WorkflowClientOperationHandlers.fromWorkflowMethod(
-          (context, details, client, input) ->
-              client.newWorkflowStub(
-                      AsyncWorkflowOperationTest.OperationWorkflow.class,
-                      WorkflowOptions.newBuilder().setWorkflowId(details.getRequestId()).build())
+          (context, details, input) ->
+              Nexus.getOperationContext()
+                      .getWorkflowClient()
+                      .newWorkflowStub(
+                          AsyncWorkflowOperationTest.OperationWorkflow.class,
+                          WorkflowOptions.newBuilder()
+                              .setWorkflowId(details.getRequestId())
+                              .build())
                   ::execute);
     }
   }

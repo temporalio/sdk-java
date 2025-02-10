@@ -22,27 +22,11 @@ package io.temporal.nexus;
 
 import io.nexusrpc.handler.*;
 import io.nexusrpc.handler.OperationHandler;
-import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
-import io.temporal.internal.nexus.CurrentNexusOperationContext;
-import io.temporal.internal.nexus.NexusOperationContextImpl;
 
 /** WorkflowClientOperationHandlers can be used to create Temporal specific OperationHandlers */
 @Experimental
 public final class WorkflowClientOperationHandlers {
-  /**
-   * Helper to create {@link io.nexusrpc.handler.OperationHandler} instances that take a {@link
-   * io.temporal.client.WorkflowClient}.
-   */
-  public static <T, R> OperationHandler<T, R> sync(
-      SynchronousWorkflowClientOperationFunction<T, R> func) {
-    return io.nexusrpc.handler.OperationHandler.sync(
-        (OperationContext ctx, OperationStartDetails details, T input) -> {
-          NexusOperationContextImpl nexusCtx = CurrentNexusOperationContext.get();
-          return func.apply(ctx, details, nexusCtx.getWorkflowClient(), input);
-        });
-  }
-
   /**
    * Maps a workflow method to an {@link io.nexusrpc.handler.OperationHandler}.
    *
@@ -52,9 +36,8 @@ public final class WorkflowClientOperationHandlers {
   public static <T, R> OperationHandler<T, R> fromWorkflowMethod(
       WorkflowMethodFactory<T, R> startMethod) {
     return new RunWorkflowOperation<>(
-        (OperationContext context, OperationStartDetails details, WorkflowClient client, T input) ->
-            WorkflowHandle.fromWorkflowMethod(
-                startMethod.apply(context, details, client, input), input));
+        (OperationContext context, OperationStartDetails details, T input) ->
+            WorkflowHandle.fromWorkflowMethod(startMethod.apply(context, details, input), input));
   }
 
   /**

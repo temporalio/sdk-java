@@ -25,10 +25,10 @@ package io.temporal.internal.nexus;
  * used directly.
  */
 public final class CurrentNexusOperationContext {
-  private static final ThreadLocal<NexusOperationContextImpl> CURRENT = new ThreadLocal<>();
+  private static final ThreadLocal<InternalNexusOperationContext> CURRENT = new ThreadLocal<>();
 
-  public static NexusOperationContextImpl get() {
-    NexusOperationContextImpl result = CURRENT.get();
+  public static InternalNexusOperationContext get() {
+    InternalNexusOperationContext result = CURRENT.get();
     if (result == null) {
       throw new IllegalStateException(
           "NexusOperationContext can be used only inside of nexus operation handler "
@@ -37,7 +37,7 @@ public final class CurrentNexusOperationContext {
     return CURRENT.get();
   }
 
-  public static void set(NexusOperationContextImpl context) {
+  public static void set(InternalNexusOperationContext context) {
     if (context == null) {
       throw new IllegalArgumentException("null context");
     }

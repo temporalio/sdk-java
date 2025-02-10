@@ -634,10 +634,7 @@ public class ServiceStubsOptions {
      */
     public T addApiKey(AuthorizationTokenSupplier apiKey) {
       addGrpcMetadataProvider(
-          new AuthorizationGrpcMetadataProvider(
-              () -> {
-                return "Bearer " + apiKey.supply();
-              }));
+          new AuthorizationGrpcMetadataProvider(() -> "Bearer " + apiKey.supply()));
       return self();
     }
 
