@@ -61,11 +61,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private static final Logger log = LoggerFactory.getLogger(NonRootBeanPostProcessor.class);
 
-  /** link {@code *Options.Builder} to customize */
-  private static final String OPTIONS_BUILDER_SUFFIX = "Options.Builder";
-
-  private static final String CUSTOMIZER_SUFFIX = "Customizer";
-
   private ConfigurableListableBeanFactory beanFactory;
 
   private final @Nonnull TemporalProperties temporalProperties;
@@ -108,7 +103,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             beanPrefix, WorkflowServiceStubsOptions.Builder.class);
     TemporalOptionsCustomizer<WorkerOptions.Builder> WorkerCustomizer =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkerOptions.Builder.class);
-
     TemporalOptionsCustomizer<WorkflowClientOptions.Builder> workflowClientCustomizer =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkflowClientOptions.Builder.class);
     TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleClientCustomizer =
@@ -188,25 +182,21 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private <T> TemporalOptionsCustomizer<T> findBeanByNameSpaceForTemporalCustomizer(
       String beanPrefix, Class<T> genericOptionsBuilderClass) {
-    String builderCanonicalName = genericOptionsBuilderClass.getCanonicalName();
-    String bindingCustomizerName =
-        builderCanonicalName.replace(OPTIONS_BUILDER_SUFFIX, CUSTOMIZER_SUFFIX);
-    bindingCustomizerName =
-        bindingCustomizerName.substring(bindingCustomizerName.lastIndexOf(".") + 1);
-
+    String beanName =
+        AutoConfigurationUtils.temporalCustomizerBeanName(beanPrefix, genericOptionsBuilderClass);
     try {
       TemporalOptionsCustomizer genericOptionsCustomizer =
-          beanFactory.getBean(beanPrefix + bindingCustomizerName, TemporalOptionsCustomizer.class);
+          beanFactory.getBean(beanName, TemporalOptionsCustomizer.class);
       return (TemporalOptionsCustomizer<T>) genericOptionsCustomizer;
     } catch (BeansException e) {
-      log.warn("No TemporalOptionsCustomizer found for {}. ", builderCanonicalName);
+      log.warn("No TemporalOptionsCustomizer found for {}. ", beanName);
       if (genericOptionsBuilderClass.isAssignableFrom(Builder.class)) {
         //        print tips once
-        log.info(
-            "No TemporalOptionsCustomizer found for {}. \n You can add Customizer bean to do customization. \n "
+        log.debug(
+            "No TemporalOptionsCustomizer found for {}. \n You can add Customizer bean to do by namespace customization. \n "
                 + "Note: bean name should start with namespace name and end with Customizer, and the middle part should be the customizer "
                 + "target class name. \n "
-                + "Example: @Bean(\"namespaceNameWorkerFactoryCustomizer\") is a customizer bean for WorkerFactory via "
+                + "Example: @Bean(\"nsWorkerFactoryCustomizer\") is a customizer bean for WorkerFactory via "
                 + "TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>",
             genericOptionsBuilderClass.getSimpleName());
       }

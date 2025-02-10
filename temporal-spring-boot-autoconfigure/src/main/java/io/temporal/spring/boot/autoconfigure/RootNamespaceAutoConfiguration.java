@@ -87,19 +87,39 @@ public class RootNamespaceAutoConfiguration {
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
+              workerFactoryCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+          Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
+              scheduleCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-              workflowImplementationCustomizer) {
+          Map<String, TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizerMap) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(
-            dataConverters, mainDataConverter, properties);
+        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter, properties);
+    TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            workerFactoryCustomizerMap, WorkerFactoryOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            workerCustomizerMap, WorkerOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+        workflowImplementationCustomizer =
+            AutoConfigurationUtils.chooseTemporalCustomizerBean(
+                workflowImplementationCustomizerMap,
+                WorkflowImplementationOptions.Builder.class,
+                properties);
+
     return new NamespaceTemplate(
         properties,
         workflowServiceStubs,
