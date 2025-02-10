@@ -39,7 +39,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collection;
-import java.util.List;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -80,7 +80,7 @@ public class RootNamespaceAutoConfiguration {
   public NamespaceTemplate rootNamespaceTemplate(
       TemporalProperties properties,
       WorkflowServiceStubs workflowServiceStubs,
-      @Autowired List<DataConverter> dataConverters,
+      @Autowired(required = false) @Nullable Map<String, DataConverter> dataConverters,
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
@@ -98,7 +98,8 @@ public class RootNamespaceAutoConfiguration {
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
+        AutoConfigurationUtils.choseDataConverter(
+            dataConverters, mainDataConverter, properties);
     return new NamespaceTemplate(
         properties,
         workflowServiceStubs,

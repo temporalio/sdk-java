@@ -34,7 +34,7 @@ import io.temporal.spring.boot.autoconfigure.template.WorkflowClientOptionsTempl
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
-import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +71,7 @@ public class TestServerAutoConfiguration {
   public TestWorkflowEnvironment testWorkflowEnvironment(
       TemporalProperties properties,
       @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable Scope metricsScope,
-      @Autowired List<DataConverter> dataConverters,
+      @Autowired(required = false) Map<String, DataConverter> dataConverters,
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
@@ -87,7 +87,8 @@ public class TestServerAutoConfiguration {
           TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
               workflowServiceStubsCustomizer) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
+        AutoConfigurationUtils.choseDataConverter(
+            dataConverters, mainDataConverter, properties);
 
     if (workflowServiceStubsCustomizer != null) {
       log.info(
