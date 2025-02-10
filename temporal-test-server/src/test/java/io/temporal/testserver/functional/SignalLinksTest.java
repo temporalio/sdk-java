@@ -20,10 +20,6 @@
 
 package io.temporal.testserver.functional;
 
-import static java.util.UUID.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -32,13 +28,21 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.*;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
+import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static java.util.UUID.randomUUID;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SignalLinksTest {
     @Rule
