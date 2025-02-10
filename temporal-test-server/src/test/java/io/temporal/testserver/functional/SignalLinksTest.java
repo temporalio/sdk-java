@@ -54,22 +54,13 @@ public class SignalLinksTest {
     WorkflowStub stub = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
     WorkflowExecution execution = stub.start();
 
-    Link testLink =
-        Link.newBuilder()
-            .setWorkflowEvent(
-                Link.WorkflowEvent.newBuilder()
-                    .setWorkflowId("someWorkflow")
-                    .setRunId(execution.getRunId())
-                    .setNamespace("default")
-                    .build())
-            .build();
-
+    Link testLink = createTestLink(execution.getRunId());
     SignalWorkflowExecutionRequest signalRequest =
         SignalWorkflowExecutionRequest.newBuilder()
             .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-            .setInput(Payloads.newBuilder().build())
             .setWorkflowExecution(execution)
             .setSignalName("test-signal")
+            .setInput(Payloads.newBuilder().build())
             .addLinks(testLink)
             .build();
 
@@ -86,15 +77,7 @@ public class SignalLinksTest {
   @Test
   public void testSignalWithStartLinks() {
     String workflowId = "test-workflow-id";
-    Link testLink =
-        Link.newBuilder()
-            .setWorkflowEvent(
-                Link.WorkflowEvent.newBuilder()
-                    .setWorkflowId("someWorkflow")
-                    .setRunId("some-run-id")
-                    .setNamespace("default")
-                    .build())
-            .build();
+    Link testLink = createTestLink("some-run-id");
 
     SignalWithStartWorkflowExecutionRequest signalWithStartRequest =
         SignalWithStartWorkflowExecutionRequest.newBuilder()
@@ -103,8 +86,8 @@ public class SignalLinksTest {
             .setWorkflowType(WorkflowType.newBuilder().setName("TestWorkflow").build())
             .setSignalInput(Payloads.newBuilder().build())
             .setRequestId(randomUUID().toString())
-            .setWorkflowId(workflowId)
             .setSignalName("test-signal")
+            .setWorkflowId(workflowId)
             .addLinks(testLink)
             .build();
 
@@ -121,20 +104,24 @@ public class SignalLinksTest {
             .build();
 
     verifySignalLink(execution, testLink);
+    verifyStartEventLink(execution, testLink);
+  }
+
+  private Link createTestLink(String runId) {
+    return Link.newBuilder()
+        .setWorkflowEvent(
+            Link.WorkflowEvent.newBuilder()
+                .setWorkflowId("someWorkflow")
+                .setNamespace("default")
+                .setRunId(runId)
+                .build())
+        .build();
   }
 
   private void verifySignalLink(WorkflowExecution execution, Link expectedLink) {
-    GetWorkflowExecutionHistoryResponse history =
-        testWorkflowRule
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .getWorkflowExecutionHistory(
-                GetWorkflowExecutionHistoryRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                    .setExecution(execution)
-                    .build());
-
+    GetWorkflowExecutionHistoryResponse history = getHistory(execution);
     boolean foundSignalWithLink = false;
+
     for (HistoryEvent event : history.getHistory().getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED) {
         WorkflowExecutionSignaledEventAttributes attrs =
@@ -149,6 +136,33 @@ public class SignalLinksTest {
     }
 
     assertTrue("Should have found signal event with link", foundSignalWithLink);
+  }
+
+  private void verifyStartEventLink(WorkflowExecution execution, Link expectedLink) {
+    GetWorkflowExecutionHistoryResponse history = getHistory(execution);
+    boolean foundStartWithLink = false;
+
+    for (HistoryEvent event : history.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED) {
+        assertEquals("Link should be present on start event", 1, event.getLinksCount());
+        assertEquals("Link in start event should match", expectedLink, event.getLinks(0));
+        foundStartWithLink = true;
+        break;
+      }
+    }
+
+    assertTrue("Should have found start event with link", foundStartWithLink);
+  }
+
+  private GetWorkflowExecutionHistoryResponse getHistory(WorkflowExecution execution) {
+    return testWorkflowRule
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .getWorkflowExecutionHistory(
+            GetWorkflowExecutionHistoryRequest.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .setExecution(execution)
+                .build());
   }
 
   @WorkflowInterface
