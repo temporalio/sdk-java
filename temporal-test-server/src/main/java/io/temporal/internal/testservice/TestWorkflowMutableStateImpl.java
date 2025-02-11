@@ -20,6 +20,14 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.api.enums.v1.EventType.*;
+import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.*;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
+import static io.temporal.internal.testservice.StateMachines.*;
+import static io.temporal.internal.testservice.StateUtils.mergeMemo;
+import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Any;
@@ -54,10 +62,6 @@ import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.serviceclient.StatusUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -69,14 +73,9 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static io.temporal.api.enums.v1.EventType.*;
-import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.*;
-import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
-import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
-import static io.temporal.internal.testservice.StateMachines.*;
-import static io.temporal.internal.testservice.StateUtils.mergeMemo;
-import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   static final Failure FAILED_UPDATE_ON_WF_COMPLETION =
