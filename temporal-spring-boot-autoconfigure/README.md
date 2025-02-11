@@ -75,6 +75,18 @@ spring.temporal:
       # insecure-trust-manager: true # or add ca.pem to java default truststore
 ```
 
+## API Keys
+
+You can also authenticate with Temporal Cloud using API keys
+
+```yml
+spring.temporal:
+  connection:
+    apiKey: <API key>
+```
+
+If an API key is specified, https will automatically be enabled.
+
 ## Data Converter
 
 Define a bean of type `io.temporal.common.converter.DataConverter` in Spring context to be used as a custom data converter.
