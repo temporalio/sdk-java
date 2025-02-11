@@ -33,7 +33,7 @@ import kotlin.reflect.typeOf
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> ActivityStub.execute(activityName: String, vararg args: Any?): T {
-  return execute(activityName, T::class.java, typeOf<T>().javaType, args)
+  return execute(activityName, T::class.java, typeOf<T>().javaType, *args)
 }
 
 /**
@@ -49,5 +49,5 @@ inline fun <reified T> ActivityStub.executeAsync(
   activityName: String,
   vararg args: Any?
 ): Promise<T> {
-  return executeAsync(activityName, T::class.java, typeOf<T>().javaType, args)
+  return executeAsync(activityName, T::class.java, typeOf<T>().javaType, *args)
 }
