@@ -49,6 +49,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   private final Scope metricsScope;
   private final PollActivityTaskQueueRequest pollRequest;
 
+  @SuppressWarnings("deprecation")
   public ActivityPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
@@ -87,6 +88,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public ActivityTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
