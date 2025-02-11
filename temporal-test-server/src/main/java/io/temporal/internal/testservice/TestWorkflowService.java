@@ -1325,6 +1325,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setControl(r.getControl())
               .setNamespace(r.getNamespace())
               .setIdentity(r.getIdentity())
+              .addAllLinks(r.getLinksList())
               .build();
       if (mutableState != null && !mutableState.isTerminalState()) {
         mutableState.signal(signalRequest);
@@ -1363,6 +1364,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       if (r.hasWorkflowStartDelay()) {
         startRequest.setWorkflowStartDelay(r.getWorkflowStartDelay());
+      }
+      if (!r.getLinksList().isEmpty()) {
+        startRequest.addAllLinks(r.getLinksList());
       }
 
       StartWorkflowExecutionResponse startResult =

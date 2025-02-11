@@ -39,6 +39,7 @@ public class WorkflowSlotInfo extends SlotInfo {
   private final boolean fromStickyQueue;
 
   /** Don't rely on this constructor. It is for internal use by the SDK. */
+  @SuppressWarnings("deprecation")
   public WorkflowSlotInfo(
       @Nonnull PollWorkflowTaskQueueResponse response,
       @Nonnull PollWorkflowTaskQueueRequest request) {

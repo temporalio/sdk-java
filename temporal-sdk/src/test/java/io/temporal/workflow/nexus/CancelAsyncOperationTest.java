@@ -30,7 +30,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.Nexus;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
+import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.workflow.*;
@@ -135,7 +135,7 @@ public class CancelAsyncOperationTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return WorkflowClientOperationHandlers.fromWorkflowMethod(
+      return WorkflowRunOperation.fromWorkflowMethod(
           (context, details, input) ->
               Nexus.getOperationContext()
                       .getWorkflowClient()

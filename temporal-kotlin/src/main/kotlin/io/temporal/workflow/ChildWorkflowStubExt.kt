@@ -28,7 +28,7 @@ import kotlin.reflect.typeOf
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> ChildWorkflowStub.execute(vararg args: Any?): T {
-  return execute(T::class.java, typeOf<T>().javaType, args)
+  return execute(T::class.java, typeOf<T>().javaType, *args)
 }
 
 /**
@@ -36,5 +36,5 @@ inline fun <reified T> ChildWorkflowStub.execute(vararg args: Any?): T {
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> ChildWorkflowStub.executeAsync(vararg args: Any?): Promise<T> {
-  return executeAsync(T::class.java, typeOf<T>().javaType, args)
+  return executeAsync(T::class.java, typeOf<T>().javaType, *args)
 }

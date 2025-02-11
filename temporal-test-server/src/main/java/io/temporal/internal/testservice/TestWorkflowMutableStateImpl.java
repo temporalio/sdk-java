@@ -20,6 +20,7 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.api.enums.v1.EventType.*;
 import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.*;
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
@@ -60,17 +61,6 @@ import io.temporal.failure.ServerFailure;
 import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.testservice.StateMachines.Action;
-import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
-import io.temporal.internal.testservice.StateMachines.CancelExternalData;
-import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
-import io.temporal.internal.testservice.StateMachines.NexusOperationData;
-import io.temporal.internal.testservice.StateMachines.SignalExternalData;
-import io.temporal.internal.testservice.StateMachines.State;
-import io.temporal.internal.testservice.StateMachines.TimerData;
-import io.temporal.internal.testservice.StateMachines.UpdateWorkflowExecutionData;
-import io.temporal.internal.testservice.StateMachines.WorkflowData;
-import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
 import java.util.*;
@@ -310,7 +300,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .withDescription("workflow event link must not have an empty run ID field")
               .asRuntimeException();
         }
-        if (l.getWorkflowEvent().getEventRef().getEventType() == EventType.EVENT_TYPE_UNSPECIFIED
+        if (l.getWorkflowEvent().getEventRef().getEventType() == EVENT_TYPE_UNSPECIFIED
             && l.getWorkflowEvent().getEventRef().getEventId() != 0) {
           throw Status.INVALID_ARGUMENT
               .withDescription(
@@ -3372,9 +3362,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     // This is true today (see StateMachines.startWorkflow), even in the signalWithStartCase (signal
     // is the _second_ event). But if it becomes untrue in the future, we'd rather fail than lie.
     Preconditions.checkState(
-        firstEvent.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+        firstEvent.getEventType() == EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
         "The first event in a workflow's history should be %s, but was %s",
-        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.name(),
+        EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.name(),
         firstEvent.getEventType().name());
 
     return Optional.of(firstEvent);
@@ -3399,12 +3389,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setIdentity(signalRequest.getIdentity())
             .setInput(signalRequest.getInput())
             .setSignalName(signalRequest.getSignalName());
-    HistoryEvent executionSignaled =
+
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)
-            .setWorkflowExecutionSignaledEventAttributes(a)
-            .build();
-    ctx.addEvent(executionSignaled);
+            .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)
+            .setWorkflowExecutionSignaledEventAttributes(a);
+
+    if (signalRequest.getLinksCount() > 0) {
+      event.addAllLinks(signalRequest.getLinksList());
+    }
+
+    ctx.addEvent(event.build());
   }
 
   private void addExecutionSignaledByExternalEvent(
