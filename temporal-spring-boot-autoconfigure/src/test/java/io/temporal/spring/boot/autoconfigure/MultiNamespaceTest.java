@@ -85,7 +85,7 @@ public class MultiNamespaceTest {
 
     @Bean
     public TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-        temporalWorkflowImplementationCustomizer() {
+        workflowImplementationCustomizer() {
       return getReturningMock();
     }
 

@@ -37,9 +37,10 @@ spring.temporal:
       start-workers: true
       connection:
         mtls:
-          key-file: /path/to/key.key
-          cert-chain-file: /path/to/cert.pem
-        target: local
+          key-file: classpath:pkcs8-pk.pem
+          cert-chain-file: classpath:pkcs8-crt-chain.pem
+          server-name: myservername
+        target: 127.0.0.1:7233
       workersAutoDiscovery:
         packages:
           - io.temporal.spring.boot.autoconfigure.byworkername
