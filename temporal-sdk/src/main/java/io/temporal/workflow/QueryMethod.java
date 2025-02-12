@@ -41,6 +41,9 @@ public @interface QueryMethod {
    *
    * <p>Be careful about names that contain special characters. These names can be used as metric
    * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
+   *
+   * <p>Name cannot start with __temporal as it is reserved for internal use. The name also cannot
+   * be __stack_trace or __enhanced_stack_trace as they are reserved for internal use.
    */
   String name() default "";
 

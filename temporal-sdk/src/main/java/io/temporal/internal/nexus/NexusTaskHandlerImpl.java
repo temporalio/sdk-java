@@ -35,6 +35,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
@@ -331,6 +332,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       throw new IllegalArgumentException("Nexus service object instance expected, not the class");
     }
     ServiceImplInstance instance = ServiceImplInstance.fromInstance(nexusService);
+    InternalUtils.checkMethodName(instance);
     if (serviceImplInstances.put(instance.getDefinition().getName(), instance) != null) {
       throw new TypeAlreadyRegisteredException(
           instance.getDefinition().getName(),

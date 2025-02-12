@@ -40,6 +40,8 @@ public @interface ActivityMethod {
    *
    * <p>Be careful with names that contain special characters, as these names can be used as metric
    * tags. Systems like Prometheus ignore metrics which have tags with unsupported characters.
+   *
+   * <p>Name cannot start with __temporal_ as it is reserved for internal use.
    */
   String name() default "";
 }

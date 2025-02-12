@@ -20,6 +20,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.InternalUtils.TEMPORAL_RESERVED_PREFIX;
+
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
 import io.temporal.common.converter.DataConverter;
@@ -61,6 +63,10 @@ class UpdateDispatcher {
         updateCallbacks.get(updateName);
     Object[] args;
     HandlerUnfinishedPolicy policy;
+    if (updateName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
+      throw new IllegalArgumentException(
+          "Unknown update name: " + updateName + ", knownTypes=" + updateCallbacks.keySet());
+    }
     if (handler == null) {
       if (dynamicUpdateHandler == null) {
         throw new IllegalArgumentException(
