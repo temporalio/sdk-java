@@ -74,13 +74,14 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
       OperationStartResult.Builder<R> result =
           OperationStartResult.newAsyncBuilder(workflowExec.getWorkflowId());
       if (nexusLink != null) {
-        result.addLink(nexusProtoLinkToLink(nexusLink));
+        ctx.addLinks(nexusProtoLinkToLink(nexusLink));
       }
       return result.build();
     } catch (URISyntaxException e) {
       // Not expected as the link is constructed by the SDK.
-      throw new OperationHandlerException(
-          OperationHandlerException.ErrorType.INTERNAL, "failed to construct result URL", e);
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          new IllegalArgumentException("failed to parse URI", e));
     }
   }
 
@@ -100,6 +101,6 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
   public void cancel(
       OperationContext operationContext, OperationCancelDetails operationCancelDetails) {
     WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();
-    client.newUntypedWorkflowStub(operationCancelDetails.getOperationId()).cancel();
+    client.newUntypedWorkflowStub(operationCancelDetails.getOperationToken()).cancel();
   }
 }

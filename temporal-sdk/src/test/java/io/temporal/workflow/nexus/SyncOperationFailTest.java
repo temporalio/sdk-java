@@ -24,7 +24,7 @@ import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 
 import com.google.common.collect.ImmutableMap;
 import com.uber.m3.tally.RootScopeBuilder;
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -149,7 +149,7 @@ public class SyncOperationFailTest {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, name) -> {
-            throw new OperationUnsuccessfulException("failed to call operation");
+            throw OperationException.failure(new RuntimeException("failed to call operation"));
           });
     }
   }

@@ -27,7 +27,6 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.nexus.Nexus;
@@ -56,20 +55,9 @@ public class TerminateWorkflowAsyncOperationTest {
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute(""));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    // TODO(https://github.com/temporalio/sdk-java/issues/2358): Test server needs to be fixed to
-    // return the correct type
-    Assert.assertTrue(
-        nexusFailure.getCause() instanceof ApplicationFailure
-            || nexusFailure.getCause() instanceof TerminatedFailure);
-    if (nexusFailure.getCause() instanceof ApplicationFailure) {
-      Assert.assertEquals(
-          "operation terminated",
-          ((ApplicationFailure) nexusFailure.getCause()).getOriginalMessage());
-    } else {
-      Assert.assertEquals(
-          "operation terminated",
-          ((TerminatedFailure) nexusFailure.getCause()).getOriginalMessage());
-    }
+    Assert.assertTrue(nexusFailure.getCause() instanceof TerminatedFailure);
+    Assert.assertEquals(
+        "operation terminated", ((TerminatedFailure) nexusFailure.getCause()).getOriginalMessage());
   }
 
   @Service
@@ -96,7 +84,7 @@ public class TerminateWorkflowAsyncOperationTest {
       NexusOperationHandle<String> handle =
           Workflow.startNexusOperation(serviceStub::operation, "block");
       // Wait for the operation to start
-      String workflowId = handle.getExecution().get().getOperationId().get();
+      String workflowId = handle.getExecution().get().getOperationToken().get();
       // Terminate the operation
       serviceStub.terminate(workflowId);
       // Try to get the result, expect this to throw

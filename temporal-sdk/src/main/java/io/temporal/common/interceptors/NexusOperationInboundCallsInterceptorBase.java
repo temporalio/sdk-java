@@ -20,7 +20,7 @@
 
 package io.temporal.common.interceptors;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.temporal.common.Experimental;
 
 /** Convenience base class for {@link NexusOperationInboundCallsInterceptor} implementations. */
@@ -39,8 +39,7 @@ public class NexusOperationInboundCallsInterceptorBase
   }
 
   @Override
-  public StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException {
+  public StartOperationOutput startOperation(StartOperationInput input) throws OperationException {
     return next.startOperation(input);
   }
 

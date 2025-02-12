@@ -24,7 +24,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.tally.Scope;
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationContext;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
@@ -495,7 +495,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public StartOperationOutput startOperation(StartOperationInput input)
-        throws OperationUnsuccessfulException {
+        throws OperationException {
       trace.add(
           "startNexusOperation "
               + input.getOperationContext().getService()
