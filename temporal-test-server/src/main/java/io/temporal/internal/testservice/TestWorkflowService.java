@@ -284,7 +284,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                             .build())
                     .build());
           } else if (conflictPolicy
-                  == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
+              == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
             if (startRequest.hasOnConflictOptions()) {
               return existing.applyOnConflictOptions(startRequest);
             }

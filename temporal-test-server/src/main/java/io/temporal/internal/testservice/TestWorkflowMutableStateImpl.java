@@ -615,7 +615,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public StartWorkflowExecutionResponse applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
+  public StartWorkflowExecutionResponse applyOnConflictOptions(
+      @Nonnull StartWorkflowExecutionRequest request) {
     lock.lock();
     try {
       StateMachines.WorkflowData data = workflow.getData();
@@ -648,10 +649,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       if (options.getAttachLinks()) {
         HistoryEvent event =
             HistoryEvent.newBuilder()
-                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
-                    .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs)
-                    .addAllLinks(request.getLinksList())
-                    .build();
+                .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+                .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs)
+                .addAllLinks(request.getLinksList())
+                .build();
 
         RequestContext ctx = new RequestContext(clock, this, nextEventId);
         ctx.addEvent(event);
