@@ -33,9 +33,13 @@ import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
-import io.temporal.worker.*;
+import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collection;
-import java.util.List;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -54,6 +58,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
@@ -62,6 +67,7 @@ import org.springframework.context.annotation.DependsOn;
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class RootNamespaceAutoConfiguration {
+
   private static final Logger log = LoggerFactory.getLogger(RootNamespaceAutoConfiguration.class);
 
   private final ConfigurableListableBeanFactory beanFactory;
@@ -74,27 +80,47 @@ public class RootNamespaceAutoConfiguration {
   public NamespaceTemplate rootNamespaceTemplate(
       TemporalProperties properties,
       WorkflowServiceStubs workflowServiceStubs,
-      @Autowired List<DataConverter> dataConverters,
+      @Autowired(required = false) @Nullable Map<String, DataConverter> dataConverters,
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
+              workerFactoryCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+          Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
+              scheduleCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-              workflowImplementationCustomizer) {
+          Map<String, TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizerMap) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
+        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter, properties);
+    TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            workerFactoryCustomizerMap, WorkerFactoryOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            workerCustomizerMap, WorkerOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+        workflowImplementationCustomizer =
+            AutoConfigurationUtils.chooseTemporalCustomizerBean(
+                workflowImplementationCustomizerMap,
+                WorkflowImplementationOptions.Builder.class,
+                properties);
+
     return new NamespaceTemplate(
-        properties,
         properties,
         workflowServiceStubs,
         chosenDataConverter,
@@ -108,23 +134,27 @@ public class RootNamespaceAutoConfiguration {
   }
 
   /** Client */
+  @Primary
   @Bean(name = "temporalClientTemplate")
   public ClientTemplate clientTemplate(
       @Qualifier("temporalRootNamespaceTemplate") NamespaceTemplate rootNamespaceTemplate) {
     return rootNamespaceTemplate.getClientTemplate();
   }
 
+  @Primary
   @Bean(name = "temporalWorkflowClient")
   public WorkflowClient client(ClientTemplate clientTemplate) {
     return clientTemplate.getWorkflowClient();
   }
 
+  @Primary
   @Bean(name = "temporalScheduleClient")
   public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
     return clientTemplate.getScheduleClient();
   }
 
   /** Workers */
+  @Primary
   @Bean(name = "temporalWorkersTemplate")
   @Conditional(WorkersPresentCondition.class)
   // add an explicit dependency on the existence of the expected client bean,
@@ -135,6 +165,7 @@ public class RootNamespaceAutoConfiguration {
     return temporalRootNamespaceTemplate.getWorkersTemplate();
   }
 
+  @Primary
   @Bean(name = "temporalWorkerFactory", destroyMethod = "shutdown")
   @Conditional(WorkersPresentCondition.class)
   public WorkerFactory workerFactory(
@@ -142,6 +173,7 @@ public class RootNamespaceAutoConfiguration {
     return workersTemplate.getWorkerFactory();
   }
 
+  @Primary
   @Bean(name = "temporalWorkers")
   @Conditional(WorkersPresentCondition.class)
   public Collection<Worker> workers(
@@ -152,6 +184,7 @@ public class RootNamespaceAutoConfiguration {
     return workers;
   }
 
+  @Primary
   @ConditionalOnProperty(prefix = "spring.temporal", name = "start-workers", matchIfMissing = true)
   @Conditional(WorkersPresentCondition.class)
   @Bean
@@ -160,6 +193,7 @@ public class RootNamespaceAutoConfiguration {
   }
 
   public static class WorkerFactoryStarter implements ApplicationListener<ApplicationReadyEvent> {
+
     private final WorkerFactory workerFactory;
 
     public WorkerFactoryStarter(WorkerFactory workerFactory) {

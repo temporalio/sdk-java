@@ -23,10 +23,12 @@ package io.temporal.spring.boot.autoconfigure;
 import com.uber.m3.tally.Scope;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ServiceStubsTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -43,6 +45,7 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class ServiceStubsAutoConfiguration {
+
   @Bean(name = "temporalServiceStubsTemplate")
   public ServiceStubsTemplate serviceStubsTemplate(
       TemporalProperties properties,
@@ -50,8 +53,11 @@ public class ServiceStubsAutoConfiguration {
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
-              workflowServiceStubsCustomizer) {
+          Map<String, TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
+              workflowServiceStubsCustomizerMap) {
+    TemporalOptionsCustomizer<Builder> workflowServiceStubsCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            workflowServiceStubsCustomizerMap, Builder.class, properties);
     return new ServiceStubsTemplate(
         properties.getConnection(),
         metricsScope,

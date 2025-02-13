@@ -25,7 +25,6 @@ import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
@@ -34,7 +33,7 @@ import io.temporal.spring.boot.autoconfigure.template.WorkflowClientOptionsTempl
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
-import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +56,7 @@ import org.springframework.context.annotation.Configuration;
     havingValue = "true")
 @AutoConfigureAfter({OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 public class TestServerAutoConfiguration {
+
   private static final Logger log = LoggerFactory.getLogger(TestServerAutoConfiguration.class);
 
   @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
@@ -70,28 +70,32 @@ public class TestServerAutoConfiguration {
   public TestWorkflowEnvironment testWorkflowEnvironment(
       TemporalProperties properties,
       @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable Scope metricsScope,
-      @Autowired List<DataConverter> dataConverters,
+      @Autowired(required = false) Map<String, DataConverter> dataConverters,
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Autowired(required = false) @Nullable
           TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
+              workerFactoryCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
-      @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
-              workflowServiceStubsCustomizer) {
+          Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
+              scheduleCustomizerMap) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
+        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter, properties);
 
-    if (workflowServiceStubsCustomizer != null) {
-      log.info(
-          "`TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>` bean is ignored for test environment");
-    }
+    TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            workerFactoryCustomizerMap, WorkerFactoryOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
+    TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
 
     TestEnvironmentOptions.Builder options =
         TestEnvironmentOptions.newBuilder()
