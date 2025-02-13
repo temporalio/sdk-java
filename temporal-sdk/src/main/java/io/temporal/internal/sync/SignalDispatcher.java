@@ -20,6 +20,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.InternalUtils.TEMPORAL_RESERVED_PREFIX;
+
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
 import io.temporal.common.converter.DataConverter;
@@ -86,6 +88,10 @@ class SignalDispatcher {
         signalCallbacks.get(signalName);
     Object[] args;
     HandlerUnfinishedPolicy policy;
+    if (signalName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
+      // Ignore internal signals
+      return;
+    }
     if (handler == null) {
       if (dynamicSignalHandler == null) {
         signalBuffer.add(new SignalData(signalName, input, eventId, header));
