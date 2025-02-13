@@ -21,6 +21,8 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+import static io.temporal.api.enums.v1.WorkflowExecutionStatus.*;
+import static io.temporal.api.enums.v1.WorkflowIdReusePolicy.*;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
@@ -248,7 +250,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     WorkflowIdReusePolicy reusePolicy = startRequest.getWorkflowIdReusePolicy();
     WorkflowIdConflictPolicy conflictPolicy = startRequest.getWorkflowIdConflictPolicy();
     if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
-        && reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+        && reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
       throw createInvalidArgument(
           "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
     }
@@ -261,40 +263,41 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
 
-        if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            && (reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
-                || conflictPolicy
-                    == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING)) {
-          existing.terminateWorkflowExecution(
-              TerminateWorkflowExecutionRequest.newBuilder()
-                  .setNamespace(startRequest.getNamespace())
-                  .setWorkflowExecution(existing.getExecutionId().getExecution())
-                  .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
-                  .setIdentity("history-service")
-                  .setDetails(
-                      Payloads.newBuilder()
-                          .addPayloads(
-                              Payload.newBuilder()
-                                  .setData(
-                                      ByteString.copyFromUtf8(
-                                          String.format("terminated by new runID: %s", newRunId)))
-                                  .build())
-                          .build())
-                  .build());
-        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            && conflictPolicy
-                == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
-          return StartWorkflowExecutionResponse.newBuilder()
-              .setStarted(false)
-              .setRunId(existing.getExecutionId().getExecution().getRunId())
-              .build();
-        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            || reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
-          return throwDuplicatedWorkflow(startRequest, existing);
-        } else if (reusePolicy
-                == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
-            && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
-                || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
+        if (status == WORKFLOW_EXECUTION_STATUS_RUNNING) {
+          if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+              || conflictPolicy
+                  == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING) {
+            existing.terminateWorkflowExecution(
+                TerminateWorkflowExecutionRequest.newBuilder()
+                    .setNamespace(startRequest.getNamespace())
+                    .setWorkflowExecution(existing.getExecutionId().getExecution())
+                    .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
+                    .setIdentity("history-service")
+                    .setDetails(
+                        Payloads.newBuilder()
+                            .addPayloads(
+                                Payload.newBuilder()
+                                    .setData(
+                                        ByteString.copyFromUtf8(
+                                            String.format("terminated by new runID: %s", newRunId)))
+                                    .build())
+                            .build())
+                    .build());
+          } else if (conflictPolicy
+                  == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
+            if (startRequest.hasOnConflictOptions()) {
+              return existing.applyOnConflictOptions(startRequest);
+            }
+            return StartWorkflowExecutionResponse.newBuilder()
+                .setRunId(existing.getExecutionId().getExecution().getRunId())
+                .build();
+          } else {
+            return throwDuplicatedWorkflow(startRequest, existing);
+          }
+        } else if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+            || (reusePolicy == WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+                && (status == WORKFLOW_EXECUTION_STATUS_COMPLETED
+                    || status == WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW))) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }

@@ -49,6 +49,8 @@ interface TestWorkflowMutableState {
 
   void completeWorkflowTask(int historySize, RespondWorkflowTaskCompletedRequest request);
 
+  StartWorkflowExecutionResponse applyOnConflictOptions(StartWorkflowExecutionRequest request);
+
   void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a);
 
   void completeSignalExternalWorkflowExecution(String signalId, String runId);

@@ -20,33 +20,19 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.common.LinkConverter.*;
-import static io.temporal.internal.testservice.StateMachines.Action.CANCEL;
-import static io.temporal.internal.testservice.StateMachines.Action.COMPLETE;
-import static io.temporal.internal.testservice.StateMachines.Action.CONTINUE_AS_NEW;
-import static io.temporal.internal.testservice.StateMachines.Action.FAIL;
-import static io.temporal.internal.testservice.StateMachines.Action.INITIATE;
-import static io.temporal.internal.testservice.StateMachines.Action.QUERY;
-import static io.temporal.internal.testservice.StateMachines.Action.REQUEST_CANCELLATION;
-import static io.temporal.internal.testservice.StateMachines.Action.START;
-import static io.temporal.internal.testservice.StateMachines.Action.TERMINATE;
-import static io.temporal.internal.testservice.StateMachines.Action.TIME_OUT;
-import static io.temporal.internal.testservice.StateMachines.Action.UPDATE;
-import static io.temporal.internal.testservice.StateMachines.Action.UPDATE_WORKFLOW_EXECUTION;
-import static io.temporal.internal.testservice.StateMachines.State.CANCELED;
-import static io.temporal.internal.testservice.StateMachines.State.CANCELLATION_REQUESTED;
-import static io.temporal.internal.testservice.StateMachines.State.COMPLETED;
-import static io.temporal.internal.testservice.StateMachines.State.CONTINUED_AS_NEW;
-import static io.temporal.internal.testservice.StateMachines.State.FAILED;
-import static io.temporal.internal.testservice.StateMachines.State.INITIATED;
-import static io.temporal.internal.testservice.StateMachines.State.NONE;
-import static io.temporal.internal.testservice.StateMachines.State.STARTED;
-import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
-import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
+import static com.google.common.base.MoreObjects.toStringHelper;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.testservice.StateMachines.Action.*;
+import static io.temporal.internal.testservice.StateMachines.State.*;
+import static java.util.Optional.ofNullable;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.protobuf.*;
+import com.google.protobuf.Any;
+import com.google.protobuf.Duration;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
@@ -66,7 +52,8 @@ import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.update.v1.*;
+import io.temporal.api.update.v1.Acceptance;
+import io.temporal.api.update.v1.Outcome;
 import io.temporal.api.update.v1.Request;
 import io.temporal.api.update.v1.Response;
 import io.temporal.api.workflowservice.v1.*;
@@ -148,6 +135,8 @@ class StateMachines {
 
     Functions.Proc runTimerCancellationHandle;
 
+    private final Map<String, StartWorkflowExecutionResponse> requestIdToResponse = new HashMap<>();
+
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
         Duration backoffStartInterval,
@@ -169,27 +158,26 @@ class StateMachines {
       this.lastFailure = Objects.requireNonNull(lastFailure);
     }
 
+    Optional<StartWorkflowExecutionResponse> getResponseForRequestId(@Nonnull String requestId) {
+      return ofNullable(requestIdToResponse.get(requestId));
+    }
+
+    void addRequestId(@Nonnull String requestId, @Nonnull StartWorkflowExecutionResponse response) {
+      requestIdToResponse.put(requestId, response);
+    }
+
     @Override
     public String toString() {
-      return "WorkflowData{"
-          + "retryState="
-          + retryState
-          + ", backoffStartInterval="
-          + backoffStartInterval
-          + ", cronSchedule='"
-          + cronSchedule
-          + '\''
-          + ", lastCompletionResult="
-          + lastCompletionResult
-          + ", firstExecutionRunId='"
-          + firstExecutionRunId
-          + '\''
-          + ", originalExecutionRunId='"
-          + originalExecutionRunId
-          + '\''
-          + ", continuedExecutionRunId="
-          + continuedExecutionRunId
-          + '}';
+      return toStringHelper(this)
+          .add("retryState", retryState)
+          .add("cronSchedule", cronSchedule)
+          .add("firstExecutionRunId", firstExecutionRunId)
+          .add("requestIdToResponse", requestIdToResponse)
+          .add("backoffStartInterval", backoffStartInterval)
+          .add("lastCompletionResult", lastCompletionResult)
+          .add("originalExecutionRunId", originalExecutionRunId)
+          .add("continuedExecutionRunId", continuedExecutionRunId)
+          .toString();
     }
   }
 
@@ -246,7 +234,7 @@ class StateMachines {
     }
 
     Optional<UpdateWorkflowExecution> getUpdateRequest(String protocolInstanceId) {
-      return Optional.ofNullable(
+      return ofNullable(
           updateRequest.getOrDefault(
               protocolInstanceId, updateRequestBuffer.get(protocolInstanceId)));
     }
@@ -2000,7 +1988,7 @@ class StateMachines {
 
     // chaining with the previous run failure if we are preparing the final failure
     Failure failure =
-        newTimeoutFailure(timeoutType, Optional.ofNullable(data.heartbeatDetails), previousFailure);
+        newTimeoutFailure(timeoutType, ofNullable(data.heartbeatDetails), previousFailure);
 
     RetryState retryState;
     switch (timeoutType) {
@@ -2047,7 +2035,7 @@ class StateMachines {
           failure =
               newTimeoutFailure(
                   TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-                  Optional.ofNullable(data.heartbeatDetails),
+                  ofNullable(data.heartbeatDetails),
                   cause);
         }
         break;
@@ -2098,7 +2086,7 @@ class StateMachines {
       }
       if (info.get().hasNextRetryDelay()) {
         nextRetryDelay =
-            Optional.ofNullable(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
+            ofNullable(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
       }
     }
 
