@@ -20,7 +20,6 @@
 
 package io.temporal.internal.testservice;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.testservice.StateMachines.Action.*;
@@ -168,16 +167,28 @@ class StateMachines {
 
     @Override
     public String toString() {
-      return toStringHelper(this)
-          .add("retryState", retryState)
-          .add("cronSchedule", cronSchedule)
-          .add("firstExecutionRunId", firstExecutionRunId)
-          .add("requestIdToResponse", requestIdToResponse)
-          .add("backoffStartInterval", backoffStartInterval)
-          .add("lastCompletionResult", lastCompletionResult)
-          .add("originalExecutionRunId", originalExecutionRunId)
-          .add("continuedExecutionRunId", continuedExecutionRunId)
-          .toString();
+      return "WorkflowData{"
+          + "retryState="
+          + retryState
+          + ", backoffStartInterval="
+          + backoffStartInterval
+          + ", cronSchedule='"
+          + cronSchedule
+          + '\''
+          + ", lastCompletionResult="
+          + lastCompletionResult
+          + ", firstExecutionRunId='"
+          + firstExecutionRunId
+          + '\''
+          + ", originalExecutionRunId='"
+          + originalExecutionRunId
+          + '\''
+          + ", continuedExecutionRunId="
+          + continuedExecutionRunId
+          + '\''
+          + ", requestIdToResponse="
+          + requestIdToResponse
+          + '}';
     }
   }
 
