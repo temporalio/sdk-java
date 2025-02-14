@@ -30,6 +30,7 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.internal.nexus.OperationToken;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -103,7 +104,10 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
       // Signal the operation to unblock, this makes sure the operation doesn't complete before the
       // operation
       // started event is written to history
-      Workflow.newExternalWorkflowStub(OperationWorkflow.class, asyncExec.getOperationToken().get())
+      Workflow.newExternalWorkflowStub(
+              OperationWorkflow.class,
+              OperationToken.loadWorkflowRunOperationToken(asyncExec.getOperationToken().get())
+                  .getWorkflowId())
           .unblock();
       return asyncOpHandle.getResult().get();
     }
