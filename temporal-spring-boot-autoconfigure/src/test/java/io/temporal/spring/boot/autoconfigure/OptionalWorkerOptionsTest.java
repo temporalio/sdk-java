@@ -76,8 +76,7 @@ public class OptionalWorkerOptionsTest {
 
     @Bean
     @SuppressWarnings("unchecked")
-    public TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
-        temporalWorkerFactoryCustomizer() {
+    public TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer() {
       TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> customizer =
           optionsBuilder -> {
             WorkerFactoryOptions options = optionsBuilder.build();
