@@ -23,6 +23,7 @@ package io.temporal.nexus;
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.nexusrpc.OperationInfo;
 import io.nexusrpc.handler.*;
 import io.nexusrpc.handler.OperationHandler;
@@ -33,6 +34,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.OperationToken;
+import io.temporal.internal.nexus.WorkflowRunOperationToken;
 import java.net.URISyntaxException;
 
 class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
@@ -70,19 +73,31 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
                     .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
             .build();
     io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(workflowEventLink);
+    // Generate the operation token for the new workflow.
+    String operationToken;
     try {
-      OperationStartResult.Builder<R> result =
-          OperationStartResult.newAsyncBuilder(workflowExec.getWorkflowId());
-      if (nexusLink != null) {
-        ctx.addLinks(nexusProtoLinkToLink(nexusLink));
-      }
-      return result.build();
-    } catch (URISyntaxException e) {
+      operationToken =
+          OperationToken.generateWorkflowRunOperationToken(
+              workflowExec.getWorkflowId(), nexusCtx.getNamespace());
+    } catch (JsonProcessingException e) {
       // Not expected as the link is constructed by the SDK.
       throw new HandlerException(
           HandlerException.ErrorType.INTERNAL,
-          new IllegalArgumentException("failed to parse URI", e));
+          new IllegalArgumentException("failed to generate workflow operation token", e));
     }
+    // Attach the link to the operation result.
+    OperationStartResult.Builder<R> result = OperationStartResult.newAsyncBuilder(operationToken);
+    if (nexusLink != null) {
+      try {
+        ctx.addLinks(nexusProtoLinkToLink(nexusLink));
+      } catch (URISyntaxException e) {
+        // Not expected as the link is constructed by the SDK.
+        throw new HandlerException(
+            HandlerException.ErrorType.INTERNAL,
+            new IllegalArgumentException("failed to parse URI", e));
+      }
+    }
+    return result.build();
   }
 
   @Override
@@ -100,7 +115,20 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
   @Override
   public void cancel(
       OperationContext operationContext, OperationCancelDetails operationCancelDetails) {
+    String workflowId;
+    try {
+      WorkflowRunOperationToken workflowRunToken =
+          OperationToken.loadWorkflowRunOperationToken(operationCancelDetails.getOperationToken());
+      workflowId = workflowRunToken.getWorkflowId();
+    } catch (OperationToken.FallbackToWorkflowIdException e) {
+      workflowId = operationCancelDetails.getOperationToken();
+    } catch (IllegalArgumentException e) {
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          new IllegalArgumentException("failed to parse operation token", e));
+    }
+
     WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();
-    client.newUntypedWorkflowStub(operationCancelDetails.getOperationToken()).cancel();
+    client.newUntypedWorkflowStub(workflowId).cancel();
   }
 }

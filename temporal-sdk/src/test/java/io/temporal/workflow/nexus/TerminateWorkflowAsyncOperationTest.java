@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.nexus.Nexus;
+import io.temporal.nexus.WorkflowHandle;
 import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -60,10 +61,22 @@ public class TerminateWorkflowAsyncOperationTest {
         "operation terminated", ((TerminatedFailure) nexusFailure.getCause()).getOriginalMessage());
   }
 
+  public static class StartWorkflow {
+    public String workflowId;
+    public String input;
+
+    public StartWorkflow() {}
+
+    public StartWorkflow(String workflowId, String input) {
+      this.workflowId = workflowId;
+      this.input = input;
+    }
+  }
+
   @Service
   public interface TestNexusService {
     @Operation
-    String operation(String input);
+    String operation(StartWorkflow input);
 
     @Operation
     String terminate(String workflowId);
@@ -81,12 +94,13 @@ public class TerminateWorkflowAsyncOperationTest {
       TestNexusService serviceStub =
           Workflow.newNexusServiceStub(TestNexusService.class, serviceOptions);
       // Start an async operation
+      String wfId = Workflow.randomUUID().toString();
       NexusOperationHandle<String> handle =
-          Workflow.startNexusOperation(serviceStub::operation, "block");
+          Workflow.startNexusOperation(serviceStub::operation, new StartWorkflow(wfId, "block"));
       // Wait for the operation to start
-      String workflowId = handle.getExecution().get().getOperationToken().get();
+      handle.getExecution().get();
       // Terminate the operation
-      serviceStub.terminate(workflowId);
+      serviceStub.terminate(wfId);
       // Try to get the result, expect this to throw
       handle.getResult().get();
       return "Should not get here";
@@ -96,17 +110,17 @@ public class TerminateWorkflowAsyncOperationTest {
   @ServiceImpl(service = TestNexusService.class)
   public class TestNexusServiceImpl {
     @OperationImpl
-    public OperationHandler<String, String> operation() {
-      return WorkflowRunOperation.fromWorkflowMethod(
+    public OperationHandler<StartWorkflow, String> operation() {
+      return WorkflowRunOperation.fromWorkflowHandle(
           (context, details, input) ->
-              Nexus.getOperationContext()
-                      .getWorkflowClient()
-                      .newWorkflowStub(
-                          AsyncWorkflowOperationTest.OperationWorkflow.class,
-                          WorkflowOptions.newBuilder()
-                              .setWorkflowId(details.getRequestId())
-                              .build())
-                  ::execute);
+              WorkflowHandle.fromWorkflowMethod(
+                  Nexus.getOperationContext()
+                          .getWorkflowClient()
+                          .newWorkflowStub(
+                              AsyncWorkflowOperationTest.OperationWorkflow.class,
+                              WorkflowOptions.newBuilder().setWorkflowId(input.workflowId).build())
+                      ::execute,
+                  input.input));
     }
 
     @OperationImpl
