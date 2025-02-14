@@ -134,7 +134,7 @@ class StateMachines {
 
     Functions.Proc runTimerCancellationHandle;
 
-    private final Map<String, StartWorkflowExecutionResponse> requestIdToResponse = new HashMap<>();
+    private final Set<String> requestIds = new HashSet<>();
 
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
@@ -157,12 +157,12 @@ class StateMachines {
       this.lastFailure = Objects.requireNonNull(lastFailure);
     }
 
-    Optional<StartWorkflowExecutionResponse> getResponseForRequestId(@Nonnull String requestId) {
-      return ofNullable(requestIdToResponse.get(requestId));
+    boolean hasRequestId(@Nonnull String requestId) {
+      return requestIds.contains(requestId);
     }
 
-    void addRequestId(@Nonnull String requestId, @Nonnull StartWorkflowExecutionResponse response) {
-      requestIdToResponse.put(requestId, response);
+    void addRequestId(@Nonnull String requestId) {
+      requestIds.add(requestId);
     }
 
     @Override
@@ -186,8 +186,8 @@ class StateMachines {
           + ", continuedExecutionRunId="
           + continuedExecutionRunId
           + '\''
-          + ", requestIdToResponse="
-          + requestIdToResponse
+          + ", requestIds="
+          + requestIds
           + '}';
     }
   }

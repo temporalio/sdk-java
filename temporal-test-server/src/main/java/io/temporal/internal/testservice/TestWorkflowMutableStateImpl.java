@@ -622,11 +622,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StateMachines.WorkflowData data = workflow.getData();
       OnConflictOptions options = request.getOnConflictOptions();
 
+      StartWorkflowExecutionResponse response =
+          StartWorkflowExecutionResponse.newBuilder()
+              .setRunId(getExecutionId().getExecution().getRunId())
+              .build();
       if (options.getAttachRequestId()) {
-        Optional<StartWorkflowExecutionResponse> cachedResponse =
-            data.getResponseForRequestId(request.getRequestId());
-        if (cachedResponse.isPresent()) {
-          return cachedResponse.get();
+        boolean hasRequestId = data.hasRequestId(request.getRequestId());
+        if (hasRequestId) {
+          return response;
         }
       }
 
@@ -640,11 +643,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           && !request.getCompletionCallbacksList().isEmpty()) {
         attrs.addAllAttachedCompletionCallbacks(request.getCompletionCallbacksList());
       }
-
-      StartWorkflowExecutionResponse response =
-          StartWorkflowExecutionResponse.newBuilder()
-              .setRunId(getExecutionId().getExecution().getRunId())
-              .build();
 
       if (options.getAttachLinks()) {
         HistoryEvent event =
@@ -660,7 +658,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
 
       if (options.getAttachRequestId()) {
-        data.addRequestId(request.getRequestId(), response);
+        data.addRequestId(request.getRequestId());
       }
 
       return response;
