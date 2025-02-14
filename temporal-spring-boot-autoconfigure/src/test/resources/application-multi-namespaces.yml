@@ -27,7 +27,7 @@ spring.temporal:
   namespaces:
     - namespace: namespace1
       alias: ns1
-      start-workers: true
+      start-workers: false
       workersAutoDiscovery:
         packages:
           - io.temporal.spring.boot.autoconfigure.bytaskqueue
