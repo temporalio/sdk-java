@@ -123,6 +123,8 @@ spring.temporal:
           - your.package.YouWorkflowImpl
         activity-beans:
           - activity-bean-name1
+        nexus-service-beans:
+          - nexus-service-bean-name1
         # capacity:
           # max-concurrent-workflow-task-executors: 200
           # max-concurrent-activity-executors: 200
@@ -146,8 +148,8 @@ spring.temporal:
 
 ## Auto-discovery
 
-Allows to skip specifying Workflow classes and Activity beans explicitly in the config
-by referencing Worker Task Queue names or Worker Names on Workflow and Activity implementations.
+Allows to skip specifying Workflow classes, Activity beans, and Nexus Service beans explicitly in the config
+by referencing Worker Task Queue names or Worker Names on Workflow, Activity implementations, and Nexus Service implementations.
 Auto-discovery is applied after and on top of an explicit configuration.
 
 Add the following to your `application.yml` to auto-discover workflows and activities from your classpath.
@@ -156,15 +158,16 @@ Add the following to your `application.yml` to auto-discover workflows and activ
 spring.temporal:
   workers-auto-discovery:
     packages:
-      - your.package # enumerate all the packages that contain your workflow and activity implementations
+      - your.package # enumerate all the packages that contain your workflow, activity implementations, and nexus service implementations.
 ```
 
 What is auto-discovered:
 - Workflows implementation classes annotated with `io.temporal.spring.boot.WorkflowImpl`
 - Activity beans present Spring context whose implementations are annotated with `io.temporal.spring.boot.ActivityImpl`
+- Nexus Service beans present in Spring context whose implementations are annotated with `io.temporal.spring.boot.NexusServiceImpl`
 - Workers if a Task Queue is referenced by the annotations but not explicitly configured. Default configuration will be used.
 
-Auto-discovered workflow implementation classes and activity beans will be registered with the configured workers if not already registered.
+Auto-discovered workflow implementation classes, activity beans, and nexus service beans will be registered with the configured workers if not already registered.
 
 ### Referencing Worker names vs Task Queues
 
