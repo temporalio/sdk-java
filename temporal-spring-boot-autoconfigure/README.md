@@ -256,7 +256,7 @@ public class Test {
 }
 ```
 
-# Multiple Name Space
+# Running Multiple Name Space (experimental)
 
 Along with the root namespace, you can configure multiple non-root namespaces in the application.yml file. Different namespaces can have different configurations including but not limited to different connection options, registered workflows/activities, data converters etc.
 
