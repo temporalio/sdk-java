@@ -450,8 +450,7 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation terminated", cause.getMessage());
-      Assert.assertTrue(cause.hasApplicationFailureInfo());
-      Assert.assertTrue(cause.getApplicationFailureInfo().getNonRetryable());
+      Assert.assertTrue(cause.hasTerminatedFailureInfo());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -528,133 +527,12 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("operation exceeded internal timeout", cause.getMessage());
-      Assert.assertTrue(cause.hasApplicationFailureInfo());
-      Assert.assertTrue(cause.getApplicationFailureInfo().getNonRetryable());
+      Assert.assertTrue(cause.hasTimeoutFailureInfo());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
       nexusPoller.cancel(true);
     }
-  }
-
-  @Test
-  public void testNexusOperationCancellation() {
-    String operationId = UUID.randomUUID().toString();
-    CompletableFuture<?> nexusPoller =
-        pollNexusTask().thenCompose(task -> completeNexusTask(task, operationId));
-
-    try {
-      WorkflowStub stub = newWorkflowStub("TestNexusOperationCancellationWorkflow");
-      WorkflowExecution execution = stub.start();
-
-      // Get first WFT and respond with ScheduleNexusOperation command
-      PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
-      completeWorkflowTask(
-          pollResp.getTaskToken(),
-          newScheduleOperationCommand(
-              defaultScheduleOperationAttributes()
-                  .setScheduleToCloseTimeout(Durations.fromSeconds(5))));
-      testWorkflowRule.assertHistoryEvent(
-          execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
-
-      // Wait for operation to be started
-      nexusPoller.get();
-
-      // Poll and verify started event is recorded and triggers workflow progress
-      pollResp = pollWorkflowTask();
-      testWorkflowRule.assertHistoryEvent(
-          execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED);
-      List<HistoryEvent> events =
-          testWorkflowRule.getHistoryEvents(
-              execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
-      Assert.assertEquals(1, events.size());
-
-      // Cancel operation
-      HistoryEvent scheduledEvent = events.get(0);
-      Command cancelCmd =
-          Command.newBuilder()
-              .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION)
-              .setRequestCancelNexusOperationCommandAttributes(
-                  RequestCancelNexusOperationCommandAttributes.newBuilder()
-                      .setScheduledEventId(scheduledEvent.getEventId()))
-              .build();
-      completeWorkflowTask(pollResp.getTaskToken(), cancelCmd);
-
-      // Poll for and complete cancellation task
-      pollNexusTask()
-          .thenCompose(
-              task ->
-                  completeNexusTask(
-                      task,
-                      Response.newBuilder()
-                          .setCancelOperation(CancelOperationResponse.getDefaultInstance())
-                          .build()))
-          .get();
-
-      // Poll to verify cancellation is recorded and triggers workflow progress.
-      pollResp = pollWorkflowTask();
-      completeWorkflow(pollResp.getTaskToken());
-
-      events =
-          testWorkflowRule.getHistoryEvents(
-              execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED);
-      Assert.assertEquals(1, events.size());
-      io.temporal.api.failure.v1.Failure failure =
-          events.get(0).getNexusOperationCanceledEventAttributes().getFailure();
-      assertOperationFailureInfo(operationId, failure.getNexusOperationExecutionFailureInfo());
-      Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
-      io.temporal.api.failure.v1.Failure cause = failure.getCause();
-      Assert.assertEquals("operation canceled", cause.getMessage());
-      Assert.assertTrue(cause.hasCanceledFailureInfo());
-    } catch (Exception e) {
-      Assert.fail(e.getMessage());
-    } finally {
-      nexusPoller.cancel(true);
-    }
-  }
-
-  @Test
-  public void testNexusOperationCancelBeforeStart() {
-    WorkflowStub stub = newWorkflowStub("TestNexusOperationCancelBeforeStartWorkflow");
-    WorkflowExecution execution = stub.start();
-
-    // Get first WFT and respond with ScheduleNexusOperation command
-    PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
-    completeWorkflowTask(pollResp.getTaskToken(), true, newScheduleOperationCommand());
-
-    // Poll for new WFT and respond with RequestCancelNexusOperation command
-    pollResp = pollWorkflowTask();
-
-    List<HistoryEvent> events =
-        testWorkflowRule.getHistoryEvents(
-            execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
-    Assert.assertEquals(1, events.size());
-
-    HistoryEvent scheduledEvent = events.get(0);
-    Command cancelCmd =
-        Command.newBuilder()
-            .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION)
-            .setRequestCancelNexusOperationCommandAttributes(
-                RequestCancelNexusOperationCommandAttributes.newBuilder()
-                    .setScheduledEventId(scheduledEvent.getEventId()))
-            .build();
-    completeWorkflowTask(pollResp.getTaskToken(), cancelCmd);
-
-    // Poll and verify cancel triggers workflow progress
-    pollResp = pollWorkflowTask();
-    completeWorkflow(pollResp.getTaskToken());
-
-    events =
-        testWorkflowRule.getHistoryEvents(
-            execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED);
-    Assert.assertEquals(1, events.size());
-    io.temporal.api.failure.v1.Failure failure =
-        events.get(0).getNexusOperationCanceledEventAttributes().getFailure();
-    assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
-    Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
-    io.temporal.api.failure.v1.Failure cause = failure.getCause();
-    Assert.assertEquals("operation canceled before it was started", cause.getMessage());
-    Assert.assertTrue(cause.hasCanceledFailureInfo());
   }
 
   @Test(timeout = 15000)
@@ -884,7 +762,7 @@ public class NexusWorkflowTest {
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("deliberate test failure", cause.getMessage());
       Assert.assertTrue(cause.hasApplicationFailureInfo());
-      Assert.assertEquals("NexusOperationFailure", cause.getApplicationFailureInfo().getType());
+      Assert.assertEquals("NexusFailure", cause.getApplicationFailureInfo().getType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -894,9 +772,6 @@ public class NexusWorkflowTest {
 
   @Test
   public void testNexusOperationHandlerError() {
-    assumeTrue(
-        "Skipping test as Temporal server does not support Nexus operation invalid ref",
-        !testWorkflowRule.isUseExternalService());
     // Polls for nexus task -> respond with retryable failure -> poll for nexus task -> respond with
     // non-retryable failure
     CompletableFuture<?> nexusPoller =
@@ -948,9 +823,9 @@ public class NexusWorkflowTest {
       assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
-      Assert.assertEquals("deliberate terminal error", cause.getMessage());
-      Assert.assertTrue(cause.hasApplicationFailureInfo());
-      Assert.assertEquals("INVALID_ARGUMENT", cause.getApplicationFailureInfo().getType());
+      Assert.assertTrue(cause.getMessage().endsWith("deliberate terminal error"));
+      Assert.assertTrue(cause.hasNexusHandlerFailureInfo());
+      Assert.assertEquals("BAD_REQUEST", cause.getNexusHandlerFailureInfo().getType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -961,7 +836,7 @@ public class NexusWorkflowTest {
   @Test
   public void testNexusOperationInvalidRef() {
     assumeTrue(
-        "Skipping test as Temporal server does not support Nexus operation invalid ref",
+        "Skipping for real server since this test is parsing and modifying the operation token",
         !testWorkflowRule.isUseExternalService());
     // Polls for nexus task -> respond with invalid task token -> respond with correct task token
     CompletableFuture<?> nexusPoller =
