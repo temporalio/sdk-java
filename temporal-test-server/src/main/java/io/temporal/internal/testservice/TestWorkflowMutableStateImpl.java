@@ -73,6 +73,7 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -611,6 +612,59 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
+  }
+
+  @Override
+  public StartWorkflowExecutionResponse applyOnConflictOptions(
+      @Nonnull StartWorkflowExecutionRequest request) {
+    lock.lock();
+    try {
+      StateMachines.WorkflowData data = workflow.getData();
+      OnConflictOptions options = request.getOnConflictOptions();
+
+      StartWorkflowExecutionResponse response =
+          StartWorkflowExecutionResponse.newBuilder()
+              .setRunId(getExecutionId().getExecution().getRunId())
+              .build();
+      if (options.getAttachRequestId()) {
+        boolean hasRequestId = data.hasRequestId(request.getRequestId());
+        if (hasRequestId) {
+          return response;
+        }
+      }
+
+      WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
+          WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
+      if (options.getAttachRequestId()) {
+        attrs.setAttachedRequestId(request.getRequestId());
+      }
+
+      if (options.getAttachCompletionCallbacks()
+          && !request.getCompletionCallbacksList().isEmpty()) {
+        attrs.addAllAttachedCompletionCallbacks(request.getCompletionCallbacksList());
+      }
+
+      if (options.getAttachLinks()) {
+        HistoryEvent event =
+            HistoryEvent.newBuilder()
+                .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+                .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs)
+                .addAllLinks(request.getLinksList())
+                .build();
+
+        RequestContext ctx = new RequestContext(clock, this, nextEventId);
+        ctx.addEvent(event);
+        store.save(ctx);
+      }
+
+      if (options.getAttachRequestId()) {
+        data.addRequestId(request.getRequestId());
+      }
+
+      return response;
+    } finally {
+      lock.unlock();
+    }
   }
 
   private void failWorkflowTaskWithAReason(
