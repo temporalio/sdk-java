@@ -29,7 +29,7 @@ import io.temporal.common.converter.EncodedValues;
  * one type that implements DynamicWorkflow per worker is allowed.
  *
  * <p>The main use case for DynamicWorkflow is an implementation of custom Domain Specific Languages
- * (DSLs). A single implementation can implement a workflow type which definition is dynamically
+ * (DSLs). A single implementation can implement a workflow type whose definition is dynamically
  * loaded from some external source.
  *
  * <p>Use {@link Workflow#getInfo()} to query information about the workflow type that should be
