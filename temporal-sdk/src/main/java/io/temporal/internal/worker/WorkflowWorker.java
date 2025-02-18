@@ -39,6 +39,7 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.worker.tuning.SlotReleaseReason;
@@ -474,11 +475,21 @@ final class WorkflowWorker implements SuspendableWorker {
       try {
         return handler.handleWorkflowTask(task);
       } catch (Throwable e) {
+        workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
+        // Make sure that the task failure metric has the correct type
+        Scope workflowTaskFailureScope = workflowTypeMetricsScope;
+        if (e instanceof NonDeterministicException) {
+          workflowTaskFailureScope =
+              workflowTaskFailureScope.tagged(
+                  ImmutableMap.of(TASK_FAILURE_TYPE, "NonDeterminismError"));
+        } else {
+          workflowTaskFailureScope =
+              workflowTaskFailureScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, "WorkflowError"));
+        }
         // more detailed logging that we can do here is already done inside `handler`
-        workflowTypeMetricsScope
+        workflowTaskFailureScope
             .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
             .inc(1);
-        workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
         throw e;
       } finally {
         sw.stop();
