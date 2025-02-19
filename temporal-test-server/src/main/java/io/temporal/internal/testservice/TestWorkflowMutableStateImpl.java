@@ -644,18 +644,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         attrs.addAllAttachedCompletionCallbacks(request.getCompletionCallbacksList());
       }
 
+      HistoryEvent.Builder eventBuilder = HistoryEvent.newBuilder()
+              .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+              .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
       if (options.getAttachLinks()) {
-        HistoryEvent event =
-            HistoryEvent.newBuilder()
-                .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
-                .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs)
-                .addAllLinks(request.getLinksList())
-                .build();
-
-        RequestContext ctx = new RequestContext(clock, this, nextEventId);
-        ctx.addEvent(event);
-        store.save(ctx);
+        eventBuilder.addAllLinks(request.getLinksList());
       }
+
+      RequestContext ctx = new RequestContext(clock, this, nextEventId);
+      ctx.addEvent(eventBuilder.build());
+      store.save(ctx);
 
       if (options.getAttachRequestId()) {
         data.addRequestId(request.getRequestId());
