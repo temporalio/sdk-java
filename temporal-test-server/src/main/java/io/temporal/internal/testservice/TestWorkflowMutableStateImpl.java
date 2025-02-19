@@ -644,7 +644,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         attrs.addAllAttachedCompletionCallbacks(request.getCompletionCallbacksList());
       }
 
-      HistoryEvent.Builder eventBuilder = HistoryEvent.newBuilder()
+      HistoryEvent.Builder eventBuilder =
+          HistoryEvent.newBuilder()
               .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
               .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
       if (options.getAttachLinks()) {

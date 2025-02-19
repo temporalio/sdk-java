@@ -24,7 +24,6 @@ import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.testservice.StateMachines.Action.*;
 import static io.temporal.internal.testservice.StateMachines.State.*;
-import static java.util.Optional.ofNullable;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -245,7 +244,7 @@ class StateMachines {
     }
 
     Optional<UpdateWorkflowExecution> getUpdateRequest(String protocolInstanceId) {
-      return ofNullable(
+      return Optional.ofNullable(
           updateRequest.getOrDefault(
               protocolInstanceId, updateRequestBuffer.get(protocolInstanceId)));
     }
@@ -1999,7 +1998,7 @@ class StateMachines {
 
     // chaining with the previous run failure if we are preparing the final failure
     Failure failure =
-        newTimeoutFailure(timeoutType, ofNullable(data.heartbeatDetails), previousFailure);
+        newTimeoutFailure(timeoutType, Optional.ofNullable(data.heartbeatDetails), previousFailure);
 
     RetryState retryState;
     switch (timeoutType) {
@@ -2046,7 +2045,7 @@ class StateMachines {
           failure =
               newTimeoutFailure(
                   TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-                  ofNullable(data.heartbeatDetails),
+                  Optional.ofNullable(data.heartbeatDetails),
                   cause);
         }
         break;
@@ -2097,7 +2096,7 @@ class StateMachines {
       }
       if (info.get().hasNextRetryDelay()) {
         nextRetryDelay =
-            ofNullable(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
+            Optional.ofNullable(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
       }
     }
 
