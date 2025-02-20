@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum OperationTokenType {
+  UNKNOWN(0),
   WORKFLOW_RUN(1);
 
   private final int value;
@@ -38,12 +39,15 @@ public enum OperationTokenType {
   }
 
   @JsonCreator
-  public static OperationTokenType fromValue(int value) {
+  public static OperationTokenType fromValue(Integer value) {
+    if (value == null) {
+      return UNKNOWN;
+    }
     for (OperationTokenType b : OperationTokenType.values()) {
       if (b.value == value) {
         return b;
       }
     }
-    return null;
+    return UNKNOWN;
   }
 }

@@ -34,8 +34,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
-import io.temporal.internal.nexus.OperationToken;
-import io.temporal.internal.nexus.WorkflowRunOperationToken;
+import io.temporal.internal.nexus.OperationTokenUtil;
 import java.net.URISyntaxException;
 
 class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
@@ -77,7 +76,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
     String operationToken;
     try {
       operationToken =
-          OperationToken.generateWorkflowRunOperationToken(
+          OperationTokenUtil.generateWorkflowRunOperationToken(
               workflowExec.getWorkflowId(), nexusCtx.getNamespace());
     } catch (JsonProcessingException e) {
       // Not expected as the link is constructed by the SDK.
@@ -117,11 +116,9 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
       OperationContext operationContext, OperationCancelDetails operationCancelDetails) {
     String workflowId;
     try {
-      WorkflowRunOperationToken workflowRunToken =
-          OperationToken.loadWorkflowRunOperationToken(operationCancelDetails.getOperationToken());
-      workflowId = workflowRunToken.getWorkflowId();
-    } catch (OperationToken.FallbackToWorkflowIdException e) {
-      workflowId = operationCancelDetails.getOperationToken();
+      workflowId =
+          OperationTokenUtil.loadWorkflowIdFromOperationToken(
+              operationCancelDetails.getOperationToken());
     } catch (IllegalArgumentException e) {
       throw new HandlerException(
           HandlerException.ErrorType.INTERNAL,
