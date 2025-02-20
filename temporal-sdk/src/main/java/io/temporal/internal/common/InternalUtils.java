@@ -26,6 +26,7 @@ import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.client.OnConflictOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
@@ -144,6 +145,12 @@ public final class InternalUtils {
               .filter(link -> link != null)
               .collect(Collectors.toList()));
     }
+    nexusWorkflowOptions.setOnConflictOptions(
+        OnConflictOptions.newBuilder()
+            .setAttachRequestId(true)
+            .setAttachLinks(true)
+            .setAttachCompletionCallbacks(true)
+            .build());
     return stub.newInstance(nexusWorkflowOptions.build());
   }
 
