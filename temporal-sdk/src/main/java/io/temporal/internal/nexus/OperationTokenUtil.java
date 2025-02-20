@@ -72,6 +72,10 @@ public class OperationTokenUtil {
       WorkflowRunOperationToken token = loadWorkflowRunOperationToken(operationToken);
       return token.getWorkflowId();
     } catch (OperationTokenUtil.FallbackToWorkflowIdException e) {
+      // Previous versions of the SDK simply used the workflow ID as the operation token
+      // This fallback is provided for backwards compatibility for those cases.
+      // This fallback will be removed in a future release.
+      // See: https://github.com/temporalio/sdk-java/issues/2423
       return operationToken;
     }
   }
