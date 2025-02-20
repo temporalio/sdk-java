@@ -22,9 +22,19 @@ package io.temporal.nexus;
 
 import io.nexusrpc.handler.*;
 import io.nexusrpc.handler.OperationHandler;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
 
-/** WorkflowRunOperation can be used to map a workflow run to a Nexus operation */
+/**
+ * WorkflowRunOperation can be used to map a workflow run to a Nexus operation
+ *
+ * <p>{@link WorkflowOptions#getWorkflowIdConflictPolicy()} is by default set to fail if a workflow
+ * is already running. That is, if a caller executes another operation that starts the same
+ * workflow, it will fail. You can set it to {@link
+ * io.temporal.api.enums.v1.WorkflowIdConflictPolicy#WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING} to
+ * attach the caller's callback to the existing running workflow. This way, all attached callers
+ * will be notified when the workflow completes.
+ */
 @Experimental
 public final class WorkflowRunOperation {
   /**

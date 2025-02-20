@@ -30,6 +30,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
@@ -98,6 +99,16 @@ final class WorkflowClientRequestFactory {
 
     if (options.getLinks() != null) {
       options.getLinks().forEach(request::addLinks);
+    }
+
+    if (options.getOnConflictOptions() != null) {
+      OnConflictOptions.Builder onConflictOptions =
+          OnConflictOptions.newBuilder()
+              .setAttachRequestId(options.getOnConflictOptions().isAttachRequestId())
+              .setAttachLinks(options.getOnConflictOptions().isAttachLinks())
+              .setAttachCompletionCallbacks(
+                  options.getOnConflictOptions().isAttachCompletionCallbacks());
+      request.setOnConflictOptions(onConflictOptions);
     }
 
     String taskQueue = options.getTaskQueue();
