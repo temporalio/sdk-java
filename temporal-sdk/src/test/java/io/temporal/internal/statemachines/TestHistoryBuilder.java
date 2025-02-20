@@ -616,6 +616,10 @@ class TestHistoryBuilder {
     return previousStartedEventId;
   }
 
+  public long getWorkflowTaskScheduledEventId() {
+    return workflowTaskScheduledEventId;
+  }
+
   public long getWorkflowTaskStartedEventId() {
     return workflowTaskScheduledEventId + 1;
   }

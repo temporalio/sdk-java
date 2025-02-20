@@ -79,8 +79,6 @@ final class ChannelManager {
   private static final Metadata.Key<String> CLOUD_VERSION_HEADER_KEY =
       Metadata.Key.of("temporal-cloud-api-version", Metadata.ASCII_STRING_MARSHALLER);
 
-  private static final String CLIENT_NAME_HEADER_VALUE = "temporal-java";
-
   private final ServiceStubsOptions options;
 
   private final AtomicBoolean shutdownRequested = new AtomicBoolean();
@@ -169,7 +167,7 @@ final class ChannelManager {
     headers.merge(options.getHeaders());
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
-    headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);
+    headers.put(CLIENT_NAME_HEADER_KEY, Version.SDK_NAME);
     if (options instanceof CloudServiceStubsOptions) {
       String version = ((CloudServiceStubsOptions) options).getVersion();
       if (version != null) {

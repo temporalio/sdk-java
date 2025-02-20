@@ -42,6 +42,11 @@ public class Version {
   public static final String LIBRARY_VERSION;
 
   /**
+   * The named used to represent this SDK as client identities as well as worker task completions.
+   */
+  public static final String SDK_NAME = "temporal-java";
+
+  /**
    * Supported server versions defines a semver range of server versions that client is compatible
    * with.
    */
