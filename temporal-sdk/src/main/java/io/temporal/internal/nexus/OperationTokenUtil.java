@@ -28,14 +28,14 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.base.Strings;
 import java.util.Base64;
 
-public class OperationToken {
+public class OperationTokenUtil {
   private static final ObjectMapper mapper = new ObjectMapper().registerModule(new Jdk8Module());
   private static final ObjectWriter ow = mapper.writer();
   private static final Base64.Decoder decoder = Base64.getUrlDecoder();
   private static final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
 
   /**
-   * Load a workflow run operation token from a base64 encoded String.
+   * Load a workflow run operation token from an operation token.
    *
    * @throws FallbackToWorkflowIdException if the operation token is not a workflow run token
    * @throws IllegalArgumentException if the operation token is invalid
@@ -50,15 +50,30 @@ public class OperationToken {
       throw new FallbackToWorkflowIdException("Failed to parse operation token: " + e.getMessage());
     }
     if (!token.getType().equals(OperationTokenType.WORKFLOW_RUN)) {
-      throw new IllegalArgumentException("Version field should not be serialized as it is null");
+      throw new IllegalArgumentException(
+          "Invalid workflow run token: incorrect operation token type: " + token.getType());
     }
     if (token.getVersion() != null) {
-      throw new IllegalArgumentException("Version field should not be serialized as it is null");
+      throw new IllegalArgumentException("Invalid workflow run token: unexpected version field");
     }
     if (Strings.isNullOrEmpty(token.getWorkflowId())) {
       throw new IllegalArgumentException("Invalid workflow run token: missing workflow ID (wid)");
     }
     return token;
+  }
+
+  /**
+   * Attempt to extract the workflow Id from an operation token.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid
+   */
+  public static String loadWorkflowIdFromOperationToken(String operationToken) {
+    try {
+      WorkflowRunOperationToken token = loadWorkflowRunOperationToken(operationToken);
+      return token.getWorkflowId();
+    } catch (OperationTokenUtil.FallbackToWorkflowIdException e) {
+      return operationToken;
+    }
   }
 
   /** Generate a workflow run operation token from a workflow ID and namespace. */
@@ -74,5 +89,5 @@ public class OperationToken {
     }
   }
 
-  private OperationToken() {}
+  private OperationTokenUtil() {}
 }
