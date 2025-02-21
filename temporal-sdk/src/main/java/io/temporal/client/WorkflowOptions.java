@@ -84,6 +84,7 @@ public final class WorkflowOptions {
         .setRequestId(o.getRequestId())
         .setCompletionCallbacks(o.getCompletionCallbacks())
         .setLinks(o.getLinks())
+        .setOnConflictOptions(o.getOnConflictOptions())
         .validateBuildWithDefaults();
   }
 
