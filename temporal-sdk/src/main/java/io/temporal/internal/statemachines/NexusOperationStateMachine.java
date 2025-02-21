@@ -186,46 +186,47 @@ final class NexusOperationStateMachine
   }
 
   private void notifyStarted() {
-    if (!async) {
-      if (currentEvent.getEventType() != EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED) {
-        startedCallback.apply(Optional.empty(), null);
-      } else {
-        async = true;
-        String operationToken =
-            currentEvent.getNexusOperationStartedEventAttributes().getOperationToken();
-        String operationId =
-            currentEvent.getNexusOperationStartedEventAttributes().getOperationId();
-        startedCallback.apply(
-            Optional.of(operationToken.isEmpty() ? operationId : operationToken), null);
-      }
-    }
+    async = true;
+    String operationToken =
+        currentEvent.getNexusOperationStartedEventAttributes().getOperationToken();
+    String operationId = currentEvent.getNexusOperationStartedEventAttributes().getOperationId();
+    startedCallback.apply(
+        Optional.of(operationToken.isEmpty() ? operationId : operationToken), null);
   }
 
   private void notifyCompleted() {
-    notifyStarted();
     NexusOperationCompletedEventAttributes attributes =
         currentEvent.getNexusOperationCompletedEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), null);
+    }
     completionCallback.apply(Optional.of(attributes.getResult()), null);
   }
 
   private void notifyFailed() {
-    notifyStarted();
     NexusOperationFailedEventAttributes attributes =
         currentEvent.getNexusOperationFailedEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), attributes.getFailure());
+    }
     completionCallback.apply(Optional.empty(), attributes.getFailure());
   }
 
   private void notifyCanceled() {
-    notifyStarted();
     NexusOperationCanceledEventAttributes attributes =
         currentEvent.getNexusOperationCanceledEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), attributes.getFailure());
+    }
     completionCallback.apply(Optional.empty(), attributes.getFailure());
   }
 
   private void notifyTimedOut() {
-    notifyStarted();
     NexusOperationTimedOutEventAttributes attributes =
         currentEvent.getNexusOperationTimedOutEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), attributes.getFailure());
+    }
     completionCallback.apply(Optional.empty(), attributes.getFailure());
   }
 

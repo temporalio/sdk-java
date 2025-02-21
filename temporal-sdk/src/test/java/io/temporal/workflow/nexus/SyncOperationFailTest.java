@@ -99,6 +99,7 @@ public class SyncOperationFailTest {
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
       try {
         testNexusService.operation(Workflow.getInfo().getWorkflowId());
+        Assert.fail("should not be reached");
       } catch (NexusOperationFailure nexusFailure) {
         Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
         ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
@@ -110,6 +111,7 @@ public class SyncOperationFailTest {
       try {
         // Wait for the promise to fail
         failPromise.get();
+        Assert.fail("should not be reached");
       } catch (NexusOperationFailure nexusFailure) {
         Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
         ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
@@ -122,6 +124,7 @@ public class SyncOperationFailTest {
       try {
         // Wait for the operation to fail
         handle.getExecution().get();
+        Assert.fail("should not be reached");
       } catch (NexusOperationFailure nexusFailure) {
         Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
         ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
@@ -130,6 +133,7 @@ public class SyncOperationFailTest {
       try {
         // Since the operation has failed, the result should throw the same exception as well
         handle.getResult().get();
+        Assert.fail("should not be reached");
       } catch (NexusOperationFailure nexusFailure) {
         Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
         ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
