@@ -20,10 +20,18 @@
 
 package io.temporal.testserver.functional;
 
+import static io.grpc.Status.Code.ALREADY_EXISTS;
+import static java.util.UUID.randomUUID;
+
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.client.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -116,6 +124,95 @@ public class WorkflowIdReusePolicyTest {
     WorkflowExecution execution2 = startForeverWorkflow(options);
     describe(execution1).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED);
     describe(execution2).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING);
+  }
+
+  @Test
+  public void useExistingPolicy_RequestIdDeduplication() {
+    String workflowId = "use-existing-dedup";
+    String requestId = randomUUID().toString();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .build();
+
+    WorkflowExecution execution1 = startForeverWorkflow(options);
+    describe(execution1).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING);
+
+    // Start second with same request ID
+    StartWorkflowExecutionRequest request =
+        StartWorkflowExecutionRequest.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .setWorkflowId(workflowId)
+            .setRequestId(requestId)
+            .setWorkflowIdConflictPolicy(
+                WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
+            .setOnConflictOptions(OnConflictOptions.newBuilder().setAttachRequestId(true).build())
+            .build();
+
+    StartWorkflowExecutionResponse response1 =
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .startWorkflowExecution(request);
+
+    // Same request ID should return same response
+    StartWorkflowExecutionResponse response2 =
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .startWorkflowExecution(request);
+
+    Assert.assertEquals(response1.getRunId(), response2.getRunId());
+
+    // Different request ID should still work but update history
+    StartWorkflowExecutionRequest request2 =
+        request.toBuilder().setRequestId(randomUUID().toString()).build();
+
+    StartWorkflowExecutionResponse response3 =
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .startWorkflowExecution(request2);
+
+    Assert.assertEquals(response1.getRunId(), response3.getRunId());
+  }
+
+  @Test
+  public void useExistingPolicy_WrongConflictPolicy() {
+    String workflowId = "use-existing-wrong-policy";
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .build();
+
+    startForeverWorkflow(options);
+
+    // Try with FAIL policy but OnConflictOptions
+    StartWorkflowExecutionRequest request =
+        StartWorkflowExecutionRequest.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .setWorkflowId(workflowId)
+            .setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
+            .setOnConflictOptions(OnConflictOptions.newBuilder().setAttachRequestId(true).build())
+            .build();
+
+    // Should throw since OnConflictOptions only valid with USE_EXISTING
+    StatusRuntimeException e =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                testWorkflowRule
+                    .getWorkflowClient()
+                    .getWorkflowServiceStubs()
+                    .blockingStub()
+                    .startWorkflowExecution(request));
+
+    Assert.assertEquals(ALREADY_EXISTS, e.getStatus().getCode());
   }
 
   private WorkflowExecution startForeverWorkflow(WorkflowOptions options) {
