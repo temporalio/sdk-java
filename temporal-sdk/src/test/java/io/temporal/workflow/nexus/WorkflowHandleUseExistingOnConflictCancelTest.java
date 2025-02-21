@@ -37,8 +37,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.junit.Assume.assumeTrue;
 
 public class WorkflowHandleUseExistingOnConflictCancelTest {
   @Rule
@@ -48,6 +51,12 @@ public class WorkflowHandleUseExistingOnConflictCancelTest {
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .setUseExternalService(true)
           .build();
+
+  @Before
+  public void checkRealServer() {
+    assumeTrue(
+            "Test Server doesn't support OnConflictOption yet", SDKTestWorkflowRule.useExternalService);
+  }
 
   @Test
   public void testUseExistingCancel() {
