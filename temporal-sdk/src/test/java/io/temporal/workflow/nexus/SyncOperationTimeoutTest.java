@@ -68,7 +68,29 @@ public class SyncOperationTimeoutTest {
       // Try to call a synchronous operation in a blocking way
       TestNexusServices.TestNexusService1 serviceStub =
           Workflow.newNexusServiceStub(TestNexusServices.TestNexusService1.class, serviceOptions);
-      return serviceStub.operation("test timeout");
+      try {
+        // Test calling a synchronous operation in a blocking way
+        serviceStub.operation("test timeout");
+        Assert.fail("should not be reached");
+      } catch (NexusOperationFailure e) {
+        if (!(e.getCause() instanceof TimeoutFailure)) {
+          throw e;
+        }
+        // Expected timeout
+      }
+      // Test calling a synchronous operation in a non-blocking way
+      NexusOperationHandle<String> handle =
+          Workflow.startNexusOperation(serviceStub::operation, "test timeout");
+      try {
+        handle.getExecution().get();
+        Assert.fail("should not be reached");
+      } catch (NexusOperationFailure e) {
+        if (!(e.getCause() instanceof TimeoutFailure)) {
+          throw e;
+        }
+        // Expected timeout
+      }
+      return handle.getResult().get();
     }
   }
 
