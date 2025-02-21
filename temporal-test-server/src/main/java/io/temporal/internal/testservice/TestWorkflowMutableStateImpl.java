@@ -626,11 +626,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StartWorkflowExecutionResponse.newBuilder()
               .setRunId(getExecutionId().getExecution().getRunId())
               .build();
-      if (options.getAttachRequestId()) {
-        boolean hasRequestId = data.hasRequestId(request.getRequestId());
-        if (hasRequestId) {
-          return response;
-        }
+      if (options.getAttachRequestId() && data.hasRequestId(request.getRequestId())) {
+        return response;
       }
 
       WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
