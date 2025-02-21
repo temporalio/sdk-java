@@ -146,7 +146,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           Deadline.after(
               (long)
                   (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
-                      * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT),
+                      * Config.WORKFLOW_TASK_HEARTBEAT_COEFFICIENT),
               TimeUnit.NANOSECONDS);
 
       if (workflowTask.getPreviousStartedEventId()
@@ -180,15 +180,23 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         throw context.getWorkflowTaskFailure();
       }
       Map<String, WorkflowQueryResult> queryResults = executeQueries(workflowTask.getQueriesMap());
-      return WorkflowTaskResult.newBuilder()
-          .setCommands(commands)
-          .setMessages(messages)
-          .setQueryResults(queryResults)
-          .setFinalCommand(context.isWorkflowMethodCompleted())
-          .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
-          .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
-          .setSdkFlags(newSdkFlags)
-          .build();
+      WorkflowTaskResult.Builder result =
+          WorkflowTaskResult.newBuilder()
+              .setCommands(commands)
+              .setMessages(messages)
+              .setQueryResults(queryResults)
+              .setFinalCommand(context.isWorkflowMethodCompleted())
+              .setForceWorkflowTask(
+                  localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
+              .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
+              .setSdkFlags(newSdkFlags);
+      if (workflowStateMachines.sdkNameToWrite() != null) {
+        result.setWriteSdkName(workflowStateMachines.sdkNameToWrite());
+      }
+      if (workflowStateMachines.sdkVersionToWrite() != null) {
+        result.setWriteSdkVersion(workflowStateMachines.sdkVersionToWrite());
+      }
+      return result.build();
     } finally {
       lock.unlock();
     }

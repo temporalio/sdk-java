@@ -43,11 +43,13 @@ import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.LocalActivityResult;
+import io.temporal.serviceclient.Version;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class WorkflowStateMachines {
@@ -179,6 +181,8 @@ public final class WorkflowStateMachines {
   private final Set<String> acceptedUpdates = new HashSet<>();
 
   private final SdkFlags flags;
+  @Nonnull private String lastSeenSdkName = "";
+  @Nonnull private String lastSeenSdkVersion = "";
 
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks, GetSystemInfoResponse.Capabilities capabilities) {
@@ -383,6 +387,12 @@ public final class WorkflowStateMachines {
             throw new IllegalArgumentException("Unknown SDK flag:" + flag);
           }
           flags.setSdkFlag(sdkFlag);
+        }
+        if (!Strings.isNullOrEmpty(completedEvent.getSdkMetadata().getSdkName())) {
+          lastSeenSdkName = completedEvent.getSdkMetadata().getSdkName();
+        }
+        if (!Strings.isNullOrEmpty(completedEvent.getSdkMetadata().getSdkVersion())) {
+          lastSeenSdkVersion = completedEvent.getSdkMetadata().getSdkVersion();
         }
         // Remove any finished update protocol state machines. We can't remove them on an event like
         // other state machines because a rejected update produces no event in history.
@@ -673,6 +683,26 @@ public final class WorkflowStateMachines {
    */
   public EnumSet<SdkFlag> takeNewSdkFlags() {
     return flags.takeNewSdkFlags();
+  }
+
+  /**
+   * @return If we need to write the SDK name upon WFT completion, return it
+   */
+  public String sdkNameToWrite() {
+    if (!lastSeenSdkName.equals(Version.SDK_NAME)) {
+      return Version.SDK_NAME;
+    }
+    return null;
+  }
+
+  /**
+   * @return If we need to write the SDK version upon WFT completion, return it
+   */
+  public String sdkVersionToWrite() {
+    if (!lastSeenSdkVersion.equals(Version.LIBRARY_VERSION)) {
+      return Version.LIBRARY_VERSION;
+    }
+    return null;
   }
 
   private void prepareCommands() {

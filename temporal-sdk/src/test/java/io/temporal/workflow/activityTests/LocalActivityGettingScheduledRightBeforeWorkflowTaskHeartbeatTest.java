@@ -88,7 +88,7 @@ public class LocalActivityGettingScheduledRightBeforeWorkflowTaskHeartbeatTest {
               VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
 
       long firstLocalActivityDurationMs =
-          (long) (WORKFLOW_TASK_TIMEOUT.toMillis() * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT)
+          (long) (WORKFLOW_TASK_TIMEOUT.toMillis() * Config.WORKFLOW_TASK_HEARTBEAT_COEFFICIENT)
               - SLEEP_DURATION.toMillis() / 2;
       localActivities.sleepActivity(firstLocalActivityDurationMs, 0);
 

@@ -247,12 +247,21 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       completedRequest.setStickyAttributes(attributes);
     }
-    if (!result.getSdkFlags().isEmpty()) {
-      completedRequest =
-          completedRequest.setSdkMetadata(
-              WorkflowTaskCompletedMetadata.newBuilder()
-                  .addAllLangUsedFlags(result.getSdkFlags())
-                  .build());
+    List<Integer> sdkFlags = result.getSdkFlags();
+    String writeSdkName = result.getWriteSdkName();
+    String writeSdkVersion = result.getWriteSdkVersion();
+    if (!sdkFlags.isEmpty() || writeSdkName != null || writeSdkVersion != null) {
+      WorkflowTaskCompletedMetadata.Builder md = WorkflowTaskCompletedMetadata.newBuilder();
+      if (!sdkFlags.isEmpty()) {
+        md.addAllLangUsedFlags(sdkFlags);
+      }
+      if (writeSdkName != null) {
+        md.setSdkName(writeSdkName);
+      }
+      if (writeSdkVersion != null) {
+        md.setSdkVersion(writeSdkVersion);
+      }
+      completedRequest.setSdkMetadata(md.build());
     }
     return new Result(
         workflowType,
