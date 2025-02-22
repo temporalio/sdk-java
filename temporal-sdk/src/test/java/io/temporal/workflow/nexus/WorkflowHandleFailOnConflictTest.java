@@ -20,6 +20,8 @@
 
 package io.temporal.workflow.nexus;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
@@ -42,21 +44,18 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import static org.junit.Assume.assumeTrue;
-
 public class WorkflowHandleFailOnConflictTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class, TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(true)
           .build();
 
   @Before
   public void checkRealServer() {
     assumeTrue(
-            "Test Server doesn't support OnConflictOption yet", SDKTestWorkflowRule.useExternalService);
+        "Test Server doesn't support OnConflictOption yet", SDKTestWorkflowRule.useExternalService);
   }
 
   @Test
