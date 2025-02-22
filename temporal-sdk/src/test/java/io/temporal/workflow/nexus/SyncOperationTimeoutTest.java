@@ -61,7 +61,7 @@ public class SyncOperationTimeoutTest {
     public String execute(String input) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder().setOperationOptions(options).build();
