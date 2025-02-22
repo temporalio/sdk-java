@@ -73,7 +73,7 @@ jobs:
         wget https://github.com/temporalio/cli/releases/download/v1.3.0-rc.0/temporal_cli_1.3.0-rc.0_linux_amd64.tar.gz
         tar -xzf temporal_cli_1.3.0-rc.0_linux_amd64.tar.gz
         chmod +x temporal
-        ./temporal server start-dev
+        ./temporal server start-dev &
     
     - name: Run unit tests
       env:
