@@ -52,6 +52,13 @@ public class OnConflictOptions {
   private final boolean attachCompletionCallbacks;
   private final boolean attachLinks;
 
+  private OnConflictOptions(
+      boolean attachRequestId, boolean attachCompletionCallbacks, boolean attachLinks) {
+    this.attachRequestId = attachRequestId;
+    this.attachCompletionCallbacks = attachCompletionCallbacks;
+    this.attachLinks = attachLinks;
+  }
+
   public boolean isAttachRequestId() {
     return attachRequestId;
   }
@@ -89,13 +96,6 @@ public class OnConflictOptions {
         + ", attachLinks="
         + attachLinks
         + '}';
-  }
-
-  private OnConflictOptions(
-      boolean attachRequestId, boolean attachCompletionCallbacks, boolean attachLinks) {
-    this.attachRequestId = attachRequestId;
-    this.attachCompletionCallbacks = attachCompletionCallbacks;
-    this.attachLinks = attachLinks;
   }
 
   public static final class Builder {
