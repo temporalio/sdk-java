@@ -801,7 +801,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String taskTimeout =
           String.valueOf(Timestamps.between(store.currentTime(), task.getDeadline()).getSeconds());
       Request.Builder req =
-          task.getTask().getRequestBuilder().putHeader(Header.REQUEST_TIMEOUT, taskTimeout + "s");
+          task.getTask()
+              .getRequestBuilder()
+              .putHeader(Header.REQUEST_TIMEOUT.toLowerCase(), taskTimeout + "s");
       PollNexusTaskQueueResponse.Builder resp = task.getTask().setRequest(req);
 
       responseObserver.onNext(resp.build());
