@@ -262,16 +262,17 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     lock.lock();
     try {
       String newRunId = UUID.randomUUID().toString();
-      StartWorkflowExecutionResponse dedupedResponse = dedupedRequest(startRequest);
-      if (dedupedResponse != null) {
-        return dedupedResponse;
-      }
 
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
 
         if (status == WORKFLOW_EXECUTION_STATUS_RUNNING) {
+          StartWorkflowExecutionResponse dedupedResponse = dedupedRequest(startRequest, existing);
+          if (dedupedResponse != null) {
+            return dedupedResponse;
+          }
+
           if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
               || conflictPolicy
                   == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING) {
@@ -1898,25 +1899,22 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   private StartWorkflowExecutionResponse dedupedRequest(
-      StartWorkflowExecutionRequest startRequest) {
+      StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existingWorkflow) {
     String requestId = startRequest.getRequestId();
-    if (!requestId.isEmpty()) {
-      for (TestWorkflowMutableState state : executions.values()) {
-        String existingRequestId = state.getStartRequest().getRequestId();
-        if (requestId.equals(existingRequestId)) {
-          if (state.getWorkflowExecutionStatus()
-              == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING) {
-            if (startRequest.hasOnConflictOptions()) {
-              state.applyOnConflictOptions(startRequest);
-            }
-            return StartWorkflowExecutionResponse.newBuilder()
-                .setRunId(state.getExecutionId().getExecution().getRunId())
-                .build();
-          }
-          break;
-        }
-      }
+    String existingRequestId = existingWorkflow.getStartRequest().getRequestId();
+    if (existingRequestId.equals(requestId)) {
+      return StartWorkflowExecutionResponse.newBuilder()
+          .setStarted(true)
+          .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
+          .build();
     }
+
+    if (existingWorkflow.hasRequestId(requestId)) {
+      return StartWorkflowExecutionResponse.newBuilder()
+          .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
+          .build();
+    }
+
     return null;
   }
 

@@ -155,6 +155,10 @@ class StateMachines {
       this.lastFailure = Objects.requireNonNull(lastFailure);
     }
 
+    boolean hasRequestId(@Nonnull String requestId) {
+      return requestIds.contains(requestId);
+    }
+
     void addRequestId(@Nonnull String requestId) {
       requestIds.add(requestId);
     }

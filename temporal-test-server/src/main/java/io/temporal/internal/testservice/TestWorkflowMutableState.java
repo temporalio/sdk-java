@@ -145,4 +145,6 @@ interface TestWorkflowMutableState {
   Optional<TestWorkflowMutableState> getParent();
 
   boolean isTerminalState();
+
+  boolean hasRequestId(String requestId);
 }

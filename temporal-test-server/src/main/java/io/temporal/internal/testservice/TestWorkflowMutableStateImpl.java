@@ -2032,6 +2032,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return isTerminalState(workflowState);
   }
 
+  @Override
+  public boolean hasRequestId(@Nonnull String requestId) {
+    return workflow.getData().hasRequestId(requestId);
+  }
+
   private void updateHeartbeatTimer(
       RequestContext ctx,
       long activityId,
