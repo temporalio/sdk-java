@@ -259,6 +259,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     lock.lock();
     try {
       String newRunId = UUID.randomUUID().toString();
+      StartWorkflowExecutionResponse dedupedResponse = dedupedRequest(startRequest);
+      if (dedupedResponse != null) {
+        return dedupedResponse;
+      }
+
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
@@ -286,10 +291,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           } else if (conflictPolicy
               == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
             if (startRequest.hasOnConflictOptions()) {
-              return existing.applyOnConflictOptions(startRequest);
+              existing.applyOnConflictOptions(startRequest);
             }
             return StartWorkflowExecutionResponse.newBuilder()
                 .setRunId(existing.getExecutionId().getExecution().getRunId())
+                .setStarted(true)
                 .build();
           } else {
             return throwDuplicatedWorkflow(startRequest, existing);
@@ -1857,6 +1863,30 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
     }
     return workflowServiceStubs;
+  }
+
+  private StartWorkflowExecutionResponse dedupedRequest(
+      StartWorkflowExecutionRequest startRequest) {
+    String requestId = startRequest.getRequestId();
+    if (!requestId.isEmpty()) {
+      for (TestWorkflowMutableState state : executions.values()) {
+        String existingRequestId = state.getStartRequest().getRequestId();
+        if (requestId.equals(existingRequestId)) {
+          if (state.getWorkflowExecutionStatus()
+              == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING) {
+            if (startRequest.hasOnConflictOptions()) {
+              state.applyOnConflictOptions(startRequest);
+            }
+            return StartWorkflowExecutionResponse.newBuilder()
+                .setRunId(state.getExecutionId().getExecution().getRunId())
+                .setStarted(true)
+                .build();
+          }
+          break;
+        }
+      }
+    }
+    return null;
   }
 
   private static StatusRuntimeException createInvalidArgument(String description) {

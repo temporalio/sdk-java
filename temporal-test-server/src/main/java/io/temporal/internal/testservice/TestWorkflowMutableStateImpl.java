@@ -615,21 +615,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public StartWorkflowExecutionResponse applyOnConflictOptions(
-      @Nonnull StartWorkflowExecutionRequest request) {
+  public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
     lock.lock();
     try {
-      StateMachines.WorkflowData data = workflow.getData();
       OnConflictOptions options = request.getOnConflictOptions();
-
-      StartWorkflowExecutionResponse response =
-          StartWorkflowExecutionResponse.newBuilder()
-              .setRunId(getExecutionId().getExecution().getRunId())
-              .build();
-      if (options.getAttachRequestId() && data.hasRequestId(request.getRequestId())) {
-        return response;
-      }
-
       WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
           WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
       if (options.getAttachRequestId()) {
@@ -653,11 +642,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ctx.addEvent(eventBuilder.build());
       store.save(ctx);
 
+      StateMachines.WorkflowData data = workflow.getData();
       if (options.getAttachRequestId()) {
         data.addRequestId(request.getRequestId());
       }
-
-      return response;
     } finally {
       lock.unlock();
     }
