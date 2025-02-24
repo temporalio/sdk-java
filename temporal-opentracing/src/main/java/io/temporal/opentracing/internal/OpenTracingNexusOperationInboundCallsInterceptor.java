@@ -20,7 +20,7 @@
 
 package io.temporal.opentracing.internal;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -49,8 +49,7 @@ public class OpenTracingNexusOperationInboundCallsInterceptor
   }
 
   @Override
-  public StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException {
+  public StartOperationOutput startOperation(StartOperationInput input) throws OperationException {
     SpanContext rootSpanContext =
         contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders(), tracer);
 

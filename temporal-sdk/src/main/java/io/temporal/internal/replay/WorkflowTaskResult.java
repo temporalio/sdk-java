@@ -41,6 +41,8 @@ public final class WorkflowTaskResult {
     private boolean forceWorkflowTask;
     private int nonfirstLocalActivityAttempts;
     private List<Integer> sdkFlags;
+    private String writeSdkName;
+    private String writeSdkVersion;
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
@@ -77,6 +79,16 @@ public final class WorkflowTaskResult {
       return this;
     }
 
+    public Builder setWriteSdkName(String writeSdkName) {
+      this.writeSdkName = writeSdkName;
+      return this;
+    }
+
+    public Builder setWriteSdkVersion(String writeSdkVersion) {
+      this.writeSdkVersion = writeSdkVersion;
+      return this;
+    }
+
     public WorkflowTaskResult build() {
       return new WorkflowTaskResult(
           commands == null ? Collections.emptyList() : commands,
@@ -85,7 +97,9 @@ public final class WorkflowTaskResult {
           finalCommand,
           forceWorkflowTask,
           nonfirstLocalActivityAttempts,
-          sdkFlags == null ? Collections.emptyList() : sdkFlags);
+          sdkFlags == null ? Collections.emptyList() : sdkFlags,
+          writeSdkName,
+          writeSdkVersion);
     }
   }
 
@@ -96,6 +110,8 @@ public final class WorkflowTaskResult {
   private final boolean forceWorkflowTask;
   private final int nonfirstLocalActivityAttempts;
   private final List<Integer> sdkFlags;
+  private final String writeSdkName;
+  private final String writeSdkVersion;
 
   private WorkflowTaskResult(
       List<Command> commands,
@@ -104,7 +120,9 @@ public final class WorkflowTaskResult {
       boolean finalCommand,
       boolean forceWorkflowTask,
       int nonfirstLocalActivityAttempts,
-      List<Integer> sdkFlags) {
+      List<Integer> sdkFlags,
+      String writeSdkName,
+      String writeSdkVersion) {
     this.commands = commands;
     this.messages = messages;
     this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
@@ -115,6 +133,8 @@ public final class WorkflowTaskResult {
     this.finalCommand = finalCommand;
     this.forceWorkflowTask = forceWorkflowTask;
     this.sdkFlags = sdkFlags;
+    this.writeSdkName = writeSdkName;
+    this.writeSdkVersion = writeSdkVersion;
   }
 
   public List<Command> getCommands() {
@@ -144,5 +164,13 @@ public final class WorkflowTaskResult {
 
   public List<Integer> getSdkFlags() {
     return sdkFlags;
+  }
+
+  public String getWriteSdkName() {
+    return writeSdkName;
+  }
+
+  public String getWriteSdkVersion() {
+    return writeSdkVersion;
   }
 }

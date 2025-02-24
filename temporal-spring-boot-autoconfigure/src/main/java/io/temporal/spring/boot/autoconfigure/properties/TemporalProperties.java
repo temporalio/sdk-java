@@ -29,13 +29,16 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 @ConfigurationProperties(prefix = "spring.temporal")
 public class TemporalProperties extends NamespaceProperties {
+
   private final @NestedConfigurationProperty @Nonnull ConnectionProperties connection;
   private final @NestedConfigurationProperty @Nullable TestServerProperties testServer;
   private final @Nullable Boolean startWorkers;
+  private final @Nullable List<NonRootNamespaceProperties> namespaces;
 
   @ConstructorBinding
   public TemporalProperties(
       @Nullable String namespace,
+      @Nullable List<NonRootNamespaceProperties> namespaces,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
       @Nullable WorkflowCacheProperties workflowCache,
@@ -46,6 +49,11 @@ public class TemporalProperties extends NamespaceProperties {
     this.connection = connection;
     this.testServer = testServer;
     this.startWorkers = startWorkers;
+    this.namespaces = namespaces;
+  }
+
+  public List<NonRootNamespaceProperties> getNamespaces() {
+    return namespaces;
   }
 
   @Nonnull

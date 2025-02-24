@@ -43,6 +43,7 @@ import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.internal.worker.WorkflowTaskHandler;
+import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -206,6 +207,34 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskQueue().getName());
     assertEquals(Durations.fromSeconds(5), attributes.getScheduleToStartTimeout());
+  }
+
+  @Test
+  public void setsSdkNameAndVersionIfNotSetInHistory() throws Throwable {
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+
+    WorkflowExecutorCache cache =
+        new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope());
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
+            "namespace",
+            setUpMockWorkflowFactory(),
+            cache,
+            SingleWorkerOptions.newBuilder().build(),
+            InternalUtils.createStickyTaskQueue("sticky", "taskQueue"),
+            Duration.ofSeconds(5),
+            testWorkflowRule.getWorkflowServiceStubs(),
+            null);
+
+    PollWorkflowTaskQueueResponse workflowTask =
+        HistoryUtils.generateWorkflowTaskWithInitialHistory();
+
+    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
+
+    assertTrue(result.isCompletionCommand());
+    assertEquals(Version.SDK_NAME, result.getTaskCompleted().getSdkMetadata().getSdkName());
+    assertEquals(
+        Version.LIBRARY_VERSION, result.getTaskCompleted().getSdkMetadata().getSdkVersion());
   }
 
   private ReplayWorkflowFactory setUpMockWorkflowFactory() throws Throwable {

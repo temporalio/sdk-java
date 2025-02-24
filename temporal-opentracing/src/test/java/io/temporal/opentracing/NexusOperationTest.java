@@ -111,6 +111,7 @@ public class NexusOperationTest {
   public static class OtherWorkflowImpl implements TestOtherWorkflow {
     @Override
     public String workflow(String input) {
+      Workflow.sleep(Duration.ofSeconds(1));
       return "Hello, " + input + "!";
     }
   }

@@ -123,6 +123,8 @@ spring.temporal:
           - your.package.YouWorkflowImpl
         activity-beans:
           - activity-bean-name1
+        nexus-service-beans:
+          - nexus-service-bean-name1
         # capacity:
           # max-concurrent-workflow-task-executors: 200
           # max-concurrent-activity-executors: 200
@@ -146,8 +148,8 @@ spring.temporal:
 
 ## Auto-discovery
 
-Allows to skip specifying Workflow classes and Activity beans explicitly in the config
-by referencing Worker Task Queue names or Worker Names on Workflow and Activity implementations.
+Allows to skip specifying Workflow classes, Activity beans, and Nexus Service beans explicitly in the config
+by referencing Worker Task Queue names or Worker Names on Workflow, Activity implementations, and Nexus Service implementations.
 Auto-discovery is applied after and on top of an explicit configuration.
 
 Add the following to your `application.yml` to auto-discover workflows and activities from your classpath.
@@ -156,15 +158,16 @@ Add the following to your `application.yml` to auto-discover workflows and activ
 spring.temporal:
   workers-auto-discovery:
     packages:
-      - your.package # enumerate all the packages that contain your workflow and activity implementations
+      - your.package # enumerate all the packages that contain your workflow, activity implementations, and nexus service implementations.
 ```
 
 What is auto-discovered:
 - Workflows implementation classes annotated with `io.temporal.spring.boot.WorkflowImpl`
 - Activity beans present Spring context whose implementations are annotated with `io.temporal.spring.boot.ActivityImpl`
+- Nexus Service beans present in Spring context whose implementations are annotated with `io.temporal.spring.boot.NexusServiceImpl`
 - Workers if a Task Queue is referenced by the annotations but not explicitly configured. Default configuration will be used.
 
-Auto-discovered workflow implementation classes and activity beans will be registered with the configured workers if not already registered.
+Auto-discovered workflow implementation classes, activity beans, and nexus service beans will be registered with the configured workers if not already registered.
 
 ### Referencing Worker names vs Task Queues
 
@@ -256,4 +259,61 @@ public class Test {
 }
 ```
 
+# Running Multiple Name Space (experimental)
 
+Along with the root namespace, you can configure multiple non-root namespaces in the application.yml file. Different namespaces can have different configurations including but not limited to different connection options, registered workflows/activities, data converters etc.
+
+```yml
+spring.temporal:
+    namespaces:
+      - namespace: assign
+        alias: assign
+        workers-auto-discovery:
+          packages: com.component.temporal.assign
+        workers:
+          - task-queue: global
+      - namespace: unassign
+        alias: unassign
+        workers-auto-discovery:
+          packages: com.component.temporal.unassign
+        workers:
+          - task-queue: global
+```
+
+## Customization
+
+All customization points for the root namespace also exist for the non-root namespaces. To specify for a particular 
+namespace users just need to append the alias/namespace to the bean.
+
+```java
+    // TemporalOptionsCustomizer type beans must start with the namespace/alias you defined and end with function class 
+    // name you want to customizer and concat Customizer as the bean name.
+    @Bean
+    TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder> assignWorkflowServiceStubsCustomizer() {
+        return builder -> builder.setKeepAliveTime(Duration.ofHours(1));
+    }
+
+    // Data converter is also supported
+    @Bean
+    DataConverter assignDataConverter() {
+        return DataConverter.getDefaultInstance();
+    }
+```
+
+## Injecting
+
+If you want to autowire different `WorkflowClient` instances from different namespaces, you can use the `@Resource` 
+annotation with the bean name corresponding to the namespace alias + `WorkflowClient`:
+
+```java
+    // temporalWorkflowClient is the primary and rootNamespace bean. 
+    @Resource
+    WorkflowClient workflowClient;
+
+    // Bean name here corresponds to the namespace/alias + Simple Class Name
+    @Resource(name = "assignWorkflowClient")
+    private WorkflowClient assignWorkflowClient;
+
+    @Resource(name = "unassignWorkflowClient")
+    private WorkflowClient unassignWorkflowClient;
+```

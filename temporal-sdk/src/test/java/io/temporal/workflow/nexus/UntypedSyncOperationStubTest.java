@@ -71,7 +71,7 @@ public class UntypedSyncOperationStubTest {
           serviceStub.start("operation", String.class, name);
       NexusOperationExecution syncOpExec = syncOpHandle.getExecution().get();
       // Execution id is not present for synchronous operations
-      if (syncOpExec.getOperationId().isPresent()) {
+      if (syncOpExec.getOperationToken().isPresent()) {
         Assert.fail("Execution id is present");
       }
       // Result should always be completed for a synchronous operations when the Execution promise

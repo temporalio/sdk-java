@@ -26,6 +26,7 @@ import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.client.OnConflictOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
@@ -79,6 +80,7 @@ public final class InternalUtils {
    * @return a new stub bound to the same workflow as the given stub, but with the Nexus callback
    *     URL and headers set
    */
+  @SuppressWarnings("deprecation") // Check the OPERATION_ID header for backwards compatibility
   public static WorkflowStub createNexusBoundStub(
       WorkflowStub stub, NexusStartWorkflowRequest request) {
     if (!stub.getOptions().isPresent()) {
@@ -102,6 +104,9 @@ public final class InternalUtils {
                     () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
     if (!headers.containsKey(Header.OPERATION_ID)) {
       headers.put(Header.OPERATION_ID.toLowerCase(), options.getWorkflowId());
+    }
+    if (!headers.containsKey(Header.OPERATION_TOKEN)) {
+      headers.put(Header.OPERATION_TOKEN.toLowerCase(), options.getWorkflowId());
     }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)
@@ -140,6 +145,12 @@ public final class InternalUtils {
               .filter(link -> link != null)
               .collect(Collectors.toList()));
     }
+    nexusWorkflowOptions.setOnConflictOptions(
+        OnConflictOptions.newBuilder()
+            .setAttachRequestId(true)
+            .setAttachLinks(true)
+            .setAttachCompletionCallbacks(true)
+            .build());
     return stub.newInstance(nexusWorkflowOptions.build());
   }
 

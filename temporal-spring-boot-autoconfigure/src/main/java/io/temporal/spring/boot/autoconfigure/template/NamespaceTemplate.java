@@ -27,7 +27,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
-import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -35,7 +34,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class NamespaceTemplate {
-  private final @Nonnull TemporalProperties properties;
   private final @Nonnull NamespaceProperties namespaceProperties;
   private final @Nonnull WorkflowServiceStubs workflowServiceStubs;
   private final @Nullable DataConverter dataConverter;
@@ -55,7 +53,6 @@ public class NamespaceTemplate {
   private WorkersTemplate workersTemplate;
 
   public NamespaceTemplate(
-      @Nonnull TemporalProperties properties,
       @Nonnull NamespaceProperties namespaceProperties,
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
       @Nullable DataConverter dataConverter,
@@ -68,7 +65,6 @@ public class NamespaceTemplate {
       @Nullable
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
-    this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;
@@ -101,7 +97,6 @@ public class NamespaceTemplate {
     if (workersTemplate == null) {
       this.workersTemplate =
           new WorkersTemplate(
-              properties,
               namespaceProperties,
               getClientTemplate(),
               tracer,

@@ -2284,6 +2284,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
+  public void cancelNexusOperationRequestAcknowledge(NexusOperationRef ref) {
+    update(
+        ctx -> {
+          StateMachine<NexusOperationData> operation =
+              getPendingNexusOperation(ref.getScheduledEventId());
+          if (!operationInFlight(operation.getState())) {
+            return;
+          }
+          ctx.unlockTimer("cancelNexusOperationRequestAcknowledge");
+        });
+  }
+
+  @Override
   public void completeNexusOperation(NexusOperationRef ref, Payload result) {
     update(
         ctx -> {

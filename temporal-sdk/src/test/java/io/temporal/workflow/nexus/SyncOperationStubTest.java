@@ -71,7 +71,7 @@ public class SyncOperationStubTest {
       NexusOperationExecution syncExec = syncOpHandle.getExecution().get();
       // Execution id is not present for synchronous operations
       Assert.assertFalse(
-          "Operation id should not be present", syncExec.getOperationId().isPresent());
+          "Operation token should not be present", syncExec.getOperationToken().isPresent());
       // Result should always be completed for a synchronous operations when the Execution
       // is resolved
       Assert.assertTrue("Result should be completed", syncOpHandle.getResult().isCompleted());
