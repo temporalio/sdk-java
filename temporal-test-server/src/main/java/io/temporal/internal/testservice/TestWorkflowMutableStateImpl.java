@@ -616,11 +616,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
+    OnConflictOptions options = request.getOnConflictOptions();
+
+    if (options.getAttachCompletionCallbacks() && !options.getAttachRequestId()) {
+      throw Status.INVALID_ARGUMENT
+              .withDescription("on_conflict_options: attach_completion_callbacks cannot be 'true' if  attach_request_id is 'false'.")
+              .asRuntimeException();
+    }
+
+    WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
+            WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
+
     lock.lock();
     try {
-      OnConflictOptions options = request.getOnConflictOptions();
-      WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
-          WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
       if (options.getAttachRequestId()) {
         attrs.setAttachedRequestId(request.getRequestId());
       }
