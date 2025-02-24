@@ -33,7 +33,8 @@ import javax.annotation.Nullable;
 public interface WorkflowHandleFactory<T, R> {
   /**
    * Invoked every operation start call and expected to return a workflow handle to a workflow stub
-   * through the provided {@link WorkflowClient}.
+   * created with the {@link WorkflowClient} provided by {@link
+   * NexusOperationContext#getWorkflowClient()}.
    */
   @Nullable
   WorkflowHandle<R> apply(OperationContext context, OperationStartDetails details, T input);
