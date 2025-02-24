@@ -295,7 +295,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             }
             return StartWorkflowExecutionResponse.newBuilder()
                 .setRunId(existing.getExecutionId().getExecution().getRunId())
-                .setStarted(true)
                 .build();
           } else {
             return throwDuplicatedWorkflow(startRequest, existing);
@@ -1879,7 +1878,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             }
             return StartWorkflowExecutionResponse.newBuilder()
                 .setRunId(state.getExecutionId().getExecution().getRunId())
-                .setStarted(true)
                 .build();
           }
           break;
