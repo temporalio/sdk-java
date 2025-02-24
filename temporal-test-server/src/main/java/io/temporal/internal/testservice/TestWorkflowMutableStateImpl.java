@@ -649,7 +649,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       ctx.addEvent(eventBuilder.build());
-      store.save(ctx);
+      nextEventId = ctx.commitChanges(store);
 
       StateMachines.WorkflowData data = workflow.getData();
       if (options.getAttachRequestId()) {
