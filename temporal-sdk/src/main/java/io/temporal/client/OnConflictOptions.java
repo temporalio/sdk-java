@@ -20,6 +20,7 @@
 
 package io.temporal.client;
 
+import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 
@@ -116,7 +117,10 @@ public class OnConflictOptions {
       return this;
     }
 
-    /** Attaches the completion callbacks to the running workflow. */
+    /**
+     * Attaches the completion callbacks to the running workflow. If true, AttachRequestId must be
+     * true.
+     */
     public Builder setAttachCompletionCallbacks(boolean attachCompletionCallbacks) {
       this.attachCompletionCallbacks = attachCompletionCallbacks;
       return this;
@@ -129,6 +133,10 @@ public class OnConflictOptions {
     }
 
     public OnConflictOptions build() {
+      if (attachCompletionCallbacks) {
+        Preconditions.checkState(
+            attachRequestId, "AttachRequestId must be true if AttachCompletionCallbacks is true");
+      }
       return new OnConflictOptions(attachRequestId, attachCompletionCallbacks, attachLinks);
     }
   }
