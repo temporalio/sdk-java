@@ -81,7 +81,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
     } catch (JsonProcessingException e) {
       // Not expected as the link is constructed by the SDK.
       throw new HandlerException(
-          HandlerException.ErrorType.INTERNAL,
+          HandlerException.ErrorType.BAD_REQUEST,
           new IllegalArgumentException("failed to generate workflow operation token", e));
     }
     // Attach the link to the operation result.
@@ -121,7 +121,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
               operationCancelDetails.getOperationToken());
     } catch (IllegalArgumentException e) {
       throw new HandlerException(
-          HandlerException.ErrorType.INTERNAL,
+          HandlerException.ErrorType.BAD_REQUEST,
           new IllegalArgumentException("failed to parse operation token", e));
     }
 
