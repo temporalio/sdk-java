@@ -37,6 +37,7 @@ import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -155,11 +156,14 @@ public final class InternalUtils {
             .build());
 
     // TODO(klassenq) temporarily blocking conflict policy USE_EXISTING.
-    if (options.getWorkflowIdConflictPolicy().equals(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)) {
+    if (Objects.equals(
+        WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
+        options.getWorkflowIdConflictPolicy())) {
       throw new HandlerException(
-              HandlerException.ErrorType.INTERNAL,
-              new IllegalArgumentException("Workflow ID conflict policy UseExisting is not supported for Nexus WorkflowRunOperation."),
-              HandlerException.RetryBehavior.NON_RETRYABLE);
+          HandlerException.ErrorType.INTERNAL,
+          new IllegalArgumentException(
+              "Workflow ID conflict policy UseExisting is not supported for Nexus WorkflowRunOperation."),
+          HandlerException.RetryBehavior.NON_RETRYABLE);
     }
     return stub.newInstance(nexusWorkflowOptions.build());
   }
