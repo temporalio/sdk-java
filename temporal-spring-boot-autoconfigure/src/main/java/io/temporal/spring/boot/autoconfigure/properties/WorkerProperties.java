@@ -114,7 +114,7 @@ public class WorkerProperties {
 
     /**
      * @param maxConcurrentWorkflowTaskExecutors defines {@link
-     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentWorkflowTaskPollers(int)}
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentWorkflowTaskExecutionSize(int)}
      * @param maxConcurrentActivityExecutors defines {@link
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityExecutionSize(int)}
      * @param maxConcurrentLocalActivityExecutors defines {@link
