@@ -22,9 +22,11 @@ package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
 import io.nexusrpc.Header;
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.OnConflictOptions;
 import io.temporal.client.WorkflowOptions;
@@ -35,6 +37,7 @@ import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -151,6 +154,17 @@ public final class InternalUtils {
             .setAttachLinks(true)
             .setAttachCompletionCallbacks(true)
             .build());
+
+    // TODO(klassenq) temporarily blocking conflict policy USE_EXISTING.
+    if (Objects.equals(
+        WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
+        options.getWorkflowIdConflictPolicy())) {
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          new IllegalArgumentException(
+              "Workflow ID conflict policy UseExisting is not supported for Nexus WorkflowRunOperation."),
+          HandlerException.RetryBehavior.NON_RETRYABLE);
+    }
     return stub.newInstance(nexusWorkflowOptions.build());
   }
 
