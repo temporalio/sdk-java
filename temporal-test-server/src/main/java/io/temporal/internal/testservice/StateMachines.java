@@ -132,8 +132,6 @@ class StateMachines {
 
     Functions.Proc runTimerCancellationHandle;
 
-    private final Set<String> requestIds = new HashSet<>();
-
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
         Duration backoffStartInterval,
@@ -153,14 +151,6 @@ class StateMachines {
           Preconditions.checkNotNull(originalExecutionRunId, "originalExecutionRunId");
       this.continuedExecutionRunId = continuedExecutionRunId;
       this.lastFailure = Objects.requireNonNull(lastFailure);
-    }
-
-    boolean hasRequestId(@Nonnull String requestId) {
-      return requestIds.contains(requestId);
-    }
-
-    void addRequestId(@Nonnull String requestId) {
-      requestIds.add(requestId);
     }
 
     @Override
@@ -183,9 +173,6 @@ class StateMachines {
           + '\''
           + ", continuedExecutionRunId="
           + continuedExecutionRunId
-          + '\''
-          + ", requestIds="
-          + requestIds
           + '}';
     }
   }

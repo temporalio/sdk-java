@@ -146,5 +146,5 @@ interface TestWorkflowMutableState {
 
   boolean isTerminalState();
 
-  boolean hasRequestId(String requestId);
+  boolean isRequestIdAttached(String requestId);
 }

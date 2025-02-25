@@ -55,6 +55,7 @@ import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
+import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtoUtils;
@@ -258,17 +259,18 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
     }
 
+    validateOnConflictOptions(startRequest);
+
     TestWorkflowMutableState existing;
     lock.lock();
     try {
       String newRunId = UUID.randomUUID().toString();
-
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
 
         if (status == WORKFLOW_EXECUTION_STATUS_RUNNING) {
-          StartWorkflowExecutionResponse dedupedResponse = dedupedRequest(startRequest, existing);
+          StartWorkflowExecutionResponse dedupedResponse = dedupeRequest(startRequest, existing);
           if (dedupedResponse != null) {
             return dedupedResponse;
           }
@@ -298,6 +300,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               existing.applyOnConflictOptions(startRequest);
             }
             return StartWorkflowExecutionResponse.newBuilder()
+                .setStarted(false)
                 .setRunId(existing.getExecutionId().getExecution().getRunId())
                 .build();
           } else {
@@ -368,6 +371,17 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 "WorkflowId: %s, " + "RunId: %s", execution.getWorkflowId(), execution.getRunId())),
         error,
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
+  }
+
+  private void validateOnConflictOptions(StartWorkflowExecutionRequest startRequest) {
+    if (!startRequest.hasOnConflictOptions()) {
+      return;
+    }
+    OnConflictOptions options = startRequest.getOnConflictOptions();
+    if (options.getAttachCompletionCallbacks() && !options.getAttachRequestId()) {
+      throw createInvalidArgument(
+          "Invalid OnConflictOptions: AttachCompletionCallbacks cannot be 'true' if  AttachRequestId is 'false'.");
+    }
   }
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
@@ -1898,7 +1912,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return workflowServiceStubs;
   }
 
-  private StartWorkflowExecutionResponse dedupedRequest(
+  private StartWorkflowExecutionResponse dedupeRequest(
       StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existingWorkflow) {
     String requestId = startRequest.getRequestId();
     String existingRequestId = existingWorkflow.getStartRequest().getRequestId();
@@ -1909,8 +1923,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           .build();
     }
 
-    if (existingWorkflow.hasRequestId(requestId)) {
+    if (existingWorkflow.isRequestIdAttached(requestId)) {
       return StartWorkflowExecutionResponse.newBuilder()
+          .setStarted(false)
           .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
           .build();
     }

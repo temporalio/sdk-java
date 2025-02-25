@@ -137,6 +137,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
   private Map<String, Payload> currentMemo;
+  private final Set<String> attachedRequestIds = new HashSet<>();
+  private final List<Callback> completionCallbacks = new ArrayList<>();
 
   /**
    * @param retryState present if workflow is a retry
@@ -185,6 +187,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.workflow = StateMachines.newWorkflowStateMachine(data);
     this.workflowTaskStateMachine = StateMachines.newWorkflowTaskStateMachine(store, startRequest);
     this.currentMemo = new HashMap(startRequest.getMemo().getFieldsMap());
+    this.completionCallbacks.addAll(startRequest.getCompletionCallbacksList());
   }
 
   /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */
@@ -616,48 +619,25 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
-    OnConflictOptions options = request.getOnConflictOptions();
+    update(
+        ctx -> {
+          OnConflictOptions options = request.getOnConflictOptions();
+          String requestId = null;
+          List<Callback> completionCallbacks = null;
+          List<Link> links = null;
 
-    if (options.getAttachCompletionCallbacks() && !options.getAttachRequestId()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "on_conflict_options: attach_completion_callbacks cannot be 'true' if  attach_request_id is 'false'.")
-          .asRuntimeException();
-    }
+          if (options.getAttachRequestId()) {
+            requestId = request.getRequestId();
+          }
+          if (options.getAttachCompletionCallbacks()) {
+            completionCallbacks = request.getCompletionCallbacksList();
+          }
+          if (options.getAttachLinks()) {
+            links = request.getLinksList();
+          }
 
-    WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
-        WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
-
-    lock.lock();
-    try {
-      if (options.getAttachRequestId()) {
-        attrs.setAttachedRequestId(request.getRequestId());
-      }
-
-      if (options.getAttachCompletionCallbacks()
-          && !request.getCompletionCallbacksList().isEmpty()) {
-        attrs.addAllAttachedCompletionCallbacks(request.getCompletionCallbacksList());
-      }
-
-      HistoryEvent.Builder eventBuilder =
-          HistoryEvent.newBuilder()
-              .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
-              .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
-      if (options.getAttachLinks()) {
-        eventBuilder.addAllLinks(request.getLinksList());
-      }
-
-      RequestContext ctx = new RequestContext(clock, this, nextEventId);
-      ctx.addEvent(eventBuilder.build());
-      nextEventId = ctx.commitChanges(store);
-
-      StateMachines.WorkflowData data = workflow.getData();
-      if (options.getAttachRequestId()) {
-        data.addRequestId(request.getRequestId());
-      }
-    } finally {
-      lock.unlock();
-    }
+          addWorkflowExecutionOptionsUpdatedEvent(ctx, requestId, completionCallbacks, links);
+        });
   }
 
   private void failWorkflowTaskWithAReason(
@@ -1743,7 +1723,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
         });
 
-    for (Callback cb : startRequest.getCompletionCallbacksList()) {
+    for (Callback cb : completionCallbacks) {
       if (!cb.hasNexus()) {
         // test server only supports nexus callbacks currently
         log.warn("skipping non-nexus completion callback");
@@ -2033,8 +2013,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean hasRequestId(@Nonnull String requestId) {
-    return workflow.getData().hasRequestId(requestId);
+  public boolean isRequestIdAttached(@Nonnull String requestId) {
+    return attachedRequestIds.contains(requestId);
   }
 
   private void updateHeartbeatTimer(
@@ -3479,6 +3459,31 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setWorkflowExecutionSignaledEventAttributes(a)
             .build();
     ctx.addEvent(executionSignaled);
+  }
+
+  private void addWorkflowExecutionOptionsUpdatedEvent(
+      RequestContext ctx, String requestId, List<Callback> completionCallbacks, List<Link> links) {
+    WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
+        WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
+    if (requestId != null) {
+      attrs.setAttachedRequestId(requestId);
+      this.attachedRequestIds.add(requestId);
+    }
+    if (completionCallbacks != null) {
+      attrs.addAllAttachedCompletionCallbacks(completionCallbacks);
+      this.completionCallbacks.addAll(completionCallbacks);
+    }
+
+    HistoryEvent.Builder event =
+        HistoryEvent.newBuilder()
+            .setWorkerMayIgnore(true)
+            .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+            .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
+    if (links != null) {
+      event.addAllLinks(links);
+    }
+
+    ctx.addEvent(event.build());
   }
 
   private StateMachine<ActivityTaskData> getPendingActivityById(String activityId) {
