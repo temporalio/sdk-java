@@ -26,6 +26,7 @@ import io.temporal.worker.tuning.*;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -48,10 +49,10 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public SlotPermit reserveSlot(SlotReservationData dat) throws InterruptedException {
-    SlotPermit p = inner.reserveSlot(createCtx(dat));
-    issuedSlots.incrementAndGet();
-    return p;
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReservationData dat) {
+    CompletableFuture<SlotPermit> future = inner.reserveSlot(createCtx(dat));
+    future.thenAccept(permit -> issuedSlots.incrementAndGet());
+    return future;
   }
 
   public Optional<SlotPermit> tryReserveSlot(SlotReservationData dat) {

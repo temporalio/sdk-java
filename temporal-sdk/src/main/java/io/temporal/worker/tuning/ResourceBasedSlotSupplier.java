@@ -24,6 +24,7 @@ import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.*;
 
 /** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
 @Experimental
@@ -32,6 +33,18 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   private final ResourceBasedController resourceController;
   private final ResourceBasedSlotOptions options;
   private Instant lastSlotIssuedAt = Instant.EPOCH;
+  // For slot reservations that are waiting to re-check resource usage
+  private static final ScheduledExecutorService scheduler =
+      Executors.newScheduledThreadPool(
+          // Two threads seem needed here, so that reading PID decisions doesn't interfere overly
+          // with firing off scheduled tasks or one another.
+          2,
+          r -> {
+            Thread t = new Thread(r);
+            t.setName("ResourceBasedSlotSupplier.scheduler");
+            t.setDaemon(true);
+            return t;
+          });
 
   /**
    * Construct a slot supplier for workflow tasks with the given resource controller and options.
@@ -139,29 +152,43 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    while (true) {
-      if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
-        return new SlotPermit();
-      } else {
-        Duration mustWaitFor;
-        try {
-          mustWaitFor = options.getRampThrottle().minus(timeSinceLastSlotIssued());
-        } catch (ArithmeticException e) {
-          mustWaitFor = Duration.ZERO;
-        }
-        if (mustWaitFor.compareTo(Duration.ZERO) > 0) {
-          Thread.sleep(mustWaitFor.toMillis());
-        }
-
-        Optional<SlotPermit> permit = tryReserveSlot(ctx);
-        if (permit.isPresent()) {
-          return permit.get();
-        } else {
-          Thread.sleep(10);
-        }
-      }
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) {
+    if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
+      return CompletableFuture.completedFuture(new SlotPermit());
     }
+    return tryReserveSlot(ctx)
+        .map(CompletableFuture::completedFuture)
+        .orElseGet(() -> scheduleSlotAcquisition(ctx));
+  }
+
+  private CompletableFuture<SlotPermit> scheduleSlotAcquisition(SlotReserveContext<SI> ctx) {
+    Duration mustWaitFor;
+    try {
+      mustWaitFor = options.getRampThrottle().minus(timeSinceLastSlotIssued());
+    } catch (ArithmeticException e) {
+      mustWaitFor = Duration.ZERO;
+    }
+
+    CompletableFuture<Void> permitFuture;
+    if (mustWaitFor.compareTo(Duration.ZERO) > 0) {
+      permitFuture =
+          CompletableFuture.supplyAsync(() -> null, delayedExecutor(mustWaitFor.toMillis()));
+    } else {
+      permitFuture = CompletableFuture.completedFuture(null);
+    }
+
+    // After the delay, try to reserve the slot
+    return permitFuture.thenCompose(
+        ignored -> {
+          Optional<SlotPermit> permit = tryReserveSlot(ctx);
+          // If we couldn't get a slot this time, delay for a short period and try again
+          return permit
+              .map(CompletableFuture::completedFuture)
+              .orElseGet(
+                  () ->
+                      CompletableFuture.supplyAsync(() -> null, delayedExecutor(10))
+                          .thenCompose(ig -> scheduleSlotAcquisition(ctx)));
+        });
   }
 
   @Override
@@ -189,5 +216,10 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
 
   private Duration timeSinceLastSlotIssued() {
     return Duration.between(lastSlotIssuedAt, Instant.now());
+  }
+
+  // Polyfill for Java 9 delayedExecutor
+  private static Executor delayedExecutor(long delay) {
+    return r -> scheduler.schedule(() -> scheduler.execute(r), delay, TimeUnit.MILLISECONDS);
   }
 }

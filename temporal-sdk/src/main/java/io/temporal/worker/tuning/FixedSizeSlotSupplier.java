@@ -21,8 +21,11 @@
 package io.temporal.worker.tuning;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayDeque;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This implementation of {@link SlotSupplier} provides a fixed number of slots backed by a
@@ -32,18 +35,83 @@ import java.util.concurrent.*;
  */
 public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<SI> {
   private final int numSlots;
-  private final Semaphore executorSlotsSemaphore;
+  private final AsyncSemaphore executorSlotsSemaphore;
+
+  /**
+   * A simple version of an async semaphore. Unfortunately there's not any readily available
+   * properly licensed library I could find for this which is a bit shocking, but this
+   * implementation should be suitable for our needs
+   */
+  static class AsyncSemaphore {
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Queue<CompletableFuture<Void>> waiters = new ArrayDeque<>();
+    private int permits;
+
+    AsyncSemaphore(int initialPermits) {
+      this.permits = initialPermits;
+    }
+
+    /**
+     * Acquire a permit asynchronously. If a permit is available, returns a completed future,
+     * otherwise returns a future that will be completed when a permit is released.
+     */
+    public CompletableFuture<Void> acquire() {
+      lock.lock();
+      try {
+        if (permits > 0) {
+          permits--;
+          return CompletableFuture.completedFuture(null);
+        } else {
+          CompletableFuture<Void> waiter = new CompletableFuture<>();
+          waiters.add(waiter);
+          return waiter;
+        }
+      } finally {
+        lock.unlock();
+      }
+    }
+
+    public boolean tryAcquire() {
+      lock.lock();
+      try {
+        if (permits > 0) {
+          permits--;
+          return true;
+        }
+        return false;
+      } finally {
+        lock.unlock();
+      }
+    }
+
+    /**
+     * Release a permit. If there are waiting futures, completes the next one instead of
+     * incrementing the permit count.
+     */
+    public void release() {
+      lock.lock();
+      try {
+        CompletableFuture<Void> waiter = waiters.poll();
+        if (waiter != null) {
+          waiter.complete(null);
+        } else {
+          permits++;
+        }
+      } finally {
+        lock.unlock();
+      }
+    }
+  }
 
   public FixedSizeSlotSupplier(int numSlots) {
     Preconditions.checkArgument(numSlots > 0, "FixedSizeSlotSupplier must have at least one slot");
     this.numSlots = numSlots;
-    executorSlotsSemaphore = new Semaphore(numSlots);
+    executorSlotsSemaphore = new AsyncSemaphore(numSlots);
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    executorSlotsSemaphore.acquire();
-    return new SlotPermit();
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) {
+    return executorSlotsSemaphore.acquire().thenApply(ignored -> new SlotPermit());
   }
 
   @Override

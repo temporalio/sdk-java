@@ -22,6 +22,7 @@ package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A SlotSupplier is responsible for managing the number of slots available for a given type of
@@ -36,16 +37,19 @@ import java.util.Optional;
 @Experimental
 public interface SlotSupplier<SI extends SlotInfo> {
   /**
-   * This function is called before polling for new tasks. Your implementation should block until a
-   * slot is available then return a permit to use that slot.
+   * This function is called before polling for new tasks. Your implementation should return a
+   * Promise that is completed with a {@link SlotPermit} when one becomes available.
+   *
+   * <p>These futures may be cancelled if the worker is shutting down or otherwise abandons the
+   * reservation. This can cause an {@link InterruptedException} to be thrown, in the thread running
+   * your implementation. You may want to catch it to perform any necessary cleanup, and then you
+   * should rethrow the exception.
    *
    * @param ctx The context for slot reservation.
-   * @return A permit to use the slot which may be populated with your own data.
-   * @throws InterruptedException The worker may choose to interrupt the thread in order to cancel
-   *     the reservation, or during shutdown. You may perform cleanup, and then should rethrow the
-   *     exception.
+   * @return A future that will be completed with a permit to use the slot when one becomes
+   *     available. Never return null, or complete the future with null.
    */
-  SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException;
+  CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx);
 
   /**
    * This function is called when trying to reserve slots for "eager" workflow and activity tasks.
