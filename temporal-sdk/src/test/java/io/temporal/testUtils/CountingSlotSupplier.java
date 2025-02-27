@@ -22,6 +22,7 @@ package io.temporal.testUtils;
 
 import io.temporal.worker.tuning.*;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -37,10 +38,13 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   }
 
   @Override
-  public SlotPermit reserveSlot(SlotReserveContext<SI> ctx) throws InterruptedException {
-    SlotPermit p = super.reserveSlot(ctx);
-    reservedCount.incrementAndGet();
-    return p;
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) {
+    CompletableFuture<SlotPermit> p = super.reserveSlot(ctx);
+    return p.thenApply(
+        permit -> {
+          reservedCount.incrementAndGet();
+          return permit;
+        });
   }
 
   @Override
