@@ -37,7 +37,7 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +60,7 @@ public class SlotSupplierTest {
   }
 
   @Test
-  public void supplierIsCalledAppropriately() throws InterruptedException, TimeoutException {
+  public void supplierIsCalledAppropriately() {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -77,7 +77,7 @@ public class SlotSupplierTest {
                   usedSlotsWhenCalled.set(src.getUsedSlots().size());
                   return true;
                 })))
-        .thenReturn(new SlotPermit());
+        .thenReturn(CompletableFuture.completedFuture(new SlotPermit()));
 
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(5, true);
     Scope metricsScope =

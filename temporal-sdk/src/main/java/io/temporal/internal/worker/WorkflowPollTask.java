@@ -35,8 +35,12 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.tuning.*;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -123,17 +127,19 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   public WorkflowTask poll() {
     boolean isSuccessful = false;
     SlotPermit permit;
+    CompletableFuture<SlotPermit> future =
+        slotSupplier.reserveSlot(
+            new SlotReservationData(
+                pollRequest.getTaskQueue().getName(),
+                pollRequest.getIdentity(),
+                pollRequest.getWorkerVersionCapabilities().getBuildId()));
     try {
-      permit =
-          slotSupplier.reserveSlot(
-              new SlotReservationData(
-                  pollRequest.getTaskQueue().getName(),
-                  pollRequest.getIdentity(),
-                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
+      permit = future.get();
     } catch (InterruptedException e) {
+      future.cancel(true);
       Thread.currentThread().interrupt();
       return null;
-    } catch (Exception e) {
+    } catch (ExecutionException e) {
       log.warn("Error while trying to reserve a slot for workflow task", e.getCause());
       return null;
     }
