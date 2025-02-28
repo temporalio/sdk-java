@@ -110,7 +110,7 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
   }
 
   @Override
-  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) {
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
     return executorSlotsSemaphore.acquire().thenApply(ignored -> new SlotPermit());
   }
 

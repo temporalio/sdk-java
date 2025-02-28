@@ -43,13 +43,13 @@ public interface SlotSupplier<SI extends SlotInfo> {
    * <p>These futures may be cancelled if the worker is shutting down or otherwise abandons the
    * reservation. This can cause an {@link InterruptedException} to be thrown, in the thread running
    * your implementation. You may want to catch it to perform any necessary cleanup, and then you
-   * should rethrow the exception.
+   * should rethrow the exception. Other thrown exceptions will be logged.
    *
    * @param ctx The context for slot reservation.
    * @return A future that will be completed with a permit to use the slot when one becomes
    *     available. Never return null, or complete the future with null.
    */
-  CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx);
+  CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception;
 
   /**
    * This function is called when trying to reserve slots for "eager" workflow and activity tasks.
