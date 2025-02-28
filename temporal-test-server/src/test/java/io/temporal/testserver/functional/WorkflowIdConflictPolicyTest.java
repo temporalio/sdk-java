@@ -113,7 +113,9 @@ public class WorkflowIdConflictPolicyTest {
             .addLinks(
                 Link.newBuilder()
                     .setWorkflowEvent(
-                        Link.WorkflowEvent.newBuilder().setWorkflowId("some-random-workflow-id")))
+                        Link.WorkflowEvent.newBuilder()
+                            .setNamespace("some-random-namespace")
+                            .setWorkflowId("some-random-workflow-id")))
             .build();
 
     StartWorkflowExecutionResponse response2 =
@@ -162,6 +164,8 @@ public class WorkflowIdConflictPolicyTest {
         "some-random-callback-data",
         attrs.getAttachedCompletionCallbacks(0).getInternal().getData().toStringUtf8());
     Assert.assertEquals(1, event.getLinksCount());
+    Assert.assertEquals(
+        "some-random-namespace", event.getLinks(0).getWorkflowEvent().getNamespace());
     Assert.assertEquals(
         "some-random-workflow-id", event.getLinks(0).getWorkflowEvent().getWorkflowId());
 
