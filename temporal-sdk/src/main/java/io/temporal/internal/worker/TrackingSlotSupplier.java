@@ -50,7 +50,12 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
   }
 
   public CompletableFuture<SlotPermit> reserveSlot(SlotReservationData dat) {
-    CompletableFuture<SlotPermit> future = inner.reserveSlot(createCtx(dat));
+    CompletableFuture<SlotPermit> future = null;
+    try {
+      future = inner.reserveSlot(createCtx(dat));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
     future.thenAccept(permit -> issuedSlots.incrementAndGet());
     return future;
   }

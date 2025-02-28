@@ -71,13 +71,17 @@ public class SlotSupplierTest {
 
     SlotSupplier<WorkflowSlotInfo> mockSupplier = mock(SlotSupplier.class);
     AtomicInteger usedSlotsWhenCalled = new AtomicInteger(-1);
-    when(mockSupplier.reserveSlot(
-            argThat(
-                src -> {
-                  usedSlotsWhenCalled.set(src.getUsedSlots().size());
-                  return true;
-                })))
-        .thenReturn(CompletableFuture.completedFuture(new SlotPermit()));
+    try {
+      when(mockSupplier.reserveSlot(
+              argThat(
+                  src -> {
+                    usedSlotsWhenCalled.set(src.getUsedSlots().size());
+                    return true;
+                  })))
+          .thenReturn(CompletableFuture.completedFuture(new SlotPermit()));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
 
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(5, true);
     Scope metricsScope =
@@ -119,7 +123,11 @@ public class SlotSupplierTest {
 
     if (throwOnPoll) {
       assertThrows(RuntimeException.class, poller::poll);
-      verify(mockSupplier, times(1)).reserveSlot(any());
+      try {
+        verify(mockSupplier, times(1)).reserveSlot(any());
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       verify(mockSupplier, times(1)).releaseSlot(any());
       assertEquals(0, trackingSS.getUsedSlots().size());
     } else {
@@ -128,8 +136,12 @@ public class SlotSupplierTest {
       // We can't test this in the verifier, since it will get an up-to-date reference to the map
       // where the slot *is* used.
       assertEquals(0, usedSlotsWhenCalled.get());
-      verify(mockSupplier, times(1))
-          .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
+      try {
+        verify(mockSupplier, times(1))
+            .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       verify(mockSupplier, times(0)).releaseSlot(any());
       assertEquals(1, trackingSS.getUsedSlots().size());
     }

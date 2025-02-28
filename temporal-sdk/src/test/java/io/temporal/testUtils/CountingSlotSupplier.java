@@ -38,7 +38,7 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   }
 
   @Override
-  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) {
+  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
     CompletableFuture<SlotPermit> p = super.reserveSlot(ctx);
     return p.thenApply(
         permit -> {
