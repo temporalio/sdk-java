@@ -1503,6 +1503,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             identity,
             getExecutionId(),
             workflow.getData().firstExecutionRunId,
+            this,
             parent,
             parentChildInitiatedEventId);
         return;
@@ -1635,6 +1636,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         identity,
         getExecutionId(),
         workflow.getData().firstExecutionRunId,
+        this,
         parent,
         parentChildInitiatedEventId);
   }
@@ -1692,6 +1694,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         identity,
         getExecutionId(),
         workflow.getData().firstExecutionRunId,
+        this,
         parent,
         parentChildInitiatedEventId);
   }
@@ -3153,7 +3156,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setParentExecution(p.getExecutionId().getExecution()));
 
     List<CallbackInfo> callbacks =
-        this.startRequest.getCompletionCallbacksList().stream()
+        this.completionCallbacks.stream()
             .map(TestWorkflowMutableStateImpl::constructCallbackInfo)
             .collect(Collectors.toList());
 
@@ -3611,5 +3614,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         || workflowState == State.CANCELED
         || workflowState == State.TERMINATED
         || workflowState == State.CONTINUED_AS_NEW;
+  }
+
+  @Override
+  public List<Callback> getCompletionCallbacks() {
+    return completionCallbacks;
   }
 }

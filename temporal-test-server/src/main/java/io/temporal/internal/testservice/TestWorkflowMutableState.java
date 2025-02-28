@@ -22,6 +22,7 @@ package io.temporal.internal.testservice;
 
 import io.grpc.Deadline;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
@@ -32,6 +33,7 @@ import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -147,4 +149,6 @@ interface TestWorkflowMutableState {
   boolean isTerminalState();
 
   boolean isRequestIdAttached(String requestId);
+
+  List<Callback> getCompletionCallbacks();
 }

@@ -1488,6 +1488,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String identity,
       ExecutionId continuedExecutionId,
       String firstExecutionRunId,
+      TestWorkflowMutableState previousExecutionState,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId) {
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
@@ -1507,9 +1508,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     //    if (previousRunStartRequest.hasRetryPolicy()) {
     //      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
     //    }
-    if (previousRunStartRequest.getCompletionCallbacksCount() > 0) {
+    if (!previousExecutionState.getCompletionCallbacks().isEmpty()) {
       startRequestBuilder.addAllCompletionCallbacks(
-          previousRunStartRequest.getCompletionCallbacksList());
+          previousExecutionState.getCompletionCallbacks());
     }
     if (ca.hasRetryPolicy()) {
       startRequestBuilder.setRetryPolicy(ca.getRetryPolicy());

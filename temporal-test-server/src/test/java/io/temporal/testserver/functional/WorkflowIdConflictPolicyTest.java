@@ -22,15 +22,20 @@ package io.temporal.testserver.functional;
 
 import static java.util.UUID.randomUUID;
 
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.Callback;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.WorkflowExecutionOptionsUpdatedEventAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflow.v1.OnConflictOptions;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.client.*;
@@ -95,7 +100,20 @@ public class WorkflowIdConflictPolicyTest {
     StartWorkflowExecutionRequest request2 =
         request1.toBuilder()
             .setRequestId(newRequestId)
-            .setOnConflictOptions(OnConflictOptions.newBuilder().setAttachRequestId(true))
+            .setOnConflictOptions(
+                OnConflictOptions.newBuilder()
+                    .setAttachRequestId(true)
+                    .setAttachCompletionCallbacks(true)
+                    .setAttachLinks(true))
+            .addCompletionCallbacks(
+                Callback.newBuilder()
+                    .setInternal(
+                        Callback.Internal.newBuilder()
+                            .setData(ByteString.copyFromUtf8("some-random-callback-data"))))
+            .addLinks(
+                Link.newBuilder()
+                    .setWorkflowEvent(
+                        Link.WorkflowEvent.newBuilder().setWorkflowId("some-random-workflow-id")))
             .build();
 
     StartWorkflowExecutionResponse response2 =
@@ -133,8 +151,25 @@ public class WorkflowIdConflictPolicyTest {
                     item.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
             .collect(Collectors.toList());
     Assert.assertEquals(1, events.size());
+    HistoryEvent event = events.get(0);
     Assert.assertEquals(
-        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED, events.get(0).getEventType());
+        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED, event.getEventType());
+    WorkflowExecutionOptionsUpdatedEventAttributes attrs =
+        event.getWorkflowExecutionOptionsUpdatedEventAttributes();
+    Assert.assertEquals(newRequestId, attrs.getAttachedRequestId());
+    Assert.assertEquals(1, attrs.getAttachedCompletionCallbacksCount());
+    Assert.assertEquals(
+        "some-random-callback-data",
+        attrs.getAttachedCompletionCallbacks(0).getInternal().getData().toStringUtf8());
+    Assert.assertEquals(1, event.getLinksCount());
+    Assert.assertEquals(
+        "some-random-workflow-id", event.getLinks(0).getWorkflowEvent().getWorkflowId());
+
+    DescribeWorkflowAsserter asserter = describe(we);
+    Assert.assertEquals(1, asserter.getActual().getCallbacksCount());
+    Assert.assertEquals(
+        "some-random-callback-data",
+        asserter.getActual().getCallbacks(0).getCallback().getInternal().getData().toStringUtf8());
   }
 
   @Test
@@ -189,6 +224,27 @@ public class WorkflowIdConflictPolicyTest {
                     .startWorkflowExecution(request2));
 
     Assert.assertEquals(Status.Code.ALREADY_EXISTS, e.getStatus().getCode());
+  }
+
+  private DescribeWorkflowAsserter describe(WorkflowExecution execution) {
+    DescribeWorkflowAsserter result =
+        new DescribeWorkflowAsserter(
+            testWorkflowRule
+                .getWorkflowClient()
+                .getWorkflowServiceStubs()
+                .blockingStub()
+                .describeWorkflowExecution(
+                    DescribeWorkflowExecutionRequest.newBuilder()
+                        .setNamespace(
+                            testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                        .setExecution(execution)
+                        .build()));
+
+    // There are some assertions that we can always make...
+    return result
+        .assertExecutionId(execution)
+        .assertSaneTimestamps()
+        .assertTaskQueue(testWorkflowRule.getTaskQueue());
   }
 
   public static class SignalWorkflowImpl implements TestWorkflows.WorkflowWithSignal {
