@@ -1748,8 +1748,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           .build())
                   .build());
 
-      service.completeNexusOperation(
-          ref, ctx.getExecution().getWorkflowId(), startLink, completionEvent.get());
+      try {
+        service.completeNexusOperation(
+            ref, ctx.getExecution().getWorkflowId(), startLink, completionEvent.get());
+      } catch (StatusRuntimeException e) {
+        // Callback destination not found should not block processing the callbacks nor
+        // completing the workflow.
+        if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+          throw e;
+        }
+      }
     }
   }
 
