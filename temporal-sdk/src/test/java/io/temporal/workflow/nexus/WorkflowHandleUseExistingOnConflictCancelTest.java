@@ -20,8 +20,6 @@
 
 package io.temporal.workflow.nexus;
 
-import static org.junit.Assume.assumeTrue;
-
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -40,7 +38,6 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.*;
 
-@Ignore("Skipping until we can support USE_EXISTING")
 public class WorkflowHandleUseExistingOnConflictCancelTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -48,12 +45,6 @@ public class WorkflowHandleUseExistingOnConflictCancelTest {
           .setWorkflowTypes(TestNexus.class, TestOperationWorkflow.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
-
-  @Before
-  public void checkRealServer() {
-    assumeTrue(
-        "Test Server doesn't support OnConflictOption yet", SDKTestWorkflowRule.useExternalService);
-  }
 
   @Test
   public void testUseExistingCancel() {

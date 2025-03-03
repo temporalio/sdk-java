@@ -73,6 +73,7 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,6 +137,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
   private Map<String, Payload> currentMemo;
+  private final Set<String> attachedRequestIds = new HashSet<>();
+  private final List<Callback> completionCallbacks = new ArrayList<>();
 
   /**
    * @param retryState present if workflow is a retry
@@ -184,6 +187,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.workflow = StateMachines.newWorkflowStateMachine(data);
     this.workflowTaskStateMachine = StateMachines.newWorkflowTaskStateMachine(store, startRequest);
     this.currentMemo = new HashMap(startRequest.getMemo().getFieldsMap());
+    this.completionCallbacks.addAll(startRequest.getCompletionCallbacksList());
   }
 
   /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */
@@ -611,6 +615,29 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
+  }
+
+  @Override
+  public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
+    update(
+        ctx -> {
+          OnConflictOptions options = request.getOnConflictOptions();
+          String requestId = null;
+          List<Callback> completionCallbacks = null;
+          List<Link> links = null;
+
+          if (options.getAttachRequestId()) {
+            requestId = request.getRequestId();
+          }
+          if (options.getAttachCompletionCallbacks()) {
+            completionCallbacks = request.getCompletionCallbacksList();
+          }
+          if (options.getAttachLinks()) {
+            links = request.getLinksList();
+          }
+
+          addWorkflowExecutionOptionsUpdatedEvent(ctx, requestId, completionCallbacks, links);
+        });
   }
 
   private void failWorkflowTaskWithAReason(
@@ -1476,6 +1503,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             identity,
             getExecutionId(),
             workflow.getData().firstExecutionRunId,
+            this,
             parent,
             parentChildInitiatedEventId);
         return;
@@ -1608,6 +1636,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         identity,
         getExecutionId(),
         workflow.getData().firstExecutionRunId,
+        this,
         parent,
         parentChildInitiatedEventId);
   }
@@ -1665,6 +1694,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         identity,
         getExecutionId(),
         workflow.getData().firstExecutionRunId,
+        this,
         parent,
         parentChildInitiatedEventId);
   }
@@ -1696,7 +1726,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
         });
 
-    for (Callback cb : startRequest.getCompletionCallbacksList()) {
+    for (Callback cb : completionCallbacks) {
       if (!cb.hasNexus()) {
         // test server only supports nexus callbacks currently
         log.warn("skipping non-nexus completion callback");
@@ -1718,8 +1748,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           .build())
                   .build());
 
-      service.completeNexusOperation(
-          ref, ctx.getExecution().getWorkflowId(), startLink, completionEvent.get());
+      try {
+        service.completeNexusOperation(
+            ref, ctx.getExecution().getWorkflowId(), startLink, completionEvent.get());
+      } catch (StatusRuntimeException e) {
+        // Callback destination not found should not block processing the callbacks nor
+        // completing the workflow.
+        if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+          throw e;
+        }
+      }
     }
   }
 
@@ -1983,6 +2021,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public boolean isTerminalState() {
     State workflowState = workflow.getState();
     return isTerminalState(workflowState);
+  }
+
+  @Override
+  public boolean isRequestIdAttached(@Nonnull String requestId) {
+    return attachedRequestIds.contains(requestId);
   }
 
   private void updateHeartbeatTimer(
@@ -3121,7 +3164,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setParentExecution(p.getExecutionId().getExecution()));
 
     List<CallbackInfo> callbacks =
-        this.startRequest.getCompletionCallbacksList().stream()
+        this.completionCallbacks.stream()
             .map(TestWorkflowMutableStateImpl::constructCallbackInfo)
             .collect(Collectors.toList());
 
@@ -3429,6 +3472,31 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ctx.addEvent(executionSignaled);
   }
 
+  private void addWorkflowExecutionOptionsUpdatedEvent(
+      RequestContext ctx, String requestId, List<Callback> completionCallbacks, List<Link> links) {
+    WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
+        WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
+    if (requestId != null) {
+      attrs.setAttachedRequestId(requestId);
+      this.attachedRequestIds.add(requestId);
+    }
+    if (completionCallbacks != null) {
+      attrs.addAllAttachedCompletionCallbacks(completionCallbacks);
+      this.completionCallbacks.addAll(completionCallbacks);
+    }
+
+    HistoryEvent.Builder event =
+        HistoryEvent.newBuilder()
+            .setWorkerMayIgnore(true)
+            .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+            .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
+    if (links != null) {
+      event.addAllLinks(links);
+    }
+
+    ctx.addEvent(event.build());
+  }
+
   private StateMachine<ActivityTaskData> getPendingActivityById(String activityId) {
     Long scheduledEventId = activityById.get(activityId);
     if (scheduledEventId == null) {
@@ -3554,5 +3622,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         || workflowState == State.CANCELED
         || workflowState == State.TERMINATED
         || workflowState == State.CONTINUED_AS_NEW;
+  }
+
+  @Override
+  public List<Callback> getCompletionCallbacks() {
+    return completionCallbacks;
   }
 }

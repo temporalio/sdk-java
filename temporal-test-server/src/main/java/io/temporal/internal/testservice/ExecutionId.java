@@ -30,17 +30,17 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
-final class ExecutionId {
+public final class ExecutionId {
 
   private final String namespace;
   private final WorkflowExecution execution;
 
-  ExecutionId(String namespace, WorkflowExecution execution) {
+  public ExecutionId(String namespace, WorkflowExecution execution) {
     this.namespace = Objects.requireNonNull(namespace);
     this.execution = Objects.requireNonNull(execution);
   }
 
-  ExecutionId(String namespace, String workflowId, String runId) {
+  public ExecutionId(String namespace, String workflowId, String runId) {
     this(
         namespace,
         WorkflowExecution.newBuilder()
