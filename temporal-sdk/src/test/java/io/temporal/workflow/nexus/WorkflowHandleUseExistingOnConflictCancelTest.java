@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.*;
 
+@Ignore("Skipping until we can support USE_EXISTING")
 public class WorkflowHandleUseExistingOnConflictCancelTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
