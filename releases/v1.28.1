@@ -4,6 +4,8 @@
 The SDK will now automatically set the `temporal-namespace` header on all gRPC request made by the `WorkflowClient`. Users
 should no longer manually set this header.
 
+To use API keys users should follow this example:
+
 ```java
     WorkflowServiceStubs service =
         WorkflowServiceStubs.newServiceStubs(
