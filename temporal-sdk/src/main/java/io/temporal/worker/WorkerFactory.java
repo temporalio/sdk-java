@@ -216,7 +216,9 @@ public final class WorkerFactory {
 
     // Workers check and require that Temporal Server is available during start to fail-fast in case
     // of configuration issues.
-    workflowClient.getWorkflowServiceStubs().connect(null);
+    // TODO(https://github.com/temporalio/sdk-java/issues/2060) consider using describeNamespace as
+    // a connection check.
+    workflowClient.getWorkflowServiceStubs().getServerCapabilities();
 
     for (Worker worker : workers.values()) {
       worker.start();
