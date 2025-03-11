@@ -137,6 +137,18 @@ public interface WorkflowInfo {
   Optional<String> getParentRunId();
 
   /**
+   * @return Workflow ID of the root Workflow
+   */
+  @Nullable
+  String getRootWorkflowId();
+
+  /**
+   * @return Run ID of the root Workflow
+   */
+  @Nullable
+  String getRootRunId();
+
+  /**
    * @return Workflow retry attempt handled by this Workflow code execution. Starts on "1".
    */
   int getAttempt();

@@ -21,7 +21,6 @@
 package io.temporal.workflow.activityTests;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -36,7 +35,6 @@ import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -50,11 +48,6 @@ public class LocalActivityMetadataTest {
           .build();
 
   static final String localActivitySummary = "local-activity-summary";
-
-  @Before
-  public void checkRealServer() {
-    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  }
 
   @Test
   public void testLocalActivityWithMetaData() {

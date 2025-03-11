@@ -84,6 +84,11 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public WorkflowExecution getRootWorkflowExecution() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public WorkflowType getWorkflowType() {
       return WorkflowType.newBuilder().setName("dummy-workflow").build();
     }

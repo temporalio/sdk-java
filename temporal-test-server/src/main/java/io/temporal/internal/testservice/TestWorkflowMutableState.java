@@ -36,6 +36,7 @@ import io.temporal.api.workflowservice.v1.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 interface TestWorkflowMutableState {
@@ -145,6 +146,9 @@ interface TestWorkflowMutableState {
   StickyExecutionAttributes getStickyExecutionAttributes();
 
   Optional<TestWorkflowMutableState> getParent();
+
+  @Nonnull
+  TestWorkflowMutableState getRoot();
 
   boolean isTerminalState();
 

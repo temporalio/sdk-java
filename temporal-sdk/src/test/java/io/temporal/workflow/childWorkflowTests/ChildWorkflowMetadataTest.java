@@ -21,12 +21,10 @@
 package io.temporal.workflow.childWorkflowTests;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeTrue;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
+import io.temporal.client.WorkflowExecutionDescription;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -39,7 +37,6 @@ import io.temporal.workflow.shared.TestWorkflows.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -56,11 +53,6 @@ public class ChildWorkflowMetadataTest {
   static final String childSummary = "child-summary";
   static final String childDetails = "child-details";
   static final String childTimerSummary = "child-timer-summary";
-
-  @Before
-  public void checkRealServer() {
-    assumeTrue("skipping for test server", SDKTestWorkflowRule.useExternalService);
-  }
 
   @Test
   public void testChildWorkflowWithMetaData() {
@@ -90,28 +82,10 @@ public class ChildWorkflowMetadataTest {
   }
 
   private void assertWorkflowMetadata(String workflowId, String summary, String details) {
-    DescribeWorkflowExecutionResponse describe =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .describeWorkflowExecution(
-                DescribeWorkflowExecutionRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                    .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).build())
-                    .build());
-    String describedSummary =
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            describe.getExecutionConfig().getUserMetadata().getSummary(),
-            String.class,
-            String.class);
-    String describedDetails =
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            describe.getExecutionConfig().getUserMetadata().getDetails(),
-            String.class,
-            String.class);
-    assertEquals(summary, describedSummary);
-    assertEquals(details, describedDetails);
+    WorkflowExecutionDescription describe =
+        testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub(workflowId).describe();
+    assertEquals(summary, describe.getStaticSummary());
+    assertEquals(details, describe.getStaticDetails());
   }
 
   private void assertEventMetadata(HistoryEvent event, String summary, String details) {

@@ -125,6 +125,17 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         : Optional.of(parentWorkflowExecution.getRunId());
   }
 
+  public String getRootWorkflowId() {
+    WorkflowExecution rootWorkflowExecution = context.getRootWorkflowExecution();
+    return rootWorkflowExecution == null ? null : rootWorkflowExecution.getWorkflowId();
+  }
+
+  @Override
+  public String getRootRunId() {
+    WorkflowExecution rootWorkflowExecution = context.getRootWorkflowExecution();
+    return rootWorkflowExecution == null ? null : rootWorkflowExecution.getRunId();
+  }
+
   @Override
   public int getAttempt() {
     return context.getAttempt();
@@ -183,6 +194,10 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         + getParentWorkflowId()
         + ", parentRunId="
         + getParentRunId()
+        + ", rootWorkflowId="
+        + getRootWorkflowId()
+        + ", rootRunId="
+        + getRootRunId()
         + ", attempt="
         + getAttempt()
         + ", cronSchedule="

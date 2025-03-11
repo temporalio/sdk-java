@@ -47,6 +47,7 @@ import io.temporal.api.nexus.v1.*;
 import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.update.v1.Acceptance;
@@ -271,6 +272,7 @@ class StateMachines {
   static final class ActivityTaskData {
 
     StartWorkflowExecutionRequest startWorkflowExecutionRequest;
+    final UserMetadata metadata;
     ActivityTaskScheduledEventAttributes scheduledEvent;
     ActivityTask activityTask;
 
@@ -287,9 +289,12 @@ class StateMachines {
     Timestamp lastAttemptCompleteTime;
 
     ActivityTaskData(
-        TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
+        TestWorkflowStore store,
+        StartWorkflowExecutionRequest startWorkflowExecutionRequest,
+        UserMetadata metadata) {
       this.store = store;
       this.startWorkflowExecutionRequest = startWorkflowExecutionRequest;
+      this.metadata = metadata;
     }
 
     @Override
@@ -405,13 +410,15 @@ class StateMachines {
   static final class ChildWorkflowData {
 
     final TestWorkflowService service;
+    final UserMetadata metadata;
     StartChildWorkflowExecutionInitiatedEventAttributes initiatedEvent;
     long initiatedEventId;
     long startedEventId;
     WorkflowExecution execution;
 
-    public ChildWorkflowData(TestWorkflowService service) {
+    public ChildWorkflowData(TestWorkflowService service, UserMetadata metadata) {
       this.service = service;
+      this.metadata = metadata;
     }
 
     @Override
@@ -432,8 +439,13 @@ class StateMachines {
   }
 
   static final class TimerData {
+    final UserMetadata metadata;
     TimerStartedEventAttributes startedEvent;
     public long startedEventId;
+
+    public TimerData(UserMetadata metadata) {
+      this.metadata = metadata;
+    }
 
     @Override
     public String toString() {
@@ -533,8 +545,10 @@ class StateMachines {
   }
 
   public static StateMachine<ActivityTaskData> newActivityStateMachine(
-      TestWorkflowStore store, StartWorkflowExecutionRequest workflowStartedEvent) {
-    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent))
+      TestWorkflowStore store,
+      StartWorkflowExecutionRequest workflowStartedEvent,
+      UserMetadata metadata) {
+    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleActivityTask)
         .add(INITIATED, START, STARTED, StateMachines::startActivityTask)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutActivityTask)
@@ -571,8 +585,8 @@ class StateMachines {
   }
 
   public static StateMachine<ChildWorkflowData> newChildWorkflowStateMachine(
-      TestWorkflowService service) {
-    return new StateMachine<>(new ChildWorkflowData(service))
+      TestWorkflowService service, UserMetadata metadata) {
+    return new StateMachine<>(new ChildWorkflowData(service, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::initiateChildWorkflow)
         .add(INITIATED, START, STARTED, StateMachines::childWorkflowStarted)
         .add(INITIATED, FAIL, FAILED, StateMachines::startChildWorkflowFailed)
@@ -618,8 +632,8 @@ class StateMachines {
         .add(STARTED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation);
   }
 
-  public static StateMachine<TimerData> newTimerStateMachine() {
-    return new StateMachine<>(new TimerData())
+  public static StateMachine<TimerData> newTimerStateMachine(UserMetadata metadata) {
+    return new StateMachine<>(new TimerData(metadata))
         .add(NONE, START, STARTED, StateMachines::startTimer)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::fireTimer)
         .add(STARTED, CANCEL, CANCELED, StateMachines::cancelTimer);
@@ -1170,6 +1184,9 @@ class StateMachines {
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
                   .setCronSchedule(d.getCronSchedule());
+          if (data.metadata != null) {
+            startChild.setUserMetadata(data.metadata);
+          }
           if (d.hasHeader()) {
             startChild.setHeader(d.getHeader());
           }
@@ -1310,6 +1327,8 @@ class StateMachines {
       a.setParentWorkflowNamespace(parentExecutionId.getNamespace());
       a.setParentWorkflowExecution(parentExecutionId.getExecution());
     }
+    ExecutionId rootExecutionId = ctx.getWorkflowMutableState().getRoot().getExecutionId();
+    a.setRootWorkflowExecution(rootExecutionId.getExecution());
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -1494,12 +1513,14 @@ class StateMachines {
 
     // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     data.scheduledEvent = a.build();
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED)
-            .setActivityTaskScheduledEventAttributes(a)
-            .build();
-    long scheduledEventId = ctx.addEvent(event);
+            .setActivityTaskScheduledEventAttributes(a);
+    if (data.metadata != null) {
+      event.setUserMetadata(data.metadata);
+    }
+    long scheduledEventId = ctx.addEvent(event.build());
 
     PollActivityTaskQueueResponse.Builder taskResponse =
         PollActivityTaskQueueResponse.newBuilder()
@@ -2280,12 +2301,14 @@ class StateMachines {
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
             .setStartToFireTimeout(d.getStartToFireTimeout())
             .setTimerId(d.getTimerId());
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_TIMER_STARTED)
-            .setTimerStartedEventAttributes(a)
-            .build();
-    long startedEventId = ctx.addEvent(event);
+            .setTimerStartedEventAttributes(a);
+    if (data.metadata != null) {
+      event.setUserMetadata(data.metadata);
+    }
+    long startedEventId = ctx.addEvent(event.build());
     ctx.onCommit(
         (historySize) -> {
           data.startedEvent = a.build();

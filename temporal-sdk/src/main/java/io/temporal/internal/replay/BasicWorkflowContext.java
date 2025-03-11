@@ -96,6 +96,12 @@ final class BasicWorkflowContext {
         : null;
   }
 
+  WorkflowExecution getRootWorkflowExecution() {
+    return startedAttributes.hasRootWorkflowExecution()
+        ? startedAttributes.getRootWorkflowExecution()
+        : null;
+  }
+
   Duration getWorkflowRunTimeout() {
     return ProtobufTimeUtils.toJavaDuration(startedAttributes.getWorkflowRunTimeout());
   }

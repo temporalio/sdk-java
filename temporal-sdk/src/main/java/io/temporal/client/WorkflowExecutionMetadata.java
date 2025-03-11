@@ -31,6 +31,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -96,6 +97,23 @@ public class WorkflowExecutionMetadata {
   @Nullable
   public WorkflowExecution getParentExecution() {
     return info.hasParentExecution() ? info.getParentExecution() : null;
+  }
+
+  @Nullable
+  public WorkflowExecution getRootExecution() {
+    return info.hasRootExecution() ? info.getRootExecution() : null;
+  }
+
+  @Nullable
+  public String getFirstRunId() {
+    return info.getFirstRunId();
+  }
+
+  @Nullable
+  public Duration getExecutionDuration() {
+    return info.hasExecutionDuration()
+        ? ProtobufTimeUtils.toJavaDuration(info.getExecutionDuration())
+        : null;
   }
 
   /**
