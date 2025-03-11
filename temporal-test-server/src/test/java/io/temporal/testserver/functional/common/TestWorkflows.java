@@ -48,6 +48,15 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface WorkflowWithSignal {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod
+    void signal();
+  }
+
+  @WorkflowInterface
   public interface WorkflowWithUpdate {
     @WorkflowMethod
     void execute();
