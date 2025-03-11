@@ -39,7 +39,12 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
     this.response = response;
   }
 
-  /** Get the fixed summary for this workflow execution. */
+  /**
+   * Get the fixed summary for this workflow execution.
+   *
+   * @apiNote Will be decoded on each invocation, so it is recommended to cache the result if it is
+   *     used multiple times.
+   */
   @Experimental
   @Nullable
   public String getStaticSummary() {
@@ -57,7 +62,12 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
             String.class);
   }
 
-  /** Get the details summary for this workflow execution. */
+  /**
+   * Get the details summary for this workflow execution.
+   *
+   * @apiNote Will be decoded on each invocation, so it is recommended to cache the result if it is
+   *     used multiple times.
+   */
   @Experimental
   @Nullable
   public String getStaticDetails() {

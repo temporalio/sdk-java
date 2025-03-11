@@ -507,10 +507,12 @@ public final class ChildWorkflowOptions {
     return versioningIntent;
   }
 
+  @Experimental
   public String getStaticSummary() {
     return staticSummary;
   }
 
+  @Experimental
   public String getStaticDetails() {
     return staticDetails;
   }

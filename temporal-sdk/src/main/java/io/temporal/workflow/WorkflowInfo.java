@@ -138,12 +138,16 @@ public interface WorkflowInfo {
 
   /**
    * @return Workflow ID of the root Workflow
+   * @apiNote On server versions prior to v1.27.0, this method will return null. Otherwise, it will
+   *     always return a non-null value.
    */
   @Nullable
   String getRootWorkflowId();
 
   /**
    * @return Run ID of the root Workflow
+   * @apiNote On server versions prior to v1.27.0, this method will return null. Otherwise, it will
+   *     always return a non-null value.
    */
   @Nullable
   String getRootRunId();
