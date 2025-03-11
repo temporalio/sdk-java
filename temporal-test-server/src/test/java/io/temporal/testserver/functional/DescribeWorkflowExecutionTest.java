@@ -154,6 +154,9 @@ public class DescribeWorkflowExecutionTest {
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
             .assertNoParent()
+            .assertNoExecutionDuration()
+            .assertRoot(execution)
+            .assertFirstRunId(execution.getRunId())
             .assertPendingActivityCount(1)
             .assertPendingChildrenCount(0);
 
@@ -287,6 +290,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
+        .assertHasExecutionDuration()
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
   }
@@ -435,6 +439,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(expectedChildOptions)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
         .assertParent(parentExecution)
+        .assertRoot(parentExecution)
         .assertPendingActivityCount(1)
         .assertPendingChildrenCount(0);
 
@@ -446,6 +451,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
+        .assertRoot(parentExecution)
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
 

@@ -78,6 +78,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   WorkflowExecution getParentWorkflowExecution();
 
+  WorkflowExecution getRootWorkflowExecution();
+
   WorkflowType getWorkflowType();
 
   /**

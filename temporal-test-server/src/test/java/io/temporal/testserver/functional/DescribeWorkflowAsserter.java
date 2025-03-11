@@ -159,6 +159,35 @@ final class DescribeWorkflowAsserter {
     return this;
   }
 
+  public DescribeWorkflowAsserter assertNoExecutionDuration() {
+    WorkflowExecutionInfo ei = actual.getWorkflowExecutionInfo();
+    Assert.assertFalse("execution duration should be absent", ei.hasExecutionDuration());
+    return this;
+  }
+
+  public DescribeWorkflowAsserter assertHasExecutionDuration() {
+    WorkflowExecutionInfo ei = actual.getWorkflowExecutionInfo();
+    Assert.assertTrue("execution duration should be present", ei.hasExecutionDuration());
+    return this;
+  }
+
+  public DescribeWorkflowAsserter assertRoot(WorkflowExecution rootExec) {
+    WorkflowExecutionInfo ei = actual.getWorkflowExecutionInfo();
+    Assert.assertEquals(
+        "root execution workflow id",
+        rootExec.getWorkflowId(),
+        ei.getRootExecution().getWorkflowId());
+    Assert.assertEquals(
+        "root execution run id", rootExec.getRunId(), ei.getRootExecution().getRunId());
+    return this;
+  }
+
+  public DescribeWorkflowAsserter assertFirstRunId(String runId) {
+    WorkflowExecutionInfo ei = actual.getWorkflowExecutionInfo();
+    Assert.assertEquals("first run id should match", runId, ei.getFirstRunId());
+    return this;
+  }
+
   public DescribeWorkflowAsserter assertParent(WorkflowExecution parentExecution) {
     WorkflowExecutionInfo ei = actual.getWorkflowExecutionInfo();
     // We don't assert parent namespace because we need the _id_, not the name,

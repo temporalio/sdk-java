@@ -52,6 +52,7 @@ import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.QueryRejected;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflow.v1.*;
@@ -431,6 +432,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
+  public TestWorkflowMutableState getRoot() {
+    // The root workflow execution is defined as follows:
+    // 1. A workflow without parent workflow is its own root workflow.
+    // 2. A workflow that has a parent workflow has the same root workflow as its parent workflow.
+    return parent.isPresent() ? parent.get().getRoot() : this;
+  }
+
+  @Override
   public void startWorkflowTask(
       PollWorkflowTaskQueueResponse.Builder task, PollWorkflowTaskQueueRequest pollRequest) {
     if (!task.hasQuery()) {
@@ -715,28 +724,42 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         break;
       case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
         processScheduleActivityTask(
-            ctx, d.getScheduleActivityTaskCommandAttributes(), workflowTaskCompletedId);
+            ctx,
+            d.getScheduleActivityTaskCommandAttributes(),
+            d.hasUserMetadata() ? d.getUserMetadata() : null,
+            workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK:
         processRequestCancelActivityTask(
             ctx, d.getRequestCancelActivityTaskCommandAttributes(), workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_START_TIMER:
-        processStartTimer(ctx, d.getStartTimerCommandAttributes(), workflowTaskCompletedId);
+        processStartTimer(
+            ctx,
+            d.getStartTimerCommandAttributes(),
+            d.hasUserMetadata() ? d.getUserMetadata() : null,
+            workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_CANCEL_TIMER:
         processCancelTimer(ctx, d.getCancelTimerCommandAttributes(), workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION:
         processStartChildWorkflow(
-            ctx, d.getStartChildWorkflowExecutionCommandAttributes(), workflowTaskCompletedId);
+            ctx,
+            d.getStartChildWorkflowExecutionCommandAttributes(),
+            d.hasUserMetadata() ? d.getUserMetadata() : null,
+            workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION:
         processSignalExternalWorkflowExecution(
             ctx, d.getSignalExternalWorkflowExecutionCommandAttributes(), workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_RECORD_MARKER:
-        processRecordMarker(ctx, d.getRecordMarkerCommandAttributes(), workflowTaskCompletedId);
+        processRecordMarker(
+            ctx,
+            d.getRecordMarkerCommandAttributes(),
+            d.hasUserMetadata() ? d.getUserMetadata() : null,
+            workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
         processRequestCancelExternalWorkflowExecution(
@@ -933,7 +956,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processRecordMarker(
-      RequestContext ctx, RecordMarkerCommandAttributes attr, long workflowTaskCompletedId) {
+      RequestContext ctx,
+      RecordMarkerCommandAttributes attr,
+      UserMetadata metadata,
+      long workflowTaskCompletedId) {
     if (attr.getMarkerName().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription("marker name is required").asRuntimeException();
     }
@@ -949,12 +975,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (attr.hasFailure()) {
       marker.setFailure(attr.getFailure());
     }
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_MARKER_RECORDED)
-            .setMarkerRecordedEventAttributes(marker)
-            .build();
-    ctx.addEvent(event);
+            .setMarkerRecordedEventAttributes(marker);
+    if (metadata != null) {
+      event.setUserMetadata(metadata);
+    }
+    ctx.addEvent(event.build());
   }
 
   private void processCancelTimer(
@@ -995,6 +1023,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processScheduleActivityTask(
       RequestContext ctx,
       ScheduleActivityTaskCommandAttributes attributes,
+      UserMetadata metadata,
       long workflowTaskCompletedId) {
     attributes = validateScheduleActivityTask(attributes);
     String activityId = attributes.getActivityId();
@@ -1005,7 +1034,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     StateMachine<ActivityTaskData> activityStateMachine =
-        newActivityStateMachine(store, this.startRequest);
+        newActivityStateMachine(store, this.startRequest, metadata);
     long activityScheduleId = ctx.getNextEventId();
     activities.put(activityScheduleId, activityStateMachine);
     activityById.put(activityId, activityScheduleId);
@@ -1130,9 +1159,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processStartChildWorkflow(
       RequestContext ctx,
       StartChildWorkflowExecutionCommandAttributes a,
+      UserMetadata metadata,
       long workflowTaskCompletedId) {
     a = validateStartChildExecutionAttributes(a);
-    StateMachine<ChildWorkflowData> child = StateMachines.newChildWorkflowStateMachine(service);
+    StateMachine<ChildWorkflowData> child =
+        StateMachines.newChildWorkflowStateMachine(service, metadata);
     childWorkflows.put(ctx.getNextEventId(), child);
     child.action(StateMachines.Action.INITIATE, ctx, a, workflowTaskCompletedId);
     ctx.lockTimer("processStartChildWorkflow");
@@ -1376,7 +1407,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processStartTimer(
-      RequestContext ctx, StartTimerCommandAttributes a, long workflowTaskCompletedId) {
+      RequestContext ctx,
+      StartTimerCommandAttributes a,
+      UserMetadata metadata,
+      long workflowTaskCompletedId) {
     String timerId = a.getTimerId();
     StateMachine<TimerData> timer = timers.get(timerId);
 
@@ -1385,7 +1419,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .withDescription("Already open timer with " + timerId)
           .asRuntimeException();
     }
-    timer = StateMachines.newTimerStateMachine();
+    timer = StateMachines.newTimerStateMachine(metadata);
     timers.put(timerId, timer);
     timer.action(StateMachines.Action.START, ctx, a, workflowTaskCompletedId);
     ctx.addTimer(
@@ -3131,7 +3165,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setTaskQueue(this.startRequest.getTaskQueue())
             .setWorkflowExecutionTimeout(this.startRequest.getWorkflowExecutionTimeout())
             .setWorkflowRunTimeout(this.startRequest.getWorkflowRunTimeout())
-            .setDefaultWorkflowTaskTimeout(this.startRequest.getWorkflowTaskTimeout());
+            .setDefaultWorkflowTaskTimeout(this.startRequest.getWorkflowTaskTimeout())
+            .setUserMetadata(this.startRequest.getUserMetadata());
 
     GetWorkflowExecutionHistoryRequest getRequest =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -3152,6 +3187,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         // No setAutoResetPoints - the test environment doesn't support that feature
         .setSearchAttributes(visibilityStore.getSearchAttributesForExecution(executionId))
         .setStatus(this.getWorkflowExecutionStatus())
+        .setRootExecution(this.getRoot().getExecutionId().getExecution())
         .setHistoryLength(fullHistory.size())
         .setTaskQueue(this.getStartRequest().getTaskQueue().getName());
 
@@ -3384,9 +3420,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               Timestamp startTime = startEvent.getEventTime();
               executionInfo.setStartTime(startEvent.getEventTime());
 
-              if (startEvent
-                  .getWorkflowExecutionStartedEventAttributes()
-                  .hasFirstWorkflowTaskBackoff()) {
+              WorkflowExecutionStartedEventAttributes attribute =
+                  startEvent.getWorkflowExecutionStartedEventAttributes();
+              if (attribute.hasFirstWorkflowTaskBackoff()) {
                 executionInfo.setExecutionTime(
                     Timestamps.add(
                         startTime,
@@ -3397,10 +3433,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 // Some (most) workflows don't have firstWorkflowTaskBackoff.
                 executionInfo.setExecutionTime(startTime);
               }
-            });
+              executionInfo.setFirstRunId(attribute.getFirstExecutionRunId());
 
-    getCompletionEvent(fullHistory)
-        .ifPresent(completionEvent -> executionInfo.setCloseTime(completionEvent.getEventTime()));
+              getCompletionEvent(fullHistory)
+                  .ifPresent(
+                      completionEvent -> {
+                        executionInfo.setExecutionDuration(
+                            Timestamps.between(startTime, completionEvent.getEventTime()));
+                        executionInfo.setCloseTime(completionEvent.getEventTime());
+                      });
+            });
   }
 
   // Has an analog in the golang codebase: MutableState.GetStartEvent(). This could become public
