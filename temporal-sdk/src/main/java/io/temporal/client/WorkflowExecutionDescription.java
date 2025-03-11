@@ -23,6 +23,7 @@ package io.temporal.client;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -42,16 +43,36 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
   @Experimental
   @Nullable
   public String getStaticSummary() {
-    return dataConverter.fromPayload(
-        response.getExecutionConfig().getUserMetadata().getSummary(), String.class, String.class);
+    if (!response.getExecutionConfig().getUserMetadata().hasSummary()) {
+      return null;
+    }
+    return dataConverter
+        .withContext(
+            new WorkflowSerializationContext(
+                response.getWorkflowExecutionInfo().getParentNamespaceId(),
+                response.getWorkflowExecutionInfo().getExecution().getWorkflowId()))
+        .fromPayload(
+            response.getExecutionConfig().getUserMetadata().getSummary(),
+            String.class,
+            String.class);
   }
 
   /** Get the details summary for this workflow execution. */
   @Experimental
   @Nullable
   public String getStaticDetails() {
-    return dataConverter.fromPayload(
-        response.getExecutionConfig().getUserMetadata().getDetails(), String.class, String.class);
+    if (!response.getExecutionConfig().getUserMetadata().hasDetails()) {
+      return null;
+    }
+    return dataConverter
+        .withContext(
+            new WorkflowSerializationContext(
+                response.getWorkflowExecutionInfo().getParentNamespaceId(),
+                response.getWorkflowExecutionInfo().getExecution().getWorkflowId()))
+        .fromPayload(
+            response.getExecutionConfig().getUserMetadata().getDetails(),
+            String.class,
+            String.class);
   }
 
   /** Returns the raw response from the Temporal service. */
