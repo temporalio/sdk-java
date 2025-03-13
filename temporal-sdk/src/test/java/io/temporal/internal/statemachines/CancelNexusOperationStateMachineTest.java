@@ -89,7 +89,8 @@ public class CancelNexusOperationStateMachineTest {
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) ->
-                    stateMachines.startNexusOperation(scheduleAttributes, c, delayedCallback::run))
+                    stateMachines.startNexusOperation(
+                        scheduleAttributes, null, c, delayedCallback::run))
             .add((v) -> stateMachines.requestCancelNexusOperation(cancelAttributes))
             .<Optional<Payload>, Failure>add2((pair, c) -> delayedCallback.set(c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
