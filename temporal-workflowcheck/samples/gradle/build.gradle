@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+}
+
+group = 'io.temporal'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.temporal:temporal-sdk:1.22.3'
+}
+
+// *** workflowcheck config ***
+
+// Create a configuration for workflowcheck dependency
+configurations {
+    workflowcheckDependency
+}
+
+// Set the dependency
+dependencies {
+    // May want to add :all to the end of the dependency to get the shaded form
+    workflowcheckDependency 'io.temporal:temporal-workflowcheck:+'
+}
+
+// Create the workflowcheck task
+tasks.register('workflowcheck', JavaExec) {
+    // Set the classpath to the workflowcheck dependency
+    classpath = configurations.workflowcheckDependency
+    // // Java 17+ is required for workflowcheck
+    // javaLauncher = javaToolchains.launcherFor {
+    //     languageVersion = JavaLanguageVersion.of(17)
+    // }
+    // The argument to workflowcheck is the classpath
+    mainClass = 'io.temporal.workflowcheck.Main'
+    args = ['check', sourceSets.main.runtimeClasspath.files.join(File.pathSeparator)]
+}
+
+check.finalizedBy workflowcheck
