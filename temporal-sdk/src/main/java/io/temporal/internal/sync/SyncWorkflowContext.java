@@ -823,9 +823,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     attributes.setScheduleToCloseTimeout(
         ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToCloseTimeout()));
 
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            input.getOptions().getSummary(), null, dataConverterWithCurrentWorkflowContext);
+
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.startNexusOperation(
             attributes.build(),
+            userMetadata,
             (operationExec, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(

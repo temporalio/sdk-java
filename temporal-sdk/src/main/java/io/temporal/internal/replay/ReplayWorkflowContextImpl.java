@@ -228,10 +228,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Functions.Proc1<Exception> startNexusOperation(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
     Functions.Proc cancellationHandler =
-        workflowStateMachines.startNexusOperation(attributes, startedCallback, completionCallback);
+        workflowStateMachines.startNexusOperation(
+            attributes, metadata, startedCallback, completionCallback);
     return (exception) -> cancellationHandler.apply();
   }
 

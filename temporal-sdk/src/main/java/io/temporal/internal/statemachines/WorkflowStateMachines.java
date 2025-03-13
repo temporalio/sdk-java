@@ -951,12 +951,18 @@ public final class WorkflowStateMachines {
 
   public Functions.Proc startNexusOperation(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
     checkEventLoopExecuting();
     NexusOperationStateMachine operation =
         NexusOperationStateMachine.newInstance(
-            attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
+            attributes,
+            metadata,
+            startedCallback,
+            completionCallback,
+            commandSink,
+            stateMachineSink);
     return () -> {
       if (operation.isCancellable()) {
         operation.cancel();
