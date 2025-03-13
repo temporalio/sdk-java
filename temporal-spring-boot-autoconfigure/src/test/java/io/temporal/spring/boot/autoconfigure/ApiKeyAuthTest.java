@@ -59,6 +59,7 @@ public class ApiKeyAuthTest {
                         .getMetadata()
                         .get(AuthorizationGrpcMetadataProvider.AUTHORIZATION_HEADER_KEY)
                         .equals("Bearer my-api-key")));
+    Assertions.assertTrue(workflowServiceStubs.getOptions().getEnableHttps());
   }
 
   @ComponentScan(
