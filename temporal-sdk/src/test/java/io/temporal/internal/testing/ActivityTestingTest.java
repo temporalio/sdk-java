@@ -76,12 +76,35 @@ public class ActivityTestingTest {
     }
   }
 
+  @ActivityInterface
+  public interface TestAsyncActivity {
+
+    void asyncActivity(String input);
+  }
+
+  private static class AsyncActivityImpl implements TestAsyncActivity {
+
+    @Override
+    public void asyncActivity(String input) {
+      ActivityExecutionContext executionContext = Activity.getExecutionContext();
+      executionContext.doNotCompleteOnReturn();
+    }
+  }
+
   @Test
   public void testSuccess() {
     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
     TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
     assertEquals("Activity1-input1", result);
+  }
+
+  @Test
+  public void testAsyncActivity() {
+    testEnvironment.registerActivitiesImplementations(new AsyncActivityImpl());
+    TestAsyncActivity activity = testEnvironment.newActivityStub(TestAsyncActivity.class);
+
+    activity.asyncActivity("input1");
   }
 
   private static class AngryActivityImpl implements TestActivity {
