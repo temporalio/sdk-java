@@ -518,7 +518,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         return dataConverter.fromPayloads(0, result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
-            response.getTaskFailed().getTaskFailedRequest();
+            Optional.ofNullable(response.getTaskFailed())
+                .map(Result.TaskFailedResult::getTaskFailedRequest)
+                .orElse(null);
+
         if (taskFailed != null) {
           Exception cause = dataConverter.failureToException(taskFailed.getFailure());
           throw new ActivityFailure(
