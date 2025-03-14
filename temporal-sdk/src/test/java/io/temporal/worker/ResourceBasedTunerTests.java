@@ -27,6 +27,8 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -36,6 +38,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -99,13 +102,37 @@ public class ResourceBasedTunerTests {
     workflow.execute(50, 50, 30000000);
   }
 
+  @Test(timeout = 30 * 1000)
+  public void canShutdownInTheMiddle() throws InterruptedException {
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ResourceTunerWorkflow workflow =
+        client.newWorkflowStub(
+            ResourceTunerWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .validateBuildWithDefaults());
+    WorkflowClient.start(workflow::execute, 10, 10, 1000);
+    workflow.activitiesStarted();
+    testWorkflowRule.getTestEnvironment().getWorkerFactory().shutdownNow();
+    testWorkflowRule.getTestEnvironment().getWorkerFactory().awaitTermination(3, TimeUnit.SECONDS);
+    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("WorkflowWorker"), 0);
+    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("ActivityWorker"), 0);
+    reporter.assertGauge(
+        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), 0);
+  }
+
   @WorkflowInterface
   public interface ResourceTunerWorkflow {
     @WorkflowMethod
     String execute(int numActivities, int localActivities, int memCeiling);
+
+    @UpdateMethod
+    void activitiesStarted();
   }
 
   public static class ResourceTunerWorkflowImpl implements ResourceTunerWorkflow {
+    private boolean activitiesStarted = false;
+
     @Override
     public String execute(int numActivities, int localActivities, int memCeiling) {
       SleepActivity activity =
@@ -133,11 +160,18 @@ public class ResourceBasedTunerTests {
         promises.add(promise);
       }
 
+      activitiesStarted = true;
+
       for (Promise<Void> promise : promises) {
         promise.get();
       }
 
       return "I'm done";
+    }
+
+    @Override
+    public void activitiesStarted() {
+      Workflow.await(() -> activitiesStarted);
     }
   }
 

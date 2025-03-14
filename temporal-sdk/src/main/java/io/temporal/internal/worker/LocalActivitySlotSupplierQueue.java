@@ -83,18 +83,22 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       QueuedLARequest request = null;
       try {
         request = requestQueue.take();
+
+        CompletableFuture<SlotPermit> future = slotSupplier.reserveSlot(request.data);
         try {
-          slotPermit = slotSupplier.reserveSlot(request.data);
+          slotPermit = future.get();
         } catch (InterruptedException e) {
+          future.cancel(true);
           Thread.currentThread().interrupt();
           return;
-        } catch (Exception e) {
+        } catch (ExecutionException e) {
           log.error(
               "Error reserving local activity slot, dropped activity id {}",
               request.task.getActivityId(),
               e);
           continue;
         }
+
         request.task.getExecutionContext().setPermit(slotPermit);
         afterReservedCallback.apply(request.task);
       } catch (InterruptedException e) {
