@@ -22,6 +22,7 @@ package io.temporal.testserver.functional;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.client.*;
@@ -116,6 +117,59 @@ public class WorkflowIdReusePolicyTest {
     WorkflowExecution execution2 = startForeverWorkflow(options);
     describe(execution1).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED);
     describe(execution2).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING);
+  }
+
+  @Test
+  public void deduplicateRequestWorkflowStillRunning() {
+    String workflowId = "deduplicate-request-1";
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setRequestId("request-id-1")
+            .build();
+
+    WorkflowExecution execution1 = startForeverWorkflow(options);
+    describe(execution1).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING);
+
+    WorkflowExecution execution2 = startForeverWorkflow(options);
+    describe(execution2).assertExecutionId(execution1);
+  }
+
+  @Test
+  public void deduplicateRequestWorkflowAlreadyCompleted() {
+    String workflowId = "deduplicate-request-2";
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setRequestId("request-id-2")
+            .build();
+
+    WorkflowExecution execution1 = runFailingWorkflow(options);
+    describe(execution1).assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED);
+
+    WorkflowExecution execution2 = startForeverWorkflow(options);
+    describe(execution2).assertExecutionId(execution1);
+  }
+
+  @Test
+  public void invalidWorkflowIdReusePolicy() {
+    String workflowId = "invalid-workflow-id-reuse-policy";
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+            .setWorkflowIdConflictPolicy(
+                WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING)
+            .build();
+
+    Assert.assertThrows(WorkflowServiceException.class, () -> startForeverWorkflow(options));
   }
 
   private WorkflowExecution startForeverWorkflow(WorkflowOptions options) {
