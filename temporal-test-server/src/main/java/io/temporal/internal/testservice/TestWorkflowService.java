@@ -253,13 +253,21 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
     WorkflowIdReusePolicy reusePolicy = startRequest.getWorkflowIdReusePolicy();
     WorkflowIdConflictPolicy conflictPolicy = startRequest.getWorkflowIdConflictPolicy();
-    if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
-        && reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
-      throw createInvalidArgument(
-          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
-    }
 
+    validateWorkflowIdReusePolicy(reusePolicy, conflictPolicy);
     validateOnConflictOptions(startRequest);
+
+    // Backwards compatibility: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING is deprecated
+    if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+      conflictPolicy = WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING;
+      reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
+    }
+    if (conflictPolicy == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED) {
+      conflictPolicy = WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL;
+    }
+    if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_UNSPECIFIED) {
+      reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
+    }
 
     TestWorkflowMutableState existing;
     lock.lock();
@@ -267,50 +275,61 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String newRunId = UUID.randomUUID().toString();
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
+        StartWorkflowExecutionResponse dedupedResponse = dedupeRequest(startRequest, existing);
+        if (dedupedResponse != null) {
+          return dedupedResponse;
+        }
+
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
-
         if (status == WORKFLOW_EXECUTION_STATUS_RUNNING) {
-          StartWorkflowExecutionResponse dedupedResponse = dedupeRequest(startRequest, existing);
-          if (dedupedResponse != null) {
-            return dedupedResponse;
+          switch (conflictPolicy) {
+            case WORKFLOW_ID_CONFLICT_POLICY_FAIL:
+              return throwDuplicatedWorkflow(startRequest, existing);
+            case WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING:
+              if (startRequest.hasOnConflictOptions()) {
+                existing.applyOnConflictOptions(startRequest);
+              }
+              return StartWorkflowExecutionResponse.newBuilder()
+                  .setStarted(false)
+                  .setRunId(existing.getExecutionId().getExecution().getRunId())
+                  .build();
+            case WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING:
+              existing.terminateWorkflowExecution(
+                  TerminateWorkflowExecutionRequest.newBuilder()
+                      .setNamespace(startRequest.getNamespace())
+                      .setWorkflowExecution(existing.getExecutionId().getExecution())
+                      .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
+                      .setIdentity("history-service")
+                      .setDetails(
+                          Payloads.newBuilder()
+                              .addPayloads(
+                                  Payload.newBuilder()
+                                      .setData(
+                                          ByteString.copyFromUtf8(
+                                              String.format(
+                                                  "terminated by new runID: %s", newRunId)))
+                                      .build())
+                              .build())
+                      .build());
+              break;
           }
+        }
 
-          if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
-              || conflictPolicy
-                  == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING) {
-            existing.terminateWorkflowExecution(
-                TerminateWorkflowExecutionRequest.newBuilder()
-                    .setNamespace(startRequest.getNamespace())
-                    .setWorkflowExecution(existing.getExecutionId().getExecution())
-                    .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
-                    .setIdentity("history-service")
-                    .setDetails(
-                        Payloads.newBuilder()
-                            .addPayloads(
-                                Payload.newBuilder()
-                                    .setData(
-                                        ByteString.copyFromUtf8(
-                                            String.format("terminated by new runID: %s", newRunId)))
-                                    .build())
-                            .build())
-                    .build());
-          } else if (conflictPolicy
-              == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
-            if (startRequest.hasOnConflictOptions()) {
-              existing.applyOnConflictOptions(startRequest);
+        // Status of existing workflow could have changed to TERMINATED.
+        status = existing.getWorkflowExecutionStatus();
+
+        // At this point, the existing workflow already completed or was terminated.
+        switch (reusePolicy) {
+          case WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE:
+            break;
+          case WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY:
+            if (status == WORKFLOW_EXECUTION_STATUS_COMPLETED
+                || status == WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW) {
+              return throwDuplicatedWorkflow(startRequest, existing);
             }
-            return StartWorkflowExecutionResponse.newBuilder()
-                .setStarted(false)
-                .setRunId(existing.getExecutionId().getExecution().getRunId())
-                .build();
-          } else {
+            break;
+          case WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE:
             return throwDuplicatedWorkflow(startRequest, existing);
-          }
-        } else if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
-            || (reusePolicy == WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
-                && (status == WORKFLOW_EXECUTION_STATUS_COMPLETED
-                    || status == WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW))) {
-          return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
 
@@ -373,6 +392,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
+  private void validateWorkflowIdReusePolicy(
+      WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
+    if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
+        && reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+      throw createInvalidArgument(
+          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
+    }
+    if (conflictPolicy == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING
+        && reusePolicy == WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
+      throw createInvalidArgument(
+          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE cannot be used together with WorkflowIdConflictPolicy WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING");
+    }
+  }
+
   private void validateOnConflictOptions(StartWorkflowExecutionRequest startRequest) {
     if (!startRequest.hasOnConflictOptions()) {
       return;
@@ -380,7 +413,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     OnConflictOptions options = startRequest.getOnConflictOptions();
     if (options.getAttachCompletionCallbacks() && !options.getAttachRequestId()) {
       throw createInvalidArgument(
-          "Invalid OnConflictOptions: AttachCompletionCallbacks cannot be 'true' if  AttachRequestId is 'false'.");
+          "Invalid OnConflictOptions: AttachCompletionCallbacks cannot be 'true' if AttachRequestId is 'false'.");
     }
   }
 
