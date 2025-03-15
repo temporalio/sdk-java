@@ -218,6 +218,7 @@ public class DummySyncWorkflowContext {
     @Override
     public Functions.Proc1<Exception> startNexusOperation(
         ScheduleNexusOperationCommandAttributes attributes,
+        @Nullable UserMetadata metadata,
         Functions.Proc2<Optional<String>, Failure> startedCallback,
         Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
       throw new UnsupportedOperationException("not implemented");
