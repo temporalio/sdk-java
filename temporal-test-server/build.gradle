@@ -99,6 +99,10 @@ idea {
 }
 
 
+def isLinux() {
+    return System.properties['os.name'].toLowerCase().contains('linux')
+}
+
 graalvmNative {
     toolchainDetection = true
     agent {
@@ -120,7 +124,7 @@ graalvmNative {
             buildArgs.add("-H:+UnlockExperimentalVMOptions")
             buildArgs.add("-O4")
 
-
+            runtimeArgs.add("7233")
             javaLauncher = javaToolchains.launcherFor {
                 languageVersion = JavaLanguageVersion.of(21)
                 vendor = JvmVendorSpec.GRAAL_VM
@@ -130,10 +134,6 @@ graalvmNative {
     binaries.all {
         verbose = true
     }
-}
-
-def isLinux() {
-  return System.properties['os.name'].toLowerCase().contains('linux')
 }
 
 tasks.build.dependsOn('nativeCompile')
