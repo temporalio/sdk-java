@@ -51,7 +51,7 @@ public class ConnectionProperties {
       @Nullable MTLSProperties mtls,
       @Nullable String apiKey) {
     this.target = target;
-    this.enableHttps = Boolean.TRUE.equals(enableHttps);
+    this.enableHttps = enableHttps;
     this.mtls = mtls;
     this.apiKey = apiKey;
   }
