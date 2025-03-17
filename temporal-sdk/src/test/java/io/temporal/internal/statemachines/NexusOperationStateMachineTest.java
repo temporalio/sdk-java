@@ -92,7 +92,8 @@ public class NexusOperationStateMachineTest {
             newScheduleNexusOperationCommandAttributesBuilder();
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) ->
+                    stateMachines.startNexusOperation(attributes.build(), null, (o, f) -> {}, c))
             .add(
                 (pair) ->
                     stateMachines.completeWorkflow(
@@ -167,7 +168,8 @@ public class NexusOperationStateMachineTest {
             newScheduleNexusOperationCommandAttributesBuilder();
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) ->
+                    stateMachines.startNexusOperation(attributes.build(), null, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
     }
@@ -238,7 +240,8 @@ public class NexusOperationStateMachineTest {
             newScheduleNexusOperationCommandAttributesBuilder();
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) ->
+                    stateMachines.startNexusOperation(attributes.build(), null, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
     }
@@ -309,7 +312,8 @@ public class NexusOperationStateMachineTest {
             newScheduleNexusOperationCommandAttributesBuilder();
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) ->
+                    stateMachines.startNexusOperation(attributes.build(), null, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
     }
@@ -383,7 +387,8 @@ public class NexusOperationStateMachineTest {
             .<Optional<Payload>, Failure>add2(
                 (v, c) ->
                     cancellationHandler =
-                        stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                        stateMachines.startNexusOperation(
+                            attributes.build(), null, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
         // Immediate cancellation
         builder.add((v) -> cancellationHandler.apply());
@@ -420,7 +425,8 @@ public class NexusOperationStateMachineTest {
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                    stateMachines.startNexusOperation(
+                        attributes.build(), null, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -514,7 +520,8 @@ public class NexusOperationStateMachineTest {
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                    stateMachines.startNexusOperation(
+                        attributes.build(), null, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -604,7 +611,8 @@ public class NexusOperationStateMachineTest {
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                    stateMachines.startNexusOperation(
+                        attributes.build(), null, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -694,7 +702,8 @@ public class NexusOperationStateMachineTest {
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                    stateMachines.startNexusOperation(
+                        attributes.build(), null, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());

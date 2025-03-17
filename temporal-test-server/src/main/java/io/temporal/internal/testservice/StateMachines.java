@@ -331,6 +331,7 @@ class StateMachines {
   }
 
   static final class NexusOperationData {
+    final UserMetadata metadata;
     // Timeout for an individual Start or Cancel Operation request.
     final Duration requestTimeout = Durations.fromSeconds(10);
 
@@ -350,8 +351,9 @@ class StateMachines {
     Timestamp nextAttemptScheduleTime;
     String identity;
 
-    public NexusOperationData(Endpoint endpoint) {
+    public NexusOperationData(Endpoint endpoint, UserMetadata metadata) {
       this.endpoint = endpoint;
+      this.metadata = metadata;
     }
 
     public int getAttempt() {
@@ -608,8 +610,9 @@ class StateMachines {
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
 
-  public static StateMachine<NexusOperationData> newNexusOperation(Endpoint endpoint) {
-    return new StateMachine<>(new NexusOperationData(endpoint))
+  public static StateMachine<NexusOperationData> newNexusOperation(
+      Endpoint endpoint, UserMetadata metadata) {
+    return new StateMachine<>(new NexusOperationData(endpoint, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
@@ -681,13 +684,15 @@ class StateMachines {
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedId);
 
     data.scheduledEvent = a.build();
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED)
-            .setNexusOperationScheduledEventAttributes(a)
-            .build();
+            .setNexusOperationScheduledEventAttributes(a);
+    if (data.metadata != null) {
+      event.setUserMetadata(data.metadata);
+    }
 
-    long scheduledEventId = ctx.addEvent(event);
+    long scheduledEventId = ctx.addEvent(event.build());
     NexusOperationRef ref = new NexusOperationRef(ctx.getExecutionId(), scheduledEventId);
     NexusTaskToken taskToken = new NexusTaskToken(ref, data.getAttempt(), false);
 

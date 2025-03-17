@@ -785,7 +785,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         break;
       case COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION:
         processScheduleNexusOperation(
-            ctx, d.getScheduleNexusOperationCommandAttributes(), workflowTaskCompletedId);
+            ctx,
+            d.getScheduleNexusOperationCommandAttributes(),
+            d.hasUserMetadata() ? d.getUserMetadata() : null,
+            workflowTaskCompletedId);
         break;
       case COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION:
         processRequestCancelNexusOperation(
@@ -830,9 +833,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processScheduleNexusOperation(
       RequestContext ctx,
       ScheduleNexusOperationCommandAttributes attr,
+      UserMetadata metadata,
       long workflowTaskCompletedId) {
     Endpoint endpoint = nexusEndpointStore.getEndpointByName(attr.getEndpoint());
-    StateMachine<StateMachines.NexusOperationData> operation = newNexusOperation(endpoint);
+    StateMachine<StateMachines.NexusOperationData> operation =
+        newNexusOperation(endpoint, metadata);
     long scheduleEventId = ctx.getNextEventId();
     nexusOperations.put(scheduleEventId, operation);
 
