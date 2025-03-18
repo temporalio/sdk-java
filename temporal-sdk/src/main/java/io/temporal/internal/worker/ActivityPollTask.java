@@ -35,8 +35,8 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -98,7 +98,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     PollActivityTaskQueueResponse response;
     SlotPermit permit;
     boolean isSuccessful = false;
-    CompletableFuture<SlotPermit> future;
+    Future<SlotPermit> future;
     try {
       future =
           slotSupplier.reserveSlot(

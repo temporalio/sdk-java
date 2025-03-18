@@ -39,8 +39,8 @@ import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -127,7 +127,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   public WorkflowTask poll() {
     boolean isSuccessful = false;
     SlotPermit permit;
-    CompletableFuture<SlotPermit> future =
+    Future<SlotPermit> future =
         slotSupplier.reserveSlot(
             new SlotReservationData(
                 pollRequest.getTaskQueue().getName(),

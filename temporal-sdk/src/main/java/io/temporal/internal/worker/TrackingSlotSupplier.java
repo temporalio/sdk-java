@@ -26,8 +26,8 @@ import io.temporal.worker.tuning.*;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -49,15 +49,52 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public CompletableFuture<SlotPermit> reserveSlot(SlotReservationData dat) {
-    CompletableFuture<SlotPermit> future = null;
+  public Future<SlotPermit> reserveSlot(SlotReservationData dat) {
+    final Future<SlotPermit> originalFuture;
     try {
-      future = inner.reserveSlot(createCtx(dat));
+      originalFuture = inner.reserveSlot(createCtx(dat));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    future.thenAccept(permit -> issuedSlots.incrementAndGet());
-    return future;
+
+    return new Future<SlotPermit>() {
+      private final AtomicBoolean callbackInvoked = new AtomicBoolean(false);
+
+      private SlotPermit executeCallbackIfNeeded(SlotPermit permit) {
+        if (callbackInvoked.compareAndSet(false, true)) {
+          issuedSlots.incrementAndGet();
+        }
+        return permit;
+      }
+
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        return originalFuture.cancel(mayInterruptIfRunning);
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return originalFuture.isCancelled();
+      }
+
+      @Override
+      public boolean isDone() {
+        return originalFuture.isDone();
+      }
+
+      @Override
+      public SlotPermit get() throws InterruptedException, ExecutionException {
+        SlotPermit permit = originalFuture.get();
+        return executeCallbackIfNeeded(permit);
+      }
+
+      @Override
+      public SlotPermit get(long timeout, TimeUnit unit)
+          throws InterruptedException, ExecutionException, TimeoutException {
+        SlotPermit permit = originalFuture.get(timeout, unit);
+        return executeCallbackIfNeeded(permit);
+      }
+    };
   }
 
   public Optional<SlotPermit> tryReserveSlot(SlotReservationData dat) {

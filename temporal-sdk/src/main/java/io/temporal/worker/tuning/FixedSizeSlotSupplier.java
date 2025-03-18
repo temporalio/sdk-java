@@ -25,6 +25,7 @@ import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -110,7 +111,7 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
   }
 
   @Override
-  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
+  public Future<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
     return executorSlotsSemaphore.acquire().thenApply(ignored -> new SlotPermit());
   }
 

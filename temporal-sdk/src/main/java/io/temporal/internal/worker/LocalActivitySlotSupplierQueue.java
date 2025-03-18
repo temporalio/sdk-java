@@ -84,7 +84,7 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       try {
         request = requestQueue.take();
 
-        CompletableFuture<SlotPermit> future = slotSupplier.reserveSlot(request.data);
+        Future<SlotPermit> future = slotSupplier.reserveSlot(request.data);
         try {
           slotPermit = future.get();
         } catch (InterruptedException e) {
