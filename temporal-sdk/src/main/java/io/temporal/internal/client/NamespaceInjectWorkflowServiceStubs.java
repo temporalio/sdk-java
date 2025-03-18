@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
@@ -34,8 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
-/** Inject the namespace into the gRPC header */
-class NamespaceInjectWorkflowServiceStubs implements WorkflowServiceStubs {
+/** Inject the namespace into the gRPC header, overriding the current namespace if already set. */
+public class NamespaceInjectWorkflowServiceStubs implements WorkflowServiceStubs {
   private static Metadata.Key<String> TEMPORAL_NAMESPACE_HEADER_KEY =
       Metadata.Key.of("temporal-namespace", Metadata.ASCII_STRING_MARSHALLER);
   private final Metadata metadata;
@@ -56,14 +56,14 @@ class NamespaceInjectWorkflowServiceStubs implements WorkflowServiceStubs {
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
     return next.blockingStub()
         .withInterceptors(
-            new GrpcMetadataProviderInterceptor(Collections.singleton(() -> metadata)));
+            new GrpcMetadataProviderInterceptor(Collections.singleton(() -> metadata), true));
   }
 
   @Override
   public WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub() {
     return next.futureStub()
         .withInterceptors(
-            new GrpcMetadataProviderInterceptor(Collections.singleton(() -> metadata)));
+            new GrpcMetadataProviderInterceptor(Collections.singleton(() -> metadata), true));
   }
 
   @Override

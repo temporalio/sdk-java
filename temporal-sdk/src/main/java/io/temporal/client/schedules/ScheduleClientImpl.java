@@ -26,6 +26,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
+import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootScheduleClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
@@ -60,6 +61,8 @@ final class ScheduleClientImpl implements ScheduleClient {
   }
 
   ScheduleClientImpl(WorkflowServiceStubs workflowServiceStubs, ScheduleClientOptions options) {
+    workflowServiceStubs =
+        new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;
     this.options = options;
     this.metricsScope =
