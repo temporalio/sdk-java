@@ -202,7 +202,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   }
 
   @Override
-  public CompletableFuture<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
+  public Future<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
     if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
       return CompletableFuture.completedFuture(new SlotPermit());
     }

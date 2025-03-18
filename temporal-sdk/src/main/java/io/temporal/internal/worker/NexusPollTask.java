@@ -32,8 +32,8 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -88,7 +88,7 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
     PollNexusTaskQueueResponse response;
     SlotPermit permit;
     boolean isSuccessful = false;
-    CompletableFuture<SlotPermit> future =
+    Future<SlotPermit> future =
         slotSupplier.reserveSlot(
             new SlotReservationData(
                 pollRequest.getTaskQueue().getName(),
