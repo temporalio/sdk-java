@@ -1,6 +1,6 @@
 plugins {
     id 'application'
-    id 'org.graalvm.buildtools.native' version '0.10.4'
+    id 'org.graalvm.buildtools.native' version '0.10.4' apply false
     id 'com.google.protobuf' version '0.9.2'
 }
 
@@ -30,13 +30,6 @@ dependencies {
 
 application {
     getMainClass().set('io.temporal.testserver.TestServer')
-
-    java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(21)
-            vendor = JvmVendorSpec.GRAAL_VM
-        }
-    }
 }
 
 jar {
@@ -103,37 +96,36 @@ def isLinux() {
     return System.properties['os.name'].toLowerCase().contains('linux')
 }
 
-graalvmNative {
-    toolchainDetection = true
-    agent {
-        defaultMode = "standard" // Default agent mode if one isn't specified using `-Pagent=mode_name`
+if (project.hasProperty("nativeBuild")) {
+    apply plugin: 'org.graalvm.buildtools.native'
 
-    }
-    binaries{
-        main {
-            mainClass =  application.getMainClass().get()
-            sharedLibrary = false
-            // Signal handling so that ^C actually stops the process
-            buildArgs.add("--install-exit-handlers")
-            // If we're on linux, static link everything but libc. Otherwise link
-            // everything dynamically (note the '-' rather than '+' in front of
-            // StaticExecutable)
-            if (isLinux()) {
-                buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
-            }
-            buildArgs.add("-H:+UnlockExperimentalVMOptions")
-            buildArgs.add("-O4")
+    graalvmNative {
+        toolchainDetection = true
+        agent {
+            defaultMode = "standard" // Default agent mode if one isn't specified using `-Pagent=mode_name`
 
-            runtimeArgs.add("7233")
-            javaLauncher = javaToolchains.launcherFor {
-                languageVersion = JavaLanguageVersion.of(21)
-                vendor = JvmVendorSpec.GRAAL_VM
+        }
+        binaries {
+            main {
+                mainClass = application.getMainClass().get()
+                sharedLibrary = false
+                // Signal handling so that ^C actually stops the process
+                buildArgs.add("--install-exit-handlers")
+                // If we're on linux, static link everything but libc. Otherwise link
+                // everything dynamically (note the '-' rather than '+' in front of
+                // StaticExecutable)
+                if (isLinux()) {
+                    buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
+                }
+                buildArgs.add("-H:+UnlockExperimentalVMOptions")
+                buildArgs.add("-O4")
+
+                runtimeArgs.add("7233")
             }
         }
-    }
-    binaries.all {
-        verbose = true
+        binaries.all {
+            verbose = true
+        }
     }
 }
-
-tasks.build.dependsOn('nativeCompile')
+// tasks.build.dependsOn('nativeCompile')
