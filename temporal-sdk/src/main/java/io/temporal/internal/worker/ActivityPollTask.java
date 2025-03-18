@@ -98,12 +98,18 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     PollActivityTaskQueueResponse response;
     SlotPermit permit;
     boolean isSuccessful = false;
-    CompletableFuture<SlotPermit> future =
-        slotSupplier.reserveSlot(
-            new SlotReservationData(
-                pollRequest.getTaskQueue().getName(),
-                pollRequest.getIdentity(),
-                pollRequest.getWorkerVersionCapabilities().getBuildId()));
+    CompletableFuture<SlotPermit> future;
+    try {
+      future =
+          slotSupplier.reserveSlot(
+              new SlotReservationData(
+                  pollRequest.getTaskQueue().getName(),
+                  pollRequest.getIdentity(),
+                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
+    } catch (Exception e) {
+      log.warn("Error while trying to reserve a slot for an activity", e.getCause());
+      return null;
+    }
     try {
       permit = future.get();
     } catch (InterruptedException e) {
