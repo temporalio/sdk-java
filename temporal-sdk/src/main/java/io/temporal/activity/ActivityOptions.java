@@ -22,10 +22,7 @@ package io.temporal.activity;
 
 import com.google.common.base.Objects;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.Experimental;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
-import io.temporal.common.VersioningIntent;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import java.time.Duration;
@@ -66,6 +63,7 @@ public final class ActivityOptions {
     private boolean disableEagerExecution;
     private VersioningIntent versioningIntent;
     private String summary;
+    private Priority priority;
 
     private Builder() {}
 
@@ -84,6 +82,7 @@ public final class ActivityOptions {
       this.disableEagerExecution = options.disableEagerExecution;
       this.versioningIntent = options.versioningIntent;
       this.summary = options.summary;
+      this.priority = options.priority;
     }
 
     /**
@@ -195,13 +194,13 @@ public final class ActivityOptions {
      * could make sense. <br>
      * This is also why there is no equivalent method on {@link LocalActivityOptions}.
      *
-     * @see <a href="https://github.com/temporalio/sdk-java/issues/490">Rejected feature reqest for
-     *     LocalActivityOption#contextPropagators</a>
      * @param contextPropagators specifies the list of context propagators to use during propagation
      *     from a workflow to the activity with these {@link ActivityOptions}. This list overrides
      *     the list specified on {@link
      *     io.temporal.client.WorkflowClientOptions#getContextPropagators()}, {@code null} means no
      *     overriding
+     * @see <a href="https://github.com/temporalio/sdk-java/issues/490">Rejected feature reqest for
+     *     LocalActivityOption#contextPropagators</a>
      */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
@@ -258,6 +257,18 @@ public final class ActivityOptions {
       return this;
     }
 
+    /**
+     * Optional priority settings that control relative ordering of task processing when tasks are
+     * backed up in a queue.
+     *
+     * <p>Defaults to inheriting priority from the workflow that scheduled the activity.
+     */
+    @Experimental
+    public Builder setPriority(Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
     public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
@@ -290,6 +301,7 @@ public final class ActivityOptions {
         this.versioningIntent = override.versioningIntent;
       }
       this.summary = (override.summary == null) ? this.summary : override.summary;
+      this.priority = (override.priority == null) ? this.priority : override.priority;
       return this;
     }
 
@@ -313,7 +325,8 @@ public final class ActivityOptions {
           cancellationType,
           disableEagerExecution,
           versioningIntent,
-          summary);
+          summary,
+          priority);
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
@@ -330,7 +343,8 @@ public final class ActivityOptions {
           versioningIntent == null
               ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
               : versioningIntent,
-          summary);
+          summary,
+          priority);
     }
   }
 
@@ -345,6 +359,7 @@ public final class ActivityOptions {
   private final boolean disableEagerExecution;
   private final VersioningIntent versioningIntent;
   private final String summary;
+  private final Priority priority;
 
   private ActivityOptions(
       Duration heartbeatTimeout,
@@ -357,7 +372,8 @@ public final class ActivityOptions {
       ActivityCancellationType cancellationType,
       boolean disableEagerExecution,
       VersioningIntent versioningIntent,
-      String summary) {
+      String summary,
+      Priority priority) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
@@ -369,6 +385,7 @@ public final class ActivityOptions {
     this.disableEagerExecution = disableEagerExecution;
     this.versioningIntent = versioningIntent;
     this.summary = summary;
+    this.priority = priority;
   }
 
   /**
@@ -443,6 +460,11 @@ public final class ActivityOptions {
     return summary;
   }
 
+  @Experimental
+  public Priority getPriority() {
+    return priority;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -462,7 +484,8 @@ public final class ActivityOptions {
         && Objects.equal(contextPropagators, that.contextPropagators)
         && disableEagerExecution == that.disableEagerExecution
         && versioningIntent == that.versioningIntent
-        && Objects.equal(summary, that.summary);
+        && Objects.equal(summary, that.summary)
+        && Objects.equal(priority, that.priority);
   }
 
   @Override
@@ -478,7 +501,8 @@ public final class ActivityOptions {
         cancellationType,
         disableEagerExecution,
         versioningIntent,
-        summary);
+        summary,
+        priority);
   }
 
   @Override
@@ -507,6 +531,8 @@ public final class ActivityOptions {
         + versioningIntent
         + ", summary="
         + summary
+        + ", priority="
+        + priority
         + '}';
   }
 }
