@@ -20,21 +20,19 @@ This service allows to run a test-only in-memory implementation of Temporal serv
 
 From the root of the java-sdk repo:
 ```
-./gradlew :temporal-test-server:build
+./gradlew :temporal-test-server:nativeCompile -PnativeBuild
 ```
 This will give you a native executable `build/graal/temporal-test-server`. The
 executable requires a single argument: the port number on which it should
 listen.
 
-## To build a test server docker image
+## To run the test server as a native-image through gradle
 
 From the root of the java-sdk repo:
 ```
-./gradlew :temporal-test-server:docker
+ ./gradlew :temporal-test-server:nativeRun -PnativeBuild    
 ```
 
-This will result in a local image being built:
-`temporalio/temporal-test-server`.
 
 ## GraalVM native-image configuration
 
