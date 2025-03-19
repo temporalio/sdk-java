@@ -103,7 +103,14 @@ if (project.hasProperty("nativeBuild")) {
     graalvmNative {
         toolchainDetection = true
         agent {
-            defaultMode = "standard" // Default agent mode if one isn't specified using `-Pagent=mode_name`
+            enabled = true
+            defaultMode = "standard"
+            metadataCopy {
+                inputTaskNames.add("test")
+                inputTaskNames.add("run")
+                outputDirectories.add("src/main/resources/META-INF/native-image/io.temporal/temporal-test-server")
+                mergeWithExisting = true
+            }
 
         }
         binaries {
