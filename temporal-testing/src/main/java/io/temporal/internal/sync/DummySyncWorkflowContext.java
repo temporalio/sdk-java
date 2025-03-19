@@ -348,6 +348,11 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public Priority getPriority() {
+      return null;
+    }
+
+    @Override
     public int getAttempt() {
       return 1;
     }

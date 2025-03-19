@@ -59,12 +59,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.*;
-import io.temporal.internal.common.ActivityOptionUtils;
-import io.temporal.internal.common.HeaderUtils;
-import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.SdkFlag;
-import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.common.*;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
@@ -631,6 +626,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     UserMetadata userMetadata =
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
 
+    if (options.getPriority() != null) {
+      attributes.setPriority(PriorityUtils.toProto(options.getPriority()));
+    }
+
     return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
   }
 
@@ -953,6 +952,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               .getVersioningIntent()
               .determineUseCompatibleFlag(
                   replayContext.getTaskQueue().equals(options.getTaskQueue())));
+    }
+    if (options.getPriority() != null) {
+      attributes.setPriority(PriorityUtils.toProto(options.getPriority()));
     }
     return new StartChildWorkflowExecutionParameters(
         attributes, options.getCancellationType(), metadata);

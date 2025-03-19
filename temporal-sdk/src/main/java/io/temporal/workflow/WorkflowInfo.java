@@ -21,6 +21,8 @@
 package io.temporal.workflow;
 
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.common.Experimental;
+import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.Optional;
@@ -189,4 +191,8 @@ public interface WorkflowInfo {
    *     branching.
    */
   Optional<String> getCurrentBuildId();
+
+  /** Return the priority of the workflow task. */
+  @Experimental
+  Priority getPriority();
 }

@@ -85,6 +85,7 @@ public final class WorkflowOptions {
         .setCompletionCallbacks(o.getCompletionCallbacks())
         .setLinks(o.getLinks())
         .setOnConflictOptions(o.getOnConflictOptions())
+        .setPriority(o.getPriority())
         .validateBuildWithDefaults();
   }
 
@@ -132,6 +133,8 @@ public final class WorkflowOptions {
 
     private OnConflictOptions onConflictOptions;
 
+    private Priority priority;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -159,6 +162,7 @@ public final class WorkflowOptions {
       this.completionCallbacks = options.completionCallbacks;
       this.links = options.links;
       this.onConflictOptions = options.onConflictOptions;
+      this.priority = options.priority;
     }
 
     /**
@@ -380,8 +384,8 @@ public final class WorkflowOptions {
      *   <li>has available workflow task executor slots
      * </ul>
      *
-     * and such a {@link WorkflowClient} is used to start a workflow, then the first workflow task
-     * could be dispatched on this local worker with the response to the start call if Server
+     * <p>and such a {@link WorkflowClient} is used to start a workflow, then the first workflow
+     * task could be dispatched on this local worker with the response to the start call if Server
      * supports it. This option can be used to disable this mechanism.
      *
      * <p>Default is true
@@ -478,6 +482,16 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * Optional priority settings that control relative ordering of task processing when tasks are
+     * backed up in a queue.
+     */
+    @Experimental
+    public Builder setPriority(Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -500,7 +514,8 @@ public final class WorkflowOptions {
           requestId,
           completionCallbacks,
           links,
-          onConflictOptions);
+          onConflictOptions,
+          priority);
     }
 
     /**
@@ -528,7 +543,8 @@ public final class WorkflowOptions {
           requestId,
           completionCallbacks,
           links,
-          onConflictOptions);
+          onConflictOptions,
+          priority);
     }
   }
 
@@ -572,6 +588,7 @@ public final class WorkflowOptions {
 
   private final List<Link> links;
   private final OnConflictOptions onConflictOptions;
+  private final Priority priority;
 
   private WorkflowOptions(
       String workflowId,
@@ -594,7 +611,8 @@ public final class WorkflowOptions {
       String requestId,
       List<Callback> completionCallbacks,
       List<Link> links,
-      OnConflictOptions onConflictOptions) {
+      OnConflictOptions onConflictOptions,
+      Priority priority) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -616,6 +634,7 @@ public final class WorkflowOptions {
     this.completionCallbacks = completionCallbacks;
     this.links = links;
     this.onConflictOptions = onConflictOptions;
+    this.priority = priority;
   }
 
   public String getWorkflowId() {
@@ -717,6 +736,11 @@ public final class WorkflowOptions {
     return onConflictOptions;
   }
 
+  @Experimental
+  public Priority getPriority() {
+    return priority;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -746,7 +770,8 @@ public final class WorkflowOptions {
         && Objects.equal(requestId, that.requestId)
         && Objects.equal(completionCallbacks, that.completionCallbacks)
         && Objects.equal(links, that.links)
-        && Objects.equal(onConflictOptions, that.onConflictOptions);
+        && Objects.equal(onConflictOptions, that.onConflictOptions)
+        && Objects.equal(priority, that.priority);
   }
 
   @Override
@@ -772,7 +797,8 @@ public final class WorkflowOptions {
         requestId,
         completionCallbacks,
         links,
-        onConflictOptions);
+        onConflictOptions,
+        priority);
   }
 
   @Override
@@ -823,6 +849,8 @@ public final class WorkflowOptions {
         + links
         + ", onConflictOptions="
         + onConflictOptions
+        + ", priority="
+        + priority
         + '}';
   }
 }
