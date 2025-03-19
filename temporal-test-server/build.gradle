@@ -96,6 +96,7 @@ def isLinux() {
     return System.properties['os.name'].toLowerCase().contains('linux')
 }
 
+// The graalvm plugin requires we build with Java 11
 if (project.hasProperty("nativeBuild")) {
     apply plugin: 'org.graalvm.buildtools.native'
 
@@ -114,9 +115,7 @@ if (project.hasProperty("nativeBuild")) {
                 // If we're on linux, static link everything but libc. Otherwise link
                 // everything dynamically (note the '-' rather than '+' in front of
                 // StaticExecutable)
-                if (isLinux()) {
-                    buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
-                }
+                buildArgs.add(isLinux() ? "-H:+StaticExecutableWithDynamicLibC": "-H:-StaticExecutable")
                 buildArgs.add("-H:+UnlockExperimentalVMOptions")
                 buildArgs.add("-O4")
 
@@ -128,4 +127,3 @@ if (project.hasProperty("nativeBuild")) {
         }
     }
 }
-// tasks.build.dependsOn('nativeCompile')
