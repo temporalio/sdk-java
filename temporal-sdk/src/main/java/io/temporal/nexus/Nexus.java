@@ -20,12 +20,10 @@
 
 package io.temporal.nexus;
 
-import io.temporal.common.Experimental;
 import io.temporal.internal.nexus.NexusInternal;
 import io.temporal.internal.sync.WorkflowInternal;
 
 /** This class contains methods exposing Temporal APIs for Nexus Operations */
-@Experimental
 public final class Nexus {
   /**
    * Can be used to get information about a Nexus Operation. This static method relies on a

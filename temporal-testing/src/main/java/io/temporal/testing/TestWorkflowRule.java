@@ -32,7 +32,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
@@ -259,7 +258,6 @@ public class TestWorkflowRule implements TestRule {
      *
      * @see Worker#registerNexusServiceImplementation(Object...)
      */
-    @Experimental
     public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
       this.nexusServiceImplementations = nexusServiceImplementations;
       return this;
@@ -348,7 +346,6 @@ public class TestWorkflowRule implements TestRule {
      * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
      * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
      */
-    @Experimental
     public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
       this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
       return this;
