@@ -20,7 +20,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.util.Objects;
 
