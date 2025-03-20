@@ -28,7 +28,6 @@ import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -407,7 +406,6 @@ public class TestWorkflowExtension
      *
      * @see Worker#registerNexusServiceImplementation(Object...)
      */
-    @Experimental
     public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
       this.nexusServiceImplementations = nexusServiceImplementations;
       return this;
@@ -482,7 +480,6 @@ public class TestWorkflowExtension
      * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
      * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
      */
-    @Experimental
     public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
       this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
       return this;
