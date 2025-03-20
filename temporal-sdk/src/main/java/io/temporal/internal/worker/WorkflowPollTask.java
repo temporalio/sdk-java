@@ -37,10 +37,9 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -125,24 +124,23 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   @Override
   @SuppressWarnings("deprecation")
   public WorkflowTask poll() {
-    boolean isSuccessful = false;
     SlotPermit permit;
-    Future<SlotPermit> future =
-        slotSupplier.reserveSlot(
-            new SlotReservationData(
-                pollRequest.getTaskQueue().getName(),
-                pollRequest.getIdentity(),
-                pollRequest.getWorkerVersionCapabilities().getBuildId()));
+    SlotSupplierFuture future;
+    boolean isSuccessful = false;
     try {
-      permit = future.get();
-    } catch (InterruptedException e) {
-      future.cancel(true);
-      Thread.currentThread().interrupt();
-      return null;
-    } catch (ExecutionException e) {
-      log.warn("Error while trying to reserve a slot for workflow task", e.getCause());
+      future =
+          slotSupplier.reserveSlot(
+              new SlotReservationData(
+                  pollRequest.getTaskQueue().getName(),
+                  pollRequest.getIdentity(),
+                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
+    } catch (Exception e) {
+      log.warn("Error while trying to reserve a slot for a workflow", e.getCause());
       return null;
     }
+
+    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     TaskQueueKind taskQueueKind = stickyQueueBalancer.makePoll();
     boolean isSticky = TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind);

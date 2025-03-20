@@ -25,7 +25,6 @@ import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -94,7 +93,11 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
       try {
         CompletableFuture<Void> waiter = waiters.poll();
         if (waiter != null) {
-          waiter.complete(null);
+          if (!waiter.complete(null) && waiter.isCancelled()) {
+            // If this waiter was cancelled, we need to release another permit, since this waiter
+            // is now useless
+            release();
+          }
         } else {
           permits++;
         }
@@ -111,8 +114,10 @@ public class FixedSizeSlotSupplier<SI extends SlotInfo> implements SlotSupplier<
   }
 
   @Override
-  public Future<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
-    return executorSlotsSemaphore.acquire().thenApply(ignored -> new SlotPermit());
+  public SlotSupplierFuture reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
+    CompletableFuture<Void> slotFuture = executorSlotsSemaphore.acquire();
+    return SlotSupplierFuture.fromCompletableFuture(
+        slotFuture.thenApply(ignored -> new SlotPermit()), () -> slotFuture.cancel(true));
   }
 
   @Override

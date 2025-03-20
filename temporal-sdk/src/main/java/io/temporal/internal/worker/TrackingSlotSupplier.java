@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -49,56 +48,20 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public Future<SlotPermit> reserveSlot(SlotReservationData dat) {
-    final Future<SlotPermit> originalFuture;
+  public SlotSupplierFuture reserveSlot(SlotReservationData data) {
+    final SlotSupplierFuture future;
     try {
-      originalFuture = inner.reserveSlot(createCtx(dat));
+      future = inner.reserveSlot(createCtx(data));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
 
-    return new Future<SlotPermit>() {
-      private final AtomicBoolean callbackInvoked = new AtomicBoolean(false);
-
-      private SlotPermit executeCallbackIfNeeded(SlotPermit permit) {
-        if (callbackInvoked.compareAndSet(false, true)) {
-          issuedSlots.incrementAndGet();
-        }
-        return permit;
-      }
-
-      @Override
-      public boolean cancel(boolean mayInterruptIfRunning) {
-        return originalFuture.cancel(mayInterruptIfRunning);
-      }
-
-      @Override
-      public boolean isCancelled() {
-        return originalFuture.isCancelled();
-      }
-
-      @Override
-      public boolean isDone() {
-        return originalFuture.isDone();
-      }
-
-      @Override
-      public SlotPermit get() throws InterruptedException, ExecutionException {
-        SlotPermit permit = originalFuture.get();
-        return executeCallbackIfNeeded(permit);
-      }
-
-      @Override
-      public SlotPermit get(long timeout, TimeUnit unit)
-          throws InterruptedException, ExecutionException, TimeoutException {
-        SlotPermit permit = originalFuture.get(timeout, unit);
-        return executeCallbackIfNeeded(permit);
-      }
-    };
+    future.thenRun(issuedSlots::incrementAndGet);
+    return future;
   }
 
-  public Optional<SlotPermit> tryReserveSlot(SlotReservationData dat) {
-    Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(dat));
+  public Optional<SlotPermit> tryReserveSlot(SlotReservationData data) {
+    Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(data));
     if (p.isPresent()) {
       issuedSlots.incrementAndGet();
     }

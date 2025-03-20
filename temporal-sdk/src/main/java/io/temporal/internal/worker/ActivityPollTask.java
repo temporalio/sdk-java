@@ -35,8 +35,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -97,8 +95,8 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     }
     PollActivityTaskQueueResponse response;
     SlotPermit permit;
+    SlotSupplierFuture future;
     boolean isSuccessful = false;
-    Future<SlotPermit> future;
     try {
       future =
           slotSupplier.reserveSlot(
@@ -110,16 +108,8 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       log.warn("Error while trying to reserve a slot for an activity", e.getCause());
       return null;
     }
-    try {
-      permit = future.get();
-    } catch (InterruptedException e) {
-      future.cancel(true);
-      Thread.currentThread().interrupt();
-      return null;
-    } catch (ExecutionException e) {
-      log.warn("Error while trying to reserve a slot for an activity", e.getCause());
-      return null;
-    }
+    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     try {
       response =

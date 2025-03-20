@@ -32,8 +32,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -87,23 +85,21 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
     }
     PollNexusTaskQueueResponse response;
     SlotPermit permit;
+    SlotSupplierFuture future;
     boolean isSuccessful = false;
-    Future<SlotPermit> future =
-        slotSupplier.reserveSlot(
-            new SlotReservationData(
-                pollRequest.getTaskQueue().getName(),
-                pollRequest.getIdentity(),
-                pollRequest.getWorkerVersionCapabilities().getBuildId()));
     try {
-      permit = future.get();
-    } catch (InterruptedException e) {
-      future.cancel(true);
-      Thread.currentThread().interrupt();
-      return null;
-    } catch (ExecutionException e) {
+      future =
+          slotSupplier.reserveSlot(
+              new SlotReservationData(
+                  pollRequest.getTaskQueue().getName(),
+                  pollRequest.getIdentity(),
+                  pollRequest.getWorkerVersionCapabilities().getBuildId()));
+    } catch (Exception e) {
       log.warn("Error while trying to reserve a slot for a nexus task", e.getCause());
       return null;
     }
+    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     try {
       response =

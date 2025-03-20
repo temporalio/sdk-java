@@ -37,7 +37,6 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,7 +77,7 @@ public class SlotSupplierTest {
                     usedSlotsWhenCalled.set(src.getUsedSlots().size());
                     return true;
                   })))
-          .thenReturn(CompletableFuture.completedFuture(new SlotPermit()));
+          .thenReturn(SlotSupplierFuture.completedFuture(new SlotPermit()));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

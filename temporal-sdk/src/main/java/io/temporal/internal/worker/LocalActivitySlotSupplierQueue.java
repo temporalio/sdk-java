@@ -23,6 +23,7 @@ package io.temporal.internal.worker;
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.*;
 import javax.annotation.Nullable;
@@ -84,11 +85,14 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       try {
         request = requestQueue.take();
 
-        Future<SlotPermit> future = slotSupplier.reserveSlot(request.data);
+        SlotSupplierFuture future = slotSupplier.reserveSlot(request.data);
         try {
           slotPermit = future.get();
         } catch (InterruptedException e) {
-          future.cancel(true);
+          SlotPermit maybePermitAnyway = future.abortReservation();
+          if (maybePermitAnyway != null) {
+            slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), maybePermitAnyway);
+          }
           Thread.currentThread().interrupt();
           return;
         } catch (ExecutionException e) {

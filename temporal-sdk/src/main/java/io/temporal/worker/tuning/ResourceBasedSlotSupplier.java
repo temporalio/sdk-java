@@ -202,16 +202,16 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   }
 
   @Override
-  public Future<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
+  public SlotSupplierFuture reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
     if (ctx.getNumIssuedSlots() < options.getMinimumSlots()) {
-      return CompletableFuture.completedFuture(new SlotPermit());
+      return SlotSupplierFuture.completedFuture(new SlotPermit());
     }
     return tryReserveSlot(ctx)
-        .map(CompletableFuture::completedFuture)
+        .map(SlotSupplierFuture::completedFuture)
         .orElseGet(() -> scheduleSlotAcquisition(ctx));
   }
 
-  private CompletableFuture<SlotPermit> scheduleSlotAcquisition(SlotReserveContext<SI> ctx) {
+  private SlotSupplierFuture scheduleSlotAcquisition(SlotReserveContext<SI> ctx) {
     Duration mustWaitFor;
     try {
       mustWaitFor = options.getRampThrottle().minus(timeSinceLastSlotIssued());
@@ -228,17 +228,19 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
     }
 
     // After the delay, try to reserve the slot
-    return permitFuture.thenCompose(
-        ignored -> {
-          Optional<SlotPermit> permit = tryReserveSlot(ctx);
-          // If we couldn't get a slot this time, delay for a short period and try again
-          return permit
-              .map(CompletableFuture::completedFuture)
-              .orElseGet(
-                  () ->
-                      CompletableFuture.supplyAsync(() -> null, delayedExecutor(10))
-                          .thenCompose(ig -> scheduleSlotAcquisition(ctx)));
-        });
+    return SlotSupplierFuture.fromCompletableFuture(
+        permitFuture.thenCompose(
+            ignored -> {
+              Optional<SlotPermit> permit = tryReserveSlot(ctx);
+              // If we couldn't get a slot this time, delay for a short period and try again
+              return permit
+                  .map(CompletableFuture::completedFuture)
+                  .orElseGet(
+                      () ->
+                          CompletableFuture.supplyAsync(() -> null, delayedExecutor(10))
+                              .thenCompose(ig -> scheduleSlotAcquisition(ctx)));
+            }),
+        () -> permitFuture.cancel(true));
   }
 
   @Override

@@ -23,7 +23,6 @@ package io.temporal.testUtils;
 import io.temporal.worker.tuning.*;
 import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupplier<SI> {
@@ -38,47 +37,10 @@ public class CountingSlotSupplier<SI extends SlotInfo> extends FixedSizeSlotSupp
   }
 
   @Override
-  public Future<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
-    Future<SlotPermit> originalFuture = super.reserveSlot(ctx);
-
-    return new Future<SlotPermit>() {
-      private final AtomicBoolean callbackInvoked = new AtomicBoolean(false);
-
-      private SlotPermit executeCallbackIfNeeded(SlotPermit permit) {
-        if (callbackInvoked.compareAndSet(false, true)) {
-          reservedCount.incrementAndGet();
-        }
-        return permit;
-      }
-
-      @Override
-      public boolean cancel(boolean mayInterruptIfRunning) {
-        return originalFuture.cancel(mayInterruptIfRunning);
-      }
-
-      @Override
-      public boolean isCancelled() {
-        return originalFuture.isCancelled();
-      }
-
-      @Override
-      public boolean isDone() {
-        return originalFuture.isDone();
-      }
-
-      @Override
-      public SlotPermit get() throws InterruptedException, ExecutionException {
-        SlotPermit permit = originalFuture.get();
-        return executeCallbackIfNeeded(permit);
-      }
-
-      @Override
-      public SlotPermit get(long timeout, TimeUnit unit)
-          throws InterruptedException, ExecutionException, TimeoutException {
-        SlotPermit permit = originalFuture.get(timeout, unit);
-        return executeCallbackIfNeeded(permit);
-      }
-    };
+  public SlotSupplierFuture reserveSlot(SlotReserveContext<SI> ctx) throws Exception {
+    SlotSupplierFuture p = super.reserveSlot(ctx);
+    p.thenRun(reservedCount::incrementAndGet);
+    return p;
   }
 
   @Override
