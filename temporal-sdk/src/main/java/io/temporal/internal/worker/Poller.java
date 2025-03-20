@@ -27,6 +27,9 @@ import io.temporal.internal.BackoffThrottler;
 import io.temporal.internal.common.GrpcUtils;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -220,6 +223,25 @@ final class Poller<T> implements SuspendableWorker {
       }
     }
     return WorkerLifecycleState.ACTIVE;
+  }
+
+  static SlotPermit getSlotPermitAndHandleInterrupts(
+      SlotSupplierFuture future, TrackingSlotSupplier<?> slotSupplier) {
+    SlotPermit permit;
+    try {
+      permit = future.get();
+    } catch (InterruptedException e) {
+      SlotPermit maybePermitAnyway = future.abortReservation();
+      if (maybePermitAnyway != null) {
+        slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), maybePermitAnyway);
+      }
+      Thread.currentThread().interrupt();
+      return null;
+    } catch (ExecutionException e) {
+      log.warn("Error while trying to reserve a slot", e.getCause());
+      return null;
+    }
+    return permit;
   }
 
   @Override

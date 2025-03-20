@@ -22,7 +22,6 @@ package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
 import java.util.Optional;
-import java.util.concurrent.Future;
 
 /**
  * A SlotSupplier is responsible for managing the number of slots available for a given type of
@@ -49,7 +48,7 @@ public interface SlotSupplier<SI extends SlotInfo> {
    * @return A future that will be completed with a permit to use the slot when one becomes
    *     available. Never return null, or complete the future with null.
    */
-  Future<SlotPermit> reserveSlot(SlotReserveContext<SI> ctx) throws Exception;
+  SlotSupplierFuture reserveSlot(SlotReserveContext<SI> ctx) throws Exception;
 
   /**
    * This function is called when trying to reserve slots for "eager" workflow and activity tasks.
