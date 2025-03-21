@@ -22,14 +22,12 @@ package io.temporal.nexus;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
-import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
 /**
  * Context object passed to a Nexus operation implementation. Use {@link
  * Nexus#getOperationContext()} from a Nexus Operation implementation to access.
  */
-@Experimental
 public interface NexusOperationContext {
 
   /**

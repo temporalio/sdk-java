@@ -21,7 +21,6 @@
 package io.temporal.workflow;
 
 import com.google.common.base.Preconditions;
-import io.temporal.common.Experimental;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -31,7 +30,6 @@ import java.util.Objects;
  *
  * <p>Use {@link NexusServiceOptions#newBuilder()} to construct an instance.
  */
-@Experimental
 public final class NexusServiceOptions {
 
   public static NexusServiceOptions.Builder newBuilder() {

@@ -30,7 +30,6 @@ import java.util.Objects;
  *
  * <p>Use {@link NexusOperationOptions#newBuilder()} to construct an instance.
  */
-@Experimental
 public final class NexusOperationOptions {
   public static NexusOperationOptions.Builder newBuilder() {
     return new NexusOperationOptions.Builder();

@@ -20,7 +20,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 
 /**
@@ -29,7 +28,6 @@ import java.lang.reflect.Type;
  * to execute operations implemented in other languages. Created through {@link
  * Workflow#newNexusServiceStub(Class)}.
  */
-@Experimental
 public interface NexusServiceStub {
 
   /**
