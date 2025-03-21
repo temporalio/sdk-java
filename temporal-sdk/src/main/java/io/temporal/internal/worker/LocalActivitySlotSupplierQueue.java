@@ -23,6 +23,7 @@ package io.temporal.internal.worker;
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.*;
 import javax.annotation.Nullable;
@@ -83,22 +84,30 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       QueuedLARequest request = null;
       try {
         request = requestQueue.take();
+
+        SlotSupplierFuture future = slotSupplier.reserveSlot(request.data);
         try {
-          slotPermit = slotSupplier.reserveSlot(request.data);
+          slotPermit = future.get();
         } catch (InterruptedException e) {
+          SlotPermit maybePermitAnyway = future.abortReservation();
+          if (maybePermitAnyway != null) {
+            slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), maybePermitAnyway);
+          }
           Thread.currentThread().interrupt();
           return;
-        } catch (Exception e) {
+        } catch (ExecutionException e) {
           log.error(
               "Error reserving local activity slot, dropped activity id {}",
               request.task.getActivityId(),
               e);
           continue;
         }
+
         request.task.getExecutionContext().setPermit(slotPermit);
         afterReservedCallback.apply(request.task);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        return;
       } catch (Throwable e) {
         // Fail the workflow task if something went wrong executing the local activity (at the
         // executor level, otherwise, the LA handler itself should be handling errors)
@@ -111,6 +120,11 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
           executionContext.callback(
               LocalActivityResult.processingFailed(
                   executionContext.getActivityId(), request.task.getAttemptTask().getAttempt(), e));
+        }
+        if (e.getCause() instanceof InterruptedException) {
+          // It's possible the interrupt happens inside the callback, so check that as well.
+          Thread.currentThread().interrupt();
+          return;
         }
       }
     }
@@ -162,11 +176,9 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     running = false;
-    if (requestQueue.isEmpty()) {
-      // Just interrupt the thread, so that if we're waiting on blocking take the thread will
-      // be interrupted and exit. Otherwise the loop will exit once the queue is empty.
-      queueThreadService.shutdownNow();
-    }
+    // Always interrupt. This won't cause any *tasks* to be interrupted, since the queue thread is
+    // only responsible for handing them out.
+    queueThreadService.shutdownNow();
 
     return interruptTasks
         ? shutdownManager.shutdownExecutorNowUntimed(
@@ -182,6 +194,7 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       // timeout duration if no task was ever submitted.
       return;
     }
+
     ShutdownManager.awaitTermination(queueThreadService, unit.toMillis(timeout));
   }
 }
