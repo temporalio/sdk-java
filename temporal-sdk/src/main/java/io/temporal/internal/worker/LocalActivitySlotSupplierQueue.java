@@ -107,6 +107,7 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
         afterReservedCallback.apply(request.task);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        return;
       } catch (Throwable e) {
         // Fail the workflow task if something went wrong executing the local activity (at the
         // executor level, otherwise, the LA handler itself should be handling errors)
@@ -119,6 +120,11 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
           executionContext.callback(
               LocalActivityResult.processingFailed(
                   executionContext.getActivityId(), request.task.getAttemptTask().getAttempt(), e));
+        }
+        if (e.getCause() instanceof InterruptedException) {
+          // It's possible the interrupt happens inside the callback, so check that as well.
+          Thread.currentThread().interrupt();
+          return;
         }
       }
     }
@@ -170,11 +176,9 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     running = false;
-    if (requestQueue.isEmpty()) {
-      // Just interrupt the thread, so that if we're waiting on blocking take the thread will
-      // be interrupted and exit. Otherwise the loop will exit once the queue is empty.
-      queueThreadService.shutdownNow();
-    }
+    // Always interrupt. This won't cause any *tasks* to be interrupted, since the queue thread is
+    // only responsible for handing them out.
+    queueThreadService.shutdownNow();
 
     return interruptTasks
         ? shutdownManager.shutdownExecutorNowUntimed(
@@ -190,6 +194,7 @@ class LocalActivitySlotSupplierQueue implements Shutdownable {
       // timeout duration if no task was ever submitted.
       return;
     }
+
     ShutdownManager.awaitTermination(queueThreadService, unit.toMillis(timeout));
   }
 }
