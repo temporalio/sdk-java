@@ -444,4 +444,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     branching.
    */
   Optional<String> getCurrentBuildId();
+
+  /**
+   * @return the priority of the workflow task
+   */
+  Priority getPriority();
 }

@@ -286,6 +286,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public Priority getPriority() {
+    return basicWorkflowContext.getPriority();
+  }
+
+  @Override
   public Functions.Proc1<RuntimeException> newTimer(
       Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback) {
     if (delay.compareTo(Duration.ZERO) <= 0) {

@@ -21,6 +21,8 @@
 package io.temporal.activity;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.Experimental;
+import io.temporal.common.Priority;
 import java.time.Duration;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -139,4 +141,14 @@ public interface ActivityInfo {
 
   /** Used to determine if the Activity Execution is a local Activity. */
   boolean isLocal();
+
+  /**
+   * Return the priority of the activity task.
+   *
+   * @apiNote If unset or on an older server version, this method will return {@link
+   *     Priority#getDefaultInstance()}.
+   */
+  @Experimental
+  @Nonnull
+  Priority getPriority();
 }

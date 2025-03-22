@@ -24,6 +24,8 @@ import com.google.protobuf.util.Timestamps;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
+import io.temporal.common.Priority;
+import io.temporal.internal.common.PriorityUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -152,6 +154,11 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   @Override
   public boolean isLocal() {
     return local;
+  }
+
+  @Override
+  public Priority getPriority() {
+    return PriorityUtils.fromProto(response.getPriority());
   }
 
   @Override
