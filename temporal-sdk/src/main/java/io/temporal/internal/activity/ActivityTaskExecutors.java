@@ -117,15 +117,23 @@ final class ActivityTaskExecutors {
         boolean local = info.isLocal();
         if (ex instanceof ActivityCanceledException) {
           log.info(
-              "{} canceled. ActivityId={}, activityType={}, attempt={}",
+              "{} canceled. Namespace={}, TaskQueue={}, WorkflowId={}, RunId={}, ActivityId={}, activityType={}, attempt={}",
               local ? "Local activity" : "Activity",
+              info.getNamespace(),
+              info.getActivityTaskQueue(),
+              info.getWorkflowId(),
+              info.getRunId(),
               info.getActivityId(),
               info.getActivityType(),
               info.getAttempt());
         } else {
           log.warn(
-              "{} failure. ActivityId={}, activityType={}, attempt={}",
+              "{} failure. Namespace={}, TaskQueue={}, WorkflowId={}, RunId={}, ActivityId={}, activityType={}, attempt={}",
               local ? "Local activity" : "Activity",
+              info.getNamespace(),
+              info.getActivityTaskQueue(),
+              info.getWorkflowId(),
+              info.getRunId(),
               info.getActivityId(),
               info.getActivityType(),
               info.getAttempt(),
