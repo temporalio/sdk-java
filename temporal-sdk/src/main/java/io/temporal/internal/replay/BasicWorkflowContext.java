@@ -160,8 +160,8 @@ final class BasicWorkflowContext {
     return toRetryOptions(startedAttributes.getRetryPolicy());
   }
 
-  @Nullable
+  @Nonnull
   public Priority getPriority() {
-    return startedAttributes.hasPriority() ? startedAttributes.getPriority() : null;
+    return startedAttributes.getPriority();
   }
 }

@@ -35,14 +35,59 @@ import java.util.Objects;
  */
 @Experimental
 public class Priority {
-  private int priorityKey;
+  public static Priority.Builder newBuilder() {
+    return new Priority.Builder(null);
+  }
 
-  public Priority(int priorityKey) {
+  public static Priority getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final Priority DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = Priority.newBuilder().build();
+  }
+
+  public static final class Builder {
+    private int priorityKey;
+
+    private Builder(Priority options) {
+      if (options == null) {
+        return;
+      }
+      this.priorityKey = options.getPriorityKey();
+    }
+
+    /**
+     * A priority key is a positive integer from 1 to n, where smaller integers correspond to higher
+     * priorities (tasks run sooner). In general, tasks in a queue should be processed in close to
+     * priority order, although small deviations are possible.
+     *
+     * <p>The maximum priority value (minimum priority) is determined by server configuration, and
+     * defaults to 5.
+     *
+     * <p>The default value when unset or 0 is calculated by (min+max)/2. With the default max of 5,
+     * and min of 1, that comes out to 3.
+     */
+    public Builder setPriorityKey(int priorityKey) {
+      this.priorityKey = priorityKey;
+      return this;
+    }
+
+    public Priority build() {
+      return new Priority(priorityKey);
+    }
+  }
+
+  private Priority(int priorityKey) {
     this.priorityKey = priorityKey;
   }
 
+  private final int priorityKey;
+
   /**
-   * See {@link #setPriorityKey(int)}
+   * See {@link Builder#setPriorityKey(int)}
    *
    * @return The priority key
    */
@@ -50,19 +95,9 @@ public class Priority {
     return priorityKey;
   }
 
-  /**
-   * A priority key is a positive integer from 1 to n, where smaller integers correspond to higher
-   * priorities (tasks run sooner). In general, tasks in a queue should be processed in close to
-   * priority order, although small deviations are possible.
-   *
-   * <p>The maximum priority value (minimum priority) is determined by server configuration, and
-   * defaults to 5.
-   *
-   * <p>The default value when unset or 0 is calculated by (min+max)/2. With the default max of 5,
-   * and min of 1, that comes out to 3.
-   */
-  public void setPriorityKey(int priorityKey) {
-    this.priorityKey = priorityKey;
+  @Override
+  public String toString() {
+    return "Priority{" + "priorityKey=" + priorityKey + '}';
   }
 
   @Override
