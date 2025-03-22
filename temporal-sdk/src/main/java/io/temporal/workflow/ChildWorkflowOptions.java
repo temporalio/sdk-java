@@ -101,6 +101,7 @@ public final class ChildWorkflowOptions {
       this.versioningIntent = options.getVersioningIntent();
       this.staticSummary = options.getStaticSummary();
       this.staticDetails = options.getStaticDetails();
+      this.priority = options.getPriority();
     }
 
     /**

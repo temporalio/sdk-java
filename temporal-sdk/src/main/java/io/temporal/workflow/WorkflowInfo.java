@@ -192,7 +192,13 @@ public interface WorkflowInfo {
    */
   Optional<String> getCurrentBuildId();
 
-  /** Return the priority of the workflow task. */
+  /**
+   * Return the priority of the workflow task.
+   *
+   * @apiNote If unset or on an older server version, this method will return {@link
+   *     Priority#getDefaultInstance()}.
+   */
   @Experimental
+  @Nonnull
   Priority getPriority();
 }
