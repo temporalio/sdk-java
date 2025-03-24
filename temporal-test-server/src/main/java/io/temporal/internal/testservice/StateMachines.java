@@ -1167,6 +1167,10 @@ class StateMachines {
     if (d.hasRetryPolicy()) {
       a.setRetryPolicy(d.getRetryPolicy());
     }
+    if (d.hasPriority()) {
+      a.setPriority(d.getPriority());
+    }
+
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED)
@@ -1206,6 +1210,17 @@ class StateMachines {
           }
           if (d.hasInput()) {
             startChild.setInput(d.getInput());
+          }
+          // If the child workflow has a priority, use it. Otherwise, use the priority of the parent
+          // workflow.
+          Priority p =
+              mergePriorities(
+                  ctx.getWorkflowMutableState().getStartRequest().hasPriority()
+                      ? ctx.getWorkflowMutableState().getStartRequest().getPriority()
+                      : null,
+                  d.hasPriority() ? d.getPriority() : null);
+          if (p != null) {
+            startChild.setPriority(p);
           }
           addStartChildTask(ctx, data, initiatedEventId, startChild.build());
         });
@@ -1292,6 +1307,9 @@ class StateMachines {
             .setAttempt(1);
     if (request.hasRetryPolicy()) {
       a.setRetryPolicy(request.getRetryPolicy());
+    }
+    if (request.hasPriority()) {
+      a.setPriority(request.getPriority());
     }
     data.retryState.ifPresent(
         testServiceRetryState -> a.setAttempt(testServiceRetryState.getAttempt()));
@@ -1515,7 +1533,9 @@ class StateMachines {
             .setTaskQueue(d.getTaskQueue())
             .setHeader(d.getHeader())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
-
+    if (d.hasPriority()) {
+      a.setPriority(d.getPriority());
+    }
     // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     data.scheduledEvent = a.build();
     HistoryEvent.Builder event =
@@ -1542,6 +1562,17 @@ class StateMachines {
             .setCurrentAttemptScheduledTime(ctx.currentTime())
             .setHeader(d.getHeader())
             .setAttempt(1);
+
+    // If the activity has a priority, use it. Otherwise, use the priority of the workflow.
+    Priority p =
+        mergePriorities(
+            ctx.getWorkflowMutableState().getStartRequest().hasPriority()
+                ? ctx.getWorkflowMutableState().getStartRequest().getPriority()
+                : null,
+            d.hasPriority() ? d.getPriority() : null);
+    if (p != null) {
+      taskResponse.setPriority(p);
+    }
 
     TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), d.getTaskQueue().getName());
     ActivityTask activityTask = new ActivityTask(taskQueueId, taskResponse);
@@ -2529,5 +2560,20 @@ class StateMachines {
         .setMaximumInterval(Durations.fromHours(1))
         .setBackoffCoefficient(2.0)
         .build();
+  }
+
+  static Priority mergePriorities(Priority parent, Priority child) {
+    if (child == null) {
+      return parent;
+    }
+    if (parent == null) {
+      return child;
+    }
+    Priority.Builder result = Priority.newBuilder();
+    result.setPriorityKey(parent.getPriorityKey());
+    if (child.getPriorityKey() != 0) {
+      result.setPriorityKey(child.getPriorityKey());
+    }
+    return result.build();
   }
 }

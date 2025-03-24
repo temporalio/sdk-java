@@ -21,7 +21,10 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.base.Preconditions;
+import io.temporal.api.common.v1.Priority;
+import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -37,11 +40,39 @@ import javax.annotation.Nonnull;
  * @param <E>
  */
 class TaskQueue<E> {
-  private final LinkedList<E> backlog = new LinkedList<>();
+  private static class TaskQueueElement<E> {
+    private final E value;
+    private final Priority priority;
+
+    TaskQueueElement(E value, Priority priority) {
+      this.value = value;
+      // TODO(Quinn): make this configurable
+      this.priority =
+          priority == Priority.getDefaultInstance()
+              ? Priority.newBuilder().setPriorityKey(3).build()
+              : priority;
+    }
+
+    TaskQueueElement(E value) {
+      this.value = value;
+      this.priority = Priority.newBuilder().setPriorityKey(3).build();
+    }
+
+    public E getValue() {
+      return value;
+    }
+
+    public Priority getPriority() {
+      return priority;
+    }
+  }
+
+  private final PriorityQueue<TaskQueueElement<E>> backlog =
+      new PriorityQueue<>(Comparator.comparingInt(o -> o.getPriority().getPriorityKey()));
   private final LinkedList<PollFuture> waiters = new LinkedList<>();
 
   /**
-   * Adds the provided element to the tail of this queue.
+   * Adds the provided element to the queue at the default priority.
    *
    * @param element the value to add
    */
@@ -51,7 +82,22 @@ class TaskQueue<E> {
         return;
       }
     }
-    backlog.push(element);
+    backlog.add(new TaskQueueElement(element));
+  }
+
+  /**
+   * Adds the provided element to the queue at the given priority.
+   *
+   * @param element the value to add
+   * @param priority the priority of the element
+   */
+  synchronized void add(E element, Priority priority) {
+    for (PollFuture future = waiters.poll(); future != null; future = waiters.pop()) {
+      if (future.set(element)) {
+        return;
+      }
+    }
+    backlog.add(new TaskQueueElement(element, priority));
   }
 
   /**
@@ -69,7 +115,7 @@ class TaskQueue<E> {
         waiters.push(future);
         return future;
       }
-      element = backlog.pop();
+      element = backlog.poll().getValue();
     }
     future.set(element);
     return future;

@@ -35,20 +35,14 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class PriorityTest {
+public class PriorityInfoTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestPriority.class, TestPriorityChildWorkflow.class)
           .setActivityImplementations(new PriorityActivitiesImpl())
-          .setUseExternalService(true)
           .build();
-
-  //  @Before
-  //  public void checkRealServer() {
-  //    assumeTrue("Test Server doesn't support priority", SDKTestWorkflowRule.useExternalService);
-  //  }
 
   @Test
   public void testPriority() {
@@ -89,6 +83,7 @@ public class PriorityTest {
 
     @Override
     public String execute(String taskQueue) {
+      // Test that the priority is passed to activities
       String priority =
           Workflow.newActivityStub(
                   PriorityActivities.class,
@@ -98,8 +93,8 @@ public class PriorityTest {
                       .setPriority(Priority.newBuilder().setPriorityKey(3).build())
                       .build())
               .activity1("1");
-      Assert.assertEquals(priority, "3");
-
+      Assert.assertEquals("3", priority);
+      // Test that of if no priority is set the workflows priority is used
       priority =
           Workflow.newActivityStub(
                   PriorityActivities.class,
@@ -108,8 +103,19 @@ public class PriorityTest {
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .build())
               .activity1("2");
-      Assert.assertEquals(priority, "5");
-
+      Assert.assertEquals("5", priority);
+      // Test that of if a default priority is set the workflows priority is used
+      priority =
+          Workflow.newActivityStub(
+                  PriorityActivities.class,
+                  ActivityOptions.newBuilder()
+                      .setTaskQueue(taskQueue)
+                      .setStartToCloseTimeout(Duration.ofSeconds(10))
+                      .setPriority(Priority.newBuilder().build())
+                      .build())
+              .activity1("2");
+      Assert.assertEquals("5", priority);
+      // Test that the priority is passed to child workflows
       priority =
           Workflow.newChildWorkflowStub(
                   TestWorkflows.TestWorkflowReturnString.class,
@@ -117,15 +123,24 @@ public class PriorityTest {
                       .setPriority(Priority.newBuilder().setPriorityKey(1).build())
                       .build())
               .execute();
-      Assert.assertEquals(priority, "1");
-
+      Assert.assertEquals("1", priority);
+      // Test that of no priority is set the workflows priority is used
       priority =
           Workflow.newChildWorkflowStub(
                   TestWorkflows.TestWorkflowReturnString.class,
                   ChildWorkflowOptions.newBuilder().build())
               .execute();
-      Assert.assertEquals(priority, "5");
-
+      Assert.assertEquals("5", priority);
+      // Test that if a default priority is set the workflows priority is used
+      priority =
+          Workflow.newChildWorkflowStub(
+                  TestWorkflows.TestWorkflowReturnString.class,
+                  ChildWorkflowOptions.newBuilder()
+                      .setPriority(Priority.newBuilder().build())
+                      .build())
+              .execute();
+      Assert.assertEquals("5", priority);
+      // Return the workflows priority
       return String.valueOf(Workflow.getInfo().getPriority().getPriorityKey());
     }
   }
