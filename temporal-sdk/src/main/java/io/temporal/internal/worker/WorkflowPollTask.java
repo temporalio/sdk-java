@@ -35,7 +35,10 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.tuning.*;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -121,22 +124,23 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   @Override
   @SuppressWarnings("deprecation")
   public WorkflowTask poll() {
-    boolean isSuccessful = false;
     SlotPermit permit;
+    SlotSupplierFuture future;
+    boolean isSuccessful = false;
     try {
-      permit =
+      future =
           slotSupplier.reserveSlot(
               new SlotReservationData(
                   pollRequest.getTaskQueue().getName(),
                   pollRequest.getIdentity(),
                   pollRequest.getWorkerVersionCapabilities().getBuildId()));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return null;
     } catch (Exception e) {
-      log.warn("Error while trying to reserve a slot for workflow task", e.getCause());
+      log.warn("Error while trying to reserve a slot for a workflow", e.getCause());
       return null;
     }
+
+    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     TaskQueueKind taskQueueKind = stickyQueueBalancer.makePoll();
     boolean isSticky = TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind);

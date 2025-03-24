@@ -22,7 +22,6 @@ package io.temporal.internal.worker;
 
 import static org.junit.Assert.assertEquals;
 
-import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -38,7 +37,6 @@ import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
@@ -181,20 +179,9 @@ public class WorkflowSlotsSmallSizeTests {
     }
   }
 
-  private Map<String, String> getWorkerTags(String workerType) {
-    return ImmutableMap.of(
-        "worker_type",
-        workerType,
-        "task_queue",
-        testWorkflowRule.getTaskQueue(),
-        "namespace",
-        "UnitTest");
-  }
-
   private void assertIntraWFTSlotCount(int allowedToRun) {
     int runningLAs = activitiesAreLocal ? allowedToRun : 0;
     int runningAs = activitiesAreLocal ? 0 : allowedToRun;
-    int runningWFTs = activitiesAreLocal ? 1 : 0;
     assertCurrentUsedCount(runningAs, runningLAs);
   }
 
