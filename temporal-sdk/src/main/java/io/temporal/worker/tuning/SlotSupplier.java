@@ -37,7 +37,7 @@ import java.util.Optional;
 public interface SlotSupplier<SI extends SlotInfo> {
   /**
    * This function is called before polling for new tasks. Your implementation should return a
-   * Promise that is completed with a {@link SlotPermit} when one becomes available.
+   * future that is completed with a {@link SlotPermit} when one becomes available.
    *
    * <p>These futures may be cancelled if the worker is shutting down or otherwise abandons the
    * reservation. This can cause an {@link InterruptedException} to be thrown, in the thread running
