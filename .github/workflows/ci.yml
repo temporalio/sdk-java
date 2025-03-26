@@ -88,11 +88,12 @@ jobs:
          --dynamic-config-value system.enableActivityEagerExecution=true \
          --dynamic-config-value system.enableEagerWorkflowStart=true \
          --dynamic-config-value system.enableExecuteMultiOperation=true \
-         --dynamic-config-value system.frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
-         --dynamic-config-value system.frontend.workerVersioningDataAPIs=true \
+         --dynamic-config-value frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
+         --dynamic-config-value frontend.workerVersioningDataAPIs=true \
          --dynamic-config-value worker.buildIdScavengerEnabled=true \
+         --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
          --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
-         --dynamic-config-value system.frontend.workerVersioningWorkflowAPIs=true &
+         --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true &
          sleep 10s
 
     - name: Run unit tests
