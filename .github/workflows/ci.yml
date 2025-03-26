@@ -75,6 +75,7 @@ jobs:
         chmod +x temporal
         ./temporal server start-dev \
          --headless \
+         --port 7233 \
          --namespace UnitTest \
          --search-attribute CustomKeywordField=Keyword \
          --search-attribute CustomStringField=Text \
