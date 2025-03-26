@@ -64,6 +64,8 @@ public final class WorkflowStateMachines {
   public static List<SdkFlag> initialFlags =
       Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
+  private final Map<String, Integer> changeVersions = new HashMap<>();
+
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
    * and triggered a current replay or execution. It's expected to be the last event in the history
@@ -493,6 +495,8 @@ public final class WorkflowStateMachines {
     }
   }
 
+  private boolean shouldSkip = false;
+
   /**
    * Handles command event. Command event is an event which is generated from a command emitted by a
    * past decision. Each command has a correspondent event. For example ScheduleActivityTaskCommand
@@ -508,6 +512,14 @@ public final class WorkflowStateMachines {
     if (handleLocalActivityMarker(event)) {
       return;
     }
+    if (shouldSkip) {
+      if (handleNonMatchingUpsertSearchAttribute(event)) {
+        shouldSkip = false;
+        return;
+      } else {
+        throw new NonDeterministicException("No command scheduled that corresponds to " + event);
+      }
+    }
 
     // Match event to the next command in the stateMachine queue.
     // After matching the command is notified about the event and is removed from the
@@ -518,11 +530,19 @@ public final class WorkflowStateMachines {
       // In this case we don't want to consume a command.
       // That's why peek is used instead of poll.
       CancellableCommand command = commands.peek();
+      System.out.println(" WorkflowStateMachines.handleCommandEvent: " + command);
       if (command == null) {
         if (handleNonMatchingVersionMarker(event)) {
           // this event is a version marker for removed getVersion call.
           // Handle the version marker as unmatched and return even if there is no commands to match
           // it against.
+          shouldSkip =
+              new Boolean(true)
+                  .equals(
+                      VersionMarkerUtils.getUpsertVersionSA(
+                          event.getMarkerRecordedEventAttributes()));
+          return;
+        } else if (handleNonMatchingUpsertSearchAttribute(event)) {
           return;
         } else {
           throw new NonDeterministicException("No command scheduled that corresponds to " + event);
@@ -543,6 +563,11 @@ public final class WorkflowStateMachines {
           // this event is a version marker for removed getVersion call.
           // Handle the version marker as unmatched and return even if there is no commands to match
           // it against.
+          shouldSkip =
+              new Boolean(true)
+                  .equals(
+                      VersionMarkerUtils.getUpsertVersionSA(
+                          event.getMarkerRecordedEventAttributes()));
           return;
         } else {
           throw new NonDeterministicException(
@@ -563,6 +588,8 @@ public final class WorkflowStateMachines {
 
       if (command.isCanceled()) {
         // Consume and skip the command
+        System.out.println(
+            "WorkflowStateMachines.handleCommandEvent: command is canceled " + command);
         commands.poll();
         continue;
       }
@@ -577,6 +604,13 @@ public final class WorkflowStateMachines {
           if (handleNonMatchingVersionMarker(event)) {
             // this event is a version marker for removed getVersion call.
             // Handle the version marker as unmatched and return without consuming the command
+            shouldSkip =
+                new Boolean(true)
+                    .equals(
+                        VersionMarkerUtils.getUpsertVersionSA(
+                            event.getMarkerRecordedEventAttributes()));
+            return;
+          } else if (handleNonMatchingUpsertSearchAttribute(event)) {
             return;
           } else {
             throw new NonDeterministicException(
@@ -621,6 +655,13 @@ public final class WorkflowStateMachines {
                   VersionStateMachine.newInstance(
                       changeId, this::isReplaying, commandSink, stateMachineSink));
       versionStateMachine.handleMarkersPreload(event);
+      if (versionStateMachine.isWriteVersionChangeSA()) {
+        changeVersions.put(changeId, 0);
+        //        UpsertSearchAttributesStateMachine.newInstance(
+        //            VersionMarkerUtils.createVersionMarkerSearchAttributes(changeVersions),
+        //            commandSink,
+        //            stateMachineSink);
+      }
     }
   }
 
@@ -635,6 +676,13 @@ public final class WorkflowStateMachines {
         "versionStateMachine is expected to be initialized already by execution or preloading");
     versionStateMachine.handleNonMatchingEvent(event);
     return true;
+  }
+
+  private boolean handleNonMatchingUpsertSearchAttribute(HistoryEvent event) {
+    if (event.hasUpsertWorkflowSearchAttributesEventAttributes()) {
+      return true;
+    }
+    return false;
   }
 
   public List<Command> takeCommands() {
@@ -1131,6 +1179,16 @@ public final class WorkflowStateMachines {
     return stateMachine.getVersion(
         minSupported,
         maxSupported,
+        (v) -> {
+          System.out.println("WorkflowStateMachines.getVersion: " + stateMachine);
+          if (v == null) {
+            throw new Error("Version state machine is in final state");
+          }
+          changeVersions.put(changeId, v);
+          upsertSearchAttributes(
+              VersionMarkerUtils.createVersionMarkerSearchAttributes(changeVersions));
+          return true;
+        },
         (v, e) -> {
           callback.apply(v, e);
           // without this getVersion call will trigger the end of WFT,

@@ -24,17 +24,27 @@ import com.google.common.base.Preconditions;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class VersionMarkerUtils {
   public static final String MARKER_NAME = "Version";
   public static final String MARKER_CHANGE_ID_KEY = "changeId";
   public static final String MARKER_VERSION_KEY = "version";
+  public static final String UPSERT_VERSION_SA_KEY = "upsertSA";
+  // TemporalChangeVersion is used as search attributes key to find workflows with specific change
+  // version.
+  private static final SearchAttributeKey<List<String>> TEMPORAL_CHANGE_VERSION =
+      SearchAttributeKey.forKeywordList("TemporalChangeVersion");
 
   /**
    * @param event {@code HistoryEvent} to parse
@@ -75,17 +85,37 @@ public class VersionMarkerUtils {
     return MarkerUtils.getValueFromMarker(markerAttributes, MARKER_VERSION_KEY, Integer.class);
   }
 
+  @Nullable
+  public static Boolean getUpsertVersionSA(MarkerRecordedEventAttributes markerAttributes) {
+    return MarkerUtils.getValueFromMarker(markerAttributes, UPSERT_VERSION_SA_KEY, Boolean.class);
+  }
+
   public static RecordMarkerCommandAttributes createMarkerAttributes(
-      String changeId, Integer version) {
+      String changeId, Integer version, Boolean upsertVersionSA) {
     Preconditions.checkNotNull(version, "version");
     Map<String, Payloads> details = new HashMap<>();
     details.put(
         MARKER_CHANGE_ID_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(changeId).get());
     details.put(
         MARKER_VERSION_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(version).get());
+    details.put(
+        UPSERT_VERSION_SA_KEY,
+        DefaultDataConverter.STANDARD_INSTANCE.toPayloads(upsertVersionSA).get());
     return RecordMarkerCommandAttributes.newBuilder()
         .setMarkerName(MARKER_NAME)
         .putAllDetails(details)
         .build();
+  }
+
+  public static SearchAttributes createVersionMarkerSearchAttributes(
+      Map<String, Integer> existingVersions) {
+    List<String> changeVersions =
+        existingVersions.entrySet().stream()
+            .map(entry -> entry.getKey() + "-" + entry.getValue())
+            .collect(Collectors.toList());
+    return SearchAttributesUtil.encodeTyped(
+        io.temporal.common.SearchAttributes.newBuilder()
+            .set(TEMPORAL_CHANGE_VERSION, changeVersions)
+            .build());
   }
 }

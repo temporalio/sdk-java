@@ -46,6 +46,9 @@ final class VersionStateMachine {
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
   @Nullable private Integer version;
+  // This flag is used to determine if the search attribute for version change was written.
+  @Nullable private Boolean writeVersionChangeSA;
+  private boolean hasWrittenVersionChangeSA = false;
 
   /**
    * This variable is used for replay only. When we replay, we look one workflow task ahead and
@@ -141,14 +144,18 @@ final class VersionStateMachine {
 
     private final int minSupported;
     private final int maxSupported;
-
+    private final Functions.Func1<Integer, Boolean> f;
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
     InvocationStateMachine(
-        int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
+        int minSupported,
+        int maxSupported,
+        Functions.Func1<Integer, Boolean> f,
+        Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
+      this.f = f;
       this.resultCallback = Objects.requireNonNull(callback);
     }
 
@@ -240,9 +247,11 @@ final class VersionStateMachine {
         return State.SKIPPED;
       } else {
         version = maxSupported;
+        writeVersionChangeSA = true;
         RecordMarkerCommandAttributes markerAttributes =
-            VersionMarkerUtils.createMarkerAttributes(changeId, version);
+            VersionMarkerUtils.createMarkerAttributes(changeId, version, writeVersionChangeSA);
         addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
+        f.apply(version);
         return State.MARKER_COMMAND_CREATED;
       }
     }
@@ -275,6 +284,11 @@ final class VersionStateMachine {
     State createMarkerReplaying() {
       createFakeCommand();
       if (preloadedVersion != null) {
+        if (writeVersionChangeSA && !hasWrittenVersionChangeSA) {
+          System.out.println("createMarkerReplaying dsad:  " + preloadedVersion);
+          hasWrittenVersionChangeSA = true;
+          f.apply(preloadedVersion);
+        }
         return State.MARKER_COMMAND_CREATED_REPLAYING;
       } else {
         return State.SKIPPED_REPLAYING;
@@ -380,8 +394,12 @@ final class VersionStateMachine {
    * @return True if the identifier is not present in history
    */
   public Integer getVersion(
-      int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
-    InvocationStateMachine ism = new InvocationStateMachine(minSupported, maxSupported, callback);
+      int minSupported,
+      int maxSupported,
+      Functions.Func1<Integer, Boolean> f,
+      Functions.Proc2<Integer, RuntimeException> callback) {
+    InvocationStateMachine ism =
+        new InvocationStateMachine(minSupported, maxSupported, f, callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
     //  If the state is SKIPPED_REPLAYING that means we:
@@ -391,6 +409,10 @@ final class VersionStateMachine {
     // the version marker did exist, but was in an earlier WFT. If the version marker was in a
     // previous WFT then the version field should have a value.
     return version == null ? preloadedVersion : version;
+  }
+
+  public Boolean isWriteVersionChangeSA() {
+    return writeVersionChangeSA;
   }
 
   public void handleNonMatchingEvent(HistoryEvent event) {
@@ -418,6 +440,13 @@ final class VersionStateMachine {
     Integer version = VersionMarkerUtils.getVersion(event.getMarkerRecordedEventAttributes());
     Preconditions.checkArgument(version != null, "Marker details missing required version key");
 
+    writeVersionChangeSA =
+        VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
+    // Old SDKs didn't write the version change search attribute. So, if it is not present then
+    // default to false.
+    if (writeVersionChangeSA == null) {
+      writeVersionChangeSA = false;
+    }
     return version;
   }
 }

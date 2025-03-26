@@ -121,10 +121,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
-  // Map of all running update handlers. Key is the update ID of the update request.
-  private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
-  // Map of all running signal handlers. Key is the event ID of the signal event.
-  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
   @Nullable private String currentDetails;
 
   public SyncWorkflowContext(
@@ -1177,7 +1173,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     // getVersion call.
     // while it waits for the result.
     try {
-      return result.get();
+      versionToUse = result.get();
+      return versionToUse;
     } catch (UnsupportedVersion.UnsupportedVersionException ex) {
       throw new UnsupportedVersion(ex);
     }
