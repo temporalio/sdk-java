@@ -91,6 +91,7 @@ public class PriorityInfoTest {
                       .setTaskQueue(taskQueue)
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .setPriority(Priority.newBuilder().setPriorityKey(3).build())
+                      .setDisableEagerExecution(true)
                       .build())
               .activity1("1");
       Assert.assertEquals("3", priority);
@@ -101,6 +102,7 @@ public class PriorityInfoTest {
                   ActivityOptions.newBuilder()
                       .setTaskQueue(taskQueue)
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
+                      .setDisableEagerExecution(true)
                       .build())
               .activity1("2");
       Assert.assertEquals("5", priority);
@@ -112,6 +114,7 @@ public class PriorityInfoTest {
                       .setTaskQueue(taskQueue)
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .setPriority(Priority.newBuilder().build())
+                      .setDisableEagerExecution(true)
                       .build())
               .activity1("2");
       Assert.assertEquals("5", priority);
