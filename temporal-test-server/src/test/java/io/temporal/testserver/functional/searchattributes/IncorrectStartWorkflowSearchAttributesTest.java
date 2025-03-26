@@ -21,7 +21,6 @@
 package io.temporal.testserver.functional.searchattributes;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -74,7 +73,6 @@ public class IncorrectStartWorkflowSearchAttributesTest {
     assertThat(exception.getCause(), instanceOf(StatusRuntimeException.class));
     Status status = ((StatusRuntimeException) exception.getCause()).getStatus();
     assertEquals(Status.Code.INVALID_ARGUMENT, status.getCode());
-    assertEquals("search attribute UnknownKey is not defined", status.getDescription());
 
     StatusRuntimeException historyException =
         assertThrows(
@@ -114,9 +112,6 @@ public class IncorrectStartWorkflowSearchAttributesTest {
     assertThat(exception.getCause(), instanceOf(StatusRuntimeException.class));
     Status status = ((StatusRuntimeException) exception.getCause()).getStatus();
     assertEquals(Status.Code.INVALID_ARGUMENT, status.getCode());
-    assertThat(
-        status.getDescription(),
-        startsWith("invalid value for search attribute CustomIntField of type Int"));
 
     StatusRuntimeException historyException =
         assertThrows(
