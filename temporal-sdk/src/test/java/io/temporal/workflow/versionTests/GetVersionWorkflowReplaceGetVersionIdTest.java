@@ -1,14 +1,18 @@
 package io.temporal.workflow.versionTests;
 
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -23,7 +27,9 @@ public class GetVersionWorkflowReplaceGetVersionIdTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowReplaceGetVersionId.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(),
+              TestGetVersionWorkflowReplaceGetVersionId.class)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()
@@ -38,6 +44,19 @@ public class GetVersionWorkflowReplaceGetVersionIdTest extends BaseVersionTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     workflowStub.execute();
     assertTrue(hasReplayed);
+    List<String> versions =
+        WorkflowStub.fromTyped(workflowStub)
+            .describe()
+            .getTypedSearchAttributes()
+            .get(TEMPORAL_CHANGE_VERSION);
+    if (upsertVersioningSA) {
+      // Only one getVersion call while not replaying.
+      assertEquals(2, versions.size());
+      assertEquals("changeFoo0-2", versions.get(0));
+      assertEquals("changeFoo1-111", versions.get(1));
+    } else {
+      assertEquals(null, versions);
+    }
   }
 
   public static class TestGetVersionWorkflowReplaceGetVersionId implements NoArgsWorkflow {

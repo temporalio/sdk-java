@@ -18,7 +18,8 @@ public class GetVersionAndTimerTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRuleWithoutVersion =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TimedWorkflowWithoutVersionImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TimedWorkflowWithoutVersionImpl.class)
           .build();
 
   @Rule

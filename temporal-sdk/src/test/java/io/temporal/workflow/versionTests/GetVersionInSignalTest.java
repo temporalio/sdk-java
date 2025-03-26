@@ -1,5 +1,6 @@
 package io.temporal.workflow.versionTests;
 
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.client.WorkflowClient;
@@ -16,7 +17,9 @@ public class GetVersionInSignalTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestGetVersionInSignal.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), TestGetVersionInSignal.class)
+          .build();
 
   @Test
   public void testGetVersionInSignal() {
@@ -29,6 +32,14 @@ public class GetVersionInSignalTest extends BaseVersionTest {
     workflow.signal("done");
     String result = workflowStub.getResult(String.class);
     assertEquals("[done]", result);
+    List<String> versions =
+        workflowStub.describe().getTypedSearchAttributes().get(TEMPORAL_CHANGE_VERSION);
+    if (upsertVersioningSA) {
+      assertEquals(1, versions.size());
+      assertEquals("some-id-2", versions.get(0));
+    } else {
+      assertEquals(null, versions);
+    }
   }
 
   /** The following test covers the scenario where getVersion call is performed inside a signal */

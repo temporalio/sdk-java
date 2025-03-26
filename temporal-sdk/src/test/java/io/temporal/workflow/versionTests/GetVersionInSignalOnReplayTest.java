@@ -24,7 +24,7 @@ public class GetVersionInSignalOnReplayTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionInSignal.class)
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), TestGetVersionInSignal.class)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()
