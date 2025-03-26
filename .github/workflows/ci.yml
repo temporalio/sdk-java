@@ -78,6 +78,15 @@ jobs:
          --dynamic-config-value system.enableActivityEagerExecution=true \
          --dynamic-config-value system.enableExecuteMultiOperation=true \
          --dynamic-config-value system.frontend.enableUpdateWorkflowExecutionAsyncAccepted=true
+         ./temporal operator namespace create --namespace UnitTest
+         ./temporal operator search-attribute create --namespace UnitTest \
+          --name CustomKeywordField --type Keyword \
+          --name CustomStringField --type Text \
+          --name CustomTextField --type Text \
+          --name CustomIntField --type Int \
+          --name CustomDatetimeField --type Datetime \
+          --name CustomDoubleField --type Double \
+          --name CustomBoolField --type Bool
 
     - name: Run unit tests
       env:
