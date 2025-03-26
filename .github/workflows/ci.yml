@@ -90,6 +90,7 @@ jobs:
          --dynamic-config-value system.enableEagerWorkflowStart=true \
          --dynamic-config-value system.enableExecuteMultiOperation=true \
          --dynamic-config-value frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
+         --dynamic-config-value history.MaxBufferedQueryCount=100000 \
          --dynamic-config-value frontend.workerVersioningDataAPIs=true \
          --dynamic-config-value worker.buildIdScavengerEnabled=true \
          --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
