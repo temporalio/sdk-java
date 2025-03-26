@@ -78,6 +78,7 @@ jobs:
          --dynamic-config-value system.enableActivityEagerExecution=true \
          --dynamic-config-value system.enableExecuteMultiOperation=true \
          --dynamic-config-value system.frontend.enableUpdateWorkflowExecutionAsyncAccepted=true &
+         sleep 10s
          ./temporal operator namespace create --namespace UnitTest
          ./temporal operator search-attribute create --namespace UnitTest \
           --name CustomKeywordField --type Keyword \
