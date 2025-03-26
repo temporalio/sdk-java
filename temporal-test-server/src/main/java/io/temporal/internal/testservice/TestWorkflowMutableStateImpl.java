@@ -613,7 +613,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                               stickyExecutionAttributes == null
                                   ? startRequest.getTaskQueue().getName()
                                   : stickyExecutionAttributes.getWorkerTaskQueue().getName());
-                      store.sendQueryTask(executionId, taskQueueId, task);
+                      store.sendQueryTask(
+                          executionId, taskQueueId, task, getStartRequest().getPriority());
                       this.queries.put(queryId.getQueryId(), consistent.getResult());
                     }
                   }
@@ -2904,7 +2905,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   ? startRequest.getTaskQueue().getName()
                   : stickyExecutionAttributes.getWorkerTaskQueue().getName());
       queries.put(queryId.getQueryId(), result);
-      store.sendQueryTask(executionId, taskQueueId, task);
+      store.sendQueryTask(executionId, taskQueueId, task, getStartRequest().getPriority());
     } finally {
       lock.unlock(); // locked in the query method
     }
