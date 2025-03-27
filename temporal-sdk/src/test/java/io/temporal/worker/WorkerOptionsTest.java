@@ -55,6 +55,7 @@ public class WorkerOptionsTest {
 
   @Test
   public void verifyNewBuilderFromExistingWorkerOptions() {
+    @SuppressWarnings("deprecation")
     WorkerOptions w1 =
         WorkerOptions.newBuilder()
             .setMaxWorkerActivitiesPerSecond(100)
