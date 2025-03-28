@@ -60,6 +60,7 @@ public final class WorkflowImplementationOptions {
     private LocalActivityOptions defaultLocalActivityOptions;
     private Map<String, NexusServiceOptions> nexusServiceOptions;
     private NexusServiceOptions defaultNexusServiceOptions;
+    private boolean enableUpsertVersionSearchAttributes;
 
     private Builder() {}
 
@@ -74,6 +75,7 @@ public final class WorkflowImplementationOptions {
       this.defaultLocalActivityOptions = options.getDefaultLocalActivityOptions();
       this.nexusServiceOptions = options.getNexusServiceOptions();
       this.defaultNexusServiceOptions = options.getDefaultNexusServiceOptions();
+      this.enableUpsertVersionSearchAttributes = options.isEnableUpsertVersionSearchAttributes();
     }
 
     /**
@@ -174,6 +176,12 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
+    public Builder setEnableUpsertVersionSearchAttributes(
+        boolean enableUpsertVersionSearchAttributes) {
+      this.enableUpsertVersionSearchAttributes = enableUpsertVersionSearchAttributes;
+      return this;
+    }
+
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
           failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
@@ -182,7 +190,8 @@ public final class WorkflowImplementationOptions {
           localActivityOptions == null ? null : localActivityOptions,
           defaultLocalActivityOptions,
           nexusServiceOptions == null ? null : nexusServiceOptions,
-          defaultNexusServiceOptions);
+          defaultNexusServiceOptions,
+          enableUpsertVersionSearchAttributes);
     }
   }
 
@@ -193,6 +202,7 @@ public final class WorkflowImplementationOptions {
   private final LocalActivityOptions defaultLocalActivityOptions;
   private final @Nullable Map<String, NexusServiceOptions> nexusServiceOptions;
   private final NexusServiceOptions defaultNexusServiceOptions;
+  private final boolean enableUpsertVersionSearchAttributes;
 
   public WorkflowImplementationOptions(
       Class<? extends Throwable>[] failWorkflowExceptionTypes,
@@ -201,7 +211,8 @@ public final class WorkflowImplementationOptions {
       @Nullable Map<String, LocalActivityOptions> localActivityOptions,
       LocalActivityOptions defaultLocalActivityOptions,
       @Nullable Map<String, NexusServiceOptions> nexusServiceOptions,
-      NexusServiceOptions defaultNexusServiceOptions) {
+      NexusServiceOptions defaultNexusServiceOptions,
+      boolean enableUpsertVersionSearchAttributes) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
     this.defaultActivityOptions = defaultActivityOptions;
@@ -209,6 +220,7 @@ public final class WorkflowImplementationOptions {
     this.defaultLocalActivityOptions = defaultLocalActivityOptions;
     this.nexusServiceOptions = nexusServiceOptions;
     this.defaultNexusServiceOptions = defaultNexusServiceOptions;
+    this.enableUpsertVersionSearchAttributes = enableUpsertVersionSearchAttributes;
   }
 
   public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
@@ -243,6 +255,10 @@ public final class WorkflowImplementationOptions {
 
   public NexusServiceOptions getDefaultNexusServiceOptions() {
     return defaultNexusServiceOptions;
+  }
+
+  public boolean isEnableUpsertVersionSearchAttributes() {
+    return enableUpsertVersionSearchAttributes;
   }
 
   @Override

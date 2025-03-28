@@ -20,6 +20,8 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
+
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
@@ -40,12 +42,15 @@ import java.time.Duration;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TODO callbacks usage is non consistent. It accepts Optional and Exception which can be null.
  * Switch both to nullable.
  */
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
+  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowContextImpl.class);
   private final BasicWorkflowContext basicWorkflowContext;
   private final WorkflowStateMachines workflowStateMachines;
   private final WorkflowMutableState mutableState;
@@ -356,6 +361,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+    if (searchAttributes.containsIndexedFields(TEMPORAL_CHANGE_VERSION.getName())) {
+      log.warn("{} is a reserved field", TEMPORAL_CHANGE_VERSION.getName());
+    }
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
     mutableState.upsertSearchAttributes(searchAttributes);
   }

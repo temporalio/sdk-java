@@ -26,7 +26,9 @@ import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -144,13 +146,13 @@ final class VersionStateMachine {
 
     private final int minSupported;
     private final int maxSupported;
-    private final Functions.Func1<Integer, Boolean> f;
+    private final Functions.Func1<Integer, SearchAttributes> f;
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
     InvocationStateMachine(
         int minSupported,
         int maxSupported,
-        Functions.Func1<Integer, Boolean> f,
+        Functions.Func1<Integer, SearchAttributes> f,
         Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
@@ -247,11 +249,15 @@ final class VersionStateMachine {
         return State.SKIPPED;
       } else {
         version = maxSupported;
-        writeVersionChangeSA = true;
+        SearchAttributes sa = f.apply(version);
+        writeVersionChangeSA = sa != null;
         RecordMarkerCommandAttributes markerAttributes =
             VersionMarkerUtils.createMarkerAttributes(changeId, version, writeVersionChangeSA);
-        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
-        f.apply(version);
+        Command markerCommand = StateMachineCommandUtils.createRecordMarker(markerAttributes);
+        addCommand(markerCommand);
+        if (writeVersionChangeSA) {
+          UpsertSearchAttributesStateMachine.newInstance(sa, commandSink, stateMachineSink);
+        }
         return State.MARKER_COMMAND_CREATED;
       }
     }
@@ -285,7 +291,6 @@ final class VersionStateMachine {
       createFakeCommand();
       if (preloadedVersion != null) {
         if (writeVersionChangeSA && !hasWrittenVersionChangeSA) {
-          System.out.println("createMarkerReplaying dsad:  " + preloadedVersion);
           hasWrittenVersionChangeSA = true;
           f.apply(preloadedVersion);
         }
@@ -396,7 +401,7 @@ final class VersionStateMachine {
   public Integer getVersion(
       int minSupported,
       int maxSupported,
-      Functions.Func1<Integer, Boolean> f,
+      Functions.Func1<Integer, SearchAttributes> f,
       Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism =
         new InvocationStateMachine(minSupported, maxSupported, f, callback);

@@ -113,7 +113,10 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.workflow = workflow;
 
     this.workflowStateMachines =
-        new WorkflowStateMachines(new StatesMachinesCallbackImpl(), capabilities);
+        new WorkflowStateMachines(
+            new StatesMachinesCallbackImpl(),
+            capabilities,
+            workflow.getWorkflowContext().getWorkflowImplementationOptions());
     String fullReplayDirectQueryType =
         workflowTask.hasQuery() ? workflowTask.getQuery().getQueryType() : null;
     this.context =

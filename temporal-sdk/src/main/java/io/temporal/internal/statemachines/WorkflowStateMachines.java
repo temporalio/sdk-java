@@ -23,6 +23,7 @@ package io.temporal.internal.statemachines;
 import static io.temporal.api.enums.v1.CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE;
 import static io.temporal.internal.common.WorkflowExecutionUtils.getEventTypeForCommand;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
+import static io.temporal.internal.history.VersionMarkerUtils.*;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -45,12 +46,15 @@ import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.serviceclient.Version;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class WorkflowStateMachines {
 
@@ -65,6 +69,7 @@ public final class WorkflowStateMachines {
       Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
   private final Map<String, Integer> changeVersions = new HashMap<>();
+  private static final Logger log = LoggerFactory.getLogger(WorkflowStateMachines.class);
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -183,24 +188,29 @@ public final class WorkflowStateMachines {
   private final Set<String> acceptedUpdates = new HashSet<>();
 
   private final SdkFlags flags;
+  private final WorkflowImplementationOptions workflowImplOptions;
   @Nonnull private String lastSeenSdkName = "";
   @Nonnull private String lastSeenSdkVersion = "";
 
   public WorkflowStateMachines(
-      StatesMachinesCallback callbacks, GetSystemInfoResponse.Capabilities capabilities) {
-    this(callbacks, (stateMachine) -> {}, capabilities);
+      StatesMachinesCallback callbacks,
+      GetSystemInfoResponse.Capabilities capabilities,
+      WorkflowImplementationOptions workflowImplOptions) {
+    this(callbacks, (stateMachine) -> {}, capabilities, workflowImplOptions);
   }
 
   @VisibleForTesting
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks,
       Functions.Proc1<StateMachine> stateMachineSink,
-      GetSystemInfoResponse.Capabilities capabilities) {
+      GetSystemInfoResponse.Capabilities capabilities,
+      WorkflowImplementationOptions workflowImplOptions) {
     this.callbacks = Objects.requireNonNull(callbacks);
     this.commandSink = cancellableCommands::add;
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
     this.flags = new SdkFlags(capabilities.getSdkMetadata(), this::isReplaying);
+    this.workflowImplOptions = workflowImplOptions;
   }
 
   @VisibleForTesting
@@ -211,6 +221,7 @@ public final class WorkflowStateMachines {
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
     this.flags = new SdkFlags(false, this::isReplaying);
+    this.workflowImplOptions = WorkflowImplementationOptions.newBuilder().build();
   }
 
   // TODO revisit and potentially remove workflowTaskStartedEventId at all from the state machines.
@@ -1179,15 +1190,26 @@ public final class WorkflowStateMachines {
     return stateMachine.getVersion(
         minSupported,
         maxSupported,
-        (v) -> {
-          System.out.println("WorkflowStateMachines.getVersion: " + stateMachine);
-          if (v == null) {
-            throw new Error("Version state machine is in final state");
+        (version) -> {
+          if (!workflowImplOptions.isEnableUpsertVersionSearchAttributes()) {
+            return null;
           }
-          changeVersions.put(changeId, v);
-          upsertSearchAttributes(
-              VersionMarkerUtils.createVersionMarkerSearchAttributes(changeVersions));
-          return true;
+          if (version == null) {
+            throw new IllegalStateException("Version is null");
+          }
+          SearchAttributes sa =
+              VersionMarkerUtils.createVersionMarkerSearchAttributes(
+                  changeId, version, changeVersions);
+          changeVersions.put(changeId, version);
+          if (sa.getIndexedFieldsMap().get(TEMPORAL_CHANGE_VERSION.getName()).getSerializedSize()
+              >= CHANGE_VERSION_SEARCH_ATTRIBUTE_SIZE_LIMIT) {
+            log.warn(
+                "Serialized size of {} search attribute update would exceed the maximum value size. Skipping this upsert. Be aware that your visibility records will not include the following patch: {}",
+                TEMPORAL_CHANGE_VERSION,
+                VersionMarkerUtils.createChangeId(changeId, version));
+            return null;
+          }
+          return sa;
         },
         (v, e) -> {
           callback.apply(v, e);
