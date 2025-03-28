@@ -1,10 +1,16 @@
 package io.temporal.worker;
 
+import static org.junit.Assume.assumeTrue;
+
+import io.temporal.api.workflowservice.v1.DescribeWorkerDeploymentRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkerDeploymentResponse;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -20,18 +26,28 @@ public class WorkerVersioningTest {
                           .setVersion(new WorkerDeploymentVersion("mydeployment", "1.0"))
                           .setUseVersioning(true)
                           .build())
+                  .setLocalActivityWorkerOnly(true)
                   .build())
-          .setActivityImplementations(new BuildIdVersioningTest.ActivityImpl())
           .setDoNotStart(true)
           .build();
 
-  public static class TestWorkerVersioningPinned implements TestWorkflows.QueryableWorkflow {
+  public abstract static class TestWorkerVersioningPinned
+      implements TestWorkflows.QueryableWorkflow {
     WorkflowQueue<String> sigQueue = Workflow.newWorkflowQueue(1);
 
-    @WorkflowMethod
+    abstract String implementationVersion();
+
+    @Override
+    @WorkflowMethod(name = "versioning-test-wf")
     @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
     public String execute() {
-      return "done";
+      while (true) {
+        String res = sigQueue.take();
+        if (res.equals("done")) {
+          break;
+        }
+      }
+      return "version-" + implementationVersion();
     }
 
     @Override
@@ -45,8 +61,25 @@ public class WorkerVersioningTest {
     }
   }
 
+  public static class TestWorkerVersioningPinnedV1 extends TestWorkerVersioningPinned {
+    @Override
+    String implementationVersion() {
+      return "V1";
+    }
+  }
+
   @Test
-  public void testBasicWorkerVersioning() {}
+  public void testBasicWorkerVersioning() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    // Start the 1.0 worker
+    testWorkflowRule
+        .getWorker()
+        .registerWorkflowImplementationTypes(TestWorkerVersioningPinnedV1.class);
+    testWorkflowRule.getTestEnvironment().start();
+
+    waitUntilWorkerDeploymentVisible(new WorkerDeploymentVersion("mydeployment", "1.0"));
+  }
 
   @WorkflowInterface
   public interface DontAllowBehaviorAnnotationOnInterface {
@@ -76,5 +109,26 @@ public class WorkerVersioningTest {
             + "implementation methods: public abstract void io.temporal.worker.WorkerVersioningTest"
             + "$DontAllowBehaviorAnnotationOnInterface.execute()",
         e.getMessage());
+  }
+
+  private void waitUntilWorkerDeploymentVisible(WorkerDeploymentVersion v) {
+    DescribeWorkerDeploymentRequest req =
+        DescribeWorkerDeploymentRequest.newBuilder()
+            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+            .setDeploymentName(v.getDeploymentName())
+            .build();
+    Eventually.assertEventually(
+        Duration.ofSeconds(15),
+        () -> {
+          DescribeWorkerDeploymentResponse resp =
+              testWorkflowRule
+                  .getWorkflowClient()
+                  .getWorkflowServiceStubs()
+                  .blockingStub()
+                  .describeWorkerDeployment(req);
+          Assert.assertTrue(
+              resp.getWorkerDeploymentInfo().getVersionSummariesList().stream()
+                  .anyMatch(vs -> vs.getVersion().equals(v.toCanonicalString())));
+        });
   }
 }

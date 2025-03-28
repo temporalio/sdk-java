@@ -670,7 +670,8 @@ public final class Worker {
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
-        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
+        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
+        .setDeploymentOptions(options.getDeploymentOptions());
   }
 
   /**

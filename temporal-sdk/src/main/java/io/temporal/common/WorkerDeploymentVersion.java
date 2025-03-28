@@ -1,14 +1,17 @@
 package io.temporal.common;
 
 import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Represents the version of a specific worker deployment. */
+@Experimental
 public class WorkerDeploymentVersion {
   private final String deploymentName;
   private final String buildId;
 
   /** Build a worker deployment version from an explicit deployment name and build ID. */
-  public WorkerDeploymentVersion(String deploymentName, String buildId) {
+  public WorkerDeploymentVersion(@Nonnull String deploymentName, @Nonnull String buildId) {
     this.deploymentName = deploymentName;
     this.buildId = buildId;
   }
@@ -18,6 +21,22 @@ public class WorkerDeploymentVersion {
    */
   public String toCanonicalString() {
     return deploymentName + "." + buildId;
+  }
+
+  /**
+   * @return The name of the deployment.
+   */
+  @Nullable // Marked nullable for future compatibility with custom strings
+  public String getDeploymentName() {
+    return deploymentName;
+  }
+
+  /**
+   * @return The Build ID of this version.
+   */
+  @Nullable // Marked nullable for future compatibility with custom strings
+  public String getBuildId() {
+    return buildId;
   }
 
   @Override

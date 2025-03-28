@@ -830,6 +830,10 @@ public final class WorkerOptions {
     return usingVirtualThreadsOnNexusWorker;
   }
 
+  public WorkerDeploymentOptions getDeploymentOptions() {
+    return deploymentOptions;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
