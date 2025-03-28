@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
@@ -79,6 +80,11 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   public Object getInstance() {
     Objects.requireNonNull(rootWorkflowInvoker, "getInstance called before initialize.");
     return rootWorkflowInvoker.getInstance();
+  }
+
+  @Override
+  public VersioningBehavior getVersioningBehavior() {
+    return VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
   }
 
   class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {

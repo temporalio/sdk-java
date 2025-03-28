@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableSet;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -50,6 +51,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.WorkflowVersioningBehavior;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -320,6 +322,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     private WorkflowInboundCallsInterceptor workflowInvoker;
     // don't pass it down to other classes, it's a "cached" instance for internal usage only
     private final DataConverter dataConverterWithWorkflowContext;
+    private final VersioningBehavior versioningBehavior;
 
     public POJOWorkflowImplementation(
         Class<?> workflowImplementationClass,
@@ -330,6 +333,29 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       this.ctor = ctor;
       this.workflowMethod = workflowMethod;
       this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
+
+      // Find the same method on the implementation class
+      Method implMethod;
+      try {
+        implMethod =
+            workflowImplementationClass.getMethod(
+                workflowMethod.getName(), workflowMethod.getParameterTypes());
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException(
+            "Unable to find method "
+                + workflowMethod.getName()
+                + " in class "
+                + workflowImplementationClass.getName(),
+            e);
+      }
+
+      if (implMethod.isAnnotationPresent(WorkflowVersioningBehavior.class)) {
+        WorkflowVersioningBehavior versioningBehavior =
+            implMethod.getAnnotation(WorkflowVersioningBehavior.class);
+        this.versioningBehavior = versioningBehavior.value();
+      } else {
+        this.versioningBehavior = VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
+      }
     }
 
     @Override
@@ -365,6 +391,11 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     public Object getInstance() {
       Objects.requireNonNull(rootWorkflowInvoker, "getInstance called before initialize.");
       return rootWorkflowInvoker.getInstance();
+    }
+
+    @Override
+    public VersioningBehavior getVersioningBehavior() {
+      return versioningBehavior;
     }
 
     private class RootWorkflowInboundCallsInterceptor

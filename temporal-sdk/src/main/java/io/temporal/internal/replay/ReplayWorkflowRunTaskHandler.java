@@ -189,6 +189,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
               .setForceWorkflowTask(
                   localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
               .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
+              .setVersioningBehavior(workflow.getWorkflowContext().getVersioningBehavior())
               .setSdkFlags(newSdkFlags);
       if (workflowStateMachines.sdkNameToWrite() != null) {
         result.setWriteSdkName(workflowStateMachines.sdkNameToWrite());

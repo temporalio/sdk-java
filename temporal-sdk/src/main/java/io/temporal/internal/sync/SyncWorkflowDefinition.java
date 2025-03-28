@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.interceptors.Header;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -39,4 +40,10 @@ interface SyncWorkflowDefinition {
   Object getInstance();
 
   Optional<Payloads> execute(Header header, Optional<Payloads> input);
+
+  /**
+   * @return The versioning behavior for this workflow as defined by the attached annotation,
+   *     otherwise {@link VersioningBehavior#VERSIONING_BEHAVIOR_UNSPECIFIED}.
+   */
+  VersioningBehavior getVersioningBehavior();
 }
