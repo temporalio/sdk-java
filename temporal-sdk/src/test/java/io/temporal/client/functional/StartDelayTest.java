@@ -51,7 +51,7 @@ public class StartDelayTest {
   public void startWithDelay() {
     WorkflowOptions workflowOptions =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
-            .setStartDelay(Duration.ofSeconds(5))
+            .setStartDelay(Duration.ofSeconds(1))
             .build();
     TestNoArgsWorkflowFunc stubF =
         testWorkflowRule
@@ -61,7 +61,7 @@ public class StartDelayTest {
     stubF.func();
     long end = System.currentTimeMillis();
     // Assert that the workflow took at least 5 seconds to start
-    assertEquals(5000, end - start, 1000);
+    assertEquals(1000, end - start, 500);
     WorkflowExecution workflowExecution = WorkflowStub.fromTyped(stubF).getExecution();
     WorkflowExecutionHistory workflowExecutionHistory =
         testWorkflowRule.getWorkflowClient().fetchHistory(workflowExecution.getWorkflowId());
@@ -72,7 +72,7 @@ public class StartDelayTest {
             .collect(Collectors.toList());
     assertEquals(1, workflowExecutionStartedEvents.size());
     assertEquals(
-        Duration.ofSeconds(5),
+        Duration.ofSeconds(1),
         ProtobufTimeUtils.toJavaDuration(
             workflowExecutionStartedEvents.get(0).getFirstWorkflowTaskBackoff()));
   }
