@@ -44,9 +44,9 @@ public class GetVersionTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          .setUseExternalService(true)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()
@@ -110,7 +110,7 @@ public class GetVersionTest extends BaseVersionTest {
       version = Workflow.getVersion("test_change", 1, 2);
       assertEquals(version, 1);
       result += "activity" + testActivities.activity1(1);
-      //
+
       // Test adding a version check in replay code.
       if (WorkflowUnsafe.isReplaying()) {
         hasReplayed = true;

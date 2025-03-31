@@ -36,7 +36,9 @@ public class GetVersionInSignalTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestGetVersionInSignal.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), TestGetVersionInSignal.class)
+          .build();
 
   @Test
   public void testGetVersionInSignal() {

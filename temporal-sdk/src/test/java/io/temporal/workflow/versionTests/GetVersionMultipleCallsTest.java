@@ -38,9 +38,9 @@ public class GetVersionMultipleCallsTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          .setUseExternalService(true)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()

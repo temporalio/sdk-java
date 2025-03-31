@@ -41,7 +41,9 @@ public class GetVersionWithoutCommandEventTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWithoutCommandEventWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(),
+              TestGetVersionWithoutCommandEventWorkflowImpl.class)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()

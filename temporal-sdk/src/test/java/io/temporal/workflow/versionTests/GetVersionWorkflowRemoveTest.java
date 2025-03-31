@@ -43,7 +43,8 @@ public class GetVersionWorkflowRemoveTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowRemove.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowRemove.class)
           .setActivityImplementations(new TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
