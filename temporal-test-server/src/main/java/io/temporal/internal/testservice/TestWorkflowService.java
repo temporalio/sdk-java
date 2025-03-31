@@ -231,7 +231,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionRequest request,
       StreamObserver<StartWorkflowExecutionResponse> responseObserver) {
     try {
+      if (!request.getCronSchedule().isEmpty() && request.hasWorkflowStartDelay()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "INVALID_ARGUMENT: CronSchedule and WorkflowStartDelay may not be used together.")
+            .asRuntimeException();
+      }
       Duration backoffInterval = getBackoffInterval(request.getCronSchedule(), store.currentTime());
+      if (request.hasWorkflowStartDelay()) {
+        backoffInterval = ProtobufTimeUtils.toJavaDuration(request.getWorkflowStartDelay());
+      }
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionImpl(
               request, backoffInterval, Optional.empty(), OptionalLong.empty(), null);
@@ -1453,8 +1462,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (r.hasSearchAttributes()) {
         startRequest.setSearchAttributes(r.getSearchAttributes());
       }
+      Duration backoffInterval = Duration.ZERO;
       if (r.hasWorkflowStartDelay()) {
         startRequest.setWorkflowStartDelay(r.getWorkflowStartDelay());
+        backoffInterval = ProtobufTimeUtils.toJavaDuration(r.getWorkflowStartDelay());
       }
       if (!r.getLinksList().isEmpty()) {
         startRequest.addAllLinks(r.getLinksList());
@@ -1463,7 +1474,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionResponse startResult =
           startWorkflowExecutionImpl(
               startRequest.build(),
-              Duration.ZERO,
+              backoffInterval,
               Optional.empty(),
               OptionalLong.empty(),
               ms -> {

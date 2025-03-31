@@ -1313,14 +1313,16 @@ class StateMachines {
     }
     data.retryState.ifPresent(
         testServiceRetryState -> a.setAttempt(testServiceRetryState.getAttempt()));
+
     a.setFirstExecutionRunId(data.firstExecutionRunId);
     a.setOriginalExecutionRunId(data.originalExecutionRunId);
     data.continuedExecutionRunId.ifPresent(a::setContinuedExecutionRunId);
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
-    if (request.hasWorkflowStartDelay()) {
-      a.setFirstWorkflowTaskBackoff(request.getWorkflowStartDelay());
+
+    if (data.backoffStartInterval != null) {
+      a.setFirstWorkflowTaskBackoff(data.backoffStartInterval);
     }
     data.lastFailure.ifPresent(a::setContinuedFailure);
     if (request.hasMemo()) {

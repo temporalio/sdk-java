@@ -1525,9 +1525,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           continueAsNewAttr.setMemo(startRequest.getMemo());
         }
         // TODO
-        ContinueAsNewWorkflowExecutionCommandAttributes coninueAsNewCommand =
+        ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewCommand =
             continueAsNewAttr.build();
-        workflow.action(Action.CONTINUE_AS_NEW, ctx, coninueAsNewCommand, workflowTaskCompletedId);
+        workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewCommand, workflowTaskCompletedId);
         workflowTaskStateMachine.getData().workflowCompleted = true;
         HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
@@ -1537,7 +1537,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             Optional.of(rs.getNextAttempt(Optional.of(failure)));
         service.continueAsNew(
             startRequest,
-            coninueAsNewCommand,
+            continueAsNewCommand,
             continuedAsNewEventAttributes,
             continuedRetryState,
             identity,

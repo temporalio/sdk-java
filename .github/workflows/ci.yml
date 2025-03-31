@@ -78,6 +78,9 @@ jobs:
          --port 7233 \
          --http-port 7243 \
          --namespace UnitTest \
+         --db-filename temporal.sqlite \
+         --sqlite-pragma journal_mode=WAL \
+         --sqlite-pragma synchronous=OFF \
          --search-attribute CustomKeywordField=Keyword \
          --search-attribute CustomStringField=Text \
          --search-attribute CustomTextField=Text \
@@ -96,6 +99,7 @@ jobs:
          --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
          --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
          --dynamic-config-value matching.useNewMatcher=true \
+         --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
          --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
          --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true &
          sleep 10s
