@@ -96,6 +96,7 @@ jobs:
          --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
          --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
          --dynamic-config-value matching.useNewMatcher=true \
+         --dynamic-config-value system.refreshNexusEndpointsMinWait=1ms \
          --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
          --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true &
          sleep 10s
