@@ -5,9 +5,7 @@ import static org.junit.Assume.assumeTrue;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.workflowservice.v1.DescribeWorkerDeploymentRequest;
-import io.temporal.api.workflowservice.v1.DescribeWorkerDeploymentResponse;
-import io.temporal.api.workflowservice.v1.SetWorkerDeploymentCurrentVersionRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
@@ -17,6 +15,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import java.util.HashSet;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,6 +46,26 @@ public class WorkerVersioningTest {
       implements TestWorkflows.QueryableWorkflow {
     @Override
     @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE)
+    public String execute() {
+      queueLoop();
+      return "version-v1";
+    }
+
+    @Override
+    public void mySignal(String arg) {
+      sigQueue.put(arg);
+    }
+
+    @Override
+    public String getState() {
+      return "v1";
+    }
+  }
+
+  public static class TestWorkerVersioningPinnedV1 extends QueueLoop
+      implements TestWorkflows.QueryableWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
     public String execute() {
       queueLoop();
       return "version-v1";
@@ -180,6 +199,58 @@ public class WorkerVersioningTest {
         workflowClient.newUntypedWorkflowStub(we3.getWorkflowId()).getResult(String.class);
     // Started and finished on 3
     Assert.assertEquals("version-v3", res3);
+  }
+
+  @Test
+  public void testRampWorkerVersioning() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    // Start the 1.0 worker
+    testWorkflowRule
+        .getWorker()
+        .registerWorkflowImplementationTypes(TestWorkerVersioningPinnedV1.class);
+    testWorkflowRule.getTestEnvironment().start();
+
+    // Start the 2.0 worker
+    Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
+    w2.registerWorkflowImplementationTypes(TestWorkerVersioningPinnedV2.class);
+    w2.start();
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    waitUntilWorkerDeploymentVisible(v1);
+    WorkerDeploymentVersion v2 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
+    DescribeWorkerDeploymentResponse describeResp1 = waitUntilWorkerDeploymentVisible(v2);
+
+    // Set cur ver to 1 & ramp 100% to 2
+    SetWorkerDeploymentCurrentVersionResponse setCurR =
+        setCurrentVersion(v1, describeResp1.getConflictToken());
+    SetWorkerDeploymentRampingVersionResponse rampResp =
+        setRampingVersion(v2, 100, setCurR.getConflictToken());
+    // Run workflows and verify they've both started & run on v2
+    for (int i = 0; i < 3; i++) {
+      String res = runWorkflow("versioning-ramp-100");
+      Assert.assertEquals("version-v2", res);
+    }
+    // Set ramp to 0, and see them start on v1
+    SetWorkerDeploymentRampingVersionResponse rampResp2 =
+        setRampingVersion(v2, 0, rampResp.getConflictToken());
+    for (int i = 0; i < 3; i++) {
+      String res = runWorkflow("versioning-ramp-0");
+      Assert.assertEquals("version-v1", res);
+    }
+    // Set to 50% and see we eventually will have one run on v1 and one on v2
+    setRampingVersion(v2, 50, rampResp2.getConflictToken());
+    HashSet<String> seenRanOn = new HashSet<>();
+    Eventually.assertEventually(
+        Duration.ofSeconds(30),
+        () -> {
+          String res = runWorkflow("versioning-ramp-50");
+          seenRanOn.add(res);
+          Assert.assertTrue(seenRanOn.contains("version-v1"));
+          Assert.assertTrue(seenRanOn.contains("version-v2"));
+        });
   }
 
   public static class TestWorkerVersioningMissingAnnotation extends QueueLoop
@@ -316,8 +387,21 @@ public class WorkerVersioningTest {
         });
   }
 
-  private void setCurrentVersion(WorkerDeploymentVersion v, ByteString conflictToken) {
-    testWorkflowRule
+  private String runWorkflow(String idPrefix) {
+    TestWorkflows.QueryableWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.QueryableWorkflow.class, idPrefix);
+    WorkflowExecution we = WorkflowClient.start(wf::execute);
+    wf.mySignal("done");
+    return testWorkflowRule
+        .getWorkflowClient()
+        .newUntypedWorkflowStub(we.getWorkflowId())
+        .getResult(String.class);
+  }
+
+  private SetWorkerDeploymentCurrentVersionResponse setCurrentVersion(
+      WorkerDeploymentVersion v, ByteString conflictToken) {
+    return testWorkflowRule
         .getWorkflowClient()
         .getWorkflowServiceStubs()
         .blockingStub()
@@ -327,6 +411,22 @@ public class WorkerVersioningTest {
                 .setDeploymentName(testWorkflowRule.getDeploymentName())
                 .setVersion(v.toCanonicalString())
                 .setConflictToken(conflictToken)
+                .build());
+  }
+
+  private SetWorkerDeploymentRampingVersionResponse setRampingVersion(
+      WorkerDeploymentVersion v, float percent, ByteString conflictToken) {
+    return testWorkflowRule
+        .getWorkflowClient()
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .setWorkerDeploymentRampingVersion(
+            SetWorkerDeploymentRampingVersionRequest.newBuilder()
+                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                .setDeploymentName(testWorkflowRule.getDeploymentName())
+                .setVersion(v.toCanonicalString())
+                .setConflictToken(conflictToken)
+                .setPercentage(percent)
                 .build());
   }
 }
