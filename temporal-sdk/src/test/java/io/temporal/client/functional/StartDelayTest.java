@@ -57,9 +57,9 @@ public class StartDelayTest {
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
-    long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
+    long start = System.currentTimeMillis();
     stubF.func();
-    long end = testWorkflowRule.getTestEnvironment().currentTimeMillis();
+    long end = System.currentTimeMillis();
     // Assert that the workflow took at least 5 seconds to start
     assertEquals(5000, end - start, 1000);
     WorkflowExecution workflowExecution = WorkflowStub.fromTyped(stubF).getExecution();
