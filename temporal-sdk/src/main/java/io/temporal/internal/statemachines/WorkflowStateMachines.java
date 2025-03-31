@@ -320,6 +320,7 @@ public final class WorkflowStateMachines {
    *     this batch contains the last events of the history
    */
   private void handleEventsBatch(WFTBuffer.EventBatch eventBatch, boolean hasNextBatch) {
+    System.out.println("WorkflowStateMachines.handleEventsBatch: " + eventBatch);
     List<HistoryEvent> events = eventBatch.getEvents();
     if (EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.equals(events.get(0).getEventType())) {
       for (SdkFlag flag : initialFlags) {
@@ -520,6 +521,7 @@ public final class WorkflowStateMachines {
    * commands queue.
    */
   private void handleCommandEvent(HistoryEvent event) {
+    System.out.println(" WorkflowStateMachines.handleCommandEvent: EVENT " + event);
     if (handleLocalActivityMarker(event)) {
       return;
     }
@@ -541,7 +543,7 @@ public final class WorkflowStateMachines {
       // In this case we don't want to consume a command.
       // That's why peek is used instead of poll.
       CancellableCommand command = commands.peek();
-      System.out.println(" WorkflowStateMachines.handleCommandEvent: " + command);
+      System.out.println(" WorkflowStateMachines.handleCommandEvent: COMMAND " + command);
       if (command == null) {
         if (handleNonMatchingVersionMarker(event)) {
           // this event is a version marker for removed getVersion call.
@@ -553,8 +555,6 @@ public final class WorkflowStateMachines {
                       VersionMarkerUtils.getUpsertVersionSA(
                           event.getMarkerRecordedEventAttributes()));
           return;
-        } else if (handleNonMatchingUpsertSearchAttribute(event)) {
-          return;
         } else {
           throw new NonDeterministicException("No command scheduled that corresponds to " + event);
         }
@@ -562,6 +562,8 @@ public final class WorkflowStateMachines {
 
       if (command.isCanceled()) {
         // Consume and skip the command
+        System.out.println(
+            "WorkflowStateMachines.handleCommandEvent: command is canceled " + command);
         commands.poll();
         continue;
       }
@@ -600,7 +602,8 @@ public final class WorkflowStateMachines {
       if (command.isCanceled()) {
         // Consume and skip the command
         System.out.println(
-            "WorkflowStateMachines.handleCommandEvent: command is canceled " + command);
+            "WorkflowStateMachines.handleCommandEvent: command is canceled after handleEvent "
+                + command);
         commands.poll();
         continue;
       }
@@ -620,8 +623,6 @@ public final class WorkflowStateMachines {
                     .equals(
                         VersionMarkerUtils.getUpsertVersionSA(
                             event.getMarkerRecordedEventAttributes()));
-            return;
-          } else if (handleNonMatchingUpsertSearchAttribute(event)) {
             return;
           } else {
             throw new NonDeterministicException(

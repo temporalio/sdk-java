@@ -292,7 +292,10 @@ final class VersionStateMachine {
       if (preloadedVersion != null) {
         if (writeVersionChangeSA && !hasWrittenVersionChangeSA) {
           hasWrittenVersionChangeSA = true;
-          f.apply(preloadedVersion);
+          SearchAttributes sa = f.apply(preloadedVersion);
+          if (writeVersionChangeSA) {
+            UpsertSearchAttributesStateMachine.newInstance(sa, commandSink, stateMachineSink);
+          }
         }
         return State.MARKER_COMMAND_CREATED_REPLAYING;
       } else {

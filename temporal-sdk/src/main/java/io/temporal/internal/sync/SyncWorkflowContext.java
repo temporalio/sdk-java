@@ -1173,8 +1173,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     // getVersion call.
     // while it waits for the result.
     try {
-      versionToUse = result.get();
-      return versionToUse;
+      return result.get();
     } catch (UnsupportedVersion.UnsupportedVersionException ex) {
       throw new UnsupportedVersion(ex);
     }
