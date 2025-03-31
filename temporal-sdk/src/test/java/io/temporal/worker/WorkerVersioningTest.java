@@ -4,12 +4,14 @@ import static org.junit.Assume.assumeTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.workflowservice.v1.DescribeWorkerDeploymentRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkerDeploymentResponse;
 import io.temporal.api.workflowservice.v1.SetWorkerDeploymentCurrentVersionRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -44,7 +46,6 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningAutoUpgradeV1 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowMethod(name = "versioning-test-wf")
     @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE)
     public String execute() {
       queueLoop();
@@ -65,7 +66,6 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningPinnedV2 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowMethod(name = "versioning-test-wf")
     @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
     public String execute() {
       queueLoop();
@@ -86,7 +86,6 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningAutoUpgradeV3 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowMethod(name = "versioning-test-wf")
     @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE)
     public String execute() {
       queueLoop();
@@ -181,6 +180,87 @@ public class WorkerVersioningTest {
         workflowClient.newUntypedWorkflowStub(we3.getWorkflowId()).getResult(String.class);
     // Started and finished on 3
     Assert.assertEquals("version-v3", res3);
+  }
+
+  public static class TestWorkerVersioningMissingAnnotation extends QueueLoop
+      implements TestWorkflows.QueryableWorkflow {
+    @Override
+    public String execute() {
+      queueLoop();
+      return "no-annotation";
+    }
+
+    @Override
+    public void mySignal(String arg) {
+      sigQueue.put(arg);
+    }
+
+    @Override
+    public String getState() {
+      return "no-annotation";
+    }
+  }
+
+  @Test
+  public void testWorkflowsMustHaveVersioningBehaviorWhenFeatureTurnedOn() {
+    IllegalArgumentException e =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                testWorkflowRule
+                    .getWorker()
+                    .registerWorkflowImplementationTypes(
+                        TestWorkerVersioningMissingAnnotation.class));
+    Assert.assertEquals(
+        "Workflow method execute in implementation class "
+            + "io.temporal.worker.WorkerVersioningTest$TestWorkerVersioningMissingAnnotation must "
+            + "have a VersioningBehavior set, or a default must be set on worker deployment "
+            + "options, since this worker is using worker versioning",
+        e.getMessage());
+  }
+
+  @Test
+  public void testWorkflowsCanUseDefaultVersioningBehaviorWhenSpecified() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    Worker defaultVersionWorker =
+        testWorkflowRule.newWorker(
+            (opts) ->
+                opts.setDeploymentOptions(
+                    WorkerDeploymentOptions.newBuilder()
+                        .setVersion(
+                            new WorkerDeploymentVersion(
+                                testWorkflowRule.getDeploymentName(), "1.0"))
+                        .setUseVersioning(true)
+                        .setDefaultVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
+                        .build()));
+    // Registration should work fine
+    defaultVersionWorker.registerWorkflowImplementationTypes(
+        TestWorkerVersioningMissingAnnotation.class);
+    defaultVersionWorker.start();
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    DescribeWorkerDeploymentResponse describeResp1 = waitUntilWorkerDeploymentVisible(v1);
+    setCurrentVersion(v1, describeResp1.getConflictToken());
+
+    TestWorkflows.QueryableWorkflow wf1 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.QueryableWorkflow.class, "default-versioning-behavior");
+    WorkflowExecution we1 = WorkflowClient.start(wf1::execute);
+    wf1.mySignal("done");
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    workflowClient.newUntypedWorkflowStub(we1.getWorkflowId()).getResult(String.class);
+
+    WorkflowExecutionHistory hist = testWorkflowRule.getExecutionHistory(we1.getWorkflowId());
+    Assert.assertTrue(
+        hist.getHistory().getEventsList().stream()
+            .anyMatch(
+                e ->
+                    e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+                        && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
+                            == io.temporal.api.enums.v1.VersioningBehavior
+                                .VERSIONING_BEHAVIOR_PINNED));
   }
 
   @WorkflowInterface

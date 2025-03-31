@@ -15,7 +15,8 @@ public class WorkerDeploymentOptions {
   public static final class Builder {
     private boolean useVersioning;
     private WorkerDeploymentVersion version;
-    private VersioningBehavior defaultVersioningBehavior;
+    private VersioningBehavior defaultVersioningBehavior =
+        VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
 
     /**
      * If set, opts this worker into the Worker Deployment Versioning feature. It will only operate

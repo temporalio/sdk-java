@@ -106,6 +106,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private final WorkflowExecutorCache cache;
 
   private final String namespace;
+  private final VersioningBehavior defaultVersioningBehavior;
+  private final boolean workerVersioningEnabled;
 
   public POJOWorkflowImplementationFactory(
       SingleWorkerOptions singleWorkerOptions,
@@ -121,6 +123,15 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     this.contextPropagators = singleWorkerOptions.getContextPropagators();
     this.defaultDeadlockDetectionTimeout = singleWorkerOptions.getDefaultDeadlockDetectionTimeout();
     this.namespace = namespace;
+    if (singleWorkerOptions.getDeploymentOptions() != null
+        && singleWorkerOptions.getDeploymentOptions().isUsingVersioning()) {
+      this.defaultVersioningBehavior =
+          singleWorkerOptions.getDeploymentOptions().getDefaultVersioningBehavior();
+      this.workerVersioningEnabled = true;
+    } else {
+      this.defaultVersioningBehavior = VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
+      this.workerVersioningEnabled = false;
+    }
   }
 
   public void registerWorkflowImplementationTypes(
@@ -172,7 +183,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
                       null,
                       methodMetadata.getWorkflowMethod(),
                       dataConverter.withContext(
-                          new WorkflowSerializationContext(namespace, execution.getWorkflowId()))));
+                          new WorkflowSerializationContext(namespace, execution.getWorkflowId())),
+                      VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED));
           implementationOptions.put(typeName, options);
           break;
         case SIGNAL:
@@ -241,6 +253,38 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     for (POJOWorkflowMethodMetadata workflowMethod : workflowMethods) {
       String workflowName = workflowMethod.getName();
       Method method = workflowMethod.getWorkflowMethod();
+      // Find the same method on the implementation class
+      Method implMethod;
+      VersioningBehavior versioningBehavior;
+      try {
+        implMethod =
+            workflowImplementationClass.getMethod(method.getName(), method.getParameterTypes());
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException(
+            "Unable to find workflow method "
+                + workflowMethod.getName()
+                + " in implementation class "
+                + workflowImplementationClass.getName(),
+            e);
+      }
+      if (implMethod.isAnnotationPresent(WorkflowVersioningBehavior.class)) {
+        WorkflowVersioningBehavior vb = implMethod.getAnnotation(WorkflowVersioningBehavior.class);
+        versioningBehavior = vb.value();
+      } else {
+        versioningBehavior = defaultVersioningBehavior;
+      }
+
+      if (workerVersioningEnabled
+          && versioningBehavior == VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED) {
+        throw new IllegalArgumentException(
+            "Workflow method "
+                + method.getName()
+                + " in implementation class "
+                + workflowImplementationClass.getName()
+                + " must have a VersioningBehavior set, or a default must be set on "
+                + "worker deployment options, since this worker is using worker versioning");
+      }
+
       Functions.Func1<WorkflowExecution, SyncWorkflowDefinition> definition =
           (execution) ->
               new POJOWorkflowImplementation(
@@ -248,7 +292,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
                   workflowMetadata.getWorkflowInit(),
                   method,
                   dataConverter.withContext(
-                      new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
+                      new WorkflowSerializationContext(namespace, execution.getWorkflowId())),
+                  versioningBehavior);
 
       if (workflowDefinitions.containsKey(workflowName)) {
         throw new IllegalStateException(
@@ -328,34 +373,13 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         Class<?> workflowImplementationClass,
         Constructor<?> ctor,
         Method workflowMethod,
-        DataConverter dataConverterWithWorkflowContext) {
+        DataConverter dataConverterWithWorkflowContext,
+        VersioningBehavior versioningBehavior) {
       this.workflowImplementationClass = workflowImplementationClass;
       this.ctor = ctor;
       this.workflowMethod = workflowMethod;
       this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
-
-      // Find the same method on the implementation class
-      Method implMethod;
-      try {
-        implMethod =
-            workflowImplementationClass.getMethod(
-                workflowMethod.getName(), workflowMethod.getParameterTypes());
-      } catch (NoSuchMethodException e) {
-        throw new RuntimeException(
-            "Unable to find method "
-                + workflowMethod.getName()
-                + " in class "
-                + workflowImplementationClass.getName(),
-            e);
-      }
-
-      if (implMethod.isAnnotationPresent(WorkflowVersioningBehavior.class)) {
-        WorkflowVersioningBehavior versioningBehavior =
-            implMethod.getAnnotation(WorkflowVersioningBehavior.class);
-        this.versioningBehavior = versioningBehavior.value();
-      } else {
-        this.versioningBehavior = VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
-      }
+      this.versioningBehavior = versioningBehavior;
     }
 
     @Override
