@@ -55,8 +55,8 @@ public class WorkerDeploymentOptions {
     }
 
     /**
-     * Provides a default Versioning Behavior to workflows that do not set one with the TODO: Link
-     * to annotation
+     * Provides a default Versioning Behavior to workflows that do not set one with the {@link
+     * io.temporal.workflow.WorkflowVersioningBehavior} annotation.
      *
      * <p>NOTE: When the Deployment-based Worker Versioning feature is on, and default versioning
      * behavior is unspecified, workflows that do not set the Versioning Behavior will fail at
