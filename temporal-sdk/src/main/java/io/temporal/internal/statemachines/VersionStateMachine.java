@@ -354,7 +354,7 @@ final class VersionStateMachine {
     version = getVersionFromEvent(event);
   }
 
-  private void preloadVersionFromEvent(HistoryEvent event) {
+  private Integer preloadVersionFromEvent(HistoryEvent event) {
     if (version != null) {
       throw new NonDeterministicException(
           "Version is already set to " + version + ". " + RETROACTIVE_ADDITION_ERROR_STRING);
@@ -367,6 +367,7 @@ final class VersionStateMachine {
         preloadedVersion);
 
     preloadedVersion = getVersionFromEvent(event);
+    return preloadedVersion;
   }
 
   void flushPreloadedVersionAndUpdateFromEvent(HistoryEvent event) {
@@ -428,8 +429,8 @@ final class VersionStateMachine {
     flushPreloadedVersionAndUpdateFromEvent(event);
   }
 
-  public void handleMarkersPreload(HistoryEvent event) {
-    preloadVersionFromEvent(event);
+  public Integer handleMarkersPreload(HistoryEvent event) {
+    return preloadVersionFromEvent(event);
   }
 
   private int getVersionFromEvent(HistoryEvent event) {

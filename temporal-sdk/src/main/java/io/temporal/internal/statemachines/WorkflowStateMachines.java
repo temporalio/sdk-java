@@ -68,7 +68,7 @@ public final class WorkflowStateMachines {
   public static List<SdkFlag> initialFlags =
       Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
-  private final Map<String, Integer> changeVersions = new HashMap<>();
+  private final Map<String, Integer> changeVersions = new LinkedHashMap<>();
   private static final Logger log = LoggerFactory.getLogger(WorkflowStateMachines.class);
 
   /**
@@ -666,13 +666,9 @@ public final class WorkflowStateMachines {
               (idKey) ->
                   VersionStateMachine.newInstance(
                       changeId, this::isReplaying, commandSink, stateMachineSink));
-      versionStateMachine.handleMarkersPreload(event);
+      Integer version = versionStateMachine.handleMarkersPreload(event);
       if (versionStateMachine.isWriteVersionChangeSA()) {
-        changeVersions.put(changeId, 0);
-        //        UpsertSearchAttributesStateMachine.newInstance(
-        //            VersionMarkerUtils.createVersionMarkerSearchAttributes(changeVersions),
-        //            commandSink,
-        //            stateMachineSink);
+        changeVersions.put(changeId, version);
       }
     }
   }

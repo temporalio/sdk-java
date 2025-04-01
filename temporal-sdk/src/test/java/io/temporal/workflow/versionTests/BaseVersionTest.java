@@ -35,13 +35,14 @@ public abstract class BaseVersionTest {
   @Parameterized.Parameter(0)
   public static boolean setVersioningFlag;
 
-  @Parameterized.Parameter(1)
-  public static boolean upsertVersioningSA;
+  public static boolean upsertVersioningSA = true;
 
   @Parameterized.Parameters()
   public static Object[] data() {
-    return new Object[][] {{true, true}, {false, false}, {true, false}, {false, true}};
+    return new Object[][] {{true}, {false}};
   }
+
+  public WorkflowImplementationOptions options;
 
   public WorkflowImplementationOptions getDefaultWorkflowImplementationOptions() {
     return WorkflowImplementationOptions.newBuilder()

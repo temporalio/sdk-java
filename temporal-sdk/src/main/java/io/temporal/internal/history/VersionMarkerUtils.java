@@ -20,6 +20,7 @@
 
 package io.temporal.internal.history;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
@@ -41,8 +42,10 @@ public class VersionMarkerUtils {
   public static final String MARKER_CHANGE_ID_KEY = "changeId";
   public static final String MARKER_VERSION_KEY = "version";
   public static final String UPSERT_VERSION_SA_KEY = "upsertSA";
+
   // TemporalChangeVersion is used as search attributes key to find workflows with specific change
   // version.
+  @VisibleForTesting
   public static final SearchAttributeKey<List<String>> TEMPORAL_CHANGE_VERSION =
       SearchAttributeKey.forKeywordList("TemporalChangeVersion");
 
@@ -116,10 +119,10 @@ public class VersionMarkerUtils {
   public static SearchAttributes createVersionMarkerSearchAttributes(
       String newChangeId, Integer newVersion, Map<String, Integer> existingVersions) {
     List<String> changeVersions = new ArrayList<>(existingVersions.size() + 1);
-    changeVersions.add(createChangeId(newChangeId, newVersion));
     existingVersions.entrySet().stream()
         .map(entry -> createChangeId(entry.getKey(), entry.getValue()))
         .forEach(changeVersions::add);
+    changeVersions.add(createChangeId(newChangeId, newVersion));
     SearchAttributes sa =
         SearchAttributesUtil.encodeTyped(
             io.temporal.common.SearchAttributes.newBuilder()
