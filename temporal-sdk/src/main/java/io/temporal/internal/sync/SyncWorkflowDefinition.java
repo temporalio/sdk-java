@@ -43,7 +43,7 @@ interface SyncWorkflowDefinition {
 
   /**
    * @return The versioning behavior for this workflow as defined by the attached annotation,
-   *     otherwise {@link VersioningBehavior#VERSIONING_BEHAVIOR_UNSPECIFIED}.
+   *     otherwise {@link VersioningBehavior#UNSPECIFIED}.
    */
   VersioningBehavior getVersioningBehavior();
 }

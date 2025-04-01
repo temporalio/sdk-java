@@ -23,8 +23,10 @@ package io.temporal.common.metadata;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableSet;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.converter.EncodedValuesTest;
 import io.temporal.workflow.WorkflowInit;
+import io.temporal.workflow.WorkflowVersioningBehavior;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -268,6 +270,24 @@ public class POJOWorkflowImplMetadataTest {
     Assert.assertEquals(1, meta.getWorkflowMethods().size());
   }
 
+  @Test
+  public void testWorkflowWithMultipleWfMethodsAndVersioningBehavior() {
+    POJOWorkflowImplMetadata meta =
+        POJOWorkflowImplMetadata.newInstance(
+            WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors.class);
+    Assert.assertEquals(2, meta.getWorkflowMethods().size());
+
+    List<POJOWorkflowMethodMetadata> methods = meta.getWorkflowMethods();
+    for (POJOWorkflowMethodMetadata method : methods) {
+      if (method.getName().equals("I")) {
+        Assert.assertEquals(
+            VersioningBehavior.AUTO_UPGRADE, meta.getVersioningBehaviorForMethod(method));
+      } else {
+        Assert.assertEquals(VersioningBehavior.PINNED, meta.getVersioningBehaviorForMethod(method));
+      }
+    }
+  }
+
   public static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
     @Override
     public void g() {}
@@ -441,5 +461,16 @@ public class POJOWorkflowImplMetadataTest {
 
     @Override
     public void f(Map<String, EncodedValuesTest.Pair> input) {}
+  }
+
+  public static class WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors
+      implements POJOWorkflowInterfaceMetadataTest.F, POJOWorkflowInterfaceMetadataTest.I {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public void f() {}
+
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
+    public void i() {}
   }
 }

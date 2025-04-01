@@ -41,12 +41,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkerVersioningTest {
+  // This worker isn't actually used
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
           .setDoNotStart(true)
-          .setEnableWorkerDeployment("1.0")
           .build();
 
   public static class QueueLoop {
@@ -65,7 +65,7 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningAutoUpgradeV1 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE)
+    @WorkflowVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
     public String execute() {
       queueLoop();
       return "version-v1";
@@ -85,7 +85,7 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningPinnedV1 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
     public String execute() {
       queueLoop();
       return "version-v1";
@@ -105,7 +105,7 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningPinnedV2 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
     public String execute() {
       queueLoop();
       return "version-v2";
@@ -125,7 +125,7 @@ public class WorkerVersioningTest {
   public static class TestWorkerVersioningAutoUpgradeV3 extends QueueLoop
       implements TestWorkflows.QueryableWorkflow {
     @Override
-    @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE)
+    @WorkflowVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
     public String execute() {
       queueLoop();
       return "version-v3";
@@ -147,10 +147,9 @@ public class WorkerVersioningTest {
     assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
 
     // Start the 1.0 worker
-    testWorkflowRule
-        .getWorker()
-        .registerWorkflowImplementationTypes(TestWorkerVersioningAutoUpgradeV1.class);
-    testWorkflowRule.getTestEnvironment().start();
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningAutoUpgradeV1.class);
+    w1.start();
 
     // Start the 2.0 worker
     Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
@@ -226,10 +225,9 @@ public class WorkerVersioningTest {
     assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
 
     // Start the 1.0 worker
-    testWorkflowRule
-        .getWorker()
-        .registerWorkflowImplementationTypes(TestWorkerVersioningPinnedV1.class);
-    testWorkflowRule.getTestEnvironment().start();
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningAutoUpgradeV1.class);
+    w1.start();
 
     // Start the 2.0 worker
     Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
@@ -294,14 +292,13 @@ public class WorkerVersioningTest {
 
   @Test
   public void testWorkflowsMustHaveVersioningBehaviorWhenFeatureTurnedOn() {
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
     IllegalArgumentException e =
         Assert.assertThrows(
             IllegalArgumentException.class,
             () ->
-                testWorkflowRule
-                    .getWorker()
-                    .registerWorkflowImplementationTypes(
-                        TestWorkerVersioningMissingAnnotation.class));
+                w1.registerWorkflowImplementationTypes(
+                    TestWorkerVersioningMissingAnnotation.class));
     Assert.assertEquals(
         "Workflow method execute in implementation class "
             + "io.temporal.worker.WorkerVersioningTest$TestWorkerVersioningMissingAnnotation must "
@@ -323,7 +320,7 @@ public class WorkerVersioningTest {
                             new WorkerDeploymentVersion(
                                 testWorkflowRule.getDeploymentName(), "1.0"))
                         .setUseVersioning(true)
-                        .setDefaultVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
+                        .setDefaultVersioningBehavior(VersioningBehavior.PINNED)
                         .build()));
     // Registration should work fine
     defaultVersionWorker.registerWorkflowImplementationTypes(
@@ -357,7 +354,7 @@ public class WorkerVersioningTest {
   @WorkflowInterface
   public interface DontAllowBehaviorAnnotationOnInterface {
     @WorkflowMethod
-    @WorkflowVersioningBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_PINNED)
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
     void execute();
   }
 

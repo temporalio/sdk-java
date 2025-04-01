@@ -84,7 +84,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   @Override
   public VersioningBehavior getVersioningBehavior() {
-    return VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
+    return VersioningBehavior.UNSPECIFIED;
   }
 
   class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {

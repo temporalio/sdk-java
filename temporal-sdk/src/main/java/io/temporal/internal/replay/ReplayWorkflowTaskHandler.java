@@ -232,7 +232,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                     .build())
             .setReturnNewWorkflowTask(result.isForceWorkflowTask())
             .setVersioningBehavior(
-                WorkerVersioningOptions.behaviorToProto(result.getVersioningBehavior()))
+                WorkerVersioningProtoUtils.behaviorToProto(result.getVersioningBehavior()))
             .setCapabilities(
                 RespondWorkflowTaskCompletedRequest.Capabilities.newBuilder()
                     .setDiscardSpeculativeWorkflowTaskWithEvents(true)

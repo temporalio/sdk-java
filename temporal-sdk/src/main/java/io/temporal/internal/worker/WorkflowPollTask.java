@@ -89,7 +89,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequestBuilder.setDeploymentOptions(
-          WorkerVersioningOptions.deploymentOptionsToProto(
+          WorkerVersioningProtoUtils.deploymentOptionsToProto(
               versioningOptions.getWorkerDeploymentOptions()));
     } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequestBuilder.setWorkerVersionCapabilities(

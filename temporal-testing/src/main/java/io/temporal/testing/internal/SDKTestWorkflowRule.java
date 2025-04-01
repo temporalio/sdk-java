@@ -228,17 +228,6 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
-    /**
-     * Enables worker versioning, and uses a unique deployment name based on the test.
-     *
-     * @param buildId Build Id to use for the rule's built-in worker.
-     * @return {@code this}
-     */
-    public Builder setEnableWorkerDeployment(String buildId) {
-      testWorkflowRuleBuilder.setEnableWorkerDeployment(buildId);
-      return this;
-    }
-
     public SDKTestWorkflowRule build() {
       if (!workerFactoryOptionsAreSet) {
         testWorkflowRuleBuilder.setWorkerFactoryOptions(
@@ -284,7 +273,7 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public String getDeploymentName() {
-    return testWorkflowRule.getDeploymentName();
+    return "deployment-" + testWorkflowRule.getUniquePostfix();
   }
 
   public Endpoint getNexusEndpoint() {

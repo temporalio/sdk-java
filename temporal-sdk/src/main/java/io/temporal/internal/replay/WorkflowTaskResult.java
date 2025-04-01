@@ -107,9 +107,7 @@ public final class WorkflowTaskResult {
           sdkFlags == null ? Collections.emptyList() : sdkFlags,
           writeSdkName,
           writeSdkVersion,
-          versioningBehavior == null
-              ? VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED
-              : versioningBehavior);
+          versioningBehavior == null ? VersioningBehavior.UNSPECIFIED : versioningBehavior);
     }
   }
 

@@ -512,7 +512,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
       if (options.getDeploymentOptions() != null) {
         taskCompleted.setDeploymentOptions(
-            WorkerVersioningOptions.deploymentOptionsToProto(options.getDeploymentOptions()));
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(options.getDeploymentOptions()));
       } else if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskCompleted.setWorkerVersionStamp(options.workerVersionStamp());
       } else {
@@ -542,7 +542,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
       if (options.getDeploymentOptions() != null) {
         taskFailed.setDeploymentOptions(
-            WorkerVersioningOptions.deploymentOptionsToProto(options.getDeploymentOptions()));
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(options.getDeploymentOptions()));
       } else if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }

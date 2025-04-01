@@ -578,6 +578,14 @@ public final class WorkerOptions {
         Preconditions.checkState(
             buildId != null && !buildId.isEmpty(),
             "buildId must be set non-empty if useBuildIdForVersioning is set true");
+        Preconditions.checkState(
+            deploymentOptions == null,
+            "deploymentOptions must not be set if useBuildIdForVersioning is set true");
+      }
+      if (buildId != null) {
+        Preconditions.checkState(
+            deploymentOptions == null,
+            "deploymentOptions must not be set if buildId is set, prefer using deploymentOptions");
       }
       Preconditions.checkState(
           stickyTaskQueueDrainTimeout == null || !stickyTaskQueueDrainTimeout.isNegative(),

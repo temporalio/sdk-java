@@ -26,17 +26,29 @@ import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import java.util.Objects;
 
+/** Options for configuring the Worker Versioning feature. */
 @Experimental
 public class WorkerDeploymentOptions {
   public static Builder newBuilder() {
     return new Builder();
   }
 
+  public static Builder newBuilder(WorkerDeploymentOptions options) {
+    return new Builder(options);
+  }
+
   public static final class Builder {
     private boolean useVersioning;
     private WorkerDeploymentVersion version;
-    private VersioningBehavior defaultVersioningBehavior =
-        VersioningBehavior.VERSIONING_BEHAVIOR_UNSPECIFIED;
+    private VersioningBehavior defaultVersioningBehavior = VersioningBehavior.UNSPECIFIED;
+
+    private Builder() {}
+
+    private Builder(WorkerDeploymentOptions options) {
+      this.useVersioning = options.useVersioning;
+      this.version = options.version;
+      this.defaultVersioningBehavior = options.defaultVersioningBehavior;
+    }
 
     /**
      * If set, opts this worker into the Worker Deployment Versioning feature. It will only operate

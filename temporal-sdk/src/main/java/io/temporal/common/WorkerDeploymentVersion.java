@@ -37,6 +37,23 @@ public class WorkerDeploymentVersion {
   }
 
   /**
+   * Build a worker deployment version from a canonical string representation.
+   *
+   * @param canonicalString The canonical string representation of the worker deployment version,
+   *     formatted as "deploymentName.buildId". Deployment name must not have a "." in it.
+   * @return A new instance of {@link WorkerDeploymentVersion}.
+   * @throws IllegalArgumentException if the input string is not in the expected format.
+   */
+  public static WorkerDeploymentVersion fromCanonicalString(String canonicalString) {
+    String[] parts = canonicalString.split("\\.", 2);
+    if (parts.length != 2) {
+      throw new IllegalArgumentException(
+          "Invalid canonical string format. Expected 'deploymentName.buildId'");
+    }
+    return new WorkerDeploymentVersion(parts[0], parts[1]);
+  }
+
+  /**
    * @return The canonical string representation of this worker deployment version.
    */
   public String toCanonicalString() {

@@ -30,12 +30,12 @@ public enum VersioningBehavior {
    * required to specify a behavior. See {@link
    * io.temporal.worker.WorkerOptions.Builder#setDeploymentOptions(WorkerDeploymentOptions)}.
    */
-  VERSIONING_BEHAVIOR_UNSPECIFIED,
+  UNSPECIFIED,
   /** The workflow will be pinned to the current Build ID unless manually moved. */
-  VERSIONING_BEHAVIOR_PINNED,
+  PINNED,
   /**
    * The workflow will automatically move to the latest version (default Build ID of the task queue)
    * when the next task is dispatched.
    */
-  VERSIONING_BEHAVIOR_AUTO_UPGRADE
+  AUTO_UPGRADE
 }

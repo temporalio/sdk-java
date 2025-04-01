@@ -33,7 +33,6 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.SearchAttributeKey;
-import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.docker.RegisterTestNamespace;
@@ -99,14 +98,13 @@ public class TestWorkflowRule implements TestRule {
   private final String target;
   private final boolean useTimeskipping;
   private final Scope metricsScope;
-  private String enableWorkerDeploymentWithBuildId;
+  private String uniquePostfix;
 
   @Nonnull private final Map<String, IndexedValueType> searchAttributes;
 
   private String taskQueue;
   private String nexusEndpointName;
   private Endpoint nexusEndpoint;
-  private String deploymentName;
   private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -158,7 +156,6 @@ public class TestWorkflowRule implements TestRule {
     this.useTimeskipping = builder.useTimeskipping;
     this.metricsScope = builder.metricsScope;
     this.searchAttributes = builder.searchAttributes;
-    this.enableWorkerDeploymentWithBuildId = builder.enableWorkerDeploymentWithBuildId;
 
     this.testEnvironment =
         TestWorkflowEnvironment.newInstance(createTestEnvOptions(builder.initialTimeMillis));
@@ -205,7 +202,6 @@ public class TestWorkflowRule implements TestRule {
     private long testTimeoutSeconds;
     @Nonnull private final Map<String, IndexedValueType> searchAttributes = new HashMap<>();
     private Scope metricsScope;
-    private String enableWorkerDeploymentWithBuildId;
 
     protected Builder() {}
 
@@ -403,17 +399,6 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
-    /**
-     * Enables worker versioning, and uses a unique deployment name based on the test.
-     *
-     * @param buildId Build Id to use for the rule's built-in worker.
-     * @return {@code this}
-     */
-    public Builder setEnableWorkerDeployment(String buildId) {
-      this.enableWorkerDeploymentWithBuildId = buildId;
-      return this;
-    }
-
     public TestWorkflowRule build() {
       return new TestWorkflowRule(this);
     }
@@ -443,26 +428,11 @@ public class TestWorkflowRule implements TestRule {
   }
 
   private String init(Description description) {
-    String testMethod = description.getMethodName();
-    String randomMethod = testMethod + "-" + UUID.randomUUID();
-    String taskQueue = "WorkflowTest-" + randomMethod;
-    String deploymentName = "deployment-" + randomMethod;
+    uniquePostfix = description.getMethodName() + "-" + UUID.randomUUID();
+    String taskQueue = "WorkflowTest-" + uniquePostfix;
     nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
 
     WorkerOptions workerOptions = this.workerOptions;
-    if (enableWorkerDeploymentWithBuildId != null) {
-      workerOptions =
-          WorkerOptions.newBuilder(this.workerOptions)
-              .setDeploymentOptions(
-                  WorkerDeploymentOptions.newBuilder()
-                      .setUseVersioning(true)
-                      .setVersion(
-                          new WorkerDeploymentVersion(
-                              deploymentName, enableWorkerDeploymentWithBuildId))
-                      .build())
-              .build();
-      this.deploymentName = deploymentName;
-    }
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
     WorkflowImplementationOptions workflowImplementationOptions =
         this.workflowImplementationOptions;
@@ -511,13 +481,6 @@ public class TestWorkflowRule implements TestRule {
    */
   public String getTaskQueue() {
     return taskQueue;
-  }
-
-  /**
-   * @return name of the deployment used for the test worker (if any).
-   */
-  public @Nullable String getDeploymentName() {
-    return deploymentName;
   }
 
   /**
@@ -611,6 +574,14 @@ public class TestWorkflowRule implements TestRule {
   public WorkflowStub newUntypedWorkflowStub(String workflow) {
     return getWorkflowClient()
         .newUntypedWorkflowStub(workflow, newWorkflowOptionsForTaskQueue(getTaskQueue()));
+  }
+
+  /**
+   * @return A unique string containing the test name appended to the task queue used by the test
+   *     worker. Can be used for other test-specific naming.
+   */
+  public String getUniquePostfix() {
+    return uniquePostfix;
   }
 
   private static WorkflowOptions newWorkflowOptionsForTaskQueue(String taskQueue) {
