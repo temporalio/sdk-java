@@ -48,8 +48,14 @@ final class VersionStateMachine {
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
   @Nullable private Integer version;
-  // This flag is used to determine if the search attribute for version change was written.
-  @Nullable private Boolean writeVersionChangeSA;
+
+  /** This flag is used to determine if the search attribute for the version change was written. */
+  @Nullable private Boolean writeVersionChangeSA = false;
+
+  /**
+   * This flag is used to determine if the search attribute for the version change has been written
+   * by this state machine.
+   */
   private boolean hasWrittenVersionChangeSA = false;
 
   /**
@@ -256,6 +262,7 @@ final class VersionStateMachine {
         Command markerCommand = StateMachineCommandUtils.createRecordMarker(markerAttributes);
         addCommand(markerCommand);
         if (writeVersionChangeSA) {
+          hasWrittenVersionChangeSA = true;
           UpsertSearchAttributesStateMachine.newInstance(sa, commandSink, stateMachineSink);
         }
         return State.MARKER_COMMAND_CREATED;
@@ -421,7 +428,7 @@ final class VersionStateMachine {
     return version == null ? preloadedVersion : version;
   }
 
-  public Boolean isWriteVersionChangeSA() {
+  public boolean isWriteVersionChangeSA() {
     return writeVersionChangeSA;
   }
 

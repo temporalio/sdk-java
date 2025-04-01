@@ -49,7 +49,6 @@ public class GetVersionWorkflowRemoveTest extends BaseVersionTest {
           .setWorkflowTypes(
               getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowRemove.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          .setUseExternalService(true)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()

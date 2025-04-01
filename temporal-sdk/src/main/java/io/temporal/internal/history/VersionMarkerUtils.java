@@ -91,8 +91,10 @@ public class VersionMarkerUtils {
   }
 
   @Nullable
-  public static Boolean getUpsertVersionSA(MarkerRecordedEventAttributes markerAttributes) {
-    return MarkerUtils.getValueFromMarker(markerAttributes, UPSERT_VERSION_SA_KEY, Boolean.class);
+  public static boolean getUpsertVersionSA(MarkerRecordedEventAttributes markerAttributes) {
+    Boolean upsertSA =
+        MarkerUtils.getValueFromMarker(markerAttributes, UPSERT_VERSION_SA_KEY, Boolean.class);
+    return upsertSA != null && upsertSA;
   }
 
   public static RecordMarkerCommandAttributes createMarkerAttributes(

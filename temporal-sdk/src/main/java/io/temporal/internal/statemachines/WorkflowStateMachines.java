@@ -507,7 +507,7 @@ public final class WorkflowStateMachines {
     }
   }
 
-  private boolean shouldSkip = false;
+  private boolean shouldSkipUpsertVersionSA = false;
 
   /**
    * Handles command event. Command event is an event which is generated from a command emitted by a
@@ -525,9 +525,9 @@ public final class WorkflowStateMachines {
     if (handleLocalActivityMarker(event)) {
       return;
     }
-    if (shouldSkip) {
+    if (shouldSkipUpsertVersionSA) {
       if (handleNonMatchingUpsertSearchAttribute(event)) {
-        shouldSkip = false;
+        shouldSkipUpsertVersionSA = false;
         return;
       } else {
         throw new NonDeterministicException("No command scheduled that corresponds to " + event);
@@ -549,11 +549,8 @@ public final class WorkflowStateMachines {
           // this event is a version marker for removed getVersion call.
           // Handle the version marker as unmatched and return even if there is no commands to match
           // it against.
-          shouldSkip =
-              new Boolean(true)
-                  .equals(
-                      VersionMarkerUtils.getUpsertVersionSA(
-                          event.getMarkerRecordedEventAttributes()));
+          shouldSkipUpsertVersionSA =
+              VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
           return;
         } else {
           throw new NonDeterministicException("No command scheduled that corresponds to " + event);
@@ -576,11 +573,8 @@ public final class WorkflowStateMachines {
           // this event is a version marker for removed getVersion call.
           // Handle the version marker as unmatched and return even if there is no commands to match
           // it against.
-          shouldSkip =
-              new Boolean(true)
-                  .equals(
-                      VersionMarkerUtils.getUpsertVersionSA(
-                          event.getMarkerRecordedEventAttributes()));
+          shouldSkipUpsertVersionSA =
+              VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
           return;
         } else {
           throw new NonDeterministicException(
@@ -618,11 +612,8 @@ public final class WorkflowStateMachines {
           if (handleNonMatchingVersionMarker(event)) {
             // this event is a version marker for removed getVersion call.
             // Handle the version marker as unmatched and return without consuming the command
-            shouldSkip =
-                new Boolean(true)
-                    .equals(
-                        VersionMarkerUtils.getUpsertVersionSA(
-                            event.getMarkerRecordedEventAttributes()));
+            shouldSkipUpsertVersionSA =
+                VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
             return;
           } else {
             throw new NonDeterministicException(
@@ -687,7 +678,11 @@ public final class WorkflowStateMachines {
   }
 
   private boolean handleNonMatchingUpsertSearchAttribute(HistoryEvent event) {
-    if (event.hasUpsertWorkflowSearchAttributesEventAttributes()) {
+    if (event.hasUpsertWorkflowSearchAttributesEventAttributes()
+        && event
+            .getUpsertWorkflowSearchAttributesEventAttributes()
+            .getSearchAttributes()
+            .containsIndexedFields(TEMPORAL_CHANGE_VERSION.getName())) {
       return true;
     }
     return false;
