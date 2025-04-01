@@ -71,9 +71,10 @@ public final class WorkflowStateMachines {
       Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
   /**
-   * Keep track of the change versions that have been seen by the SDK. This is used to generate the {@link VersionMarkerUtils#TEMPORAL_CHANGE_VERSION} search attribute.
-   * We use a LinkedHashMap to ensure that the order of the change versions are preserved.
-   * */
+   * Keep track of the change versions that have been seen by the SDK. This is used to generate the
+   * {@link VersionMarkerUtils#TEMPORAL_CHANGE_VERSION} search attribute. We use a LinkedHashMap to
+   * ensure that the order of the change versions are preserved.
+   */
   private final Map<String, Integer> changeVersions = new LinkedHashMap<>();
 
   /**
@@ -198,11 +199,11 @@ public final class WorkflowStateMachines {
   @Nonnull private String lastSeenSdkVersion = "";
 
   /**
-   * Track if the last event handled was a version marker for a getVersion call that was removed and that event was excepted to be followed by an
-   * upsert search attribute for the TemporalChangeVersion search attribute.
-   * */
+   * Track if the last event handled was a version marker for a getVersion call that was removed and
+   * that event was excepted to be followed by an upsert search attribute for the
+   * TemporalChangeVersion search attribute.
+   */
   private boolean shouldSkipUpsertVersionSA = false;
-
 
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks,

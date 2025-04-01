@@ -35,7 +35,7 @@ public abstract class BaseVersionTest {
   @Parameterized.Parameter(0)
   public static boolean setVersioningFlag;
 
-  public static boolean upsertVersioningSA = true;
+  public static boolean upsertVersioningSA = false;
 
   @Parameterized.Parameters()
   public static Object[] data() {
