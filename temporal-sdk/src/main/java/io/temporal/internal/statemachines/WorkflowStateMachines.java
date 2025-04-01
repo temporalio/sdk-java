@@ -63,13 +63,18 @@ public final class WorkflowStateMachines {
     NON_MATCHING_EVENT
   }
 
+  private static final Logger log = LoggerFactory.getLogger(WorkflowStateMachines.class);
+
   /** Initial set of SDK flags that will be set on all new workflow executions. */
   @VisibleForTesting
   public static List<SdkFlag> initialFlags =
       Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
+  /**
+   * Keep track of the change versions that have been seen by the SDK. This is used to generate the {@link VersionMarkerUtils#TEMPORAL_CHANGE_VERSION} search attribute.
+   * We use a LinkedHashMap to ensure that the order of the change versions are preserved.
+   * */
   private final Map<String, Integer> changeVersions = new LinkedHashMap<>();
-  private static final Logger log = LoggerFactory.getLogger(WorkflowStateMachines.class);
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -191,6 +196,13 @@ public final class WorkflowStateMachines {
   private final WorkflowImplementationOptions workflowImplOptions;
   @Nonnull private String lastSeenSdkName = "";
   @Nonnull private String lastSeenSdkVersion = "";
+
+  /**
+   * Track if the last event handled was a version marker for a getVersion call that was removed and that event was excepted to be followed by an
+   * upsert search attribute for the TemporalChangeVersion search attribute.
+   * */
+  private boolean shouldSkipUpsertVersionSA = false;
+
 
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks,
@@ -506,8 +518,6 @@ public final class WorkflowStateMachines {
       handleNonStatefulEvent(event, hasNextEvent);
     }
   }
-
-  private boolean shouldSkipUpsertVersionSA = false;
 
   /**
    * Handles command event. Command event is an event which is generated from a command emitted by a
