@@ -49,6 +49,9 @@ public class VersionMarkerUtils {
   public static final SearchAttributeKey<List<String>> TEMPORAL_CHANGE_VERSION =
       SearchAttributeKey.forKeywordList("TemporalChangeVersion");
 
+  // Limit the size of the change version search attribute to avoid exceeding the server limits.
+  // Exceeding the limit
+  // will result in the search attribute not being added.
   public static final int CHANGE_VERSION_SEARCH_ATTRIBUTE_SIZE_LIMIT = 2048;
 
   /**

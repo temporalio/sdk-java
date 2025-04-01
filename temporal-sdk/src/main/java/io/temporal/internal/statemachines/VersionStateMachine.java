@@ -54,7 +54,8 @@ final class VersionStateMachine {
 
   /**
    * This flag is used to determine if the search attribute for the version change has been written
-   * by this state machine.
+   * by this state machine. This is used to prevent writing the search attribute multiple times if
+   * getVersion is called repeatedly.
    */
   private boolean hasWrittenVersionChangeSA = false;
 
@@ -152,18 +153,18 @@ final class VersionStateMachine {
 
     private final int minSupported;
     private final int maxSupported;
-    private final Functions.Func1<Integer, SearchAttributes> f;
+    private final Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback;
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
     InvocationStateMachine(
         int minSupported,
         int maxSupported,
-        Functions.Func1<Integer, SearchAttributes> f,
+        Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
         Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
-      this.f = f;
+      this.upsertSearchAttributeCallback = upsertSearchAttributeCallback;
       this.resultCallback = Objects.requireNonNull(callback);
     }
 
@@ -255,7 +256,7 @@ final class VersionStateMachine {
         return State.SKIPPED;
       } else {
         version = maxSupported;
-        SearchAttributes sa = f.apply(version);
+        SearchAttributes sa = upsertSearchAttributeCallback.apply(version);
         writeVersionChangeSA = sa != null;
         RecordMarkerCommandAttributes markerAttributes =
             VersionMarkerUtils.createMarkerAttributes(changeId, version, writeVersionChangeSA);
@@ -299,7 +300,6 @@ final class VersionStateMachine {
       if (preloadedVersion != null) {
         if (writeVersionChangeSA && !hasWrittenVersionChangeSA) {
           hasWrittenVersionChangeSA = true;
-          // SearchAttributes sa = f.apply(preloadedVersion);
           if (writeVersionChangeSA) {
             UpsertSearchAttributesStateMachine.newInstance(
                 SearchAttributes.newBuilder().build(), commandSink, stateMachineSink);
@@ -413,10 +413,11 @@ final class VersionStateMachine {
   public Integer getVersion(
       int minSupported,
       int maxSupported,
-      Functions.Func1<Integer, SearchAttributes> f,
+      Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
       Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism =
-        new InvocationStateMachine(minSupported, maxSupported, f, callback);
+        new InvocationStateMachine(
+            minSupported, maxSupported, upsertSearchAttributeCallback, callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
     //  If the state is SKIPPED_REPLAYING that means we:

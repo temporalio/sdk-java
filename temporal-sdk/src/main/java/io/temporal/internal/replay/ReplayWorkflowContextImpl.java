@@ -361,8 +361,17 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+    /*
+     * Temporal Change Version is a reserved field and should ideally not be set by the user.
+     * It is set by the SDK when getVersion is called. We know that users have been setting
+     * this field in the past, and we want to avoid breaking their workflows.
+     * */
     if (searchAttributes.containsIndexedFields(TEMPORAL_CHANGE_VERSION.getName())) {
-      log.warn("{} is a reserved field", TEMPORAL_CHANGE_VERSION.getName());
+      // When we enabled upserting of the search attribute by default, we should consider raising a
+      // warning here.
+      log.debug(
+          "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on you `WorkflowImplementationOptions`",
+          TEMPORAL_CHANGE_VERSION.getName());
     }
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
     mutableState.upsertSearchAttributes(searchAttributes);
