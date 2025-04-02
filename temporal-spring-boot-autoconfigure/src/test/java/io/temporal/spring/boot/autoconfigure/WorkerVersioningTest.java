@@ -31,10 +31,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -47,8 +44,15 @@ import org.springframework.test.context.ActiveProfiles;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class WorkerVersioningTest {
   @Autowired ConfigurableApplicationContext applicationContext;
-
   @Autowired WorkflowClient workflowClient;
+
+  @BeforeAll
+  static void checkDockerService() {
+    String useDocker = System.getenv("USE_DOCKER_SERVICE");
+    Assumptions.assumeTrue(
+        useDocker != null && useDocker.equalsIgnoreCase("true"),
+        "Skipping tests because USE_DOCKER_SERVICE is not set");
+  }
 
   @BeforeEach
   void setUp() {
