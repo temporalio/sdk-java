@@ -392,7 +392,7 @@ public final class WorkerOptions {
      * <p>Defaults to false
      */
     @Experimental
-    @Deprecated // TODO REVIEW: Are we actually deprecating these yet?
+    @Deprecated
     public Builder setUseBuildIdForVersioning(boolean useBuildIdForVersioning) {
       this.useBuildIdForVersioning = useBuildIdForVersioning;
       return this;
