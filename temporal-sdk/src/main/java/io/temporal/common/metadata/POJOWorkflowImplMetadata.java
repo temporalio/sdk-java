@@ -245,15 +245,15 @@ public final class POJOWorkflowImplMetadata {
   }
 
   /**
-   * @return The {@link VersioningBehavior} for the workflow method. If the method is annotated with
-   *     {@link WorkflowVersioningBehavior}.
+   * @return The {@link VersioningBehavior} for the workflow method on the implementation class. If
+   *     the method is annotated with {@link WorkflowVersioningBehavior}.
    * @throws RuntimeException if the method is not found on the implementation class or is not a
    *     workflow method.
    */
   @Experimental
   @Nullable
-  public VersioningBehavior getVersioningBehaviorForMethod(
-      POJOWorkflowMethodMetadata workflowMethod) {
+  public static VersioningBehavior getVersioningBehaviorForMethod(
+      Class<?> implementationClass, POJOWorkflowMethodMetadata workflowMethod) {
     Method method = workflowMethod.getWorkflowMethod();
     // Find the same method on the implementation class
     Method implMethod;

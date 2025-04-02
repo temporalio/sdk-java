@@ -281,9 +281,14 @@ public class POJOWorkflowImplMetadataTest {
     for (POJOWorkflowMethodMetadata method : methods) {
       if (method.getName().equals("I")) {
         Assert.assertEquals(
-            VersioningBehavior.AUTO_UPGRADE, meta.getVersioningBehaviorForMethod(method));
+            VersioningBehavior.AUTO_UPGRADE,
+            POJOWorkflowImplMetadata.getVersioningBehaviorForMethod(
+                WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors.class, method));
       } else {
-        Assert.assertEquals(VersioningBehavior.PINNED, meta.getVersioningBehaviorForMethod(method));
+        Assert.assertEquals(
+            VersioningBehavior.PINNED,
+            POJOWorkflowImplMetadata.getVersioningBehaviorForMethod(
+                WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors.class, method));
       }
     }
   }

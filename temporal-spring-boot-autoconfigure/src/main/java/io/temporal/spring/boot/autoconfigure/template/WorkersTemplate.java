@@ -29,18 +29,14 @@ import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.NexusServiceImpl;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
-import io.temporal.worker.TypeAlreadyRegisteredException;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -529,7 +525,17 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
             .createWorkflowImplementationOptions();
 
+    WorkerDeploymentOptions deploymentOptions = worker.getWorkerOptions().getDeploymentOptions();
+
     for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
+      if (deploymentOptions != null && deploymentOptions.isUsingVersioning()) {
+        POJOWorkflowImplementationFactory.validateVersioningBehavior(
+            clazz,
+            workflowMethod,
+            deploymentOptions.getDefaultVersioningBehavior(),
+            deploymentOptions.isUsingVersioning());
+      }
+
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
           () -> (T) beanFactory.createBean(clazz),

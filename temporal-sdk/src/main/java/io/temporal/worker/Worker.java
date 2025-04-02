@@ -527,6 +527,13 @@ public final class Worker {
         && (activityWorker == null || activityWorker.isSuspended());
   }
 
+  /**
+   * @return The options used to create this worker.
+   */
+  public WorkerOptions getWorkerOptions() {
+    return options;
+  }
+
   @Nullable
   public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
     return workflowWorker.reserveWorkflowExecutor();

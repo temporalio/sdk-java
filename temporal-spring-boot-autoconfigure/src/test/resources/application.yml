@@ -135,3 +135,43 @@ spring:
       target: 127.0.0.1:7233
     test-server:
       enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning
+  temporal:
+    namespace: UnitTest
+    connection:
+      target: 127.0.0.1:7233
+    test-server:
+      enabled: false
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          default-versioning-behavior: PINNED
+          deployment-version: "dname.bid"
+          use-versioning: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning-missing-annotation
+  temporal:
+    namespace: UnitTest
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          # missing default is the key thing here
+          deployment-version: "dname.bid"
+          use-versioning: true
