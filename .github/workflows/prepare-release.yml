@@ -134,6 +134,12 @@ jobs:
           - runner: macos-13
             os_family: macOS
             arch: amd64
+          - runner: macos-latest
+            os_family: macOS
+            arch: arm64
+          - runner: ubuntu-24.04-arm
+            os_family: linux
+            arch: arm64
           - runner: windows-2019
             os_family: windows
             arch: amd64
@@ -154,8 +160,8 @@ jobs:
         if: matrix.os_family != 'Linux'
         uses: actions/setup-java@v4
         with:
-          java-version: "11"
-          distribution: "temurin"
+          java-version: "21"
+          distribution: "graalvm"
 
       - name: Set up Gradle
         if: matrix.os_family != 'Linux'
