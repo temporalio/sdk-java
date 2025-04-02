@@ -58,6 +58,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
     RootWorkflowInboundCallsInterceptor rootWorkflowInvoker =
         new RootWorkflowInboundCallsInterceptor(workflowContext, input);
+    this.rootWorkflowInvoker = rootWorkflowInvoker;
     workflowInvoker = rootWorkflowInvoker;
     for (WorkerInterceptor workerInterceptor : workerInterceptors) {
       workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
@@ -84,7 +85,10 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   @Override
   public VersioningBehavior getVersioningBehavior() {
-    return VersioningBehavior.UNSPECIFIED;
+    if (rootWorkflowInvoker == null || rootWorkflowInvoker.workflow == null) {
+      return VersioningBehavior.UNSPECIFIED;
+    }
+    return rootWorkflowInvoker.workflow.getVersioningBehavior();
   }
 
   class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {

@@ -27,9 +27,11 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -66,26 +68,6 @@ public class WorkerVersioningTest {
       implements TestWorkflows.QueryableWorkflow {
     @Override
     @WorkflowVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
-    public String execute() {
-      queueLoop();
-      return "version-v1";
-    }
-
-    @Override
-    public void mySignal(String arg) {
-      sigQueue.put(arg);
-    }
-
-    @Override
-    public String getState() {
-      return "v1";
-    }
-  }
-
-  public static class TestWorkerVersioningPinnedV1 extends QueueLoop
-      implements TestWorkflows.QueryableWorkflow {
-    @Override
-    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
     public String execute() {
       queueLoop();
       return "version-v1";
@@ -139,6 +121,18 @@ public class WorkerVersioningTest {
     @Override
     public String getState() {
       return "v3";
+    }
+  }
+
+  public static class DynamicWorkflowImpl implements DynamicWorkflow {
+    @Override
+    public Object execute(EncodedValues args) {
+      return "dynamic";
+    }
+
+    @Override
+    public VersioningBehavior getVersioningBehavior() {
+      return VersioningBehavior.PINNED;
     }
   }
 
@@ -269,6 +263,35 @@ public class WorkerVersioningTest {
           Assert.assertTrue(seenRanOn.contains("version-v1"));
           Assert.assertTrue(seenRanOn.contains("version-v2"));
         });
+  }
+
+  @Test
+  public void testDynamicWorkflow() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(DynamicWorkflowImpl.class);
+    w1.start();
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    DescribeWorkerDeploymentResponse describeResp1 = waitUntilWorkerDeploymentVisible(v1);
+    setCurrentVersion(v1, describeResp1.getConflictToken());
+
+    WorkflowStub wf =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("dynamic-workflow-versioning");
+    WorkflowExecution we = wf.start();
+    wf.getResult(String.class);
+
+    WorkflowExecutionHistory hist = testWorkflowRule.getExecutionHistory(we.getWorkflowId());
+    Assert.assertTrue(
+        hist.getHistory().getEventsList().stream()
+            .anyMatch(
+                e ->
+                    e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+                        && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
+                            == io.temporal.api.enums.v1.VersioningBehavior
+                                .VERSIONING_BEHAVIOR_PINNED));
   }
 
   public static class TestWorkerVersioningMissingAnnotation extends QueueLoop
