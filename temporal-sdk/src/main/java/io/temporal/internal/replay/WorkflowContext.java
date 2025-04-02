@@ -21,6 +21,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.sync.SignalHandlerInfo;
 import io.temporal.internal.sync.UpdateHandlerInfo;
@@ -72,4 +73,6 @@ public interface WorkflowContext {
   Map<Long, SignalHandlerInfo> getRunningSignalHandlers();
 
   Map<String, UpdateHandlerInfo> getRunningUpdateHandlers();
+
+  VersioningBehavior getVersioningBehavior();
 }

@@ -20,9 +20,11 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkerOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
+import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerOptions;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -45,6 +47,7 @@ class WorkerOptionsTemplate {
     this.customizer = customizer;
   }
 
+  @SuppressWarnings("deprecation")
   WorkerOptions createWorkerOptions() {
     WorkerOptions.Builder options = WorkerOptions.newBuilder();
 
@@ -99,7 +102,20 @@ class WorkerOptionsTemplate {
         Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnNexusWorker())
             .ifPresent(options::setUsingVirtualThreadsOnNexusWorker);
       }
+      WorkerProperties.WorkerDeploymentConfigurationProperties workerDeploymentConfiguration =
+          workerProperties.getDeploymentProperties();
+      if (workerDeploymentConfiguration != null) {
+        WorkerDeploymentOptions.Builder opts = WorkerDeploymentOptions.newBuilder();
+        Optional.ofNullable(workerDeploymentConfiguration.getUseVersioning())
+            .ifPresent(opts::setUseVersioning);
+        Optional.ofNullable(workerDeploymentConfiguration.getDeploymentVersion())
+            .ifPresent((v) -> opts.setVersion(WorkerDeploymentVersion.fromCanonicalString(v)));
+        Optional.ofNullable(workerDeploymentConfiguration.getDefaultVersioningBehavior())
+            .ifPresent(opts::setDefaultVersioningBehavior);
+        options.setDeploymentOptions(opts.build());
+      }
     }
+
     if (customizer != null) {
       options = customizer.customize(options);
       if (customizer instanceof WorkerOptionsCustomizer) {

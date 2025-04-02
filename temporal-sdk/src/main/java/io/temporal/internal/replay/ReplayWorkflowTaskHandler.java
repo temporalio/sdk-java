@@ -231,6 +231,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                         result.getNonfirstLocalActivityAttempts())
                     .build())
             .setReturnNewWorkflowTask(result.isForceWorkflowTask())
+            .setVersioningBehavior(
+                WorkerVersioningProtoUtils.behaviorToProto(result.getVersioningBehavior()))
             .setCapabilities(
                 RespondWorkflowTaskCompletedRequest.Capabilities.newBuilder()
                     .setDiscardSpeculativeWorkflowTaskWithEvents(true)

@@ -527,6 +527,13 @@ public final class Worker {
         && (activityWorker == null || activityWorker.isSuspended());
   }
 
+  /**
+   * @return The options used to create this worker.
+   */
+  public WorkerOptions getWorkerOptions() {
+    return options;
+  }
+
   @Nullable
   public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
     return workflowWorker.reserveWorkflowExecutor();
@@ -670,7 +677,8 @@ public final class Worker {
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
-        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
+        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
+        .setDeploymentOptions(options.getDeploymentOptions());
   }
 
   /**

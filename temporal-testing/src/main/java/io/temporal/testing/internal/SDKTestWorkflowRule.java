@@ -38,6 +38,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.SearchAttributeKey;
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
@@ -55,11 +56,8 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
+import java.util.concurrent.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Test;
@@ -274,12 +272,37 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
+  public String getDeploymentName() {
+    return "deployment-" + testWorkflowRule.getUniquePostfix();
+  }
+
   public Endpoint getNexusEndpoint() {
     return testWorkflowRule.getNexusEndpoint();
   }
 
   public Worker getWorker() {
     return testWorkflowRule.getWorker();
+  }
+
+  /** Start a new worker, re-using existing options and modifying them with the provided modifier */
+  public Worker newWorker(Functions.Proc1<WorkerOptions.Builder> optionsModifier) {
+    WorkerOptions.Builder optionsBuilder =
+        WorkerOptions.newBuilder(testWorkflowRule.getWorkerOptions());
+    optionsModifier.apply(optionsBuilder);
+    WorkerOptions workerOptions = optionsBuilder.build();
+    WorkerFactory wf = WorkerFactory.newInstance(getWorkflowClient(), getWorkerFactoryOptions());
+    return wf.newWorker(getTaskQueue(), workerOptions);
+  }
+
+  /** Start a new worker, changing only the build ID */
+  public Worker newWorkerWithBuildID(String buildId) {
+    return newWorker(
+        (opts) ->
+            opts.setDeploymentOptions(
+                WorkerDeploymentOptions.newBuilder()
+                    .setVersion(new WorkerDeploymentVersion(getDeploymentName(), buildId))
+                    .setUseVersioning(true)
+                    .build()));
   }
 
   public WorkerFactoryOptions getWorkerFactoryOptions() {
@@ -383,6 +406,16 @@ public class SDKTestWorkflowRule implements TestRule {
   public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
     return getWorkflowClient()
         .newWorkflowStub(workflow, SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
+  }
+
+  public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow, String workflowIdPrefix) {
+    String workflowId = workflowIdPrefix + "-" + UUID.randomUUID();
+    return getWorkflowClient()
+        .newWorkflowStub(
+            workflow,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()).toBuilder()
+                .setWorkflowId(workflowId)
+                .build());
   }
 
   public <T> T newWorkflowStub200sTimeoutOptions(Class<T> workflow) {

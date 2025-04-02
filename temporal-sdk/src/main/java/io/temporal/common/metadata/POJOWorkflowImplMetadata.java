@@ -22,9 +22,12 @@ package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
 import io.temporal.common.Experimental;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.env.ReflectionUtils;
+import io.temporal.workflow.WorkflowVersioningBehavior;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -68,6 +71,7 @@ public final class POJOWorkflowImplMetadata {
     }
   }
 
+  private final Class<?> implementationClass;
   private final List<POJOWorkflowInterfaceMetadata> workflowInterfaces;
   private final List<POJOWorkflowMethodMetadata> workflowMethods;
   private final List<POJOWorkflowMethodMetadata> signalMethods;
@@ -111,6 +115,7 @@ public final class POJOWorkflowImplMetadata {
       throw new IllegalArgumentException("concrete class expected: " + implClass);
     }
 
+    implementationClass = implClass;
     List<POJOWorkflowInterfaceMetadata> workflowInterfaces = new ArrayList<>();
     Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
@@ -237,5 +242,36 @@ public final class POJOWorkflowImplMetadata {
   @Experimental
   public @Nullable Constructor<?> getWorkflowInit() {
     return workflowInit;
+  }
+
+  /**
+   * @return The {@link VersioningBehavior} for the workflow method on the implementation class. If
+   *     the method is annotated with {@link WorkflowVersioningBehavior}.
+   * @throws RuntimeException if the method is not found on the implementation class or is not a
+   *     workflow method.
+   */
+  @Experimental
+  @Nullable
+  public static VersioningBehavior getVersioningBehaviorForMethod(
+      Class<?> implementationClass, POJOWorkflowMethodMetadata workflowMethod) {
+    Method method = workflowMethod.getWorkflowMethod();
+    // Find the same method on the implementation class
+    Method implMethod;
+    try {
+      implMethod = implementationClass.getMethod(method.getName(), method.getParameterTypes());
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(
+          "Unable to find workflow method "
+              + workflowMethod.getName()
+              + " in implementation class "
+              + implementationClass.getName(),
+          e);
+    }
+    if (implMethod.isAnnotationPresent(WorkflowVersioningBehavior.class)) {
+      WorkflowVersioningBehavior vb = implMethod.getAnnotation(WorkflowVersioningBehavior.class);
+      return vb.value();
+    } else {
+      return null;
+    }
   }
 }

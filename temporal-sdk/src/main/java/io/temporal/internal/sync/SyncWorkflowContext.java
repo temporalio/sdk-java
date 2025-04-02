@@ -53,6 +53,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeUpdate;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
@@ -1514,6 +1515,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
 
     return contextData;
+  }
+
+  @Override
+  public VersioningBehavior getVersioningBehavior() {
+    return workflowDefinition.getVersioningBehavior();
   }
 
   public void setCurrentUpdateInfo(UpdateInfo updateInfo) {
