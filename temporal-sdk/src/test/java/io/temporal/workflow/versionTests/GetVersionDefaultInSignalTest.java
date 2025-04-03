@@ -40,7 +40,8 @@ public class GetVersionDefaultInSignalTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
@@ -50,7 +51,7 @@ public class GetVersionDefaultInSignalTest extends BaseVersionTest {
           .build();
 
   @Test
-  public void testGetVersionDefaultInSignal() throws InterruptedException {
+  public void testGetVersionDefaultInSignal() {
     TestWorkflows.TestSignaledWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestSignaledWorkflow.class);
     WorkflowClient.start(workflow::execute);

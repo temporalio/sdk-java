@@ -44,7 +44,8 @@ public class DefaultVersionNotSupportedDuringReplayTest extends BaseVersionTest 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestVersionNotSupportedWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestVersionNotSupportedWorkflowImpl.class)
           .build();
 
   @Test

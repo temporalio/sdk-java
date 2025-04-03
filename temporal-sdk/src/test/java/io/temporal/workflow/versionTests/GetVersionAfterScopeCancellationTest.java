@@ -47,7 +47,7 @@ public class GetVersionAfterScopeCancellationTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(ReminderWorkflowImpl.class)
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), ReminderWorkflowImpl.class)
           .setWorkerOptions(WorkerOptions.newBuilder().build())
           .build();
 
