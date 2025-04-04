@@ -1,0 +1,5 @@
+rootProject.name = 'temporal-workflowcheck-samples-gradle'
+
+// Add the workflowcheck project as a composite build. We are only doing this
+// for the sample, normally this is not needed.
+includeBuild '../../../'
