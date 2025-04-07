@@ -37,6 +37,8 @@ import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -510,7 +512,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   @SuppressWarnings("unchecked")
   private <T> void configureWorkflowImplementation(Worker worker, Class<?> clazz) {
-
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstanceForWorkflowFactory(clazz);
     List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
@@ -527,7 +528,18 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
     WorkerDeploymentOptions deploymentOptions = worker.getWorkerOptions().getDeploymentOptions();
 
-    for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
+    // If the workflow implementation class has a constructor annotated with @WorkflowInit,
+    // we need to register it as a workflow factory.
+    if (workflowMetadata.getWorkflowInit() != null) {
+      // Currently, we only support one workflow method in a class with a constructor annotated with
+      // @WorkflowInit.
+      if (workflowMethods.size() > 1) {
+        throw new BeanDefinitionValidationException(
+            "Workflow implementation class "
+                + clazz
+                + " has more then one workflow method and a constructor annotated with @WorkflowInit.");
+      }
+      POJOWorkflowMethodMetadata workflowMethod = workflowMetadata.getWorkflowMethods().get(0);
       if (deploymentOptions != null && deploymentOptions.isUsingVersioning()) {
         POJOWorkflowImplementationFactory.validateVersioningBehavior(
             clazz,
@@ -538,10 +550,43 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
-          () -> (T) beanFactory.createBean(clazz),
+          (encodedValues) -> {
+            try {
+              Constructor<?> ctor = workflowMetadata.getWorkflowInit();
+              Object[] parameters = new Object[ctor.getParameterCount()];
+              for (int i = 0; i < ctor.getParameterCount(); i++) {
+                parameters[i] =
+                    encodedValues.get(
+                        i, ctor.getParameterTypes()[i], ctor.getGenericParameterTypes()[i]);
+              }
+              T workflowInstance = (T) workflowMetadata.getWorkflowInit().newInstance(parameters);
+              beanFactory.autowireBean(workflowInstance);
+              return workflowInstance;
+            } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+              throw new RuntimeException(e);
+            }
+          },
           workflowImplementationOptions);
       addRegisteredWorkflowImpl(
           worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
+    } else {
+      for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
+        if (deploymentOptions != null && deploymentOptions.isUsingVersioning()) {
+          POJOWorkflowImplementationFactory.validateVersioningBehavior(
+              clazz,
+              workflowMethod,
+              deploymentOptions.getDefaultVersioningBehavior(),
+              deploymentOptions.isUsingVersioning());
+        }
+        worker.registerWorkflowImplementationFactory(
+            (Class<T>) workflowMethod.getWorkflowInterface(),
+            () -> (T) beanFactory.createBean(clazz),
+            workflowImplementationOptions);
+        addRegisteredWorkflowImpl(
+            worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
+      }
     }
   }
 

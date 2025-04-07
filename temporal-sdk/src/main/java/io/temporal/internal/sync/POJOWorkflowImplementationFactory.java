@@ -50,7 +50,6 @@ import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
-import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -91,7 +90,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       workflowDefinitions = Collections.synchronizedMap(new HashMap<>());
 
   /** Factories providing instances of workflow classes. */
-  private final Map<Class<?>, Functions.Func<?>> workflowInstanceFactories =
+  private final Map<Class<?>, Functions.Func1<EncodedValues, ?>> workflowInstanceFactories =
       Collections.synchronizedMap(new HashMap<>());
 
   /** If present then it is called for any unknown workflow type. */
@@ -146,7 +145,9 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
    */
   @SuppressWarnings("unchecked")
   public <R> void addWorkflowImplementationFactory(
-      WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
+      WorkflowImplementationOptions options,
+      Class<R> clazz,
+      Functions.Func1<EncodedValues, R> factory) {
     if (DynamicWorkflow.class.isAssignableFrom(clazz)) {
       if (dynamicWorkflowImplementationFactory != null) {
         throw new TypeAlreadyRegisteredException(
@@ -154,7 +155,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
             "An implementation of DynamicWorkflow or its factory is already registered with the worker");
       }
       dynamicWorkflowImplementationFactory =
-          (unused) -> ((Func<? extends DynamicWorkflow>) factory).apply();
+          (Functions.Func1<EncodedValues, ? extends DynamicWorkflow>) factory;
       return;
     }
     workflowInstanceFactories.put(clazz, factory);
@@ -433,16 +434,17 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       }
 
       protected void newInstance(Optional<Payloads> input) {
-        Func<?> factory = workflowInstanceFactories.get(workflowImplementationClass);
+        Functions.Func1<EncodedValues, ?> factory =
+            workflowInstanceFactories.get(workflowImplementationClass);
         if (factory != null) {
-          workflow = factory.apply();
+          workflow = factory.apply(new EncodedValues(input, dataConverterWithWorkflowContext));
         } else {
           // Historically any exception thrown from the constructor was wrapped into Error causing a
           // workflow task failure.
           // This is not consistent with throwing exception from the workflow method which can
           // causes a workflow failure depending on the exception type.
           // To preserve backwards compatibility we only change behaviour if a constructor is
-          // annotated with WorkflowInit.
+          // annotated with @WorkflowInit.
           if (ctor != null) {
             try {
               workflow =
