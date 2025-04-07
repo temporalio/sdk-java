@@ -50,7 +50,6 @@ import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
-import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -156,7 +155,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
             "An implementation of DynamicWorkflow or its factory is already registered with the worker");
       }
       dynamicWorkflowImplementationFactory =
-          (unused) -> ((Func<? extends DynamicWorkflow>) factory).apply();
+          (Functions.Func1<EncodedValues, ? extends DynamicWorkflow>) factory;
       return;
     }
     workflowInstanceFactories.put(clazz, factory);

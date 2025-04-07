@@ -525,8 +525,14 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     WorkflowImplementationOptions workflowImplementationOptions =
         new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
             .createWorkflowImplementationOptions();
+
     WorkerDeploymentOptions deploymentOptions = worker.getWorkerOptions().getDeploymentOptions();
+
+    // If the workflow implementation class has a constructor annotated with @WorkflowInit,
+    // we need to register it as a workflow factory.
     if (workflowMetadata.getWorkflowInit() != null) {
+      // Currently, we only support one workflow method in a class with a constructor annotated with
+      // @WorkflowInit.
       if (workflowMethods.size() > 1) {
         throw new BeanDefinitionValidationException(
             "Workflow implementation class "
