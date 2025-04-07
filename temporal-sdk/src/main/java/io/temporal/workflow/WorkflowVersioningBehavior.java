@@ -18,32 +18,25 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.workflow;
 
-import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.Experimental;
 import io.temporal.common.VersioningBehavior;
-import io.temporal.common.interceptors.Header;
-import java.util.Optional;
-import javax.annotation.Nullable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/** Workflow wrapper used by the workflow thread to start a workflow */
-interface SyncWorkflowDefinition {
-
-  /** Always called first. */
-  void initialize(Optional<Payloads> input);
-
+/**
+ * Indicates the versioning behavior of this workflow. May only be applied to workflow
+ * implementations, not interfaces.
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+@Experimental
+public @interface WorkflowVersioningBehavior {
   /**
-   * Returns the workflow instance that is executing this code. Must be called after {@link
-   * #initialize(Optional)}.
+   * The behavior to apply to this workflow. See {@link VersioningBehavior} for more information.
    */
-  @Nullable
-  Object getInstance();
-
-  Optional<Payloads> execute(Header header, Optional<Payloads> input);
-
-  /**
-   * @return The versioning behavior for this workflow as defined by the attached annotation,
-   *     otherwise {@link VersioningBehavior#UNSPECIFIED}.
-   */
-  VersioningBehavior getVersioningBehavior();
+  VersioningBehavior value();
 }

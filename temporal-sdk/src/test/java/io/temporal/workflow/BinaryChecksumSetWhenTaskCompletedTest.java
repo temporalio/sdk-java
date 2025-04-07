@@ -41,6 +41,7 @@ import org.junit.Test;
 public class BinaryChecksumSetWhenTaskCompletedTest {
   private static final String BINARY_CHECKSUM = "testChecksum";
 
+  @SuppressWarnings("deprecation")
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()

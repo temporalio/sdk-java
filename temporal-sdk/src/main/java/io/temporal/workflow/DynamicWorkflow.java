@@ -20,7 +20,9 @@
 
 package io.temporal.workflow;
 
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.worker.WorkerDeploymentOptions;
 
 /**
  * Use DynamicWorkflow to implement any number of workflow types dynamically. When a workflow
@@ -45,4 +47,15 @@ import io.temporal.common.converter.EncodedValues;
  */
 public interface DynamicWorkflow {
   Object execute(EncodedValues args);
+
+  /**
+   * @return The versioning behavior of this dynamic workflow. See {@link
+   *     io.temporal.worker.WorkerOptions.Builder#setDeploymentOptions(WorkerDeploymentOptions)} for
+   *     more on worker versioning. This method must be overridden if {@link
+   *     WorkerDeploymentOptions.Builder#setUseVersioning(boolean)} is true. and no default behavior
+   *     is specified.
+   */
+  default VersioningBehavior getVersioningBehavior() {
+    return VersioningBehavior.UNSPECIFIED;
+  }
 }

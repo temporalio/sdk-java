@@ -34,6 +34,12 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+
+    testImplementation('org.slf4j:slf4j-api') {
+        version {
+            strictly "${slf4jVersion}"
+        }
+    }
 }
 
 tasks.test {

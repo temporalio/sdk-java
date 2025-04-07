@@ -101,7 +101,8 @@ jobs:
          --dynamic-config-value matching.useNewMatcher=true \
          --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
          --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
-         --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true &
+         --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
+         --dynamic-config-value system.enableDeploymentVersions=true &
          sleep 10s
 
     - name: Run unit tests

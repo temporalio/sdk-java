@@ -18,32 +18,28 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.spring.boot.autoconfigure.workerversioning;
 
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.VersioningBehavior;
-import io.temporal.common.interceptors.Header;
-import java.util.Optional;
-import javax.annotation.Nullable;
+import io.temporal.spring.boot.WorkflowImpl;
+import io.temporal.workflow.WorkflowVersioningBehavior;
+import org.springframework.context.ConfigurableApplicationContext;
 
-/** Workflow wrapper used by the workflow thread to start a workflow */
-interface SyncWorkflowDefinition {
+@WorkflowImpl(workers = "mainWorker")
+public class TestWorkflowImpl implements TestWorkflow, TestWorkflow2 {
 
-  /** Always called first. */
-  void initialize(Optional<Payloads> input);
+  // Test auto-wiring of the application context works, this is not indicative of a real-world use
+  // case as the workflow implementation should be stateless.
+  public TestWorkflowImpl(ConfigurableApplicationContext applicationContext) {}
 
-  /**
-   * Returns the workflow instance that is executing this code. Must be called after {@link
-   * #initialize(Optional)}.
-   */
-  @Nullable
-  Object getInstance();
+  @Override
+  public String execute(String input) {
+    return input;
+  }
 
-  Optional<Payloads> execute(Header header, Optional<Payloads> input);
-
-  /**
-   * @return The versioning behavior for this workflow as defined by the attached annotation,
-   *     otherwise {@link VersioningBehavior#UNSPECIFIED}.
-   */
-  VersioningBehavior getVersioningBehavior();
+  @Override
+  @WorkflowVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
+  public String tw2(String input) {
+    return input;
+  }
 }

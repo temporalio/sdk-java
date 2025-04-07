@@ -135,8 +135,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   stickyTaskQueueName,
                   options.getIdentity(),
-                  options.getBuildId(),
-                  options.isUsingBuildIdForVersioning(),
+                  options.getWorkerVersioningOptions(),
                   slotSupplier,
                   stickyQueueBalancer,
                   workerMetricsScope,
@@ -496,7 +495,6 @@ final class WorkflowWorker implements SuspendableWorker {
       }
     }
 
-    // TODO: Suppress warning until the SDK supports deployment
     @SuppressWarnings("deprecation")
     private RespondWorkflowTaskCompletedResponse sendTaskCompleted(
         ByteString taskToken,
@@ -511,7 +509,11 @@ final class WorkflowWorker implements SuspendableWorker {
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
           .setTaskToken(taskToken);
-      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+
+      if (options.getDeploymentOptions() != null) {
+        taskCompleted.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(options.getDeploymentOptions()));
+      } else if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskCompleted.setWorkerVersionStamp(options.workerVersionStamp());
       } else {
         taskCompleted.setBinaryChecksum(options.getBuildId());
@@ -526,7 +528,6 @@ final class WorkflowWorker implements SuspendableWorker {
           grpcRetryOptions);
     }
 
-    // TODO: Suppress warning until the SDK supports deployment
     @SuppressWarnings("deprecation")
     private void sendTaskFailed(
         ByteString taskToken,
@@ -539,7 +540,10 @@ final class WorkflowWorker implements SuspendableWorker {
 
       taskFailed.setIdentity(options.getIdentity()).setNamespace(namespace).setTaskToken(taskToken);
 
-      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+      if (options.getDeploymentOptions() != null) {
+        taskFailed.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(options.getDeploymentOptions()));
+      } else if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 

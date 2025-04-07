@@ -20,6 +20,9 @@
 
 package io.temporal.spring.boot.autoconfigure.properties;
 
+import io.temporal.common.VersioningBehavior;
+import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.worker.WorkerDeploymentOptions;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +38,7 @@ public class WorkerProperties {
   private final @Nullable RateLimitsConfigurationProperties rateLimits;
   private final @Nullable BuildIdConfigurationProperties buildId;
   private final @Nullable VirtualThreadConfigurationProperties virtualThreads;
+  private final @Nullable WorkerDeploymentConfigurationProperties deploymentProperties;
 
   @ConstructorBinding
   public WorkerProperties(
@@ -46,7 +50,8 @@ public class WorkerProperties {
       @Nullable CapacityConfigurationProperties capacity,
       @Nullable RateLimitsConfigurationProperties rateLimits,
       @Nullable BuildIdConfigurationProperties buildId,
-      @Nullable VirtualThreadConfigurationProperties virtualThreads) {
+      @Nullable VirtualThreadConfigurationProperties virtualThreads,
+      @Nullable WorkerDeploymentConfigurationProperties deploymentProperties) {
     this.name = name;
     this.taskQueue = taskQueue;
     this.workflowClasses = workflowClasses;
@@ -56,6 +61,7 @@ public class WorkerProperties {
     this.rateLimits = rateLimits;
     this.buildId = buildId;
     this.virtualThreads = virtualThreads;
+    this.deploymentProperties = deploymentProperties;
   }
 
   @Nonnull
@@ -101,6 +107,11 @@ public class WorkerProperties {
   @Nullable
   public Collection<String> getNexusServiceBeans() {
     return nexusServiceBeans;
+  }
+
+  @Nullable
+  public WorkerDeploymentConfigurationProperties getDeploymentProperties() {
+    return deploymentProperties;
   }
 
   public static class CapacityConfigurationProperties {
@@ -295,6 +306,48 @@ public class WorkerProperties {
     @Nullable
     public Boolean isUsingVirtualThreadsOnActivityWorker() {
       return usingVirtualThreadsOnActivityWorker;
+    }
+  }
+
+  public static class WorkerDeploymentConfigurationProperties {
+    private final @Nullable String deploymentVersion;
+    private final @Nullable Boolean useVersioning;
+    private final @Nullable VersioningBehavior defaultVersioningBehavior;
+
+    /**
+     * Sets options that will be passed to {@link
+     * io.temporal.worker.WorkerOptions.Builder#setDeploymentOptions(WorkerDeploymentOptions)}
+     *
+     * @param deploymentVersion defines {@link
+     *     io.temporal.worker.WorkerDeploymentOptions.Builder#setVersion(WorkerDeploymentVersion)}
+     * @param useVersioning defines {@link
+     *     io.temporal.worker.WorkerDeploymentOptions.Builder#setUseVersioning(boolean)}
+     * @param defaultVersioningBehavior defines {@link
+     *     io.temporal.worker.WorkerDeploymentOptions.Builder#setDefaultVersioningBehavior(VersioningBehavior)}
+     */
+    @ConstructorBinding
+    public WorkerDeploymentConfigurationProperties(
+        @Nullable String deploymentVersion,
+        @Nullable Boolean useVersioning,
+        @Nullable VersioningBehavior defaultVersioningBehavior) {
+      this.deploymentVersion = deploymentVersion;
+      this.useVersioning = useVersioning;
+      this.defaultVersioningBehavior = defaultVersioningBehavior;
+    }
+
+    @Nullable
+    public String getDeploymentVersion() {
+      return deploymentVersion;
+    }
+
+    @Nullable
+    public Boolean getUseVersioning() {
+      return useVersioning;
+    }
+
+    @Nullable
+    public VersioningBehavior getDefaultVersioningBehavior() {
+      return defaultVersioningBehavior;
     }
   }
 }

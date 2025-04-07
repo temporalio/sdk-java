@@ -196,6 +196,9 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       if (workflowStateMachines.sdkVersionToWrite() != null) {
         result.setWriteSdkVersion(workflowStateMachines.sdkVersionToWrite());
       }
+      if (workflow.getWorkflowContext() != null) {
+        result.setVersioningBehavior(workflow.getWorkflowContext().getVersioningBehavior());
+      }
       return result.build();
     } finally {
       lock.unlock();

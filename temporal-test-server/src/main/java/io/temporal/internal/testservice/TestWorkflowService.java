@@ -1728,6 +1728,148 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @Override
+  public void describeDeployment(
+      DescribeDeploymentRequest request,
+      StreamObserver<DescribeDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void describeWorkerDeploymentVersion(
+      DescribeWorkerDeploymentVersionRequest request,
+      StreamObserver<DescribeWorkerDeploymentVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void describeWorkerDeployment(
+      DescribeWorkerDeploymentRequest request,
+      StreamObserver<DescribeWorkerDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void deleteWorkerDeployment(
+      DeleteWorkerDeploymentRequest request,
+      StreamObserver<DeleteWorkerDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void deleteWorkerDeploymentVersion(
+      DeleteWorkerDeploymentVersionRequest request,
+      StreamObserver<DeleteWorkerDeploymentVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void setWorkerDeploymentCurrentVersion(
+      SetWorkerDeploymentCurrentVersionRequest request,
+      StreamObserver<SetWorkerDeploymentCurrentVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void setCurrentDeployment(
+      SetCurrentDeploymentRequest request,
+      StreamObserver<SetCurrentDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void getCurrentDeployment(
+      GetCurrentDeploymentRequest request,
+      StreamObserver<GetCurrentDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void listDeployments(
+      ListDeploymentsRequest request, StreamObserver<ListDeploymentsResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void getDeploymentReachability(
+      GetDeploymentReachabilityRequest request,
+      StreamObserver<GetDeploymentReachabilityResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void setWorkerDeploymentRampingVersion(
+      SetWorkerDeploymentRampingVersionRequest request,
+      StreamObserver<SetWorkerDeploymentRampingVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void listWorkerDeployments(
+      ListWorkerDeploymentsRequest request,
+      StreamObserver<ListWorkerDeploymentsResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void updateWorkerDeploymentVersionMetadata(
+      UpdateWorkerDeploymentVersionMetadataRequest request,
+      StreamObserver<UpdateWorkerDeploymentVersionMetadataResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
   private <R> R requireNotNull(String fieldName, R value) {
     if (value == null) {
       throw Status.INVALID_ARGUMENT

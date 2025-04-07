@@ -21,6 +21,7 @@
 package io.temporal.common.metadata;
 
 import io.temporal.workflow.*;
+import io.temporal.workflow.WorkflowVersioningBehavior;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
@@ -424,6 +425,14 @@ public final class POJOWorkflowInterfaceMetadata {
       } else {
         return false;
       }
+    }
+
+    if (method.getAnnotation(WorkflowVersioningBehavior.class) != null) {
+      // This annotation is only allowed in implementation classes, not interfaces
+      throw new IllegalArgumentException(
+          "@WorkflowVersioningBehavior annotation is not allowed on interface methods, only on"
+              + " implementation methods: "
+              + method);
     }
 
     if (isAnnotatedWorkflowMethod) {

@@ -26,6 +26,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
@@ -38,6 +39,7 @@ import io.temporal.worker.tuning.LocalActivitySlotInfo;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.Functions.Func1;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
@@ -165,6 +167,11 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   public <R> void registerWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Func<R> factory) {
+    this.factory.addWorkflowImplementationFactory(options, clazz, unused -> factory.apply());
+  }
+
+  public <R> void registerWorkflowImplementationFactory(
+      WorkflowImplementationOptions options, Class<R> clazz, Func1<EncodedValues, R> factory) {
     this.factory.addWorkflowImplementationFactory(options, clazz, factory);
   }
 
