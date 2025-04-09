@@ -22,6 +22,7 @@ package io.temporal.internal.testservice;
 
 import com.google.protobuf.Timestamp;
 import io.grpc.Deadline;
+import io.temporal.api.common.v1.Priority;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
 import java.time.Duration;
@@ -183,7 +184,10 @@ interface TestWorkflowStore {
   Future<NexusTask> pollNexusTaskQueue(PollNexusTaskQueueRequest pollRequest);
 
   void sendQueryTask(
-      ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
+      ExecutionId executionId,
+      TaskQueueId taskQueue,
+      PollWorkflowTaskQueueResponse.Builder task,
+      Priority priority);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
       ExecutionId executionId,

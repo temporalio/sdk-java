@@ -30,7 +30,9 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
+import io.temporal.internal.nexus.OperationTokenUtil;
+import io.temporal.nexus.Nexus;
+import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -102,7 +104,10 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
       // Signal the operation to unblock, this makes sure the operation doesn't complete before the
       // operation
       // started event is written to history
-      Workflow.newExternalWorkflowStub(OperationWorkflow.class, asyncExec.getOperationId().get())
+      Workflow.newExternalWorkflowStub(
+              OperationWorkflow.class,
+              OperationTokenUtil.loadWorkflowRunOperationToken(asyncExec.getOperationToken().get())
+                  .getWorkflowId())
           .unblock();
       return asyncOpHandle.getResult().get();
     }
@@ -136,11 +141,15 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return WorkflowClientOperationHandlers.fromWorkflowMethod(
-          (context, details, client, input) ->
-              client.newWorkflowStub(
-                      AsyncWorkflowOperationTest.OperationWorkflow.class,
-                      WorkflowOptions.newBuilder().setWorkflowId(details.getRequestId()).build())
+      return WorkflowRunOperation.fromWorkflowMethod(
+          (context, details, input) ->
+              Nexus.getOperationContext()
+                      .getWorkflowClient()
+                      .newWorkflowStub(
+                          AsyncWorkflowOperationTest.OperationWorkflow.class,
+                          WorkflowOptions.newBuilder()
+                              .setWorkflowId(details.getRequestId())
+                              .build())
                   ::execute);
     }
   }

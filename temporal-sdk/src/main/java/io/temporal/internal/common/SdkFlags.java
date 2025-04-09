@@ -69,6 +69,17 @@ public final class SdkFlags {
   }
 
   /**
+   * @return True if this flag is set.
+   */
+  public boolean checkSdkFlag(SdkFlag flag) {
+    if (!supportSdkMetadata) {
+      return false;
+    }
+
+    return sdkFlags.contains(flag);
+  }
+
+  /**
    * @return All flags set since the last call to takeNewSdkFlags.
    */
   public EnumSet<SdkFlag> takeNewSdkFlags() {

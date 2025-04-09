@@ -20,7 +20,6 @@
 
 package io.temporal.client.functional;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
@@ -38,7 +37,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-@SuppressWarnings("OptionalGetWithoutIsPresent")
+@SuppressWarnings({"OptionalGetWithoutIsPresent", "deprecation"})
 public class BuildIdVersionSetsTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

@@ -20,7 +20,10 @@
 
 package io.temporal.internal.history;
 
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
@@ -39,6 +42,19 @@ public class MarkerUtils {
       return false;
     }
     MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
+    return markerName.equals(attributes.getMarkerName());
+  }
+
+  /**
+   * @param command {@code Command} to inspect
+   * @param markerName expected marker name
+   * @return true if the command has a correct structure for a marker and an expected marker name
+   */
+  public static boolean verifyMarkerName(Command command, String markerName) {
+    if (!CommandType.COMMAND_TYPE_RECORD_MARKER.equals(command.getCommandType())) {
+      return false;
+    }
+    RecordMarkerCommandAttributes attributes = command.getRecordMarkerCommandAttributes();
     return markerName.equals(attributes.getMarkerName());
   }
 

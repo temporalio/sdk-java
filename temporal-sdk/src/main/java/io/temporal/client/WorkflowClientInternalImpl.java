@@ -37,10 +37,7 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
-import io.temporal.internal.client.NexusStartWorkflowRequest;
-import io.temporal.internal.client.RootWorkflowClientInvoker;
-import io.temporal.internal.client.WorkerFactoryRegistry;
-import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.client.*;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
@@ -89,6 +86,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
+    workflowServiceStubs =
+        new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
     this.metricsScope =

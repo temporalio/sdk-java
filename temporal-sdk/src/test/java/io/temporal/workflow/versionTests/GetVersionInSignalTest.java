@@ -32,7 +32,7 @@ import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionInSignalTest {
+public class GetVersionInSignalTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

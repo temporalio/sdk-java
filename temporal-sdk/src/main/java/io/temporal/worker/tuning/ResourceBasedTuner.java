@@ -22,6 +22,7 @@ package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.Nonnull;
 
 /** A {@link WorkerTuner} that attempts to allocate slots based on available system resources. */
@@ -51,6 +52,7 @@ public class ResourceBasedTuner implements WorkerTuner {
   private final ResourceBasedSlotOptions activitySlotOptions;
   private final ResourceBasedSlotOptions localActivitySlotOptions;
   private final ResourceBasedSlotOptions nexusSlotOptions;
+  private final ScheduledExecutorService executor;
 
   public static Builder newBuilder() {
     return new Builder();
@@ -63,6 +65,7 @@ public class ResourceBasedTuner implements WorkerTuner {
     private @Nonnull ResourceBasedSlotOptions localActivitySlotOptions =
         DEFAULT_ACTIVITY_SLOT_OPTIONS;
     private @Nonnull ResourceBasedSlotOptions nexusSlotOptions = DEFAULT_NEXUS_SLOT_OPTIONS;
+    private @Nonnull ScheduledExecutorService executor;
 
     private Builder() {}
 
@@ -115,13 +118,23 @@ public class ResourceBasedTuner implements WorkerTuner {
       return this;
     }
 
+    /**
+     * Set the executor used for checking resource usage periodically. Defaults to a two-thread
+     * pool.
+     */
+    public Builder setExecutor(@Nonnull ScheduledExecutorService executor) {
+      this.executor = executor;
+      return this;
+    }
+
     public ResourceBasedTuner build() {
       return new ResourceBasedTuner(
           controllerOptions,
           workflowSlotOptions,
           activitySlotOptions,
           localActivitySlotOptions,
-          nexusSlotOptions);
+          nexusSlotOptions,
+          executor);
     }
   }
 
@@ -133,35 +146,38 @@ public class ResourceBasedTuner implements WorkerTuner {
       ResourceBasedSlotOptions workflowSlotOptions,
       ResourceBasedSlotOptions activitySlotOptions,
       ResourceBasedSlotOptions localActivitySlotOptions,
-      ResourceBasedSlotOptions nexusSlotOptions) {
+      ResourceBasedSlotOptions nexusSlotOptions,
+      ScheduledExecutorService executor) {
     this.controller = ResourceBasedController.newSystemInfoController(controllerOptions);
     this.workflowSlotOptions = workflowSlotOptions;
     this.activitySlotOptions = activitySlotOptions;
     this.localActivitySlotOptions = localActivitySlotOptions;
     this.nexusSlotOptions = nexusSlotOptions;
+    this.executor = executor;
   }
 
   @Nonnull
   @Override
   public SlotSupplier<WorkflowSlotInfo> getWorkflowTaskSlotSupplier() {
-    return ResourceBasedSlotSupplier.createForWorkflow(controller, workflowSlotOptions);
+    return ResourceBasedSlotSupplier.createForWorkflow(controller, workflowSlotOptions, executor);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<ActivitySlotInfo> getActivityTaskSlotSupplier() {
-    return ResourceBasedSlotSupplier.createForActivity(controller, activitySlotOptions);
+    return ResourceBasedSlotSupplier.createForActivity(controller, activitySlotOptions, executor);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
-    return ResourceBasedSlotSupplier.createForLocalActivity(controller, localActivitySlotOptions);
+    return ResourceBasedSlotSupplier.createForLocalActivity(
+        controller, localActivitySlotOptions, executor);
   }
 
   @Nonnull
   @Override
   public SlotSupplier<NexusSlotInfo> getNexusSlotSupplier() {
-    return ResourceBasedSlotSupplier.createForNexus(controller, nexusSlotOptions);
+    return ResourceBasedSlotSupplier.createForNexus(controller, nexusSlotOptions, executor);
   }
 }

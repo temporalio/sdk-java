@@ -78,6 +78,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   WorkflowExecution getParentWorkflowExecution();
 
+  WorkflowExecution getRootWorkflowExecution();
+
   WorkflowType getWorkflowType();
 
   /**
@@ -163,7 +165,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
       ExecuteLocalActivityParameters parameters, LocalActivityCallback callback);
 
   /**
-   * Start child workflow.
+   * Start a child workflow.
    *
    * @param parameters encapsulates all the information required to schedule a child workflow for
    *     execution
@@ -177,8 +179,20 @@ public interface ReplayWorkflowContext extends ReplayAware {
       Functions.Proc2<WorkflowExecution, Exception> startCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback);
 
+  /**
+   * Start a Nexus operation.
+   *
+   * @param attributes nexus operation attributes
+   * @param metadata user metadata to be associated with the operation.
+   * @param startedCallback callback that is called when the operation is start if async, or
+   *     completes if it is sync.
+   * @param completionCallback callback that is called upon child workflow completion or failure
+   * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
+   *     to cancel activity task.
+   */
   Functions.Proc1<Exception> startNexusOperation(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback);
 
@@ -284,7 +298,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param callback used to return version
    * @return True if the identifier is not present in history
    */
-  boolean getVersion(
+  Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
@@ -418,6 +432,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
   boolean tryUseSdkFlag(SdkFlag flag);
 
   /**
+   * @return true if this flag is currently set.
+   */
+  boolean checkSdkFlag(SdkFlag flag);
+
+  /**
    * @return The Build ID of the worker which executed the current Workflow Task. May be empty the
    *     task was completed by a worker without a Build ID. If this worker is the one executing this
    *     task for the first time and has a Build ID set, then its ID will be used. This value may
@@ -425,4 +444,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     branching.
    */
   Optional<String> getCurrentBuildId();
+
+  /**
+   * @return the priority of the workflow task
+   */
+  Priority getPriority();
 }

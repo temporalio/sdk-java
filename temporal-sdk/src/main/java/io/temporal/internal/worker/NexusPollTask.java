@@ -46,6 +46,7 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
   private final Scope metricsScope;
   private final PollNexusTaskQueueRequest pollRequest;
 
+  @SuppressWarnings("deprecation")
   public NexusPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
@@ -77,28 +78,28 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public NexusTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
     PollNexusTaskQueueResponse response;
     SlotPermit permit;
+    SlotSupplierFuture future;
     boolean isSuccessful = false;
-
     try {
-      permit =
+      future =
           slotSupplier.reserveSlot(
               new SlotReservationData(
                   pollRequest.getTaskQueue().getName(),
                   pollRequest.getIdentity(),
                   pollRequest.getWorkerVersionCapabilities().getBuildId()));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return null;
     } catch (Exception e) {
       log.warn("Error while trying to reserve a slot for a nexus task", e.getCause());
       return null;
     }
+    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     try {
       response =

@@ -27,6 +27,9 @@ import io.temporal.internal.BackoffThrottler;
 import io.temporal.internal.common.GrpcUtils;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -222,6 +225,25 @@ final class Poller<T> implements SuspendableWorker {
     return WorkerLifecycleState.ACTIVE;
   }
 
+  static SlotPermit getSlotPermitAndHandleInterrupts(
+      SlotSupplierFuture future, TrackingSlotSupplier<?> slotSupplier) {
+    SlotPermit permit;
+    try {
+      permit = future.get();
+    } catch (InterruptedException e) {
+      SlotPermit maybePermitAnyway = future.abortReservation();
+      if (maybePermitAnyway != null) {
+        slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), maybePermitAnyway);
+      }
+      Thread.currentThread().interrupt();
+      return null;
+    } catch (ExecutionException e) {
+      log.warn("Error while trying to reserve a slot", e.getCause());
+      return null;
+    }
+    return permit;
+  }
+
   @Override
   public String toString() {
     // TODO using pollThreadNamePrefix here is ugly. We should consider introducing some concept of
@@ -342,7 +364,7 @@ final class Poller<T> implements SuspendableWorker {
 
     /**
      * Some exceptions are considered normal during shutdown {@link #shouldIgnoreDuringShutdown} and
-     * we log them in the most quite manner.
+     * we log them in the most quiet manner.
      *
      * @param t thread where the exception happened
      * @param e the exception itself

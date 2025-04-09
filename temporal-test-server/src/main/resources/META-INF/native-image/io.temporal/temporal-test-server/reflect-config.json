@@ -1,5 +1,24 @@
 [
 {
+  "name":"[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.KeyDeserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.ValueInstantiators;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.ser.Serializers;"
+},
+{
+  "name":"[Ljava.lang.String;"
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"com.google.common.util.concurrent.AbstractFuture",
   "fields":[
     {"name":"listeners"}, 
@@ -239,6 +258,35 @@
   "fields":[{"name":"producerLimit"}]
 },
 {
+  "name":"io.temporal.api.errordetails.v1.MultiOperationExecutionFailure",
+  "methods":[
+    {"name":"getDefaultInstance","parameterTypes":[] }, 
+    {"name":"getStatuses","parameterTypes":["int"] }, 
+    {"name":"getStatusesCount","parameterTypes":[] }, 
+    {"name":"getStatusesList","parameterTypes":[] }
+  ]
+},
+{
+  "name":"io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$Builder",
+  "methods":[
+    {"name":"addStatuses","parameterTypes":["io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$OperationStatus"] }, 
+    {"name":"clearStatuses","parameterTypes":[] }, 
+    {"name":"getStatuses","parameterTypes":["int"] }, 
+    {"name":"getStatusesBuilder","parameterTypes":["int"] }, 
+    {"name":"getStatusesCount","parameterTypes":[] }, 
+    {"name":"getStatusesList","parameterTypes":[] }, 
+    {"name":"setStatuses","parameterTypes":["int","io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$OperationStatus"] }
+  ]
+},
+{
+  "name":"io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$OperationStatus",
+  "methods":[{"name":"newBuilder","parameterTypes":[] }]
+},
+{
+  "name":"io.temporal.api.failure.v1.Failure",
+  "methods":[{"name":"newBuilder","parameterTypes":[] }]
+},
+{
   "name":"io.temporal.api.update.v1.Acceptance",
   "methods":[
     {"name":"getAcceptedRequest","parameterTypes":[] }, 
@@ -278,6 +326,42 @@
 {
   "name":"io.temporal.api.update.v1.Outcome",
   "methods":[{"name":"newBuilder","parameterTypes":[] }]
+},
+{
+  "name":"io.temporal.api.update.v1.Rejection",
+  "methods":[
+    {"name":"getDefaultInstance","parameterTypes":[] }, 
+    {"name":"getFailure","parameterTypes":[] }, 
+    {"name":"getRejectedRequest","parameterTypes":[] }, 
+    {"name":"getRejectedRequestMessageId","parameterTypes":[] }, 
+    {"name":"getRejectedRequestMessageIdBytes","parameterTypes":[] }, 
+    {"name":"getRejectedRequestSequencingEventId","parameterTypes":[] }, 
+    {"name":"hasFailure","parameterTypes":[] }, 
+    {"name":"hasRejectedRequest","parameterTypes":[] }
+  ]
+},
+{
+  "name":"io.temporal.api.update.v1.Rejection$Builder",
+  "methods":[
+    {"name":"clearFailure","parameterTypes":[] }, 
+    {"name":"clearRejectedRequest","parameterTypes":[] }, 
+    {"name":"clearRejectedRequestMessageId","parameterTypes":[] }, 
+    {"name":"clearRejectedRequestSequencingEventId","parameterTypes":[] }, 
+    {"name":"getFailure","parameterTypes":[] }, 
+    {"name":"getFailureBuilder","parameterTypes":[] }, 
+    {"name":"getRejectedRequest","parameterTypes":[] }, 
+    {"name":"getRejectedRequestBuilder","parameterTypes":[] }, 
+    {"name":"getRejectedRequestMessageId","parameterTypes":[] }, 
+    {"name":"getRejectedRequestMessageIdBytes","parameterTypes":[] }, 
+    {"name":"getRejectedRequestSequencingEventId","parameterTypes":[] }, 
+    {"name":"hasFailure","parameterTypes":[] }, 
+    {"name":"hasRejectedRequest","parameterTypes":[] }, 
+    {"name":"setFailure","parameterTypes":["io.temporal.api.failure.v1.Failure"] }, 
+    {"name":"setRejectedRequest","parameterTypes":["io.temporal.api.update.v1.Request"] }, 
+    {"name":"setRejectedRequestMessageId","parameterTypes":["java.lang.String"] }, 
+    {"name":"setRejectedRequestMessageIdBytes","parameterTypes":["com.google.protobuf.ByteString"] }, 
+    {"name":"setRejectedRequestSequencingEventId","parameterTypes":["long"] }
+  ]
 },
 {
   "name":"io.temporal.api.update.v1.Request",
@@ -328,6 +412,24 @@
     {"name":"setMeta","parameterTypes":["io.temporal.api.update.v1.Meta"] }, 
     {"name":"setOutcome","parameterTypes":["io.temporal.api.update.v1.Outcome"] }
   ]
+},
+{
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.internal.activity.ActivityInfoInternal","com.uber.m3.tally.Scope"] }]
+},
+{
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$DynamicActivityImplementation"
+},
+{
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$POJOActivityImplementation"
+},
+{
+  "name":"io.temporal.internal.sync.DynamicSyncWorkflowDefinition",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header","java.util.Optional"] }]
+},
+{
+  "name":"io.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header","java.util.Optional"] }]
 },
 {
   "name":"java.io.FileDescriptor"

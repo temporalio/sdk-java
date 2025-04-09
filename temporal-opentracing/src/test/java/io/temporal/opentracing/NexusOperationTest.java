@@ -34,7 +34,8 @@ import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
+import io.temporal.nexus.Nexus;
+import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.*;
@@ -82,11 +83,15 @@ public class NexusOperationTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return WorkflowClientOperationHandlers.fromWorkflowMethod(
-          (context, details, client, input) ->
-              client.newWorkflowStub(
-                      TestOtherWorkflow.class,
-                      WorkflowOptions.newBuilder().setWorkflowId(details.getRequestId()).build())
+      return WorkflowRunOperation.fromWorkflowMethod(
+          (context, details, input) ->
+              Nexus.getOperationContext()
+                      .getWorkflowClient()
+                      .newWorkflowStub(
+                          TestOtherWorkflow.class,
+                          WorkflowOptions.newBuilder()
+                              .setWorkflowId(details.getRequestId())
+                              .build())
                   ::workflow);
     }
   }
@@ -106,6 +111,7 @@ public class NexusOperationTest {
   public static class OtherWorkflowImpl implements TestOtherWorkflow {
     @Override
     public String workflow(String input) {
+      Workflow.sleep(Duration.ofSeconds(1));
       return "Hello, " + input + "!";
     }
   }

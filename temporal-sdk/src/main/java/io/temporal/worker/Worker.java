@@ -31,13 +31,14 @@ import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
@@ -94,7 +95,6 @@ public final class Worker {
     this.taskQueue = taskQueue;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
-    WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
     Map<String, String> tags =
@@ -114,7 +114,7 @@ public final class Worker {
 
       activityWorker =
           new SyncActivityWorker(
-              service,
+              client,
               namespace,
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
@@ -161,9 +161,10 @@ public final class Worker {
             ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentLocalActivityExecutionSize())
             : this.options.getWorkerTuner().getLocalActivitySlotSupplier();
     attachMetricsToResourceController(taggedScope, localActivitySlotSupplier);
+
     workflowWorker =
         new SyncWorkflowWorker(
-            service,
+            client,
             namespace,
             taskQueue,
             singleWorkerOptions,
@@ -323,6 +324,14 @@ public final class Worker {
   @VisibleForTesting
   public <R> void registerWorkflowImplementationFactory(
       Class<R> workflowInterface, Func<R> factory, WorkflowImplementationOptions options) {
+    workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
+  }
+
+  @VisibleForTesting
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Functions.Func1<EncodedValues, R> factory,
+      WorkflowImplementationOptions options) {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
   }
 
@@ -528,6 +537,13 @@ public final class Worker {
         && (activityWorker == null || activityWorker.isSuspended());
   }
 
+  /**
+   * @return The options used to create this worker.
+   */
+  public WorkerOptions getWorkerOptions() {
+    return options;
+  }
+
   @Nullable
   public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
     return workflowWorker.reserveWorkflowExecutor();
@@ -633,7 +649,12 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setPollThreadCount(1)
+                .setPollerTaskExecutorOverride(
+                    factoryOptions.getOverrideLocalActivityTaskExecutor())
+                .build())
         .setMetricsScope(metricsScope)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnLocalActivityWorker())
         .build();
@@ -666,7 +687,8 @@ public final class Worker {
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
-        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
+        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
+        .setDeploymentOptions(options.getDeploymentOptions());
   }
 
   /**

@@ -20,10 +20,12 @@
 
 package io.temporal.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 
 public class WorkerFactoryOptions {
@@ -57,6 +59,7 @@ public class WorkerFactoryOptions {
     private WorkerInterceptor[] workerInterceptors;
     private boolean enableLoggingInReplay;
     private boolean usingVirtualWorkflowThreads;
+    private ExecutorService overrideLocalActivityTaskExecutor;
 
     private Builder() {}
 
@@ -71,6 +74,7 @@ public class WorkerFactoryOptions {
       this.workerInterceptors = options.workerInterceptors;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
       this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
+      this.overrideLocalActivityTaskExecutor = options.overrideLocalActivityTaskExecutor;
     }
 
     /**
@@ -143,6 +147,14 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    /** For internal use only. Overrides the local activity task ExecutorService. */
+    @VisibleForTesting
+    Builder setOverrideLocalActivityTaskExecutor(
+        ExecutorService overrideLocalActivityTaskExecutor) {
+      this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
+      return this;
+    }
+
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
           workflowCacheSize,
@@ -151,6 +163,7 @@ public class WorkerFactoryOptions {
           workerInterceptors,
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
+          overrideLocalActivityTaskExecutor,
           false);
     }
 
@@ -162,6 +175,7 @@ public class WorkerFactoryOptions {
           workerInterceptors == null ? new WorkerInterceptor[0] : workerInterceptors,
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
+          overrideLocalActivityTaskExecutor,
           true);
     }
   }
@@ -172,6 +186,7 @@ public class WorkerFactoryOptions {
   private final WorkerInterceptor[] workerInterceptors;
   private final boolean enableLoggingInReplay;
   private final boolean usingVirtualWorkflowThreads;
+  private final ExecutorService overrideLocalActivityTaskExecutor;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
@@ -180,6 +195,7 @@ public class WorkerFactoryOptions {
       WorkerInterceptor[] workerInterceptors,
       boolean enableLoggingInReplay,
       boolean usingVirtualWorkflowThreads,
+      ExecutorService overrideLocalActivityTaskExecutor,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
@@ -207,6 +223,7 @@ public class WorkerFactoryOptions {
     this.workerInterceptors = workerInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
+    this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
   }
 
   public int getWorkflowCacheSize() {
@@ -233,6 +250,16 @@ public class WorkerFactoryOptions {
   @Experimental
   public boolean isUsingVirtualWorkflowThreads() {
     return usingVirtualWorkflowThreads;
+  }
+
+  /**
+   * For internal use only.
+   *
+   * @return the ExecutorService to use for local activity tasks, or null if the default should be
+   *     used
+   */
+  ExecutorService getOverrideLocalActivityTaskExecutor() {
+    return overrideLocalActivityTaskExecutor;
   }
 
   /**

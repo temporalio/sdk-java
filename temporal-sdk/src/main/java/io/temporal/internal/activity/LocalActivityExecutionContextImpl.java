@@ -21,18 +21,23 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
+class LocalActivityExecutionContextImpl implements InternalActivityExecutionContext {
+  private final WorkflowClient client;
+  private final Object activity;
   private final ActivityInfo info;
   private final Scope metricsScope;
 
-  LocalActivityExecutionContextImpl(ActivityInfo info, Scope metricsScope) {
+  LocalActivityExecutionContextImpl(
+      WorkflowClient client, Object activity, ActivityInfo info, Scope metricsScope) {
+    this.client = client;
+    this.activity = activity;
     this.info = info;
     this.metricsScope = metricsScope;
   }
@@ -87,5 +92,20 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   @Override
   public Scope getMetricsScope() {
     return metricsScope;
+  }
+
+  @Override
+  public Object getLastHeartbeatValue() {
+    return null;
+  }
+
+  @Override
+  public WorkflowClient getWorkflowClient() {
+    return client;
+  }
+
+  @Override
+  public Object getInstance() {
+    return activity;
   }
 }

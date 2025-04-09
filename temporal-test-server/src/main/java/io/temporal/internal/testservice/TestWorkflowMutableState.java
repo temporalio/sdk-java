@@ -22,17 +22,21 @@ package io.temporal.internal.testservice;
 
 import io.grpc.Deadline;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 interface TestWorkflowMutableState {
@@ -47,6 +51,8 @@ interface TestWorkflowMutableState {
       PollWorkflowTaskQueueResponse.Builder task, PollWorkflowTaskQueueRequest pollRequest);
 
   void completeWorkflowTask(int historySize, RespondWorkflowTaskCompletedRequest request);
+
+  void applyOnConflictOptions(StartWorkflowExecutionRequest request);
 
   void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a);
 
@@ -114,7 +120,12 @@ interface TestWorkflowMutableState {
 
   void cancelNexusOperation(NexusOperationRef ref, Failure failure);
 
+  void cancelNexusOperationRequestAcknowledge(NexusOperationRef ref);
+
   void completeNexusOperation(NexusOperationRef ref, Payload result);
+
+  void completeAsyncNexusOperation(
+      NexusOperationRef ref, Payload result, String operationID, Link startLink);
 
   void failNexusOperation(NexusOperationRef ref, Failure failure);
 
@@ -136,5 +147,12 @@ interface TestWorkflowMutableState {
 
   Optional<TestWorkflowMutableState> getParent();
 
+  @Nonnull
+  TestWorkflowMutableState getRoot();
+
   boolean isTerminalState();
+
+  boolean isRequestIdAttached(String requestId);
+
+  List<Callback> getCompletionCallbacks();
 }

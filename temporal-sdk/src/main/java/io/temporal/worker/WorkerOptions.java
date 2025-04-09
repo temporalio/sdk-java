@@ -93,6 +93,7 @@ public final class WorkerOptions {
     private boolean usingVirtualThreadsOnLocalActivityWorker;
     private boolean usingVirtualThreadsOnNexusWorker;
     private String identity;
+    private WorkerDeploymentOptions deploymentOptions;
 
     private Builder() {}
 
@@ -124,6 +125,7 @@ public final class WorkerOptions {
       this.usingVirtualThreadsOnWorkflowWorker = o.usingVirtualThreadsOnWorkflowWorker;
       this.usingVirtualThreadsOnLocalActivityWorker = o.usingVirtualThreadsOnLocalActivityWorker;
       this.usingVirtualThreadsOnNexusWorker = o.usingVirtualThreadsOnNexusWorker;
+      this.deploymentOptions = o.deploymentOptions;
     }
 
     /**
@@ -385,11 +387,12 @@ public final class WorkerOptions {
 
     /**
      * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
-     * will only receive tasks which it is compatible with. For more information see: TODO: Doc link
+     * will only receive tasks which it is compatible with.
      *
      * <p>Defaults to false
      */
     @Experimental
+    @Deprecated
     public Builder setUseBuildIdForVersioning(boolean useBuildIdForVersioning) {
       this.useBuildIdForVersioning = useBuildIdForVersioning;
       return this;
@@ -397,12 +400,12 @@ public final class WorkerOptions {
 
     /**
      * Set a unique identifier for this worker. The identifier should be stable with respect to the
-     * code the worker uses for workflows, activities, and interceptors. For more information see:
-     * TODO: Doc link
+     * code the worker uses for workflows, activities, and interceptors.
      *
      * <p>A Build Id must be set if {@link #setUseBuildIdForVersioning(boolean)} is set true.
      */
     @Experimental
+    @Deprecated
     public Builder setBuildId(String buildId) {
       this.buildId = buildId;
       return this;
@@ -494,6 +497,16 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Set deployment options for the worker. Exclusive with {@link #setUseBuildIdForVersioning} and
+     * {@link #setBuildId(String)}.
+     */
+    @Experimental
+    public Builder setDeploymentOptions(WorkerDeploymentOptions deploymentOptions) {
+      this.deploymentOptions = deploymentOptions;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -519,7 +532,8 @@ public final class WorkerOptions {
           usingVirtualThreadsOnWorkflowWorker,
           usingVirtualThreadsOnActivityWorker,
           usingVirtualThreadsOnLocalActivityWorker,
-          usingVirtualThreadsOnNexusWorker);
+          usingVirtualThreadsOnNexusWorker,
+          deploymentOptions);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -564,6 +578,14 @@ public final class WorkerOptions {
         Preconditions.checkState(
             buildId != null && !buildId.isEmpty(),
             "buildId must be set non-empty if useBuildIdForVersioning is set true");
+        Preconditions.checkState(
+            deploymentOptions == null,
+            "deploymentOptions must not be set if useBuildIdForVersioning is set true");
+      }
+      if (buildId != null) {
+        Preconditions.checkState(
+            deploymentOptions == null,
+            "deploymentOptions must not be set if buildId is set, prefer using deploymentOptions");
       }
       Preconditions.checkState(
           stickyTaskQueueDrainTimeout == null || !stickyTaskQueueDrainTimeout.isNegative(),
@@ -619,7 +641,8 @@ public final class WorkerOptions {
           usingVirtualThreadsOnWorkflowWorker,
           usingVirtualThreadsOnActivityWorker,
           usingVirtualThreadsOnLocalActivityWorker,
-          usingVirtualThreadsOnNexusWorker);
+          usingVirtualThreadsOnNexusWorker,
+          deploymentOptions);
     }
   }
 
@@ -647,6 +670,7 @@ public final class WorkerOptions {
   private final boolean usingVirtualThreadsOnActivityWorker;
   private final boolean usingVirtualThreadsOnLocalActivityWorker;
   private final boolean usingVirtualThreadsOnNexusWorker;
+  private final WorkerDeploymentOptions deploymentOptions;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -672,7 +696,8 @@ public final class WorkerOptions {
       boolean useThreadsEnabledOnWorkflowWorker,
       boolean useThreadsEnabledOnActivityWorker,
       boolean virtualThreadsEnabledOnLocalActivityWorker,
-      boolean virtualThreadsEnabledOnNexusWorker) {
+      boolean virtualThreadsEnabledOnNexusWorker,
+      WorkerDeploymentOptions deploymentOptions) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -697,6 +722,7 @@ public final class WorkerOptions {
     this.usingVirtualThreadsOnActivityWorker = useThreadsEnabledOnActivityWorker;
     this.usingVirtualThreadsOnLocalActivityWorker = virtualThreadsEnabledOnLocalActivityWorker;
     this.usingVirtualThreadsOnNexusWorker = virtualThreadsEnabledOnNexusWorker;
+    this.deploymentOptions = deploymentOptions;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -811,6 +837,10 @@ public final class WorkerOptions {
 
   public boolean isUsingVirtualThreadsOnNexusWorker() {
     return usingVirtualThreadsOnNexusWorker;
+  }
+
+  public WorkerDeploymentOptions getDeploymentOptions() {
+    return deploymentOptions;
   }
 
   @Override

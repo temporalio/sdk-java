@@ -26,17 +26,16 @@ import io.temporal.client.WorkflowClient;
 import javax.annotation.Nullable;
 
 /**
- * Function interface for {@link
- * WorkflowClientOperationHandlers#fromWorkflowHandle(WorkflowHandleFactory)} representing the
- * workflow to associate with each operation call.
+ * Function interface for {@link WorkflowRunOperation#fromWorkflowHandle(WorkflowHandleFactory)}
+ * representing the workflow to associate with each operation call.
  */
 @FunctionalInterface
 public interface WorkflowHandleFactory<T, R> {
   /**
    * Invoked every operation start call and expected to return a workflow handle to a workflow stub
-   * through the provided {@link WorkflowClient}.
+   * created with the {@link WorkflowClient} provided by {@link
+   * NexusOperationContext#getWorkflowClient()}.
    */
   @Nullable
-  WorkflowHandle<R> apply(
-      OperationContext context, OperationStartDetails details, WorkflowClient client, T input);
+  WorkflowHandle<R> apply(OperationContext context, OperationStartDetails details, T input);
 }

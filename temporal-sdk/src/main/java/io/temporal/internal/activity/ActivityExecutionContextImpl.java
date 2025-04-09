@@ -25,10 +25,10 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -45,8 +45,10 @@ import javax.annotation.concurrent.ThreadSafe;
  * @see ActivityExecutionContext
  */
 @ThreadSafe
-class ActivityExecutionContextImpl implements ActivityExecutionContext {
+class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final Lock lock = new ReentrantLock();
+  private final WorkflowClient client;
+  private final Object activity;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private final HeartbeatContext heartbeatContext;
@@ -58,8 +60,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
-      WorkflowServiceStubs service,
+      WorkflowClient client,
       String namespace,
+      Object activity,
       ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
@@ -69,13 +72,15 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval) {
+    this.client = client;
+    this.activity = activity;
     this.metricsScope = metricsScope;
     this.info = info;
     this.completionHandle = completionHandle;
     this.manualCompletionClientFactory = manualCompletionClientFactory;
     this.heartbeatContext =
         new HeartbeatContextImpl(
-            service,
+            client.getWorkflowServiceStubs(),
             namespace,
             info,
             dataConverter,
@@ -164,5 +169,20 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   @Override
   public ActivityInfo getInfo() {
     return info;
+  }
+
+  @Override
+  public Object getLastHeartbeatValue() {
+    return heartbeatContext.getLastHeartbeatDetails();
+  }
+
+  @Override
+  public WorkflowClient getWorkflowClient() {
+    return client;
+  }
+
+  @Override
+  public Object getInstance() {
+    return activity;
   }
 }

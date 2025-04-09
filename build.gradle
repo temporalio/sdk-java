@@ -5,11 +5,11 @@ buildscript {
 }
 
 plugins {
-    id 'net.ltgt.errorprone' version '4.0.1' apply false
+    id 'net.ltgt.errorprone' version '4.1.0' apply false
     id 'org.cadixdev.licenser' version '0.6.1'
     id 'com.palantir.git-version' version "${palantirGitVersionVersion}" apply false
     id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
-    id 'com.diffplug.spotless' version '6.25.0' apply false
+    id 'com.diffplug.spotless' version '7.0.2' apply false
     id 'com.github.nbaztec.coveralls-jacoco' version "1.2.20" apply false
 
     //    id 'org.jetbrains.kotlin.jvm' version '1.4.32'
@@ -29,21 +29,22 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.54.1' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
+    grpcVersion = '1.58.1' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
     jacksonVersion = '2.14.2' // [2.9.0,)
-    nexusVersion = '0.3.0-alpha'
+    nexusVersion = '0.4.0-alpha'
     // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
     micrometerVersion = project.hasProperty("edgeDepsTest") ? '1.13.6' : '1.9.9' // [1.0.0,)
 
     // stay on 1.x for a while to don't use any APIs from 2.x which may break our users which still stay on 1.x
     // also slf4j 2.x is not compatible with spring boot 2.x
     slf4jVersion = project.hasProperty("edgeDepsTest") ? '2.0.16' : '1.7.36' // [1.4.0,)
-    // [3.12.0,)
-    // 3.12 is brought by min gRPC 1.38.
-    // We can't move pass 3.22.0 because 3.22.2 deprecates some methods used by generated code produced by
-    // the old protoc we keep for compatibility of our generated code with old protobuf-java versions.
-    // Which leads to build failure because of -Werror.
-    protoVersion = '3.22.0'
+    // [3.25.5,)
+    // 3.25.5 is required because of our protoc compiler 25.x. The proto version must be the same or greater then the protoc version.
+    // We use this version of protoc because it will generate code that is compatible with protobuf-java 3.x and 4.x.
+    // We don't move past 3.25.x because the next version is a major version bump and we don't want to break our users.
+    //
+    // For more information see: https://github.com/grpc/grpc-java/issues/11015#issuecomment-2560196695
+    protoVersion = '3.25.5'
     annotationApiVersion = '1.3.2'
     guavaVersion = '32.0.1-jre' // [10.0,)
     tallyVersion = '0.13.0' // [0.4.0,)

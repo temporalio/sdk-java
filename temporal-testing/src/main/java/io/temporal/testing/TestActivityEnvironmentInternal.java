@@ -39,6 +39,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -123,7 +124,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
-            workflowServiceStubs,
+            WorkflowClient.newInstance(
+                this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions()),
             testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),

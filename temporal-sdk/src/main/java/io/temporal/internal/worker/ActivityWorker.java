@@ -104,7 +104,6 @@ final class ActivityWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              true,
               options.isUsingVirtualThreads());
       poller =
           new Poller<>(
@@ -334,6 +333,8 @@ final class ActivityWorker implements SuspendableWorker {
           failure);
     }
 
+    // TODO: Suppress warning until the SDK supports deployment
+    @SuppressWarnings("deprecation")
     private void sendReply(
         ByteString taskToken, ActivityTaskHandler.Result response, Scope metricsScope) {
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();

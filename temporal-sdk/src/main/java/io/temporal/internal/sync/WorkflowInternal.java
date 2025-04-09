@@ -837,6 +837,11 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().getCurrentDetails();
   }
 
+  @Nullable
+  public static Object getInstance() {
+    return getRootWorkflowContext().getInstance();
+  }
+
   static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
     return getRootWorkflowContext().getWorkflowOutboundInterceptor();
   }

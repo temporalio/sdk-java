@@ -34,4 +34,9 @@ class StateMachineCommandUtils {
         .setRecordMarkerCommandAttributes(attributes)
         .build();
   }
+
+  public static Command createFakeMarkerCommand(String markerName) {
+    return createRecordMarker(
+        RecordMarkerCommandAttributes.newBuilder().setMarkerName(markerName).build());
+  }
 }

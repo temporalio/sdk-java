@@ -21,15 +21,17 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+import static io.temporal.api.enums.v1.WorkflowExecutionStatus.*;
+import static io.temporal.api.enums.v1.WorkflowIdReusePolicy.*;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest.Operation.OperationCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-import com.google.protobuf.Timestamp;
+import com.google.protobuf.*;
+import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
@@ -43,21 +45,17 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.api.failure.v1.ApplicationFailureInfo;
-import io.temporal.api.failure.v1.CanceledFailureInfo;
+import io.temporal.api.failure.v1.*;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
-import io.temporal.api.nexus.v1.HandlerError;
-import io.temporal.api.nexus.v1.Request;
-import io.temporal.api.nexus.v1.StartOperationResponse;
-import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
+import io.temporal.api.nexus.v1.*;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
+import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtoUtils;
@@ -92,6 +90,11 @@ import org.slf4j.LoggerFactory;
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
+  private static final JsonFormat.Printer JSON_PRINTER = JsonFormat.printer();
+  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
+
+  private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
+
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
   // key->WorkflowId
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
@@ -228,7 +231,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionRequest request,
       StreamObserver<StartWorkflowExecutionResponse> responseObserver) {
     try {
+      if (!request.getCronSchedule().isEmpty() && request.hasWorkflowStartDelay()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "INVALID_ARGUMENT: CronSchedule and WorkflowStartDelay may not be used together.")
+            .asRuntimeException();
+      }
       Duration backoffInterval = getBackoffInterval(request.getCronSchedule(), store.currentTime());
+      if (request.hasWorkflowStartDelay()) {
+        backoffInterval = ProtobufTimeUtils.toJavaDuration(request.getWorkflowStartDelay());
+      }
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionImpl(
               request, backoffInterval, Optional.empty(), OptionalLong.empty(), null);
@@ -250,10 +262,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
     WorkflowIdReusePolicy reusePolicy = startRequest.getWorkflowIdReusePolicy();
     WorkflowIdConflictPolicy conflictPolicy = startRequest.getWorkflowIdConflictPolicy();
-    if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
-        && reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
-      throw createInvalidArgument(
-          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
+
+    validateWorkflowIdReusePolicy(reusePolicy, conflictPolicy);
+    validateOnConflictOptions(startRequest);
+
+    // Backwards compatibility: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING is deprecated
+    if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+      conflictPolicy = WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING;
+      reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
+    }
+    if (conflictPolicy == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED) {
+      conflictPolicy = WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL;
+    }
+    if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_UNSPECIFIED) {
+      reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
     }
 
     TestWorkflowMutableState existing;
@@ -262,43 +284,61 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String newRunId = UUID.randomUUID().toString();
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
-        WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
+        StartWorkflowExecutionResponse dedupedResponse = dedupeRequest(startRequest, existing);
+        if (dedupedResponse != null) {
+          return dedupedResponse;
+        }
 
-        if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            && (reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
-                || conflictPolicy
-                    == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING)) {
-          existing.terminateWorkflowExecution(
-              TerminateWorkflowExecutionRequest.newBuilder()
-                  .setNamespace(startRequest.getNamespace())
-                  .setWorkflowExecution(existing.getExecutionId().getExecution())
-                  .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
-                  .setIdentity("history-service")
-                  .setDetails(
-                      Payloads.newBuilder()
-                          .addPayloads(
-                              Payload.newBuilder()
-                                  .setData(
-                                      ByteString.copyFromUtf8(
-                                          String.format("terminated by new runID: %s", newRunId)))
-                                  .build())
-                          .build())
-                  .build());
-        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            && conflictPolicy
-                == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING) {
-          return StartWorkflowExecutionResponse.newBuilder()
-              .setStarted(false)
-              .setRunId(existing.getExecutionId().getExecution().getRunId())
-              .build();
-        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-            || reusePolicy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
-          return throwDuplicatedWorkflow(startRequest, existing);
-        } else if (reusePolicy
-                == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
-            && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
-                || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
-          return throwDuplicatedWorkflow(startRequest, existing);
+        WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
+        if (status == WORKFLOW_EXECUTION_STATUS_RUNNING) {
+          switch (conflictPolicy) {
+            case WORKFLOW_ID_CONFLICT_POLICY_FAIL:
+              return throwDuplicatedWorkflow(startRequest, existing);
+            case WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING:
+              if (startRequest.hasOnConflictOptions()) {
+                existing.applyOnConflictOptions(startRequest);
+              }
+              return StartWorkflowExecutionResponse.newBuilder()
+                  .setStarted(false)
+                  .setRunId(existing.getExecutionId().getExecution().getRunId())
+                  .build();
+            case WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING:
+              existing.terminateWorkflowExecution(
+                  TerminateWorkflowExecutionRequest.newBuilder()
+                      .setNamespace(startRequest.getNamespace())
+                      .setWorkflowExecution(existing.getExecutionId().getExecution())
+                      .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
+                      .setIdentity("history-service")
+                      .setDetails(
+                          Payloads.newBuilder()
+                              .addPayloads(
+                                  Payload.newBuilder()
+                                      .setData(
+                                          ByteString.copyFromUtf8(
+                                              String.format(
+                                                  "terminated by new runID: %s", newRunId)))
+                                      .build())
+                              .build())
+                      .build());
+              break;
+          }
+        }
+
+        // Status of existing workflow could have changed to TERMINATED.
+        status = existing.getWorkflowExecutionStatus();
+
+        // At this point, the existing workflow already completed or was terminated.
+        switch (reusePolicy) {
+          case WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE:
+            break;
+          case WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY:
+            if (status == WORKFLOW_EXECUTION_STATUS_COMPLETED
+                || status == WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW) {
+              return throwDuplicatedWorkflow(startRequest, existing);
+            }
+            break;
+          case WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE:
+            return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
 
@@ -359,6 +399,31 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 "WorkflowId: %s, " + "RunId: %s", execution.getWorkflowId(), execution.getRunId())),
         error,
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
+  }
+
+  private void validateWorkflowIdReusePolicy(
+      WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
+    if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
+        && reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+      throw createInvalidArgument(
+          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING cannot be used together with a WorkflowIDConflictPolicy.");
+    }
+    if (conflictPolicy == WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING
+        && reusePolicy == WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
+      throw createInvalidArgument(
+          "Invalid WorkflowIDReusePolicy: WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE cannot be used together with WorkflowIdConflictPolicy WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING");
+    }
+  }
+
+  private void validateOnConflictOptions(StartWorkflowExecutionRequest startRequest) {
+    if (!startRequest.hasOnConflictOptions()) {
+      return;
+    }
+    OnConflictOptions options = startRequest.getOnConflictOptions();
+    if (options.getAttachCompletionCallbacks() && !options.getAttachRequestId()) {
+      throw createInvalidArgument(
+          "Invalid OnConflictOptions: AttachCompletionCallbacks cannot be 'true' if AttachRequestId is 'false'.");
+    }
   }
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
@@ -801,12 +866,22 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String taskTimeout =
           String.valueOf(Timestamps.between(store.currentTime(), task.getDeadline()).getSeconds());
       Request.Builder req =
-          task.getTask().getRequestBuilder().putHeader(Header.REQUEST_TIMEOUT, taskTimeout + "s");
+          task.getTask()
+              .getRequestBuilder()
+              .putHeader(Header.REQUEST_TIMEOUT.toLowerCase(), taskTimeout + "s");
       PollNexusTaskQueueResponse.Builder resp = task.getTask().setRequest(req);
 
       responseObserver.onNext(resp.build());
       responseObserver.onCompleted();
     }
+  }
+
+  private static Failure wrapNexusOperationFailure(Failure cause) {
+    return Failure.newBuilder()
+        .setMessage("nexus operation completed unsuccessfully")
+        .setNexusOperationExecutionFailureInfo(NexusOperationFailureInfo.newBuilder().build())
+        .setCause(cause)
+        .build();
   }
 
   @Override
@@ -829,7 +904,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                 .setMessage("operation canceled")
                 .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
                 .build();
-        mutableState.cancelNexusOperation(tt.getOperationRef(), canceled);
+        mutableState.cancelNexusOperationRequestAcknowledge(tt.getOperationRef());
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();
         if (startResp.hasOperationError()) {
@@ -842,12 +917,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                     .setDetails(nexusFailureMetadataToPayloads(opError.getFailure())));
             mutableState.cancelNexusOperation(tt.getOperationRef(), b.build());
           } else {
-            b.setApplicationFailureInfo(
-                ApplicationFailureInfo.newBuilder()
-                    .setType("NexusOperationFailure")
-                    .setDetails(nexusFailureMetadataToPayloads(opError.getFailure()))
-                    .setNonRetryable(true));
-            mutableState.failNexusOperation(tt.getOperationRef(), b.build());
+            mutableState.failNexusOperation(
+                tt.getOperationRef(),
+                wrapNexusOperationFailure(nexusFailureToAPIFailure(opError.getFailure(), false)));
           }
         } else if (startResp.hasAsyncSuccess()) {
           // Start event is only recorded for async success
@@ -899,7 +971,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  public void completeNexusOperation(NexusOperationRef ref, HistoryEvent completionEvent) {
+  public void completeNexusOperation(
+      NexusOperationRef ref, String operationID, Link startLink, HistoryEvent completionEvent) {
     TestWorkflowMutableState target = getMutableState(ref.getExecutionId());
 
     switch (completionEvent.getEventType()) {
@@ -912,44 +985,43 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         // Nexus does not support it.
         Payload p =
             (result.getPayloadsCount() > 0) ? result.getPayloads(0) : Payload.getDefaultInstance();
-        target.completeNexusOperation(ref, p);
+        target.completeAsyncNexusOperation(ref, p, operationID, startLink);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
-        Failure f =
-            Failure.newBuilder()
-                .setMessage(
-                    completionEvent
-                        .getWorkflowExecutionFailedEventAttributes()
-                        .getFailure()
-                        .getMessage())
-                .build();
-        target.failNexusOperation(ref, f);
+        Failure wfFailure =
+            completionEvent.getWorkflowExecutionFailedEventAttributes().getFailure();
+        target.failNexusOperation(ref, wrapNexusOperationFailure(wfFailure));
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+        CanceledFailureInfo.Builder cancelFailure = CanceledFailureInfo.newBuilder();
+        if (completionEvent.getWorkflowExecutionCanceledEventAttributes().hasDetails()) {
+          cancelFailure.setDetails(
+              completionEvent.getWorkflowExecutionCanceledEventAttributes().getDetails());
+        }
         Failure canceled =
             Failure.newBuilder()
                 .setMessage("operation canceled")
-                .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+                .setCanceledFailureInfo(cancelFailure.build())
                 .build();
         target.cancelNexusOperation(ref, canceled);
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
-        Failure terminated =
-            Failure.newBuilder()
-                .setMessage("operation terminated")
-                .setApplicationFailureInfo(
-                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
-                .build();
-        target.failNexusOperation(ref, terminated);
+        target.failNexusOperation(
+            ref,
+            wrapNexusOperationFailure(
+                Failure.newBuilder()
+                    .setMessage("operation terminated")
+                    .setTerminatedFailureInfo(TerminatedFailureInfo.getDefaultInstance())
+                    .build()));
         break;
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
-        Failure timedOut =
-            Failure.newBuilder()
-                .setMessage("operation exceeded internal timeout")
-                .setApplicationFailureInfo(
-                    ApplicationFailureInfo.newBuilder().setNonRetryable(true))
-                .build();
-        target.failNexusOperation(ref, timedOut);
+        target.failNexusOperation(
+            ref,
+            wrapNexusOperationFailure(
+                Failure.newBuilder()
+                    .setMessage("operation exceeded internal timeout")
+                    .setTimeoutFailureInfo(TimeoutFailureInfo.newBuilder().build())
+                    .build()));
         break;
       default:
         throw Status.INTERNAL
@@ -961,11 +1033,37 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private static Failure handlerErrorToFailure(HandlerError err) {
     return Failure.newBuilder()
         .setMessage(err.getFailure().getMessage())
-        .setApplicationFailureInfo(
-            ApplicationFailureInfo.newBuilder()
-                .setType(err.getErrorType())
-                .setDetails(nexusFailureMetadataToPayloads(err.getFailure())))
+        .setNexusHandlerFailureInfo(
+            NexusHandlerFailureInfo.newBuilder().setType(err.getErrorType()).build())
+        .setCause(nexusFailureToAPIFailure(err.getFailure(), false))
         .build();
+  }
+
+  /**
+   * nexusFailureToAPIFailure converts a Nexus Failure to an API proto Failure. If the failure
+   * metadata "type" field is set to the fullname of the temporal API Failure message, the failure
+   * is reconstructed using protojson.Unmarshal on the failure details field.
+   */
+  private static Failure nexusFailureToAPIFailure(
+      io.temporal.api.nexus.v1.Failure failure, boolean retryable) {
+    Failure.Builder apiFailure = Failure.newBuilder();
+    if (failure.getMetadataMap().containsKey("type")
+        && failure.getMetadataMap().get("type").equals(FAILURE_TYPE_STRING)) {
+      try {
+        JSON_PARSER.merge(failure.getDetails().toString(UTF_8), apiFailure);
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      Payloads payloads = nexusFailureMetadataToPayloads(failure);
+      ApplicationFailureInfo.Builder applicationFailureInfo = ApplicationFailureInfo.newBuilder();
+      applicationFailureInfo.setType("NexusFailure");
+      applicationFailureInfo.setDetails(payloads);
+      applicationFailureInfo.setNonRetryable(!retryable);
+      apiFailure.setApplicationFailureInfo(applicationFailureInfo.build());
+    }
+    apiFailure.setMessage(failure.getMessage());
+    return apiFailure.build();
   }
 
   private static Payloads nexusFailureMetadataToPayloads(io.temporal.api.nexus.v1.Failure failure) {
@@ -1327,6 +1425,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setControl(r.getControl())
               .setNamespace(r.getNamespace())
               .setIdentity(r.getIdentity())
+              .addAllLinks(r.getLinksList())
               .build();
       if (mutableState != null && !mutableState.isTerminalState()) {
         mutableState.signal(signalRequest);
@@ -1350,8 +1449,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
               .setIdentity(r.getIdentity())
               .setWorkflowType(r.getWorkflowType())
-              .setCronSchedule(r.getCronSchedule())
-              .setRequestId(r.getRequestId());
+              .setCronSchedule(r.getCronSchedule());
       if (r.hasRetryPolicy()) {
         startRequest.setRetryPolicy(r.getRetryPolicy());
       }
@@ -1364,14 +1462,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (r.hasSearchAttributes()) {
         startRequest.setSearchAttributes(r.getSearchAttributes());
       }
+      Duration backoffInterval = Duration.ZERO;
       if (r.hasWorkflowStartDelay()) {
         startRequest.setWorkflowStartDelay(r.getWorkflowStartDelay());
+        backoffInterval = ProtobufTimeUtils.toJavaDuration(r.getWorkflowStartDelay());
+      }
+      if (!r.getLinksList().isEmpty()) {
+        startRequest.addAllLinks(r.getLinksList());
       }
 
       StartWorkflowExecutionResponse startResult =
           startWorkflowExecutionImpl(
               startRequest.build(),
-              Duration.ZERO,
+              backoffInterval,
               Optional.empty(),
               OptionalLong.empty(),
               ms -> {
@@ -1429,6 +1532,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String identity,
       ExecutionId continuedExecutionId,
       String firstExecutionRunId,
+      TestWorkflowMutableState previousExecutionState,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId) {
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
@@ -1448,9 +1552,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     //    if (previousRunStartRequest.hasRetryPolicy()) {
     //      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
     //    }
-    if (previousRunStartRequest.getCompletionCallbacksCount() > 0) {
+    if (!previousExecutionState.getCompletionCallbacks().isEmpty()) {
       startRequestBuilder.addAllCompletionCallbacks(
-          previousRunStartRequest.getCompletionCallbacksList());
+          previousExecutionState.getCompletionCallbacks());
     }
     if (ca.hasRetryPolicy()) {
       startRequestBuilder.setRetryPolicy(ca.getRetryPolicy());
@@ -1622,6 +1726,148 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (StatusRuntimeException e) {
       handleStatusRuntimeException(e, responseObserver);
     }
+  }
+
+  @Override
+  public void describeDeployment(
+      DescribeDeploymentRequest request,
+      StreamObserver<DescribeDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void describeWorkerDeploymentVersion(
+      DescribeWorkerDeploymentVersionRequest request,
+      StreamObserver<DescribeWorkerDeploymentVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void describeWorkerDeployment(
+      DescribeWorkerDeploymentRequest request,
+      StreamObserver<DescribeWorkerDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void deleteWorkerDeployment(
+      DeleteWorkerDeploymentRequest request,
+      StreamObserver<DeleteWorkerDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void deleteWorkerDeploymentVersion(
+      DeleteWorkerDeploymentVersionRequest request,
+      StreamObserver<DeleteWorkerDeploymentVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void setWorkerDeploymentCurrentVersion(
+      SetWorkerDeploymentCurrentVersionRequest request,
+      StreamObserver<SetWorkerDeploymentCurrentVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void setCurrentDeployment(
+      SetCurrentDeploymentRequest request,
+      StreamObserver<SetCurrentDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void getCurrentDeployment(
+      GetCurrentDeploymentRequest request,
+      StreamObserver<GetCurrentDeploymentResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void listDeployments(
+      ListDeploymentsRequest request, StreamObserver<ListDeploymentsResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void getDeploymentReachability(
+      GetDeploymentReachabilityRequest request,
+      StreamObserver<GetDeploymentReachabilityResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void setWorkerDeploymentRampingVersion(
+      SetWorkerDeploymentRampingVersionRequest request,
+      StreamObserver<SetWorkerDeploymentRampingVersionResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void listWorkerDeployments(
+      ListWorkerDeploymentsRequest request,
+      StreamObserver<ListWorkerDeploymentsResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
+  }
+
+  @Override
+  public void updateWorkerDeploymentVersionMetadata(
+      UpdateWorkerDeploymentVersionMetadataRequest request,
+      StreamObserver<UpdateWorkerDeploymentVersionMetadataResponse> responseObserver) {
+    handleStatusRuntimeException(
+        Status.UNIMPLEMENTED
+            .withDescription("Worker Versioning not yet supported in test server")
+            .asRuntimeException(),
+        responseObserver);
   }
 
   private <R> R requireNotNull(String fieldName, R value) {
@@ -1853,6 +2099,27 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
     }
     return workflowServiceStubs;
+  }
+
+  private StartWorkflowExecutionResponse dedupeRequest(
+      StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existingWorkflow) {
+    String requestId = startRequest.getRequestId();
+    String existingRequestId = existingWorkflow.getStartRequest().getRequestId();
+    if (existingRequestId.equals(requestId)) {
+      return StartWorkflowExecutionResponse.newBuilder()
+          .setStarted(true)
+          .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
+          .build();
+    }
+
+    if (existingWorkflow.isRequestIdAttached(requestId)) {
+      return StartWorkflowExecutionResponse.newBuilder()
+          .setStarted(false)
+          .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
+          .build();
+    }
+
+    return null;
   }
 
   private static StatusRuntimeException createInvalidArgument(String description) {

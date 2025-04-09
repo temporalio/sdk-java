@@ -40,7 +40,7 @@ jobs:
       run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
+      uses: mikepenz/action-junit-report@v5
       if: success() || failure() # always run even if the previous step fails
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
@@ -70,10 +70,41 @@ jobs:
 
     - name: Start containerized server and dependencies
       run: |
-        docker compose \
-          -f ./docker/github/docker-compose.yaml \
-          up -d temporal
-    
+        wget https://github.com/temporalio/cli/releases/download/v1.3.1-priority.0/temporal_cli_1.3.1-priority.0_linux_amd64.tar.gz
+        tar -xzf temporal_cli_1.3.1-priority.0_linux_amd64.tar.gz
+        chmod +x temporal
+        ./temporal server start-dev \
+         --headless \
+         --port 7233 \
+         --http-port 7243 \
+         --namespace UnitTest \
+         --db-filename temporal.sqlite \
+         --sqlite-pragma journal_mode=WAL \
+         --sqlite-pragma synchronous=OFF \
+         --search-attribute CustomKeywordField=Keyword \
+         --search-attribute CustomStringField=Text \
+         --search-attribute CustomTextField=Text \
+         --search-attribute CustomIntField=Int \
+         --search-attribute CustomDatetimeField=Datetime \
+         --search-attribute CustomDoubleField=Double \
+         --search-attribute CustomBoolField=Bool \
+         --dynamic-config-value system.forceSearchAttributesCacheRefreshOnRead=true \
+         --dynamic-config-value system.enableActivityEagerExecution=true \
+         --dynamic-config-value system.enableEagerWorkflowStart=true \
+         --dynamic-config-value system.enableExecuteMultiOperation=true \
+         --dynamic-config-value frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
+         --dynamic-config-value history.MaxBufferedQueryCount=100000 \
+         --dynamic-config-value frontend.workerVersioningDataAPIs=true \
+         --dynamic-config-value worker.buildIdScavengerEnabled=true \
+         --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
+         --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
+         --dynamic-config-value matching.useNewMatcher=true \
+         --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
+         --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
+         --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
+         --dynamic-config-value system.enableDeploymentVersions=true &
+         sleep 10s
+
     - name: Run unit tests
       env:
         USER: unittest
@@ -89,7 +120,7 @@ jobs:
       run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
+      uses: mikepenz/action-junit-report@v5
       if: success() || failure() # always run even if the previous step fails
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
@@ -128,7 +159,7 @@ jobs:
       run: ./gradlew --no-daemon :temporal-sdk:test --tests '*CloudOperationsClientTest'
 
     - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
+      uses: mikepenz/action-junit-report@v5
       if: success() || failure() # always run even if the previous step fails
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'

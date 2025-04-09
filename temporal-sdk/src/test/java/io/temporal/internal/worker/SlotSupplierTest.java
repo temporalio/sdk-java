@@ -37,7 +37,6 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +59,7 @@ public class SlotSupplierTest {
   }
 
   @Test
-  public void supplierIsCalledAppropriately() throws InterruptedException, TimeoutException {
+  public void supplierIsCalledAppropriately() {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -71,13 +70,17 @@ public class SlotSupplierTest {
 
     SlotSupplier<WorkflowSlotInfo> mockSupplier = mock(SlotSupplier.class);
     AtomicInteger usedSlotsWhenCalled = new AtomicInteger(-1);
-    when(mockSupplier.reserveSlot(
-            argThat(
-                src -> {
-                  usedSlotsWhenCalled.set(src.getUsedSlots().size());
-                  return true;
-                })))
-        .thenReturn(new SlotPermit());
+    try {
+      when(mockSupplier.reserveSlot(
+              argThat(
+                  src -> {
+                    usedSlotsWhenCalled.set(src.getUsedSlots().size());
+                    return true;
+                  })))
+          .thenReturn(SlotSupplierFuture.completedFuture(new SlotPermit()));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
 
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(5, true);
     Scope metricsScope =
@@ -94,8 +97,7 @@ public class SlotSupplierTest {
             TASK_QUEUE,
             "stickytaskqueue",
             "",
-            "",
-            false,
+            new WorkerVersioningOptions("", false, null),
             trackingSS,
             stickyQueueBalancer,
             metricsScope,
@@ -119,7 +121,11 @@ public class SlotSupplierTest {
 
     if (throwOnPoll) {
       assertThrows(RuntimeException.class, poller::poll);
-      verify(mockSupplier, times(1)).reserveSlot(any());
+      try {
+        verify(mockSupplier, times(1)).reserveSlot(any());
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       verify(mockSupplier, times(1)).releaseSlot(any());
       assertEquals(0, trackingSS.getUsedSlots().size());
     } else {
@@ -128,8 +134,12 @@ public class SlotSupplierTest {
       // We can't test this in the verifier, since it will get an up-to-date reference to the map
       // where the slot *is* used.
       assertEquals(0, usedSlotsWhenCalled.get());
-      verify(mockSupplier, times(1))
-          .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
+      try {
+        verify(mockSupplier, times(1))
+            .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       verify(mockSupplier, times(0)).releaseSlot(any());
       assertEquals(1, trackingSS.getUsedSlots().size());
     }

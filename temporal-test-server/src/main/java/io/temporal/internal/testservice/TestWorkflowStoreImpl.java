@@ -26,6 +26,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
 import io.grpc.Status;
+import io.temporal.api.common.v1.Priority;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
@@ -217,7 +218,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
       TaskQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
           getWorkflowTaskQueueQueue(id);
-      workflowTaskQueue.add(workflowTask.getTask());
+      workflowTaskQueue.add(
+          workflowTask.getTask(), ctx.getWorkflowMutableState().getStartRequest().getPriority());
     }
 
     List<ActivityTask> activityTasks = ctx.getActivityTasks();
@@ -225,7 +227,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (ActivityTask activityTask : activityTasks) {
         TaskQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
             getActivityTaskQueueQueue(activityTask.getTaskQueueId());
-        activityTaskQueue.add(activityTask.getTask());
+        activityTaskQueue.add(activityTask.getTask(), activityTask.getTask().getPriority());
       }
     }
 
@@ -347,7 +349,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void sendQueryTask(
-      ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task) {
+      ExecutionId executionId,
+      TaskQueueId taskQueue,
+      PollWorkflowTaskQueueResponse.Builder task,
+      Priority priority) {
     lock.lock();
     try {
       HistoryStore historyStore = getHistoryStore(executionId);
@@ -385,7 +390,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
     TaskQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
         getWorkflowTaskQueueQueue(taskQueue);
-    workflowTaskQueue.add(task);
+    workflowTaskQueue.add(task, priority);
   }
 
   @Override

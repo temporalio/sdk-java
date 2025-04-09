@@ -22,6 +22,9 @@ package io.temporal.workflow.determinism;
 
 import static org.junit.Assert.*;
 
+import com.google.common.collect.ImmutableMap;
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -29,9 +32,11 @@ import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.sync.WorkflowMethodThreadNameStrategy;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -43,6 +48,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
+  private final TestStatsReporter reporter = new TestStatsReporter();
+  Scope metricsScope =
+      new RootScopeBuilder().reporter(reporter).reportEvery(com.uber.m3.util.Duration.ofMillis(1));
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -54,6 +62,7 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
               WorkerOptions.newBuilder()
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
+          .setMetricsScope(metricsScope)
           .build();
 
   @Test
@@ -89,6 +98,22 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
     assertEquals(
         NonDeterministicException.class.getName(),
         failedWFTEventAttributes.getFailure().getApplicationFailureInfo().getType());
+    // Verify that the non-deterministic workflow task failure is reported for all the workflow
+    // tasks
+    reporter.assertCounter(
+        MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER,
+        ImmutableMap.of(
+            "task_queue",
+            testWorkflowRule.getTaskQueue(),
+            "namespace",
+            "UnitTest",
+            "workflow_type",
+            "TestWorkflowStringArg",
+            "worker_type",
+            "WorkflowWorker",
+            "failure_reason",
+            "NonDeterminismError"),
+        (i) -> i >= 2);
   }
 
   @Test

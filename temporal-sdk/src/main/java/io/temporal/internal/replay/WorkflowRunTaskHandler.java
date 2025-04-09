@@ -61,7 +61,7 @@ public interface WorkflowRunTaskHandler {
    *
    * @param eventId the event ID to reset the cached state to.
    */
-  void resetStartedEvenId(Long eventId);
+  void resetStartedEventId(Long eventId);
 
   void close();
 }

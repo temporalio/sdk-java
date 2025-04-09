@@ -30,6 +30,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
@@ -38,6 +39,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.common.PriorityUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
@@ -100,6 +102,16 @@ final class WorkflowClientRequestFactory {
       options.getLinks().forEach(request::addLinks);
     }
 
+    if (options.getOnConflictOptions() != null) {
+      OnConflictOptions.Builder onConflictOptions =
+          OnConflictOptions.newBuilder()
+              .setAttachRequestId(options.getOnConflictOptions().isAttachRequestId())
+              .setAttachLinks(options.getOnConflictOptions().isAttachLinks())
+              .setAttachCompletionCallbacks(
+                  options.getOnConflictOptions().isAttachCompletionCallbacks());
+      request.setOnConflictOptions(onConflictOptions);
+    }
+
     String taskQueue = options.getTaskQueue();
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
@@ -124,6 +136,10 @@ final class WorkflowClientRequestFactory {
 
     if (userMetadata != null) {
       request.setUserMetadata(userMetadata);
+    }
+
+    if (options.getPriority() != null) {
+      request.setPriority(PriorityUtils.toProto(options.getPriority()));
     }
 
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {

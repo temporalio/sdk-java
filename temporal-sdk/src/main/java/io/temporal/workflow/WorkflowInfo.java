@@ -21,6 +21,8 @@
 package io.temporal.workflow;
 
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.common.Experimental;
+import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.Optional;
@@ -137,6 +139,22 @@ public interface WorkflowInfo {
   Optional<String> getParentRunId();
 
   /**
+   * @return Workflow ID of the root Workflow
+   * @apiNote On server versions prior to v1.27.0, this method will return null. Otherwise, it will
+   *     always return a non-null value.
+   */
+  @Nullable
+  String getRootWorkflowId();
+
+  /**
+   * @return Run ID of the root Workflow
+   * @apiNote On server versions prior to v1.27.0, this method will return null. Otherwise, it will
+   *     always return a non-null value.
+   */
+  @Nullable
+  String getRootRunId();
+
+  /**
    * @return Workflow retry attempt handled by this Workflow code execution. Starts on "1".
    */
   int getAttempt();
@@ -173,4 +191,14 @@ public interface WorkflowInfo {
    *     branching.
    */
   Optional<String> getCurrentBuildId();
+
+  /**
+   * Return the priority of the workflow task.
+   *
+   * @apiNote If unset or on an older server version, this method will return {@link
+   *     Priority#getDefaultInstance()}.
+   */
+  @Experimental
+  @Nonnull
+  Priority getPriority();
 }

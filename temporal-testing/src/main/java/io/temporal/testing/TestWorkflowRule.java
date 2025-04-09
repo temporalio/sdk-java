@@ -32,17 +32,13 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.docker.RegisterTestNamespace;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.*;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -102,6 +98,7 @@ public class TestWorkflowRule implements TestRule {
   private final String target;
   private final boolean useTimeskipping;
   private final Scope metricsScope;
+  private String uniquePostfix;
 
   @Nonnull private final Map<String, IndexedValueType> searchAttributes;
 
@@ -259,7 +256,6 @@ public class TestWorkflowRule implements TestRule {
      *
      * @see Worker#registerNexusServiceImplementation(Object...)
      */
-    @Experimental
     public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
       this.nexusServiceImplementations = nexusServiceImplementations;
       return this;
@@ -348,7 +344,6 @@ public class TestWorkflowRule implements TestRule {
      * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
      * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
      */
-    @Experimental
     public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
       this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
       return this;
@@ -433,9 +428,11 @@ public class TestWorkflowRule implements TestRule {
   }
 
   private String init(Description description) {
-    String testMethod = description.getMethodName();
-    String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID();
+    uniquePostfix = description.getMethodName() + "-" + UUID.randomUUID();
+    String taskQueue = "WorkflowTest-" + uniquePostfix;
     nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
+
+    WorkerOptions workerOptions = this.workerOptions;
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
     WorkflowImplementationOptions workflowImplementationOptions =
         this.workflowImplementationOptions;
@@ -484,6 +481,13 @@ public class TestWorkflowRule implements TestRule {
    */
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  /**
+   * @return The options used for the worker.
+   */
+  public WorkerOptions getWorkerOptions() {
+    return workerOptions;
   }
 
   /**
@@ -570,6 +574,14 @@ public class TestWorkflowRule implements TestRule {
   public WorkflowStub newUntypedWorkflowStub(String workflow) {
     return getWorkflowClient()
         .newUntypedWorkflowStub(workflow, newWorkflowOptionsForTaskQueue(getTaskQueue()));
+  }
+
+  /**
+   * @return A unique string containing the test name appended to the task queue used by the test
+   *     worker. Can be used for other test-specific naming.
+   */
+  public String getUniquePostfix() {
+    return uniquePostfix;
   }
 
   private static WorkflowOptions newWorkflowOptionsForTaskQueue(String taskQueue) {

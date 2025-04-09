@@ -23,6 +23,7 @@ package io.temporal.internal.replay;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.common.VersioningBehavior;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,9 @@ public final class WorkflowTaskResult {
     private boolean forceWorkflowTask;
     private int nonfirstLocalActivityAttempts;
     private List<Integer> sdkFlags;
+    private String writeSdkName;
+    private String writeSdkVersion;
+    private VersioningBehavior versioningBehavior;
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
@@ -77,6 +81,21 @@ public final class WorkflowTaskResult {
       return this;
     }
 
+    public Builder setWriteSdkName(String writeSdkName) {
+      this.writeSdkName = writeSdkName;
+      return this;
+    }
+
+    public Builder setWriteSdkVersion(String writeSdkVersion) {
+      this.writeSdkVersion = writeSdkVersion;
+      return this;
+    }
+
+    public Builder setVersioningBehavior(VersioningBehavior versioningBehavior) {
+      this.versioningBehavior = versioningBehavior;
+      return this;
+    }
+
     public WorkflowTaskResult build() {
       return new WorkflowTaskResult(
           commands == null ? Collections.emptyList() : commands,
@@ -85,7 +104,10 @@ public final class WorkflowTaskResult {
           finalCommand,
           forceWorkflowTask,
           nonfirstLocalActivityAttempts,
-          sdkFlags == null ? Collections.emptyList() : sdkFlags);
+          sdkFlags == null ? Collections.emptyList() : sdkFlags,
+          writeSdkName,
+          writeSdkVersion,
+          versioningBehavior == null ? VersioningBehavior.UNSPECIFIED : versioningBehavior);
     }
   }
 
@@ -96,6 +118,9 @@ public final class WorkflowTaskResult {
   private final boolean forceWorkflowTask;
   private final int nonfirstLocalActivityAttempts;
   private final List<Integer> sdkFlags;
+  private final String writeSdkName;
+  private final String writeSdkVersion;
+  private final VersioningBehavior versioningBehavior;
 
   private WorkflowTaskResult(
       List<Command> commands,
@@ -104,7 +129,10 @@ public final class WorkflowTaskResult {
       boolean finalCommand,
       boolean forceWorkflowTask,
       int nonfirstLocalActivityAttempts,
-      List<Integer> sdkFlags) {
+      List<Integer> sdkFlags,
+      String writeSdkName,
+      String writeSdkVersion,
+      VersioningBehavior versioningBehavior) {
     this.commands = commands;
     this.messages = messages;
     this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
@@ -115,6 +143,9 @@ public final class WorkflowTaskResult {
     this.finalCommand = finalCommand;
     this.forceWorkflowTask = forceWorkflowTask;
     this.sdkFlags = sdkFlags;
+    this.writeSdkName = writeSdkName;
+    this.writeSdkVersion = writeSdkVersion;
+    this.versioningBehavior = versioningBehavior;
   }
 
   public List<Command> getCommands() {
@@ -144,5 +175,17 @@ public final class WorkflowTaskResult {
 
   public List<Integer> getSdkFlags() {
     return sdkFlags;
+  }
+
+  public String getWriteSdkName() {
+    return writeSdkName;
+  }
+
+  public String getWriteSdkVersion() {
+    return writeSdkVersion;
+  }
+
+  public VersioningBehavior getVersioningBehavior() {
+    return versioningBehavior;
   }
 }

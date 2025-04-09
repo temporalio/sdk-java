@@ -265,9 +265,8 @@ public class WorkflowExecutionUtils {
   }
 
   /** Pretty prints a proto message. */
-  @SuppressWarnings("deprecation")
   public static String prettyPrintObject(MessageOrBuilder object) {
-    return TextFormat.printToString(object);
+    return TextFormat.printer().printToString(object);
   }
 
   public static boolean containsEvent(List<HistoryEvent> history, EventType eventType) {

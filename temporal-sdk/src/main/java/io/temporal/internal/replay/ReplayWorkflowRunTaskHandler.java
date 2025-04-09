@@ -146,7 +146,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           Deadline.after(
               (long)
                   (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
-                      * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT),
+                      * Config.WORKFLOW_TASK_HEARTBEAT_COEFFICIENT),
               TimeUnit.NANOSECONDS);
 
       if (workflowTask.getPreviousStartedEventId()
@@ -180,15 +180,26 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         throw context.getWorkflowTaskFailure();
       }
       Map<String, WorkflowQueryResult> queryResults = executeQueries(workflowTask.getQueriesMap());
-      return WorkflowTaskResult.newBuilder()
-          .setCommands(commands)
-          .setMessages(messages)
-          .setQueryResults(queryResults)
-          .setFinalCommand(context.isWorkflowMethodCompleted())
-          .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
-          .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
-          .setSdkFlags(newSdkFlags)
-          .build();
+      WorkflowTaskResult.Builder result =
+          WorkflowTaskResult.newBuilder()
+              .setCommands(commands)
+              .setMessages(messages)
+              .setQueryResults(queryResults)
+              .setFinalCommand(context.isWorkflowMethodCompleted())
+              .setForceWorkflowTask(
+                  localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
+              .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
+              .setSdkFlags(newSdkFlags);
+      if (workflowStateMachines.sdkNameToWrite() != null) {
+        result.setWriteSdkName(workflowStateMachines.sdkNameToWrite());
+      }
+      if (workflowStateMachines.sdkVersionToWrite() != null) {
+        result.setWriteSdkVersion(workflowStateMachines.sdkVersionToWrite());
+      }
+      if (workflow.getWorkflowContext() != null) {
+        result.setVersioningBehavior(workflow.getWorkflowContext().getVersioningBehavior());
+      }
+      return result.build();
     } finally {
       lock.unlock();
     }
@@ -218,8 +229,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public void resetStartedEvenId(Long eventId) {
-    workflowStateMachines.resetStartedEvenId(eventId);
+  public void resetStartedEventId(Long eventId) {
+    workflowStateMachines.resetStartedEventId(eventId);
   }
 
   private void handleWorkflowTaskImpl(

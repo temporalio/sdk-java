@@ -39,6 +39,7 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.worker.tuning.SlotReleaseReason;
@@ -120,7 +121,6 @@ final class WorkflowWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               this.slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              true,
               options.isUsingVirtualThreads());
       stickyQueueBalancer =
           new StickyQueueBalancer(
@@ -135,8 +135,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   stickyTaskQueueName,
                   options.getIdentity(),
-                  options.getBuildId(),
-                  options.isUsingBuildIdForVersioning(),
+                  options.getWorkerVersioningOptions(),
                   slotSupplier,
                   stickyQueueBalancer,
                   workerMetricsScope,
@@ -475,17 +474,28 @@ final class WorkflowWorker implements SuspendableWorker {
       try {
         return handler.handleWorkflowTask(task);
       } catch (Throwable e) {
+        workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
+        // Make sure that the task failure metric has the correct type
+        Scope workflowTaskFailureScope = workflowTypeMetricsScope;
+        if (e instanceof NonDeterministicException) {
+          workflowTaskFailureScope =
+              workflowTaskFailureScope.tagged(
+                  ImmutableMap.of(TASK_FAILURE_TYPE, "NonDeterminismError"));
+        } else {
+          workflowTaskFailureScope =
+              workflowTaskFailureScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, "WorkflowError"));
+        }
         // more detailed logging that we can do here is already done inside `handler`
-        workflowTypeMetricsScope
+        workflowTaskFailureScope
             .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
             .inc(1);
-        workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
         throw e;
       } finally {
         sw.stop();
       }
     }
 
+    @SuppressWarnings("deprecation")
     private RespondWorkflowTaskCompletedResponse sendTaskCompleted(
         ByteString taskToken,
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
@@ -499,7 +509,11 @@ final class WorkflowWorker implements SuspendableWorker {
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
           .setTaskToken(taskToken);
-      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+
+      if (options.getDeploymentOptions() != null) {
+        taskCompleted.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(options.getDeploymentOptions()));
+      } else if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskCompleted.setWorkerVersionStamp(options.workerVersionStamp());
       } else {
         taskCompleted.setBinaryChecksum(options.getBuildId());
@@ -514,6 +528,7 @@ final class WorkflowWorker implements SuspendableWorker {
           grpcRetryOptions);
     }
 
+    @SuppressWarnings("deprecation")
     private void sendTaskFailed(
         ByteString taskToken,
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
@@ -525,7 +540,10 @@ final class WorkflowWorker implements SuspendableWorker {
 
       taskFailed.setIdentity(options.getIdentity()).setNamespace(namespace).setTaskToken(taskToken);
 
-      if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
+      if (options.getDeploymentOptions() != null) {
+        taskFailed.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(options.getDeploymentOptions()));
+      } else if (service.getServerCapabilities().get().getBuildIdBasedVersioning()) {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 

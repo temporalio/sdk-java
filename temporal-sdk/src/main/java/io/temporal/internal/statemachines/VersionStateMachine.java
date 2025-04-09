@@ -20,6 +20,7 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.internal.statemachines.StateMachineCommandUtils.createFakeMarkerCommand;
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -200,7 +201,7 @@ final class VersionStateMachine {
     }
 
     void createFakeCommand() {
-      addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
+      addCommand(createFakeMarkerCommand(VersionMarkerUtils.MARKER_NAME));
     }
 
     private void validateVersionAndThrow(boolean preloaded) {
@@ -378,7 +379,7 @@ final class VersionStateMachine {
    * @param callback used to return version
    * @return True if the identifier is not present in history
    */
-  public boolean getVersion(
+  public Integer getVersion(
       int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism = new InvocationStateMachine(minSupported, maxSupported, callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
@@ -389,7 +390,7 @@ final class VersionStateMachine {
     // This means either this version marker did not exist in the original execution or
     // the version marker did exist, but was in an earlier WFT. If the version marker was in a
     // previous WFT then the version field should have a value.
-    return !(ism.getState() == VersionStateMachine.State.SKIPPED_REPLAYING && version == null);
+    return version == null ? preloadedVersion : version;
   }
 
   public void handleNonMatchingEvent(HistoryEvent event) {

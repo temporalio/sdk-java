@@ -38,6 +38,12 @@ or to *build.gradle*:
 
     compile group: 'io.temporal', name: 'temporal-sdk', version: 'N.N.N'
 
+## Protobuf 3.x vs 4.x
+
+The Temporal Java SDK currently supports `protobuf-java` 3.x and 4.x. To support these, the Temporal Java SDK allows any protobuf library >= 3.25.
+Temporal strongly recommends using the latest `protobuf-java` 4.x library unless you absolutely cannot. 
+If you cannot use protobuf-java 3.25 >=, you can try `temporal-shaded` which includes a shaded version of the `protobuf-java` library.
+
 ## Contributing
 
 We'd love your help in improving the Temporal Java SDK. Please review our [contribution guidelines](CONTRIBUTING.md).

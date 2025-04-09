@@ -40,6 +40,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
+@SuppressWarnings("deprecation")
 public class BuildIdVersioningTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

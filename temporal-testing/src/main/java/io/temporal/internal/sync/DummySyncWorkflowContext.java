@@ -49,6 +49,7 @@ public class DummySyncWorkflowContext {
         new SyncWorkflowContext(
             "dummy",
             WorkflowExecution.newBuilder().setWorkflowId("dummy").setRunId("dummy").build(),
+            null,
             new SignalDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             new QueryDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             new UpdateDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
@@ -79,6 +80,11 @@ public class DummySyncWorkflowContext {
 
     @Override
     public WorkflowExecution getParentWorkflowExecution() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public WorkflowExecution getRootWorkflowExecution() {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -212,6 +218,7 @@ public class DummySyncWorkflowContext {
     @Override
     public Functions.Proc1<Exception> startNexusOperation(
         ScheduleNexusOperationCommandAttributes attributes,
+        @Nullable UserMetadata metadata,
         Functions.Proc2<Optional<String>, Failure> startedCallback,
         Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
       throw new UnsupportedOperationException("not implemented");
@@ -287,7 +294,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public boolean getVersion(
+    public Integer getVersion(
         String changeId,
         int minSupported,
         int maxSupported,
@@ -331,8 +338,18 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public boolean checkSdkFlag(SdkFlag flag) {
+      return false;
+    }
+
+    @Override
     public Optional<String> getCurrentBuildId() {
       return Optional.empty();
+    }
+
+    @Override
+    public Priority getPriority() {
+      return null;
     }
 
     @Override

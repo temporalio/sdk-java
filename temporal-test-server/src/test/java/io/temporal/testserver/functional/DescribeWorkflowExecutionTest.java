@@ -154,6 +154,9 @@ public class DescribeWorkflowExecutionTest {
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
             .assertNoParent()
+            .assertNoExecutionDuration()
+            .assertRoot(execution)
+            .assertFirstRunId(execution.getRunId())
             .assertPendingActivityCount(1)
             .assertPendingChildrenCount(0);
 
@@ -175,6 +178,7 @@ public class DescribeWorkflowExecutionTest {
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
             // going to run against the real server.
+            .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
             .setExpirationTime(actual.getExpirationTime())
             .build();
@@ -266,8 +270,10 @@ public class DescribeWorkflowExecutionTest {
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
             // going to run against the real server.
+            .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
             .setExpirationTime(actual.getExpirationTime())
+            .setLastAttemptCompleteTime(actual.getLastAttemptCompleteTime())
             // this ends up being a dummy value, but if it weren't, we still wouldn't expect to know
             // it.
             .setLastWorkerIdentity(actual.getLastWorkerIdentity())
@@ -284,6 +290,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
+        .assertHasExecutionDuration()
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
   }
@@ -333,6 +340,7 @@ public class DescribeWorkflowExecutionTest {
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
             // going to run against the real server.
+            .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
             .setExpirationTime(actual.getExpirationTime())
             // this ends up being a dummy value, but if it weren't, we still wouldn't expect to know
@@ -431,6 +439,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(expectedChildOptions)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
         .assertParent(parentExecution)
+        .assertRoot(parentExecution)
         .assertPendingActivityCount(1)
         .assertPendingChildrenCount(0);
 
@@ -442,6 +451,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
+        .assertRoot(parentExecution)
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
 

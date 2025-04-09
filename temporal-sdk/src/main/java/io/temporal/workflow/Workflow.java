@@ -29,6 +29,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -1309,7 +1310,6 @@ public final class Workflow {
    *
    * @param service interface that given service implements.
    */
-  @Experimental
   public static <T> T newNexusServiceStub(Class<T> service) {
     return WorkflowInternal.newNexusServiceStub(service, null);
   }
@@ -1321,7 +1321,6 @@ public final class Workflow {
    * @param service interface that given service implements.
    * @param options options passed to the Nexus service.
    */
-  @Experimental
   public static <T> T newNexusServiceStub(Class<T> service, NexusServiceOptions options) {
     return WorkflowInternal.newNexusServiceStub(service, options);
   }
@@ -1332,7 +1331,6 @@ public final class Workflow {
    * @param service name of the service the operation is part of.
    * @param options options passed to the Nexus service.
    */
-  @Experimental
   public static NexusServiceStub newUntypedNexusServiceStub(
       String service, NexusServiceOptions options) {
     return WorkflowInternal.newUntypedNexusServiceStub(service, options);
@@ -1346,7 +1344,6 @@ public final class Workflow {
    * @param arg operation argument
    * @return OperationHandle a handle to the operation.
    */
-  @Experimental
   public static <T, R> NexusOperationHandle<R> startNexusOperation(
       Functions.Func1<T, R> operation, T arg) {
     return WorkflowInternal.startNexusOperation(operation, arg);
@@ -1359,7 +1356,6 @@ public final class Workflow {
    *     #newNexusServiceStub(Class)}.
    * @return OperationHandle a handle to the operation.
    */
-  @Experimental
   public static <R> NexusOperationHandle<R> startNexusOperation(Functions.Func<R> operation) {
     return WorkflowInternal.startNexusOperation(operation);
   }
@@ -1383,6 +1379,20 @@ public final class Workflow {
   @Nullable
   public static String getCurrentDetails() {
     return WorkflowInternal.getCurrentDetails();
+  }
+
+  /**
+   * Get the currently running workflow instance.
+   *
+   * @apiNote The instance is only available after it has been initialized. This function will
+   *     return null if called before the workflow has been initialized. For example, this could
+   *     happen if the function is called from a {@link WorkflowInit} constructor or {@link
+   *     io.temporal.common.interceptors.WorkflowInboundCallsInterceptor#init(WorkflowOutboundCallsInterceptor)}.
+   */
+  @Experimental
+  @Nullable
+  public static Object getInstance() {
+    return WorkflowInternal.getInstance();
   }
 
   /** Prohibit instantiation. */

@@ -137,7 +137,12 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
               + knownTypes);
     } catch (Exception exception) {
       return mapToActivityFailure(
-          exception, pollResponse.getActivityId(), metricsScope, localActivity, dataConverter);
+          exception,
+          pollResponse.getActivityId(),
+          null,
+          metricsScope,
+          localActivity,
+          dataConverter);
     }
   }
 
@@ -186,6 +191,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
   static ActivityTaskHandler.Result mapToActivityFailure(
       Throwable exception,
       String activityId,
+      @Nullable Object lastHeartbeatDetails,
       Scope metricsScope,
       boolean isLocalActivity,
       DataConverter dataConverter) {
@@ -212,6 +218,9 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     Failure failure = dataConverter.exceptionToFailure(exception);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
+    if (lastHeartbeatDetails != null) {
+      dataConverter.toPayloads(lastHeartbeatDetails).ifPresent(result::setLastHeartbeatDetails);
+    }
     return new ActivityTaskHandler.Result(
         activityId,
         null,

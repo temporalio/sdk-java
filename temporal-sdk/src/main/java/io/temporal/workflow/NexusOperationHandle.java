@@ -20,13 +20,10 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
-
 /**
  * OperationHandle is used to interact with a scheduled nexus operation. Created through {@link
  * Workflow#startNexusOperation}.
  */
-@Experimental
 public interface NexusOperationHandle<R> {
   /**
    * Returns a promise that is resolved when the operation reaches the STARTED state. For

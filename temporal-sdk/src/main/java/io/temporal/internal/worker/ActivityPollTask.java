@@ -49,6 +49,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   private final Scope metricsScope;
   private final PollActivityTaskQueueRequest pollRequest;
 
+  @SuppressWarnings("deprecation")
   public ActivityPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
@@ -87,28 +88,28 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public ActivityTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
     PollActivityTaskQueueResponse response;
     SlotPermit permit;
+    SlotSupplierFuture future;
     boolean isSuccessful = false;
-
     try {
-      permit =
+      future =
           slotSupplier.reserveSlot(
               new SlotReservationData(
                   pollRequest.getTaskQueue().getName(),
                   pollRequest.getIdentity(),
                   pollRequest.getWorkerVersionCapabilities().getBuildId()));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return null;
     } catch (Exception e) {
       log.warn("Error while trying to reserve a slot for an activity", e.getCause());
       return null;
     }
+    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     try {
       response =

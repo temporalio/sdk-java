@@ -22,7 +22,9 @@ package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.internal.common.PriorityUtils;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
@@ -125,6 +127,17 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         : Optional.of(parentWorkflowExecution.getRunId());
   }
 
+  public String getRootWorkflowId() {
+    WorkflowExecution rootWorkflowExecution = context.getRootWorkflowExecution();
+    return rootWorkflowExecution == null ? null : rootWorkflowExecution.getWorkflowId();
+  }
+
+  @Override
+  public String getRootRunId() {
+    WorkflowExecution rootWorkflowExecution = context.getRootWorkflowExecution();
+    return rootWorkflowExecution == null ? null : rootWorkflowExecution.getRunId();
+  }
+
   @Override
   public int getAttempt() {
     return context.getAttempt();
@@ -156,6 +169,11 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  public Priority getPriority() {
+    return PriorityUtils.fromProto(context.getPriority());
+  }
+
+  @Override
   public String toString() {
     return "WorkflowInfo{"
         + "namespace="
@@ -183,6 +201,10 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         + getParentWorkflowId()
         + ", parentRunId="
         + getParentRunId()
+        + ", rootWorkflowId="
+        + getRootWorkflowId()
+        + ", rootRunId="
+        + getRootRunId()
         + ", attempt="
         + getAttempt()
         + ", cronSchedule="

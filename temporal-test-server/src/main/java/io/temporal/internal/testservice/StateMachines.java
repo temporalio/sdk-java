@@ -20,53 +20,38 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.common.LinkConverter.*;
-import static io.temporal.internal.testservice.StateMachines.Action.CANCEL;
-import static io.temporal.internal.testservice.StateMachines.Action.COMPLETE;
-import static io.temporal.internal.testservice.StateMachines.Action.CONTINUE_AS_NEW;
-import static io.temporal.internal.testservice.StateMachines.Action.FAIL;
-import static io.temporal.internal.testservice.StateMachines.Action.INITIATE;
-import static io.temporal.internal.testservice.StateMachines.Action.QUERY;
-import static io.temporal.internal.testservice.StateMachines.Action.REQUEST_CANCELLATION;
-import static io.temporal.internal.testservice.StateMachines.Action.START;
-import static io.temporal.internal.testservice.StateMachines.Action.TERMINATE;
-import static io.temporal.internal.testservice.StateMachines.Action.TIME_OUT;
-import static io.temporal.internal.testservice.StateMachines.Action.UPDATE;
-import static io.temporal.internal.testservice.StateMachines.Action.UPDATE_WORKFLOW_EXECUTION;
-import static io.temporal.internal.testservice.StateMachines.State.CANCELED;
-import static io.temporal.internal.testservice.StateMachines.State.CANCELLATION_REQUESTED;
-import static io.temporal.internal.testservice.StateMachines.State.COMPLETED;
-import static io.temporal.internal.testservice.StateMachines.State.CONTINUED_AS_NEW;
-import static io.temporal.internal.testservice.StateMachines.State.FAILED;
-import static io.temporal.internal.testservice.StateMachines.State.INITIATED;
-import static io.temporal.internal.testservice.StateMachines.State.NONE;
-import static io.temporal.internal.testservice.StateMachines.State.STARTED;
-import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
-import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
+import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.testservice.StateMachines.Action.*;
+import static io.temporal.internal.testservice.StateMachines.State.*;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.protobuf.*;
+import com.google.protobuf.Any;
+import com.google.protobuf.Duration;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
-import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.*;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.NexusOperationFailureInfo;
-import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.update.v1.*;
+import io.temporal.api.update.v1.Acceptance;
+import io.temporal.api.update.v1.Outcome;
 import io.temporal.api.update.v1.Request;
 import io.temporal.api.update.v1.Response;
 import io.temporal.api.workflowservice.v1.*;
@@ -91,7 +76,7 @@ class StateMachines {
   public static final long DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS =
       10L * 365 * 24 * 3600 * 1000;
   public static final long DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 10L * 1000;
-  public static final long MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 60L * 1000;
+  public static final long MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 2 * 60L * 1000;
   static final Duration DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL = Durations.fromSeconds(1);
   static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
   static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
@@ -287,6 +272,7 @@ class StateMachines {
   static final class ActivityTaskData {
 
     StartWorkflowExecutionRequest startWorkflowExecutionRequest;
+    final UserMetadata metadata;
     ActivityTaskScheduledEventAttributes scheduledEvent;
     ActivityTask activityTask;
 
@@ -300,11 +286,15 @@ class StateMachines {
     TestServiceRetryState retryState;
     Duration nextBackoffInterval;
     String identity;
+    Timestamp lastAttemptCompleteTime;
 
     ActivityTaskData(
-        TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
+        TestWorkflowStore store,
+        StartWorkflowExecutionRequest startWorkflowExecutionRequest,
+        UserMetadata metadata) {
       this.store = store;
       this.startWorkflowExecutionRequest = startWorkflowExecutionRequest;
+      this.metadata = metadata;
     }
 
     @Override
@@ -341,6 +331,7 @@ class StateMachines {
   }
 
   static final class NexusOperationData {
+    final UserMetadata metadata;
     // Timeout for an individual Start or Cancel Operation request.
     final Duration requestTimeout = Durations.fromSeconds(10);
 
@@ -360,8 +351,9 @@ class StateMachines {
     Timestamp nextAttemptScheduleTime;
     String identity;
 
-    public NexusOperationData(Endpoint endpoint) {
+    public NexusOperationData(Endpoint endpoint, UserMetadata metadata) {
       this.endpoint = endpoint;
+      this.metadata = metadata;
     }
 
     public int getAttempt() {
@@ -420,13 +412,15 @@ class StateMachines {
   static final class ChildWorkflowData {
 
     final TestWorkflowService service;
+    final UserMetadata metadata;
     StartChildWorkflowExecutionInitiatedEventAttributes initiatedEvent;
     long initiatedEventId;
     long startedEventId;
     WorkflowExecution execution;
 
-    public ChildWorkflowData(TestWorkflowService service) {
+    public ChildWorkflowData(TestWorkflowService service, UserMetadata metadata) {
       this.service = service;
+      this.metadata = metadata;
     }
 
     @Override
@@ -447,8 +441,13 @@ class StateMachines {
   }
 
   static final class TimerData {
+    final UserMetadata metadata;
     TimerStartedEventAttributes startedEvent;
     public long startedEventId;
+
+    public TimerData(UserMetadata metadata) {
+      this.metadata = metadata;
+    }
 
     @Override
     public String toString() {
@@ -548,8 +547,10 @@ class StateMachines {
   }
 
   public static StateMachine<ActivityTaskData> newActivityStateMachine(
-      TestWorkflowStore store, StartWorkflowExecutionRequest workflowStartedEvent) {
-    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent))
+      TestWorkflowStore store,
+      StartWorkflowExecutionRequest workflowStartedEvent,
+      UserMetadata metadata) {
+    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleActivityTask)
         .add(INITIATED, START, STARTED, StateMachines::startActivityTask)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutActivityTask)
@@ -586,8 +587,8 @@ class StateMachines {
   }
 
   public static StateMachine<ChildWorkflowData> newChildWorkflowStateMachine(
-      TestWorkflowService service) {
-    return new StateMachine<>(new ChildWorkflowData(service))
+      TestWorkflowService service, UserMetadata metadata) {
+    return new StateMachine<>(new ChildWorkflowData(service, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::initiateChildWorkflow)
         .add(INITIATED, START, STARTED, StateMachines::childWorkflowStarted)
         .add(INITIATED, FAIL, FAILED, StateMachines::startChildWorkflowFailed)
@@ -609,8 +610,9 @@ class StateMachines {
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
 
-  public static StateMachine<NexusOperationData> newNexusOperation(Endpoint endpoint) {
-    return new StateMachine<>(new NexusOperationData(endpoint))
+  public static StateMachine<NexusOperationData> newNexusOperation(
+      Endpoint endpoint, UserMetadata metadata) {
+    return new StateMachine<>(new NexusOperationData(endpoint, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
@@ -633,8 +635,8 @@ class StateMachines {
         .add(STARTED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation);
   }
 
-  public static StateMachine<TimerData> newTimerStateMachine() {
-    return new StateMachine<>(new TimerData())
+  public static StateMachine<TimerData> newTimerStateMachine(UserMetadata metadata) {
+    return new StateMachine<>(new TimerData(metadata))
         .add(NONE, START, STARTED, StateMachines::startTimer)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::fireTimer)
         .add(STARTED, CANCEL, CANCELED, StateMachines::cancelTimer);
@@ -682,13 +684,15 @@ class StateMachines {
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedId);
 
     data.scheduledEvent = a.build();
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED)
-            .setNexusOperationScheduledEventAttributes(a)
-            .build();
+            .setNexusOperationScheduledEventAttributes(a);
+    if (data.metadata != null) {
+      event.setUserMetadata(data.metadata);
+    }
 
-    long scheduledEventId = ctx.addEvent(event);
+    long scheduledEventId = ctx.addEvent(event.build());
     NexusOperationRef ref = new NexusOperationRef(ctx.getExecutionId(), scheduledEventId);
     NexusTaskToken taskToken = new NexusTaskToken(ref, data.getAttempt(), false);
 
@@ -711,6 +715,9 @@ class StateMachines {
                 io.temporal.api.nexus.v1.Request.newBuilder()
                     .setScheduledTime(ctx.currentTime())
                     .putAllHeader(attr.getNexusHeaderMap())
+                    .putHeader(
+                        io.nexusrpc.Header.OPERATION_TIMEOUT.toLowerCase(),
+                        attr.getScheduleToCloseTimeout().toString())
                     .setStartOperation(
                         StartOperationRequest.newBuilder()
                             .setService(attr.getService())
@@ -752,6 +759,7 @@ class StateMachines {
             .setNexusOperationStartedEventAttributes(
                 NexusOperationStartedEventAttributes.newBuilder()
                     .setOperationId(resp.getOperationId())
+                    .setOperationToken(resp.getOperationToken())
                     .setScheduledEventId(data.scheduledEventId)
                     .setRequestId(data.scheduledEvent.getRequestId()));
 
@@ -817,6 +825,31 @@ class StateMachines {
 
   private static State failNexusOperation(
       RequestContext ctx, NexusOperationData data, Failure failure, long notUsed) {
+    // Nexus operation failures are never retryable
+    if (failure.hasNexusOperationExecutionFailureInfo()) {
+      // Populate the failure with the operation details
+      ctx.addEvent(
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_FAILED)
+              .setNexusOperationFailedEventAttributes(
+                  NexusOperationFailedEventAttributes.newBuilder()
+                      .setRequestId(data.scheduledEvent.getRequestId())
+                      .setScheduledEventId(data.scheduledEventId)
+                      .setFailure(
+                          failure.toBuilder()
+                              .setNexusOperationExecutionFailureInfo(
+                                  failure.getNexusOperationExecutionFailureInfo().toBuilder()
+                                      .setEndpoint(data.scheduledEvent.getEndpoint())
+                                      .setService(data.scheduledEvent.getService())
+                                      .setOperation(data.scheduledEvent.getOperation())
+                                      .setOperationId(data.operationId)
+                                      .setScheduledEventId(data.scheduledEventId)
+                                      .build())
+                              .build()))
+              .build());
+      return FAILED;
+    }
+
     RetryState retryState = attemptNexusOperationRetry(ctx, Optional.of(failure), data);
     if (retryState == RetryState.RETRY_STATE_IN_PROGRESS
         || retryState == RetryState.RETRY_STATE_TIMEOUT) {
@@ -863,6 +896,26 @@ class StateMachines {
       if (info.get().hasNextRetryDelay()) {
         nextRetryDelay =
             Optional.of(ProtobufTimeUtils.toJavaDuration(info.get().getNextRetryDelay()));
+      }
+    }
+
+    if (failure.get().hasNexusHandlerFailureInfo()) {
+      NexusHandlerFailureInfo handlerFailure = failure.get().getNexusHandlerFailureInfo();
+      HandlerException.RetryBehavior retryBehavior = HandlerException.RetryBehavior.UNSPECIFIED;
+      switch (handlerFailure.getRetryBehavior()) {
+        case NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE:
+          retryBehavior = HandlerException.RetryBehavior.NON_RETRYABLE;
+          break;
+        case NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE:
+          retryBehavior = HandlerException.RetryBehavior.RETRYABLE;
+          break;
+      }
+      // Deserialize the HandlerFailure to a HandlerException to check if it is retryable, we do not
+      // need to convert
+      // the whole error chain, so we don't pass cause.
+      HandlerException he = new HandlerException(handlerFailure.getType(), null, retryBehavior);
+      if (!he.isRetryable()) {
+        return RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
       }
     }
 
@@ -1114,6 +1167,10 @@ class StateMachines {
     if (d.hasRetryPolicy()) {
       a.setRetryPolicy(d.getRetryPolicy());
     }
+    if (d.hasPriority()) {
+      a.setPriority(d.getPriority());
+    }
+
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED)
@@ -1136,6 +1193,9 @@ class StateMachines {
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
                   .setCronSchedule(d.getCronSchedule());
+          if (data.metadata != null) {
+            startChild.setUserMetadata(data.metadata);
+          }
           if (d.hasHeader()) {
             startChild.setHeader(d.getHeader());
           }
@@ -1150,6 +1210,17 @@ class StateMachines {
           }
           if (d.hasInput()) {
             startChild.setInput(d.getInput());
+          }
+          // If the child workflow has a priority, use it. Otherwise, use the priority of the parent
+          // workflow.
+          Priority p =
+              mergePriorities(
+                  ctx.getWorkflowMutableState().getStartRequest().hasPriority()
+                      ? ctx.getWorkflowMutableState().getStartRequest().getPriority()
+                      : null,
+                  d.hasPriority() ? d.getPriority() : null);
+          if (p != null) {
+            startChild.setPriority(p);
           }
           addStartChildTask(ctx, data, initiatedEventId, startChild.build());
         });
@@ -1237,16 +1308,21 @@ class StateMachines {
     if (request.hasRetryPolicy()) {
       a.setRetryPolicy(request.getRetryPolicy());
     }
+    if (request.hasPriority()) {
+      a.setPriority(request.getPriority());
+    }
     data.retryState.ifPresent(
         testServiceRetryState -> a.setAttempt(testServiceRetryState.getAttempt()));
+
     a.setFirstExecutionRunId(data.firstExecutionRunId);
     a.setOriginalExecutionRunId(data.originalExecutionRunId);
     data.continuedExecutionRunId.ifPresent(a::setContinuedExecutionRunId);
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
-    if (request.hasWorkflowStartDelay()) {
-      a.setFirstWorkflowTaskBackoff(request.getWorkflowStartDelay());
+
+    if (data.backoffStartInterval != null) {
+      a.setFirstWorkflowTaskBackoff(data.backoffStartInterval);
     }
     data.lastFailure.ifPresent(a::setContinuedFailure);
     if (request.hasMemo()) {
@@ -1276,6 +1352,8 @@ class StateMachines {
       a.setParentWorkflowNamespace(parentExecutionId.getNamespace());
       a.setParentWorkflowExecution(parentExecutionId.getExecution());
     }
+    ExecutionId rootExecutionId = ctx.getWorkflowMutableState().getRoot().getExecutionId();
+    a.setRootWorkflowExecution(rootExecutionId.getExecution());
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -1457,15 +1535,19 @@ class StateMachines {
             .setTaskQueue(d.getTaskQueue())
             .setHeader(d.getHeader())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
-
+    if (d.hasPriority()) {
+      a.setPriority(d.getPriority());
+    }
     // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     data.scheduledEvent = a.build();
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED)
-            .setActivityTaskScheduledEventAttributes(a)
-            .build();
-    long scheduledEventId = ctx.addEvent(event);
+            .setActivityTaskScheduledEventAttributes(a);
+    if (data.metadata != null) {
+      event.setUserMetadata(data.metadata);
+    }
+    long scheduledEventId = ctx.addEvent(event.build());
 
     PollActivityTaskQueueResponse.Builder taskResponse =
         PollActivityTaskQueueResponse.newBuilder()
@@ -1482,6 +1564,17 @@ class StateMachines {
             .setCurrentAttemptScheduledTime(ctx.currentTime())
             .setHeader(d.getHeader())
             .setAttempt(1);
+
+    // If the activity has a priority, use it. Otherwise, use the priority of the workflow.
+    Priority p =
+        mergePriorities(
+            ctx.getWorkflowMutableState().getStartRequest().hasPriority()
+                ? ctx.getWorkflowMutableState().getStartRequest().getPriority()
+                : null,
+            d.hasPriority() ? d.getPriority() : null);
+    if (p != null) {
+      taskResponse.setPriority(p);
+    }
 
     TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), d.getTaskQueue().getName());
     ActivityTask activityTask = new ActivityTask(taskQueueId, taskResponse);
@@ -1955,9 +2048,15 @@ class StateMachines {
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
     if (request instanceof RespondActivityTaskFailedRequest) {
       RespondActivityTaskFailedRequest req = (RespondActivityTaskFailedRequest) request;
+      if (req.hasLastHeartbeatDetails()) {
+        data.heartbeatDetails = req.getLastHeartbeatDetails();
+      }
       return failActivityTaskByRequestType(ctx, data, req.getFailure(), req.getIdentity());
     } else if (request instanceof RespondActivityTaskFailedByIdRequest) {
       RespondActivityTaskFailedByIdRequest req = (RespondActivityTaskFailedByIdRequest) request;
+      if (req.hasLastHeartbeatDetails()) {
+        data.heartbeatDetails = req.getLastHeartbeatDetails();
+      }
       return failActivityTaskByRequestType(ctx, data, req.getFailure(), req.getIdentity());
     } else {
       throw new IllegalArgumentException("Unknown request: " + request);
@@ -2112,6 +2211,7 @@ class StateMachines {
       ctx.onCommit(
           (historySize) -> {
             data.retryState = nextAttempt;
+            data.lastAttemptCompleteTime = ctx.currentTime();
             task.setAttempt(nextAttempt.getAttempt());
             task.setCurrentAttemptScheduledTime(ctx.currentTime());
           });
@@ -2243,12 +2343,14 @@ class StateMachines {
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
             .setStartToFireTimeout(d.getStartToFireTimeout())
             .setTimerId(d.getTimerId());
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_TIMER_STARTED)
-            .setTimerStartedEventAttributes(a)
-            .build();
-    long startedEventId = ctx.addEvent(event);
+            .setTimerStartedEventAttributes(a);
+    if (data.metadata != null) {
+      event.setUserMetadata(data.metadata);
+    }
+    long startedEventId = ctx.addEvent(event.build());
     ctx.onCommit(
         (historySize) -> {
           data.startedEvent = a.build();
@@ -2464,5 +2566,20 @@ class StateMachines {
         .setMaximumInterval(Durations.fromHours(1))
         .setBackoffCoefficient(2.0)
         .build();
+  }
+
+  static Priority mergePriorities(Priority parent, Priority child) {
+    if (child == null) {
+      return parent;
+    }
+    if (parent == null) {
+      return child;
+    }
+    Priority.Builder result = Priority.newBuilder();
+    result.setPriorityKey(parent.getPriorityKey());
+    if (child.getPriorityKey() != 0) {
+      result.setPriorityKey(child.getPriorityKey());
+    }
+    return result.build();
   }
 }

@@ -96,6 +96,12 @@ final class BasicWorkflowContext {
         : null;
   }
 
+  WorkflowExecution getRootWorkflowExecution() {
+    return startedAttributes.hasRootWorkflowExecution()
+        ? startedAttributes.getRootWorkflowExecution()
+        : null;
+  }
+
   Duration getWorkflowRunTimeout() {
     return ProtobufTimeUtils.toJavaDuration(startedAttributes.getWorkflowRunTimeout());
   }
@@ -152,5 +158,10 @@ final class BasicWorkflowContext {
       return null;
     }
     return toRetryOptions(startedAttributes.getRetryPolicy());
+  }
+
+  @Nonnull
+  public Priority getPriority() {
+    return startedAttributes.getPriority();
   }
 }

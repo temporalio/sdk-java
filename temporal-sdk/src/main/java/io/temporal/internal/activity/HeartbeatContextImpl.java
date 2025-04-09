@@ -150,6 +150,19 @@ class HeartbeatContextImpl implements HeartbeatContext {
     }
   }
 
+  @Override
+  public Object getLastHeartbeatDetails() {
+    lock.lock();
+    try {
+      if (receivedAHeartbeat) {
+        return this.lastDetails;
+      }
+      return null;
+    } finally {
+      lock.unlock();
+    }
+  }
+
   private void doHeartBeatLocked(Object details) {
     long nextHeartbeatDelay;
     try {

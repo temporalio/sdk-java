@@ -20,7 +20,7 @@
 
 package io.temporal.common.interceptors;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.common.Experimental;
 
@@ -28,7 +28,8 @@ import io.temporal.common.Experimental;
  * Intercepts inbound calls to a Nexus operation on the worker side.
  *
  * <p>An instance should be created in {@link
- * WorkerInterceptor#interceptNexusOperation(NexusOperationInboundCallsInterceptor)}.
+ * WorkerInterceptor#interceptNexusOperation(OperationContext,
+ * NexusOperationInboundCallsInterceptor)}.
  *
  * <p>Prefer extending {@link NexusOperationInboundCallsInterceptorBase} and overriding only the
  * methods you need instead of implementing this interface directly. {@link
@@ -102,10 +103,9 @@ public interface NexusOperationInboundCallsInterceptor {
    *
    * @param input input to the operation start.
    * @return result of the operation start.
-   * @throws OperationUnsuccessfulException if the operation start failed.
+   * @throws io.nexusrpc.OperationException if the operation start failed.
    */
-  StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException;
+  StartOperationOutput startOperation(StartOperationInput input) throws OperationException;
 
   /**
    * Intercepts a call to cancel a Nexus operation.

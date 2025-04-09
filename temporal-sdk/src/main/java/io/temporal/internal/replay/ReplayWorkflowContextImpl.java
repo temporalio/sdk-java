@@ -109,6 +109,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public WorkflowExecution getRootWorkflowExecution() {
+    return basicWorkflowContext.getRootWorkflowExecution();
+  }
+
+  @Override
   public String getFirstExecutionRunId() {
     return basicWorkflowContext.getFirstExecutionRunId();
   }
@@ -223,10 +228,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Functions.Proc1<Exception> startNexusOperation(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
     Functions.Proc cancellationHandler =
-        workflowStateMachines.startNexusOperation(attributes, startedCallback, completionCallback);
+        workflowStateMachines.startNexusOperation(
+            attributes, metadata, startedCallback, completionCallback);
     return (exception) -> cancellationHandler.apply();
   }
 
@@ -261,6 +268,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public boolean checkSdkFlag(SdkFlag flag) {
+    return workflowStateMachines.checkSdkFlag(flag);
+  }
+
+  @Override
   public Optional<String> getCurrentBuildId() {
     String curTaskBID = workflowStateMachines.getCurrentTaskBuildId();
     // The current task started id == 0 check is to avoid setting the build id to this worker's ID
@@ -271,6 +283,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       curTaskBID = workerOptions.getBuildId();
     }
     return Optional.ofNullable(curTaskBID);
+  }
+
+  @Override
+  public Priority getPriority() {
+    return basicWorkflowContext.getPriority();
   }
 
   @Override
@@ -324,7 +341,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public boolean getVersion(
+  public Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,

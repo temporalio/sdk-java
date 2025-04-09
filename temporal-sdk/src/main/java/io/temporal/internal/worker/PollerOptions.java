@@ -23,6 +23,7 @@ package io.temporal.internal.worker;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +64,7 @@ public final class PollerOptions {
     private String pollThreadNamePrefix;
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
     private boolean usingVirtualThreads;
+    private ExecutorService pollerTaskExecutorOverride;
 
     private Builder() {}
 
@@ -81,6 +83,7 @@ public final class PollerOptions {
       this.pollThreadNamePrefix = options.getPollThreadNamePrefix();
       this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
+      this.pollerTaskExecutorOverride = options.getPollerTaskExecutorOverride();
     }
 
     /** Defines interval for measuring poll rate. Larger the interval more spiky can be the load. */
@@ -162,6 +165,12 @@ public final class PollerOptions {
       return this;
     }
 
+    /** Override the task executor ExecutorService */
+    public Builder setPollerTaskExecutorOverride(ExecutorService overrideTaskExecutor) {
+      this.pollerTaskExecutorOverride = overrideTaskExecutor;
+      return this;
+    }
+
     public PollerOptions build() {
       if (uncaughtExceptionHandler == null) {
         uncaughtExceptionHandler =
@@ -189,7 +198,8 @@ public final class PollerOptions {
           pollThreadCount,
           uncaughtExceptionHandler,
           pollThreadNamePrefix,
-          usingVirtualThreads);
+          usingVirtualThreads,
+          pollerTaskExecutorOverride);
     }
   }
 
@@ -206,6 +216,7 @@ public final class PollerOptions {
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
   private final String pollThreadNamePrefix;
   private final boolean usingVirtualThreads;
+  private final ExecutorService pollerTaskExecutorOverride;
 
   private PollerOptions(
       int maximumPollRateIntervalMilliseconds,
@@ -218,7 +229,8 @@ public final class PollerOptions {
       int pollThreadCount,
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix,
-      boolean usingVirtualThreads) {
+      boolean usingVirtualThreads,
+      ExecutorService pollerTaskExecutorOverride) {
     this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
     this.maximumPollRatePerSecond = maximumPollRatePerSecond;
     this.backoffCoefficient = backoffCoefficient;
@@ -230,6 +242,7 @@ public final class PollerOptions {
     this.uncaughtExceptionHandler = uncaughtExceptionHandler;
     this.pollThreadNamePrefix = pollThreadNamePrefix;
     this.usingVirtualThreads = usingVirtualThreads;
+    this.pollerTaskExecutorOverride = pollerTaskExecutorOverride;
   }
 
   public int getMaximumPollRateIntervalMilliseconds() {
@@ -274,6 +287,10 @@ public final class PollerOptions {
 
   public boolean isUsingVirtualThreads() {
     return usingVirtualThreads;
+  }
+
+  public ExecutorService getPollerTaskExecutorOverride() {
+    return pollerTaskExecutorOverride;
   }
 
   @Override

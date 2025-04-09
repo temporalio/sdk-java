@@ -84,6 +84,8 @@ public final class WorkflowOptions {
         .setRequestId(o.getRequestId())
         .setCompletionCallbacks(o.getCompletionCallbacks())
         .setLinks(o.getLinks())
+        .setOnConflictOptions(o.getOnConflictOptions())
+        .setPriority(o.getPriority())
         .validateBuildWithDefaults();
   }
 
@@ -129,6 +131,10 @@ public final class WorkflowOptions {
 
     private List<Link> links;
 
+    private OnConflictOptions onConflictOptions;
+
+    private Priority priority;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -155,6 +161,8 @@ public final class WorkflowOptions {
       this.requestId = options.requestId;
       this.completionCallbacks = options.completionCallbacks;
       this.links = options.links;
+      this.onConflictOptions = options.onConflictOptions;
+      this.priority = options.priority;
     }
 
     /**
@@ -266,7 +274,7 @@ public final class WorkflowOptions {
      * duration in any way. It defines for how long the Workflow can get blocked in the case of a
      * Workflow Worker crash.
      *
-     * <p>Default is 10 seconds. Maximum value allowed by the Temporal Server is 1 minute.
+     * <p>Default is 10 seconds. Maximum value allowed by the Temporal Server is 120 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       this.workflowTaskTimeout = workflowTaskTimeout;
@@ -376,8 +384,8 @@ public final class WorkflowOptions {
      *   <li>has available workflow task executor slots
      * </ul>
      *
-     * and such a {@link WorkflowClient} is used to start a workflow, then the first workflow task
-     * could be dispatched on this local worker with the response to the start call if Server
+     * <p>and such a {@link WorkflowClient} is used to start a workflow, then the first workflow
+     * task could be dispatched on this local worker with the response to the start call if Server
      * supports it. This option can be used to disable this mechanism.
      *
      * <p>Default is true
@@ -460,6 +468,30 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /**
+     * Set workflow ID conflict options used in conjunction with conflict policy
+     * WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING. If onConflictOptions is set and a workflow is
+     * already running, the options specifies the actions to be taken on the running workflow. If
+     * not set or use together with any other WorkflowIDConflictPolicy, this parameter is ignored.
+     *
+     * <p>WARNING: Not intended for User Code.
+     */
+    @Experimental
+    public Builder setOnConflictOptions(OnConflictOptions onConflictOptions) {
+      this.onConflictOptions = onConflictOptions;
+      return this;
+    }
+
+    /**
+     * Optional priority settings that control relative ordering of task processing when tasks are
+     * backed up in a queue.
+     */
+    @Experimental
+    public Builder setPriority(Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -481,7 +513,9 @@ public final class WorkflowOptions {
           staticDetails,
           requestId,
           completionCallbacks,
-          links);
+          links,
+          onConflictOptions,
+          priority);
     }
 
     /**
@@ -508,7 +542,9 @@ public final class WorkflowOptions {
           staticDetails,
           requestId,
           completionCallbacks,
-          links);
+          links,
+          onConflictOptions,
+          priority);
     }
   }
 
@@ -551,6 +587,8 @@ public final class WorkflowOptions {
   private final List<Callback> completionCallbacks;
 
   private final List<Link> links;
+  private final OnConflictOptions onConflictOptions;
+  private final Priority priority;
 
   private WorkflowOptions(
       String workflowId,
@@ -572,7 +610,9 @@ public final class WorkflowOptions {
       String staticDetails,
       String requestId,
       List<Callback> completionCallbacks,
-      List<Link> links) {
+      List<Link> links,
+      OnConflictOptions onConflictOptions,
+      Priority priority) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -593,6 +633,8 @@ public final class WorkflowOptions {
     this.requestId = requestId;
     this.completionCallbacks = completionCallbacks;
     this.links = links;
+    this.onConflictOptions = onConflictOptions;
+    this.priority = priority;
   }
 
   public String getWorkflowId() {
@@ -689,6 +731,16 @@ public final class WorkflowOptions {
     return staticDetails;
   }
 
+  @Experimental
+  public @Nullable OnConflictOptions getOnConflictOptions() {
+    return onConflictOptions;
+  }
+
+  @Experimental
+  public Priority getPriority() {
+    return priority;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -717,7 +769,9 @@ public final class WorkflowOptions {
         && Objects.equal(staticDetails, that.staticDetails)
         && Objects.equal(requestId, that.requestId)
         && Objects.equal(completionCallbacks, that.completionCallbacks)
-        && Objects.equal(links, that.links);
+        && Objects.equal(links, that.links)
+        && Objects.equal(onConflictOptions, that.onConflictOptions)
+        && Objects.equal(priority, that.priority);
   }
 
   @Override
@@ -742,7 +796,9 @@ public final class WorkflowOptions {
         staticDetails,
         requestId,
         completionCallbacks,
-        links);
+        links,
+        onConflictOptions,
+        priority);
   }
 
   @Override
@@ -791,6 +847,10 @@ public final class WorkflowOptions {
         + completionCallbacks
         + ", links="
         + links
+        + ", onConflictOptions="
+        + onConflictOptions
+        + ", priority="
+        + priority
         + '}';
   }
 }

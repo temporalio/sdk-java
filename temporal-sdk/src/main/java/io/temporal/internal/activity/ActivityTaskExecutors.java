@@ -23,7 +23,6 @@ package io.temporal.internal.activity;
 import static io.temporal.internal.activity.ActivityTaskHandlerImpl.mapToActivityFailure;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payload;
@@ -76,7 +75,8 @@ final class ActivityTaskExecutors {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
-      ActivityExecutionContext context = executionContextFactory.createContext(info, metricsScope);
+      InternalActivityExecutionContext context =
+          executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
       ActivitySerializationContext serializationContext =
           new ActivitySerializationContext(
@@ -133,11 +133,18 @@ final class ActivityTaskExecutors {
         }
 
         return mapToActivityFailure(
-            ex, info.getActivityId(), metricsScope, local, dataConverterWithActivityContext);
+            ex,
+            info.getActivityId(),
+            context.getLastHeartbeatValue(),
+            metricsScope,
+            local,
+            dataConverterWithActivityContext);
       }
     }
 
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();
+
+    abstract Object getActivity();
 
     abstract Object[] provideArgs(
         Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
@@ -199,6 +206,11 @@ final class ActivityTaskExecutors {
     }
 
     @Override
+    Object getActivity() {
+      return activity;
+    }
+
+    @Override
     Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
       return dataConverterWithActivityContext.fromPayloads(
           input, method.getParameterTypes(), method.getGenericParameterTypes());
@@ -234,6 +246,11 @@ final class ActivityTaskExecutors {
     ActivityInboundCallsInterceptor createRootInboundInterceptor() {
       return new RootActivityInboundCallsInterceptor.DynamicActivityInboundCallsInterceptor(
           activity);
+    }
+
+    @Override
+    Object getActivity() {
+      return activity;
     }
 
     @Override

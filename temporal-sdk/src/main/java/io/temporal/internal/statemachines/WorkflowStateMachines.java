@@ -43,11 +43,13 @@ import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.LocalActivityResult;
+import io.temporal.serviceclient.Version;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class WorkflowStateMachines {
@@ -58,9 +60,9 @@ public final class WorkflowStateMachines {
   }
 
   /** Initial set of SDK flags that will be set on all new workflow executions. */
-  private static final List<SdkFlag> initialFlags =
-      Collections.unmodifiableList(
-          Collections.singletonList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+  @VisibleForTesting
+  public static List<SdkFlag> initialFlags =
+      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -179,6 +181,8 @@ public final class WorkflowStateMachines {
   private final Set<String> acceptedUpdates = new HashSet<>();
 
   private final SdkFlags flags;
+  @Nonnull private String lastSeenSdkName = "";
+  @Nonnull private String lastSeenSdkVersion = "";
 
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks, GetSystemInfoResponse.Capabilities capabilities) {
@@ -222,7 +226,7 @@ public final class WorkflowStateMachines {
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
   }
 
-  public void resetStartedEvenId(long eventId) {
+  public void resetStartedEventId(long eventId) {
     // We must reset the last event we handled to be after the last WFT we really completed
     // + any command events (since the SDK "processed" those when it emitted the commands). This
     // is also equal to what we just processed in the speculative task, minus two, since we
@@ -384,6 +388,12 @@ public final class WorkflowStateMachines {
           }
           flags.setSdkFlag(sdkFlag);
         }
+        if (!Strings.isNullOrEmpty(completedEvent.getSdkMetadata().getSdkName())) {
+          lastSeenSdkName = completedEvent.getSdkMetadata().getSdkName();
+        }
+        if (!Strings.isNullOrEmpty(completedEvent.getSdkMetadata().getSdkVersion())) {
+          lastSeenSdkVersion = completedEvent.getSdkMetadata().getSdkVersion();
+        }
         // Remove any finished update protocol state machines. We can't remove them on an event like
         // other state machines because a rejected update produces no event in history.
         protocolStateMachines.entrySet().removeIf(entry -> entry.getValue().isFinalState());
@@ -525,6 +535,26 @@ public final class WorkflowStateMachines {
         continue;
       }
 
+      // This checks if the next event is a version marker, but the next command is not a version
+      // marker. This can happen if a getVersion call was removed.
+      if (VersionMarkerUtils.hasVersionMarkerStructure(event)
+          && !VersionMarkerUtils.hasVersionMarkerStructure(command.getCommand())) {
+        if (handleNonMatchingVersionMarker(event)) {
+          // this event is a version marker for removed getVersion call.
+          // Handle the version marker as unmatched and return even if there is no commands to match
+          // it against.
+          return;
+        } else {
+          throw new NonDeterministicException(
+              "Event "
+                  + event.getEventId()
+                  + " of type "
+                  + event.getEventType()
+                  + " does not"
+                  + " match command type "
+                  + command.getCommandType());
+        }
+      }
       // Note that handleEvent can cause a command cancellation in case of
       // 1. MutableSideEffect
       // 2. Version State Machine during replay cancels the command and enters SKIPPED state
@@ -642,10 +672,37 @@ public final class WorkflowStateMachines {
   }
 
   /**
+   * @return True if the SDK flag is set in the workflow execution
+   */
+  public boolean checkSdkFlag(SdkFlag flag) {
+    return flags.checkSdkFlag(flag);
+  }
+
+  /**
    * @return Set of all new flags set since the last call
    */
   public EnumSet<SdkFlag> takeNewSdkFlags() {
     return flags.takeNewSdkFlags();
+  }
+
+  /**
+   * @return If we need to write the SDK name upon WFT completion, return it
+   */
+  public String sdkNameToWrite() {
+    if (!lastSeenSdkName.equals(Version.SDK_NAME)) {
+      return Version.SDK_NAME;
+    }
+    return null;
+  }
+
+  /**
+   * @return If we need to write the SDK version upon WFT completion, return it
+   */
+  public String sdkVersionToWrite() {
+    if (!lastSeenSdkVersion.equals(Version.LIBRARY_VERSION)) {
+      return Version.LIBRARY_VERSION;
+    }
+    return null;
   }
 
   private void prepareCommands() {
@@ -894,12 +951,18 @@ public final class WorkflowStateMachines {
 
   public Functions.Proc startNexusOperation(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
     checkEventLoopExecuting();
     NexusOperationStateMachine operation =
         NexusOperationStateMachine.newInstance(
-            attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
+            attributes,
+            metadata,
+            startedCallback,
+            completionCallback,
+            commandSink,
+            stateMachineSink);
     return () -> {
       if (operation.isCancellable()) {
         operation.cancel();
@@ -1054,7 +1117,7 @@ public final class WorkflowStateMachines {
         stateMachineSink);
   }
 
-  public boolean getVersion(
+  public Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,

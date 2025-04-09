@@ -35,4 +35,6 @@ interface HeartbeatContext {
    * @see io.temporal.activity.ActivityExecutionContext#getHeartbeatDetails(Class, Type)
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
+
+  Object getLastHeartbeatDetails();
 }

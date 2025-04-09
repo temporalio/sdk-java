@@ -30,7 +30,6 @@ import java.util.Objects;
  *
  * <p>Use {@link NexusOperationOptions#newBuilder()} to construct an instance.
  */
-@Experimental
 public final class NexusOperationOptions {
   public static NexusOperationOptions.Builder newBuilder() {
     return new NexusOperationOptions.Builder();
@@ -52,6 +51,7 @@ public final class NexusOperationOptions {
 
   public static final class Builder {
     private Duration scheduleToCloseTimeout;
+    private String summary;
 
     /**
      * Sets the schedule to close timeout for the Nexus operation.
@@ -65,6 +65,18 @@ public final class NexusOperationOptions {
       return this;
     }
 
+    /**
+     * Single-line fixed summary for this Nexus operation that will appear in UI/CLI. This can be in
+     * single-line Temporal Markdown format.
+     *
+     * <p>Default is none/empty.
+     */
+    @Experimental
+    public NexusOperationOptions.Builder setSummary(String summary) {
+      this.summary = summary;
+      return this;
+    }
+
     private Builder() {}
 
     private Builder(NexusOperationOptions options) {
@@ -72,10 +84,11 @@ public final class NexusOperationOptions {
         return;
       }
       this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
+      this.summary = options.getSummary();
     }
 
     public NexusOperationOptions build() {
-      return new NexusOperationOptions(scheduleToCloseTimeout);
+      return new NexusOperationOptions(scheduleToCloseTimeout, summary);
     }
 
     public NexusOperationOptions.Builder mergeNexusOperationOptions(
@@ -87,22 +100,30 @@ public final class NexusOperationOptions {
           (override.scheduleToCloseTimeout == null)
               ? this.scheduleToCloseTimeout
               : override.scheduleToCloseTimeout;
+      this.summary = (override.summary == null) ? this.summary : override.summary;
       return this;
     }
   }
 
-  private NexusOperationOptions(Duration scheduleToCloseTimeout) {
+  private NexusOperationOptions(Duration scheduleToCloseTimeout, String summary) {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+    this.summary = summary;
   }
 
   public NexusOperationOptions.Builder toBuilder() {
     return new NexusOperationOptions.Builder(this);
   }
 
-  private Duration scheduleToCloseTimeout;
+  private final Duration scheduleToCloseTimeout;
+  private final String summary;
 
   public Duration getScheduleToCloseTimeout() {
     return scheduleToCloseTimeout;
+  }
+
+  @Experimental
+  public String getSummary() {
+    return summary;
   }
 
   @Override
@@ -110,16 +131,23 @@ public final class NexusOperationOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     NexusOperationOptions that = (NexusOperationOptions) o;
-    return Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout);
+    return Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equals(summary, that.summary);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(scheduleToCloseTimeout);
+    return Objects.hash(scheduleToCloseTimeout, summary);
   }
 
   @Override
   public String toString() {
-    return "NexusOperationOptions{" + "scheduleToCloseTimeout=" + scheduleToCloseTimeout + '}';
+    return "NexusOperationOptions{"
+        + "scheduleToCloseTimeout="
+        + scheduleToCloseTimeout
+        + ", summary='"
+        + summary
+        + '\''
+        + '}';
   }
 }

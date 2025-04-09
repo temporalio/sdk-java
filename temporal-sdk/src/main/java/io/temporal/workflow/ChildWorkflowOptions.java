@@ -75,6 +75,7 @@ public final class ChildWorkflowOptions {
     private VersioningIntent versioningIntent;
     private String staticSummary;
     private String staticDetails;
+    private Priority priority;
 
     private Builder() {}
 
@@ -100,6 +101,7 @@ public final class ChildWorkflowOptions {
       this.versioningIntent = options.getVersioningIntent();
       this.staticSummary = options.getStaticSummary();
       this.staticDetails = options.getStaticDetails();
+      this.priority = options.getPriority();
     }
 
     /**
@@ -197,12 +199,12 @@ public final class ChildWorkflowOptions {
 
     /**
      * Maximum execution time of a single workflow task. Default is 10 seconds. Maximum accepted
-     * value is 60 seconds.
+     * value is 120 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
-      if (roundUpToSeconds(workflowTaskTimeout) > 60) {
+      if (roundUpToSeconds(workflowTaskTimeout) > 120) {
         throw new IllegalArgumentException(
-            "WorkflowTaskTimeout over one minute: " + workflowTaskTimeout);
+            "WorkflowTaskTimeout over two minutes: " + workflowTaskTimeout);
       }
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
@@ -332,6 +334,16 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    /**
+     * Optional priority settings that control relative ordering of task processing when tasks are
+     * backed up in a queue.
+     */
+    @Experimental
+    public Builder setPriority(Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
           namespace,
@@ -351,7 +363,8 @@ public final class ChildWorkflowOptions {
           cancellationType,
           versioningIntent,
           staticSummary,
-          staticDetails);
+          staticDetails,
+          priority);
     }
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
@@ -377,7 +390,8 @@ public final class ChildWorkflowOptions {
               ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
               : versioningIntent,
           staticSummary,
-          staticDetails);
+          staticDetails,
+          priority);
     }
   }
 
@@ -399,6 +413,7 @@ public final class ChildWorkflowOptions {
   private final VersioningIntent versioningIntent;
   private final String staticSummary;
   private final String staticDetails;
+  private final Priority priority;
 
   private ChildWorkflowOptions(
       String namespace,
@@ -418,7 +433,8 @@ public final class ChildWorkflowOptions {
       ChildWorkflowCancellationType cancellationType,
       VersioningIntent versioningIntent,
       String staticSummary,
-      String staticDetails) {
+      String staticDetails,
+      Priority priority) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -437,6 +453,7 @@ public final class ChildWorkflowOptions {
     this.versioningIntent = versioningIntent;
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
+    this.priority = priority;
   }
 
   public String getNamespace() {
@@ -507,12 +524,19 @@ public final class ChildWorkflowOptions {
     return versioningIntent;
   }
 
+  @Experimental
   public String getStaticSummary() {
     return staticSummary;
   }
 
+  @Experimental
   public String getStaticDetails() {
     return staticDetails;
+  }
+
+  @Experimental
+  public Priority getPriority() {
+    return priority;
   }
 
   public Builder toBuilder() {
@@ -541,7 +565,8 @@ public final class ChildWorkflowOptions {
         && cancellationType == that.cancellationType
         && versioningIntent == that.versioningIntent
         && Objects.equal(staticSummary, that.staticSummary)
-        && Objects.equal(staticDetails, that.staticDetails);
+        && Objects.equal(staticDetails, that.staticDetails)
+        && Objects.equal(priority, that.priority);
   }
 
   @Override
@@ -564,7 +589,8 @@ public final class ChildWorkflowOptions {
         cancellationType,
         versioningIntent,
         staticSummary,
-        staticDetails);
+        staticDetails,
+        priority);
   }
 
   @Override
@@ -610,6 +636,8 @@ public final class ChildWorkflowOptions {
         + staticSummary
         + ", staticDetails="
         + staticDetails
+        + ", priority="
+        + priority
         + '}';
   }
 }

@@ -1,0 +1,34 @@
+# **💥 BREAKING CHANGES**
+
+# API Keys
+The SDK will now automatically set the `temporal-namespace` header on all gRPC request made by the `WorkflowClient`. Users
+should no longer manually set this header.
+
+To use API keys users should follow this example:
+
+```java
+    WorkflowServiceStubs service =
+        WorkflowServiceStubs.newServiceStubs(
+            WorkflowServiceStubsOptions.newBuilder()
+                .addApiKey(
+                    () ->
+                        <API key>)
+                .setTarget(<endpoint>)
+                .setEnableHttps(true)
+                ...
+                .build());
+
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            service, WorkflowClientOptions.newBuilder().setNamespace(<namespace_id>.<account_id>).build());
+```
+
+# Bugfixes
+
+# API Keys
+* Fixed an issue where API keys were not being properly set in the `WorkflowClient` when using the Spring Boot integration.
+* Fixed an issue where a worker connecting to a Temporal server with an unconnected client would fail to authenticate.
+
+# What's Changed
+
+2025-03-10 - 73cb1e96 - Fix API key auth (#2438)

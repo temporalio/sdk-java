@@ -18,24 +18,15 @@
  * limitations under the License.
  */
 
-package io.temporal.nexus;
+package io.temporal.internal.activity;
 
-import io.nexusrpc.OperationUnsuccessfulException;
-import io.nexusrpc.handler.OperationContext;
-import io.nexusrpc.handler.OperationStartDetails;
-import io.temporal.client.WorkflowClient;
-import io.temporal.common.Experimental;
-import javax.annotation.Nullable;
+import io.temporal.activity.ActivityExecutionContext;
 
 /**
- * Function interface for {@link WorkflowClientOperationHandlers#sync} representing a call made for
- * every operation call that takes a {@link WorkflowClient}.
+ * Internal context object passed to an Activity implementation, providing more internal details
+ * than the user facing {@link ActivityExecutionContext}.
  */
-@FunctionalInterface
-@Experimental
-public interface SynchronousWorkflowClientOperationFunction<T, R> {
-  @Nullable
-  R apply(
-      OperationContext ctx, OperationStartDetails details, WorkflowClient client, @Nullable T input)
-      throws OperationUnsuccessfulException;
+public interface InternalActivityExecutionContext extends ActivityExecutionContext {
+  /** Get the latest value of {@link ActivityExecutionContext#heartbeat(Object)}. */
+  Object getLastHeartbeatValue();
 }

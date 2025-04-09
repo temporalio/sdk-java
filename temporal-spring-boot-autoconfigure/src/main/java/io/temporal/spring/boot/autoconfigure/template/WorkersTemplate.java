@@ -29,15 +29,23 @@ import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.NexusServiceImpl;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
-import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.*;
-import java.util.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -60,7 +68,6 @@ import org.springframework.util.Assert;
 public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private static final Logger log = LoggerFactory.getLogger(WorkersTemplate.class);
 
-  private final @Nonnull TemporalProperties properties;
   private final @Nonnull NamespaceProperties namespaceProperties;
   private final ClientTemplate clientTemplate;
   private final @Nullable Tracer tracer;
@@ -82,7 +89,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private final Map<String, RegisteredInfo> registeredInfo = new HashMap<>();
 
   public WorkersTemplate(
-      @Nonnull TemporalProperties properties,
       @Nonnull NamespaceProperties namespaceProperties,
       @Nullable ClientTemplate clientTemplate,
       @Nullable Tracer tracer,
@@ -92,7 +98,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       @Nullable
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
-    this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
@@ -101,6 +106,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     this.workerFactoryCustomizer = workerFactoryCustomizer;
     this.workerCustomizer = workerCustomizer;
     this.workflowImplementationCustomizer = workflowImplementationCustomizer;
+  }
+
+  public NamespaceProperties getNamespaceProperties() {
+    return namespaceProperties;
   }
 
   public WorkerFactory getWorkerFactory() {
@@ -141,16 +150,16 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     Workers workers = new Workers();
 
     // explicitly configured workflow implementations
-    if (properties.getWorkers() != null) {
-      properties
+    if (namespaceProperties.getWorkers() != null) {
+      namespaceProperties
           .getWorkers()
           .forEach(
               workerProperties ->
                   createWorkerFromAnExplicitConfig(workerFactory, workerProperties, workers));
     }
 
-    if (properties.getWorkersAutoDiscovery() != null
-        && properties.getWorkersAutoDiscovery().getPackages() != null) {
+    if (namespaceProperties.getWorkersAutoDiscovery() != null
+        && namespaceProperties.getWorkersAutoDiscovery().getPackages() != null) {
       Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses =
           autoDiscoverWorkflowImplementations();
       Map<String, Object> autoDiscoveredActivityBeans = autoDiscoverActivityBeans();
@@ -325,7 +334,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         new ClassPathScanningCandidateComponentProvider(false);
     scanner.addIncludeFilter(new AnnotationTypeFilter(WorkflowImpl.class));
     Set<Class<?>> implementations = new HashSet<>();
-    for (String pckg : properties.getWorkersAutoDiscovery().getPackages()) {
+    for (String pckg : namespaceProperties.getWorkersAutoDiscovery().getPackages()) {
       Set<BeanDefinition> candidateComponents = scanner.findCandidateComponents(pckg);
       for (BeanDefinition beanDefinition : candidateComponents) {
         try {
@@ -503,7 +512,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   @SuppressWarnings("unchecked")
   private <T> void configureWorkflowImplementation(Worker worker, Class<?> clazz) {
-
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstanceForWorkflowFactory(clazz);
     List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
@@ -518,13 +526,67 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
             .createWorkflowImplementationOptions();
 
-    for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
+    WorkerDeploymentOptions deploymentOptions = worker.getWorkerOptions().getDeploymentOptions();
+
+    // If the workflow implementation class has a constructor annotated with @WorkflowInit,
+    // we need to register it as a workflow factory.
+    if (workflowMetadata.getWorkflowInit() != null) {
+      // Currently, we only support one workflow method in a class with a constructor annotated with
+      // @WorkflowInit.
+      if (workflowMethods.size() > 1) {
+        throw new BeanDefinitionValidationException(
+            "Workflow implementation class "
+                + clazz
+                + " has more then one workflow method and a constructor annotated with @WorkflowInit.");
+      }
+      POJOWorkflowMethodMetadata workflowMethod = workflowMetadata.getWorkflowMethods().get(0);
+      if (deploymentOptions != null && deploymentOptions.isUsingVersioning()) {
+        POJOWorkflowImplementationFactory.validateVersioningBehavior(
+            clazz,
+            workflowMethod,
+            deploymentOptions.getDefaultVersioningBehavior(),
+            deploymentOptions.isUsingVersioning());
+      }
+
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
-          () -> (T) beanFactory.createBean(clazz),
+          (encodedValues) -> {
+            try {
+              Constructor<?> ctor = workflowMetadata.getWorkflowInit();
+              Object[] parameters = new Object[ctor.getParameterCount()];
+              for (int i = 0; i < ctor.getParameterCount(); i++) {
+                parameters[i] =
+                    encodedValues.get(
+                        i, ctor.getParameterTypes()[i], ctor.getGenericParameterTypes()[i]);
+              }
+              T workflowInstance = (T) workflowMetadata.getWorkflowInit().newInstance(parameters);
+              beanFactory.autowireBean(workflowInstance);
+              return workflowInstance;
+            } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+              throw new RuntimeException(e);
+            }
+          },
           workflowImplementationOptions);
       addRegisteredWorkflowImpl(
           worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
+    } else {
+      for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
+        if (deploymentOptions != null && deploymentOptions.isUsingVersioning()) {
+          POJOWorkflowImplementationFactory.validateVersioningBehavior(
+              clazz,
+              workflowMethod,
+              deploymentOptions.getDefaultVersioningBehavior(),
+              deploymentOptions.isUsingVersioning());
+        }
+        worker.registerWorkflowImplementationFactory(
+            (Class<T>) workflowMethod.getWorkflowInterface(),
+            () -> (T) beanFactory.createBean(clazz),
+            workflowImplementationOptions);
+        addRegisteredWorkflowImpl(
+            worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
+      }
     }
   }
 
