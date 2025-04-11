@@ -20,6 +20,9 @@
 
 package io.temporal.workflow.versionTests;
 
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
+import static org.junit.Assert.assertEquals;
+
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -29,6 +32,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -41,7 +45,9 @@ public class GetVersionWithoutCommandEventTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWithoutCommandEventWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(),
+              TestGetVersionWithoutCommandEventWorkflowImpl.class)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()
@@ -59,6 +65,13 @@ public class GetVersionWithoutCommandEventTest extends BaseVersionTest {
     workflowStub.signal("test signal");
     String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
     Assert.assertEquals("result 1", result);
+
+    List<String> versions =
+        WorkflowStub.fromTyped(workflowStub)
+            .describe()
+            .getTypedSearchAttributes()
+            .get(TEMPORAL_CHANGE_VERSION);
+    assertEquals(null, versions);
   }
 
   public static class TestGetVersionWithoutCommandEventWorkflowImpl

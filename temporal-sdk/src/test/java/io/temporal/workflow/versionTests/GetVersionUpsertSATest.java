@@ -25,7 +25,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowStub;
-import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -36,11 +35,12 @@ import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionTest extends BaseVersionTest {
+public class GetVersionUpsertSATest extends BaseVersionTest {
 
   private static boolean hasReplayed;
 
@@ -70,9 +70,11 @@ public class GetVersionTest extends BaseVersionTest {
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "getVersion",
+            "upsertTypedSearchAttributes",
             "executeActivity Activity2",
             "activity Activity2",
             "getVersion",
+            "upsertTypedSearchAttributes",
             "executeActivity customActivity1",
             "activity customActivity1",
             "executeActivity customActivity1",
@@ -81,31 +83,15 @@ public class GetVersionTest extends BaseVersionTest {
             "getVersion",
             "executeActivity customActivity1",
             "activity customActivity1");
-    // If upsertVersioningSA is true, then the search attributes should be set.
+    // Check that the TemporalChangeVersion search attribute is set to the users value, since that
+    // was the last call made
     List<String> versions =
         WorkflowStub.fromTyped(workflowStub)
             .describe()
             .getTypedSearchAttributes()
             .get(TEMPORAL_CHANGE_VERSION);
-    if (upsertVersioningSA) {
-      // Only one getVersion call while not replaying.
-      assertEquals(1, versions.size());
-      assertEquals("test_change-1", versions.get(0));
-    } else {
-      assertEquals(null, versions);
-    }
-  }
-
-  @Test
-  public void testGetVersionReplay() throws Exception {
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "testGetVersionHistory.json", TestGetVersionWorkflowImpl.class);
-  }
-
-  @Test
-  public void testGetVersionReplayUpsertSA() throws Exception {
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "testGetVersionHistoryUpsertSA.json", TestGetVersionWorkflowImpl.class);
+    assertEquals(1, versions.size());
+    assertEquals("test_change-2", versions.get(0));
   }
 
   public static class TestGetVersionWorkflowImpl implements TestWorkflow1 {
@@ -120,11 +106,19 @@ public class GetVersionTest extends BaseVersionTest {
       // Test adding a version check in non-replay code.
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
       assertEquals(version, 1);
+      // Test a user manually setting the TemporalChangeVersion search attributes.
+      Workflow.upsertTypedSearchAttributes(
+          TEMPORAL_CHANGE_VERSION.valueSet(Collections.singletonList("test_change-1")));
       String result = testActivities.activity2("activity2", 2);
 
       // Test version change in non-replay code.
       version = Workflow.getVersion("test_change", 1, 2);
       assertEquals(version, 1);
+      // Test a user manually setting the TemporalChangeVersion search attributes even when the SDK
+      // normally wouldn't.
+      // Intentionally use a value that the SDK would normally not set.
+      Workflow.upsertTypedSearchAttributes(
+          TEMPORAL_CHANGE_VERSION.valueSet(Collections.singletonList("test_change-2")));
       result += "activity" + testActivities.activity1(1);
 
       // Test adding a version check in replay code.
