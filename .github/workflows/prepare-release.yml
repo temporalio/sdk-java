@@ -134,6 +134,12 @@ jobs:
           - runner: macos-13
             os_family: macOS
             arch: amd64
+          - runner: macos-latest
+            os_family: macOS
+            arch: arm64
+          - runner: ubuntu-24.04-arm
+            os_family: linux
+            arch: arm64
           - runner: windows-2019
             os_family: windows
             arch: amd64
@@ -154,8 +160,8 @@ jobs:
         if: matrix.os_family != 'Linux'
         uses: actions/setup-java@v4
         with:
-          java-version: "11"
-          distribution: "temurin"
+          java-version: "21"
+          distribution: "graalvm"
 
       - name: Set up Gradle
         if: matrix.os_family != 'Linux'
@@ -164,7 +170,7 @@ jobs:
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'Linux'
         run: |
-          ./gradlew :temporal-test-server:build
+          ./gradlew -PnativeBuild :temporal-test-server:nativeBuild
 
       - name: Build native test server (Docker)
         if: matrix.os_family == 'Linux'
@@ -172,16 +178,14 @@ jobs:
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             $(docker build -q ./docker/native-image) \
-            sh -c "./gradlew :temporal-test-server:build"
+            sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeBuild"
       # path ends in a wildcard because on windows the file ends in '.exe'
-      # path excludes *.txt because native-image also writes a build manifest txt file
       - name: Upload executable to workflow
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_family }}_${{ matrix.arch }}
           path: |
-            temporal-test-server/build/graal/temporal-test-server*
-            !temporal-test-server/build/graal/*.txt
+            temporal-test-server/build/native/nativeCompile/temporal-test-server*
           if-no-files-found: error
           retention-days: 1
 
