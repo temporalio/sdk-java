@@ -62,7 +62,7 @@ public class ActivityPauseTest {
             .getRawDescription()
             .getPendingActivitiesCount());
     PendingActivityInfo activityInfo =
-        WorkflowStub.fromTyped(workflow).describe().getRawDescription().getPendingActivities(1);
+        WorkflowStub.fromTyped(workflow).describe().getRawDescription().getPendingActivities(0);
     Assert.assertTrue(activityInfo.getPaused());
   }
 
