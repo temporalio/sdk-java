@@ -140,19 +140,17 @@ public interface WorkflowInfo {
 
   /**
    * @return Workflow ID of the root Workflow
-   * @apiNote On server versions prior to v1.27.0, this method will return null. Otherwise, it will
-   *     always return a non-null value.
+   * @apiNote On server versions prior to v1.27.0, this method will be empty. Otherwise, it will be
+   *     empty if the workflow is its own root.
    */
-  @Nullable
-  String getRootWorkflowId();
+  Optional<String> getRootWorkflowId();
 
   /**
    * @return Run ID of the root Workflow
-   * @apiNote On server versions prior to v1.27.0, this method will return null. Otherwise, it will
-   *     always return a non-null value.
+   * @apiNote On server versions prior to v1.27.0, this method will be empty. Otherwise, it will be
+   *     empty if the workflow is its own root.
    */
-  @Nullable
-  String getRootRunId();
+  Optional<String> getRootRunId();
 
   /**
    * @return Workflow retry attempt handled by this Workflow code execution. Starts on "1".
