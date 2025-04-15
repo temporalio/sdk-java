@@ -1,0 +1,46 @@
+# **💥 BREAKING CHANGES**
+
+## Slot Supplier
+
+The `SlotSupplier` interface was changed to be async to match other languages and allow for future optimizations in the SDK.
+
+# **Highlights**
+
+## Priority (Pre-release)
+
+Users can now set a priority key when scheduling a workflow, activity or child workflow. The priority key will be used to help prioritize certain tasks over others when there is a backlog. Priority is currently not supported in any OSS Temporal release, but support will be coming soon. To experiment with this feature please see the [pre-release development server](https://github.com/temporalio/cli/releases/tag/v1.3.1-priority.0) or if you are a Temporal Cloud customer reach out to your SA.
+
+## Activity Pause (Pre-release)
+
+The Java SDK now supports activity pause for heart beating activities. If an activity is paused while an attempt is running and the activity is heart-beating the heartbeat will throw an `io.temporal.clientActivityPausedException`.
+
+## Versioning / Safe Deploy (Pre-release)
+
+This release introduces a preview of new APIs that gracefully manage code changes and worker pools that support them. The goal is to better control which workers should execute new, and existing, workflows and activities tasks, based on their code and configuration.
+
+`AutoUpgrade` and `Pinned` are two Versioning Behaviors that can be specified on a workflow implementation using `@WorkflowVersioningBehavior`.  `Pinned` workflows are typically short lived, and are never affected by new versions, i.e., they do not need to use the patch API for compatibility. `AutoUpgrade` workflows are mostly long running, but they need to use patching to safely transition to new versions. The choice of `Pinned` vs `AutoUpgrade` ultimately depends on your willingness to keep old worker fleets running vs the complexity of patching.
+
+To manage Worker Deployments please use the Temporal CLI, or the `WorkflowServiceStubs`.
+
+# What's Changed
+
+2025-03-10 - 73cb1e96 - Fix API key auth (#2438)
+2025-03-10 - ff949711 - Release v1.28.1 (#2439)
+2025-03-11 - 02711928 - Add OnConflictOptions Support (#2415)
+2025-03-11 - 334e1294 - Add support for metadata to test server (#2441)
+2025-03-13 - f7b8ded7 - Unblock UseExisting conflict policy for Nexux WorkflowRunOperation (#2440)
+2025-03-14 - 23771149 - Fix workflow ID reuse policy and conflict policy handling (#2446)
+2025-03-17 - 48b72239 - Fix spring boot api key enable https (#2445)
+2025-03-17 - d430114f - Add Summary to Nexus Operations (#2444)
+2025-03-19 - 59bbabbb - Make sure the Schedule Client has the namespace header injected (#2452)
+2025-03-20 - 6c4c1835 - Remove experimental tag from Nexus (#2454)
+2025-03-24 - ead142ea - :boom: [Breaking] Asyncify slot suppliers (#2433)
+2025-03-25 - 93f124f4 - Priorities for Workflows/Activities (#2453)
+2025-03-26 - ad4a4262 - Ensure heartbeat details aren't cleared (#2460)
+2025-03-31 - c9a1502e - Add support for start delay to the time skipping test server (#2462)
+2025-04-02 - 75f5d1af - Update Gradle validation action (#2468)
+2025-04-02 - b3b78064 - Worker Versioning Annotations & Options (#2463)
+2025-04-07 - e3921b63 - Add support for workflow init in Springboot (#2470)
+2025-04-15 - 78a766f3 - Align root workflow execution with real server (#2477)
+2025-04-15 - 8808c407 - Add support for activity pause (#2476)
+2025-04-15 - b6ae9b54 - De-flake asserting slot metrics (#2478)
