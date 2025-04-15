@@ -1351,9 +1351,11 @@ class StateMachines {
       ExecutionId parentExecutionId = parent.get().getExecutionId();
       a.setParentWorkflowNamespace(parentExecutionId.getNamespace());
       a.setParentWorkflowExecution(parentExecutionId.getExecution());
+      // This mimics the real server behaviour where the root execution is only set in history
+      // if the workflow has a parent.
+      ExecutionId rootExecutionId = ctx.getWorkflowMutableState().getRoot().getExecutionId();
+      a.setRootWorkflowExecution(rootExecutionId.getExecution());
     }
-    ExecutionId rootExecutionId = ctx.getWorkflowMutableState().getRoot().getExecutionId();
-    a.setRootWorkflowExecution(rootExecutionId.getExecution());
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)

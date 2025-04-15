@@ -127,15 +127,19 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         : Optional.of(parentWorkflowExecution.getRunId());
   }
 
-  public String getRootWorkflowId() {
+  public Optional<String> getRootWorkflowId() {
     WorkflowExecution rootWorkflowExecution = context.getRootWorkflowExecution();
-    return rootWorkflowExecution == null ? null : rootWorkflowExecution.getWorkflowId();
+    return rootWorkflowExecution == null
+        ? Optional.empty()
+        : Optional.of(rootWorkflowExecution.getWorkflowId());
   }
 
   @Override
-  public String getRootRunId() {
+  public Optional<String> getRootRunId() {
     WorkflowExecution rootWorkflowExecution = context.getRootWorkflowExecution();
-    return rootWorkflowExecution == null ? null : rootWorkflowExecution.getRunId();
+    return rootWorkflowExecution == null
+        ? Optional.empty()
+        : Optional.of(rootWorkflowExecution.getRunId());
   }
 
   @Override
