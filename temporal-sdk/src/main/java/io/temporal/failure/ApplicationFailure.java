@@ -51,6 +51,7 @@ import javax.annotation.Nullable;
  *   <li>nonRetryable is set to false
  *   <li>details are set to null
  *   <li>stack trace is copied from the original exception
+ *   <li>stack category is set to ApplicationErrorCategory.UNSPECIFIED
  * </ul>
  */
 public final class ApplicationFailure extends TemporalFailure {
@@ -58,6 +59,7 @@ public final class ApplicationFailure extends TemporalFailure {
   private final Values details;
   private boolean nonRetryable;
   private Duration nextRetryDelay;
+  private final ApplicationErrorCategory category;
 
   /**
    * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
@@ -92,7 +94,14 @@ public final class ApplicationFailure extends TemporalFailure {
    */
   public static ApplicationFailure newFailureWithCause(
       String message, String type, @Nullable Throwable cause, Object... details) {
-    return new ApplicationFailure(message, type, false, new EncodedValues(details), cause, null);
+    return new ApplicationFailure(
+        message,
+        type,
+        false,
+        new EncodedValues(details),
+        cause,
+        null,
+        ApplicationErrorCategory.UNSPECIFIED);
   }
 
   /**
@@ -118,7 +127,13 @@ public final class ApplicationFailure extends TemporalFailure {
       Duration nextRetryDelay,
       Object... details) {
     return new ApplicationFailure(
-        message, type, false, new EncodedValues(details), cause, nextRetryDelay);
+        message,
+        type,
+        false,
+        new EncodedValues(details),
+        cause,
+        nextRetryDelay,
+        ApplicationErrorCategory.UNSPECIFIED);
   }
 
   /**
@@ -153,7 +168,40 @@ public final class ApplicationFailure extends TemporalFailure {
    */
   public static ApplicationFailure newNonRetryableFailureWithCause(
       String message, String type, @Nullable Throwable cause, Object... details) {
-    return new ApplicationFailure(message, type, true, new EncodedValues(details), cause, null);
+    return new ApplicationFailure(
+        message,
+        type,
+        true,
+        new EncodedValues(details),
+        cause,
+        null,
+        ApplicationErrorCategory.UNSPECIFIED);
+  }
+
+  /**
+   * New ApplicationFailure with a specified category and {@link #isNonRetryable()} flag set to
+   * false.
+   * 
+   * <p>Note that this exception still may not be retried by the service if its type is included in
+   * the doNotRetry property of the correspondent retry policy.
+   *
+   * @param message optional error message
+   * @param type error type
+   * @param category the category of the application failure.
+   * @param cause failure cause. Each element of the cause chain will be converted to
+   *     ApplicationFailure for network transmission across network if it doesn't extend {@link
+   *     TemporalFailure}
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
+   */
+  public static ApplicationFailure newFailureWithCategory(
+      String message,
+      String type,
+      ApplicationErrorCategory category,
+      @Nullable Throwable cause,
+      Object... details) {
+    return new ApplicationFailure(
+        message, type, false, new EncodedValues(details), cause, null, category);
   }
 
   static ApplicationFailure newFromValues(
@@ -163,7 +211,14 @@ public final class ApplicationFailure extends TemporalFailure {
       Values details,
       Throwable cause,
       Duration nextRetryDelay) {
-    return new ApplicationFailure(message, type, nonRetryable, details, cause, nextRetryDelay);
+    return new ApplicationFailure(
+        message,
+        type,
+        nonRetryable,
+        details,
+        cause,
+        nextRetryDelay,
+        ApplicationErrorCategory.UNSPECIFIED);
   }
 
   ApplicationFailure(
@@ -172,12 +227,14 @@ public final class ApplicationFailure extends TemporalFailure {
       boolean nonRetryable,
       Values details,
       Throwable cause,
-      Duration nextRetryDelay) {
+      Duration nextRetryDelay,
+      ApplicationErrorCategory category) {
     super(getMessage(message, Objects.requireNonNull(type), nonRetryable), message, cause);
     this.type = type;
     this.details = details;
     this.nonRetryable = nonRetryable;
     this.nextRetryDelay = nextRetryDelay;
+    this.category = category;
   }
 
   public String getType() {
@@ -208,6 +265,10 @@ public final class ApplicationFailure extends TemporalFailure {
 
   public void setNextRetryDelay(Duration nextRetryDelay) {
     this.nextRetryDelay = nextRetryDelay;
+  }
+
+  public ApplicationErrorCategory getApplicationErrorCategory() {
+    return category;
   }
 
   private static String getMessage(String message, String type, boolean nonRetryable) {
