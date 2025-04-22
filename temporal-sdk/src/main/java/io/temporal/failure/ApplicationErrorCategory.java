@@ -19,10 +19,9 @@
  */
 
 package io.temporal.failure;
-// TODO(thomas): string values ?
 /**
  * Mirrors the proto definition for ApplicationErrorCategory. Used to categorize application
- * failures, for example, to distinguish benign errors from others.
+ * failures.
  *
  * @see io.temporal.api.enums.v1.ApplicationErrorCategory
  */
@@ -30,4 +29,32 @@ public enum ApplicationErrorCategory {
   UNSPECIFIED,
   /** Expected application error with little/no severity. */
   BENIGN,
+  ;
+
+  public static ApplicationErrorCategory fromProto(
+      io.temporal.api.enums.v1.ApplicationErrorCategory protoCategory) {
+    if (protoCategory == null) {
+      return UNSPECIFIED;
+    }
+    switch (protoCategory) {
+      case APPLICATION_ERROR_CATEGORY_BENIGN:
+        return BENIGN;
+      case APPLICATION_ERROR_CATEGORY_UNSPECIFIED:
+      case UNRECOGNIZED:
+      default:
+        // Fallback unrecognized or unspecified proto values as UNSPECIFIED
+        return UNSPECIFIED;
+    }
+  }
+
+  public io.temporal.api.enums.v1.ApplicationErrorCategory toProto() {
+    switch (this) {
+      case BENIGN:
+        return io.temporal.api.enums.v1.ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN;
+      case UNSPECIFIED:
+      default:
+        // Fallback to UNSPECIFIED for unknown values
+        return io.temporal.api.enums.v1.ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED;
+    }
+  }
 } 

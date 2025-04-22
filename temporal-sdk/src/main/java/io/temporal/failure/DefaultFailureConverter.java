@@ -98,7 +98,7 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo info = failure.getApplicationFailureInfo();
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-          return ApplicationFailure.newFromValues(
+          return new ApplicationFailure(
               failure.getMessage(),
               info.getType(),
               info.getNonRetryable(),
@@ -106,7 +106,8 @@ public final class DefaultFailureConverter implements FailureConverter {
               cause,
               info.hasNextRetryDelay()
                   ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
-                  : null);
+                  : null,
+              ApplicationErrorCategory.fromProto(info.getCategory()));
         }
       case TIMEOUT_FAILURE_INFO:
         {
@@ -260,7 +261,8 @@ public final class DefaultFailureConverter implements FailureConverter {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
-              .setNonRetryable(ae.isNonRetryable());
+              .setNonRetryable(ae.isNonRetryable())
+              .setCategory(ae.getApplicationErrorCategory().toProto());
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
@@ -352,7 +354,8 @@ public final class DefaultFailureConverter implements FailureConverter {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
               .setType(throwable.getClass().getName())
-              .setNonRetryable(false);
+              .setNonRetryable(false)
+              .setCategory(io.temporal.api.enums.v1.ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
       failure.setApplicationFailureInfo(info);
     }
     return failure.build();
