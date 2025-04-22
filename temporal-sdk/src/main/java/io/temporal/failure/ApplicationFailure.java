@@ -283,7 +283,6 @@ public final class ApplicationFailure extends TemporalFailure {
     if (t instanceof ApplicationFailure
         && ((ApplicationFailure) t).getApplicationErrorCategory()
             == ApplicationErrorCategory.BENIGN) {
-      return true;
     }
 
     // Handle WorkflowExecutionException, which wraps a protobuf Failure
@@ -298,11 +297,20 @@ public final class ApplicationFailure extends TemporalFailure {
       }
     }
 
+    // Handle ActivityFailure, which wraps the actual ApplicationFailure
+    if (t instanceof io.temporal.failure.ActivityFailure) {
+      Throwable cause = t.getCause();
+      boolean result = cause != null && isBenignApplicationFailure(cause);
+      return result;
+    }
+
     // Check the immediate cause.
     Throwable cause = t.getCause();
-    return cause != null
-        && cause instanceof ApplicationFailure
-        && ((ApplicationFailure) cause).getApplicationErrorCategory()
-            == ApplicationErrorCategory.BENIGN;
+    boolean result =
+        cause != null
+            && cause instanceof ApplicationFailure
+            && ((ApplicationFailure) cause).getApplicationErrorCategory()
+                == ApplicationErrorCategory.BENIGN;
+    return result;
   }
 }
