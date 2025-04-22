@@ -76,10 +76,11 @@ public class WorkflowRunTokenTest {
   }
 
   @Test
-  public void loadOldWorkflowRunToken() {
+  public void failLoadOldWorkflowRunToken() {
     String operationToken = "AAAAA-BBBBB-CCCCC";
-    Assert.assertEquals(
-        operationToken, OperationTokenUtil.loadWorkflowIdFromOperationToken(operationToken));
+    Assert.assertThrows(
+        IllegalArgumentException.class,
+        () -> OperationTokenUtil.loadWorkflowIdFromOperationToken(operationToken));
   }
 
   @Test
