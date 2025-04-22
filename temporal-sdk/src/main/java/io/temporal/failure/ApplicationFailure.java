@@ -279,4 +279,9 @@ public final class ApplicationFailure extends TemporalFailure {
         + ", nonRetryable="
         + nonRetryable;
   }
+
+  public static boolean isBenignApplicationFailure(@Nullable Throwable t) {
+    return t instanceof ApplicationFailure
+        && ((ApplicationFailure) t).getApplicationErrorCategory() == ApplicationErrorCategory.BENIGN;
+  }
 }
