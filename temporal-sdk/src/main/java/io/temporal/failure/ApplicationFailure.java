@@ -181,7 +181,7 @@ public final class ApplicationFailure extends TemporalFailure {
   /**
    * New ApplicationFailure with a specified category and {@link #isNonRetryable()} flag set to
    * false.
-   * 
+   *
    * <p>Note that this exception still may not be retried by the service if its type is included in
    * the doNotRetry property of the correspondent retry policy.
    *
@@ -210,15 +210,10 @@ public final class ApplicationFailure extends TemporalFailure {
       boolean nonRetryable,
       Values details,
       Throwable cause,
-      Duration nextRetryDelay) {
+      Duration nextRetryDelay,
+      ApplicationErrorCategory category) {
     return new ApplicationFailure(
-        message,
-        type,
-        nonRetryable,
-        details,
-        cause,
-        nextRetryDelay,
-        ApplicationErrorCategory.UNSPECIFIED);
+        message, type, nonRetryable, details, cause, nextRetryDelay, category);
   }
 
   ApplicationFailure(
@@ -281,7 +276,33 @@ public final class ApplicationFailure extends TemporalFailure {
   }
 
   public static boolean isBenignApplicationFailure(@Nullable Throwable t) {
-    return t instanceof ApplicationFailure
-        && ((ApplicationFailure) t).getApplicationErrorCategory() == ApplicationErrorCategory.BENIGN;
+    if (t == null) {
+      return false;
+    }
+
+    if (t instanceof ApplicationFailure
+        && ((ApplicationFailure) t).getApplicationErrorCategory()
+            == ApplicationErrorCategory.BENIGN) {
+      return true;
+    }
+
+    // Handle WorkflowExecutionException, which wraps a protobuf Failure
+    if (t instanceof io.temporal.internal.worker.WorkflowExecutionException) {
+      io.temporal.api.failure.v1.Failure failure =
+          ((io.temporal.internal.worker.WorkflowExecutionException) t).getFailure();
+      if (failure.hasApplicationFailureInfo()
+          && failure.getApplicationFailureInfo().getCategory()
+              == io.temporal.api.enums.v1.ApplicationErrorCategory
+                  .APPLICATION_ERROR_CATEGORY_BENIGN) {
+        return true;
+      }
+    }
+
+    // Check the immediate cause.
+    Throwable cause = t.getCause();
+    return cause != null
+        && cause instanceof ApplicationFailure
+        && ((ApplicationFailure) cause).getApplicationErrorCategory()
+            == ApplicationErrorCategory.BENIGN;
   }
 }

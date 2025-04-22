@@ -98,7 +98,7 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo info = failure.getApplicationFailureInfo();
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-          return new ApplicationFailure(
+          return ApplicationFailure.newFromValues(
               failure.getMessage(),
               info.getType(),
               info.getNonRetryable(),
@@ -147,13 +147,14 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.hasLastHeartbeatDetails()
                   ? Optional.of(info.getLastHeartbeatDetails())
                   : Optional.empty();
-          return new ApplicationFailure(
+          return ApplicationFailure.newFromValues(
               failure.getMessage(),
               "ResetWorkflow",
               false,
               new EncodedValues(details, dataConverter),
               cause,
-              null);
+              null,
+              ApplicationErrorCategory.UNSPECIFIED);
         }
       case ACTIVITY_FAILURE_INFO:
         {
@@ -215,7 +216,8 @@ public final class DefaultFailureConverter implements FailureConverter {
             false,
             new EncodedValues(Optional.empty(), dataConverter),
             cause,
-            null);
+            null,
+            ApplicationErrorCategory.UNSPECIFIED);
     }
   }
 
@@ -355,7 +357,9 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(throwable.getClass().getName())
               .setNonRetryable(false)
-              .setCategory(io.temporal.api.enums.v1.ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
+              .setCategory(
+                  io.temporal.api.enums.v1.ApplicationErrorCategory
+                      .APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
       failure.setApplicationFailureInfo(info);
     }
     return failure.build();

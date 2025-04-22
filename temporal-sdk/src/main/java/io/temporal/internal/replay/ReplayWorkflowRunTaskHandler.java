@@ -274,7 +274,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
                   workflow.getWorkflowContext().mapWorkflowExceptionToFailure(e));
             }
           }
-          if (e instanceof WorkflowExecutionException) {
+          if (e instanceof WorkflowExecutionException
+              && !ApplicationFailure.isBenignApplicationFailure(e)) {
             metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
           }
           throw wrap(e);

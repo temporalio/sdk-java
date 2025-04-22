@@ -19,6 +19,7 @@
  */
 
 package io.temporal.failure;
+
 /**
  * Mirrors the proto definition for ApplicationErrorCategory. Used to categorize application
  * failures.
@@ -54,7 +55,8 @@ public enum ApplicationErrorCategory {
       case UNSPECIFIED:
       default:
         // Fallback to UNSPECIFIED for unknown values
-        return io.temporal.api.enums.v1.ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED;
+        return io.temporal.api.enums.v1.ApplicationErrorCategory
+            .APPLICATION_ERROR_CATEGORY_UNSPECIFIED;
     }
   }
-} 
+}
