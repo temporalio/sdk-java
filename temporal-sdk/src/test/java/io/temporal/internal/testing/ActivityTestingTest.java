@@ -31,6 +31,7 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.ActivityRequestedAsyncCompletion;
 import io.temporal.testing.TestActivityEnvironment;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,10 +40,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 public class ActivityTestingTest {
@@ -109,6 +107,21 @@ public class ActivityTestingTest {
           e.getCause().getMessage());
       e.printStackTrace();
     }
+  }
+
+  private static class AsyncActivityImpl implements TestActivity {
+    @Override
+    public String activity1(String input) {
+      Activity.getExecutionContext().doNotCompleteOnReturn();
+      return "";
+    }
+  }
+
+  @Test
+  public void testAsyncActivity() {
+    testEnvironment.registerActivitiesImplementations(new AsyncActivityImpl());
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
+    Assert.assertThrows(ActivityRequestedAsyncCompletion.class, () -> activity.activity1("input1"));
   }
 
   private static class HeartbeatActivityImpl implements TestActivity {
