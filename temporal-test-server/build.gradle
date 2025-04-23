@@ -120,7 +120,12 @@ if (project.hasProperty("nativeBuild")) {
                 // If we're on linux, static link everything but libc. Otherwise link
                 // everything dynamically (note the '-' rather than '+' in front of
                 // StaticExecutable)
-                buildArgs.add(isLinux() ? "-H:+StaticExecutableWithDynamicLibC": "-H:-StaticExecutable")
+                if (isLinux() && !project.hasProperty("nativeBuildMusl")) {
+                    buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
+                } else if (isLinux() && project.hasProperty("nativeBuildMusl")) {
+                    buildArgs.add("--static")
+                    buildArgs.add("--libc=musl")
+                }
                 buildArgs.add("-H:+UnlockExperimentalVMOptions")
                 buildArgs.add("-O4")
 

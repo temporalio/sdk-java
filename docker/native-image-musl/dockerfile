@@ -4,11 +4,15 @@ FROM ubuntu:18.04
 ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java21
 COPY --from=ghcr.io/graalvm/native-image-community:21 $JAVA_HOME $JAVA_HOME
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
-RUN apt-get update && apt-get install -y software-properties-common
-RUN add-apt-repository ppa:ubuntu-toolchain-r/test
 RUN apt-get update
-# We need to update gcc and g++ to 10 for Graal to work on ARM64
-RUN apt-get install -y git build-essential zlib1g-dev gcc-10 g++-10
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 60 --slave /usr/bin/g++ g++ /usr/bin/g++-10
+RUN apt-get install -y git build-essential curl
+COPY install-musl.sh /opt/install-musl.sh
+RUN chmod +x /opt/install-musl.sh
+WORKDIR /opt
+# We need to build musl and zlibc with musl to for a static build
+# See https://www.graalvm.org/21.3/reference-manual/native-image/StaticImages/index.html
+RUN ./install-musl.sh
+ENV MUSL_HOME=/opt/musl-toolchain
+ENV PATH="$MUSL_HOME/bin:$PATH"
 # Avoid errors like: "fatal: detected dubious ownership in repository"
 RUN git config --global --add safe.directory '*'

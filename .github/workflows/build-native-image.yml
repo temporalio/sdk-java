@@ -1,0 +1,99 @@
+name: Build native image
+defaults:
+  run:
+    shell: bash -euo pipefail -O nullglob {0}
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        type: string
+        description: "Git ref from which to release"
+        required: true
+        default: "master"
+  workflow_call:
+    inputs:
+        ref:
+          type: string
+          description: "Git ref from which to release"
+          required: true
+          default: "master"
+env:
+  INPUT_REF: ${{ github.event.inputs.ref }}
+
+jobs:
+  build_native_images:
+    name: Build native test server
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os_family: linux
+            arch: amd64
+            musl: true
+          - runner: ubuntu-latest
+            os_family: linux
+            arch: amd64
+            musl: false
+          - runner: macos-13
+            os_family: macOS
+            arch: amd64
+          - runner: macos-latest
+            os_family: macOS
+            arch: arm64
+          - runner: ubuntu-24.04-arm
+            os_family: linux
+            arch: arm64
+          - runner: windows-latest
+            os_family: windows
+            arch: amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ env.INPUT_REF }}
+      
+      - name: Set up Java
+        if: matrix.os_family != 'Linux'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "graalvm"
+
+      - name: Set up Gradle
+        if: matrix.os_family != 'Linux'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build native test server (non-Docker)
+        if: matrix.os_family != 'Linux'
+        run: |
+          ./gradlew -PnativeBuild :temporal-test-server:nativeCompile
+
+      - name: Build native test server (Docker non-musl)
+        if: matrix.os_family == 'Linux' && matrix.musl == false
+        run: |
+          docker run \
+            --rm -w /github/workspace -v "$(pwd):/github/workspace" \
+            $(docker build -q ./docker/native-image) \
+            sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeCompile"
+      
+      - name: Build native test server (Docker musl)
+        if: matrix.os_family == 'Linux' && matrix.musl == true
+        run: |
+          docker run \
+            --rm -w /github/workspace -v "$(pwd):/github/workspace" \
+            $(docker build -q ./docker/native-image-musl) \
+            sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
+      # path ends in a wildcard because on windows the file ends in '.exe'
+      - name: Upload executable to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)}}
+          path: |
+            temporal-test-server/build/native/nativeCompile/temporal-test-server*
+          if-no-files-found: error
+          retention-days: 1
+
