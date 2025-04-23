@@ -37,17 +37,15 @@ public class OperationTokenUtil {
   /**
    * Load a workflow run operation token from an operation token.
    *
-   * @throws FallbackToWorkflowIdException if the operation token is not a workflow run token
    * @throws IllegalArgumentException if the operation token is invalid
    */
-  public static WorkflowRunOperationToken loadWorkflowRunOperationToken(String operationToken)
-      throws FallbackToWorkflowIdException {
+  public static WorkflowRunOperationToken loadWorkflowRunOperationToken(String operationToken) {
     WorkflowRunOperationToken token;
     try {
       JavaType reference = mapper.getTypeFactory().constructType(WorkflowRunOperationToken.class);
       token = mapper.readValue(decoder.decode(operationToken), reference);
     } catch (Exception e) {
-      throw new FallbackToWorkflowIdException("Failed to parse operation token: " + e.getMessage());
+      throw new IllegalArgumentException("Failed to parse operation token: " + e.getMessage());
     }
     if (!token.getType().equals(OperationTokenType.WORKFLOW_RUN)) {
       throw new IllegalArgumentException(
@@ -68,16 +66,7 @@ public class OperationTokenUtil {
    * @throws IllegalArgumentException if the operation token is invalid
    */
   public static String loadWorkflowIdFromOperationToken(String operationToken) {
-    try {
-      WorkflowRunOperationToken token = loadWorkflowRunOperationToken(operationToken);
-      return token.getWorkflowId();
-    } catch (OperationTokenUtil.FallbackToWorkflowIdException e) {
-      // Previous versions of the SDK simply used the workflow ID as the operation token
-      // This fallback is provided for backwards compatibility for those cases.
-      // This fallback will be removed in a future release.
-      // See: https://github.com/temporalio/sdk-java/issues/2423
-      return operationToken;
-    }
+    return loadWorkflowRunOperationToken(operationToken).getWorkflowId();
   }
 
   /** Generate a workflow run operation token from a workflow ID and namespace. */
@@ -85,12 +74,6 @@ public class OperationTokenUtil {
       throws JsonProcessingException {
     String json = ow.writeValueAsString(new WorkflowRunOperationToken(namespace, workflowId));
     return encoder.encodeToString(json.getBytes());
-  }
-
-  public static class FallbackToWorkflowIdException extends RuntimeException {
-    public FallbackToWorkflowIdException(String message) {
-      super(message);
-    }
   }
 
   private OperationTokenUtil() {}
