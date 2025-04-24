@@ -41,8 +41,8 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.Config;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
@@ -267,7 +267,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
               implementationOptions.getFailWorkflowExceptionTypes();
           for (Class<? extends Throwable> failType : failTypes) {
             if (failType.isAssignableFrom(e.getClass())) {
-              if (!ApplicationFailure.isBenignApplicationFailure(e)) {
+              if (!FailureUtils.isBenignApplicationFailure(e)) {
                 metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
               }
               throw new WorkflowExecutionException(
@@ -275,7 +275,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             }
           }
           if (e instanceof WorkflowExecutionException
-              && !ApplicationFailure.isBenignApplicationFailure(e)) {
+              && !FailureUtils.isBenignApplicationFailure(e)) {
             metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
           }
           throw wrap(e);

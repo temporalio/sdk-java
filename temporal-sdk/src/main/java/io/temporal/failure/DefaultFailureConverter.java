@@ -27,6 +27,7 @@ import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.failure.v1.*;
 import io.temporal.client.ActivityCanceledException;
@@ -107,7 +108,7 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.hasNextRetryDelay()
                   ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
                   : null,
-              ApplicationErrorCategory.fromProto(info.getCategory()));
+              info.getCategory());
         }
       case TIMEOUT_FAILURE_INFO:
         {
@@ -154,7 +155,7 @@ public final class DefaultFailureConverter implements FailureConverter {
               new EncodedValues(details, dataConverter),
               cause,
               null,
-              ApplicationErrorCategory.UNSPECIFIED);
+              ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
         }
       case ACTIVITY_FAILURE_INFO:
         {
@@ -217,7 +218,7 @@ public final class DefaultFailureConverter implements FailureConverter {
             new EncodedValues(Optional.empty(), dataConverter),
             cause,
             null,
-            ApplicationErrorCategory.UNSPECIFIED);
+            ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
     }
   }
 
@@ -264,7 +265,7 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
               .setNonRetryable(ae.isNonRetryable())
-              .setCategory(ae.getApplicationErrorCategory().toProto());
+              .setCategory(ae.getApplicationErrorCategory());
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());

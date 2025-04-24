@@ -35,8 +35,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityTaskExecutors.ActivityTaskExecutor;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.env.ReflectionUtils;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -210,7 +210,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     Scope ms =
         metricsScope.tagged(
             ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
-    if (!ApplicationFailure.isBenignApplicationFailure(exception)) {
+    if (!FailureUtils.isBenignApplicationFailure(exception)) {
       if (isLocalActivity) {
         ms.counter(MetricsType.LOCAL_ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
         ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);

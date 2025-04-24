@@ -21,6 +21,7 @@
 package io.temporal.failure;
 
 import com.google.common.base.Strings;
+import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
@@ -51,7 +52,7 @@ import javax.annotation.Nullable;
  *   <li>nonRetryable is set to false
  *   <li>details are set to null
  *   <li>stack trace is copied from the original exception
- *   <li>stack category is set to ApplicationErrorCategory.UNSPECIFIED
+ *   <li>stack category is set to ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED
  * </ul>
  */
 public final class ApplicationFailure extends TemporalFailure {
@@ -101,7 +102,7 @@ public final class ApplicationFailure extends TemporalFailure {
         new EncodedValues(details),
         cause,
         null,
-        ApplicationErrorCategory.UNSPECIFIED);
+        ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
   }
 
   /**
@@ -133,7 +134,7 @@ public final class ApplicationFailure extends TemporalFailure {
         new EncodedValues(details),
         cause,
         nextRetryDelay,
-        ApplicationErrorCategory.UNSPECIFIED);
+        ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
   }
 
   /**
@@ -175,7 +176,7 @@ public final class ApplicationFailure extends TemporalFailure {
         new EncodedValues(details),
         cause,
         null,
-        ApplicationErrorCategory.UNSPECIFIED);
+        ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
   }
 
   /**
@@ -273,44 +274,5 @@ public final class ApplicationFailure extends TemporalFailure {
         + '\''
         + ", nonRetryable="
         + nonRetryable;
-  }
-
-  public static boolean isBenignApplicationFailure(@Nullable Throwable t) {
-    if (t == null) {
-      return false;
-    }
-
-    if (t instanceof ApplicationFailure
-        && ((ApplicationFailure) t).getApplicationErrorCategory()
-            == ApplicationErrorCategory.BENIGN) {
-    }
-
-    // Handle WorkflowExecutionException, which wraps a protobuf Failure
-    if (t instanceof io.temporal.internal.worker.WorkflowExecutionException) {
-      io.temporal.api.failure.v1.Failure failure =
-          ((io.temporal.internal.worker.WorkflowExecutionException) t).getFailure();
-      if (failure.hasApplicationFailureInfo()
-          && failure.getApplicationFailureInfo().getCategory()
-              == io.temporal.api.enums.v1.ApplicationErrorCategory
-                  .APPLICATION_ERROR_CATEGORY_BENIGN) {
-        return true;
-      }
-    }
-
-    // Handle ActivityFailure, which wraps the actual ApplicationFailure
-    if (t instanceof io.temporal.failure.ActivityFailure) {
-      Throwable cause = t.getCause();
-      boolean result = cause != null && isBenignApplicationFailure(cause);
-      return result;
-    }
-
-    // Check the immediate cause.
-    Throwable cause = t.getCause();
-    boolean result =
-        cause != null
-            && cause instanceof ApplicationFailure
-            && ((ApplicationFailure) cause).getApplicationErrorCategory()
-                == ApplicationErrorCategory.BENIGN;
-    return result;
   }
 }

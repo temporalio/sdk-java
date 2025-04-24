@@ -29,11 +29,11 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.failure.ApplicationErrorCategory;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -131,7 +131,10 @@ public class WorkflowFailedMetricsTests {
         throw ApplicationFailure.newFailure("Non-benign failure", "NonBenignType");
       } else {
         throw ApplicationFailure.newFailureWithCategory(
-            "Benign failure", "BenignType", ApplicationErrorCategory.BENIGN, null);
+            "Benign failure",
+            "BenignType",
+            ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN,
+            null);
       }
     }
   }
@@ -213,8 +216,10 @@ public class WorkflowFailedMetricsTests {
 
     Throwable cause1 = e1.getCause();
     assertTrue("Cause should be ApplicationFailure", cause1 instanceof ApplicationFailure);
-    assertFalse(
-        "Failure should not be benign", ApplicationFailure.isBenignApplicationFailure(cause1));
+    boolean isBenign =
+        ((ApplicationFailure) cause1).getApplicationErrorCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN;
+    assertFalse("Failure should not be benign", isBenign);
     assertEquals("Non-benign failure", ((TemporalFailure) cause1).getOriginalMessage());
 
     reporter.assertCounter(
@@ -228,11 +233,18 @@ public class WorkflowFailedMetricsTests {
                 .validateBuildWithDefaults());
 
     WorkflowFailedException e2 =
-        assertThrows(WorkflowFailedException.class, () -> benignStub.execute(true));
+        assertThrows(WorkflowFailedException.class, () -> client.newWorkflowStub(
+          ApplicationFailureWorkflow.class,
+          WorkflowOptions.newBuilder()
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .validateBuildWithDefaults()).execute(true));
 
     Throwable cause2 = e2.getCause();
     assertTrue("Cause should be ApplicationFailure", cause2 instanceof ApplicationFailure);
-    assertTrue("Failure should be benign", ApplicationFailure.isBenignApplicationFailure(cause2));
+    isBenign =
+        ((ApplicationFailure) cause2).getApplicationErrorCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN;
+    assertTrue("Failure should be benign", isBenign);
     assertEquals("Benign failure", ((TemporalFailure) cause2).getOriginalMessage());
 
     reporter.assertCounter(

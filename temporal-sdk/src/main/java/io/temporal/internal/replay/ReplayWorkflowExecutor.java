@@ -33,8 +33,8 @@ import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.update.v1.Input;
 import io.temporal.api.update.v1.Request;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
@@ -154,7 +154,7 @@ final class ReplayWorkflowExecutor {
       metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
-      if (!ApplicationFailure.isBenignApplicationFailure(failure)) {
+      if (!FailureUtils.isBenignApplicationFailure(failure)) {
         metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
       }
     } else {

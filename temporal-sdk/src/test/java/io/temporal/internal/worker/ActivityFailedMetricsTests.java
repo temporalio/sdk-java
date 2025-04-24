@@ -35,13 +35,12 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.failure.ApplicationErrorCategory;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.TemporalFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.workflow.Workflow;
@@ -113,7 +112,10 @@ public class ActivityFailedMetricsTests {
         throw ApplicationFailure.newFailure("Non-benign activity failure", "NonBenignType");
       } else {
         throw ApplicationFailure.newFailureWithCategory(
-            "Benign activity failure", "BenignType", ApplicationErrorCategory.BENIGN, null);
+            "Benign activity failure",
+            "BenignType",
+            ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN,
+            null);
       }
     }
   }
@@ -178,28 +180,31 @@ public class ActivityFailedMetricsTests {
         getActivityTagsWithWorkerType("ActivityWorker", "ActivityWorkflow"));
 
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    ActivityWorkflow nonBenignStub =
-        client.newWorkflowStub(
-            ActivityWorkflow.class,
-            WorkflowOptions.newBuilder()
-                .setTaskQueue(testWorkflowRule.getTaskQueue())
-                .validateBuildWithDefaults());
 
-    WorkflowFailedException e1 =
-        assertThrows(WorkflowFailedException.class, () -> nonBenignStub.execute(false));
+    WorkflowFailedException nonBenignErr =
+        assertThrows(
+            WorkflowFailedException.class,
+            () ->
+                client
+                    .newWorkflowStub(
+                        ActivityWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                            .setTaskQueue(testWorkflowRule.getTaskQueue())
+                            .validateBuildWithDefaults())
+                    .execute(false));
 
     assertTrue(
         "Cause should be ActivityFailure",
-        e1.getCause() instanceof io.temporal.failure.ActivityFailure);
+        nonBenignErr.getCause() instanceof io.temporal.failure.ActivityFailure);
     assertTrue(
         "Inner cause should be ApplicationFailure",
-        e1.getCause().getCause() instanceof ApplicationFailure);
+        nonBenignErr.getCause().getCause() instanceof ApplicationFailure);
+    ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
     assertFalse(
         "Failure should not be benign",
-        ApplicationFailure.isBenignApplicationFailure(e1.getCause().getCause()));
-    assertEquals(
-        "Non-benign activity failure",
-        ((TemporalFailure) e1.getCause().getCause()).getOriginalMessage());
+        af.getApplicationErrorCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+    assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     reporter.assertCounter(
         MetricsType.ACTIVITY_EXEC_FAILED_COUNTER,
@@ -207,7 +212,7 @@ public class ActivityFailedMetricsTests {
         1);
 
     // Execute workflow with benign activity failure
-    WorkflowFailedException e2 =
+    WorkflowFailedException benignErr =
         assertThrows(
             WorkflowFailedException.class,
             () ->
@@ -221,16 +226,16 @@ public class ActivityFailedMetricsTests {
 
     assertTrue(
         "Cause should be ActivityFailure",
-        e2.getCause() instanceof io.temporal.failure.ActivityFailure);
+        benignErr.getCause() instanceof io.temporal.failure.ActivityFailure);
     assertTrue(
         "Inner cause should be ApplicationFailure",
-        e2.getCause().getCause() instanceof ApplicationFailure);
+        benignErr.getCause().getCause() instanceof ApplicationFailure);
+    ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
     assertTrue(
         "Failure should be benign",
-        ApplicationFailure.isBenignApplicationFailure(e2.getCause().getCause()));
-    assertEquals(
-        "Benign activity failure",
-        ((TemporalFailure) e2.getCause().getCause()).getOriginalMessage());
+        af2.getApplicationErrorCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+    assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure
     reporter.assertCounter(
@@ -250,28 +255,31 @@ public class ActivityFailedMetricsTests {
         getActivityTagsWithWorkerType("LocalActivityWorker", "LocalActivityWorkflow"));
 
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    LocalActivityWorkflow nonBenignStub =
-        client.newWorkflowStub(
-            LocalActivityWorkflow.class,
-            WorkflowOptions.newBuilder()
-                .setTaskQueue(testWorkflowRule.getTaskQueue())
-                .validateBuildWithDefaults());
 
-    WorkflowFailedException e1 =
-        assertThrows(WorkflowFailedException.class, () -> nonBenignStub.execute(false));
+    WorkflowFailedException nonBenignErr =
+        assertThrows(
+            WorkflowFailedException.class,
+            () ->
+                client
+                    .newWorkflowStub(
+                        LocalActivityWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                            .setTaskQueue(testWorkflowRule.getTaskQueue())
+                            .validateBuildWithDefaults())
+                    .execute(false));
 
     assertTrue(
         "Cause should be ActivityFailure",
-        e1.getCause() instanceof io.temporal.failure.ActivityFailure);
+        nonBenignErr.getCause() instanceof io.temporal.failure.ActivityFailure);
     assertTrue(
         "Inner cause should be ApplicationFailure",
-        e1.getCause().getCause() instanceof ApplicationFailure);
+        nonBenignErr.getCause().getCause() instanceof ApplicationFailure);
+    ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
     assertFalse(
         "Failure should not be benign",
-        ApplicationFailure.isBenignApplicationFailure(e1.getCause().getCause()));
-    assertEquals(
-        "Non-benign activity failure",
-        ((TemporalFailure) e1.getCause().getCause()).getOriginalMessage());
+        af.getApplicationErrorCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+    assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     // Expect metrics to be incremented for non-benign failure
     reporter.assertCounter(
@@ -279,7 +287,7 @@ public class ActivityFailedMetricsTests {
         getActivityTagsWithWorkerType("LocalActivityWorker", "LocalActivityWorkflow"),
         1);
 
-    WorkflowFailedException e2 =
+    WorkflowFailedException benignErr =
         assertThrows(
             WorkflowFailedException.class,
             () ->
@@ -293,16 +301,16 @@ public class ActivityFailedMetricsTests {
 
     assertTrue(
         "Cause should be ActivityFailure",
-        e2.getCause() instanceof io.temporal.failure.ActivityFailure);
+        benignErr.getCause() instanceof io.temporal.failure.ActivityFailure);
     assertTrue(
         "Inner cause should be ApplicationFailure",
-        e2.getCause().getCause() instanceof ApplicationFailure);
+        benignErr.getCause().getCause() instanceof ApplicationFailure);
+    ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
     assertTrue(
         "Failure should be benign",
-        ApplicationFailure.isBenignApplicationFailure(e2.getCause().getCause()));
-    assertEquals(
-        "Benign activity failure",
-        ((TemporalFailure) e2.getCause().getCause()).getOriginalMessage());
+        af2.getApplicationErrorCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+    assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure
     reporter.assertCounter(
@@ -311,7 +319,7 @@ public class ActivityFailedMetricsTests {
         1);
 
     // Verify log levels
-    assertEquals(countLogMessages("Activity failure.", Level.WARN), 1);
-    assertEquals(countLogMessages("Activity failure.", Level.DEBUG), 1);
+    assertEquals(countLogMessages("Local activity failure.", Level.WARN), 1);
+    assertEquals(countLogMessages("Local activity failure.", Level.DEBUG), 1);
   }
 }
