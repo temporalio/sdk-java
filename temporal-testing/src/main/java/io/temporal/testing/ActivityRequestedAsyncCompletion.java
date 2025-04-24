@@ -18,25 +18,28 @@
  * limitations under the License.
  */
 
-package io.temporal.client;
-
-import io.temporal.activity.ActivityInfo;
-import io.temporal.worker.WorkerFactory;
-import java.util.concurrent.TimeUnit;
+package io.temporal.testing;
 
 /**
- * Indicates that {@link WorkerFactory#shutdown()} or {@link WorkerFactory#shutdownNow()} was
- * called. It is OK to ignore the exception to let the activity complete. It assumes that {@link
- * WorkerFactory#awaitTermination(long, TimeUnit)} is called with a timeout larger than the activity
- * execution time.
+ * Exception thrown when an activity request to complete asynchronously in the {@link
+ * TestActivityEnvironment}. Intended to be used in unit tests to assert an activity requested async
+ * completion.
  */
-public final class ActivityWorkerShutdownException extends ActivityCompletionException {
+public final class ActivityRequestedAsyncCompletion extends RuntimeException {
+  private final String activityId;
+  private final boolean manualCompletion;
 
-  public ActivityWorkerShutdownException(ActivityInfo info) {
-    super(info);
+  public ActivityRequestedAsyncCompletion(String activityId, boolean manualCompletion) {
+    super("activity requested async completion");
+    this.activityId = activityId;
+    this.manualCompletion = manualCompletion;
   }
 
-  public ActivityWorkerShutdownException() {
-    super();
+  public String getActivityId() {
+    return activityId;
+  }
+
+  public boolean isManualCompletion() {
+    return manualCompletion;
   }
 }

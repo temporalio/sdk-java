@@ -82,6 +82,9 @@ public interface TestActivityEnvironment {
    * Creates a stub that can be used to invoke activities registered through {@link
    * #registerActivitiesImplementations(Object...)}.
    *
+   * <p>Activity methods may throw {@link ActivityRequestedAsyncCompletion} if the activity
+   * requested async completion.
+   *
    * @param activityInterface activity interface class that the object under test implements.
    * @param <T> Type of the activity interface.
    * @return The stub that implements the activity interface.
@@ -91,6 +94,9 @@ public interface TestActivityEnvironment {
   /**
    * Creates a stub that can be used to invoke activities registered through {@link
    * #registerActivitiesImplementations(Object...)}.
+   *
+   * <p>Activity methods may throw {@link ActivityRequestedAsyncCompletion} if the activity
+   * requested async completion.
    *
    * @param <T> Type of the activity interface.
    * @param activityInterface activity interface class that the object under test implements

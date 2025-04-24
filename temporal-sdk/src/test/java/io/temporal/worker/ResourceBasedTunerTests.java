@@ -31,6 +31,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.*;
@@ -115,10 +116,16 @@ public class ResourceBasedTunerTests {
     workflow.activitiesStarted();
     testWorkflowRule.getTestEnvironment().getWorkerFactory().shutdownNow();
     testWorkflowRule.getTestEnvironment().getWorkerFactory().awaitTermination(3, TimeUnit.SECONDS);
-    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("WorkflowWorker"), 0);
-    reporter.assertGauge(MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("ActivityWorker"), 0);
-    reporter.assertGauge(
-        MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), 0);
+    Eventually.assertEventually(
+        Duration.ofMillis(2000),
+        () -> {
+          reporter.assertGauge(
+              MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("WorkflowWorker"), 0);
+          reporter.assertGauge(
+              MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("ActivityWorker"), 0);
+          reporter.assertGauge(
+              MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), 0);
+        });
   }
 
   @WorkflowInterface

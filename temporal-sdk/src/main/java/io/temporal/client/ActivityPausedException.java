@@ -21,22 +21,18 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityInfo;
-import io.temporal.worker.WorkerFactory;
-import java.util.concurrent.TimeUnit;
 
-/**
- * Indicates that {@link WorkerFactory#shutdown()} or {@link WorkerFactory#shutdownNow()} was
- * called. It is OK to ignore the exception to let the activity complete. It assumes that {@link
- * WorkerFactory#awaitTermination(long, TimeUnit)} is called with a timeout larger than the activity
- * execution time.
+/***
+ * Indicates that the activity was paused by the user.
+ *
+ * <p>Catching this exception directly is discouraged and catching the parent class {@link ActivityCompletionException} is recommended instead.<br>
  */
-public final class ActivityWorkerShutdownException extends ActivityCompletionException {
-
-  public ActivityWorkerShutdownException(ActivityInfo info) {
+public final class ActivityPausedException extends ActivityCompletionException {
+  public ActivityPausedException(ActivityInfo info) {
     super(info);
   }
 
-  public ActivityWorkerShutdownException() {
+  public ActivityPausedException() {
     super();
   }
 }
