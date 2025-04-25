@@ -449,7 +449,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           "newRootThread can be called only if there is no existing root workflow thread");
     }
     rootWorkflowThread =
-        new WorkflowThreadImpl(
+        new RootWorkflowThreadImpl(
             workflowThreadExecutor,
             workflowContext,
             this,

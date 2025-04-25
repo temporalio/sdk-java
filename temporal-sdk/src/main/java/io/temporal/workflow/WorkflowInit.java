@@ -34,7 +34,9 @@ import java.lang.annotation.Target;
  * thrown by the constructor are treated the same as exceptions thrown by the workflow method.
  *
  * <p>Workflow initialization methods are called before the workflow method, signal handlers, update
- * handlers or query handlers.
+ * handlers or query handlers. Users should be careful not to block in constructors. Blocking in the
+ * constructor will delay handling of the workflow method and signal handlers, and cause rejection
+ * of the update and query handlers.
  *
  * <p>This annotation applies only to workflow implementation constructors.
  */

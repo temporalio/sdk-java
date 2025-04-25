@@ -20,7 +20,6 @@
 
 package io.temporal.testing;
 
-import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
@@ -511,40 +510,38 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Type resultType) {
       DataConverter dataConverter =
           testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
-      RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
-      if (taskCompleted != null) {
+      if (response.getTaskCompleted() != null) {
+        RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
         Optional<Payloads> result =
             taskCompleted.hasResult() ? Optional.of(taskCompleted.getResult()) : Optional.empty();
         return dataConverter.fromPayloads(0, result, resultClass, resultType);
-      } else {
+      } else if (response.getTaskFailed() != null) {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
-        if (taskFailed != null) {
-          Exception cause = dataConverter.failureToException(taskFailed.getFailure());
-          throw new ActivityFailure(
-              taskFailed.getFailure().getMessage(),
-              0,
-              0,
-              task.getActivityType().getName(),
-              task.getActivityId(),
-              RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
-              "TestActivityEnvironment",
-              cause);
-        } else {
-          RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
-          if (taskCanceled != null) {
-            throw new CanceledFailure(
-                "canceled",
-                new EncodedValues(
-                    taskCanceled.hasDetails()
-                        ? Optional.of(taskCanceled.getDetails())
-                        : Optional.empty(),
-                    dataConverter),
-                null);
-          }
-        }
+        Exception cause = dataConverter.failureToException(taskFailed.getFailure());
+        throw new ActivityFailure(
+            taskFailed.getFailure().getMessage(),
+            0,
+            0,
+            task.getActivityType().getName(),
+            task.getActivityId(),
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            "TestActivityEnvironment",
+            cause);
+      } else if (response.getTaskCanceled() != null) {
+        RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
+        throw new CanceledFailure(
+            "canceled",
+            new EncodedValues(
+                taskCanceled.hasDetails()
+                    ? Optional.of(taskCanceled.getDetails())
+                    : Optional.empty(),
+                dataConverter),
+            null);
+      } else {
+        throw new ActivityRequestedAsyncCompletion(
+            task.getActivityId(), response.isManualCompletion());
       }
-      return Defaults.defaultValue(resultClass);
     }
 
     @Override
