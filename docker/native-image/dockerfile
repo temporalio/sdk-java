@@ -1,8 +1,8 @@
 # Use an old version of Ubuntu to build the test server to maintain compatibility with 
 # older versions of glibc, specifically glib 2.17.
 FROM ubuntu:18.04
-ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java21
-COPY --from=ghcr.io/graalvm/native-image-community:21 $JAVA_HOME $JAVA_HOME
+ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java23
+COPY --from=ghcr.io/graalvm/native-image-community:23 $JAVA_HOME $JAVA_HOME
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 RUN apt-get update && apt-get install -y software-properties-common
 RUN add-apt-repository ppa:ubuntu-toolchain-r/test

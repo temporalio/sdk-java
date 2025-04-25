@@ -127,7 +127,7 @@ if (project.hasProperty("nativeBuild")) {
                     buildArgs.add("--libc=musl")
                 }
                 buildArgs.add("-H:+UnlockExperimentalVMOptions")
-                buildArgs.add("-O4")
+                buildArgs.add("-Os")
 
                 runtimeArgs.add("7233")
             }
