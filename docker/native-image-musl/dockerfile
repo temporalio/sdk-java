@@ -5,7 +5,7 @@ ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java23
 COPY --from=ghcr.io/graalvm/native-image-community:23 $JAVA_HOME $JAVA_HOME
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 RUN apt-get update
-RUN apt-get install -y git build-essential curl binutils zlib1g-dev gcc-10 g++-10
+RUN apt-get install -y git build-essential curl binutils
 COPY install-musl.sh /opt/install-musl.sh
 RUN chmod +x /opt/install-musl.sh
 WORKDIR /opt
