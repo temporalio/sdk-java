@@ -21,7 +21,6 @@
 package io.temporal.failure;
 
 import com.google.common.base.Strings;
-import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
@@ -52,7 +51,7 @@ import javax.annotation.Nullable;
  *   <li>nonRetryable is set to false
  *   <li>details are set to null
  *   <li>stack trace is copied from the original exception
- *   <li>stack category is set to ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED
+ *   <li>category is set to ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED
  * </ul>
  */
 public final class ApplicationFailure extends TemporalFailure {
@@ -102,7 +101,7 @@ public final class ApplicationFailure extends TemporalFailure {
         new EncodedValues(details),
         cause,
         null,
-        ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
+        ApplicationErrorCategory.UNSPECIFIED);
   }
 
   /**
@@ -134,7 +133,7 @@ public final class ApplicationFailure extends TemporalFailure {
         new EncodedValues(details),
         cause,
         nextRetryDelay,
-        ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
+        ApplicationErrorCategory.UNSPECIFIED);
   }
 
   /**
@@ -176,7 +175,7 @@ public final class ApplicationFailure extends TemporalFailure {
         new EncodedValues(details),
         cause,
         null,
-        ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
+        ApplicationErrorCategory.UNSPECIFIED);
   }
 
   /**

@@ -35,11 +35,11 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.failure.ApplicationErrorCategory;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
@@ -112,10 +112,7 @@ public class ActivityFailedMetricsTests {
         throw ApplicationFailure.newFailure("Non-benign activity failure", "NonBenignType");
       } else {
         throw ApplicationFailure.newFailureWithCategory(
-            "Benign activity failure",
-            "BenignType",
-            ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN,
-            null);
+            "Benign activity failure", "BenignType", ApplicationErrorCategory.BENIGN, null);
       }
     }
   }
@@ -202,8 +199,7 @@ public class ActivityFailedMetricsTests {
     ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
     assertFalse(
         "Failure should not be benign",
-        af.getApplicationErrorCategory()
-            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+        af.getApplicationErrorCategory() == ApplicationErrorCategory.BENIGN);
     assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     reporter.assertCounter(
@@ -233,8 +229,7 @@ public class ActivityFailedMetricsTests {
     ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
     assertTrue(
         "Failure should be benign",
-        af2.getApplicationErrorCategory()
-            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+        af2.getApplicationErrorCategory() == ApplicationErrorCategory.BENIGN);
     assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure
@@ -277,8 +272,7 @@ public class ActivityFailedMetricsTests {
     ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
     assertFalse(
         "Failure should not be benign",
-        af.getApplicationErrorCategory()
-            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+        af.getApplicationErrorCategory() == ApplicationErrorCategory.BENIGN);
     assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     // Expect metrics to be incremented for non-benign failure
@@ -308,8 +302,7 @@ public class ActivityFailedMetricsTests {
     ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
     assertTrue(
         "Failure should be benign",
-        af2.getApplicationErrorCategory()
-            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN);
+        af2.getApplicationErrorCategory() == ApplicationErrorCategory.BENIGN);
     assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure

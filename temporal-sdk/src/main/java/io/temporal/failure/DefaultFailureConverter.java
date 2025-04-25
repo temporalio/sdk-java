@@ -27,7 +27,6 @@ import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.failure.v1.*;
 import io.temporal.client.ActivityCanceledException;
@@ -35,6 +34,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.FailureConverter;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -108,7 +108,7 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.hasNextRetryDelay()
                   ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
                   : null,
-              info.getCategory());
+              FailureUtils.categoryFromProto(info.getCategory()));
         }
       case TIMEOUT_FAILURE_INFO:
         {
@@ -155,7 +155,7 @@ public final class DefaultFailureConverter implements FailureConverter {
               new EncodedValues(details, dataConverter),
               cause,
               null,
-              ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
+              ApplicationErrorCategory.UNSPECIFIED);
         }
       case ACTIVITY_FAILURE_INFO:
         {
@@ -218,7 +218,7 @@ public final class DefaultFailureConverter implements FailureConverter {
             new EncodedValues(Optional.empty(), dataConverter),
             cause,
             null,
-            ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
+            ApplicationErrorCategory.UNSPECIFIED);
     }
   }
 
@@ -265,7 +265,7 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
               .setNonRetryable(ae.isNonRetryable())
-              .setCategory(ae.getApplicationErrorCategory());
+              .setCategory(FailureUtils.categoryToProto(ae.getApplicationErrorCategory()));
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
