@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Temporal Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
  *
  * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -21,8 +21,7 @@
 package io.temporal.failure;
 
 /**
- * Mirrors the proto definition for ApplicationErrorCategory. Used to categorize application
- * failures, for example, to distinguish benign errors from others.
+ * Used to categorize application failures, for example, to distinguish benign errors from others.
  *
  * @see io.temporal.api.enums.v1.ApplicationErrorCategory
  */
