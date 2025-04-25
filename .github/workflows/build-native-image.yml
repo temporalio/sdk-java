@@ -60,7 +60,9 @@ jobs:
         if: matrix.os_family != 'Linux'
         uses: actions/setup-java@v4
         with:
-          java-version: "23"
+          java-version: |
+            21
+            23
           distribution: "graalvm"
 
       - name: Set up Gradle
