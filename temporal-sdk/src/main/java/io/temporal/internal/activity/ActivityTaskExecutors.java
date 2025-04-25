@@ -36,6 +36,7 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityOutput;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -122,6 +123,14 @@ final class ActivityTaskExecutors {
               info.getActivityId(),
               info.getActivityType(),
               info.getAttempt());
+        } else if (FailureUtils.isBenignApplicationFailure(ex)) {
+          log.debug(
+              "{} failure. ActivityId={}, activityType={}, attempt={}",
+              local ? "Local activity" : "Activity",
+              info.getActivityId(),
+              info.getActivityType(),
+              info.getAttempt(),
+              ex);
         } else {
           log.warn(
               "{} failure. ActivityId={}, activityType={}, attempt={}",

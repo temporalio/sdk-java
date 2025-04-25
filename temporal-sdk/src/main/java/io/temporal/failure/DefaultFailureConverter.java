@@ -34,6 +34,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.FailureConverter;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -106,7 +107,8 @@ public final class DefaultFailureConverter implements FailureConverter {
               cause,
               info.hasNextRetryDelay()
                   ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
-                  : null);
+                  : null,
+              FailureUtils.categoryFromProto(info.getCategory()));
         }
       case TIMEOUT_FAILURE_INFO:
         {
@@ -146,13 +148,14 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.hasLastHeartbeatDetails()
                   ? Optional.of(info.getLastHeartbeatDetails())
                   : Optional.empty();
-          return new ApplicationFailure(
+          return ApplicationFailure.newFromValues(
               failure.getMessage(),
               "ResetWorkflow",
               false,
               new EncodedValues(details, dataConverter),
               cause,
-              null);
+              null,
+              ApplicationErrorCategory.UNSPECIFIED);
         }
       case ACTIVITY_FAILURE_INFO:
         {
@@ -214,7 +217,8 @@ public final class DefaultFailureConverter implements FailureConverter {
             false,
             new EncodedValues(Optional.empty(), dataConverter),
             cause,
-            null);
+            null,
+            ApplicationErrorCategory.UNSPECIFIED);
     }
   }
 
@@ -260,7 +264,8 @@ public final class DefaultFailureConverter implements FailureConverter {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
-              .setNonRetryable(ae.isNonRetryable());
+              .setNonRetryable(ae.isNonRetryable())
+              .setCategory(FailureUtils.categoryToProto(ae.getApplicationErrorCategory()));
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
@@ -352,7 +357,10 @@ public final class DefaultFailureConverter implements FailureConverter {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
               .setType(throwable.getClass().getName())
-              .setNonRetryable(false);
+              .setNonRetryable(false)
+              .setCategory(
+                  io.temporal.api.enums.v1.ApplicationErrorCategory
+                      .APPLICATION_ERROR_CATEGORY_UNSPECIFIED);
       failure.setApplicationFailureInfo(info);
     }
     return failure.build();
