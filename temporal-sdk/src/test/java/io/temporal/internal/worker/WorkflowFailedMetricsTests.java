@@ -233,11 +233,16 @@ public class WorkflowFailedMetricsTests {
                 .validateBuildWithDefaults());
 
     WorkflowFailedException e2 =
-        assertThrows(WorkflowFailedException.class, () -> client.newWorkflowStub(
-          ApplicationFailureWorkflow.class,
-          WorkflowOptions.newBuilder()
-              .setTaskQueue(testWorkflowRule.getTaskQueue())
-              .validateBuildWithDefaults()).execute(true));
+        assertThrows(
+            WorkflowFailedException.class,
+            () ->
+                client
+                    .newWorkflowStub(
+                        ApplicationFailureWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                            .setTaskQueue(testWorkflowRule.getTaskQueue())
+                            .validateBuildWithDefaults())
+                    .execute(true));
 
     Throwable cause2 = e2.getCause();
     assertTrue("Cause should be ApplicationFailure", cause2 instanceof ApplicationFailure);

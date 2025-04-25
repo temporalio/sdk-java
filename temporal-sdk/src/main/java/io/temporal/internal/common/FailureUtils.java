@@ -22,47 +22,26 @@ package io.temporal.internal.common;
 
 import io.temporal.api.enums.v1.ApplicationErrorCategory;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.internal.worker.WorkflowExecutionException;
 import javax.annotation.Nullable;
 
 public class FailureUtils {
   public static boolean isBenignApplicationFailure(@Nullable Throwable t) {
-    if (t == null) {
-      return false;
-    }
-
     if (t instanceof ApplicationFailure
         && ((ApplicationFailure) t).getApplicationErrorCategory()
             == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN) {
       return true;
     }
+    return false;
+  }
 
-    // Handle WorkflowExecutionException, which wraps a protobuf Failure
-    if (t instanceof WorkflowExecutionException) {
-      Failure failure = ((WorkflowExecutionException) t).getFailure();
-      if (failure.hasApplicationFailureInfo()
-          && failure.getApplicationFailureInfo().getCategory()
-              == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN) {
-        return true;
-      }
+  public static boolean isBenignApplicationFailure(@Nullable Failure failure) {
+    if (failure != null
+        && failure.getApplicationFailureInfo() != null
+        && failure.getApplicationFailureInfo().getCategory()
+            == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN) {
+      return true;
     }
-
-    // Handle ActivityFailure, which wraps the actual ApplicationFailure
-    if (t instanceof ActivityFailure) {
-      Throwable cause = t.getCause();
-      boolean result = cause != null && isBenignApplicationFailure(cause);
-      return result;
-    }
-
-    // Check the immediate cause.
-    Throwable cause = t.getCause();
-    boolean result =
-        cause != null
-            && cause instanceof ApplicationFailure
-            && ((ApplicationFailure) cause).getApplicationErrorCategory()
-                == ApplicationErrorCategory.APPLICATION_ERROR_CATEGORY_BENIGN;
-    return result;
+    return false;
   }
 }

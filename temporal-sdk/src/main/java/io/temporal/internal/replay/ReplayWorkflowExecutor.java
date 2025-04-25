@@ -154,7 +154,7 @@ final class ReplayWorkflowExecutor {
       metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
-      if (!FailureUtils.isBenignApplicationFailure(failure)) {
+      if (!FailureUtils.isBenignApplicationFailure(failure.getFailure())) {
         metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
       }
     } else {
