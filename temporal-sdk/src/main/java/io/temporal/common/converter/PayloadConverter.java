@@ -33,7 +33,9 @@ import javax.annotation.Nonnull;
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
  * wire.
  *
- * @author fateev
+ * <p>{@link PayloadConverter} is expected to pass the {@link RawValue} payload through without conversion.
+ * Though it should still apply the {@link io.temporal.payload.codec.PayloadCodec} to the {@link
+ * RawValue} payloads.
  */
 public interface PayloadConverter {
 

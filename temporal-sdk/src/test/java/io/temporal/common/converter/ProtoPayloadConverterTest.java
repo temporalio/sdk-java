@@ -67,6 +67,31 @@ public class ProtoPayloadConverterTest {
   }
 
   @Test
+  public void testRawValue() {
+    DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
+    ProtobufPayloadConverter protoConverter = new ProtobufPayloadConverter();
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(UUID.randomUUID().toString())
+            .setRunId(UUID.randomUUID().toString())
+            .build();
+    Optional<Payloads> data =
+        converter.toPayloads(new RawValue(protoConverter.toData(execution).get()));
+    WorkflowExecution converted =
+        converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
+    assertEquals(execution, converted);
+  }
+
+  @Test
+  public void testRawValuePassThrough() {
+    DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
+    Payload p = Payload.newBuilder().setData(ByteString.copyFromUtf8("test")).build();
+    Optional<Payloads> data = converter.toPayloads(new RawValue(p));
+    RawValue converted = converter.fromPayloads(0, data, RawValue.class, RawValue.class);
+    assertEquals(p, converted.getPayload());
+  }
+
+  @Test
   public void testCustomProto() {
     DataConverter converter =
         DefaultDataConverter.newDefaultInstance()

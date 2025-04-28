@@ -65,6 +65,12 @@ class PayloadAndFailureDataConverter implements DataConverter {
 
   @Override
   public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
+    // Raw values payload should be passed through without conversion
+    if (value instanceof RawValue) {
+      RawValue rv = (RawValue) value;
+      return Optional.of(rv.getPayload());
+    }
+
     for (PayloadConverter converter : converters) {
       Optional<Payload> result =
           (serializationContext != null ? converter.withContext(serializationContext) : converter)
@@ -77,9 +83,14 @@ class PayloadAndFailureDataConverter implements DataConverter {
         "No PayloadConverter is registered with this DataConverter that accepts value:" + value);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
       throws DataConverterException {
+    if (valueClass == RawValue.class) {
+      return (T) new RawValue(payload);
+    }
+
     try {
       String encoding =
           payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toString(UTF_8);

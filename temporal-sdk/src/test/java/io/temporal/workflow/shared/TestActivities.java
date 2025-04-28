@@ -35,6 +35,7 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.converter.RawValue;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.io.Closeable;
@@ -145,6 +146,8 @@ public class TestActivities {
     void throwIOAnnotated();
 
     List<UUID> activityUUIDList(List<UUID> arg);
+
+    RawValue rawValueActivity(RawValue arg);
   }
 
   @ActivityInterface
@@ -408,6 +411,11 @@ public class TestActivities {
 
     @Override
     public List<UUID> activityUUIDList(List<UUID> arg) {
+      return arg;
+    }
+
+    @Override
+    public RawValue rawValueActivity(RawValue arg) {
       return arg;
     }
 
