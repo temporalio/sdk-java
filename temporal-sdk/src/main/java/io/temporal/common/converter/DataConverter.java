@@ -66,6 +66,10 @@ import javax.annotation.Nonnull;
  *
  * A {@link DataConverter} created on previous step may be bundled with {@link PayloadCodec}s using
  * {@link CodecDataConverter} or used directly if no custom {@link PayloadCodec}s are needed.
+ *
+ * <p>{@link DataConverter} is expected to pass the {@link RawValue} payload through without
+ * conversion. Though it should still apply the {@link PayloadCodec} to the {@link RawValue}
+ * payloads.
  */
 public interface DataConverter {
 

@@ -1,0 +1,60 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.temporal.common.converter;
+
+import io.temporal.api.common.v1.Payload;
+import java.util.Objects;
+
+/**
+ * RawValue is a representation of an unconverted, raw payload.
+ *
+ * <p>This type can be used as a parameter or return type in workflows and activities to pass
+ * through a raw payload. Encoding/decoding of the payload is still done by the system.
+ */
+public final class RawValue {
+  private final Payload payload;
+
+  public RawValue(Payload payload) {
+    this.payload = Objects.requireNonNull(payload);
+  }
+
+  public Payload getPayload() {
+    return payload;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    RawValue rawValue = (RawValue) o;
+    return Objects.equals(payload, rawValue.payload);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(payload);
+  }
+
+  @Override
+  public String toString() {
+    return "RawValue{" + "payload=" + payload + '}';
+  }
+}

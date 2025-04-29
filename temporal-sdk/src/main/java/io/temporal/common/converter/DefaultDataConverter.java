@@ -27,8 +27,6 @@ import javax.annotation.Nonnull;
 /**
  * A {@link DataConverter} that delegates payload conversion to type specific {@link
  * PayloadConverter} instances, and delegates failure conversions to a {@link FailureConverter}.
- *
- * @author fateev
  */
 public class DefaultDataConverter extends PayloadAndFailureDataConverter {
 

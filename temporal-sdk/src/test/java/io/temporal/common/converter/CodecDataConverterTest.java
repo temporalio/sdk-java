@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
@@ -33,6 +34,7 @@ import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.junit.Before;
@@ -125,6 +127,16 @@ public class CodecDataConverterTest {
     assertEquals("test", decodedDetailsPayloads.get(0, String.class, String.class));
     assertEquals((Integer) 123, decodedDetailsPayloads.get(1, Integer.class, Integer.class));
     assertArrayEquals(new int[] {1, 2, 3}, decodedDetailsPayloads.get(2, int[].class, int[].class));
+  }
+
+  @Test
+  public void testRawValuePassThrough() {
+    Payload p = Payload.newBuilder().setData(ByteString.copyFromUtf8("test")).build();
+    Optional<Payloads> data = dataConverter.toPayloads(new RawValue(p));
+    // Assert that the payload is still encoded
+    assertTrue(isEncoded(data.get().getPayloads(0)));
+    RawValue converted = dataConverter.fromPayloads(0, data, RawValue.class, RawValue.class);
+    assertEquals(p, converted.getPayload());
   }
 
   static boolean isEncoded(Payload payload) {
