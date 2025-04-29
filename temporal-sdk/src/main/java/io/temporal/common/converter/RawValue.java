@@ -39,4 +39,22 @@ public final class RawValue {
   public Payload getPayload() {
     return payload;
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    RawValue rawValue = (RawValue) o;
+    return Objects.equals(payload, rawValue.payload);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(payload);
+  }
+
+  @Override
+  public String toString() {
+    return "RawValue{" + "payload=" + payload + '}';
+  }
 }
