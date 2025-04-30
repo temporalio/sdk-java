@@ -280,7 +280,6 @@ public final class ApplicationFailure extends TemporalFailure {
       return this;
     }
 
-
     /**
      * Set the optional error message.
      *
