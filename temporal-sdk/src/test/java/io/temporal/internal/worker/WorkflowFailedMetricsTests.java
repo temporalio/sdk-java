@@ -130,8 +130,11 @@ public class WorkflowFailedMetricsTests {
       if (!isBenign) {
         throw ApplicationFailure.newFailure("Non-benign failure", "NonBenignType");
       } else {
-        throw ApplicationFailure.newFailureWithCategory(
-            "Benign failure", "BenignType", ApplicationErrorCategory.BENIGN, null);
+        throw ApplicationFailure.newBuilder()
+            .setMessage("Benign failure")
+            .setType("BenignType")
+            .setCategory(ApplicationErrorCategory.BENIGN)
+            .build();
       }
     }
   }

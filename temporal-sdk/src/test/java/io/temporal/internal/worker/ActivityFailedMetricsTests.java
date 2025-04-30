@@ -111,8 +111,11 @@ public class ActivityFailedMetricsTests {
       if (!isBenign) {
         throw ApplicationFailure.newFailure("Non-benign activity failure", "NonBenignType");
       } else {
-        throw ApplicationFailure.newFailureWithCategory(
-            "Benign activity failure", "BenignType", ApplicationErrorCategory.BENIGN, null);
+        throw ApplicationFailure.newBuilder()
+            .setMessage("Benign activity failure")
+            .setType("BenignType")
+            .setCategory(ApplicationErrorCategory.BENIGN)
+            .build();
       }
     }
   }

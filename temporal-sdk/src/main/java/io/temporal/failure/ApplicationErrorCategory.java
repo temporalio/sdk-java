@@ -29,5 +29,4 @@ public enum ApplicationErrorCategory {
   UNSPECIFIED,
   /** Expected application error with little/no severity. */
   BENIGN,
-  ;
 }
