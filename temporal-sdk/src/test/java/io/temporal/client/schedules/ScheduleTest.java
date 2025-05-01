@@ -110,6 +110,8 @@ public class ScheduleTest {
     ScheduleHandle handle = client.createSchedule(scheduleId, schedule, options);
     ScheduleDescription description = handle.describe();
     Assert.assertEquals(scheduleId, description.getId());
+    // Verify the schedule description has the correct (i.e. no) memo
+    Assert.assertNull(description.getMemo("memokey1", String.class));
     // Try to create a schedule that already exists
     Assert.assertThrows(
         ScheduleAlreadyRunningException.class,
