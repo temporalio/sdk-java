@@ -112,8 +112,8 @@ public final class ScheduleDescription {
 
   @Nullable
   public <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
-    Payload memoPayload = this.memo.get(key);
-    if (memo == null) {
+    Payload memoPayload = memo.get(key);
+    if (memoPayload == null) {
       return null;
     }
     return dataConverter.fromPayload(memoPayload, valueClass, genericType);
