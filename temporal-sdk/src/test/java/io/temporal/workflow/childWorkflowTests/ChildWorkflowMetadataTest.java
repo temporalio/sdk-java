@@ -70,12 +70,27 @@ public class ChildWorkflowMetadataTest {
 
     WorkflowExecution exec = WorkflowStub.fromTyped(stub).getExecution();
     assertWorkflowMetadata(exec.getWorkflowId(), summary, details);
-    assertWorkflowMetadata(childWorkflowId, childSummary, childDetails);
 
     WorkflowExecutionHistory workflowExecutionHistory =
-        testWorkflowRule.getWorkflowClient().fetchHistory(childWorkflowId);
-    List<HistoryEvent> timerStartedEvents =
+        testWorkflowRule.getWorkflowClient().fetchHistory(exec.getWorkflowId());
+    List<HistoryEvent> workflowStartedEvents =
         workflowExecutionHistory.getEvents().stream()
+            .filter(HistoryEvent::hasWorkflowExecutionStartedEventAttributes)
+            .collect(Collectors.toList());
+    assertEventMetadata(workflowStartedEvents.get(0), summary, details);
+
+    assertWorkflowMetadata(childWorkflowId, childSummary, childDetails);
+
+    WorkflowExecutionHistory childWorkflowExecutionHistory =
+        testWorkflowRule.getWorkflowClient().fetchHistory(childWorkflowId);
+    List<HistoryEvent> childWorkflowStartedEvents =
+        childWorkflowExecutionHistory.getEvents().stream()
+            .filter(HistoryEvent::hasWorkflowExecutionStartedEventAttributes)
+            .collect(Collectors.toList());
+    assertEventMetadata(childWorkflowStartedEvents.get(0), childSummary, childDetails);
+
+    List<HistoryEvent> timerStartedEvents =
+        childWorkflowExecutionHistory.getEvents().stream()
             .filter(HistoryEvent::hasTimerStartedEventAttributes)
             .collect(Collectors.toList());
     assertEventMetadata(timerStartedEvents.get(0), childTimerSummary, null);
