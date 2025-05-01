@@ -217,8 +217,7 @@ public class WorkflowFailedMetricsTests {
     Throwable cause1 = e1.getCause();
     assertTrue("Cause should be ApplicationFailure", cause1 instanceof ApplicationFailure);
     boolean isBenign =
-        ((ApplicationFailure) cause1).getApplicationErrorCategory()
-            == ApplicationErrorCategory.BENIGN;
+        ((ApplicationFailure) cause1).getCategory() == ApplicationErrorCategory.BENIGN;
     assertFalse("Failure should not be benign", isBenign);
     assertEquals("Non-benign failure", ((TemporalFailure) cause1).getOriginalMessage());
 
@@ -246,9 +245,7 @@ public class WorkflowFailedMetricsTests {
 
     Throwable cause2 = e2.getCause();
     assertTrue("Cause should be ApplicationFailure", cause2 instanceof ApplicationFailure);
-    isBenign =
-        ((ApplicationFailure) cause2).getApplicationErrorCategory()
-            == ApplicationErrorCategory.BENIGN;
+    isBenign = ((ApplicationFailure) cause2).getCategory() == ApplicationErrorCategory.BENIGN;
     assertTrue("Failure should be benign", isBenign);
     assertEquals("Benign failure", ((TemporalFailure) cause2).getOriginalMessage());
 

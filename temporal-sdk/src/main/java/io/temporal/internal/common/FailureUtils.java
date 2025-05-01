@@ -30,8 +30,7 @@ public class FailureUtils {
 
   public static boolean isBenignApplicationFailure(@Nullable Throwable t) {
     if (t instanceof ApplicationFailure
-        && ((ApplicationFailure) t).getApplicationErrorCategory()
-            == ApplicationErrorCategory.BENIGN) {
+        && ((ApplicationFailure) t).getCategory() == ApplicationErrorCategory.BENIGN) {
       return true;
     }
     return false;

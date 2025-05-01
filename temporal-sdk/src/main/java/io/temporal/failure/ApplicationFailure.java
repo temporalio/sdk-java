@@ -234,7 +234,7 @@ public final class ApplicationFailure extends TemporalFailure {
     this.nextRetryDelay = nextRetryDelay;
   }
 
-  public ApplicationErrorCategory getApplicationErrorCategory() {
+  public ApplicationErrorCategory getCategory() {
     return category;
   }
 

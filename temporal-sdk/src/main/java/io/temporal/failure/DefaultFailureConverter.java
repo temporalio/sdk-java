@@ -263,7 +263,7 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
               .setNonRetryable(ae.isNonRetryable())
-              .setCategory(FailureUtils.categoryToProto(ae.getApplicationErrorCategory()));
+              .setCategory(FailureUtils.categoryToProto(ae.getCategory()));
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
