@@ -99,16 +99,18 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo info = failure.getApplicationFailureInfo();
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-          return ApplicationFailure.newFromValues(
-              failure.getMessage(),
-              info.getType(),
-              info.getNonRetryable(),
-              new EncodedValues(details, dataConverter),
-              cause,
-              info.hasNextRetryDelay()
-                  ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
-                  : null,
-              FailureUtils.categoryFromProto(info.getCategory()));
+          return ApplicationFailure.newBuilder()
+              .setMessage(failure.getMessage())
+              .setType(info.getType())
+              .setNonRetryable(info.getNonRetryable())
+              .setDetails(new EncodedValues(details, dataConverter))
+              .setCause(cause)
+              .setNextRetryDelay(
+                  info.hasNextRetryDelay()
+                      ? ProtobufTimeUtils.toJavaDuration(info.getNextRetryDelay())
+                      : null)
+              .setCategory(FailureUtils.categoryFromProto(info.getCategory()))
+              .build();
         }
       case TIMEOUT_FAILURE_INFO:
         {
@@ -148,14 +150,12 @@ public final class DefaultFailureConverter implements FailureConverter {
               info.hasLastHeartbeatDetails()
                   ? Optional.of(info.getLastHeartbeatDetails())
                   : Optional.empty();
-          return ApplicationFailure.newFromValues(
-              failure.getMessage(),
-              "ResetWorkflow",
-              false,
-              new EncodedValues(details, dataConverter),
-              cause,
-              null,
-              ApplicationErrorCategory.UNSPECIFIED);
+          return ApplicationFailure.newBuilder()
+              .setMessage(failure.getMessage())
+              .setType("ResetWorkflow")
+              .setDetails(new EncodedValues(details, dataConverter))
+              .setCause(cause)
+              .build();
         }
       case ACTIVITY_FAILURE_INFO:
         {
@@ -211,14 +211,12 @@ public final class DefaultFailureConverter implements FailureConverter {
       case FAILUREINFO_NOT_SET:
       default:
         // All unknown types are considered to be retryable ApplicationError.
-        return ApplicationFailure.newFromValues(
-            failure.getMessage(),
-            "",
-            false,
-            new EncodedValues(Optional.empty(), dataConverter),
-            cause,
-            null,
-            ApplicationErrorCategory.UNSPECIFIED);
+        return ApplicationFailure.newBuilder()
+            .setMessage(failure.getMessage())
+            .setType("")
+            .setDetails(new EncodedValues(Optional.empty(), dataConverter))
+            .setCause(cause)
+            .build();
     }
   }
 
@@ -265,7 +263,7 @@ public final class DefaultFailureConverter implements FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
               .setNonRetryable(ae.isNonRetryable())
-              .setCategory(FailureUtils.categoryToProto(ae.getApplicationErrorCategory()));
+              .setCategory(FailureUtils.categoryToProto(ae.getCategory()));
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());

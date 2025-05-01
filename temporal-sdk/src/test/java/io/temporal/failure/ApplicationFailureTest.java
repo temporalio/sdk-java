@@ -20,13 +20,20 @@
 
 package io.temporal.failure;
 
-/**
- * Used to categorize application failures, for example, to distinguish benign errors from others.
- *
- * @see io.temporal.api.enums.v1.ApplicationErrorCategory
- */
-public enum ApplicationErrorCategory {
-  UNSPECIFIED,
-  /** Expected application error with little/no severity. */
-  BENIGN,
+import org.junit.Assert;
+import org.junit.Test;
+
+public class ApplicationFailureTest {
+
+  @Test
+  public void applicationFailureCopy() {
+    ApplicationFailure originalAppFailure =
+        ApplicationFailure.newBuilder().setType("TestType").setMessage("test message").build();
+    ApplicationFailure newAppFailure =
+        ApplicationFailure.newBuilder(originalAppFailure).setNonRetryable(true).build();
+    Assert.assertEquals(originalAppFailure.getType(), newAppFailure.getType());
+    Assert.assertEquals(
+        originalAppFailure.getOriginalMessage(), newAppFailure.getOriginalMessage());
+    Assert.assertNotEquals(originalAppFailure.isNonRetryable(), newAppFailure.isNonRetryable());
+  }
 }
