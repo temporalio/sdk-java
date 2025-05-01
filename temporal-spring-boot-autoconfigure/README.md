@@ -289,7 +289,8 @@ spring.temporal:
 ## Customization
 
 All customization points for the root namespace also exist for the non-root namespaces. To specify for a particular 
-namespace users just need to append the alias/namespace to the bean. Currently, interceptors are not supported.
+namespace users just need to append the alias/namespace to the bean. Currently, auto registered interceptors are not 
+supported, but `WorkerFactoryOptions` can always be used to customize it per namespace.
 
 ```java
     // TemporalOptionsCustomizer type beans must start with the namespace/alias you defined and end with function class 
