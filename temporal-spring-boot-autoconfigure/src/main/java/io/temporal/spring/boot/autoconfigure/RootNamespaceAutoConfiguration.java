@@ -6,6 +6,9 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
@@ -19,6 +22,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -64,6 +68,11 @@ public class RootNamespaceAutoConfiguration {
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
+      @Autowired(required = false) @Nullable
+          List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Autowired(required = false) @Nullable
+          List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Autowired(required = false) @Nullable List<WorkerInterceptor> workerInterceptors,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Autowired(required = false) @Nullable
@@ -80,7 +89,15 @@ public class RootNamespaceAutoConfiguration {
           Map<String, TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
               workflowImplementationCustomizerMap) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter, properties);
+        AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
+    List<WorkflowClientInterceptor> chosenClientInterceptors =
+        AutoConfigurationUtils.chooseWorkflowClientInterceptors(
+            workflowClientInterceptors, properties);
+    List<ScheduleClientInterceptor> chosenScheduleClientInterceptors =
+        AutoConfigurationUtils.chooseScheduleClientInterceptors(
+            scheduleClientInterceptors, properties);
+    List<WorkerInterceptor> chosenWorkerInterceptors =
+        AutoConfigurationUtils.chooseWorkerInterceptors(workerInterceptors, properties);
     TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer =
         AutoConfigurationUtils.chooseTemporalCustomizerBean(
             workerFactoryCustomizerMap, WorkerFactoryOptions.Builder.class, properties);
@@ -104,6 +121,9 @@ public class RootNamespaceAutoConfiguration {
         properties,
         workflowServiceStubs,
         chosenDataConverter,
+        chosenClientInterceptors,
+        chosenScheduleClientInterceptors,
+        chosenWorkerInterceptors,
         otTracer,
         testWorkflowEnvironment,
         workerFactoryCustomizer,

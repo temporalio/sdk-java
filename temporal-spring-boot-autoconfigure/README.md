@@ -182,6 +182,11 @@ Task Queue names directly for simplicity.
 
 Note: Worker whose name is not explicitly specified is named after it's Task Queue.
 
+## Interceptors
+
+To enable interceptors create beans implementing the `io.temporal.common.interceptors.WorkflowClientInterceptor` interface or `io.temporal.common.interceptors.WorkerInterceptor` interface. 
+Interceptors will be registered in the order specified by the `@Order` annotation.
+
 ## Customization of `*Options`
 
 To provide freedom in customization of `*Options` instances that are created by this module,
@@ -283,7 +288,7 @@ spring.temporal:
 ## Customization
 
 All customization points for the root namespace also exist for the non-root namespaces. To specify for a particular 
-namespace users just need to append the alias/namespace to the bean.
+namespace users just need to append the alias/namespace to the bean. Currently interceptors are not supported.
 
 ```java
     // TemporalOptionsCustomizer type beans must start with the namespace/alias you defined and end with function class 

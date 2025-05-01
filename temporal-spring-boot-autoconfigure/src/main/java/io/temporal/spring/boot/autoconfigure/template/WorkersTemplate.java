@@ -9,6 +9,7 @@ import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
@@ -50,6 +51,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   private final @Nonnull NamespaceProperties namespaceProperties;
   private final ClientTemplate clientTemplate;
+  private final @Nullable List<WorkerInterceptor> workerInterceptors;
   private final @Nullable Tracer tracer;
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
@@ -71,6 +73,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   public WorkersTemplate(
       @Nonnull NamespaceProperties namespaceProperties,
       @Nullable ClientTemplate clientTemplate,
+      @Nullable List<WorkerInterceptor> workerInterceptors,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
@@ -79,6 +82,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
               workflowImplementationCustomizer) {
     this.namespaceProperties = namespaceProperties;
+    this.workerInterceptors = workerInterceptors;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
     this.clientTemplate = clientTemplate;
@@ -120,7 +124,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       return testWorkflowEnvironment.getWorkerFactory();
     } else {
       WorkerFactoryOptions workerFactoryOptions =
-          new WorkerFactoryOptionsTemplate(namespaceProperties, tracer, workerFactoryCustomizer)
+          new WorkerFactoryOptionsTemplate(
+                  namespaceProperties, workerInterceptors, tracer, workerFactoryCustomizer)
               .createWorkerFactoryOptions();
       return WorkerFactory.newInstance(workflowClient, workerFactoryOptions);
     }
