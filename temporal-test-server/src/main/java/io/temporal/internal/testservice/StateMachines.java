@@ -1363,6 +1363,9 @@ class StateMachines {
     if (request.getLinksCount() > 0) {
       event.addAllLinks(request.getLinksList());
     }
+    if (request.hasUserMetadata()) {
+      event.setUserMetadata(request.getUserMetadata());
+    }
     ctx.addEvent(event.build());
   }
 
