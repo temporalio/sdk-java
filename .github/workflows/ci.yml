@@ -165,8 +165,8 @@ jobs:
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
 
-  copyright:
-    name:  Copyright and code format
+  code_format:
+    name: Code format
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -187,4 +187,4 @@ jobs:
       uses: gradle/actions/setup-gradle@v4
     
     - name: Run copyright and code format checks
-      run: ./gradlew --no-daemon checkLicenseMain checkLicenses spotlessCheck
+      run: ./gradlew --no-daemon spotlessCheck

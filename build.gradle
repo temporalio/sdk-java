@@ -6,7 +6,6 @@ buildscript {
 
 plugins {
     id 'net.ltgt.errorprone' version '4.1.0' apply false
-    id 'org.cadixdev.licenser' version '0.6.1'
     id 'com.palantir.git-version' version "${palantirGitVersionVersion}" apply false
     id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
     id 'com.diffplug.spotless' version '7.0.2' apply false
@@ -72,7 +71,6 @@ if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
     apply from: "$rootDir/gradle/linting.gradle"
 }
 apply from: "$rootDir/gradle/errorprone.gradle"
-apply from: "$rootDir/gradle/licensing.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"
 apply from: "$rootDir/gradle/dependencyManagement.gradle"
 apply from: "$rootDir/gradle/gatherDependencies.gradle"
