@@ -1,5 +1,5 @@
 plugins {
-    id 'com.google.protobuf' version '0.9.2'
+    id 'com.google.protobuf' version '0.9.5'
 }
 
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
