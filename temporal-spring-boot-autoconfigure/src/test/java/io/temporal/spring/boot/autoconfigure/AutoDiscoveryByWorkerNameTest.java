@@ -3,6 +3,7 @@ package io.temporal.spring.boot.autoconfigure;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflow;
 import io.temporal.testing.TestWorkflowEnvironment;
 import org.junit.jupiter.api.*;
@@ -44,6 +45,12 @@ public class AutoDiscoveryByWorkerNameTest {
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
     testWorkflow.execute("nexus");
+
+    WorkflowStub dynamicStub =
+        workflowClient.newUntypedWorkflowStub(
+            "DynamicWorkflow", WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
+    dynamicStub.start();
+    Assertions.assertEquals("hello from dynamic workflow", dynamicStub.getResult(String.class));
   }
 
   @ComponentScan(
