@@ -70,16 +70,8 @@ public class CommandsGeneratePlantUMLStateDiagrams {
         (projectPath + "/" + fullRelativePath).replace("/", File.separator) + ".puml";
     File file = new File(diagramFile);
     CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
-    Path licensePath =
-        FileSystems.getDefault().getPath(projectPath).getParent().resolve("LICENSE.header");
-    File licenseFile = licensePath.toFile();
     StringBuilder content = new StringBuilder();
     try {
-      List<String> license = Files.readLines(licenseFile, Charsets.UTF_8);
-      for (String licenseLine : license) {
-        content.append("`" + licenseLine + "\n");
-      }
-      content.append("\n");
       content.append("` PlantUML <plantuml.com> State Diagram.\n");
       content.append(
           "` Generated from "
