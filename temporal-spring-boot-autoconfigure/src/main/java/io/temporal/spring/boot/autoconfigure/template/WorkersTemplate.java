@@ -311,7 +311,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   private Collection<Class<?>> autoDiscoverWorkflowImplementations() {
     ClassPathScanningCandidateComponentProvider scanner =
-        new ClassPathScanningCandidateComponentProvider(false);
+        new ClassPathScanningCandidateComponentProvider(false, environment);
     scanner.addIncludeFilter(new AnnotationTypeFilter(WorkflowImpl.class));
     Set<Class<?>> implementations = new HashSet<>();
     for (String pckg : namespaceProperties.getWorkersAutoDiscovery().getPackages()) {

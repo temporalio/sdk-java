@@ -7,8 +7,10 @@ import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Profile;
 
 @WorkflowImpl(workers = "mainWorker")
+@Profile("!auto-discovery-with-profile")
 public class TestWorkflowImpl implements TestWorkflow {
 
   // Test auto-wiring of the application context works, this is not indicative of a real-world use
