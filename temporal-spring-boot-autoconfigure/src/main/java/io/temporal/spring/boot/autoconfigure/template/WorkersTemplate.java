@@ -544,10 +544,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               + clazz);
     }
 
-    WorkflowImplementationOptions workflowImplementationOptions =
-        new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
-            .createWorkflowImplementationOptions();
-
     WorkerDeploymentOptions deploymentOptions = worker.getWorkerOptions().getDeploymentOptions();
 
     // If the workflow implementation class has a constructor annotated with @WorkflowInit,
@@ -570,6 +566,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             deploymentOptions.isUsingVersioning());
       }
 
+      WorkflowImplementationOptions workflowImplementationOptions =
+          new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+              .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
           (encodedValues) -> {
@@ -602,6 +601,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               deploymentOptions.getDefaultVersioningBehavior(),
               deploymentOptions.isUsingVersioning());
         }
+        WorkflowImplementationOptions workflowImplementationOptions =
+            new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+                .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
         worker.registerWorkflowImplementationFactory(
             (Class<T>) workflowMethod.getWorkflowInterface(),
             () -> (T) beanFactory.createBean(clazz),
