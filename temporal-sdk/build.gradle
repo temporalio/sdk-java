@@ -51,7 +51,7 @@ dependencies {
 
 tasks.named('compileJava21Java') {
     javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(23)
     }
     options.release = 21
 }
