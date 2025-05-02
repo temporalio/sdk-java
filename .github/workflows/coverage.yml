@@ -23,7 +23,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run Tests
-        run: ./gradlew test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -Pjacoco
+        run: ./gradlew test -x spotlessCheck -x spotlessApply -Pjacoco
         continue-on-error: true
 
       - name: Run Test Coverage

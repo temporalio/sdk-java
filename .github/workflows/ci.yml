@@ -31,13 +31,13 @@ jobs:
       env:
         USER: unittest
         USE_DOCKER_SERVICE: false
-      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+      run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Run independent resource tuner test
       env:
         USER: unittest
         USE_DOCKER_SERVICE: false
-      run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+      run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Publish Test Report
       uses: mikepenz/action-junit-report@v5
@@ -111,14 +111,14 @@ jobs:
         USER: unittest
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
-      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
+      run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Run virtual thread tests
       env:
         USER: unittest
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
-      run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
+      run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Publish Test Report
       uses: mikepenz/action-junit-report@v5
