@@ -1,14 +1,18 @@
 package io.temporal.spring.boot.autoconfigure.template;
 
+import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
+
 import com.google.common.base.Preconditions;
 import io.nexusrpc.ServiceDefinition;
 import io.nexusrpc.handler.ServiceImplInstance;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.internal.common.env.ReflectionUtils;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.NexusServiceImpl;
@@ -17,15 +21,11 @@ import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.*;
+import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.lang.reflect.Method;
+import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -492,6 +492,48 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   @SuppressWarnings("unchecked")
   private <T> void configureWorkflowImplementation(Worker worker, Class<?> clazz) {
+    // Handle dynamic workflows
+    if (DynamicWorkflow.class.isAssignableFrom(clazz)) {
+      try {
+        Method executeMethod = clazz.getMethod("execute", EncodedValues.class);
+        Optional<Constructor<?>> ctor =
+            ReflectionUtils.getWorkflowInitConstructor(
+                clazz, Collections.singletonList(executeMethod));
+        WorkflowImplementationOptions workflowImplementationOptions =
+            new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+                .createWorkflowImplementationOptions();
+        worker.registerWorkflowImplementationFactory(
+            DynamicWorkflow.class,
+            (encodedValues) -> {
+              if (ctor.isPresent()) {
+                try {
+                  return (DynamicWorkflow) ctor.get().newInstance(encodedValues);
+                } catch (InstantiationException
+                    | IllegalAccessException
+                    | InvocationTargetException e) {
+                  throw wrap(e);
+                }
+              } else {
+                try {
+                  return (DynamicWorkflow) clazz.getDeclaredConstructor().newInstance();
+                } catch (NoSuchMethodException
+                    | InstantiationException
+                    | IllegalAccessException
+                    | InvocationTargetException e) {
+                  // Error to fail workflow task as this can be fixed by a new deployment.
+                  throw new Error(
+                      "Failure instantiating workflow implementation class " + clazz.getName(), e);
+                }
+              }
+            },
+            workflowImplementationOptions);
+        return;
+      } catch (NoSuchMethodException e) {
+        throw new BeanDefinitionValidationException(
+            "Dynamic workflow implementation doesn't have execute method: " + clazz, e);
+      }
+    }
+
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstanceForWorkflowFactory(clazz);
     List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
