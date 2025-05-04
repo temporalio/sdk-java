@@ -501,7 +501,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 clazz, Collections.singletonList(executeMethod));
         WorkflowImplementationOptions workflowImplementationOptions =
             new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
-                .createWorkflowImplementationOptions();
+                .createWorkflowImplementationOptions(worker, clazz, null);
         worker.registerWorkflowImplementationFactory(
             DynamicWorkflow.class,
             (encodedValues) -> {

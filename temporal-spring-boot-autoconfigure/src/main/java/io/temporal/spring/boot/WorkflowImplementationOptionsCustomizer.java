@@ -35,7 +35,7 @@ public interface WorkflowImplementationOptionsCustomizer
    * @param worker the worker that the workflow implementation is being registered to.
    * @param clazz the class of the workflow implementation that is being registered.
    * @param workflowMethod the metadata of the workflow method on the interface that is being
-   *     registered.
+   *     registered. null if the class is a {@link io.temporal.workflow.DynamicWorkflow}.
    * @return modified {@code optionsBuilder} or a new builder instance to be used by the caller code
    */
   @Nonnull
