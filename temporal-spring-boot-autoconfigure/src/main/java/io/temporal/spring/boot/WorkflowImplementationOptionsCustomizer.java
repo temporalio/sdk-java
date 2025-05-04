@@ -4,6 +4,7 @@ import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkflowImplementationOptions;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Bean of this class can be added to Spring context to get a fine control over {@link
@@ -43,5 +44,5 @@ public interface WorkflowImplementationOptionsCustomizer
       @Nonnull WorkflowImplementationOptions.Builder optionsBuilder,
       @Nonnull Worker worker,
       @Nonnull Class<?> clazz,
-      @Nonnull POJOWorkflowMethodMetadata workflowMethod);
+      @Nullable POJOWorkflowMethodMetadata workflowMethod);
 }
