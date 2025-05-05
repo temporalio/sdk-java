@@ -30,8 +30,8 @@ dependencies {
     testImplementation 'pl.pragmatists:JUnitParams:1.1.1'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
     if (project.hasProperty("edgeDepsTest")) {
-        testRuntimeOnly "com.google.protobuf:protobuf-java:4.29.3"
-        testRuntimeOnly "com.google.protobuf:protobuf-java-util:4.29.3"
+        testRuntimeOnly "com.google.protobuf:$protoVersionEdge"
+        testRuntimeOnly "com.google.protobuf:$protoVersionEdge"
     }
 }
 
@@ -50,8 +50,10 @@ dependencies {
 }
 
 tasks.named('compileJava21Java') {
-    javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(21)
+    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
+        javaCompiler = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
     options.release = 21
 }
