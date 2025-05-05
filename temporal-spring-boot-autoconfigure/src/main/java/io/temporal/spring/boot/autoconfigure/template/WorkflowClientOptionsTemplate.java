@@ -10,7 +10,6 @@ import io.temporal.opentracing.OpenTracingClientInterceptor;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -48,16 +47,15 @@ public class WorkflowClientOptionsTemplate {
     options.setNamespace(namespace);
     Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
 
-    List<WorkflowClientInterceptor> interceptors =
-        new ArrayList<>(
-            workflowClientInterceptors != null
-                ? workflowClientInterceptors
-                : Collections.EMPTY_LIST);
+    List<WorkflowClientInterceptor> interceptors = new ArrayList<>();
     if (tracer != null) {
       OpenTracingClientInterceptor openTracingClientInterceptor =
           new OpenTracingClientInterceptor(
               OpenTracingOptions.newBuilder().setTracer(tracer).build());
       interceptors.add(openTracingClientInterceptor);
+    }
+    if (workflowClientInterceptors != null) {
+      interceptors.addAll(workflowClientInterceptors);
     }
 
     options.setInterceptors(interceptors.stream().toArray(WorkflowClientInterceptor[]::new));

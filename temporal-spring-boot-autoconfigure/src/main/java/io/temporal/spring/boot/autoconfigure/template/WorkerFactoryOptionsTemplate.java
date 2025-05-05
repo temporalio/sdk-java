@@ -8,7 +8,6 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.worker.WorkerFactoryOptions;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -45,13 +44,15 @@ public class WorkerFactoryOptionsTemplate {
           .ifPresent(options::setUsingVirtualWorkflowThreads);
     }
 
-    List<WorkerInterceptor> interceptors =
-        new ArrayList<>(workerInterceptors != null ? workerInterceptors : Collections.EMPTY_LIST);
+    List<WorkerInterceptor> interceptors = new ArrayList<>();
     if (tracer != null) {
       OpenTracingWorkerInterceptor openTracingClientInterceptor =
           new OpenTracingWorkerInterceptor(
               OpenTracingOptions.newBuilder().setTracer(tracer).build());
       interceptors.add(openTracingClientInterceptor);
+    }
+    if (workerInterceptors != null) {
+      interceptors.addAll(workerInterceptors);
     }
     options.setWorkerInterceptors(interceptors.stream().toArray(WorkerInterceptor[]::new));
 
