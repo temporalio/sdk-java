@@ -63,6 +63,19 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-with-profile
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.byworkername
+
+---
+spring:
+  config:
+    activate:
       on-profile: explicit-config
   temporal:
     workers:
