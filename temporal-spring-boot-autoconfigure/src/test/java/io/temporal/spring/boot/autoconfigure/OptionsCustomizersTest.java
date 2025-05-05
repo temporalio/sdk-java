@@ -7,9 +7,10 @@ import static org.mockito.Mockito.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkerOptionsCustomizer;
+import io.temporal.spring.boot.WorkflowImplementationOptionsCustomizer;
+import io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflowImpl;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,7 @@ public class OptionsCustomizersTest {
 
   @Autowired List<TemporalOptionsCustomizer<?>> customizers;
   @Autowired WorkerOptionsCustomizer workerCustomizer;
+  @Autowired WorkflowImplementationOptionsCustomizer workflowImplementationOptionsCustomizer;
 
   @BeforeEach
   void setUp() {
@@ -43,6 +45,8 @@ public class OptionsCustomizersTest {
     assertEquals(5, customizers.size());
     customizers.forEach(c -> verify(c).customize(any()));
     verify(workerCustomizer).customize(any(), eq("UnitTest"), eq("UnitTest"));
+    verify(workflowImplementationOptionsCustomizer)
+        .customize(any(), any(), eq(TestWorkflowImpl.class), any());
   }
 
   @ComponentScan(
@@ -68,9 +72,14 @@ public class OptionsCustomizersTest {
     }
 
     @Bean
-    public TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-        WorkflowImplementationCustomizer() {
-      return getReturningMock();
+    public WorkflowImplementationOptionsCustomizer WorkflowImplementationCustomizer() {
+      WorkflowImplementationOptionsCustomizer mock =
+          mock(WorkflowImplementationOptionsCustomizer.class);
+      when(mock.customize(any())).thenAnswer(invocation -> invocation.getArgument(0)).getMock();
+      when(mock.customize(any(), any(), any(), any()))
+          .thenAnswer(invocation -> invocation.getArgument(0))
+          .getMock();
+      return mock;
     }
 
     @Bean
