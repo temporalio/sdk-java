@@ -109,6 +109,9 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             ns,
             workflowServiceStubs,
             dataConverterByNamespace,
+            null, // Currently interceptors are not supported in non-root namespace
+            null,
+            null,
             tracer,
             testWorkflowEnvironment,
             workFactoryCustomizer,

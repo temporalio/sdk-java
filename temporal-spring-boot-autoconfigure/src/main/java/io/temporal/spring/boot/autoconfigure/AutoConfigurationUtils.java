@@ -2,6 +2,9 @@ package io.temporal.spring.boot.autoconfigure;
 
 import com.google.common.base.MoreObjects;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
@@ -17,7 +20,7 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 class AutoConfigurationUtils {
 
   @Nullable
-  static DataConverter choseDataConverter(
+  static DataConverter chooseDataConverter(
       List<DataConverter> dataConverters, DataConverter mainDataConverter) {
     DataConverter chosenDataConverter = null;
     if (dataConverters.size() == 1) {
@@ -38,7 +41,7 @@ class AutoConfigurationUtils {
   }
 
   @Nullable
-  static DataConverter choseDataConverter(
+  static DataConverter chooseDataConverter(
       Map<String, DataConverter> dataConverters,
       DataConverter mainDataConverter,
       TemporalProperties properties) {
@@ -47,7 +50,7 @@ class AutoConfigurationUtils {
     }
     List<NonRootNamespaceProperties> nonRootNamespaceProperties = properties.getNamespaces();
     if (Objects.isNull(nonRootNamespaceProperties) || nonRootNamespaceProperties.isEmpty()) {
-      return choseDataConverter(new ArrayList<>(dataConverters.values()), mainDataConverter);
+      return chooseDataConverter(new ArrayList<>(dataConverters.values()), mainDataConverter);
     } else {
       List<DataConverter> dataConverterList = new ArrayList<>();
       List<String> nonRootBeanNames =
@@ -69,8 +72,26 @@ class AutoConfigurationUtils {
         }
         dataConverterList.add(dataConverter);
       }
-      return choseDataConverter(dataConverterList, mainDataConverter);
+      return chooseDataConverter(dataConverterList, mainDataConverter);
     }
+  }
+
+  @Nullable
+  static List<WorkflowClientInterceptor> chooseWorkflowClientInterceptors(
+      List<WorkflowClientInterceptor> workflowClientInterceptors, TemporalProperties properties) {
+    return workflowClientInterceptors;
+  }
+
+  @Nullable
+  static List<ScheduleClientInterceptor> chooseScheduleClientInterceptors(
+      List<ScheduleClientInterceptor> scheduleClientInterceptor, TemporalProperties properties) {
+    return scheduleClientInterceptor;
+  }
+
+  @Nullable
+  static List<WorkerInterceptor> chooseWorkerInterceptors(
+      List<WorkerInterceptor> workerInterceptor, TemporalProperties properties) {
+    return workerInterceptor;
   }
 
   static <T> TemporalOptionsCustomizer<T> chooseTemporalCustomizerBean(

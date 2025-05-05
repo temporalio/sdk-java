@@ -4,12 +4,16 @@ import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.BeanFactory;
@@ -24,6 +28,9 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
       @Nonnull NonRootNamespaceProperties namespaceProperties,
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
       @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Nullable List<WorkerInterceptor> workerInterceptors,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
@@ -37,6 +44,9 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
         namespaceProperties,
         workflowServiceStubs,
         dataConverter,
+        workflowClientInterceptors,
+        scheduleClientInterceptors,
+        workerInterceptors,
         tracer,
         testWorkflowEnvironment,
         workerFactoryCustomizer,

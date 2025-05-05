@@ -7,8 +7,11 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -24,6 +27,8 @@ public class ClientTemplate {
   public ClientTemplate(
       @Nonnull String namespace,
       @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
       @Nullable Tracer tracer,
       @Nullable WorkflowServiceStubs workflowServiceStubs,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
@@ -31,7 +36,13 @@ public class ClientTemplate {
       @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomer) {
     this.optionsTemplate =
         new WorkflowClientOptionsTemplate(
-            namespace, dataConverter, tracer, clientCustomizer, scheduleCustomer);
+            namespace,
+            dataConverter,
+            workflowClientInterceptors,
+            scheduleClientInterceptors,
+            tracer,
+            clientCustomizer,
+            scheduleCustomer);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
