@@ -51,10 +51,8 @@ dependencies {
 }
 
 tasks.named('compileJava21Java') {
-    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
-        javaCompiler = javaToolchains.compilerFor {
-            languageVersion = JavaLanguageVersion.of(21)
-        }
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(21)
     }
     options.release = 21
 }
