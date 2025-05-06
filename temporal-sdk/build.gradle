@@ -32,6 +32,7 @@ dependencies {
     if (project.hasProperty("edgeDepsTest")) {
         testRuntimeOnly "com.google.protobuf:protobuf-java:$protoVersionEdge"
         testRuntimeOnly "com.google.protobuf:protobuf-java-util:$protoVersionEdge"
+        testRuntimeOnly "io.grpc:grpc-bom:$grpcVersionEdge"
     }
 }
 
