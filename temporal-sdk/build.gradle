@@ -30,8 +30,8 @@ dependencies {
     testImplementation 'pl.pragmatists:JUnitParams:1.1.1'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
     if (project.hasProperty("edgeDepsTest")) {
-        testRuntimeOnly "com.google.protobuf:$protoVersionEdge"
-        testRuntimeOnly "com.google.protobuf:$protoVersionEdge"
+        testRuntimeOnly "com.google.protobuf:protobuf-java:$protoVersionEdge"
+        testRuntimeOnly "com.google.protobuf:protobuf-java-util:$protoVersionEdge"
     }
 }
 
