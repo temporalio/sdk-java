@@ -11,6 +11,7 @@ dependencies {
 
     api ("io.grpc:grpc-api") //Classes like io.grpc.Metadata are used as a part of our API
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
+    api "io.grpc:grpc-protobuf" // Provides base classes used by generated gRPC code, such as io.grpc.protobuf.ProtoFileDescriptorSupplier
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
     api "io.grpc:grpc-services" //Standard gRPC HealthCheck Response class
     api "io.grpc:grpc-inprocess" //For the in-process time skipping test server
@@ -67,7 +68,9 @@ sourceSets {
     proto {
         srcDir 'src/main/protocloud'
         // TODO(https://github.com/temporalio/api/issues/400): Remove this exclusion once the 3rd party protos are removed.
-        exclude '**/google/**/*'
+        // exclude '**/google/**/*'
+        // Commented out because newer versions of proto-google-common-protos no longer include compiled classes,
+        // only .proto files, so we need to generate the classes ourselves.
     }
   }
 }

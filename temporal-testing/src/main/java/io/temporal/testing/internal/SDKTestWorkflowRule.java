@@ -453,9 +453,10 @@ public class SDKTestWorkflowRule implements TestRule {
       try {
         sink.write(json);
       } catch (IOException e) {
-        Throwables.propagateIfPossible(e, RuntimeException.class);
+        Throwables.throwIfInstanceOf(e, RuntimeException.class);
+        throw new RuntimeException(e);
       }
-      log.info("Regenerated history file: " + resourceFile);
+      log.info("Regenerated history file: {}", resourceFile);
     }
   }
 
