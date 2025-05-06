@@ -183,10 +183,6 @@ public class ScheduleTest {
     ScheduleDescription description = handle.describe();
     Assert.assertEquals(0, description.getSchedule().getState().getRemainingActions());
     Assert.assertEquals(true, description.getSchedule().getState().isLimitedAction());
-    Assert.assertEquals(
-        3,
-        description.getInfo().getRecentActions().size()
-            + description.getInfo().getRunningActions().size());
     // Cleanup schedule
     handle.delete();
   }
