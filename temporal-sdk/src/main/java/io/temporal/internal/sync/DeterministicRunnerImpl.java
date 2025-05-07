@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.WorkflowThreadMarker;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -157,7 +158,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     // a bad practice
     this.workflowContext.setRunner(this);
     this.cache = cache;
-    this.runnerCancellationScope = new CancellationScopeImpl(true, null, null);
+    boolean deterministicCancellationScopeOrder =
+        workflowContext
+            .getReplayContext()
+            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+    this.runnerCancellationScope =
+        new CancellationScopeImpl(true, deterministicCancellationScopeOrder, null, null);
     this.rootRunnable = root;
   }
 

@@ -24,6 +24,7 @@ import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.NonIdempotentHandle;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
@@ -546,12 +547,20 @@ public final class WorkflowInternal {
   }
 
   public static CancellationScope newCancellationScope(boolean detached, Runnable runnable) {
-    return new CancellationScopeImpl(detached, runnable);
+    boolean deterministicCancellationScopeOrder =
+        getRootWorkflowContext()
+            .getReplayContext()
+            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+    return new CancellationScopeImpl(detached, deterministicCancellationScopeOrder, runnable);
   }
 
   public static CancellationScope newCancellationScope(
       boolean detached, Functions.Proc1<CancellationScope> proc) {
-    return new CancellationScopeImpl(detached, proc);
+    boolean deterministicCancellationScopeOrder =
+        getRootWorkflowContext()
+            .getReplayContext()
+            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+    return new CancellationScopeImpl(detached, deterministicCancellationScopeOrder, proc);
   }
 
   public static CancellationScopeImpl currentCancellationScope() {

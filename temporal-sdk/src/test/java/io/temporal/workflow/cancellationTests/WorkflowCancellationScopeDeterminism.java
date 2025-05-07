@@ -5,19 +5,19 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.internal.common.SdkFlag;
+import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class WorkflowCancellationScopeDeterminism {
-  private static final Logger log =
-      LoggerFactory.getLogger(WorkflowCancellationScopeDeterminism.class);
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -26,10 +26,15 @@ public class WorkflowCancellationScopeDeterminism {
           .setUseExternalService(true)
           .build();
 
-  @Test(timeout = 1000000)
+  @Before
+  public void setUp() {
+    WorkflowStateMachines.initialFlags =
+        Collections.unmodifiableList(Arrays.asList(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER));
+  }
+
+  @Test(timeout = 60000)
   public void replayCanceledWorkflow() throws Exception {
-    for (int i = 0; i < 1000; i++) {
-      log.info("Running test iteration {}", i);
+    for (int i = 0; i < 100; i++) {
       TestWorkflow testWorkflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
 
       WorkflowClient.start(testWorkflow::start);

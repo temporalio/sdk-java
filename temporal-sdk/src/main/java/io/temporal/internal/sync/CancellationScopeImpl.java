@@ -33,8 +33,9 @@ class CancellationScopeImpl implements CancellationScope {
 
   private final Runnable runnable;
   private CancellationScopeImpl parent;
-  // We use a LinkedHashSet because we will iterate through the children, so we need to keep a deterministic order.
-  private final Set<CancellationScopeImpl> children = new LinkedHashSet<>();
+  // We use a LinkedHashSet because we will iterate through the children, so we need to keep a
+  // deterministic order.
+  private final Set<CancellationScopeImpl> children;
 
   /**
    * When disconnected scope has no parent and thus doesn't receive cancellation requests from it.
@@ -43,20 +44,37 @@ class CancellationScopeImpl implements CancellationScope {
 
   private String reason;
 
-  CancellationScopeImpl(boolean ignoreParentCancellation, Runnable runnable) {
-    this(ignoreParentCancellation, runnable, current());
+  CancellationScopeImpl(
+      boolean ignoreParentCancellation, boolean deterministicOrder, Runnable runnable) {
+    this(ignoreParentCancellation, deterministicOrder, runnable, current());
   }
 
-  CancellationScopeImpl(boolean detached, Runnable runnable, CancellationScopeImpl parent) {
+  CancellationScopeImpl(
+      boolean detached,
+      boolean deterministicOrder,
+      Runnable runnable,
+      CancellationScopeImpl parent) {
     this.detached = detached;
     this.runnable = runnable;
+    if (deterministicOrder) {
+      this.children = new LinkedHashSet<>();
+    } else {
+      this.children = new HashSet<>();
+    }
     setParent(parent);
   }
 
   public CancellationScopeImpl(
-      boolean ignoreParentCancellation, Functions.Proc1<CancellationScope> proc) {
+      boolean ignoreParentCancellation,
+      boolean deterministicOrder,
+      Functions.Proc1<CancellationScope> proc) {
     this.detached = ignoreParentCancellation;
     this.runnable = () -> proc.apply(this);
+    if (deterministicOrder) {
+      this.children = new LinkedHashSet<>();
+    } else {
+      this.children = new HashSet<>();
+    }
     setParent(current());
   }
 
