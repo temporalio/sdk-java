@@ -24,8 +24,9 @@ public class TemporalProperties extends NamespaceProperties {
       @Nullable WorkflowCacheProperties workflowCache,
       @Nonnull ConnectionProperties connection,
       @Nullable TestServerProperties testServer,
-      @Nullable Boolean startWorkers) {
-    super(namespace, workersAutoDiscovery, workers, workflowCache);
+      @Nullable Boolean startWorkers,
+      @Nullable Boolean ignoreDuplicateDefinitions) {
+    super(namespace, workersAutoDiscovery, workers, workflowCache, ignoreDuplicateDefinitions);
     this.connection = connection;
     this.testServer = testServer;
     this.startWorkers = startWorkers;

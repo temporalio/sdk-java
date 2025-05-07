@@ -432,6 +432,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             worker.getTaskQueue(),
             registeredEx.getRegisteredTypeName());
       }
+      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
+        throw registeredEx;
+      }
     }
   }
 
@@ -468,6 +471,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             worker.getTaskQueue(),
             registeredEx.getRegisteredTypeName());
       }
+      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
+        throw registeredEx;
+      }
     }
   }
 
@@ -491,6 +497,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
             worker.getTaskQueue(),
             registeredEx.getRegisteredTypeName());
+      }
+      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
+        throw registeredEx;
       }
     }
   }
