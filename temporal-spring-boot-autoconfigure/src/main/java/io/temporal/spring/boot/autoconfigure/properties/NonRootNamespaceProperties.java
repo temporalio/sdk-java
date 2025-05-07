@@ -43,8 +43,9 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
       @Nullable List<WorkerProperties> workers,
       @Nullable WorkflowCacheProperties workflowCache,
       @Nullable ConnectionProperties connection,
-      @Nullable Boolean startWorkers) {
-    super(namespace, workersAutoDiscovery, workers, workflowCache);
+      @Nullable Boolean startWorkers,
+      @Nullable Boolean ignoreDuplicateDefinitions) {
+    super(namespace, workersAutoDiscovery, workers, workflowCache, ignoreDuplicateDefinitions);
     this.alias = alias;
     this.connection = connection;
     this.startWorkers = startWorkers;

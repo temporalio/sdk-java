@@ -15,17 +15,21 @@ public class NamespaceProperties {
   private final @Nullable List<WorkerProperties> workers;
   private final @Nonnull String namespace;
   private final @Nullable WorkflowCacheProperties workflowCache;
+  private final @Nullable Boolean ignoreDuplicateDefinitions;
 
   @ConstructorBinding
   public NamespaceProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable List<WorkerProperties> workers,
-      @Nullable WorkflowCacheProperties workflowCache) {
+      @Nullable WorkflowCacheProperties workflowCache,
+      @Nullable Boolean ignoreDuplicateDefinitions) {
     this.workersAutoDiscovery = workersAutoDiscovery;
     this.workers = workers;
     this.namespace = MoreObjects.firstNonNull(namespace, NAMESPACE_DEFAULT);
     this.workflowCache = workflowCache;
+    this.ignoreDuplicateDefinitions =
+        MoreObjects.firstNonNull(ignoreDuplicateDefinitions, Boolean.TRUE);
   }
 
   @Nullable
@@ -49,6 +53,11 @@ public class NamespaceProperties {
   @Nullable
   public WorkflowCacheProperties getWorkflowCache() {
     return workflowCache;
+  }
+
+  @Nonnull
+  public Boolean isIgnoreDuplicateDefinitions() {
+    return Boolean.TRUE;
   }
 
   public static class WorkflowCacheProperties {
