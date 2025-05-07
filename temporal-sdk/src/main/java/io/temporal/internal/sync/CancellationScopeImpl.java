@@ -1,10 +1,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.workflow.*;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 class CancellationScopeImpl implements CancellationScope {
 
@@ -36,7 +33,8 @@ class CancellationScopeImpl implements CancellationScope {
 
   private final Runnable runnable;
   private CancellationScopeImpl parent;
-  private final Set<CancellationScopeImpl> children = new HashSet<>();
+  // We use a LinkedHashSet because we will iterate through the children, so we need to keep a deterministic order.
+  private final Set<CancellationScopeImpl> children = new LinkedHashSet<>();
 
   /**
    * When disconnected scope has no parent and thus doesn't receive cancellation requests from it.
