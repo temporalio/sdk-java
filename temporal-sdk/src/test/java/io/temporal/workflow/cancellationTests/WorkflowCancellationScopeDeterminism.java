@@ -23,7 +23,6 @@ public class WorkflowCancellationScopeDeterminism {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
-          .setUseExternalService(true)
           .build();
 
   @Before
