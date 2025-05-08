@@ -6,6 +6,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Durations;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.TaskQueueKind;
@@ -121,6 +122,10 @@ public class NexusWorkflowTest {
 
       // Manually start handler WF with callback
       TaskQueue handlerWFTaskQueue = TaskQueue.newBuilder().setName("nexus-handler-tq").build();
+      List<Link> links =
+          startReq.getStartOperation().getLinksList().stream()
+              .map(LinkConverter::nexusLinkToWorkflowEvent)
+              .collect(Collectors.toList());
       testWorkflowRule
           .getWorkflowClient()
           .getWorkflowServiceStubs()
@@ -135,12 +140,10 @@ public class NexusWorkflowTest {
                   .setTaskQueue(handlerWFTaskQueue)
                   .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                   .setIdentity("test")
-                  .addAllLinks(
-                      startReq.getStartOperation().getLinksList().stream()
-                          .map(LinkConverter::nexusLinkToWorkflowEvent)
-                          .collect(Collectors.toList()))
+                  .addAllLinks(links)
                   .addCompletionCallbacks(
                       Callback.newBuilder()
+                          .addAllLinks(links)
                           .setNexus(
                               Callback.Nexus.newBuilder()
                                   .setUrl(startReq.getStartOperation().getCallback())
@@ -196,6 +199,10 @@ public class NexusWorkflowTest {
 
     // Manually start handler WF with callback
     TaskQueue handlerWFTaskQueue = TaskQueue.newBuilder().setName("nexus-handler-tq").build();
+    List<Link> links =
+        startReq.getStartOperation().getLinksList().stream()
+            .map(LinkConverter::nexusLinkToWorkflowEvent)
+            .collect(Collectors.toList());
     testWorkflowRule
         .getWorkflowClient()
         .getWorkflowServiceStubs()
@@ -209,12 +216,10 @@ public class NexusWorkflowTest {
                 .setTaskQueue(handlerWFTaskQueue)
                 .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                 .setIdentity("test")
-                .addAllLinks(
-                    startReq.getStartOperation().getLinksList().stream()
-                        .map(LinkConverter::nexusLinkToWorkflowEvent)
-                        .collect(Collectors.toList()))
+                .addAllLinks(links)
                 .addCompletionCallbacks(
                     Callback.newBuilder()
+                        .addAllLinks(links)
                         .setNexus(
                             Callback.Nexus.newBuilder()
                                 .setUrl(startReq.getStartOperation().getCallback())
@@ -261,6 +266,10 @@ public class NexusWorkflowTest {
 
       // Manually start handler WF with callback
       TaskQueue handlerWFTaskQueue = TaskQueue.newBuilder().setName("nexus-handler-tq").build();
+      List<Link> links =
+          startReq.getStartOperation().getLinksList().stream()
+              .map(LinkConverter::nexusLinkToWorkflowEvent)
+              .collect(Collectors.toList());
       StartWorkflowExecutionResponse startResp =
           testWorkflowRule
               .getWorkflowClient()
@@ -276,12 +285,10 @@ public class NexusWorkflowTest {
                       .setTaskQueue(handlerWFTaskQueue)
                       .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                       .setIdentity("test")
-                      .addAllLinks(
-                          startReq.getStartOperation().getLinksList().stream()
-                              .map(LinkConverter::nexusLinkToWorkflowEvent)
-                              .collect(Collectors.toList()))
+                      .addAllLinks(links)
                       .addCompletionCallbacks(
                           Callback.newBuilder()
+                              .addAllLinks(links)
                               .setNexus(
                                   Callback.Nexus.newBuilder()
                                       .setUrl(startReq.getStartOperation().getCallback())
@@ -367,6 +374,10 @@ public class NexusWorkflowTest {
 
       // Manually start handler WF with callback
       TaskQueue handlerWFTaskQueue = TaskQueue.newBuilder().setName("nexus-handler-tq").build();
+      List<Link> links =
+          startReq.getStartOperation().getLinksList().stream()
+              .map(LinkConverter::nexusLinkToWorkflowEvent)
+              .collect(Collectors.toList());
       StartWorkflowExecutionResponse startResp =
           testWorkflowRule
               .getWorkflowClient()
@@ -382,12 +393,10 @@ public class NexusWorkflowTest {
                       .setTaskQueue(handlerWFTaskQueue)
                       .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                       .setIdentity("test")
-                      .addAllLinks(
-                          startReq.getStartOperation().getLinksList().stream()
-                              .map(LinkConverter::nexusLinkToWorkflowEvent)
-                              .collect(Collectors.toList()))
+                      .addAllLinks(links)
                       .addCompletionCallbacks(
                           Callback.newBuilder()
+                              .addAllLinks(links)
                               .setNexus(
                                   Callback.Nexus.newBuilder()
                                       .setUrl(startReq.getStartOperation().getCallback())
@@ -463,6 +472,10 @@ public class NexusWorkflowTest {
 
       // Manually start handler WF with callback
       TaskQueue handlerWFTaskQueue = TaskQueue.newBuilder().setName("nexus-handler-tq").build();
+      List<Link> links =
+          startReq.getStartOperation().getLinksList().stream()
+              .map(LinkConverter::nexusLinkToWorkflowEvent)
+              .collect(Collectors.toList());
       testWorkflowRule
           .getWorkflowClient()
           .getWorkflowServiceStubs()
@@ -478,12 +491,10 @@ public class NexusWorkflowTest {
                   .setInput(Payloads.newBuilder().addPayloads(defaultInput))
                   .setWorkflowRunTimeout(Durations.fromSeconds(1))
                   .setIdentity("test")
-                  .addAllLinks(
-                      startReq.getStartOperation().getLinksList().stream()
-                          .map(LinkConverter::nexusLinkToWorkflowEvent)
-                          .collect(Collectors.toList()))
+                  .addAllLinks(links)
                   .addCompletionCallbacks(
                       Callback.newBuilder()
+                          .addAllLinks(links)
                           .setNexus(
                               Callback.Nexus.newBuilder()
                                   .setUrl(startReq.getStartOperation().getCallback())

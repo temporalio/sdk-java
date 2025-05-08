@@ -4,6 +4,7 @@ import com.google.common.base.Defaults;
 import io.nexusrpc.Header;
 import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.Callback;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.OnConflictOptions;
@@ -13,9 +14,7 @@ import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,42 +87,45 @@ public final class InternalUtils {
     if (!headers.containsKey(Header.OPERATION_TOKEN)) {
       headers.put(Header.OPERATION_TOKEN.toLowerCase(), options.getWorkflowId());
     }
+    List<Link> links =
+        request.getLinks() == null
+            ? null
+            : request.getLinks().stream()
+                .map(
+                    (link) -> {
+                      if (io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor()
+                          .getFullName()
+                          .equals(link.getType())) {
+                        io.temporal.api.nexus.v1.Link nexusLink =
+                            io.temporal.api.nexus.v1.Link.newBuilder()
+                                .setType(link.getType())
+                                .setUrl(link.getUri().toString())
+                                .build();
+                        return LinkConverter.nexusLinkToWorkflowEvent(nexusLink);
+                      } else {
+                        log.warn("ignoring unsupported link data type: {}", link.getType());
+                        return null;
+                      }
+                    })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    Callback.Builder cbBuilder =
+        Callback.newBuilder()
+            .setNexus(
+                Callback.Nexus.newBuilder()
+                    .setUrl(request.getCallbackUrl())
+                    .putAllHeader(headers)
+                    .build());
+    if (links != null) {
+      cbBuilder.addAllLinks(links);
+    }
     WorkflowOptions.Builder nexusWorkflowOptions =
         WorkflowOptions.newBuilder(options)
             .setRequestId(request.getRequestId())
-            .setCompletionCallbacks(
-                Arrays.asList(
-                    Callback.newBuilder()
-                        .setNexus(
-                            Callback.Nexus.newBuilder()
-                                .setUrl(request.getCallbackUrl())
-                                .putAllHeader(headers)
-                                .build())
-                        .build()));
+            .setCompletionCallbacks(Collections.singletonList(cbBuilder.build()))
+            .setLinks(links);
     if (options.getTaskQueue() == null) {
       nexusWorkflowOptions.setTaskQueue(request.getTaskQueue());
-    }
-    if (request.getLinks() != null) {
-      nexusWorkflowOptions.setLinks(
-          request.getLinks().stream()
-              .map(
-                  (link) -> {
-                    if (io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor()
-                        .getFullName()
-                        .equals(link.getType())) {
-                      io.temporal.api.nexus.v1.Link nexusLink =
-                          io.temporal.api.nexus.v1.Link.newBuilder()
-                              .setType(link.getType())
-                              .setUrl(link.getUri().toString())
-                              .build();
-                      return LinkConverter.nexusLinkToWorkflowEvent(nexusLink);
-                    } else {
-                      log.warn("ignoring unsupported link data type: {}", link.getType());
-                      return null;
-                    }
-                  })
-              .filter(link -> link != null)
-              .collect(Collectors.toList()));
     }
     nexusWorkflowOptions.setOnConflictOptions(
         OnConflictOptions.newBuilder()
