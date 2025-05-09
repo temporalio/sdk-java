@@ -29,7 +29,9 @@ public class VersionNotSupportedWithConflictingRangesExecutionTest extends BaseV
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(WorkflowWithIncompatibleRangesForTheSameChangeId.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(),
+              WorkflowWithIncompatibleRangesForTheSameChangeId.class)
           .setActivityImplementations(new TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(

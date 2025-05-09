@@ -23,7 +23,8 @@ public class GetVersionAddNewBeforeTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowAddNewBefore.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowAddNewBefore.class)
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
