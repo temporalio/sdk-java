@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.NonIdempotentHandle;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -55,7 +56,11 @@ class WorkflowThreadImpl implements WorkflowThread {
       this.threadContext = threadContext;
       this.replayWorkflowContext = replayWorkflowContext;
       this.name = name;
-      this.cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
+      boolean deterministicCancellationScopeOrder =
+          replayWorkflowContext.checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+      this.cancellationScope =
+          new CancellationScopeImpl(
+              detached, deterministicCancellationScopeOrder, runnable, parent);
       Preconditions.checkState(
           context.getStatus() == Status.CREATED, "threadContext not in CREATED state");
       this.contextPropagators = contextPropagators;

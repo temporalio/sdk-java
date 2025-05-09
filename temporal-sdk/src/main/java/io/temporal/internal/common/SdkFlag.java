@@ -14,6 +14,10 @@ public enum SdkFlag {
    * Changes behavior of GetVersion to never yield.
    */
   SKIP_YIELD_ON_VERSION(2),
+  /*
+   * Changes behavior of CancellationScope to cancel children in a deterministic order.
+   */
+  DETERMINISTIC_CANCELLATION_SCOPE_ORDER(3),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;

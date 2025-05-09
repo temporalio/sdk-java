@@ -1,0 +1,197 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2025-05-07T17:40:05.525035Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
+      "taskId": "4090963",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "TestWorkflow"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-replayCanceledWorkflow-06329052-559e-4e2b-a33b-f324bc2c7822",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "workflowExecutionTimeout": "0s",
+        "workflowRunTimeout": "0s",
+        "workflowTaskTimeout": "10s",
+        "originalExecutionRunId": "0196abd5-4f15-7084-ae26-a03ef0d62ba7",
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local",
+        "firstExecutionRunId": "0196abd5-4f15-7084-ae26-a03ef0d62ba7",
+        "attempt": 1,
+        "firstWorkflowTaskBackoff": "0s",
+        "header": {},
+        "workflowId": "f73757fe-34ca-480e-8730-f30aee26558f"
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2025-05-07T17:40:05.525136Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "4090964",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-replayCanceledWorkflow-06329052-559e-4e2b-a33b-f324bc2c7822",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2025-05-07T17:40:05.529398Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "4090969",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "8781a5f1-a3e3-40a3-94b1-7ffa01561897",
+        "historySizeBytes": "407"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2025-05-07T17:40:05.650225Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "4090973",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "startedEventId": "3",
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "sdkMetadata": {
+          "langUsedFlags": [
+            3
+          ],
+          "sdkName": "temporal-java",
+          "sdkVersion": "1.23.0"
+        },
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2025-05-07T17:40:05.650291Z",
+      "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
+      "taskId": "4090974",
+      "activityTaskScheduledEventAttributes": {
+        "activityId": "01eb36ed-7c25-32e2-9026-6e27f249ca29",
+        "activityType": {
+          "name": "DoActivity"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-replayCanceledWorkflow-06329052-559e-4e2b-a33b-f324bc2c7822",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "header": {},
+        "scheduleToCloseTimeout": "60s",
+        "scheduleToStartTimeout": "60s",
+        "startToCloseTimeout": "60s",
+        "heartbeatTimeout": "0s",
+        "workflowTaskCompletedEventId": "4",
+        "retryPolicy": {
+          "initialInterval": "1s",
+          "backoffCoefficient": 2,
+          "maximumInterval": "100s"
+        }
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2025-05-07T17:40:05.650330Z",
+      "eventType": "EVENT_TYPE_TIMER_STARTED",
+      "taskId": "4090975",
+      "timerStartedEventAttributes": {
+        "timerId": "a0b42b7b-d179-3d73-acf4-960f6aa0436a",
+        "startToFireTimeout": "300s",
+        "workflowTaskCompletedEventId": "4"
+      }
+    },
+    {
+      "eventId": "7",
+      "eventTime": "2025-05-07T17:40:05.532054Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED",
+      "taskId": "4090976",
+      "workflowExecutionCancelRequestedEventAttributes": {
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local"
+      }
+    },
+    {
+      "eventId": "8",
+      "eventTime": "2025-05-07T17:40:05.650341Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "4090977",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "83364@Quinn-Klassens-MacBook-Pro.local:a68365be-2604-4267-9bf1-2a0e0681fc7c",
+          "kind": "TASK_QUEUE_KIND_STICKY",
+          "normalName": "WorkflowTest-replayCanceledWorkflow-06329052-559e-4e2b-a33b-f324bc2c7822"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "9",
+      "eventTime": "2025-05-07T17:40:05.656085Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "4090985",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "8",
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local",
+        "requestId": "491557d2-cd45-4d7c-9b92-bbba5204af4b",
+        "historySizeBytes": "1148"
+      }
+    },
+    {
+      "eventId": "10",
+      "eventTime": "2025-05-07T17:40:05.680811Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "4090991",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "8",
+        "startedEventId": "9",
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local",
+        "workerVersion": {},
+        "sdkMetadata": {
+          "sdkName": "temporal-java",
+          "sdkVersion": "1.23.0"
+        },
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "11",
+      "eventTime": "2025-05-07T17:40:05.680892Z",
+      "eventType": "EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED",
+      "taskId": "4090992",
+      "activityTaskCancelRequestedEventAttributes": {
+        "scheduledEventId": "5",
+        "workflowTaskCompletedEventId": "10"
+      }
+    },
+    {
+      "eventId": "12",
+      "eventTime": "2025-05-07T17:40:05.680906Z",
+      "eventType": "EVENT_TYPE_TIMER_CANCELED",
+      "taskId": "4090993",
+      "timerCanceledEventAttributes": {
+        "timerId": "a0b42b7b-d179-3d73-acf4-960f6aa0436a",
+        "startedEventId": "6",
+        "workflowTaskCompletedEventId": "10",
+        "identity": "83364@Quinn-Klassens-MacBook-Pro.local"
+      }
+    },
+    {
+      "eventId": "13",
+      "eventTime": "2025-05-07T17:40:05.680914Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED",
+      "taskId": "4090994",
+      "workflowExecutionCanceledEventAttributes": {
+        "workflowTaskCompletedEventId": "10"
+      }
+    }
+  ]
+}
