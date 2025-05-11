@@ -8,10 +8,13 @@ import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -25,6 +28,7 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final Scope metricsScope;
   private final PollNexusTaskQueueRequest pollRequest;
+  private final AtomicInteger pollGauge = new AtomicInteger();
 
   @SuppressWarnings("deprecation")
   public NexusPollTask(
@@ -81,6 +85,10 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
     permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
     if (permit == null) return null;
 
+    MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
+        .gauge(MetricsType.NUM_POLLERS)
+        .update(pollGauge.incrementAndGet());
+
     try {
       response =
           service
@@ -106,6 +114,10 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
           permit,
           () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(pollGauge.decrementAndGet());
+
       if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
     }
   }

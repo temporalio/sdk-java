@@ -11,10 +11,13 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,6 +31,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
   private final Scope metricsScope;
   private final PollActivityTaskQueueRequest pollRequest;
+  private final AtomicInteger pollGauge = new AtomicInteger();
 
   @SuppressWarnings("deprecation")
   public ActivityPollTask(
@@ -91,6 +95,10 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
     if (permit == null) return null;
 
+    MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
+        .gauge(MetricsType.NUM_POLLERS)
+        .update(pollGauge.incrementAndGet());
+
     try {
       response =
           service
@@ -113,6 +121,10 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
           permit,
           () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(pollGauge.decrementAndGet());
+
       if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
     }
   }
