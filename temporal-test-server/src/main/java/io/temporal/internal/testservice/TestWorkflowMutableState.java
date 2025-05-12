@@ -5,6 +5,7 @@ import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttribut
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.failure.v1.Failure;
@@ -12,8 +13,10 @@ import io.temporal.api.history.v1.*;
 import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.workflow.v1.RequestIdInfo;
 import io.temporal.api.workflowservice.v1.*;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -132,7 +135,11 @@ interface TestWorkflowMutableState {
 
   boolean isTerminalState();
 
-  boolean isRequestIdAttached(String requestId);
+  RequestIdInfo getRequestIdInfo(String requestId);
+
+  void attachRequestId(@Nonnull String requestId, EventType eventType, long eventId);
 
   List<Callback> getCompletionCallbacks();
+
+  void updateRequestIdToEventId(Map<String, RequestIdInfo> requestIdToEventId);
 }

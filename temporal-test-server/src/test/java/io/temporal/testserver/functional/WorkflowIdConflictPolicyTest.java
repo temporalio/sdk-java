@@ -14,6 +14,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionOptionsUpdatedEventAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflow.v1.OnConflictOptions;
+import io.temporal.api.workflow.v1.RequestIdInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
@@ -24,7 +25,9 @@ import io.temporal.internal.testservice.NexusOperationRef;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
 import io.temporal.workflow.Workflow;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -75,6 +78,19 @@ public class WorkflowIdConflictPolicyTest {
 
     Assert.assertTrue(response1.getStarted());
     Assert.assertEquals(we.getRunId(), response1.getRunId());
+    Assert.assertEquals(
+        Link.newBuilder()
+            .setWorkflowEvent(
+                Link.WorkflowEvent.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .setWorkflowId(workflowId)
+                    .setRunId(response1.getRunId())
+                    .setEventRef(
+                        Link.WorkflowEvent.EventReference.newBuilder()
+                            .setEventId(1)
+                            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)))
+            .build(),
+        response1.getLink());
 
     // Different request ID should still work but update history
     String newRequestId = randomUUID().toString();
@@ -115,6 +131,19 @@ public class WorkflowIdConflictPolicyTest {
 
     Assert.assertFalse(response2.getStarted());
     Assert.assertEquals(we.getRunId(), response2.getRunId());
+    Assert.assertEquals(
+        Link.newBuilder()
+            .setWorkflowEvent(
+                Link.WorkflowEvent.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .setWorkflowId(workflowId)
+                    .setRunId(response2.getRunId())
+                    .setRequestIdRef(
+                        Link.WorkflowEvent.RequestIdReference.newBuilder()
+                            .setRequestId(newRequestId)
+                            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)))
+            .build(),
+        response2.getLink());
 
     // Same request ID should be deduped
     StartWorkflowExecutionResponse response3 =
@@ -126,6 +155,36 @@ public class WorkflowIdConflictPolicyTest {
 
     Assert.assertFalse(response3.getStarted());
     Assert.assertEquals(we.getRunId(), response3.getRunId());
+    Assert.assertEquals(
+        Link.newBuilder()
+            .setWorkflowEvent(
+                Link.WorkflowEvent.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .setWorkflowId(workflowId)
+                    .setRunId(response3.getRunId())
+                    .setRequestIdRef(
+                        Link.WorkflowEvent.RequestIdReference.newBuilder()
+                            .setRequestId(newRequestId)
+                            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)))
+            .build(),
+        response3.getLink());
+
+    Map<String, RequestIdInfo> expectedRequestIds = new HashMap<>();
+    expectedRequestIds.put(
+        requestId,
+        RequestIdInfo.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .setEventId(1)
+            .setBuffered(false)
+            .build());
+    expectedRequestIds.put(
+        newRequestId,
+        RequestIdInfo.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+            .setEventId(0)
+            .setBuffered(true)
+            .build());
+    describe(we).assertRequestIdInfos(expectedRequestIds);
 
     // Since the WorkflowExecutionOptionsUpdatedEvent is buffered, it won't show
     // up at this point because there a workflow task running. So, I'm signaling
@@ -156,7 +215,15 @@ public class WorkflowIdConflictPolicyTest {
         "some-random-workflow-id", event.getLinks(0).getWorkflowEvent().getWorkflowId());
     Assert.assertEquals("some-random-run-id", event.getLinks(0).getWorkflowEvent().getRunId());
 
+    expectedRequestIds.put(
+        newRequestId,
+        RequestIdInfo.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
+            .setEventId(event.getEventId())
+            .setBuffered(false)
+            .build());
     DescribeWorkflowAsserter asserter = describe(we);
+    asserter.assertRequestIdInfos(expectedRequestIds);
     Assert.assertEquals(1, asserter.getActual().getCallbacksCount());
     Assert.assertEquals(
         "http://localhost:7243/test",

@@ -1346,7 +1346,9 @@ class StateMachines {
     if (request.hasUserMetadata()) {
       event.setUserMetadata(request.getUserMetadata());
     }
-    ctx.addEvent(event.build());
+    long eventId = ctx.addEvent(event.build());
+    ctx.getWorkflowMutableState()
+        .attachRequestId(request.getRequestId(), event.getEventType(), eventId);
   }
 
   private static void completeWorkflow(

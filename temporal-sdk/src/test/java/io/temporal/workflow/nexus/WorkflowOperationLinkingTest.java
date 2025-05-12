@@ -8,6 +8,7 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.nexus.OperationTokenUtil;
@@ -51,16 +52,21 @@ public class WorkflowOperationLinkingTest extends BaseNexusTest {
     Assert.assertEquals(
         EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
         nexusStartedEvent.getLinks(0).getWorkflowEvent().getEventRef().getEventType());
-    // Assert that the started workflow has a link to the original workflow
+    // Assert that the started workflow has a link to the caller workflow
     History linkedHistory =
         testWorkflowRule
             .getWorkflowClient()
             .fetchHistory(nexusStartedEvent.getLinks(0).getWorkflowEvent().getWorkflowId())
             .getHistory();
     HistoryEvent linkedStartedEvent = linkedHistory.getEventsList().get(0);
-    Assert.assertEquals(1, linkedStartedEvent.getLinksCount());
+    WorkflowExecutionStartedEventAttributes attrs =
+        linkedStartedEvent.getWorkflowExecutionStartedEventAttributes();
+    // Nexus links in callbacks are deduped
+    Assert.assertEquals(0, linkedStartedEvent.getLinksCount());
+    Assert.assertEquals(1, attrs.getCompletionCallbacksCount());
     Assert.assertEquals(
-        originalWorkflowId, linkedStartedEvent.getLinks(0).getWorkflowEvent().getWorkflowId());
+        originalWorkflowId,
+        attrs.getCompletionCallbacks(0).getLinks(0).getWorkflowEvent().getWorkflowId());
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {

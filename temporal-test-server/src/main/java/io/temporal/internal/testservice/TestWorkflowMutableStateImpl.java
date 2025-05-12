@@ -7,6 +7,7 @@ import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.StateMachines.*;
 import static io.temporal.internal.testservice.StateUtils.mergeMemo;
 import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
+import static io.temporal.internal.testservice.TestWorkflowStore.BUFFERED_EVENT_ID;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -118,7 +119,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
   private Map<String, Payload> currentMemo;
-  private final Set<String> attachedRequestIds = new HashSet<>();
+  private final Map<String, RequestIdInfo> requestIdInfos = new HashMap<>();
   private final List<Callback> completionCallbacks = new ArrayList<>();
 
   /**
@@ -2044,8 +2045,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean isRequestIdAttached(@Nonnull String requestId) {
-    return attachedRequestIds.contains(requestId);
+  public RequestIdInfo getRequestIdInfo(@Nonnull String requestId) {
+    return this.requestIdInfos.get(requestId);
+  }
+
+  @Override
+  public void attachRequestId(@Nonnull String requestId, EventType eventType, long eventId) {
+    this.requestIdInfos.put(
+        requestId,
+        RequestIdInfo.newBuilder()
+            .setEventType(eventType)
+            .setEventId(eventId)
+            .setBuffered(eventId == BUFFERED_EVENT_ID)
+            .build());
   }
 
   private void updateHeartbeatTimer(
@@ -3208,6 +3220,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .map(TestWorkflowMutableStateImpl::constructPendingChildExecutionInfo)
             .collect(Collectors.toList());
 
+    WorkflowExecutionExtendedInfo.Builder extendedInfo = WorkflowExecutionExtendedInfo.newBuilder();
+    extendedInfo.putAllRequestIdInfos(
+        this.requestIdInfos.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    e ->
+                        e.getValue().toBuilder()
+                            .setEventId(e.getValue().getBuffered() ? 0 : e.getValue().getEventId())
+                            .build())));
+
     return DescribeWorkflowExecutionResponse.newBuilder()
         .setExecutionConfig(executionConfig)
         .setWorkflowExecutionInfo(executionInfo)
@@ -3215,6 +3238,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .addAllPendingNexusOperations(pendingNexusOperations)
         .addAllPendingChildren(pendingChildren)
         .addAllCallbacks(callbacks)
+        .setWorkflowExtendedInfo(extendedInfo)
         .build();
   }
 
@@ -3502,26 +3526,26 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void addWorkflowExecutionOptionsUpdatedEvent(
       RequestContext ctx, String requestId, List<Callback> completionCallbacks, List<Link> links) {
+    HistoryEvent.Builder event =
+        HistoryEvent.newBuilder()
+            .setWorkerMayIgnore(true)
+            .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED);
+
     WorkflowExecutionOptionsUpdatedEventAttributes.Builder attrs =
         WorkflowExecutionOptionsUpdatedEventAttributes.newBuilder();
     if (requestId != null) {
       attrs.setAttachedRequestId(requestId);
-      this.attachedRequestIds.add(requestId);
+      this.attachRequestId(requestId, event.getEventType(), BUFFERED_EVENT_ID);
     }
     if (completionCallbacks != null) {
       attrs.addAllAttachedCompletionCallbacks(completionCallbacks);
       this.completionCallbacks.addAll(completionCallbacks);
     }
 
-    HistoryEvent.Builder event =
-        HistoryEvent.newBuilder()
-            .setWorkerMayIgnore(true)
-            .setEventType(EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED)
-            .setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
+    event.setWorkflowExecutionOptionsUpdatedEventAttributes(attrs);
     if (links != null) {
       event.addAllLinks(links);
     }
-
     ctx.addEvent(event.build());
   }
 
@@ -3655,5 +3679,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public List<Callback> getCompletionCallbacks() {
     return completionCallbacks;
+  }
+
+  @Override
+  public void updateRequestIdToEventId(Map<String, RequestIdInfo> requestIdToEventId) {
+    requestIdInfos.putAll(requestIdToEventId);
   }
 }

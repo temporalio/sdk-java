@@ -69,42 +69,45 @@ jobs:
       uses: gradle/actions/setup-gradle@v4
 
     - name: Start containerized server and dependencies
+      env:
+        TEMPORAL_CLI_VERSION: 1.3.1-nexus-links.0
       run: |
-        wget https://github.com/temporalio/cli/releases/download/v1.3.1-priority.0/temporal_cli_1.3.1-priority.0_linux_amd64.tar.gz
-        tar -xzf temporal_cli_1.3.1-priority.0_linux_amd64.tar.gz
+        wget -O temporal_cli.tar.gz https://github.com/temporalio/cli/releases/download/v${TEMPORAL_CLI_VERSION}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz
+        tar -xzf temporal_cli.tar.gz
         chmod +x temporal
         ./temporal server start-dev \
-         --headless \
-         --port 7233 \
-         --http-port 7243 \
-         --namespace UnitTest \
-         --db-filename temporal.sqlite \
-         --sqlite-pragma journal_mode=WAL \
-         --sqlite-pragma synchronous=OFF \
-         --search-attribute CustomKeywordField=Keyword \
-         --search-attribute CustomStringField=Text \
-         --search-attribute CustomTextField=Text \
-         --search-attribute CustomIntField=Int \
-         --search-attribute CustomDatetimeField=Datetime \
-         --search-attribute CustomDoubleField=Double \
-         --search-attribute CustomBoolField=Bool \
-         --dynamic-config-value system.forceSearchAttributesCacheRefreshOnRead=true \
-         --dynamic-config-value system.enableActivityEagerExecution=true \
-         --dynamic-config-value system.enableEagerWorkflowStart=true \
-         --dynamic-config-value system.enableExecuteMultiOperation=true \
-         --dynamic-config-value frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
-         --dynamic-config-value history.MaxBufferedQueryCount=100000 \
-         --dynamic-config-value frontend.workerVersioningDataAPIs=true \
-         --dynamic-config-value worker.buildIdScavengerEnabled=true \
-         --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
-         --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
-         --dynamic-config-value matching.useNewMatcher=true \
-         --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
-         --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
-         --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
-         --dynamic-config-value frontend.activityAPIsEnabled=true \
-         --dynamic-config-value system.enableDeploymentVersions=true &
-         sleep 10s
+            --headless \
+            --port 7233 \
+            --http-port 7243 \
+            --namespace UnitTest \
+            --db-filename temporal.sqlite \
+            --sqlite-pragma journal_mode=WAL \
+            --sqlite-pragma synchronous=OFF \
+            --search-attribute CustomKeywordField=Keyword \
+            --search-attribute CustomStringField=Text \
+            --search-attribute CustomTextField=Text \
+            --search-attribute CustomIntField=Int \
+            --search-attribute CustomDatetimeField=Datetime \
+            --search-attribute CustomDoubleField=Double \
+            --search-attribute CustomBoolField=Bool \
+            --dynamic-config-value system.forceSearchAttributesCacheRefreshOnRead=true \
+            --dynamic-config-value system.enableActivityEagerExecution=true \
+            --dynamic-config-value system.enableEagerWorkflowStart=true \
+            --dynamic-config-value system.enableExecuteMultiOperation=true \
+            --dynamic-config-value frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
+            --dynamic-config-value history.MaxBufferedQueryCount=100000 \
+            --dynamic-config-value frontend.workerVersioningDataAPIs=true \
+            --dynamic-config-value worker.buildIdScavengerEnabled=true \
+            --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
+            --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
+            --dynamic-config-value matching.useNewMatcher=true \
+            --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
+            --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
+            --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
+            --dynamic-config-value frontend.activityAPIsEnabled=true \
+            --dynamic-config-value system.enableDeploymentVersions=true \
+            --dynamic-config-value history.enableRequestIdRefLinks=true &
+        sleep 10s
 
     - name: Run unit tests
       env:
