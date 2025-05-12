@@ -2,3 +2,8 @@ This directory contains the core Temporal SDK code, which is used to build Tempo
 
 The SDK is written in Java and is designed to be used with the Temporal service. It provides a set of APIs for defining workflows and activities, as well as for managing the execution of those workflows and activities.
 
+# Testing
+
+All tests are written using JUnit4.
+
+All tests for this package are located in `temporal-sdk/src/test/java/io/temporal`
