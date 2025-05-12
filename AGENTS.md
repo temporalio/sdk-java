@@ -27,7 +27,7 @@ To format code run:
 To test the SDK run:
 
 ```bash
-./gradlew temporal-sdk:test 
+./gradlew --offline temporal-sdk:test 
 ```
 
 running all tests can take a long time
