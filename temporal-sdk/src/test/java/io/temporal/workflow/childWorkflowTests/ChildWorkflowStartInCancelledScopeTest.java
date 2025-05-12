@@ -31,8 +31,7 @@ public class ChildWorkflowStartInCancelledScopeTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
       CanceledFailure failure = (CanceledFailure) e.getCause();
-      assertTrue(failure.getOriginalMessage().contains("execute called from a cancelled scope"));
-      
+      assertTrue(failure.getOriginalMessage().contains("execute called from a canceled scope"));
     }
   }
 
