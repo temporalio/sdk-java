@@ -676,6 +676,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         new WorkflowExecutionDescription(response, dataConverterWithWorkflowContext));
   }
 
+  @Override
+  public CountWorkflowOutput countWorkflows(CountWorkflowsInput input) {
+    CountWorkflowExecutionsRequest.Builder req =
+        CountWorkflowExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
+    if (input.getQuery() != null) {
+      req.setQuery(input.getQuery());
+    }
+    CountWorkflowExecutionsResponse resp = genericClient.countWorkflowExecutions(req.build());
+    return new CountWorkflowOutput(new WorkflowExecutionCount(resp));
+  }
+
   private static <R> R convertResultPayloads(
       Optional<Payloads> resultValue,
       Class<R> resultClass,

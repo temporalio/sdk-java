@@ -241,6 +241,13 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return listExecutions(query, null);
   }
 
+  @Override
+  public WorkflowExecutionCount countWorkflows(@Nullable String query) {
+    WorkflowClientCallsInterceptor.CountWorkflowsInput input =
+        new WorkflowClientCallsInterceptor.CountWorkflowsInput(query);
+    return workflowClientCallsInvoker.countWorkflows(input).getCount();
+  }
+
   Stream<WorkflowExecutionMetadata> listExecutions(
       @Nullable String query, @Nullable Integer pageSize) {
     ListWorkflowExecutionIterator iterator =

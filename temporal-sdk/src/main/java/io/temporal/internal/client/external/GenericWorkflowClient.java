@@ -44,6 +44,8 @@ public interface GenericWorkflowClient {
   CompletableFuture<ListWorkflowExecutionsResponse> listWorkflowExecutionsAsync(
       ListWorkflowExecutionsRequest listRequest);
 
+  CountWorkflowExecutionsResponse countWorkflowExecutions(CountWorkflowExecutionsRequest request);
+
   CreateScheduleResponse createSchedule(CreateScheduleRequest request);
 
   CompletableFuture<ListSchedulesResponse> listSchedulesAsync(ListSchedulesRequest request);
