@@ -31,6 +31,7 @@ public final class NexusOperationOptions {
 
   public static final class Builder {
     private Duration scheduleToCloseTimeout;
+    private NexusOperationCancellationType cancellationType;
     private String summary;
 
     /**
@@ -42,6 +43,18 @@ public final class NexusOperationOptions {
     public NexusOperationOptions.Builder setScheduleToCloseTimeout(
         Duration scheduleToCloseTimeout) {
       this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+      return this;
+    }
+
+    /**
+     * Sets the cancellation type for the Nexus operation.
+     *
+     * @param cancellationType the cancellation type for the Nexus operation
+     * @return this
+     */
+    public NexusOperationOptions.Builder setCancellationType(
+        NexusOperationCancellationType cancellationType) {
+      this.cancellationType = cancellationType;
       return this;
     }
 
@@ -64,11 +77,12 @@ public final class NexusOperationOptions {
         return;
       }
       this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
+      this.cancellationType = options.getCancellationType();
       this.summary = options.getSummary();
     }
 
     public NexusOperationOptions build() {
-      return new NexusOperationOptions(scheduleToCloseTimeout, summary);
+      return new NexusOperationOptions(scheduleToCloseTimeout, cancellationType, summary);
     }
 
     public NexusOperationOptions.Builder mergeNexusOperationOptions(
@@ -80,13 +94,19 @@ public final class NexusOperationOptions {
           (override.scheduleToCloseTimeout == null)
               ? this.scheduleToCloseTimeout
               : override.scheduleToCloseTimeout;
+      this.cancellationType =
+          (override.cancellationType == null) ? this.cancellationType : override.cancellationType;
       this.summary = (override.summary == null) ? this.summary : override.summary;
       return this;
     }
   }
 
-  private NexusOperationOptions(Duration scheduleToCloseTimeout, String summary) {
+  private NexusOperationOptions(
+      Duration scheduleToCloseTimeout,
+      NexusOperationCancellationType cancellationType,
+      String summary) {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+    this.cancellationType = cancellationType;
     this.summary = summary;
   }
 
@@ -95,10 +115,15 @@ public final class NexusOperationOptions {
   }
 
   private final Duration scheduleToCloseTimeout;
+  private final NexusOperationCancellationType cancellationType;
   private final String summary;
 
   public Duration getScheduleToCloseTimeout() {
     return scheduleToCloseTimeout;
+  }
+
+  public NexusOperationCancellationType getCancellationType() {
+    return cancellationType;
   }
 
   @Experimental
@@ -112,12 +137,13 @@ public final class NexusOperationOptions {
     if (o == null || getClass() != o.getClass()) return false;
     NexusOperationOptions that = (NexusOperationOptions) o;
     return Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equals(cancellationType, that.cancellationType)
         && Objects.equals(summary, that.summary);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(scheduleToCloseTimeout, summary);
+    return Objects.hash(scheduleToCloseTimeout, cancellationType, summary);
   }
 
   @Override
@@ -125,6 +151,8 @@ public final class NexusOperationOptions {
     return "NexusOperationOptions{"
         + "scheduleToCloseTimeout="
         + scheduleToCloseTimeout
+        + ", cancellationType="
+        + cancellationType
         + ", summary='"
         + summary
         + '\''

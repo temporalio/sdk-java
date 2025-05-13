@@ -37,6 +37,10 @@ final class NexusOperationStateMachine
   private final String service;
   private final String operation;
 
+  public boolean isAsync() {
+    return async;
+  }
+
   public boolean isCancellable() {
     return State.SCHEDULE_COMMAND_CREATED == getState();
   }
@@ -145,25 +149,12 @@ final class NexusOperationStateMachine
 
   private void cancelNexusOperationCommand() {
     cancelCommand();
-    Failure canceledFailure =
+    Failure cause =
         Failure.newBuilder()
-            .setSource(JAVA_SDK)
             .setMessage("operation canceled before it was started")
             .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
             .build();
-    NexusOperationFailureInfo nexusFailureInfo =
-        NexusOperationFailureInfo.newBuilder()
-            .setEndpoint(endpoint)
-            .setService(service)
-            .setOperation(operation)
-            .setScheduledEventId(getInitialCommandEventId())
-            .build();
-    Failure failure =
-        Failure.newBuilder()
-            .setNexusOperationExecutionFailureInfo(nexusFailureInfo)
-            .setCause(canceledFailure)
-            .setMessage(NEXUS_OPERATION_CANCELED_MESSAGE)
-            .build();
+    Failure failure = createCancelNexusOperationFailure(cause);
     startedCallback.apply(Optional.empty(), failure);
     completionCallback.apply(Optional.empty(), failure);
   }
@@ -262,5 +253,21 @@ final class NexusOperationStateMachine
     // avoiding retaining large input for the duration of the operation
     scheduleAttributes = null;
     metadata = null;
+  }
+
+  public Failure createCancelNexusOperationFailure(Failure cause) {
+    Failure canceledFailure = Failure.newBuilder(cause).setSource(JAVA_SDK).build();
+    NexusOperationFailureInfo nexusFailureInfo =
+        NexusOperationFailureInfo.newBuilder()
+            .setEndpoint(endpoint)
+            .setService(service)
+            .setOperation(operation)
+            .setScheduledEventId(getInitialCommandEventId())
+            .build();
+    return Failure.newBuilder()
+        .setNexusOperationExecutionFailureInfo(nexusFailureInfo)
+        .setCause(canceledFailure)
+        .setMessage(NEXUS_OPERATION_CANCELED_MESSAGE)
+        .build();
   }
 }

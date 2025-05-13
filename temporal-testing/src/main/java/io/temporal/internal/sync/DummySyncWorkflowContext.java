@@ -3,7 +3,6 @@ package io.temporal.internal.sync;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -13,10 +12,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.statemachines.ExecuteActivityParameters;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
-import io.temporal.internal.statemachines.LocalActivityCallback;
-import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.*;
@@ -197,8 +193,7 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Functions.Proc1<Exception> startNexusOperation(
-        ScheduleNexusOperationCommandAttributes attributes,
-        @Nullable UserMetadata metadata,
+        StartNexusOperationParameters parameters,
         Functions.Proc2<Optional<String>, Failure> startedCallback,
         Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
       throw new UnsupportedOperationException("not implemented");
