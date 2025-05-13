@@ -21,13 +21,21 @@ The SDK should be written in Java using Java 8.
 To format code run:
 
 ```bash
-./gradlew spotlessApply   
+./gradlew --offline spotlessApply   
 ```
 
 To test the SDK run:
 
 ```bash
-./gradlew --offline temporal-sdk:test 
+./gradlew :temporal-sdk:test --offline --tests "io.temporal.workflow.*"
 ```
 
 running all tests can take a long time
+
+To test a new test you added run
+
+```bash
+./gradlew :temporal-sdk:test --offline --tests "$TEST"
+```
+
+where $TEST is the name of the test including the package.
