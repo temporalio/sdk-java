@@ -120,6 +120,8 @@ public final class MetricsType {
   public static final String WORKER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "worker_start";
   public static final String POLLER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "poller_start";
   // gauge
+  public static final String NUM_POLLERS = TEMPORAL_METRICS_PREFIX + "num_pollers";
+
   public static final String WORKER_TASK_SLOTS_AVAILABLE =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_available";
 

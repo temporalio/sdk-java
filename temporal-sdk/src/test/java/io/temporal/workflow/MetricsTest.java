@@ -31,6 +31,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerMetricsTag;
@@ -87,6 +88,26 @@ public class MetricsTest {
       new ImmutableMap.Builder<String, String>()
           .putAll(TAGS_TASK_QUEUE)
           .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.WORKFLOW_WORKER.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_WORKFLOW_NORMAL_POLLER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_WORKFLOW_WORKER)
+          .put(MetricsTag.POLLER_TYPE, PollerTypeMetricsTag.PollerType.WORKFLOW_TASK.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_WORKFLOW_STICKY_POLLER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_WORKFLOW_WORKER)
+          .put(
+              MetricsTag.POLLER_TYPE,
+              PollerTypeMetricsTag.PollerType.WORKFLOW_STICKY_TASK.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_ACTIVITY_POLLER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_ACTIVITY_WORKER)
+          .put(MetricsTag.POLLER_TYPE, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK.getValue())
           .build();
 
   @Rule
@@ -150,7 +171,10 @@ public class MetricsTest {
     reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
 
     reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 2);
+    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 3);
     reporter.assertCounter("temporal_poller_start", TAGS_ACTIVITY_WORKER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
   }
 
   @Test
