@@ -165,6 +165,11 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public void cancel(@Nullable String reason) {
+      next.cancel(reason);
+    }
+
+    @Override
     public void terminate(@Nullable String reason, Object... details) {
       next.terminate(reason, details);
     }

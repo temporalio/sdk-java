@@ -398,13 +398,29 @@ public interface WorkflowClientCallsInterceptor {
 
   final class CancelInput {
     private final WorkflowExecution workflowExecution;
+    private final @Nullable String reason;
 
+    /**
+     * @deprecated Use {@link #CancelInput(WorkflowExecution, String)} to provide a cancellation
+     *     reason instead.
+     */
+    @Deprecated
     public CancelInput(WorkflowExecution workflowExecution) {
+      this(workflowExecution, null);
+    }
+
+    public CancelInput(WorkflowExecution workflowExecution, @Nullable String reason) {
       this.workflowExecution = workflowExecution;
+      this.reason = reason;
     }
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
     }
   }
 

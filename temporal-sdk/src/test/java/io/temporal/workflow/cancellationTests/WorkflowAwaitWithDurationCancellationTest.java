@@ -35,7 +35,7 @@ public class WorkflowAwaitWithDurationCancellationTest {
     try {
       WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
       workflowStarted.waitForSignal();
-      untyped.cancel();
+      untyped.cancel("reason");
       untyped.getResult(String.class);
       fail("unreacheable");
     } catch (WorkflowFailedException e) {

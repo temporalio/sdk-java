@@ -630,6 +630,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setWorkflowExecution(input.getWorkflowExecution())
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity());
+    if (input.getReason() != null) {
+      request.setReason(input.getReason());
+    }
     genericClient.requestCancel(request.build());
     return new CancelOutput();
   }
