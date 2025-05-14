@@ -30,9 +30,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Iterators;
 
 public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
   private static final Logger log = LoggerFactory.getLogger(RootWorkflowClientInvoker.class);
@@ -688,6 +691,29 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
     CountWorkflowExecutionsResponse resp = genericClient.countWorkflowExecutions(req.build());
     return new CountWorkflowOutput(new WorkflowExecutionCount(resp));
+}
+
+@Override
+  public ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input) {
+    ListWorkflowExecutionIterator iterator =
+        new ListWorkflowExecutionIterator(
+            input.getQuery(), clientOptions.getNamespace(), input.getPageSize(), genericClient);
+    iterator.init();
+    Iterator<WorkflowExecutionMetadata> wrappedIterator =
+        Iterators.transform(
+            iterator,
+            info -> new WorkflowExecutionMetadata(info, clientOptions.getDataConverter()));
+
+    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
+    // impossible
+    //  TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list
+    // API
+    // guarantees absence of duplicates
+    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
+
+    return new ListWorkflowExecutionsOutput(
+        StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false));
   }
 
   private static <R> R convertResultPayloads(
