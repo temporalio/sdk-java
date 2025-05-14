@@ -216,6 +216,18 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
+  public CountWorkflowExecutionsResponse countWorkflowExecutions(
+      CountWorkflowExecutionsRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .countWorkflowExecutions(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
   public CreateScheduleResponse createSchedule(CreateScheduleRequest request) {
     return grpcRetryer.retryWithResult(
         () ->

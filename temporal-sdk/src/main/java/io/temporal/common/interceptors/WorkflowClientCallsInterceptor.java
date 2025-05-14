@@ -75,6 +75,8 @@ public interface WorkflowClientCallsInterceptor {
 
   DescribeWorkflowOutput describe(DescribeWorkflowInput input);
 
+  CountWorkflowOutput countWorkflows(CountWorkflowsInput input);
+
   final class WorkflowStartInput {
     private final String workflowId;
     private final String workflowType;
@@ -600,6 +602,31 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowExecutionDescription getDescription() {
       return description;
+    }
+  }
+
+  final class CountWorkflowsInput {
+    private final String query;
+
+    public CountWorkflowsInput(@Nullable String query) {
+      this.query = query;
+    }
+
+    @Nullable
+    public String getQuery() {
+      return query;
+    }
+  }
+
+  final class CountWorkflowOutput {
+    private final WorkflowExecutionCount count;
+
+    public CountWorkflowOutput(WorkflowExecutionCount count) {
+      this.count = count;
+    }
+
+    public WorkflowExecutionCount getCount() {
+      return count;
     }
   }
 }
