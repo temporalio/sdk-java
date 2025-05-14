@@ -11,14 +11,14 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-class ListWorkflowExecutionIterator
+public class ListWorkflowExecutionIterator
     extends EagerPaginator<ListWorkflowExecutionsResponse, WorkflowExecutionInfo> {
   private final @Nullable String query;
   private final @Nonnull String namespace;
   private final @Nullable Integer pageSize;
   private final @Nonnull GenericWorkflowClient genericClient;
 
-  ListWorkflowExecutionIterator(
+  public ListWorkflowExecutionIterator(
       @Nullable String query,
       @Nonnull String namespace,
       @Nullable Integer pageSize,
