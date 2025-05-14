@@ -1488,7 +1488,8 @@ class StateMachines {
       long notUsed) {
     WorkflowExecutionCancelRequestedEventAttributes.Builder a =
         WorkflowExecutionCancelRequestedEventAttributes.newBuilder()
-            .setIdentity(cancelRequest.getIdentity());
+            .setIdentity(cancelRequest.getIdentity())
+            .setCause(cancelRequest.getReason());
     HistoryEvent cancelRequested =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED)
