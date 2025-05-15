@@ -80,6 +80,11 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   }
 
   @Override
+  public void cancelOutstandingHeartbeat() {
+    // Ignored
+  }
+
+  @Override
   public WorkflowClient getWorkflowClient() {
     return client;
   }
