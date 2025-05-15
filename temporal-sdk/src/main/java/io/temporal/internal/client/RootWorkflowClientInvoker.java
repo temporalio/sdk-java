@@ -690,9 +690,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
     CountWorkflowExecutionsResponse resp = genericClient.countWorkflowExecutions(req.build());
     return new CountWorkflowOutput(new WorkflowExecutionCount(resp));
-}
+  }
 
-@Override
+  @Override
   public ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input) {
     ListWorkflowExecutionIterator iterator =
         new ListWorkflowExecutionIterator(
