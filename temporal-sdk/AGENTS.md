@@ -5,5 +5,3 @@ The SDK is written in Java and is designed to be used with the Temporal service.
 # Testing
 
 All tests are written using JUnit4.
-
-All tests for this package are located in `temporal-sdk/src/test/java/io/temporal`
