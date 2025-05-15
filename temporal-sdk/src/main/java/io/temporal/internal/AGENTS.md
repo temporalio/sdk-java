@@ -1,0 +1,1 @@
+All files in this directory and subdirectory are intended to be internal to the SDK and should not be used by external users. They do not have the same backwards compatibility guarantees as our other APIS
