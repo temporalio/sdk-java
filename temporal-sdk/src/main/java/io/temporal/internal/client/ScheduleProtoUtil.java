@@ -24,7 +24,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
-import io.temporal.internal.common.PriorityUtils;
+import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -160,7 +160,11 @@ public class ScheduleProtoUtil {
       workflowRequest.setHeader(grpcHeader);
 
       if (wfOptions.getPriority() != null) {
-        workflowRequest.setPriority(PriorityUtils.toProto(wfOptions.getPriority()));
+        workflowRequest.setPriority(ProtoConverters.toProto(wfOptions.getPriority()));
+      }
+      if (wfOptions.getVersioningOverride() != null) {
+        workflowRequest.setVersioningOverride(
+            ProtoConverters.toProto(wfOptions.getVersioningOverride()));
       }
 
       return ScheduleAction.newBuilder().setStartWorkflow(workflowRequest.build()).build();
@@ -466,7 +470,7 @@ public class ScheduleProtoUtil {
       }
 
       if (startWfAction.hasPriority()) {
-        wfOptionsBuilder.setPriority(PriorityUtils.fromProto(startWfAction.getPriority()));
+        wfOptionsBuilder.setPriority(ProtoConverters.fromProto(startWfAction.getPriority()));
       }
 
       builder.setOptions(wfOptionsBuilder.build());
