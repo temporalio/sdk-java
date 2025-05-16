@@ -162,6 +162,9 @@ public class ScheduleProtoUtil {
       if (wfOptions.getPriority() != null) {
         workflowRequest.setPriority(PriorityUtils.toProto(wfOptions.getPriority()));
       }
+      if (wfOptions.getVersioningOverride() != null) {
+        workflowRequest.setVersioningOverride(wfOptions.getVersioningOverride().toProto());
+      }
 
       return ScheduleAction.newBuilder().setStartWorkflow(workflowRequest.build()).build();
     }

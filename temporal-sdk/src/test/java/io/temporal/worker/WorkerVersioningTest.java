@@ -9,15 +9,18 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.VersioningBehavior;
+import io.temporal.common.VersioningOverride;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -384,6 +387,51 @@ public class WorkerVersioningTest {
         e.getMessage());
   }
 
+  @SuppressWarnings("deprecation")
+  @Test
+  public void testWorkflowsCanUseVersioningOverride() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    WorkerDeploymentVersion v1 = w1.getWorkerOptions().getDeploymentOptions().getVersion();
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningAutoUpgradeV1.class);
+    w1.start();
+
+    DescribeWorkerDeploymentResponse describeResp1 = waitUntilWorkerDeploymentVisible(v1);
+    setCurrentVersion(v1, describeResp1.getConflictToken());
+
+    String workflowId = "versioning-override-" + UUID.randomUUID();
+    TestWorkflows.QueryableWorkflow wf =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflows.QueryableWorkflow.class,
+                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                    .toBuilder()
+                    .setWorkflowId(workflowId)
+                    .setVersioningOverride(new VersioningOverride.PinnedVersioningOverride(v1))
+                    .build());
+    WorkflowExecution we = WorkflowClient.start(wf::execute);
+    wf.mySignal("done");
+    testWorkflowRule
+        .getWorkflowClient()
+        .newUntypedWorkflowStub(we.getWorkflowId())
+        .getResult(String.class);
+
+    WorkflowExecutionHistory hist = testWorkflowRule.getExecutionHistory(we.getWorkflowId());
+    Assert.assertTrue(
+        hist.getHistory().getEventsList().stream()
+            .anyMatch(
+                e ->
+                    e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+                        && e.getWorkflowExecutionStartedEventAttributes()
+                                .getVersioningOverride()
+                                .getBehavior()
+                            == io.temporal.api.enums.v1.VersioningBehavior
+                                .VERSIONING_BEHAVIOR_PINNED));
+  }
+
+  @SuppressWarnings("deprecation")
   private DescribeWorkerDeploymentResponse waitUntilWorkerDeploymentVisible(
       WorkerDeploymentVersion v) {
     DescribeWorkerDeploymentRequest req =
@@ -419,6 +467,7 @@ public class WorkerVersioningTest {
         .getResult(String.class);
   }
 
+  @SuppressWarnings("deprecation")
   private SetWorkerDeploymentCurrentVersionResponse setCurrentVersion(
       WorkerDeploymentVersion v, ByteString conflictToken) {
     return testWorkflowRule
@@ -434,6 +483,7 @@ public class WorkerVersioningTest {
                 .build());
   }
 
+  @SuppressWarnings("deprecation")
   private SetWorkerDeploymentRampingVersionResponse setRampingVersion(
       WorkerDeploymentVersion v, float percent, ByteString conflictToken) {
     return testWorkflowRule

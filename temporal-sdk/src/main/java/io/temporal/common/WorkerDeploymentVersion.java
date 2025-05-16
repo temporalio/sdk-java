@@ -80,4 +80,16 @@ public class WorkerDeploymentVersion {
         + '\''
         + '}';
   }
+
+  /**
+   * Converts this version to a proto.
+   *
+   * @return The proto representation.
+   */
+  public io.temporal.api.deployment.v1.WorkerDeploymentVersion toProto() {
+    return io.temporal.api.deployment.v1.WorkerDeploymentVersion.newBuilder()
+        .setBuildId(buildId)
+        .setDeploymentName(deploymentName)
+        .build();
+  }
 }

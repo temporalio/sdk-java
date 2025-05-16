@@ -122,6 +122,10 @@ final class WorkflowClientRequestFactory {
       request.setPriority(PriorityUtils.toProto(options.getPriority()));
     }
 
+    if (options.getVersioningOverride() != null) {
+      request.setVersioningOverride(options.getVersioningOverride().toProto());
+    }
+
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {
       if (options.getTypedSearchAttributes() != null) {
         throw new IllegalArgumentException(
@@ -200,6 +204,10 @@ final class WorkflowClientRequestFactory {
 
     if (startParameters.hasUserMetadata()) {
       request.setUserMetadata(startParameters.getUserMetadata());
+    }
+
+    if (startParameters.hasVersioningOverride()) {
+      request.setVersioningOverride(startParameters.getVersioningOverride());
     }
 
     return request;
