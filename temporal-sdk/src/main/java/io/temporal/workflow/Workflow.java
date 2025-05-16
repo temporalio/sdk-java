@@ -200,10 +200,11 @@ public final class Workflow {
   /**
    * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class,
    * ChildWorkflowOptions)} or {@link #newExternalWorkflowStub(Class, String)}. Wrapped in a Promise
-   * as child workflow start is asynchronous.
+   * as child workflow start is asynchronous. For an external workflow the returned promise is
+   * already completed.
    */
-  public static Promise<WorkflowExecution> getWorkflowExecution(Object childWorkflowStub) {
-    return WorkflowInternal.getWorkflowExecution(childWorkflowStub);
+  public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+    return WorkflowInternal.getWorkflowExecution(workflowStub);
   }
 
   /**
