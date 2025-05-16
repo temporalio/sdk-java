@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsTag.HISTORY_LONG_POLL_CALL_OPTION
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.Deadline;
@@ -18,11 +19,12 @@ import java.util.concurrent.*;
 import javax.annotation.Nonnull;
 
 public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
-
-  // TODO we need to shutdown this executor
   private static final ScheduledExecutorService asyncThrottlerExecutor =
-      new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "generic-wf-client-async-throttler"));
-
+      Executors.newSingleThreadScheduledExecutor(
+          new ThreadFactoryBuilder()
+              .setDaemon(true)
+              .setNameFormat("generic-wf-client-async-throttler-%d")
+              .build());
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final GrpcRetryer grpcRetryer;
