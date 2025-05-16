@@ -19,7 +19,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.internal.common.PriorityUtils;
+import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
@@ -119,11 +119,11 @@ final class WorkflowClientRequestFactory {
     }
 
     if (options.getPriority() != null) {
-      request.setPriority(PriorityUtils.toProto(options.getPriority()));
+      request.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
 
     if (options.getVersioningOverride() != null) {
-      request.setVersioningOverride(options.getVersioningOverride().toProto());
+      request.setVersioningOverride(ProtoConverters.toProto(options.getVersioningOverride()));
     }
 
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {

@@ -608,7 +608,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
 
     if (options.getPriority() != null) {
-      attributes.setPriority(PriorityUtils.toProto(options.getPriority()));
+      attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
 
     return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
@@ -935,7 +935,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
     if (options.getPriority() != null) {
-      attributes.setPriority(PriorityUtils.toProto(options.getPriority()));
+      attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
     return new StartChildWorkflowExecutionParameters(
         attributes, options.getCancellationType(), metadata);
