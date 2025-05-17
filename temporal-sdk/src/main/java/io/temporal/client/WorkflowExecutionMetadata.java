@@ -20,11 +20,12 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/** WorkflowExecutionMetadata contains information about a workflow execution. */
 public class WorkflowExecutionMetadata {
   private final @Nonnull WorkflowExecutionInfo info;
   private final @Nonnull DataConverter dataConverter;
 
-  WorkflowExecutionMetadata(
+  public WorkflowExecutionMetadata(
       @Nonnull WorkflowExecutionInfo info, @Nonnull DataConverter dataConverter) {
     this.info = Preconditions.checkNotNull(info, "info");
     this.dataConverter = Preconditions.checkNotNull(dataConverter, "dataConverter");
