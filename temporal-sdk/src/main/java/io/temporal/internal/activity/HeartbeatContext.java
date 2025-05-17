@@ -17,4 +17,7 @@ interface HeartbeatContext {
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
 
   Object getLastHeartbeatDetails();
+
+  /** Cancel any pending heartbeat and discard cached heartbeat details. */
+  void cancelOutstandingHeartbeat();
 }

@@ -49,11 +49,9 @@ import org.junit.runner.RunWith;
  */
 @RunWith(JUnitParamsRunner.class)
 public class ActivityTimeoutTest {
-  // TODO This test takes longer than it should to complete because
-  //  of the cached heartbeat that prevents a quick shutdown
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setTestTimeoutSeconds(15).setDoNotStart(true).build();
+      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).build();
 
   /**
    * An activity reaches startToClose timeout once, max retries are set to 1. o

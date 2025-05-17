@@ -128,6 +128,12 @@ final class ActivityTaskExecutors {
             metricsScope,
             local,
             dataConverterWithActivityContext);
+      } finally {
+        if (!context.isDoNotCompleteOnReturn()) {
+          // if the activity is not completed, we need to cancel the heartbeat
+          // to avoid sending it after the activity is completed
+          context.cancelOutstandingHeartbeat();
+        }
       }
     }
 
