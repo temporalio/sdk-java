@@ -3,6 +3,7 @@ package io.temporal.internal.statemachines;
 import static io.temporal.api.enums.v1.CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE;
 import static io.temporal.internal.common.WorkflowExecutionUtils.getEventTypeForCommand;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
+import static io.temporal.internal.history.VersionMarkerUtils.*;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -25,12 +26,15 @@ import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.serviceclient.Version;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class WorkflowStateMachines {
 
@@ -39,10 +43,19 @@ public final class WorkflowStateMachines {
     NON_MATCHING_EVENT
   }
 
+  private static final Logger log = LoggerFactory.getLogger(WorkflowStateMachines.class);
+
   /** Initial set of SDK flags that will be set on all new workflow executions. */
   @VisibleForTesting
   public static List<SdkFlag> initialFlags =
       Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+
+  /**
+   * Keep track of the change versions that have been seen by the SDK. This is used to generate the
+   * {@link VersionMarkerUtils#TEMPORAL_CHANGE_VERSION} search attribute. We use a LinkedHashMap to
+   * ensure that the order of the change versions are preserved.
+   */
+  private final Map<String, Integer> changeVersions = new LinkedHashMap<>();
 
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
@@ -161,24 +174,36 @@ public final class WorkflowStateMachines {
   private final Set<String> acceptedUpdates = new HashSet<>();
 
   private final SdkFlags flags;
+  private final WorkflowImplementationOptions workflowImplOptions;
   @Nonnull private String lastSeenSdkName = "";
   @Nonnull private String lastSeenSdkVersion = "";
 
+  /**
+   * Track if the last event handled was a version marker for a getVersion call that was removed and
+   * that event was excepted to be followed by an upsert search attribute for the
+   * TemporalChangeVersion search attribute.
+   */
+  private boolean shouldSkipUpsertVersionSA = false;
+
   public WorkflowStateMachines(
-      StatesMachinesCallback callbacks, GetSystemInfoResponse.Capabilities capabilities) {
-    this(callbacks, (stateMachine) -> {}, capabilities);
+      StatesMachinesCallback callbacks,
+      GetSystemInfoResponse.Capabilities capabilities,
+      WorkflowImplementationOptions workflowImplOptions) {
+    this(callbacks, (stateMachine) -> {}, capabilities, workflowImplOptions);
   }
 
   @VisibleForTesting
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks,
       Functions.Proc1<StateMachine> stateMachineSink,
-      GetSystemInfoResponse.Capabilities capabilities) {
+      GetSystemInfoResponse.Capabilities capabilities,
+      WorkflowImplementationOptions workflowImplOptions) {
     this.callbacks = Objects.requireNonNull(callbacks);
     this.commandSink = cancellableCommands::add;
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
     this.flags = new SdkFlags(capabilities.getSdkMetadata(), this::isReplaying);
+    this.workflowImplOptions = workflowImplOptions;
   }
 
   @VisibleForTesting
@@ -189,6 +214,7 @@ public final class WorkflowStateMachines {
     this.stateMachineSink = stateMachineSink;
     this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
     this.flags = new SdkFlags(false, this::isReplaying);
+    this.workflowImplOptions = WorkflowImplementationOptions.newBuilder().build();
   }
 
   // TODO revisit and potentially remove workflowTaskStartedEventId at all from the state machines.
@@ -489,6 +515,14 @@ public final class WorkflowStateMachines {
     if (handleLocalActivityMarker(event)) {
       return;
     }
+    if (shouldSkipUpsertVersionSA) {
+      if (handleNonMatchingUpsertSearchAttribute(event)) {
+        shouldSkipUpsertVersionSA = false;
+        return;
+      } else {
+        throw new NonDeterministicException("No command scheduled that corresponds to " + event);
+      }
+    }
 
     // Match event to the next command in the stateMachine queue.
     // After matching the command is notified about the event and is removed from the
@@ -504,6 +538,8 @@ public final class WorkflowStateMachines {
           // this event is a version marker for removed getVersion call.
           // Handle the version marker as unmatched and return even if there is no commands to match
           // it against.
+          shouldSkipUpsertVersionSA =
+              VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
           return;
         } else {
           throw new NonDeterministicException("No command scheduled that corresponds to " + event);
@@ -524,6 +560,8 @@ public final class WorkflowStateMachines {
           // this event is a version marker for removed getVersion call.
           // Handle the version marker as unmatched and return even if there is no commands to match
           // it against.
+          shouldSkipUpsertVersionSA =
+              VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
           return;
         } else {
           throw new NonDeterministicException(
@@ -558,6 +596,8 @@ public final class WorkflowStateMachines {
           if (handleNonMatchingVersionMarker(event)) {
             // this event is a version marker for removed getVersion call.
             // Handle the version marker as unmatched and return without consuming the command
+            shouldSkipUpsertVersionSA =
+                VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
             return;
           } else {
             throw new NonDeterministicException(
@@ -601,7 +641,10 @@ public final class WorkflowStateMachines {
               (idKey) ->
                   VersionStateMachine.newInstance(
                       changeId, this::isReplaying, commandSink, stateMachineSink));
-      versionStateMachine.handleMarkersPreload(event);
+      Integer version = versionStateMachine.handleMarkersPreload(event);
+      if (versionStateMachine.isWriteVersionChangeSA()) {
+        changeVersions.put(changeId, version);
+      }
     }
   }
 
@@ -616,6 +659,17 @@ public final class WorkflowStateMachines {
         "versionStateMachine is expected to be initialized already by execution or preloading");
     versionStateMachine.handleNonMatchingEvent(event);
     return true;
+  }
+
+  private boolean handleNonMatchingUpsertSearchAttribute(HistoryEvent event) {
+    if (event.hasUpsertWorkflowSearchAttributesEventAttributes()
+        && event
+            .getUpsertWorkflowSearchAttributesEventAttributes()
+            .getSearchAttributes()
+            .containsIndexedFields(TEMPORAL_CHANGE_VERSION.getName())) {
+      return true;
+    }
+    return false;
   }
 
   public List<Command> takeCommands() {
@@ -1112,6 +1166,27 @@ public final class WorkflowStateMachines {
     return stateMachine.getVersion(
         minSupported,
         maxSupported,
+        (version) -> {
+          if (!workflowImplOptions.isEnableUpsertVersionSearchAttributes()) {
+            return null;
+          }
+          if (version == null) {
+            throw new IllegalStateException("Version is null");
+          }
+          SearchAttributes sa =
+              VersionMarkerUtils.createVersionMarkerSearchAttributes(
+                  changeId, version, changeVersions);
+          changeVersions.put(changeId, version);
+          if (sa.getIndexedFieldsMap().get(TEMPORAL_CHANGE_VERSION.getName()).getSerializedSize()
+              >= CHANGE_VERSION_SEARCH_ATTRIBUTE_SIZE_LIMIT) {
+            log.warn(
+                "Serialized size of {} search attribute update would exceed the maximum value size. Skipping this upsert. Be aware that your visibility records will not include the following patch: {}",
+                TEMPORAL_CHANGE_VERSION,
+                VersionMarkerUtils.createChangeId(changeId, version));
+            return null;
+          }
+          return sa;
+        },
         (v, e) -> {
           callback.apply(v, e);
           // without this getVersion call will trigger the end of WFT,
