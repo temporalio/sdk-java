@@ -130,8 +130,24 @@ class HeartbeatContextImpl implements HeartbeatContext {
     }
   }
 
+  /**
+   * @see ActivityExecutionContext#getLastHeartbeatDetails(Class, Type)
+   */
   @Override
-  public Object getLastHeartbeatDetails() {
+  @SuppressWarnings("unchecked")
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
+    lock.lock();
+    try {
+      return Optional.ofNullable(
+          dataConverterWithActivityContext.fromPayloads(
+              0, prevAttemptHeartbeatDetails, detailsClass, detailsGenericType));
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public Object getLatestHeartbeatDetails() {
     lock.lock();
     try {
       if (receivedAHeartbeat) {

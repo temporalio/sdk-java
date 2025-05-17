@@ -33,32 +33,55 @@ public interface ActivityExecutionContext {
   <V> void heartbeat(V details) throws ActivityCompletionException;
 
   /**
-   * Extracts Heartbeat details from the last failed attempt. This is used in combination with retry
-   * options. An Activity Execution could be scheduled with optional {@link
-   * io.temporal.common.RetryOptions} via {@link io.temporal.activity.ActivityOptions}. If an
-   * Activity Execution failed then the server would attempt to dispatch another Activity Task to
-   * retry the execution according to the retry options. If there were Heartbeat details reported by
-   * the last Activity Execution that failed, they would be delivered along with the Activity Task
-   * for the next retry attempt and can be extracted by the Activity implementation.
+   * Extracts Heartbeat details from the last heartbeat of this Activity Execution attempt. If there
+   * were no heartbeats in this attempt, details from the last failed attempt are returned instead.
+   * This is used in combination with retry options. An Activity Execution could be scheduled with
+   * optional {@link io.temporal.common.RetryOptions} via {@link
+   * io.temporal.activity.ActivityOptions}. If an Activity Execution failed then the server would
+   * attempt to dispatch another Activity Task to retry the execution according to the retry
+   * options. If there were Heartbeat details reported by the last Activity Execution that failed,
+   * they would be delivered along with the Activity Task for the next retry attempt and can be
+   * extracted by the Activity implementation.
    *
    * @param detailsClass Class of the Heartbeat details
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass);
 
   /**
-   * Extracts Heartbeat details from the last failed attempt. This is used in combination with retry
-   * options. An Activity Execution could be scheduled with optional {@link
-   * io.temporal.common.RetryOptions} via {@link io.temporal.activity.ActivityOptions}. If an
-   * Activity Execution failed then the server would attempt to dispatch another Activity Task to
-   * retry the execution according to the retry options. If there were Heartbeat details reported by
-   * the last Activity Execution that failed, the details would be delivered along with the Activity
-   * Task for the next retry attempt. The Activity implementation can extract the details via {@link
-   * #getHeartbeatDetails(Class)}() and resume progress.
+   * Extracts Heartbeat details from the last heartbeat of this Activity Execution attempt. If there
+   * were no heartbeats in this attempt, details from the last failed attempt are returned instead.
+   * It is useful in combination with retry options. An Activity Execution could be scheduled with
+   * optional {@link io.temporal.common.RetryOptions} via {@link
+   * io.temporal.activity.ActivityOptions}. If an Activity Execution failed then the server would
+   * attempt to dispatch another Activity Task to retry the execution according to the retry
+   * options. If there were Heartbeat details reported by the last Activity Execution that failed,
+   * the details would be delivered along with the Activity Task for the next retry attempt. The
+   * Activity implementation can extract the details via {@link #getHeartbeatDetails(Class)}() and
+   * resume progress.
    *
    * @param detailsClass Class of the Heartbeat details
    * @param detailsGenericType Type of the Heartbeat details
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
+
+  /**
+   * Returns details from the last failed attempt of this Activity Execution. Unlike {@link
+   * #getHeartbeatDetails(Class)}, the returned details are not updated on every heartbeat call
+   * within the current attempt.
+   *
+   * @param detailsClass Class of the Heartbeat details
+   */
+  <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass);
+
+  /**
+   * Returns details from the last failed attempt of this Activity Execution. Unlike {@link
+   * #getHeartbeatDetails(Class, Type)}, the returned details are not updated on every heartbeat
+   * call within the current attempt.
+   *
+   * @param detailsClass Class of the Heartbeat details
+   * @param detailsGenericType Type of the Heartbeat details
+   */
+  <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
 
   /**
    * Gets a correlation token that can be used to complete the Activity Execution asynchronously

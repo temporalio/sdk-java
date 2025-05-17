@@ -5,6 +5,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -43,6 +44,10 @@ public class ActivityHeartbeatSentOnFailureTest {
     public void execute() {
       // If the heartbeat details are "3", then we know that the last heartbeat was sent.
       if (Activity.getExecutionContext().getHeartbeatDetails(String.class).orElse("").equals("3")) {
+        Activity.getExecutionContext().heartbeat("1");
+        // Verify that last heartbeat details don't change after a heartbeat
+        Assert.assertEquals(
+            "3", Activity.getExecutionContext().getLastHeartbeatDetails(String.class).orElse(""));
         return;
       }
       // Send 3 heartbeats and then fail, expecting the last heartbeat to be sent

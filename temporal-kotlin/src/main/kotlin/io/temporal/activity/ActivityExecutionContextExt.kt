@@ -5,7 +5,8 @@ import kotlin.reflect.javaType
 import kotlin.reflect.typeOf
 
 /**
- * Extracts Heartbeat details from the last failed attempt.
+ * Extracts heartbeat details from the last heartbeat of the current activity attempt or from the
+ * last failed attempt if no heartbeats were sent yet.
  *
  * @param T type of the Heartbeat details
  * @see ActivityExecutionContext.getHeartbeatDetails

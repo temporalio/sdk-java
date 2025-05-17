@@ -38,6 +38,16 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   }
 
   @Override
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass) {
+    return next.getLastHeartbeatDetails(detailsClass);
+  }
+
+  @Override
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
+    return next.getLastHeartbeatDetails(detailsClass, detailsGenericType);
+  }
+
+  @Override
   public byte[] getTaskToken() {
     return next.getTaskToken();
   }
