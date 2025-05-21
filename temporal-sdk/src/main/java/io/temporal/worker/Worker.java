@@ -559,7 +559,11 @@ public final class Worker {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
-                .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
+                .setPollerBehavior(
+                    options.getActivityTaskPollersBehaviour() != null
+                        ? options.getActivityTaskPollersBehaviour()
+                        : new PollerBehaviorSimpleMaximum(
+                            options.getMaxConcurrentActivityTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
                 .build())
         .setMetricsScope(metricsScope)
@@ -575,7 +579,11 @@ public final class Worker {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setPollThreadCount(options.getMaxConcurrentNexusTaskPollers())
+                .setPollerBehavior(
+                    options.getNexusTaskPollersBehaviour() != null
+                        ? options.getNexusTaskPollersBehaviour()
+                        : new PollerBehaviorSimpleMaximum(
+                            options.getMaxConcurrentNexusTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
                 .build())
         .setMetricsScope(metricsScope)
@@ -611,7 +619,10 @@ public final class Worker {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setPollThreadCount(maxConcurrentWorkflowTaskPollers)
+                .setPollerBehavior(
+                    options.getWorkflowTaskPollersBehaviour() != null
+                        ? options.getWorkflowTaskPollersBehaviour()
+                        : new PollerBehaviorSimpleMaximum(maxConcurrentWorkflowTaskPollers))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnWorkflowWorker())
                 .build())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
@@ -631,7 +642,7 @@ public final class Worker {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setPollThreadCount(1)
+                .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
                 .setPollerTaskExecutorOverride(
                     factoryOptions.getOverrideLocalActivityTaskExecutor())
                 .build())

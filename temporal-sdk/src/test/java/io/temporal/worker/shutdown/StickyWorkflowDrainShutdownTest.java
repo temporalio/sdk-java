@@ -8,28 +8,50 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.PollerBehavior;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
+import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class StickyWorkflowDrainShutdownTest {
   private static final Duration DRAIN_TIME = Duration.ofSeconds(7);
 
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflowImpl.class)
-          .setUseTimeskipping(false)
-          .setWorkerOptions(
-              WorkerOptions.newBuilder().setStickyTaskQueueDrainTimeout(DRAIN_TIME).build())
-          .setWorkflowServiceStubsOptions(
-              WorkflowServiceStubsOptions.newBuilder()
-                  .setRpcLongPollTimeout(Duration.ofSeconds(5))
-                  .build())
-          .build();
+  @Parameterized.Parameters
+  public static Collection<PollerBehavior> data() {
+    return Arrays.asList(
+        new PollerBehavior[] {
+          new PollerBehaviorSimpleMaximum(10), new PollerBehaviorAutoscaling(1, 10, 5),
+        });
+  }
+
+  @Rule public SDKTestWorkflowRule testWorkflowRule;
+
+  public StickyWorkflowDrainShutdownTest(PollerBehavior pollerBehaviorAutoscaling) {
+    this.testWorkflowRule =
+        SDKTestWorkflowRule.newBuilder()
+            .setWorkflowTypes(TestWorkflowImpl.class)
+            .setUseTimeskipping(false)
+            .setWorkerOptions(
+                WorkerOptions.newBuilder()
+                    .setWorkflowTaskPollersBehaviour(pollerBehaviorAutoscaling)
+                    .setStickyTaskQueueDrainTimeout(DRAIN_TIME)
+                    .build())
+            .setWorkflowServiceStubsOptions(
+                WorkflowServiceStubsOptions.newBuilder()
+                    .setRpcLongPollTimeout(Duration.ofSeconds(5))
+                    .build())
+            .build();
+  }
 
   @Test
   public void testShutdown() {
