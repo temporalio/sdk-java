@@ -66,11 +66,12 @@ public class ShutdownManager implements Closeable {
    * sticky workflows
    */
   public CompletableFuture<Void> waitForStickyQueueBalancer(
-      StickyQueueBalancer balancer, Duration timeout) {
+      DisableNormalPolling balancer, Duration timeout) {
     CompletableFuture<Void> future = new CompletableFuture<>();
     balancer.disableNormalPoll();
     scheduledExecutorService.schedule(
         () -> {
+          log.info("DRAIN TIMEOUT PASSED!!!!");
           future.complete(null);
         },
         timeout.toMillis(),
@@ -296,12 +297,18 @@ public class ShutdownManager implements Closeable {
 
     @Override
     boolean isTerminated() {
+      if (slotSupplier.getIssuedSlots() > 0) {
+        log.info(
+            "Wait for release of slots of {} is in progress {}",
+            name,
+            slotSupplier.getIssuedSlots());
+      }
       return slotSupplier.getIssuedSlots() == 0;
     }
 
     @Override
     void onSlowTermination() {
-      log.warn("Wait for release of slots of {} takes a long time", name);
+      log.info("Wait for release of slots of {} takes a long time", name);
     }
 
     @Override

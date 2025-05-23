@@ -2,6 +2,7 @@ package io.temporal.internal.worker;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.worker.tuning.PollerBehavior;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public final class PollerOptions {
     private Duration backoffCongestionInitialInterval = Duration.ofMillis(1000);
     private Duration backoffMaximumInterval = Duration.ofMinutes(1);
     private double backoffMaximumJitterCoefficient = 0.1;
-    private int pollThreadCount = 1;
+    private PollerBehavior pollerBehavior;
     private String pollThreadNamePrefix;
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
     private boolean usingVirtualThreads;
@@ -59,7 +60,7 @@ public final class PollerOptions {
       this.backoffCongestionInitialInterval = options.getBackoffCongestionInitialInterval();
       this.backoffMaximumInterval = options.getBackoffMaximumInterval();
       this.backoffMaximumJitterCoefficient = options.getBackoffMaximumJitterCoefficient();
-      this.pollThreadCount = options.getPollThreadCount();
+      this.pollerBehavior = options.getPollerBehavior();
       this.pollThreadNamePrefix = options.getPollThreadNamePrefix();
       this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
@@ -120,9 +121,9 @@ public final class PollerOptions {
       return this;
     }
 
-    /** Number of parallel polling threads. */
-    public Builder setPollThreadCount(int pollThreadCount) {
-      this.pollThreadCount = pollThreadCount;
+    /** Set poller behavior. */
+    public Builder setPollerBehavior(PollerBehavior pollerBehavior) {
+      this.pollerBehavior = pollerBehavior;
       return this;
     }
 
@@ -175,7 +176,7 @@ public final class PollerOptions {
           backoffCongestionInitialInterval,
           backoffMaximumInterval,
           backoffMaximumJitterCoefficient,
-          pollThreadCount,
+          pollerBehavior,
           uncaughtExceptionHandler,
           pollThreadNamePrefix,
           usingVirtualThreads,
@@ -192,11 +193,11 @@ public final class PollerOptions {
   private final Duration backoffInitialInterval;
   private final Duration backoffCongestionInitialInterval;
   private final Duration backoffMaximumInterval;
-  private final int pollThreadCount;
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
   private final String pollThreadNamePrefix;
   private final boolean usingVirtualThreads;
   private final ExecutorService pollerTaskExecutorOverride;
+  private final PollerBehavior pollerBehavior;
 
   private PollerOptions(
       int maximumPollRateIntervalMilliseconds,
@@ -206,7 +207,7 @@ public final class PollerOptions {
       Duration backoffCongestionInitialInterval,
       Duration backoffMaximumInterval,
       double backoffMaximumJitterCoefficient,
-      int pollThreadCount,
+      PollerBehavior pollerBehavior,
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix,
       boolean usingVirtualThreads,
@@ -218,7 +219,7 @@ public final class PollerOptions {
     this.backoffCongestionInitialInterval = backoffCongestionInitialInterval;
     this.backoffMaximumInterval = backoffMaximumInterval;
     this.backoffMaximumJitterCoefficient = backoffMaximumJitterCoefficient;
-    this.pollThreadCount = pollThreadCount;
+    this.pollerBehavior = pollerBehavior;
     this.uncaughtExceptionHandler = uncaughtExceptionHandler;
     this.pollThreadNamePrefix = pollThreadNamePrefix;
     this.usingVirtualThreads = usingVirtualThreads;
@@ -253,8 +254,8 @@ public final class PollerOptions {
     return backoffMaximumJitterCoefficient;
   }
 
-  public int getPollThreadCount() {
-    return pollThreadCount;
+  public PollerBehavior getPollerBehavior() {
+    return pollerBehavior;
   }
 
   public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {
@@ -290,8 +291,8 @@ public final class PollerOptions {
         + backoffMaximumInterval
         + ", backoffMaximumJitterCoefficient="
         + backoffMaximumJitterCoefficient
-        + ", pollThreadCount="
-        + pollThreadCount
+        + ", pollerBehavior="
+        + pollerBehavior
         + ", pollThreadNamePrefix='"
         + pollThreadNamePrefix
         + ", usingVirtualThreads='"

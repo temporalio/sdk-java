@@ -14,34 +14,57 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.PollerBehavior;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
+import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class CleanNexusWorkerShutdownTest {
 
   private static final String COMPLETED = "Completed";
   private static final String INTERRUPTED = "Interrupted";
-  private static final CountDownLatch shutdownLatch = new CountDownLatch(1);
-  private static final CountDownLatch shutdownNowLatch = new CountDownLatch(1);
-  private static final TestNexusServiceImpl nexusServiceImpl =
+  private CountDownLatch shutdownLatch = new CountDownLatch(1);
+  private final CountDownLatch shutdownNowLatch = new CountDownLatch(1);
+  private final TestNexusServiceImpl nexusServiceImpl =
       new TestNexusServiceImpl(shutdownLatch, shutdownNowLatch);
 
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflowImpl.class)
-          .setNexusServiceImplementation(nexusServiceImpl)
-          .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
-          .build();
+  @Parameterized.Parameters
+  public static Collection<PollerBehavior> data() {
+    return Arrays.asList(
+        new PollerBehavior[] {
+          new PollerBehaviorSimpleMaximum(10), new PollerBehaviorAutoscaling(1, 10, 5),
+        });
+  }
+
+  @Rule public SDKTestWorkflowRule testWorkflowRule;
+
+  public CleanNexusWorkerShutdownTest(PollerBehavior pollerBehaviorAutoscaling) {
+    this.testWorkflowRule =
+        SDKTestWorkflowRule.newBuilder()
+            .setWorkflowTypes(TestWorkflowImpl.class)
+            .setWorkerOptions(
+                WorkerOptions.newBuilder()
+                    .setLocalActivityWorkerOnly(true)
+                    .setNexusTaskPollersBehaviour(pollerBehaviorAutoscaling)
+                    .build())
+            .setNexusServiceImplementation(nexusServiceImpl)
+            .build();
+  }
 
   @Test(timeout = 20000)
   public void testShutdown() throws InterruptedException {
