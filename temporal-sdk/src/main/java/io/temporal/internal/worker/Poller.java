@@ -38,7 +38,7 @@ final class Poller<T> implements SuspendableWorker {
   }
 
   private final String identity;
-  private final ShutdownableTaskExecutor<T> taskExecutor;
+  private final TaskExecutor<T> taskExecutor;
   private final PollTask<T> pollTask;
   private final PollerOptions pollerOptions;
   private static final Logger log = LoggerFactory.getLogger(Poller.class);
@@ -183,7 +183,7 @@ final class Poller<T> implements SuspendableWorker {
 
   @Override
   public boolean isTerminated() {
-    return pollExecutor.isTerminated() && taskExecutor.isTerminated();
+    return pollExecutor.isTerminated();
   }
 
   @Override
@@ -195,8 +195,7 @@ final class Poller<T> implements SuspendableWorker {
       return WorkerLifecycleState.SUSPENDED;
     }
     if (pollExecutor.isShutdown()) {
-      // return TERMINATED only if both pollExecutor and taskExecutor are terminated
-      if (pollExecutor.isTerminated() && taskExecutor.isTerminated()) {
+      if (pollExecutor.isTerminated()) {
         return WorkerLifecycleState.TERMINATED;
       } else {
         return WorkerLifecycleState.SHUTDOWN;
