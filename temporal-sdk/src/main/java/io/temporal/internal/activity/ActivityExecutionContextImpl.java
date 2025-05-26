@@ -157,6 +157,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   }
 
   @Override
+  public void cancelOutstandingHeartbeat() {
+    heartbeatContext.cancelOutstandingHeartbeat();
+  }
+
+  @Override
   public WorkflowClient getWorkflowClient() {
     return client;
   }
