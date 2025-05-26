@@ -23,6 +23,11 @@ public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest extends Ba
           .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), WorkflowImpl.class)
           .build();
 
+  public GetVersionAfterScopeCancellationInMainWorkflowMethodTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   public static final class WorkflowImpl implements TestWorkflows.NoArgsWorkflow {
 
     @Override

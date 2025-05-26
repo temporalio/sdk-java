@@ -28,6 +28,10 @@ public class GetVersionSameIdTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionSameIdTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionSameId() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

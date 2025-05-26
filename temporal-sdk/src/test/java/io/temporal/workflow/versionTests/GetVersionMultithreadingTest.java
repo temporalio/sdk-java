@@ -34,6 +34,10 @@ public class GetVersionMultithreadingTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionMultithreadingTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionDefaultMultithreading() {
     TestWorkflow1 workflowStub =

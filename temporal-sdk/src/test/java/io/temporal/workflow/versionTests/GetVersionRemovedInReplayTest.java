@@ -34,6 +34,10 @@ public class GetVersionRemovedInReplayTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionRemovedInReplayTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionRemovedInReplay() {
     TestWorkflow1 workflowStub =

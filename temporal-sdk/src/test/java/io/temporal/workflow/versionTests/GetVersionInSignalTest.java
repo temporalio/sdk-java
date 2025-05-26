@@ -21,6 +21,10 @@ public class GetVersionInSignalTest extends BaseVersionTest {
           .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), TestGetVersionInSignal.class)
           .build();
 
+  public GetVersionInSignalTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionInSignal() {
     TestWorkflows.TestSignaledWorkflow workflow =

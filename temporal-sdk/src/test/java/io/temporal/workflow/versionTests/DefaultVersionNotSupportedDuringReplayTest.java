@@ -28,6 +28,11 @@ public class DefaultVersionNotSupportedDuringReplayTest extends BaseVersionTest 
               getDefaultWorkflowImplementationOptions(), TestVersionNotSupportedWorkflowImpl.class)
           .build();
 
+  public DefaultVersionNotSupportedDuringReplayTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testVersionNotSupported() throws InterruptedException {
     TestWorkflowReturnString workflowStub =

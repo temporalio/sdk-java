@@ -31,6 +31,10 @@ public class GetVersionAddNewBeforeTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionAddNewBeforeTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionAddNewBefore() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

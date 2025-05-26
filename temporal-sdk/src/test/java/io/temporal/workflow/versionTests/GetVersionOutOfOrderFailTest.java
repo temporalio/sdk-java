@@ -43,6 +43,10 @@ public class GetVersionOutOfOrderFailTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionOutOfOrderFailTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionOutOfOrderFail() {
     TestWorkflow1 workflowStub =

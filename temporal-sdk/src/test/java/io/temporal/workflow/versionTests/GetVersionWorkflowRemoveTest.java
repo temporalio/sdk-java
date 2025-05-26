@@ -36,6 +36,10 @@ public class GetVersionWorkflowRemoveTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionWorkflowRemoveTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionWorkflowRemove() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

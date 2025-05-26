@@ -40,6 +40,11 @@ public class VersionNotSupportedWithConflictingRangesExecutionTest extends BaseV
                   .build())
           .build();
 
+  public VersionNotSupportedWithConflictingRangesExecutionTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testVersionNotSupported() {
     TestWorkflow1 workflowStub =

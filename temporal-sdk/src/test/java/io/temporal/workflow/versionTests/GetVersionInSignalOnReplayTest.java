@@ -32,6 +32,10 @@ public class GetVersionInSignalOnReplayTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionInSignalOnReplayTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionInSignal() {
     TestWorkflows.TestSignaledWorkflow workflow =

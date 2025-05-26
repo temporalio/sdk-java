@@ -31,6 +31,11 @@ public class GetVersionAfterScopeCancellationTest extends BaseVersionTest {
           .setWorkerOptions(WorkerOptions.newBuilder().build())
           .build();
 
+  public GetVersionAfterScopeCancellationTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionAndCancelTimer() {
     ReminderWorkflow workflowStub =

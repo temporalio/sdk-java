@@ -33,6 +33,10 @@ public class GetVersionRemovedBeforeTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionRemovedBeforeTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionRemovedBefore() {
     TestWorkflow1 workflowStub =

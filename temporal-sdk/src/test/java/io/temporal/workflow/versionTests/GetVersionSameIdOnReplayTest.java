@@ -32,6 +32,10 @@ public class GetVersionSameIdOnReplayTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionSameIdOnReplayTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionSameIdOnReplay() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

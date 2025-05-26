@@ -28,6 +28,10 @@ public class GetVersionMultipleCallsTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionMultipleCallsTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionMultipleCalls() {
     TestWorkflow1 workflowStub =

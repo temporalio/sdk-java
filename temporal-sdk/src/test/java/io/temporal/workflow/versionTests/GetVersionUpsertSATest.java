@@ -57,6 +57,10 @@ public class GetVersionUpsertSATest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionUpsertSATest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersion() {
     TestWorkflow1 workflowStub =

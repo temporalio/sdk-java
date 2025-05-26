@@ -35,6 +35,10 @@ public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
                   .build())
           .build();
 
+  public GetVersionMultithreadingRemoveTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionMultithreadingRemoval() {
     assumeTrue("This test only passes if SKIP_YIELD_ON_VERSION is enabled", setVersioningFlag);

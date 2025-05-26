@@ -26,6 +26,10 @@ public class GetVersionAndTimerTest extends BaseVersionTest {
   public SDKTestWorkflowRule testWorkflowRuleWithVersion =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TimedWorkflowWithVersionImpl.class).build();
 
+  public GetVersionAndTimerTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testTimedWorkflowWithoutVersionImpl() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
