@@ -100,7 +100,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {

@@ -21,7 +21,8 @@ public class VersionMarkerUtils {
   public static final String MARKER_NAME = "Version";
   public static final String MARKER_CHANGE_ID_KEY = "changeId";
   public static final String MARKER_VERSION_KEY = "version";
-  public static final String UPSERT_VERSION_SA_KEY = "upsertSA";
+  // Key used to store if an upsert version search attribute was written while writing the marker.
+  public static final String VERSION_SA_UPDATED_KEY = "versionSearchAttributeUpdated";
 
   // TemporalChangeVersion is used as search attributes key to find workflows with specific change
   // version.
@@ -75,9 +76,9 @@ public class VersionMarkerUtils {
 
   @Nullable
   public static boolean getUpsertVersionSA(MarkerRecordedEventAttributes markerAttributes) {
-    Boolean upsertSA =
-        MarkerUtils.getValueFromMarker(markerAttributes, UPSERT_VERSION_SA_KEY, Boolean.class);
-    return upsertSA != null && upsertSA;
+    Boolean versionSearchAttributeUpdated =
+        MarkerUtils.getValueFromMarker(markerAttributes, VERSION_SA_UPDATED_KEY, Boolean.class);
+    return versionSearchAttributeUpdated != null && versionSearchAttributeUpdated;
   }
 
   public static RecordMarkerCommandAttributes createMarkerAttributes(
@@ -88,9 +89,10 @@ public class VersionMarkerUtils {
         MARKER_CHANGE_ID_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(changeId).get());
     details.put(
         MARKER_VERSION_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(version).get());
-    details.put(
-        UPSERT_VERSION_SA_KEY,
-        DefaultDataConverter.STANDARD_INSTANCE.toPayloads(upsertVersionSA).get());
+    if (upsertVersionSA) {
+      details.put(
+          VERSION_SA_UPDATED_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(true).get());
+    }
     return RecordMarkerCommandAttributes.newBuilder()
         .setMarkerName(MARKER_NAME)
         .putAllDetails(details)

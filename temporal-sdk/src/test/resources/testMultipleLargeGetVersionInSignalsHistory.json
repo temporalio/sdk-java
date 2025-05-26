@@ -111,7 +111,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -260,7 +260,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -302,7 +302,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -344,7 +344,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -567,7 +567,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -609,7 +609,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -651,7 +651,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -693,7 +693,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -735,7 +735,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {
@@ -777,7 +777,7 @@
               }
             ]
           },
-          "upsertSA": {
+          "versionSearchAttributeUpdated": {
             "payloads": [
               {
                 "metadata": {

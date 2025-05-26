@@ -350,7 +350,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       // When we enabled upserting of the search attribute by default, we should consider raising a
       // warning here.
       log.debug(
-          "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on you `WorkflowImplementationOptions`",
+          "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on your `WorkflowImplementationOptions`",
           TEMPORAL_CHANGE_VERSION.getName());
     }
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
