@@ -20,7 +20,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
       WorkflowExecution execution,
       WorkflowOutboundCallsInterceptor workflowOutboundCallsInterceptor,
       Functions.Proc1<String> assertReadOnly) {
-    this.workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    this.workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface, false);
     this.stub =
         new ExternalWorkflowStubImpl(execution, workflowOutboundCallsInterceptor, assertReadOnly);
   }
