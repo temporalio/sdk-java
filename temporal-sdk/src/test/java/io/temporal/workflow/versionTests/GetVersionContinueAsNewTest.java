@@ -30,7 +30,6 @@ public class GetVersionContinueAsNewTest extends BaseVersionTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), TestWorkflowImpl.class)
-          .setUseExternalService(true)
           .build();
 
   @Test
