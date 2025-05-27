@@ -8,6 +8,7 @@ import io.nexusrpc.Header;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
@@ -42,7 +43,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private final Map<String, ServiceImplInstance> serviceImplInstances =
       Collections.synchronizedMap(new HashMap<>());
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-  private final WorkerInterceptor[] interceptors;
   private final TemporalInterceptorMiddleware nexusServiceInterceptor;
 
   public NexusTaskHandlerImpl(
@@ -55,7 +55,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.dataConverter = Objects.requireNonNull(dataConverter);
-    this.interceptors = Objects.requireNonNull(interceptors);
+    Objects.requireNonNull(interceptors);
     this.nexusServiceInterceptor = new TemporalInterceptorMiddleware(interceptors);
   }
 
@@ -131,6 +131,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
           HandlerError.newBuilder()
               .setErrorType(e.getErrorType().toString())
               .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
+              .setRetryBehavior(mapRetryBehavior(e.getRetryBehavior()))
               .build());
     } catch (Throwable e) {
       return new Result(
@@ -148,6 +149,18 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         timeoutTask.cancel(false);
       }
       CurrentNexusOperationContext.unset();
+    }
+  }
+
+  private NexusHandlerErrorRetryBehavior mapRetryBehavior(
+      HandlerException.RetryBehavior retryBehavior) {
+    switch (retryBehavior) {
+      case RETRYABLE:
+        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE;
+      case NON_RETRYABLE:
+        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE;
+      default:
+        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_UNSPECIFIED;
     }
   }
 
@@ -193,7 +206,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
     if (failure instanceof ApplicationFailure) {
       if (((ApplicationFailure) failure).isNonRetryable()) {
-        throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, failure);
+        throw new HandlerException(
+            HandlerException.ErrorType.INTERNAL,
+            failure,
+            HandlerException.RetryBehavior.NON_RETRYABLE);
       }
     }
     if (failure instanceof Error) {

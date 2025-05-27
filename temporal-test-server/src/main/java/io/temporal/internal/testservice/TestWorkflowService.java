@@ -1038,7 +1038,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return Failure.newBuilder()
         .setMessage(err.getFailure().getMessage())
         .setNexusHandlerFailureInfo(
-            NexusHandlerFailureInfo.newBuilder().setType(err.getErrorType()).build())
+            NexusHandlerFailureInfo.newBuilder()
+                .setType(err.getErrorType())
+                .setRetryBehavior(err.getRetryBehavior())
+                .build())
         .setCause(nexusFailureToAPIFailure(err.getFailure(), false))
         .build();
   }
