@@ -159,6 +159,20 @@ class HeartbeatContextImpl implements HeartbeatContext {
     }
   }
 
+  @Override
+  public void cancelOutstandingHeartbeat() {
+    lock.lock();
+    try {
+      if (scheduledHeartbeat != null) {
+        scheduledHeartbeat.cancel(false);
+        scheduledHeartbeat = null;
+      }
+      hasOutstandingHeartbeat = false;
+    } finally {
+      lock.unlock();
+    }
+  }
+
   private void doHeartBeatLocked(Object details) {
     long nextHeartbeatDelay;
     try {

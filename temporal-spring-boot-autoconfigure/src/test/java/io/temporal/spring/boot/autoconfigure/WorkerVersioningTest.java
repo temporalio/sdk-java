@@ -39,6 +39,7 @@ public class WorkerVersioningTest {
     applicationContext.start();
   }
 
+  @SuppressWarnings("deprecation")
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {

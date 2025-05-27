@@ -1871,6 +1871,7 @@ class StateMachines {
       WorkflowTaskData data,
       RespondWorkflowTaskCompletedRequest request,
       long notUsed) {
+    @SuppressWarnings("deprecation")
     WorkflowTaskCompletedEventAttributes.Builder a =
         WorkflowTaskCompletedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())

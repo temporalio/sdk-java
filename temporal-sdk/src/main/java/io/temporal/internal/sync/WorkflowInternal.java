@@ -418,11 +418,18 @@ public final class WorkflowInternal {
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
     if (workflowStub instanceof StubMarker) {
-      Object stub = ((StubMarker) workflowStub).__getUntypedStub();
-      return ((ChildWorkflowStub) stub).getExecution();
+      Object untyped = ((StubMarker) workflowStub).__getUntypedStub();
+      if (untyped instanceof ChildWorkflowStub) {
+        return ((ChildWorkflowStub) untyped).getExecution();
+      }
+
+      if (untyped instanceof ExternalWorkflowStub) {
+        return newPromise(((ExternalWorkflowStub) untyped).getExecution());
+      }
     }
     throw new IllegalArgumentException(
-        "Not a workflow stub created through Workflow.newChildWorkflowStub: " + workflowStub);
+        "Not a workflow stub created through Workflow.newChildWorkflowStub or Workflow.newExternalWorkflowStub: "
+            + workflowStub);
   }
 
   public static ChildWorkflowStub newUntypedChildWorkflowStub(

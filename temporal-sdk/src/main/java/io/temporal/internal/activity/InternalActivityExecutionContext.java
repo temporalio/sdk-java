@@ -9,4 +9,7 @@ import io.temporal.activity.ActivityExecutionContext;
 public interface InternalActivityExecutionContext extends ActivityExecutionContext {
   /** Get the latest value of {@link ActivityExecutionContext#heartbeat(Object)}. */
   Object getLastHeartbeatValue();
+
+  /** Cancel any pending heartbeat and discard cached heartbeat details. */
+  void cancelOutstandingHeartbeat();
 }

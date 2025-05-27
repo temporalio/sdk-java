@@ -260,12 +260,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
     if (e instanceof WorkflowExecutionException) {
+      @SuppressWarnings("deprecation")
       RespondWorkflowTaskCompletedRequest response =
           RespondWorkflowTaskCompletedRequest.newBuilder()
               .setTaskToken(workflowTask.getTaskToken())
               .setIdentity(options.getIdentity())
               .setNamespace(namespace)
-              // TODO: Set stamp or not based on capabilities
               .setBinaryChecksum(options.getBuildId())
               .addCommands(
                   Command.newBuilder()

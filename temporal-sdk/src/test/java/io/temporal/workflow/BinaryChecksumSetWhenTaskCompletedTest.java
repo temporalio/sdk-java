@@ -31,6 +31,7 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
           .build();
 
   @Test
+  @SuppressWarnings("deprecation")
   public void testBinaryChecksumSetWhenTaskCompleted() {
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowExecution execution =
