@@ -16,7 +16,12 @@ interface HeartbeatContext {
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
 
-  Object getLastHeartbeatDetails();
+  /**
+   * @see io.temporal.activity.ActivityExecutionContext#getLastHeartbeatDetails(Class)
+   */
+  <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
+
+  Object getLatestHeartbeatDetails();
 
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
