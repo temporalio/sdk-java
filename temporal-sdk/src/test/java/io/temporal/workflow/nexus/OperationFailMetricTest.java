@@ -27,11 +27,12 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class OperationFailMetricTest {
+  private static Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
+
   private final TestStatsReporter reporter = new TestStatsReporter();
 
   @Rule
@@ -43,7 +44,6 @@ public class OperationFailMetricTest {
               new RootScopeBuilder()
                   .reporter(reporter)
                   .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
-          .setUseExternalService(false)
           .build();
 
   private ImmutableMap.Builder<String, String> getBaseTags() {
@@ -81,6 +81,7 @@ public class OperationFailMetricTest {
 
     WorkflowFailedException workflowException =
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("fail"));
+    assertNoRetries("fail");
     ApplicationFailure applicationFailure =
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
@@ -107,6 +108,7 @@ public class OperationFailMetricTest {
 
     WorkflowFailedException workflowException =
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("fail-app"));
+    assertNoRetries("fail-app");
     ApplicationFailure applicationFailure =
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
@@ -135,8 +137,10 @@ public class OperationFailMetricTest {
     WorkflowFailedException workflowException =
         Assert.assertThrows(
             WorkflowFailedException.class, () -> workflowStub.execute("handlererror"));
+    assertNoRetries("handlererror");
     HandlerException handlerException =
         assertNexusOperationFailure(HandlerException.class, workflowException);
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
     Assert.assertTrue(handlerException.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) handlerException.getCause();
     Assert.assertEquals("handlererror", applicationFailure.getOriginalMessage());
@@ -165,8 +169,10 @@ public class OperationFailMetricTest {
     WorkflowFailedException workflowException =
         Assert.assertThrows(
             WorkflowFailedException.class, () -> workflowStub.execute("handlererror-app"));
+    assertNoRetries("handlererror-app");
     HandlerException handlerException =
         assertNexusOperationFailure(HandlerException.class, workflowException);
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
     Assert.assertTrue(handlerException.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) handlerException.getCause();
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
@@ -192,19 +198,24 @@ public class OperationFailMetricTest {
 
   @Test
   public void failHandlerAlreadyStartedMetrics() {
-    Assume.assumeFalse("skipping", true);
     TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowFailedException workflowException =
         Assert.assertThrows(
             WorkflowFailedException.class, () -> workflowStub.execute("already-started"));
-    ApplicationFailure applicationFailure =
-        assertNexusOperationFailure(ApplicationFailure.class, workflowException);
+    assertNoRetries("already-started");
+    HandlerException handlerException =
+        assertNexusOperationFailure(HandlerException.class, workflowException);
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
+    Assert.assertTrue(handlerException.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) handlerException.getCause();
     Assert.assertEquals(
         "io.temporal.client.WorkflowExecutionAlreadyStarted", applicationFailure.getType());
 
     Map<String, String> execFailedTags =
-        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
@@ -224,6 +235,7 @@ public class OperationFailMetricTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     Assert.assertThrows(
         WorkflowFailedException.class, () -> workflowStub.execute("retryable-application-failure"));
+    Assert.assertTrue(invocationCount.get("retryable-application-failure") > 1);
 
     Map<String, String> execFailedTags =
         getOperationTags()
@@ -253,12 +265,16 @@ public class OperationFailMetricTest {
             () -> workflowStub.execute("non-retryable-application-failure"));
     HandlerException handlerFailure =
         assertNexusOperationFailure(HandlerException.class, workflowException);
+    assertNoRetries("non-retryable-application-failure");
+
     Assert.assertTrue(handlerFailure.getMessage().contains("intentional failure"));
-    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerFailure.getErrorType());
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
+    Assert.assertEquals(
+        HandlerException.RetryBehavior.NON_RETRYABLE, handlerFailure.getRetryBehavior());
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -298,6 +314,7 @@ public class OperationFailMetricTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowFailedException workflowException =
         Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("error"));
+    Assert.assertTrue(invocationCount.get("error") > 1);
 
     Map<String, String> execFailedTags =
         getOperationTags()
@@ -324,6 +341,13 @@ public class OperationFailMetricTest {
     WorkflowFailedException workflowException =
         Assert.assertThrows(
             WorkflowFailedException.class, () -> workflowStub.execute("handlererror-nonretryable"));
+    assertNoRetries("handlererror-nonretryable");
+    HandlerException handlerFailure =
+        assertNexusOperationFailure(HandlerException.class, workflowException);
+    Assert.assertTrue(handlerFailure.getMessage().contains("intentional failure"));
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
+    Assert.assertEquals(
+        HandlerException.RetryBehavior.NON_RETRYABLE, handlerFailure.getRetryBehavior());
 
     Map<String, String> execFailedTags =
         getOperationTags()
@@ -340,6 +364,10 @@ public class OperationFailMetricTest {
               MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
           reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
         });
+  }
+
+  private void assertNoRetries(String testCase) {
+    Assert.assertEquals(new Integer(1), invocationCount.get(testCase));
   }
 
   public static class TestNexus implements TestWorkflow1 {
@@ -360,17 +388,13 @@ public class OperationFailMetricTest {
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public class TestNexusServiceImpl {
-    Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
-
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, operation) -> {
-            invocationCount.put(
-                details.getRequestId(),
-                invocationCount.getOrDefault(details.getRequestId(), 0) + 1);
-            if (invocationCount.get(details.getRequestId()) > 1) {
+            invocationCount.put(operation, invocationCount.getOrDefault(operation, 0) + 1);
+            if (invocationCount.get(operation) > 1) {
               throw OperationException.failure(new RuntimeException("exceeded invocation count"));
             }
             switch (operation) {

@@ -40,7 +40,7 @@ public class OperationFailureConversionTest {
     Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
     HandlerException handlerException = (HandlerException) nexusFailure.getCause();
     Assert.assertTrue(handlerException.getMessage().contains("failed to call operation"));
-    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerException.getErrorType());
   }
 
   @Test
@@ -55,7 +55,7 @@ public class OperationFailureConversionTest {
     Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
     HandlerException handlerFailure = (HandlerException) nexusFailure.getCause();
     Assert.assertTrue(handlerFailure.getMessage().contains("exceeded invocation count"));
-    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerFailure.getErrorType());
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
   }
 
   public static class TestNexus implements TestWorkflow1 {
