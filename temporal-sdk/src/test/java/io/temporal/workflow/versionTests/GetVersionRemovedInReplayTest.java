@@ -24,7 +24,8 @@ public class GetVersionRemovedInReplayTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionRemovedInReplay.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionRemovedInReplay.class)
           .setActivityImplementations(new TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
@@ -32,6 +33,10 @@ public class GetVersionRemovedInReplayTest extends BaseVersionTest {
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
+
+  public GetVersionRemovedInReplayTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testGetVersionRemovedInReplay() {

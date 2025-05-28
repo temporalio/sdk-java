@@ -24,8 +24,14 @@ public class DefaultVersionNotSupportedDuringReplayTest extends BaseVersionTest 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestVersionNotSupportedWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestVersionNotSupportedWorkflowImpl.class)
           .build();
+
+  public DefaultVersionNotSupportedDuringReplayTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testVersionNotSupported() throws InterruptedException {

@@ -19,7 +19,14 @@ public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest extends Ba
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(WorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), WorkflowImpl.class)
+          .build();
+
+  public GetVersionAfterScopeCancellationInMainWorkflowMethodTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   public static final class WorkflowImpl implements TestWorkflows.NoArgsWorkflow {
 
