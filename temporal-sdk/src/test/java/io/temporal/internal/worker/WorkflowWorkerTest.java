@@ -25,6 +25,7 @@ import io.temporal.testUtils.Eventually;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.FixedSizeSlotSupplier;
+import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
@@ -72,7 +73,10 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(3).build())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(3))
+                        .build())
                 .setMetricsScope(metricsScope)
                 .build(),
             runLockManager,
@@ -237,7 +241,10 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                        .build())
                 .setMetricsScope(metricsScope)
                 .build(),
             runLockManager,
@@ -374,7 +381,10 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                        .build())
                 .setMetricsScope(metricScope)
                 .build(),
             runLockManager,

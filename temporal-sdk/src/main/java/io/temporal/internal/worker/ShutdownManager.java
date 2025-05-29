@@ -66,7 +66,7 @@ public class ShutdownManager implements Closeable {
    * sticky workflows
    */
   public CompletableFuture<Void> waitForStickyQueueBalancer(
-      StickyQueueBalancer balancer, Duration timeout) {
+      DisableNormalPolling balancer, Duration timeout) {
     CompletableFuture<Void> future = new CompletableFuture<>();
     balancer.disableNormalPoll();
     scheduledExecutorService.schedule(
