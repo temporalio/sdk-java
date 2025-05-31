@@ -324,4 +324,35 @@ public class GrpcSyncRetryerTest {
     assertEquals(CONGESTION_INITIAL_INTERVAL, options.getCongestionInitialInterval());
     assertEquals(MAXIMUM_JITTER_COEFFICIENT, options.getMaximumJitterCoefficient(), 0.01);
   }
+
+  @Test
+  public void testResourceExhaustedMessageTooLargeNotRetried() {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1))
+            .setCongestionInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .setMaximumAttempts(3)
+            .validateBuildWithDefaults();
+    final AtomicInteger attempts = new AtomicInteger();
+
+    StatusRuntimeException e =
+        assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                DEFAULT_SYNC_RETRYER.retry(
+                    () -> {
+                      attempts.incrementAndGet();
+                      throw new StatusRuntimeException(
+                          Status.fromCode(Status.Code.RESOURCE_EXHAUSTED)
+                              .withDescription(
+                                  "grpc: received message larger than max (10 vs. 4)"));
+                    },
+                    new GrpcRetryer.GrpcRetryerOptions(options, null),
+                    GetSystemInfoResponse.Capabilities.getDefaultInstance()));
+
+    assertEquals(Status.Code.RESOURCE_EXHAUSTED, e.getStatus().getCode());
+    assertEquals(1, attempts.get());
+  }
 }
