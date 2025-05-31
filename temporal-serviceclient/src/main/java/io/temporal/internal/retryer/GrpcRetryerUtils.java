@@ -15,6 +15,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class GrpcRetryerUtils {
+
+  private static final String MESSAGE_TOO_LARGE_TEXT = "received message larger than max";
+
   /**
    * This method encapsulates the logic if {@code StatusRuntimeException exception} is retryable or
    * not.
@@ -52,6 +55,10 @@ class GrpcRetryerUtils {
           return currentException;
         }
         break;
+      case RESOURCE_EXHAUSTED:
+        if (isMessageTooLarge(currentException)) {
+          return currentException;
+        }
       case DEADLINE_EXCEEDED:
         // By default, we keep retrying with DEADLINE_EXCEEDED assuming that it's the deadline of
         // one attempt which expired, but not the whole sequence.
@@ -126,5 +133,13 @@ class GrpcRetryerUtils {
     } else {
       return durationDeadline;
     }
+  }
+
+  static boolean isMessageTooLarge(StatusRuntimeException exception) {
+    String desc = exception.getStatus().getDescription();
+    if (desc == null) {
+      desc = exception.getMessage();
+    }
+    return desc != null && desc.toLowerCase().contains(MESSAGE_TOO_LARGE_TEXT.toLowerCase());
   }
 }

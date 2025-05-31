@@ -389,4 +389,44 @@ public class GrpcAsyncRetryerTest {
         "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
         elapsedTime >= 2000);
   }
+
+  @Test
+  public void testResourceExhaustedMessageTooLargeNotRetried() throws Exception {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1))
+            .setCongestionInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .setMaximumAttempts(3)
+            .validateBuildWithDefaults();
+
+    final AtomicInteger attempts = new AtomicInteger();
+
+    try {
+      new GrpcAsyncRetryer<>(
+              scheduledExecutor,
+              () -> {
+                attempts.incrementAndGet();
+                CompletableFuture<?> future = new CompletableFuture<>();
+                future.completeExceptionally(
+                    new StatusRuntimeException(
+                        Status.fromCode(Status.Code.RESOURCE_EXHAUSTED)
+                            .withDescription("grpc: received message larger than max (10 vs. 4)")));
+                return future;
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
+          .retry()
+          .get();
+      fail("unreachable");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
+      assertEquals(
+          Status.Code.RESOURCE_EXHAUSTED,
+          ((StatusRuntimeException) e.getCause()).getStatus().getCode());
+    }
+
+    assertEquals(1, attempts.get());
+  }
 }
