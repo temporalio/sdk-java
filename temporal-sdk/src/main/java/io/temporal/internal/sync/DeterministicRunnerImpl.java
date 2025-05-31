@@ -586,7 +586,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
    * @param <T>
    */
   @SuppressWarnings("unchecked")
-  <T> Optional<Optional<T>> getRunnerLocal(RunnerLocalInternal<T> key) {
+  public <T> Optional<Optional<T>> getRunnerLocal(RunnerLocalInternal<T> key) {
     if (!runnerLocalMap.containsKey(key)) {
       return Optional.empty();
     }
