@@ -845,7 +845,8 @@ public final class WorkflowInternal {
   static SyncWorkflowContext getRootWorkflowContext() {
     // If we are in a query handler, we need to get the workflow context from the
     // QueryDispatcher, otherwise we get it from the current thread's internal context.
-    // This is necessary because query handlers run in a different context than the main workflow threads.
+    // This is necessary because query handlers run in a different context than the main workflow
+    // threads.
     if (QueryDispatcher.isQueryHandler()) {
       return QueryDispatcher.getWorkflowContext();
     }
