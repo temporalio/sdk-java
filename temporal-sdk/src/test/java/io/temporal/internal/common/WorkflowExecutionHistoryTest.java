@@ -1,5 +1,6 @@
 package io.temporal.internal.common;
 
+import static io.temporal.internal.common.WorkflowExecutionHistory.DEFAULT_WORKFLOW_ID;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 
@@ -45,14 +46,14 @@ public class WorkflowExecutionHistoryTest {
   public void workflowIdIsExtractedWhenPresent() throws IOException {
     WorkflowExecutionHistory history =
         WorkflowHistoryLoader.readHistoryFromResource("simpleHistory_withWorkflowId.json");
-    assertEquals("unit-test-workflow", history.getWorkflowExecution().getWorkflowId());
+    assertEquals("ff28c127-56ff-416f-8630-53fa4f4cf79a", history.getWorkflowExecution().getWorkflowId());
   }
 
   @Test
   public void defaultWorkflowIdUsedWhenMissing() throws IOException {
     WorkflowExecutionHistory history =
         WorkflowHistoryLoader.readHistoryFromResource("simpleHistory1.json");
-    assertEquals("workflow_id_in_replay", history.getWorkflowExecution().getWorkflowId());
+    assertEquals(DEFAULT_WORKFLOW_ID, history.getWorkflowExecution().getWorkflowId());
   }
 
   public void deserializeAndSerializeBack(String resourceName) throws IOException {

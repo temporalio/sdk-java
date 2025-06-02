@@ -20,7 +20,7 @@
         "firstExecutionRunId": "1fd5d4c8-1590-4a0a-8027-535e8729de8e",
         "attempt": 1,
         "firstWorkflowTaskBackoff": "0s",
-        "workflowId": "unit-test-workflow"
+        "workflowId": "ff28c127-56ff-416f-8630-53fa4f4cf79a"
       }
     }
   ]
