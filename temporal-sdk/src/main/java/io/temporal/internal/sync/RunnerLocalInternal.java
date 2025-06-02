@@ -26,7 +26,7 @@ public final class RunnerLocalInternal<T> {
       result = DeterministicRunnerImpl.currentThreadInternal().getRunner().getRunnerLocal(this);
     }
     T out = result.orElseGet(() -> Optional.ofNullable(supplier.get())).orElse(null);
-    if (!result.isPresent() && useCaching) {
+    if (!result.isPresent() && useCaching && !QueryDispatcher.isQueryHandler()) {
       // This is the first time we've tried fetching this, and caching is enabled. Store it.
       set(out);
     }
