@@ -345,7 +345,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
-    return queryDispatcher.handleQuery(queryName, header, input);
+    return queryDispatcher.handleQuery(this, queryName, header, input);
   }
 
   public boolean isEveryHandlerFinished() {
