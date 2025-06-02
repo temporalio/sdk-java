@@ -40,7 +40,19 @@ public final class WorkflowExecutionHistory
    * @return WorkflowExecutionHistory
    */
   public static WorkflowExecutionHistory fromJson(String serialized) {
-    return fromJson(serialized, DEFAULT_WORKFLOW_ID);
+    String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
+
+    JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
+    History.Builder historyBuilder = History.newBuilder();
+    try {
+      parser.merge(protoJson, historyBuilder);
+    } catch (InvalidProtocolBufferException e) {
+      throw new DataConverterException(e);
+    }
+    History history = historyBuilder.build();
+    String workflowId =
+        io.temporal.internal.common.WorkflowExecutionHistory.extractWorkflowId(history);
+    return new WorkflowExecutionHistory(history, workflowId);
   }
 
   /**
