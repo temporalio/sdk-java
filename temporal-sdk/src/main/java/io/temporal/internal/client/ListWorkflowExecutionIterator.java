@@ -1,4 +1,4 @@
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class ListWorkflowExecutionIterator
+class ListWorkflowExecutionIterator
     extends EagerPaginator<ListWorkflowExecutionsResponse, WorkflowExecutionInfo> {
   private final @Nullable String query;
   private final @Nonnull String namespace;
@@ -30,7 +30,7 @@ public class ListWorkflowExecutionIterator
   }
 
   @Override
-  CompletableFuture<ListWorkflowExecutionsResponse> performRequest(
+  protected CompletableFuture<ListWorkflowExecutionsResponse> performRequest(
       @Nonnull ByteString nextPageToken) {
     ListWorkflowExecutionsRequest.Builder request =
         ListWorkflowExecutionsRequest.newBuilder()
@@ -49,12 +49,12 @@ public class ListWorkflowExecutionIterator
   }
 
   @Override
-  ByteString getNextPageToken(ListWorkflowExecutionsResponse response) {
+  protected ByteString getNextPageToken(ListWorkflowExecutionsResponse response) {
     return response.getNextPageToken();
   }
 
   @Override
-  List<WorkflowExecutionInfo> toElements(ListWorkflowExecutionsResponse response) {
+  protected List<WorkflowExecutionInfo> toElements(ListWorkflowExecutionsResponse response) {
     return response.getExecutionsList();
   }
 }

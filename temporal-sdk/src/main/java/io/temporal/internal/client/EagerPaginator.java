@@ -1,4 +1,4 @@
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import com.google.protobuf.ByteString;
 import java.util.Iterator;
@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  * previous page. The main goal of this approach is to reduce a synchronous wait that would
  * otherwise happen when a first element of the next page is requested.
  */
-abstract class EagerPaginator<Resp, T> implements Iterator<T> {
+public abstract class EagerPaginator<Resp, T> implements Iterator<T> {
   private List<T> activeResponse;
   private int nextActiveResponseIndex;
   private CompletableFuture<Resp> nextResponse;
@@ -92,9 +92,9 @@ abstract class EagerPaginator<Resp, T> implements Iterator<T> {
     return response;
   }
 
-  abstract CompletableFuture<Resp> performRequest(@Nonnull ByteString nextPageToken);
+  protected abstract CompletableFuture<Resp> performRequest(@Nonnull ByteString nextPageToken);
 
-  abstract ByteString getNextPageToken(Resp response);
+  protected abstract ByteString getNextPageToken(Resp response);
 
-  abstract List<T> toElements(Resp response);
+  protected abstract List<T> toElements(Resp response);
 }

@@ -5,6 +5,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.internal.client.EagerPaginator;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -30,7 +31,7 @@ class GetWorkflowExecutionHistoryIterator
   }
 
   @Override
-  CompletableFuture<GetWorkflowExecutionHistoryResponse> performRequest(
+  protected CompletableFuture<GetWorkflowExecutionHistoryResponse> performRequest(
       @Nonnull ByteString nextPageToken) {
     GetWorkflowExecutionHistoryRequest.Builder requestBuilder =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -46,12 +47,12 @@ class GetWorkflowExecutionHistoryIterator
   }
 
   @Override
-  ByteString getNextPageToken(GetWorkflowExecutionHistoryResponse response) {
+  protected ByteString getNextPageToken(GetWorkflowExecutionHistoryResponse response) {
     return response.getNextPageToken();
   }
 
   @Override
-  List<HistoryEvent> toElements(GetWorkflowExecutionHistoryResponse response) {
+  protected List<HistoryEvent> toElements(GetWorkflowExecutionHistoryResponse response) {
     return response.getHistory().getEventsList();
   }
 }
