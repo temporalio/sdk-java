@@ -572,6 +572,14 @@ class TestHistoryBuilder {
           result.setNexusOperationCancelRequestedEventAttributes(
               (NexusOperationCancelRequestedEventAttributes) attributes);
           break;
+        case EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_COMPLETED:
+          result.setNexusOperationCancelRequestCompletedEventAttributes(
+              (NexusOperationCancelRequestCompletedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED:
+          result.setNexusOperationCancelRequestFailedEventAttributes(
+              (NexusOperationCancelRequestFailedEventAttributes) attributes);
+          break;
         case EVENT_TYPE_UNSPECIFIED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
