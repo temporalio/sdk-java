@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -74,6 +75,40 @@ public interface WorkflowClientCallsInterceptor {
   TerminateOutput terminate(TerminateInput input);
 
   DescribeWorkflowOutput describe(DescribeWorkflowInput input);
+
+  ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input);
+
+  final class ListWorkflowExecutionsInput {
+    private final String query;
+    private final Integer pageSize;
+
+    public ListWorkflowExecutionsInput(@Nullable String query, @Nullable Integer pageSize) {
+      this.query = query;
+      this.pageSize = pageSize;
+    }
+
+    @Nullable
+    public String getQuery() {
+      return query;
+    }
+
+    @Nullable
+    public Integer getPageSize() {
+      return pageSize;
+    }
+  }
+
+  final class ListWorkflowExecutionsOutput {
+    private final Stream<WorkflowExecutionMetadata> stream;
+
+    public ListWorkflowExecutionsOutput(Stream<WorkflowExecutionMetadata> stream) {
+      this.stream = stream;
+    }
+
+    public Stream<WorkflowExecutionMetadata> getStream() {
+      return stream;
+    }
+  }
 
   CountWorkflowOutput countWorkflows(CountWorkflowsInput input);
 

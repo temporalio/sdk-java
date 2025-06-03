@@ -23,9 +23,31 @@ class QueryDispatcher {
 
   private DynamicQueryHandler dynamicQueryHandler;
   private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
+  private static final ThreadLocal<SyncWorkflowContext> queryHandlerWorkflowContext =
+      new ThreadLocal<>();
 
   public QueryDispatcher(DataConverter dataConverterWithWorkflowContext) {
     this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
+  }
+
+  /**
+   * @return True if the current thread is executing a query handler.
+   */
+  public static boolean isQueryHandler() {
+    SyncWorkflowContext value = queryHandlerWorkflowContext.get();
+    return value != null;
+  }
+
+  /**
+   * @return The current workflow context if the current thread is executing a query handler.
+   * @throws IllegalStateException if not in a query handler.
+   */
+  public static SyncWorkflowContext getWorkflowContext() {
+    SyncWorkflowContext value = queryHandlerWorkflowContext.get();
+    if (value == null) {
+      throw new IllegalStateException("Not in a query handler");
+    }
+    return value;
   }
 
   public void setInboundCallsInterceptor(WorkflowInboundCallsInterceptor inboundCallsInterceptor) {
@@ -51,7 +73,11 @@ class QueryDispatcher {
     return new WorkflowInboundCallsInterceptor.QueryOutput(result);
   }
 
-  public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
+  public Optional<Payloads> handleQuery(
+      SyncWorkflowContext replayContext,
+      String queryName,
+      Header header,
+      Optional<Payloads> input) {
     WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
     Object[] args;
     if (queryName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
@@ -69,11 +95,18 @@ class QueryDispatcher {
           dataConverterWithWorkflowContext.fromPayloads(
               input, handler.getArgTypes(), handler.getGenericArgTypes());
     }
-    Object result =
-        inboundCallsInterceptor
-            .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, header, args))
-            .getResult();
-    return dataConverterWithWorkflowContext.toPayloads(result);
+    try {
+      replayContext.setReadOnly(true);
+      queryHandlerWorkflowContext.set(replayContext);
+      Object result =
+          inboundCallsInterceptor
+              .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, header, args))
+              .getResult();
+      return dataConverterWithWorkflowContext.toPayloads(result);
+    } finally {
+      replayContext.setReadOnly(false);
+      queryHandlerWorkflowContext.set(null);
+    }
   }
 
   public void registerQueryHandlers(WorkflowOutboundCallsInterceptor.RegisterQueryInput request) {

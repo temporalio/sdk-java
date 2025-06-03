@@ -5,6 +5,7 @@ import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.R
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -30,6 +31,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -688,6 +690,29 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
     CountWorkflowExecutionsResponse resp = genericClient.countWorkflowExecutions(req.build());
     return new CountWorkflowOutput(new WorkflowExecutionCount(resp));
+  }
+
+  @Override
+  public ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input) {
+    ListWorkflowExecutionIterator iterator =
+        new ListWorkflowExecutionIterator(
+            input.getQuery(), clientOptions.getNamespace(), input.getPageSize(), genericClient);
+    iterator.init();
+    Iterator<WorkflowExecutionMetadata> wrappedIterator =
+        Iterators.transform(
+            iterator,
+            info -> new WorkflowExecutionMetadata(info, clientOptions.getDataConverter()));
+
+    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
+    // impossible
+    //  TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list
+    // API
+    // guarantees absence of duplicates
+    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
+
+    return new ListWorkflowExecutionsOutput(
+        StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false));
   }
 
   private static <R> R convertResultPayloads(
