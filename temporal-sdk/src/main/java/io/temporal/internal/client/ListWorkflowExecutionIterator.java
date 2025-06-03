@@ -1,4 +1,4 @@
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
@@ -18,7 +18,7 @@ class ListWorkflowExecutionIterator
   private final @Nullable Integer pageSize;
   private final @Nonnull GenericWorkflowClient genericClient;
 
-  ListWorkflowExecutionIterator(
+  public ListWorkflowExecutionIterator(
       @Nullable String query,
       @Nonnull String namespace,
       @Nullable Integer pageSize,
@@ -30,7 +30,7 @@ class ListWorkflowExecutionIterator
   }
 
   @Override
-  CompletableFuture<ListWorkflowExecutionsResponse> performRequest(
+  protected CompletableFuture<ListWorkflowExecutionsResponse> performRequest(
       @Nonnull ByteString nextPageToken) {
     ListWorkflowExecutionsRequest.Builder request =
         ListWorkflowExecutionsRequest.newBuilder()
@@ -49,12 +49,12 @@ class ListWorkflowExecutionIterator
   }
 
   @Override
-  ByteString getNextPageToken(ListWorkflowExecutionsResponse response) {
+  protected ByteString getNextPageToken(ListWorkflowExecutionsResponse response) {
     return response.getNextPageToken();
   }
 
   @Override
-  List<WorkflowExecutionInfo> toElements(ListWorkflowExecutionsResponse response) {
+  protected List<WorkflowExecutionInfo> toElements(ListWorkflowExecutionsResponse response) {
     return response.getExecutionsList();
   }
 }
