@@ -46,7 +46,8 @@ public class WorkflowExecutionHistoryTest {
   public void workflowIdIsExtractedWhenPresent() throws IOException {
     WorkflowExecutionHistory history =
         WorkflowHistoryLoader.readHistoryFromResource("simpleHistory_withWorkflowId.json");
-    assertEquals("ff28c127-56ff-416f-8630-53fa4f4cf79a", history.getWorkflowExecution().getWorkflowId());
+    assertEquals(
+        "ff28c127-56ff-416f-8630-53fa4f4cf79a", history.getWorkflowExecution().getWorkflowId());
   }
 
   @Test
