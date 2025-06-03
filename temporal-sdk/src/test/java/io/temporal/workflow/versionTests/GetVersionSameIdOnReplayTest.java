@@ -23,13 +23,18 @@ public class GetVersionSameIdOnReplayTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionSameIdOnReplay.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionSameIdOnReplay.class)
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
+
+  public GetVersionSameIdOnReplayTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testGetVersionSameIdOnReplay() {

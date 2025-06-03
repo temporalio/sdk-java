@@ -90,6 +90,17 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   }
 
   @Override
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass) {
+    return getLastHeartbeatDetails(detailsClass, detailsClass);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
+    return heartbeatContext.getLastHeartbeatDetails(detailsClass, detailsGenericType);
+  }
+
+  @Override
   public byte[] getTaskToken() {
     return info.getTaskToken();
   }
@@ -153,7 +164,12 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
 
   @Override
   public Object getLastHeartbeatValue() {
-    return heartbeatContext.getLastHeartbeatDetails();
+    return heartbeatContext.getLatestHeartbeatDetails();
+  }
+
+  @Override
+  public void cancelOutstandingHeartbeat() {
+    heartbeatContext.cancelOutstandingHeartbeat();
   }
 
   @Override

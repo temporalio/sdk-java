@@ -66,6 +66,7 @@ public final class WorkflowOptions {
         .setLinks(o.getLinks())
         .setOnConflictOptions(o.getOnConflictOptions())
         .setPriority(o.getPriority())
+        .setVersioningOverride(o.getVersioningOverride())
         .validateBuildWithDefaults();
   }
 
@@ -115,6 +116,8 @@ public final class WorkflowOptions {
 
     private Priority priority;
 
+    private VersioningOverride versioningOverride;
+
     private Builder() {}
 
     private Builder(WorkflowOptions options) {
@@ -143,6 +146,7 @@ public final class WorkflowOptions {
       this.links = options.links;
       this.onConflictOptions = options.onConflictOptions;
       this.priority = options.priority;
+      this.versioningOverride = options.versioningOverride;
     }
 
     /**
@@ -472,6 +476,13 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /** Sets the versioning override to use when starting this workflow. */
+    @Experimental
+    public Builder setVersioningOverride(VersioningOverride versioningOverride) {
+      this.versioningOverride = versioningOverride;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -495,7 +506,8 @@ public final class WorkflowOptions {
           completionCallbacks,
           links,
           onConflictOptions,
-          priority);
+          priority,
+          versioningOverride);
     }
 
     /**
@@ -524,7 +536,8 @@ public final class WorkflowOptions {
           completionCallbacks,
           links,
           onConflictOptions,
-          priority);
+          priority,
+          versioningOverride);
     }
   }
 
@@ -569,6 +582,7 @@ public final class WorkflowOptions {
   private final List<Link> links;
   private final OnConflictOptions onConflictOptions;
   private final Priority priority;
+  private final VersioningOverride versioningOverride;
 
   private WorkflowOptions(
       String workflowId,
@@ -592,7 +606,8 @@ public final class WorkflowOptions {
       List<Callback> completionCallbacks,
       List<Link> links,
       OnConflictOptions onConflictOptions,
-      Priority priority) {
+      Priority priority,
+      VersioningOverride versioningOverride) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
@@ -615,6 +630,7 @@ public final class WorkflowOptions {
     this.links = links;
     this.onConflictOptions = onConflictOptions;
     this.priority = priority;
+    this.versioningOverride = versioningOverride;
   }
 
   public String getWorkflowId() {
@@ -721,6 +737,11 @@ public final class WorkflowOptions {
     return priority;
   }
 
+  @Experimental
+  public VersioningOverride getVersioningOverride() {
+    return versioningOverride;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -751,7 +772,8 @@ public final class WorkflowOptions {
         && Objects.equal(completionCallbacks, that.completionCallbacks)
         && Objects.equal(links, that.links)
         && Objects.equal(onConflictOptions, that.onConflictOptions)
-        && Objects.equal(priority, that.priority);
+        && Objects.equal(priority, that.priority)
+        && Objects.equal(versioningOverride, that.versioningOverride);
   }
 
   @Override
@@ -778,7 +800,8 @@ public final class WorkflowOptions {
         completionCallbacks,
         links,
         onConflictOptions,
-        priority);
+        priority,
+        versioningOverride);
   }
 
   @Override
@@ -831,6 +854,8 @@ public final class WorkflowOptions {
         + onConflictOptions
         + ", priority="
         + priority
+        + ", versioningOverride="
+        + versioningOverride
         + '}';
   }
 }

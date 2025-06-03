@@ -7,6 +7,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.workflow.v1.RequestIdInfo;
 import io.temporal.api.workflow.v1.WorkflowExecutionConfig;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
@@ -185,6 +186,14 @@ final class DescribeWorkflowAsserter {
   public DescribeWorkflowAsserter assertPendingChildrenCount(int expected) {
     Assert.assertEquals(
         "child workflow count should match", expected, actual.getPendingChildrenCount());
+    return this;
+  }
+
+  public DescribeWorkflowAsserter assertRequestIdInfos(Map<String, RequestIdInfo> expected) {
+    Assert.assertEquals(
+        "request id infos should match",
+        expected,
+        actual.getWorkflowExtendedInfo().getRequestIdInfosMap());
     return this;
   }
 }

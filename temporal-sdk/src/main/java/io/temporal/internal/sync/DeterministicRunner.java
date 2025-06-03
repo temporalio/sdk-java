@@ -2,6 +2,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
+import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -90,4 +91,17 @@ interface DeterministicRunner {
   /** Creates a new instance of a workflow callback thread. */
   @Nonnull
   WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name);
+
+  /**
+   * Retrieve data from runner locals. Returns 1. not found (an empty Optional) 2. found but null
+   * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
+   * value). The type nesting is because Java Optionals cannot understand "Some null" vs "None",
+   * which is exactly what we need here.
+   *
+   * @param key
+   * @return one of three cases
+   * @param <T>
+   */
+  @SuppressWarnings("unchecked")
+  <T> Optional<Optional<T>> getRunnerLocal(RunnerLocalInternal<T> key);
 }

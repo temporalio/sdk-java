@@ -24,14 +24,14 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionOutOfOrderFailTest {
+public class GetVersionOutOfOrderFailTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           // Make the workflow fail on any exception to catch NonDeterministicException
           .setWorkflowTypes(
-              WorkflowImplementationOptions.newBuilder()
+              WorkflowImplementationOptions.newBuilder(getDefaultWorkflowImplementationOptions())
                   .setFailWorkflowExceptionTypes(Throwable.class)
                   .build(),
               TestGetVersionWorkflowImpl.class)
@@ -42,6 +42,10 @@ public class GetVersionOutOfOrderFailTest {
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
+
+  public GetVersionOutOfOrderFailTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testGetVersionOutOfOrderFail() {
@@ -61,7 +65,7 @@ public class GetVersionOutOfOrderFailTest {
   }
 
   @Test
-  public void testGetVersionOutOfOrderFailReplay() throws Exception {
+  public void testGetVersionOutOfOrderFailReplay() {
     assertThrows(
         RuntimeException.class,
         () ->

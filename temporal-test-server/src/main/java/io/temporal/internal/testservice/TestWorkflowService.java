@@ -18,10 +18,8 @@ import io.grpc.stub.StreamObserver;
 import io.nexusrpc.Header;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.RetryPolicy;
-import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.*;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
@@ -36,6 +34,7 @@ import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflow.v1.OnConflictOptions;
+import io.temporal.api.workflow.v1.RequestIdInfo;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtoUtils;
@@ -258,6 +257,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
     }
 
+    startRequest = dedupeLinksFromCallbacks(startRequest);
+
     TestWorkflowMutableState existing;
     lock.lock();
     try {
@@ -275,13 +276,26 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             case WORKFLOW_ID_CONFLICT_POLICY_FAIL:
               return throwDuplicatedWorkflow(startRequest, existing);
             case WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING:
+              final String existingRunId = existing.getExecutionId().getExecution().getRunId();
+              StartWorkflowExecutionResponse.Builder response =
+                  StartWorkflowExecutionResponse.newBuilder()
+                      .setStarted(false)
+                      .setRunId(existingRunId);
               if (startRequest.hasOnConflictOptions()) {
                 existing.applyOnConflictOptions(startRequest);
+                response.setLink(
+                    generateRequestIdRefLink(
+                        startRequest.getNamespace(),
+                        startRequest.getWorkflowId(),
+                        existingRunId,
+                        startRequest.getRequestId(),
+                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED));
+              } else {
+                response.setLink(
+                    generateStartEventRefLink(
+                        startRequest.getNamespace(), startRequest.getWorkflowId(), existingRunId));
               }
-              return StartWorkflowExecutionResponse.newBuilder()
-                  .setStarted(false)
-                  .setRunId(existing.getExecutionId().getExecution().getRunId())
-                  .build();
+              return response.build();
             case WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING:
               existing.terminateWorkflowExecution(
                   TerminateWorkflowExecutionRequest.newBuilder()
@@ -456,7 +470,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         mutableState.startWorkflow(
             continuedExecutionRunId.isPresent(), eagerWorkflowTaskPollRequest, withStart);
     StartWorkflowExecutionResponse.Builder response =
-        StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).setStarted(true);
+        StartWorkflowExecutionResponse.newBuilder()
+            .setRunId(execution.getRunId())
+            .setStarted(true)
+            .setLink(
+                generateStartEventRefLink(
+                    startRequest.getNamespace(),
+                    startRequest.getWorkflowId(),
+                    execution.getRunId()));
     if (eagerWorkflowTask != null) {
       response.setEagerWorkflowTask(eagerWorkflowTask);
     }
@@ -952,7 +973,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   public void completeNexusOperation(
-      NexusOperationRef ref, String operationID, Link startLink, HistoryEvent completionEvent) {
+      NexusOperationRef ref,
+      String operationID,
+      io.temporal.api.nexus.v1.Link startLink,
+      HistoryEvent completionEvent) {
     TestWorkflowMutableState target = getMutableState(ref.getExecutionId());
 
     switch (completionEvent.getEventType()) {
@@ -1014,7 +1038,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return Failure.newBuilder()
         .setMessage(err.getFailure().getMessage())
         .setNexusHandlerFailureInfo(
-            NexusHandlerFailureInfo.newBuilder().setType(err.getErrorType()).build())
+            NexusHandlerFailureInfo.newBuilder()
+                .setType(err.getErrorType())
+                .setRetryBehavior(err.getRetryBehavior())
+                .build())
         .setCause(nexusFailureToAPIFailure(err.getFailure(), false))
         .build();
   }
@@ -2083,26 +2110,78 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private StartWorkflowExecutionResponse dedupeRequest(
       StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existingWorkflow) {
-    String requestId = startRequest.getRequestId();
-    String existingRequestId = existingWorkflow.getStartRequest().getRequestId();
-    if (existingRequestId.equals(requestId)) {
+    final String requestId = startRequest.getRequestId();
+    final String existingRunId = existingWorkflow.getExecutionId().getExecution().getRunId();
+    final RequestIdInfo requestIdInfo = existingWorkflow.getRequestIdInfo(requestId);
+    if (requestIdInfo == null) {
+      return null;
+    }
+    if (requestIdInfo.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED) {
       return StartWorkflowExecutionResponse.newBuilder()
           .setStarted(true)
-          .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
+          .setRunId(existingRunId)
+          .setLink(
+              generateStartEventRefLink(
+                  startRequest.getNamespace(), startRequest.getWorkflowId(), existingRunId))
           .build();
     }
+    return StartWorkflowExecutionResponse.newBuilder()
+        .setStarted(false)
+        .setRunId(existingRunId)
+        .setLink(
+            generateRequestIdRefLink(
+                startRequest.getNamespace(),
+                startRequest.getWorkflowId(),
+                existingRunId,
+                requestId,
+                requestIdInfo.getEventType()))
+        .build();
+  }
 
-    if (existingWorkflow.isRequestIdAttached(requestId)) {
-      return StartWorkflowExecutionResponse.newBuilder()
-          .setStarted(false)
-          .setRunId(existingWorkflow.getExecutionId().getExecution().getRunId())
-          .build();
-    }
-
-    return null;
+  private static StartWorkflowExecutionRequest dedupeLinksFromCallbacks(
+      StartWorkflowExecutionRequest request) {
+    List<Link> callbackLinks =
+        request.getCompletionCallbacksList().stream()
+            .filter(Callback::hasNexus)
+            .flatMap(cb -> cb.getLinksList().stream())
+            .collect(Collectors.toList());
+    List<Link> dedupedLinks =
+        request.getLinksList().stream()
+            .filter(link -> !callbackLinks.contains(link))
+            .collect(Collectors.toList());
+    return request.toBuilder().clearLinks().addAllLinks(dedupedLinks).build();
   }
 
   private static StatusRuntimeException createInvalidArgument(String description) {
     throw Status.INVALID_ARGUMENT.withDescription(description).asRuntimeException();
+  }
+
+  private static Link generateStartEventRefLink(String namespace, String workflowId, String runId) {
+    return Link.newBuilder()
+        .setWorkflowEvent(
+            Link.WorkflowEvent.newBuilder()
+                .setNamespace(namespace)
+                .setWorkflowId(workflowId)
+                .setRunId(runId)
+                .setEventRef(
+                    Link.WorkflowEvent.EventReference.newBuilder()
+                        .setEventId(1)
+                        .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)))
+        .build();
+  }
+
+  private static Link generateRequestIdRefLink(
+      String namespace, String workflowId, String runId, String requestId, EventType eventType) {
+    return Link.newBuilder()
+        .setWorkflowEvent(
+            Link.WorkflowEvent.newBuilder()
+                .setNamespace(namespace)
+                .setWorkflowId(workflowId)
+                .setRunId(runId)
+                .setRequestIdRef(
+                    Link.WorkflowEvent.RequestIdReference.newBuilder()
+                        .setRequestId(requestId)
+                        .setEventType(eventType)))
+        .build();
   }
 }

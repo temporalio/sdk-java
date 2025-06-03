@@ -120,6 +120,19 @@ public class SearchAttributesUtil {
     return (List<T>) data;
   }
 
+  @Nullable
+  public static List<?> decode(Payload payload) {
+    List<?> data = converter.decode(payload);
+    if (data.size() == 0) {
+      // User code should observe the empty collection as non-existent search attribute, because
+      // it's effectively the same.
+      // We use an empty collection for "unset". See:
+      // https://github.com/temporalio/temporal/issues/561
+      return null;
+    }
+    return data;
+  }
+
   @SuppressWarnings("unchecked")
   @Nullable
   public static <T> List<T> decodeAsType(

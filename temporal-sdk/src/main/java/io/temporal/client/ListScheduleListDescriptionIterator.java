@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import io.temporal.api.schedule.v1.ScheduleListEntry;
 import io.temporal.api.workflowservice.v1.ListSchedulesRequest;
 import io.temporal.api.workflowservice.v1.ListSchedulesResponse;
+import io.temporal.internal.client.EagerPaginator;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +41,8 @@ public final class ListScheduleListDescriptionIterator
   }
 
   @Override
-  CompletableFuture<ListSchedulesResponse> performRequest(@Nonnull ByteString nextPageToken) {
+  protected CompletableFuture<ListSchedulesResponse> performRequest(
+      @Nonnull ByteString nextPageToken) {
     ListSchedulesRequest.Builder request =
         ListSchedulesRequest.newBuilder().setNamespace(namespace).setNextPageToken(nextPageToken);
 
@@ -54,12 +56,12 @@ public final class ListScheduleListDescriptionIterator
   }
 
   @Override
-  ByteString getNextPageToken(ListSchedulesResponse response) {
+  protected ByteString getNextPageToken(ListSchedulesResponse response) {
     return response.getNextPageToken();
   }
 
   @Override
-  List<ScheduleListEntry> toElements(ListSchedulesResponse response) {
+  protected List<ScheduleListEntry> toElements(ListSchedulesResponse response) {
     return response.getSchedulesList();
   }
 }

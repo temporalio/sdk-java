@@ -17,21 +17,6 @@ before we can merge in any of your changes
 ./gradlew clean build
 ```
 
-## Licence headers
-
-This project is Open Source Software, and requires a header at the beginning of
-all source files. To verify that all files contain the header execute:
-
-```lang=bash
-./gradlew licenseCheck
-```
-
-To generate licence headers execute
-
-```lang=bash
-./gradlew licenseFormat
-```
-
 ## Code Formatting
 
 Code autoformatting is applied automatically during a full gradle build. Build the project before submitting a PR.

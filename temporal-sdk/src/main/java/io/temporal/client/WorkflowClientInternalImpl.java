@@ -4,7 +4,6 @@ import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterators;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -241,24 +240,19 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return listExecutions(query, null);
   }
 
+  @Override
+  public WorkflowExecutionCount countWorkflows(@Nullable String query) {
+    WorkflowClientCallsInterceptor.CountWorkflowsInput input =
+        new WorkflowClientCallsInterceptor.CountWorkflowsInput(query);
+    return workflowClientCallsInvoker.countWorkflows(input).getCount();
+  }
+
   Stream<WorkflowExecutionMetadata> listExecutions(
       @Nullable String query, @Nullable Integer pageSize) {
-    ListWorkflowExecutionIterator iterator =
-        new ListWorkflowExecutionIterator(query, options.getNamespace(), pageSize, genericClient);
-    iterator.init();
-    Iterator<WorkflowExecutionMetadata> wrappedIterator =
-        Iterators.transform(
-            iterator, info -> new WorkflowExecutionMetadata(info, options.getDataConverter()));
-
-    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
-    // impossible
-    //  TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list
-    // API
-    // guarantees absence of duplicates
-    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
-
-    return StreamSupport.stream(
-        Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false);
+    return workflowClientCallsInvoker
+        .listWorkflowExecutions(
+            new WorkflowClientCallsInterceptor.ListWorkflowExecutionsInput(query, pageSize))
+        .getStream();
   }
 
   @Override

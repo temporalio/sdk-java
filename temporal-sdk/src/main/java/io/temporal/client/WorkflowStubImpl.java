@@ -429,10 +429,16 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public void cancel() {
+    cancel(null);
+  }
+
+  @Override
+  public void cancel(@Nullable String reason) {
     checkStarted();
     WorkflowExecution targetExecution = currentExecutionWithoutRunId();
     try {
-      workflowClientInvoker.cancel(new WorkflowClientCallsInterceptor.CancelInput(targetExecution));
+      workflowClientInvoker.cancel(
+          new WorkflowClientCallsInterceptor.CancelInput(targetExecution, reason));
     } catch (Exception e) {
       Throwable failure = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), failure);

@@ -370,6 +370,21 @@ public interface WorkflowStub {
   void cancel();
 
   /**
+   * Request cancellation of a workflow execution with a reason.
+   *
+   * <p>Cancellation cancels {@link io.temporal.workflow.CancellationScope} that wraps the main
+   * workflow method. Note that workflow can take long time to get canceled or even completely
+   * ignore the cancellation request.
+   *
+   * @param reason optional reason for the cancellation request
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or is already
+   *     completed
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues
+   */
+  void cancel(@Nullable String reason);
+
+  /**
    * Terminates a workflow execution.
    *
    * <p>Termination is a hard stop of a workflow execution which doesn't give workflow code any

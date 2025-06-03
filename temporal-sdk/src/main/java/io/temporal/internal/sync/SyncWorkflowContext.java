@@ -102,10 +102,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
-  // Map of all running update handlers. Key is the update ID of the update request.
-  private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
-  // Map of all running signal handlers. Key is the event ID of the signal event.
-  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
   @Nullable private String currentDetails;
 
   public SyncWorkflowContext(
@@ -349,7 +345,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
-    return queryDispatcher.handleQuery(queryName, header, input);
+    return queryDispatcher.handleQuery(this, queryName, header, input);
   }
 
   public boolean isEveryHandlerFinished() {
@@ -608,7 +604,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
 
     if (options.getPriority() != null) {
-      attributes.setPriority(PriorityUtils.toProto(options.getPriority()));
+      attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
 
     return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
@@ -938,7 +934,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
     if (options.getPriority() != null) {
-      attributes.setPriority(PriorityUtils.toProto(options.getPriority()));
+      attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
     return new StartChildWorkflowExecutionParameters(
         attributes, options.getCancellationType(), metadata);

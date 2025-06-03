@@ -18,6 +18,8 @@ interface TestWorkflowStore {
     CLOSED
   }
 
+  long BUFFERED_EVENT_ID = -123L;
+
   class TaskQueueId {
 
     private final String namespace;

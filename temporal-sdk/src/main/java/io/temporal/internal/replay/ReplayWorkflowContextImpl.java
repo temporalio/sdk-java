@@ -1,5 +1,7 @@
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
+
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
@@ -20,12 +22,15 @@ import java.time.Duration;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TODO callbacks usage is non consistent. It accepts Optional and Exception which can be null.
  * Switch both to nullable.
  */
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
+  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowContextImpl.class);
   private final BasicWorkflowContext basicWorkflowContext;
   private final WorkflowStateMachines workflowStateMachines;
   private final WorkflowMutableState mutableState;
@@ -334,6 +339,18 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+    /*
+     * Temporal Change Version is a reserved field and should ideally not be set by the user.
+     * It is set by the SDK when getVersion is called. We know that users have been setting
+     * this field in the past, and we want to avoid breaking their workflows.
+     * */
+    if (searchAttributes.containsIndexedFields(TEMPORAL_CHANGE_VERSION.getName())) {
+      // When we enabled upserting of the search attribute by default, we should consider raising a
+      // warning here.
+      log.debug(
+          "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on your `WorkflowImplementationOptions`",
+          TEMPORAL_CHANGE_VERSION.getName());
+    }
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
     mutableState.upsertSearchAttributes(searchAttributes);
   }

@@ -43,6 +43,16 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   }
 
   @Override
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass) {
+    return Optional.empty();
+  }
+
+  @Override
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
+    return Optional.empty();
+  }
+
+  @Override
   public byte[] getTaskToken() {
     throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
   }
@@ -77,6 +87,11 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   @Override
   public Object getLastHeartbeatValue() {
     return null;
+  }
+
+  @Override
+  public void cancelOutstandingHeartbeat() {
+    // Ignored
   }
 
   @Override

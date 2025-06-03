@@ -1346,7 +1346,9 @@ class StateMachines {
     if (request.hasUserMetadata()) {
       event.setUserMetadata(request.getUserMetadata());
     }
-    ctx.addEvent(event.build());
+    long eventId = ctx.addEvent(event.build());
+    ctx.getWorkflowMutableState()
+        .attachRequestId(request.getRequestId(), event.getEventType(), eventId);
   }
 
   private static void completeWorkflow(
@@ -1488,7 +1490,8 @@ class StateMachines {
       long notUsed) {
     WorkflowExecutionCancelRequestedEventAttributes.Builder a =
         WorkflowExecutionCancelRequestedEventAttributes.newBuilder()
-            .setIdentity(cancelRequest.getIdentity());
+            .setIdentity(cancelRequest.getIdentity())
+            .setCause(cancelRequest.getReason());
     HistoryEvent cancelRequested =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED)
@@ -1868,6 +1871,7 @@ class StateMachines {
       WorkflowTaskData data,
       RespondWorkflowTaskCompletedRequest request,
       long notUsed) {
+    @SuppressWarnings("deprecation")
     WorkflowTaskCompletedEventAttributes.Builder a =
         WorkflowTaskCompletedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())

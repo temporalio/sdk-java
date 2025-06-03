@@ -72,4 +72,14 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   public DescribeWorkflowOutput describe(DescribeWorkflowInput input) {
     return next.describe(input);
   }
+
+  @Override
+  public ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input) {
+    return next.listWorkflowExecutions(input);
+  }
+
+  @Override
+  public CountWorkflowOutput countWorkflows(CountWorkflowsInput input) {
+    return next.countWorkflows(input);
+  }
 }

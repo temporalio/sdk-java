@@ -25,7 +25,8 @@ public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowImpl.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
@@ -33,6 +34,10 @@ public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
+
+  public GetVersionMultithreadingRemoveTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testGetVersionMultithreadingRemoval() {

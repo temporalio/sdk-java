@@ -79,7 +79,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     }
 
-    void addAllLocked(List<HistoryEvent> events, Timestamp eventTime) {
+    List<HistoryEvent> addAllLocked(List<HistoryEvent> events, Timestamp eventTime) {
+      int currentSize = history.size();
       for (HistoryEvent event : events) {
         HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
@@ -94,6 +95,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(eBuilder);
       }
       newEventsCondition.signalAll();
+      return history.subList(currentSize, history.size());
     }
 
     long getNextEventIdLocked() {
@@ -174,10 +176,19 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         histories.put(executionId, history);
       }
       history.checkNextEventId(ctx.getInitialEventId());
-      history.addAllLocked(events, ctx.currentTime());
+      List<HistoryEvent> newEvents = history.addAllLocked(events, ctx.currentTime());
       result = history.getNextEventIdLocked();
       selfAdvancingTimer.updateLocks(ctx.getTimerLocks());
       ctx.fireCallbacks(history.getEventsLocked().size());
+
+      TestWorkflowMutableState mutableState = ctx.getWorkflowMutableState();
+      for (HistoryEvent event : newEvents) {
+        if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_OPTIONS_UPDATED) {
+          final String requestId =
+              event.getWorkflowExecutionOptionsUpdatedEventAttributes().getAttachedRequestId();
+          mutableState.attachRequestId(requestId, event.getEventType(), event.getEventId());
+        }
+      }
     } finally {
       lock.unlock();
     }

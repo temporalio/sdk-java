@@ -241,6 +241,15 @@ public interface WorkflowClient {
   Stream<WorkflowExecutionMetadata> listExecutions(@Nullable String query);
 
   /**
+   * Count workflow executions using the Visibility API.
+   *
+   * @param query Temporal Visibility query, for syntax see <a
+   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
+   * @return count result object
+   */
+  WorkflowExecutionCount countWorkflows(@Nullable String query);
+
+  /**
    * Streams history events for a workflow execution for the provided {@code workflowId}.
    *
    * @param workflowId Workflow Id of the workflow to export the history for
