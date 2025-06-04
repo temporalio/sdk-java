@@ -11,9 +11,7 @@ import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.client.ActivityCanceledException;
-import io.temporal.client.ActivityCompletionFailureException;
-import io.temporal.client.ActivityNotExistsException;
+import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
@@ -190,6 +188,10 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
+        } else if (status.getActivityPaused()) {
+          throw new ActivityPausedException();
+        } else if (status.getActivityReset()) {
+          throw new ActivityResetException();
         }
       } else {
         RecordActivityTaskHeartbeatByIdResponse status =
@@ -203,6 +205,10 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
+        } else if (status.getActivityPaused()) {
+          throw new ActivityPausedException();
+        } else if (status.getActivityReset()) {
+          throw new ActivityResetException();
         }
       }
     } catch (Exception e) {
