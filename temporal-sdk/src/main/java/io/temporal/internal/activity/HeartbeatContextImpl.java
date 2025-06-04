@@ -228,6 +228,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
         lastException = new ActivityCanceledException(info);
       } else if (status.getActivityPaused()) {
         lastException = new ActivityPausedException(info);
+      } else if (status.getActivityReset()) {
+        lastException = new ActivityResetException(info);
       } else {
         lastException = null;
       }
