@@ -191,3 +191,9 @@ jobs:
     
     - name: Run copyright and code format checks
       run: ./gradlew --no-daemon spotlessCheck
+  
+  build_native_images:
+    name: Build native test server
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}

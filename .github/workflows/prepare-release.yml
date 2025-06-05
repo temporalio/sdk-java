@@ -124,70 +124,9 @@ jobs:
     name: Build native test server
     needs: create_draft_release
     if: github.event.inputs.do_build_native_images == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            os_family: linux
-            arch: amd64
-          - runner: macos-13
-            os_family: macOS
-            arch: amd64
-          - runner: macos-latest
-            os_family: macOS
-            arch: arm64
-          - runner: ubuntu-24.04-arm
-            os_family: linux
-            arch: arm64
-          - runner: windows-2019
-            os_family: windows
-            arch: amd64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          ref: ${{ env.INPUT_REF }}
-
-      # See comment on temporary tag above. tldr: this is a local tag; never
-      # gets pushed
-      - name: Temporary tag
-        run: git tag "$INPUT_TAG"
-      
-      - name: Set up Java
-        if: matrix.os_family != 'Linux'
-        uses: actions/setup-java@v4
-        with:
-          java-version: "21"
-          distribution: "graalvm"
-
-      - name: Set up Gradle
-        if: matrix.os_family != 'Linux'
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build native test server (non-Docker)
-        if: matrix.os_family != 'Linux'
-        run: |
-          ./gradlew -PnativeBuild :temporal-test-server:nativeBuild
-
-      - name: Build native test server (Docker)
-        if: matrix.os_family == 'Linux'
-        run: |
-          docker run \
-            --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            $(docker build -q ./docker/native-image) \
-            sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeBuild"
-      # path ends in a wildcard because on windows the file ends in '.exe'
-      - name: Upload executable to workflow
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os_family }}_${{ matrix.arch }}
-          path: |
-            temporal-test-server/build/native/nativeCompile/temporal-test-server*
-          if-no-files-found: error
-          retention-days: 1
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      ref: ${{ github.event.inputs.ref }}
 
   attach_to_release:
     name: Attach native executables to release
