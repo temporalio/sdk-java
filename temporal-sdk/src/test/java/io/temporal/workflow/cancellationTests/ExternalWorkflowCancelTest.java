@@ -19,6 +19,7 @@ public class ExternalWorkflowCancelTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(CancellableWorkflowImpl.class, CancelExternalWorkflowImpl.class)
+          .setUseTimeskipping(false)
           .build();
 
   @Test

@@ -5,7 +5,7 @@ import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
 
-public final class NexusTask {
+public final class NexusTask implements ScalingTask {
   private final @Nonnull PollNexusTaskQueueResponseOrBuilder response;
   private final @Nonnull SlotPermit permit;
   private final @Nonnull Functions.Proc completionCallback;
@@ -36,5 +36,15 @@ public final class NexusTask {
   @Nonnull
   public SlotPermit getPermit() {
     return permit;
+  }
+
+  @Override
+  public ScalingDecision getScalingDecision() {
+    if (!response.hasPollerScalingDecision()) {
+      return null;
+    }
+
+    return new ScalingTask.ScalingDecision(
+        response.getPollerScalingDecision().getPollRequestDeltaSuggestion());
   }
 }

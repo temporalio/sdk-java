@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
+final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTask> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowPollTask.class);
 
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
@@ -126,7 +126,7 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       return null;
     }
 
-    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    permit = MultiThreadedPoller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
     if (permit == null) return null;
 
     TaskQueueKind taskQueueKind = stickyQueueBalancer.makePoll();
