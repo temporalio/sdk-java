@@ -41,16 +41,23 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
 
     WorkflowExecution workflowExec = handle.getInvoker().invoke(nexusRequest);
 
-    // Create the link information about the new workflow and return to the caller.
+    // If the start workflow response returned a link use it, otherwise
+    // create the link information about the new workflow and return to the caller.
     Link.WorkflowEvent workflowEventLink =
-        Link.WorkflowEvent.newBuilder()
-            .setNamespace(nexusCtx.getNamespace())
-            .setWorkflowId(workflowExec.getWorkflowId())
-            .setRunId(workflowExec.getRunId())
-            .setEventRef(
-                Link.WorkflowEvent.EventReference.newBuilder()
-                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
-            .build();
+        nexusCtx.getStartWorkflowResponseLink().hasWorkflowEvent()
+            ? nexusCtx.getStartWorkflowResponseLink().getWorkflowEvent()
+            : null;
+    if (workflowEventLink == null) {
+      workflowEventLink =
+          Link.WorkflowEvent.newBuilder()
+              .setNamespace(nexusCtx.getNamespace())
+              .setWorkflowId(workflowExec.getWorkflowId())
+              .setRunId(workflowExec.getRunId())
+              .setEventRef(
+                  Link.WorkflowEvent.EventReference.newBuilder()
+                      .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
+              .build();
+    }
     io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(workflowEventLink);
     // Generate the operation token for the new workflow.
     String operationToken;
