@@ -41,6 +41,14 @@ public class WorkflowExecutionHistoryTest {
     deserializeAndSerializeBack("complexHistory1.json");
   }
 
+  @Test
+  public void workflowIdIsExtractedWhenPresent() throws IOException {
+    WorkflowExecutionHistory history =
+        WorkflowHistoryLoader.readHistoryFromResource("simpleHistory_withWorkflowId.json");
+    assertEquals(
+        "ff28c127-56ff-416f-8630-53fa4f4cf79a", history.getWorkflowExecution().getWorkflowId());
+  }
+
   public void deserializeAndSerializeBack(String resourceName) throws IOException {
     // Load legacy-format history
     ClassLoader classLoader = WorkflowExecutionUtils.class.getClassLoader();

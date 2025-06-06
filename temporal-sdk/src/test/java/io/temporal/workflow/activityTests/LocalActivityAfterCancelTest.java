@@ -1,7 +1,5 @@
 package io.temporal.workflow.activityTests;
 
-import static org.junit.Assert.assertThrows;
-
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
@@ -44,13 +42,10 @@ public class LocalActivityAfterCancelTest {
   }
 
   @Test
-  public void testLocalActivityAfterChildWorkflowCanceledReplay() {
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            WorkflowReplayer.replayWorkflowExecutionFromResource(
-                "testLocalActivityAfterCancelTest.json",
-                LocalActivityAfterCancelTest.TestLocalActivityRetry.class));
+  public void testLocalActivityAfterChildWorkflowCanceledReplay() throws Exception {
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "testLocalActivityAfterCancelTest.json",
+        LocalActivityAfterCancelTest.TestLocalActivityRetry.class);
   }
 
   @WorkflowInterface
