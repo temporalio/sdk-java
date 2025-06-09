@@ -3,8 +3,11 @@ package io.temporal.workflow.nexus;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.api.common.v1.Link;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -14,6 +17,7 @@ import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.*;
 
 public class WorkflowHandleUseExistingOnConflictTest {
@@ -31,6 +35,26 @@ public class WorkflowHandleUseExistingOnConflictTest {
     String workflowId = UUID.randomUUID().toString();
     String result = workflowStub.execute(workflowId);
     Assert.assertEquals("Hello from operation workflow " + workflowId, result);
+
+    AtomicInteger eventRefLinkCount = new AtomicInteger();
+    AtomicInteger requestIdLinkCount = new AtomicInteger();
+    testWorkflowRule
+        .getHistoryEvents(
+            WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId(),
+            EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED)
+        .forEach(
+            event -> {
+              List<Link> links = event.getLinksList();
+              Assert.assertEquals(1, links.size());
+              Link link = links.get(0);
+              if (link.getWorkflowEvent().hasEventRef()) {
+                eventRefLinkCount.getAndIncrement();
+              } else if (link.getWorkflowEvent().hasRequestIdRef()) {
+                requestIdLinkCount.getAndIncrement();
+              }
+            });
+    Assert.assertEquals(1, eventRefLinkCount.get());
+    Assert.assertEquals(4, requestIdLinkCount.get());
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
