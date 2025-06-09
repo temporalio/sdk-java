@@ -1,6 +1,7 @@
 package io.temporal.internal.nexus;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.Link;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 import io.temporal.nexus.NexusOperationContext;
@@ -11,6 +12,7 @@ public class InternalNexusOperationContext {
   private final Scope metricScope;
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
+  Link startWorkflowResponseLink;
 
   public InternalNexusOperationContext(
       String namespace, String taskQueue, Scope metricScope, WorkflowClient client) {
@@ -45,6 +47,14 @@ public class InternalNexusOperationContext {
       throw new IllegalStateException("Outbound interceptor is not set");
     }
     return new NexusOperationContextImpl();
+  }
+
+  public void setStartWorkflowResponseLink(Link link) {
+    this.startWorkflowResponseLink = link;
+  }
+
+  public Link getStartWorkflowResponseLink() {
+    return startWorkflowResponseLink;
   }
 
   private class NexusOperationContextImpl implements NexusOperationContext {

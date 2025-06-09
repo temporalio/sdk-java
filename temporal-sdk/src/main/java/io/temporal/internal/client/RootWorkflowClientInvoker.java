@@ -23,6 +23,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -94,6 +95,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               "[BUG] Eager Workflow Task was received from the Server, but failed to be dispatched on the local worker",
               e);
         }
+      }
+      if (CurrentNexusOperationContext.isNexusContext()) {
+        CurrentNexusOperationContext.get().setStartWorkflowResponseLink(response.getLink());
       }
       return new WorkflowStartOutput(execution);
     }
