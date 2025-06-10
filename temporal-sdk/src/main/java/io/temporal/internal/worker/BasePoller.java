@@ -56,8 +56,8 @@ abstract class BasePoller<T> implements SuspendableWorker {
     }
 
     return shutdownManager
-        // it's ok to forcefully shutdown pollers, especially because they stuck in a long poll call
-        // we don't lose any progress doing that
+        // it's ok to forcefully shutdown pollers, because they are stuck in a long poll call
+        // so we don't risk loosing any progress doing that.
         .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
         .exceptionally(
             e -> {
