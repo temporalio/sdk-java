@@ -1,9 +1,6 @@
 package io.temporal.internal.sync;
 
-import io.temporal.api.common.v1.Header;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
@@ -12,6 +9,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.RawValue;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -225,7 +223,12 @@ class SyncWorkflow implements ReplayWorkflow {
       return DefaultDataConverter.STANDARD_INSTANCE.toPayloads(runner.stackTrace());
     }
     if (WorkflowClient.QUERY_TYPE_WORKFLOW_METADATA.equals(query.getQueryType())) {
-      return dataConverterWithWorkflowContext.toPayloads(workflowContext.getWorkflowMetadata());
+      // metadata should be readable independent of user DataConverter settings
+      Payload payload =
+          DefaultDataConverter.STANDARD_INSTANCE
+              .toPayload(workflowContext.getWorkflowMetadata())
+              .orElseThrow(() -> new IllegalStateException("Failed to serialize metadata"));
+      return dataConverterWithWorkflowContext.toPayloads(new RawValue(payload));
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();

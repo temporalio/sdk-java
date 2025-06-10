@@ -123,7 +123,7 @@ public class CodecDataConverterTest {
     return payload.getData().startsWith(PrefixPayloadCodec.PREFIX);
   }
 
-  private static final class PrefixPayloadCodec implements PayloadCodec {
+  public static final class PrefixPayloadCodec implements PayloadCodec {
     public static final ByteString PREFIX = ByteString.copyFromUtf8("ENCODED: ");
 
     @Override
