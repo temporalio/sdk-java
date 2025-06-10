@@ -35,7 +35,7 @@ public class WorkflowExecutionHistory {
   private final String workflowId;
 
   public WorkflowExecutionHistory(History history) {
-    this(history, DEFAULT_WORKFLOW_ID);
+    this(history, extractWorkflowId(history));
   }
 
   public WorkflowExecutionHistory(History history, String workflowId) {
@@ -44,9 +44,17 @@ public class WorkflowExecutionHistory {
     this.workflowId = workflowId;
   }
 
+  public static String extractWorkflowId(History history) {
+    HistoryEvent startedEvent = history.getEvents(0);
+    String id = startedEvent.getWorkflowExecutionStartedEventAttributes().getWorkflowId();
+    return id.isEmpty() ? DEFAULT_WORKFLOW_ID : id;
+  }
+
   public static WorkflowExecutionHistory fromJson(String serialized) {
-    return new WorkflowExecutionHistory(
-        io.temporal.common.WorkflowExecutionHistory.fromJson(serialized).getHistory());
+    io.temporal.common.WorkflowExecutionHistory parsed =
+        io.temporal.common.WorkflowExecutionHistory.fromJson(serialized);
+    History history = parsed.getHistory();
+    return new WorkflowExecutionHistory(history, extractWorkflowId(history));
   }
 
   private static void checkHistory(History history) {
