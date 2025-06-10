@@ -316,13 +316,13 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
    */
   @ThreadSafe
   class PollQueueBalancer {
-    Map<String, AtomicInteger> taskCounts = new HashMap<>();
+    Map<String, Integer> taskCounts = new HashMap<>();
     private final Lock balancerLock = new ReentrantLock();
     private final Condition balancerCondition = balancerLock.newCondition();
 
     void startPoll(String pollerName) {
       balancerLock.lock();
-      int currentPolls = taskCounts.get(pollerName).addAndGet(1);
+      Integer currentPolls = taskCounts.compute(pollerName, (k, v) -> v + 1);
       if (currentPolls == 1) {
         balancerCondition.signalAll();
       }
@@ -335,7 +335,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
         balancerLock.unlock();
         return;
       }
-      int currentPolls = taskCounts.get(pollerName).addAndGet(-1);
+      Integer currentPolls = taskCounts.compute(pollerName, (k, v) -> v - 1);
       if (currentPolls == 0) {
         balancerCondition.signalAll();
       }
@@ -344,7 +344,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
 
     void addPoller(String pollerName) {
       balancerLock.lock();
-      taskCounts.put(pollerName, new AtomicInteger(0));
+      taskCounts.put(pollerName, 0);
       balancerCondition.signalAll();
       balancerLock.unlock();
     }
@@ -362,13 +362,13 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
         balancerLock.lock();
         try {
           // If this poller has no tasks then we can unblock immediately
-          if (taskCounts.get(p).get() == 0) {
+          if (taskCounts.get(p) == 0) {
             return;
           }
           // Check if all tasks have at least one poll request
           boolean allOtherTasksHavePolls = true;
           for (String task : taskCounts.keySet()) {
-            if (!Objects.equals(task, p) && taskCounts.get(task).get() == 0) {
+            if (!Objects.equals(task, p) && taskCounts.get(task) == 0) {
               allOtherTasksHavePolls = false;
               break;
             }

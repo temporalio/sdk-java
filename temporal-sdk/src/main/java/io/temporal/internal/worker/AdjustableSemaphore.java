@@ -14,7 +14,11 @@ public final class AdjustableSemaphore {
    */
   private int maxPermits = 0;
 
-  /** New instances should be configured with setMaxPermits(). */
+  /**
+   * Create a new adjustable semaphore with the given number of initial permits.
+   *
+   * @param initialPermits the initial number of permits, must be at least 1
+   */
   public AdjustableSemaphore(int initialPermits) {
     if (initialPermits < 1) {
       throw new IllegalArgumentException(
@@ -48,8 +52,8 @@ public final class AdjustableSemaphore {
       this.semaphore.release(delta);
     } else {
       // delta < 0.
-      // reducePermits needs a positive #, though.
-      this.semaphore.reducePermits(delta * -1);
+      // reducePermits needs a positive #
+      this.semaphore.reducePermits(Math.abs(delta));
     }
 
     this.maxPermits = newMax;
