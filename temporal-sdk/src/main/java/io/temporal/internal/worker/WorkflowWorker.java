@@ -206,7 +206,6 @@ final class WorkflowWorker implements SuspendableWorker {
         pollerShutdown.thenCompose(
             ignore -> {
               if (!interruptTasks && stickyTaskQueueName != null) {
-                log.info("Shutting down worker for sticky task queue: {}", stickyTaskQueueName);
                 return shutdownManager.waitOnWorkerShutdownRequest(
                     service
                         .futureStub()

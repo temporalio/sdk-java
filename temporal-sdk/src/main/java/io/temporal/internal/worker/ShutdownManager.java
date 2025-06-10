@@ -71,7 +71,6 @@ public class ShutdownManager implements Closeable {
     balancer.disableNormalPoll();
     scheduledExecutorService.schedule(
         () -> {
-          log.info("DRAIN TIMEOUT PASSED!!!!");
           future.complete(null);
         },
         timeout.toMillis(),
@@ -297,18 +296,12 @@ public class ShutdownManager implements Closeable {
 
     @Override
     boolean isTerminated() {
-      if (slotSupplier.getIssuedSlots() > 0) {
-        log.info(
-            "Wait for release of slots of {} is in progress {}",
-            name,
-            slotSupplier.getIssuedSlots());
-      }
       return slotSupplier.getIssuedSlots() == 0;
     }
 
     @Override
     void onSlowTermination() {
-      log.info("Wait for release of slots of {} takes a long time", name);
+      log.warn("Wait for release of slots of {} takes a long time", name);
     }
 
     @Override
