@@ -11,7 +11,6 @@ import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.worker.tuning.SlotSupplierFuture;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -311,8 +310,9 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
   }
 
   /**
-   * PollQueueBalancer is used to ensure that at least one poller is running for each task. This is
-   * necessary to avoid one poller from consuming all the slots and starving other pollers.
+   * PollQueueBalancer is used to ensure that at least one poll request is running for each task
+   * type. This is necessary to avoid one task type from consuming all the slots and starving other
+   * pollers.
    */
   @ThreadSafe
   class PollQueueBalancer {
