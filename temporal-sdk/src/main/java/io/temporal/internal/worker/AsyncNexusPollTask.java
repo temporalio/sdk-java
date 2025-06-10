@@ -124,6 +124,11 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
   }
 
   @Override
+  public String getLabel() {
+    return "AsyncNexusPollTask";
+  }
+
+  @Override
   public String toString() {
     return "AsyncNexusPollTask{}";
   }

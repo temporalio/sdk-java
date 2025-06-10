@@ -36,7 +36,6 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
 
   public synchronized void report(T task, Throwable e) {
     if (e != null) {
-      logger.info("Poller scaling report error: {}.", e.getMessage());
       if ((e instanceof StatusRuntimeException)) {
         StatusRuntimeException statusRuntimeException = (StatusRuntimeException) e;
         if (statusRuntimeException.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
@@ -56,7 +55,6 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
       ScalingTask.ScalingDecision scalingDecision = task.getScalingDecision();
       everSawScalingDecision = true;
       int deltaSuggestion = scalingDecision.getPollRequestDeltaSuggestion();
-      logger.info("Poller scaling report.  Delta suggestion: {}.", deltaSuggestion);
       if (deltaSuggestion > 0) {
         if (scaleUpAllowed) {
           updateTarget((t -> t + deltaSuggestion));
@@ -68,7 +66,6 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
     } else if (task == null && everSawScalingDecision) {
       // We want to avoid scaling down on empty polls if the server has never made any
       // scaling decisions - otherwise we might never scale up again.
-      logger.info("Poller scaling report.  No task.  Scaling down.");
       updateTarget((t) -> t - 1);
     }
   }

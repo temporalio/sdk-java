@@ -130,6 +130,11 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
   }
 
   @Override
+  public String getLabel() {
+    return "AsyncActivityPollTask";
+  }
+
+  @Override
   public String toString() {
     return "AsyncActivityPollTask{}";
   }

@@ -34,7 +34,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
   private Throttler pollRateThrottler;
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       new PollerUncaughtExceptionHandler();
-  private final PollQueueBalancer balancer =
+  private final PollQueueBalancer pollerBalancer =
       new PollQueueBalancer(); // Used to balance the number of slots across pollers
 
   AsyncPoller(
@@ -111,7 +111,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
               pollerBehavior.getMaxConcurrentTaskPollers(),
               pollerBehavior.getInitialMaxConcurrentTaskPollers(),
               (newTarget) -> {
-                log.info(
+                log.debug(
                     "Updating maximum number of pollers for {} to: {}",
                     asyncTaskPoller.getLabel(),
                     newTarget);
@@ -119,7 +119,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
               });
       PollQueueTask pollQueue =
           new PollQueueTask(asyncTaskPoller, pollerSemaphore, pollScaleReportHandle);
-      balancer.addPoller(asyncTaskPoller.getLabel());
+      pollerBalancer.addPoller(asyncTaskPoller.getLabel());
       exec.execute(pollQueue);
       exec.scheduleAtFixedRate(pollScaleReportHandle, 0, 100, TimeUnit.MILLISECONDS);
     }
@@ -133,6 +133,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
             (f) -> {
               for (PollTaskAsync<T> asyncTaskPoller : asyncTaskPollers) {
                 try {
+                  log.debug("Shutting down async poller: {}", asyncTaskPoller.getLabel());
                   asyncTaskPoller.cancel(new RuntimeException("Shutting down poller"));
                 } catch (Throwable e) {
                   log.error("Error while cancelling poll task", e);
@@ -186,7 +187,6 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
 
     @Override
     public void run() {
-      int slotsReserved = 0;
       while (!abort) {
         // Permit to reserve a slot for the poll request.
         SlotPermit permit = null;
@@ -217,7 +217,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
             return;
           }
 
-          balancer.balance(asyncTaskPoller.getLabel());
+          pollerBalancer.balance(asyncTaskPoller.getLabel());
           if (shouldTerminate()) {
             return;
           }
@@ -231,12 +231,8 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
           }
           permit = BasePoller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
           if (permit == null || shouldTerminate()) {
-            if (permit != null) {
-              slotsReserved++;
-            }
             return;
           }
-          slotsReserved++;
 
           pollerSemaphore.acquire();
           pollerSemaphoreAcquired = true;
@@ -249,12 +245,12 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
           CompletableFuture<T> pollRequest = asyncTaskPoller.poll(permit);
           // Mark that we have made a poll request
           pollRequestMade = true;
-          balancer.startPoll(asyncTaskPoller.getLabel());
+          pollerBalancer.startPoll(asyncTaskPoller.getLabel());
 
           pollRequest
               .handle(
                   (task, e) -> {
-                    balancer.endPoll(asyncTaskPoller.getLabel());
+                    pollerBalancer.endPoll(asyncTaskPoller.getLabel());
                     if (e instanceof CompletionException) {
                       e = e.getCause();
                     }
@@ -302,18 +298,22 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
           }
 
           if (shouldTerminate()) {
-            balancer.removePoller(asyncTaskPoller.getLabel());
+            pollerBalancer.removePoller(asyncTaskPoller.getLabel());
             abort = true;
           }
         }
       }
       log.info(
-          "poll loop is terminated: {} - {}",
+          "Poll loop is terminated: {} - {}",
           AsyncPoller.this.getClass().getSimpleName(),
           asyncTaskPoller.getLabel());
     }
   }
 
+  /**
+   * PollQueueBalancer is used to ensure that at least one poller is running for each task. This is
+   * necessary to avoid one poller from consuming all the slots and starving other pollers.
+   */
   @ThreadSafe
   class PollQueueBalancer {
     Map<String, AtomicInteger> taskCounts = new HashMap<>();
@@ -374,8 +374,6 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
             }
           }
           if (!allOtherTasksHavePolls) {
-            log.info(
-                "Waiting for other tasks to have at least one poll request before proceeding with task");
             balancerCondition.await();
           } else {
             return;
