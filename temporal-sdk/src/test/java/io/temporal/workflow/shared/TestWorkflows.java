@@ -41,7 +41,7 @@ public class TestWorkflows {
   @WorkflowInterface
   public interface TestNexusOperationCancellationType {
     @WorkflowMethod
-    void execute(NexusOperationCancellationType cancellationType);
+    void execute(NexusOperationCancellationType cancellationType, boolean cancelImmediately);
   }
 
   @WorkflowInterface

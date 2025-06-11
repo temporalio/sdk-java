@@ -53,31 +53,35 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   @Test
   public void cancelAsyncOperationWaitCompleted() {
-    WorkflowStub stub =
+    // Cancel before command is sent
+    runCancelBeforeSentTest(NexusOperationCancellationType.WAIT_COMPLETED);
+
+    // Cancel after operation is started
+    WorkflowStub afterStartStub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
-    WorkflowExecution execution = stub.start(NexusOperationCancellationType.WAIT_COMPLETED);
+    WorkflowExecution execution =
+        afterStartStub.start(NexusOperationCancellationType.WAIT_COMPLETED, false);
     try {
       opStarted.waitForSignal();
     } catch (Exception e) {
       Assert.fail("test timed out waiting for operation to start.");
     }
-    stub.cancel();
-
-    Assert.assertThrows(WorkflowFailedException.class, () -> stub.getResult(Void.class));
-
+    afterStartStub.cancel();
+    Assert.assertThrows(WorkflowFailedException.class, () -> afterStartStub.getResult(Void.class));
     testWorkflowRule.assertHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_CANCELED);
     Assert.assertTrue(handlerFinished.isSignalled());
-
-    testWorkflowRule.regenerateHistoryForReplay(
-        execution.getWorkflowId(), "testCancelAsyncOperationWaitCompleted");
   }
 
   @Test
   public void cancelAsyncOperationWaitRequested() {
+    // Cancel before command is sent
+    runCancelBeforeSentTest(NexusOperationCancellationType.WAIT_REQUESTED);
+
+    // Cancel after operation is started
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
-    WorkflowExecution execution = stub.start(NexusOperationCancellationType.WAIT_REQUESTED);
+    WorkflowExecution execution = stub.start(NexusOperationCancellationType.WAIT_REQUESTED, false);
     try {
       opStarted.waitForSignal();
     } catch (Exception e) {
@@ -98,9 +102,13 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   @Test
   public void cancelAsyncOperationTryCancel() {
+    // Cancel before command is sent
+    runCancelBeforeSentTest(NexusOperationCancellationType.TRY_CANCEL);
+
+    // Cancel after operation is started
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
-    WorkflowExecution execution = stub.start(NexusOperationCancellationType.TRY_CANCEL);
+    WorkflowExecution execution = stub.start(NexusOperationCancellationType.TRY_CANCEL, false);
     try {
       opStarted.waitForSignal();
     } catch (Exception e) {
@@ -124,9 +132,13 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   @Test
   public void cancelAsyncOperationAbandon() {
+    // Cancel before command is sent
+    runCancelBeforeSentTest(NexusOperationCancellationType.ABANDON);
+
+    // Cancel after operation is started
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
-    WorkflowExecution execution = stub.start(NexusOperationCancellationType.ABANDON);
+    WorkflowExecution execution = stub.start(NexusOperationCancellationType.ABANDON, false);
     try {
       opStarted.waitForSignal();
     } catch (Exception e) {
@@ -139,6 +151,25 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
     testWorkflowRule.assertNoHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED);
     Assert.assertFalse(handlerFinished.isSignalled());
+  }
+
+  private void runCancelBeforeSentTest(NexusOperationCancellationType cancellationType) {
+    WorkflowStub beforeSentStub =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
+    beforeSentStub.start(cancellationType, true);
+    WorkflowFailedException exception =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> beforeSentStub.getResult(Void.class));
+    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
+    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
+    Assert.assertTrue(nexusFailure.getCause() instanceof CanceledFailure);
+    CanceledFailure canceledFailure = (CanceledFailure) nexusFailure.getCause();
+    if (cancellationType == NexusOperationCancellationType.ABANDON) {
+      Assert.assertEquals("operation canceled", canceledFailure.getOriginalMessage());
+    } else {
+      Assert.assertEquals(
+          "operation canceled before it was started", canceledFailure.getOriginalMessage());
+    }
   }
 
   @Test
@@ -192,7 +223,8 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
   public static class TestNexusCancellationType
       implements TestWorkflows.TestNexusOperationCancellationType {
     @Override
-    public void execute(NexusOperationCancellationType cancellationType) {
+    public void execute(
+        NexusOperationCancellationType cancellationType, boolean cancelImmediately) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(10))
@@ -205,6 +237,9 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
       NexusOperationHandle<Void> handle =
           Workflow.startNexusOperation(serviceStub::operation, 2000L);
+      if (cancelImmediately) {
+        CancellationScope.current().cancel();
+      }
       handle.getExecution().get();
       opStarted.signal();
 
