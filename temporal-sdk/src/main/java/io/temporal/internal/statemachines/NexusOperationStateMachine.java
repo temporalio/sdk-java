@@ -151,6 +151,7 @@ final class NexusOperationStateMachine
     cancelCommand();
     Failure cause =
         Failure.newBuilder()
+            .setSource(JAVA_SDK)
             .setMessage("operation canceled before it was started")
             .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
             .build();
@@ -256,7 +257,6 @@ final class NexusOperationStateMachine
   }
 
   public Failure createCancelNexusOperationFailure(Failure cause) {
-    Failure canceledFailure = Failure.newBuilder(cause).setSource(JAVA_SDK).build();
     NexusOperationFailureInfo nexusFailureInfo =
         NexusOperationFailureInfo.newBuilder()
             .setEndpoint(endpoint)
@@ -266,7 +266,7 @@ final class NexusOperationStateMachine
             .build();
     return Failure.newBuilder()
         .setNexusOperationExecutionFailureInfo(nexusFailureInfo)
-        .setCause(canceledFailure)
+        .setCause(cause)
         .setMessage(NEXUS_OPERATION_CANCELED_MESSAGE)
         .build();
   }
