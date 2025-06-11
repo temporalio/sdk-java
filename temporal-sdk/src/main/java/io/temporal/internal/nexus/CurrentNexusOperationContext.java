@@ -7,6 +7,10 @@ package io.temporal.internal.nexus;
 public final class CurrentNexusOperationContext {
   private static final ThreadLocal<InternalNexusOperationContext> CURRENT = new ThreadLocal<>();
 
+  public static boolean isNexusContext() {
+    return CURRENT.get() != null;
+  }
+
   public static InternalNexusOperationContext get() {
     InternalNexusOperationContext result = CURRENT.get();
     if (result == null) {
