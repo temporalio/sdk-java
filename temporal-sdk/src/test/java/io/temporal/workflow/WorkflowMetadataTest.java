@@ -4,17 +4,36 @@ import io.temporal.api.sdk.v1.WorkflowDefinition;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
 import io.temporal.api.sdk.v1.WorkflowMetadata;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.CodecDataConverterTest;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkflowMetadataTest {
 
+  CodecDataConverterTest.PrefixPayloadCodec prefixPayloadCodec =
+      new CodecDataConverterTest.PrefixPayloadCodec();
+
+  DataConverter dataConverter =
+      new CodecDataConverter(
+          DefaultDataConverter.newDefaultInstance(),
+          Collections.singletonList(prefixPayloadCodec),
+          true);
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestWorkflowWithMetadataImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowClientOptions(
+              WorkflowClientOptions.newBuilder().setDataConverter(dataConverter).build())
+          .setWorkflowTypes(TestWorkflowWithMetadataImpl.class)
+          .build();
 
   @Test
   public void testGetMetadata() {
