@@ -4,7 +4,7 @@ import io.temporal.api.enums.v1.TaskQueueKind;
 import javax.annotation.concurrent.ThreadSafe;
 
 @ThreadSafe
-public class StickyQueueBalancer {
+public class StickyQueueBalancer implements DisableNormalPolling {
   private final int pollersCount;
   private final boolean stickyQueueEnabled;
   private int stickyPollers = 0;

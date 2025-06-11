@@ -21,6 +21,7 @@ import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOpt
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.tuning.*;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -85,23 +86,48 @@ final class ActivityWorker implements SuspendableWorker {
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
               options.isUsingVirtualThreads());
-      poller =
-          new Poller<>(
-              options.getIdentity(),
-              new ActivityPollTask(
-                  service,
-                  namespace,
-                  taskQueue,
-                  options.getIdentity(),
-                  options.getBuildId(),
-                  options.isUsingBuildIdForVersioning(),
-                  taskQueueActivitiesPerSecond,
-                  this.slotSupplier,
-                  workerMetricsScope,
-                  service.getServerCapabilities()),
-              this.pollTaskExecutor,
-              pollerOptions,
-              workerMetricsScope);
+
+      boolean useAsyncPoller =
+          pollerOptions.getPollerBehavior() instanceof PollerBehaviorAutoscaling;
+      if (useAsyncPoller) {
+        poller =
+            new AsyncPoller<>(
+                slotSupplier,
+                new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId()),
+                new AsyncActivityPollTask(
+                    service,
+                    namespace,
+                    taskQueue,
+                    options.getIdentity(),
+                    options.getBuildId(),
+                    options.isUsingBuildIdForVersioning(),
+                    taskQueueActivitiesPerSecond,
+                    this.slotSupplier,
+                    workerMetricsScope,
+                    service.getServerCapabilities()),
+                this.pollTaskExecutor,
+                pollerOptions,
+                workerMetricsScope);
+
+      } else {
+        poller =
+            new MultiThreadedPoller<>(
+                options.getIdentity(),
+                new ActivityPollTask(
+                    service,
+                    namespace,
+                    taskQueue,
+                    options.getIdentity(),
+                    options.getBuildId(),
+                    options.isUsingBuildIdForVersioning(),
+                    taskQueueActivitiesPerSecond,
+                    this.slotSupplier,
+                    workerMetricsScope,
+                    service.getServerCapabilities()),
+                this.pollTaskExecutor,
+                pollerOptions,
+                workerMetricsScope);
+      }
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
       return true;
