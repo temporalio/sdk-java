@@ -1001,13 +1001,13 @@ public final class WorkflowStateMachines {
             commandSink,
             stateMachineSink);
     return () -> {
-      if (operation.isCancellable()) {
-        operation.cancel();
-        return;
-      }
       if (cancellationType == NexusOperationCancellationType.ABANDON) {
         notifyNexusOperationCanceled(operation, startedCallback, completionCallback);
         eventLoop();
+        return;
+      }
+      if (operation.isCancellable()) {
+        operation.cancel();
         return;
       }
       if (!operation.isFinalState()) {
