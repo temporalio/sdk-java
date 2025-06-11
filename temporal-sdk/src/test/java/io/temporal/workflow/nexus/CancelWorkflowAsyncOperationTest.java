@@ -1,5 +1,7 @@
 package io.temporal.workflow.nexus;
 
+import static org.junit.Assume.assumeFalse;
+
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
 import io.nexusrpc.handler.OperationHandler;
@@ -75,6 +77,11 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   @Test
   public void cancelAsyncOperationWaitRequested() {
+    // TODO: remove skip once OSS 1.29.0 is released
+    assumeFalse(
+        "Nexus operation cancel request delivery events are not recorded by default for server versions <1.29.0",
+        testWorkflowRule.isUseExternalService());
+
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
     WorkflowExecution execution = stub.start(NexusOperationCancellationType.WAIT_REQUESTED);
@@ -98,6 +105,11 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   @Test
   public void cancelAsyncOperationTryCancel() {
+    // TODO: remove skip once OSS 1.29.0 is released
+    assumeFalse(
+        "Nexus operation cancel request delivery events are not recorded by default for server versions <1.29.0",
+        testWorkflowRule.isUseExternalService());
+
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
     WorkflowExecution execution = stub.start(NexusOperationCancellationType.TRY_CANCEL);
@@ -124,6 +136,11 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   @Test
   public void cancelAsyncOperationAbandon() {
+    // TODO: remove skip once OSS 1.29.0 is released
+    assumeFalse(
+        "Nexus operation cancel request delivery events are not recorded by default for server versions <1.29.0",
+        testWorkflowRule.isUseExternalService());
+
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");
     WorkflowExecution execution = stub.start(NexusOperationCancellationType.ABANDON);
