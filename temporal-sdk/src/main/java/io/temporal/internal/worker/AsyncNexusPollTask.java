@@ -90,6 +90,9 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                           .pollNexusTaskQueue(pollRequest)));
     } catch (Exception e) {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(pollGauge.decrementAndGet());
       throw new RuntimeException(e);
     }
 

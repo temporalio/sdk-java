@@ -136,6 +136,9 @@ public class AsyncWorkflowPollTask
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                           .pollWorkflowTaskQueue(pollRequest)));
     } catch (Exception e) {
+      MetricsTag.tagged(metricsScope, taskQueueTagValue)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(pollGauge.decrementAndGet());
       throw new RuntimeException(e);
     }
 

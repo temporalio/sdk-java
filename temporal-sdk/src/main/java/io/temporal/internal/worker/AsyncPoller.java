@@ -213,12 +213,12 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
           }
 
           if (shouldTerminate()) {
-            return;
+            continue;
           }
 
           pollerBalancer.balance(asyncTaskPoller.getLabel());
           if (shouldTerminate()) {
-            return;
+            continue;
           }
           // Reserve a slot for the poll request
           SlotSupplierFuture future;
@@ -226,17 +226,17 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
             future = slotSupplier.reserveSlot(slotReservationData);
           } catch (Exception e) {
             log.warn("Error while trying to reserve a slot", e.getCause());
-            return;
+            continue;
           }
           permit = BasePoller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
           if (permit == null || shouldTerminate()) {
-            return;
+            continue;
           }
 
           pollerSemaphore.acquire();
           pollerSemaphoreAcquired = true;
           if (shouldTerminate()) {
-            return;
+            continue;
           }
           workerMetricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
 
@@ -299,13 +299,13 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
           if (shouldTerminate()) {
             pollerBalancer.removePoller(asyncTaskPoller.getLabel());
             abort = true;
+            log.info(
+                "Poll loop is terminated: {} - {}",
+                AsyncPoller.this.getClass().getSimpleName(),
+                asyncTaskPoller.getLabel());
           }
         }
       }
-      log.info(
-          "Poll loop is terminated: {} - {}",
-          AsyncPoller.this.getClass().getSimpleName(),
-          asyncTaskPoller.getLabel());
     }
   }
 

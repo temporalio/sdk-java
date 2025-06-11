@@ -98,6 +98,9 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                           .pollActivityTaskQueue(pollRequest)));
     } catch (Exception e) {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(pollGauge.decrementAndGet());
       throw new RuntimeException(e);
     }
 
