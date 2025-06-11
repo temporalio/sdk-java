@@ -9,7 +9,7 @@ import io.temporal.failure.CanceledFailure;
  * cancellation request may not be delivered to the handler, regardless of indicated cancellation
  * type.
  *
- * Note: EXPERIMENTAL
+ * <p>Note: EXPERIMENTAL
  */
 public enum NexusOperationCancellationType {
   /** Wait for operation completion. Operation may or may not complete as cancelled. Default. */
