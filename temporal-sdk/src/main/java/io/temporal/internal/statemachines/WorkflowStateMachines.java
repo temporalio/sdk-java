@@ -1007,6 +1007,7 @@ public final class WorkflowStateMachines {
       }
       if (cancellationType == NexusOperationCancellationType.ABANDON) {
         notifyNexusOperationCanceled(operation, startedCallback, completionCallback);
+        eventLoop();
         return;
       }
       if (!operation.isFinalState()) {
@@ -1021,6 +1022,7 @@ public final class WorkflowStateMachines {
             });
         if (cancellationType == NexusOperationCancellationType.TRY_CANCEL) {
           notifyNexusOperationCanceled(operation, startedCallback, completionCallback);
+          eventLoop();
         }
       }
     };
