@@ -1,57 +1,7 @@
 {
   "resources":{
   "includes":[{
-    "pattern":"\\QMETA-INF/services/io.grpc.LoadBalancerProvider\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/io.grpc.NameResolverProvider\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/io.temporal.internal.async.spi.MethodReferenceDisassemblyService\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/java.net.spi.InetAddressResolverProvider\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/java.nio.channels.spi.SelectorProvider\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/java.time.zone.ZoneRulesProvider\\E"
-  }, {
-    "pattern":"\\QMETA-INF/services/javax.xml.parsers.SAXParserFactory\\E"
-  }, {
-    "pattern":"\\Qio/temporal/version.properties\\E"
-  }, {
-    "pattern":"\\Qlogback-test.xml\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.AnnotationEngine\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.DoNotMockEnforcerWithType\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.DoNotMockEnforcer\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.InstantiatorProvider2\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.MemberAccessor\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.MockMaker\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.MockResolver\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.MockitoLogger\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.PluginSwitch\\E"
-  }, {
-    "pattern":"\\Qmockito-extensions/org.mockito.plugins.StackTraceCleanerProvider\\E"
-  }, {
-    "pattern":"\\Qorg/mockito/internal/creation/bytebuddy/MockMethodAdvice$ForEquals.class\\E"
-  }, {
-    "pattern":"\\Qorg/mockito/internal/creation/bytebuddy/MockMethodAdvice$ForHashCode.class\\E"
-  }, {
-    "pattern":"\\Qorg/mockito/internal/creation/bytebuddy/MockMethodAdvice$ForStatic.class\\E"
-  }, {
-    "pattern":"\\Qorg/mockito/internal/creation/bytebuddy/MockMethodAdvice.class\\E"
-  }, {
-    "pattern":"\\Qorg/mockito/internal/creation/bytebuddy/inject/MockMethodDispatcher.raw\\E"
-  }, {
-    "pattern":"\\Qorg/slf4j/impl/StaticLoggerBinder.class\\E"
-  }]},
+      "pattern":"\\QMETA-INF/services/io.grpc.ServerProvider\\E"
+    }]},
   "bundles":[]
 }
