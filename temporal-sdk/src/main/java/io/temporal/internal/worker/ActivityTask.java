@@ -4,8 +4,9 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-public final class ActivityTask {
+public final class ActivityTask implements ScalingTask {
   private final @Nonnull PollActivityTaskQueueResponseOrBuilder response;
   private final @Nonnull SlotPermit permit;
   private final @Nonnull Functions.Proc completionCallback;
@@ -36,5 +37,16 @@ public final class ActivityTask {
   @Nonnull
   public SlotPermit getPermit() {
     return permit;
+  }
+
+  @Nullable
+  @Override
+  public ScalingDecision getScalingDecision() {
+    if (!response.hasPollerScalingDecision()) {
+      return null;
+    }
+
+    return new ScalingTask.ScalingDecision(
+        response.getPollerScalingDecision().getPollRequestDeltaSuggestion());
   }
 }

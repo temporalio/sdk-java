@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wraps a slot supplier and supplements it with additional tracking information that is useful to
@@ -17,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <SI> The slot info type
  */
 public class TrackingSlotSupplier<SI extends SlotInfo> {
+  private static final Logger log = LoggerFactory.getLogger(TrackingSlotSupplier.class);
   private final SlotSupplier<SI> inner;
   private final AtomicInteger issuedSlots = new AtomicInteger();
   private final Map<SlotPermit, SI> usedSlots = new ConcurrentHashMap<>();

@@ -18,15 +18,9 @@ import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.worker.MetricsType;
-import io.temporal.worker.NonDeterministicException;
-import io.temporal.worker.WorkerMetricsTag;
-import io.temporal.worker.WorkflowTaskDispatchHandle;
-import io.temporal.worker.tuning.SlotReleaseReason;
-import io.temporal.worker.tuning.SlotSupplier;
-import io.temporal.worker.tuning.WorkflowSlotInfo;
-import java.util.Objects;
-import java.util.Optional;
+import io.temporal.worker.*;
+import io.temporal.worker.tuning.*;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -61,7 +55,7 @@ final class WorkflowWorker implements SuspendableWorker {
   //  Currently the implementation looks safe without volatile, but it's brittle.
   @Nonnull private SuspendableWorker poller = new NoopWorker();
 
-  private StickyQueueBalancer stickyQueueBalancer;
+  private DisableNormalPolling stickyQueueBalancer;
 
   public WorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -102,29 +96,85 @@ final class WorkflowWorker implements SuspendableWorker {
               pollerOptions,
               this.slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
               options.isUsingVirtualThreads());
-      stickyQueueBalancer =
-          new StickyQueueBalancer(
-              options.getPollerOptions().getPollThreadCount(), stickyTaskQueueName != null);
 
-      poller =
-          new Poller<>(
-              options.getIdentity(),
-              new WorkflowPollTask(
+      boolean useAsyncPoller =
+          pollerOptions.getPollerBehavior() instanceof PollerBehaviorAutoscaling;
+      if (useAsyncPoller) {
+        List<AsyncPoller.PollTaskAsync<WorkflowTask>> pollers;
+        if (stickyTaskQueueName != null) {
+          AsyncWorkflowPollTask normalPoller =
+              new AsyncWorkflowPollTask(
                   service,
                   namespace,
                   taskQueue,
-                  stickyTaskQueueName,
+                  null,
                   options.getIdentity(),
                   options.getWorkerVersioningOptions(),
                   slotSupplier,
-                  stickyQueueBalancer,
                   workerMetricsScope,
-                  service.getServerCapabilities()),
-              pollTaskExecutor,
-              pollerOptions,
-              workerMetricsScope);
+                  service.getServerCapabilities());
+          pollers =
+              Arrays.asList(
+                  new AsyncWorkflowPollTask(
+                      service,
+                      namespace,
+                      taskQueue,
+                      stickyTaskQueueName,
+                      options.getIdentity(),
+                      options.getWorkerVersioningOptions(),
+                      slotSupplier,
+                      workerMetricsScope,
+                      service.getServerCapabilities()),
+                  normalPoller);
+          this.stickyQueueBalancer = normalPoller;
+        } else {
+          pollers =
+              Collections.singletonList(
+                  new AsyncWorkflowPollTask(
+                      service,
+                      namespace,
+                      taskQueue,
+                      null,
+                      options.getIdentity(),
+                      options.getWorkerVersioningOptions(),
+                      slotSupplier,
+                      workerMetricsScope,
+                      service.getServerCapabilities()));
+        }
+        poller =
+            new AsyncPoller<>(
+                slotSupplier,
+                new SlotReservationData(taskQueue, options.getIdentity(), options.getBuildId()),
+                pollers,
+                this.pollTaskExecutor,
+                pollerOptions,
+                workerMetricsScope);
+      } else {
+        PollerBehaviorSimpleMaximum pollerBehavior =
+            (PollerBehaviorSimpleMaximum) pollerOptions.getPollerBehavior();
+        StickyQueueBalancer stickyQueueBalancer =
+            new StickyQueueBalancer(
+                pollerBehavior.getMaxConcurrentTaskPollers(), stickyTaskQueueName != null);
+        this.stickyQueueBalancer = stickyQueueBalancer;
+        poller =
+            new MultiThreadedPoller<>(
+                options.getIdentity(),
+                new WorkflowPollTask(
+                    service,
+                    namespace,
+                    taskQueue,
+                    stickyTaskQueueName,
+                    options.getIdentity(),
+                    options.getWorkerVersioningOptions(),
+                    slotSupplier,
+                    stickyQueueBalancer,
+                    workerMetricsScope,
+                    service.getServerCapabilities()),
+                pollTaskExecutor,
+                pollerOptions,
+                workerMetricsScope);
+      }
       poller.start();
-
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
 
       return true;

@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class NexusPollTask implements Poller.PollTask<NexusTask> {
+final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
   private static final Logger log = LoggerFactory.getLogger(NexusPollTask.class);
 
   private final WorkflowServiceStubs service;
@@ -82,7 +82,7 @@ final class NexusPollTask implements Poller.PollTask<NexusTask> {
       log.warn("Error while trying to reserve a slot for a nexus task", e.getCause());
       return null;
     }
-    permit = Poller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    permit = MultiThreadedPoller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
     if (permit == null) return null;
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)

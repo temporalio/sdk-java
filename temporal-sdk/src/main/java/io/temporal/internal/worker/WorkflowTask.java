@@ -4,8 +4,9 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-public class WorkflowTask {
+public class WorkflowTask implements ScalingTask {
   @Nonnull private final PollWorkflowTaskQueueResponse response;
   @Nonnull private final Functions.Proc1<SlotReleaseReason> completionCallback;
 
@@ -28,5 +29,16 @@ public class WorkflowTask {
   @Nonnull
   public Functions.Proc1<SlotReleaseReason> getCompletionCallback() {
     return completionCallback;
+  }
+
+  @Nullable
+  @Override
+  public ScalingDecision getScalingDecision() {
+    if (!response.hasPollerScalingDecision()) {
+      return null;
+    }
+
+    return new ScalingTask.ScalingDecision(
+        response.getPollerScalingDecision().getPollRequestDeltaSuggestion());
   }
 }
