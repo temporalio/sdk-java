@@ -4,7 +4,6 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelNexusOperationCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.workflow.Functions;
 
@@ -97,12 +96,7 @@ final class CancelNexusOperationStateMachine
   }
 
   private void notifyCompleted() {
-    Failure canceledFailure =
-        Failure.newBuilder()
-            .setMessage("operation canceled")
-            .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
-            .build();
-    completionCallback.apply(null, canceledFailure);
+    completionCallback.apply(null, null);
   }
 
   private void notifyFailed() {

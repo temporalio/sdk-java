@@ -257,6 +257,14 @@ final class NexusOperationStateMachine
   }
 
   public Failure createCancelNexusOperationFailure(Failure cause) {
+    if (cause == null) {
+      cause =
+          Failure.newBuilder()
+              .setSource(JAVA_SDK)
+              .setMessage("operation canceled")
+              .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+              .build();
+    }
     NexusOperationFailureInfo nexusFailureInfo =
         NexusOperationFailureInfo.newBuilder()
             .setEndpoint(endpoint)
