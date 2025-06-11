@@ -322,6 +322,7 @@ class StateMachines {
     RetryPolicy retryPolicy = defaultNexusRetryPolicy();
 
     long scheduledEventId = NO_EVENT_ID;
+    long cancelRequestedEventId = NO_EVENT_ID;
     Timestamp cancelRequestedTime;
 
     TestServiceRetryState retryState;
@@ -932,14 +933,15 @@ class StateMachines {
       NexusOperationData data,
       RequestCancelNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
-    ctx.addEvent(
-        HistoryEvent.newBuilder()
-            .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED)
-            .setNexusOperationCancelRequestedEventAttributes(
-                NexusOperationCancelRequestedEventAttributes.newBuilder()
-                    .setScheduledEventId(data.scheduledEventId)
-                    .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
-            .build());
+    long cancelRequestedEventId =
+        ctx.addEvent(
+            HistoryEvent.newBuilder()
+                .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED)
+                .setNexusOperationCancelRequestedEventAttributes(
+                    NexusOperationCancelRequestedEventAttributes.newBuilder()
+                        .setScheduledEventId(data.scheduledEventId)
+                        .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
+                .build());
 
     NexusTaskToken taskToken =
         new NexusTaskToken(ctx.getExecutionId(), data.scheduledEventId, data.getAttempt(), true);
@@ -968,6 +970,7 @@ class StateMachines {
     ctx.onCommit(
         historySize -> {
           data.nexusTask = cancelTask;
+          data.cancelRequestedEventId = cancelRequestedEventId;
           data.cancelRequestedTime = ctx.currentTime();
           data.isBackingOff = false;
         });

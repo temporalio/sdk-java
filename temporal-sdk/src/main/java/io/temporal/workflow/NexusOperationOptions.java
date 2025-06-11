@@ -47,7 +47,7 @@ public final class NexusOperationOptions {
     }
 
     /**
-     * Sets the cancellation type for the Nexus operation.
+     * Sets the cancellation type for the Nexus operation. Defaults to WAIT_COMPLETED.
      *
      * @param cancellationType the cancellation type for the Nexus operation
      * @return this

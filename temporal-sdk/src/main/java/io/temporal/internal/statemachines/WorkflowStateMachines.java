@@ -1048,7 +1048,6 @@ public final class WorkflowStateMachines {
       startedCallback.apply(Optional.empty(), failure);
     }
     completionCallback.apply(Optional.empty(), failure);
-    eventLoop();
   }
 
   private void notifyChildCanceled(

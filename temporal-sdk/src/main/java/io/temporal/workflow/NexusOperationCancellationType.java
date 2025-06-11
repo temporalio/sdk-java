@@ -5,7 +5,9 @@ import io.temporal.failure.CanceledFailure;
 /**
  * Defines behavior of the parent workflow when {@link CancellationScope} that wraps Nexus operation
  * is canceled. The result of the cancellation independently of the type is a {@link
- * CanceledFailure} thrown from the Nexus operation method.
+ * CanceledFailure} thrown from the Nexus operation method. If the caller exits without waiting, the
+ * cancellation request may not be delivered to the handler, regardless of indicated cancellation
+ * type.
  */
 public enum NexusOperationCancellationType {
   /** Wait for operation completion. Operation may or may not complete as cancelled. Default. */

@@ -900,11 +900,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
 
       if (request.getResponse().hasCancelOperation()) {
-        Failure canceled =
-            Failure.newBuilder()
-                .setMessage("operation canceled")
-                .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
-                .build();
         mutableState.cancelNexusOperationRequestAcknowledge(tt.getOperationRef());
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();

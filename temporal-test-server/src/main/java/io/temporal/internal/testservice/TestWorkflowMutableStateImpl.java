@@ -2329,6 +2329,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           if (!operationInFlight(operation.getState())) {
             return;
           }
+          ctx.addEvent(
+              HistoryEvent.newBuilder()
+                  .setEventType(EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_COMPLETED)
+                  .setNexusOperationCancelRequestCompletedEventAttributes(
+                      NexusOperationCancelRequestCompletedEventAttributes.newBuilder()
+                          .setScheduledEventId(ref.getScheduledEventId())
+                          .setRequestedEventId(operation.getData().cancelRequestedEventId))
+                  .build());
           ctx.unlockTimer("cancelNexusOperationRequestAcknowledge");
         });
   }
