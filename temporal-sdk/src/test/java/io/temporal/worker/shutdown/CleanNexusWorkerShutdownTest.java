@@ -60,7 +60,7 @@ public class CleanNexusWorkerShutdownTest {
             .setWorkerOptions(
                 WorkerOptions.newBuilder()
                     .setLocalActivityWorkerOnly(true)
-                    .setNexusTaskPollersBehaviour(pollerBehaviorAutoscaling)
+                    .setNexusTaskPollersBehavior(pollerBehaviorAutoscaling)
                     .build())
             .setNexusServiceImplementation(nexusServiceImpl)
             .build();

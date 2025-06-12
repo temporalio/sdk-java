@@ -560,8 +560,8 @@ public final class Worker {
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
                 .setPollerBehavior(
-                    options.getActivityTaskPollersBehaviour() != null
-                        ? options.getActivityTaskPollersBehaviour()
+                    options.getActivityTaskPollersBehavior() != null
+                        ? options.getActivityTaskPollersBehavior()
                         : new PollerBehaviorSimpleMaximum(
                             options.getMaxConcurrentActivityTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
@@ -580,8 +580,8 @@ public final class Worker {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
-                    options.getNexusTaskPollersBehaviour() != null
-                        ? options.getNexusTaskPollersBehaviour()
+                    options.getNexusTaskPollersBehavior() != null
+                        ? options.getNexusTaskPollersBehavior()
                         : new PollerBehaviorSimpleMaximum(
                             options.getMaxConcurrentNexusTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
@@ -620,8 +620,8 @@ public final class Worker {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
-                    options.getWorkflowTaskPollersBehaviour() != null
-                        ? options.getWorkflowTaskPollersBehaviour()
+                    options.getWorkflowTaskPollersBehavior() != null
+                        ? options.getWorkflowTaskPollersBehavior()
                         : new PollerBehaviorSimpleMaximum(maxConcurrentWorkflowTaskPollers))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnWorkflowWorker())
                 .build())

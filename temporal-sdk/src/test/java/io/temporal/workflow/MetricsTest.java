@@ -198,8 +198,8 @@ public class MetricsTest {
 
     WorkerOptions workerOptions =
         WorkerOptions.newBuilder()
-            .setWorkflowTaskPollersBehaviour(new PollerBehaviorAutoscaling(5, 5, 5))
-            .setActivityTaskPollersBehaviour(new PollerBehaviorAutoscaling(5, 5, 5))
+            .setWorkflowTaskPollersBehavior(new PollerBehaviorAutoscaling(5, 5, 5))
+            .setActivityTaskPollersBehavior(new PollerBehaviorAutoscaling(5, 5, 5))
             .build();
     Worker worker = testEnvironment.newWorker(TASK_QUEUE, workerOptions);
     worker.registerWorkflowImplementationTypes(

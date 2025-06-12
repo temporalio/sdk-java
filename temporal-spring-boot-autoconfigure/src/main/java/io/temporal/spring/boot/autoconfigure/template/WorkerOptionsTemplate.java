@@ -49,6 +49,27 @@ class WorkerOptionsTemplate {
             .ifPresent(options::setMaxConcurrentActivityTaskPollers);
         Optional.ofNullable(threadsConfiguration.getMaxConcurrentNexusTaskPollers())
             .ifPresent(options::setMaxConcurrentNexusTaskPollers);
+        if (threadsConfiguration.getWorkflowTaskPollersConfiguration() != null) {
+          Optional.ofNullable(
+                  threadsConfiguration
+                      .getWorkflowTaskPollersConfiguration()
+                      .getPollerBehaviorAutoscaling())
+              .ifPresent(options::setWorkflowTaskPollersBehavior);
+        }
+        if (threadsConfiguration.getActivityTaskPollersConfiguration() != null) {
+          Optional.ofNullable(
+                  threadsConfiguration
+                      .getActivityTaskPollersConfiguration()
+                      .getPollerBehaviorAutoscaling())
+              .ifPresent(options::setActivityTaskPollersBehavior);
+        }
+        if (threadsConfiguration.getNexusTaskPollersConfiguration() != null) {
+          Optional.ofNullable(
+                  threadsConfiguration
+                      .getNexusTaskPollersConfiguration()
+                      .getPollerBehaviorAutoscaling())
+              .ifPresent(options::setNexusTaskPollersBehavior);
+        }
       }
 
       WorkerProperties.RateLimitsConfigurationProperties rateLimitConfiguration =
