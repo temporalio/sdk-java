@@ -51,8 +51,14 @@ dependencies {
 }
 
 tasks.named('compileJava21Java') {
-    javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(21)
+    // Gradle toolchains are too strict and require the JDK to match the specified version exactly.
+    // This is a workaround to use a JDK 21+ compiler.
+    //
+    // See also: https://github.com/gradle/gradle/issues/16256
+    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
+        javaCompiler = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
     options.release = 21
 }
