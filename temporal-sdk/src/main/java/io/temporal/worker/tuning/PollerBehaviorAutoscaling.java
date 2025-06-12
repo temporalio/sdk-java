@@ -1,5 +1,7 @@
 package io.temporal.worker.tuning;
 
+import java.util.Objects;
+
 /**
  * A poller behavior that will automatically scale the number of pollers based on feedback from the
  * server. A slot must be available before beginning polling.
@@ -65,5 +67,32 @@ public final class PollerBehaviorAutoscaling implements PollerBehavior {
    */
   public int getInitialMaxConcurrentTaskPollers() {
     return initialConcurrentTaskPollers;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    PollerBehaviorAutoscaling that = (PollerBehaviorAutoscaling) o;
+    return minConcurrentTaskPollers == that.minConcurrentTaskPollers
+        && maxConcurrentTaskPollers == that.maxConcurrentTaskPollers
+        && initialConcurrentTaskPollers == that.initialConcurrentTaskPollers;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        minConcurrentTaskPollers, maxConcurrentTaskPollers, initialConcurrentTaskPollers);
+  }
+
+  @Override
+  public String toString() {
+    return "PollerBehaviorAutoscaling{"
+        + "minConcurrentTaskPollers="
+        + minConcurrentTaskPollers
+        + ", maxConcurrentTaskPollers="
+        + maxConcurrentTaskPollers
+        + ", initialConcurrentTaskPollers="
+        + initialConcurrentTaskPollers
+        + '}';
   }
 }

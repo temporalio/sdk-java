@@ -20,8 +20,8 @@ public class PollerAutoScaleTests {
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(
               WorkerOptions.newBuilder()
-                  .setWorkflowTaskPollersBehaviour(new PollerBehaviorAutoscaling(1, 10, 5))
-                  .setActivityTaskPollersBehaviour(new PollerBehaviorAutoscaling(1, 10, 5))
+                  .setWorkflowTaskPollersBehavior(new PollerBehaviorAutoscaling(1, 10, 5))
+                  .setActivityTaskPollersBehavior(new PollerBehaviorAutoscaling(1, 10, 5))
                   .build())
           .setActivityImplementations(new ResourceBasedTunerTests.ActivitiesImpl())
           .setWorkflowTypes(ResourceBasedTunerTests.ResourceTunerWorkflowImpl.class)

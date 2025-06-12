@@ -3,6 +3,8 @@ package io.temporal.spring.boot.autoconfigure.properties;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.worker.WorkerDeploymentOptions;
+import io.temporal.worker.tuning.PollerBehavior;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -94,6 +96,24 @@ public class WorkerProperties {
     return deploymentProperties;
   }
 
+  public static class PollerConfigurationProperties {
+    private final @Nullable PollerBehaviorAutoscaling pollerBehaviorAutoscaling;
+
+    /**
+     * @param pollerBehaviorAutoscaling defines poller behavior for autoscaling
+     */
+    @ConstructorBinding
+    public PollerConfigurationProperties(
+        @Nullable PollerBehaviorAutoscaling pollerBehaviorAutoscaling) {
+      this.pollerBehaviorAutoscaling = pollerBehaviorAutoscaling;
+    }
+
+    @Nullable
+    public PollerBehaviorAutoscaling getPollerBehaviorAutoscaling() {
+      return pollerBehaviorAutoscaling;
+    }
+  }
+
   public static class CapacityConfigurationProperties {
     private final @Nullable Integer maxConcurrentWorkflowTaskExecutors;
     private final @Nullable Integer maxConcurrentActivityExecutors;
@@ -102,6 +122,9 @@ public class WorkerProperties {
     private final @Nullable Integer maxConcurrentWorkflowTaskPollers;
     private final @Nullable Integer maxConcurrentActivityTaskPollers;
     private final @Nullable Integer maxConcurrentNexusTaskPollers;
+    private final @Nullable PollerConfigurationProperties workflowTaskPollersConfiguration;
+    private final @Nullable PollerConfigurationProperties activityTaskPollersConfiguration;
+    private final @Nullable PollerConfigurationProperties nexusTaskPollersConfiguration;
 
     /**
      * @param maxConcurrentWorkflowTaskExecutors defines {@link
@@ -118,6 +141,12 @@ public class WorkerProperties {
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityTaskPollers(int)}
      * @param maxConcurrentNexusTaskPollers defines {@link
      *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentNexusTaskPollers(int)} (int)}
+     * @param workflowTaskPollersConfiguration defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setWorkflowTaskPollersBehavior(PollerBehavior)}
+     * @param activityTaskPollersConfiguration defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setActivityTaskPollersBehavior(PollerBehavior)}
+     * @param nexusTaskPollersConfiguration defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setNexusTaskPollersBehavior(PollerBehavior)}
      */
     @ConstructorBinding
     public CapacityConfigurationProperties(
@@ -127,7 +156,10 @@ public class WorkerProperties {
         @Nullable Integer maxConcurrentNexusTaskExecutors,
         @Nullable Integer maxConcurrentWorkflowTaskPollers,
         @Nullable Integer maxConcurrentActivityTaskPollers,
-        @Nullable Integer maxConcurrentNexusTaskPollers) {
+        @Nullable Integer maxConcurrentNexusTaskPollers,
+        @Nullable PollerConfigurationProperties workflowTaskPollersConfiguration,
+        @Nullable PollerConfigurationProperties activityTaskPollersConfiguration,
+        @Nullable PollerConfigurationProperties nexusTaskPollersConfiguration) {
       this.maxConcurrentWorkflowTaskExecutors = maxConcurrentWorkflowTaskExecutors;
       this.maxConcurrentActivityExecutors = maxConcurrentActivityExecutors;
       this.maxConcurrentLocalActivityExecutors = maxConcurrentLocalActivityExecutors;
@@ -135,6 +167,9 @@ public class WorkerProperties {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
       this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
       this.maxConcurrentNexusTaskPollers = maxConcurrentNexusTaskPollers;
+      this.workflowTaskPollersConfiguration = workflowTaskPollersConfiguration;
+      this.activityTaskPollersConfiguration = activityTaskPollersConfiguration;
+      this.nexusTaskPollersConfiguration = nexusTaskPollersConfiguration;
     }
 
     @Nullable
@@ -170,6 +205,21 @@ public class WorkerProperties {
     @Nullable
     public Integer getMaxConcurrentNexusTaskPollers() {
       return maxConcurrentNexusTaskPollers;
+    }
+
+    @Nullable
+    public PollerConfigurationProperties getWorkflowTaskPollersConfiguration() {
+      return workflowTaskPollersConfiguration;
+    }
+
+    @Nullable
+    public PollerConfigurationProperties getActivityTaskPollersConfiguration() {
+      return activityTaskPollersConfiguration;
+    }
+
+    @Nullable
+    public PollerConfigurationProperties getNexusTaskPollersConfiguration() {
+      return nexusTaskPollersConfiguration;
     }
   }
 

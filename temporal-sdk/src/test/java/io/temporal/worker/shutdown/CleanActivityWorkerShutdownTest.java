@@ -55,7 +55,7 @@ public class CleanActivityWorkerShutdownTest {
             .setWorkflowTypes(TestWorkflowImpl.class)
             .setWorkerOptions(
                 WorkerOptions.newBuilder()
-                    .setActivityTaskPollersBehaviour(pollerBehaviorAutoscaling)
+                    .setActivityTaskPollersBehavior(pollerBehaviorAutoscaling)
                     .build())
             .setActivityImplementations(activitiesImpl)
             .build();

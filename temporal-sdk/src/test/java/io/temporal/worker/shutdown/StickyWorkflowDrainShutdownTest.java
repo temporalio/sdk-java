@@ -41,7 +41,7 @@ public class StickyWorkflowDrainShutdownTest {
             .setUseTimeskipping(false)
             .setWorkerOptions(
                 WorkerOptions.newBuilder()
-                    .setWorkflowTaskPollersBehaviour(pollerBehaviorAutoscaling)
+                    .setWorkflowTaskPollersBehavior(pollerBehaviorAutoscaling)
                     .setStickyTaskQueueDrainTimeout(DRAIN_TIME)
                     .build())
             .setWorkflowServiceStubsOptions(

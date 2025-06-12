@@ -1,6 +1,6 @@
 package io.temporal.spring.boot.autoconfigure;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -10,6 +10,7 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -98,9 +99,22 @@ public class OptionalWorkerOptionsTest {
                 options.getMaxConcurrentNexusExecutionSize(),
                 "Values from the Spring Config should be respected");
 
+            assertNotNull(options.getWorkflowTaskPollersBehavior());
+            assertInstanceOf(
+                PollerBehaviorAutoscaling.class, options.getWorkflowTaskPollersBehavior());
+            PollerBehaviorAutoscaling autoscaling =
+                (PollerBehaviorAutoscaling) options.getWorkflowTaskPollersBehavior();
             assertEquals(
                 1,
-                options.getMaxConcurrentWorkflowTaskPollers(),
+                autoscaling.getMinConcurrentTaskPollers(),
+                "Values from the Spring Config should be respected");
+            assertEquals(
+                10,
+                autoscaling.getMaxConcurrentTaskPollers(),
+                "Values from the Spring Config should be respected");
+            assertEquals(
+                5,
+                autoscaling.getInitialMaxConcurrentTaskPollers(),
                 "Values from the Spring Config should be respected");
             assertEquals(
                 1,
@@ -122,8 +136,7 @@ public class OptionalWorkerOptionsTest {
 
             assertEquals(
                 "1.0.0", options.getBuildId(), "Values from the Spring Config should be respected");
-            assertEquals(
-                true,
+            assertTrue(
                 options.isUsingBuildIdForVersioning(),
                 "Values from the Spring Config should be respected");
             return optionsBuilder;
