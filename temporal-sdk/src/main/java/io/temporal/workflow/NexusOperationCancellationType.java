@@ -1,5 +1,6 @@
 package io.temporal.workflow;
 
+import io.temporal.common.Experimental;
 import io.temporal.failure.CanceledFailure;
 
 /**
@@ -8,9 +9,8 @@ import io.temporal.failure.CanceledFailure;
  * CanceledFailure} thrown from the Nexus operation method. If the caller exits without waiting, the
  * cancellation request may not be delivered to the handler, regardless of indicated cancellation
  * type.
- *
- * <p>Note: EXPERIMENTAL
  */
+@Experimental
 public enum NexusOperationCancellationType {
   /** Wait for operation completion. Operation may or may not complete as cancelled. Default. */
   WAIT_COMPLETED,
