@@ -422,6 +422,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             worker.getTaskQueue());
       }
     } catch (TypeAlreadyRegisteredException registeredEx) {
+      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
+        throw registeredEx;
+      }
       if (log.isInfoEnabled()) {
         log.info(
             "Skipping auto-discovered activity bean '{}' of class {} on a worker {} with a task queue '{}'"
@@ -431,9 +434,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
             worker.getTaskQueue(),
             registeredEx.getRegisteredTypeName());
-      }
-      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
-        throw registeredEx;
       }
     }
   }
@@ -461,6 +461,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             worker.getTaskQueue());
       }
     } catch (TypeAlreadyRegisteredException registeredEx) {
+      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
+        throw registeredEx;
+      }
       if (log.isInfoEnabled()) {
         log.info(
             "Skipping auto-discovered nexus service bean '{}' of class {} on a worker {} with a task queue '{}'"
@@ -470,9 +473,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
             worker.getTaskQueue(),
             registeredEx.getRegisteredTypeName());
-      }
-      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
-        throw registeredEx;
       }
     }
   }
@@ -489,6 +489,9 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             worker.getTaskQueue());
       }
     } catch (TypeAlreadyRegisteredException registeredEx) {
+      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
+        throw registeredEx;
+      }
       if (log.isInfoEnabled()) {
         log.info(
             "Skip registering of auto-discovered workflow class {} on a worker {}with a task queue '{}' "
@@ -497,9 +500,6 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
             worker.getTaskQueue(),
             registeredEx.getRegisteredTypeName());
-      }
-      if (!namespaceProperties.isIgnoreDuplicateDefinitions()) {
-        throw registeredEx;
       }
     }
   }
