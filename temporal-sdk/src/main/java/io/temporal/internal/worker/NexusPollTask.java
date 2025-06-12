@@ -17,7 +17,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +35,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
-      @Nullable String buildId,
-      boolean useBuildIdForVersioning,
+      @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<NexusSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
@@ -51,11 +49,15 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
 
-    if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+    if (versioningOptions.getWorkerDeploymentOptions() != null) {
+      pollRequest.setDeploymentOptions(
+          WorkerVersioningProtoUtils.deploymentOptionsToProto(
+              versioningOptions.getWorkerDeploymentOptions()));
+    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequest.setWorkerVersionCapabilities(
           WorkerVersionCapabilities.newBuilder()
-              .setBuildId(buildId)
-              .setUseVersioning(useBuildIdForVersioning)
+              .setBuildId(versioningOptions.getBuildId())
+              .setUseVersioning(versioningOptions.isUsingVersioning())
               .build());
     }
     this.pollRequest = pollRequest.build();

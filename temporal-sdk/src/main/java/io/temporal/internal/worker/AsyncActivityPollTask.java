@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +44,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
-      @Nullable String buildId,
-      boolean useBuildIdForVersioning,
+      @Nonnull WorkerVersioningOptions versioningOptions,
       double activitiesPerSecond,
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
@@ -67,11 +65,15 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
               .build());
     }
 
-    if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+    if (versioningOptions.getWorkerDeploymentOptions() != null) {
+      pollRequest.setDeploymentOptions(
+          WorkerVersioningProtoUtils.deploymentOptionsToProto(
+              versioningOptions.getWorkerDeploymentOptions()));
+    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequest.setWorkerVersionCapabilities(
           WorkerVersionCapabilities.newBuilder()
-              .setBuildId(buildId)
-              .setUseVersioning(useBuildIdForVersioning)
+              .setBuildId(versioningOptions.getBuildId())
+              .setUseVersioning(versioningOptions.isUsingVersioning())
               .build());
     }
     this.pollRequest = pollRequest.build();
