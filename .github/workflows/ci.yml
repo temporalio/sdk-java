@@ -105,6 +105,7 @@ jobs:
             --dynamic-config-value matching.useNewMatcher=true \
             --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
             --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
+            --dynamic-config-value component.nexusoperations.recordCancelRequestCompletionEvents=true \
             --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
             --dynamic-config-value frontend.activityAPIsEnabled=true \
             --dynamic-config-value system.enableDeploymentVersions=true \

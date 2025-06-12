@@ -2,7 +2,6 @@ package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -10,10 +9,7 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.SdkFlag;
-import io.temporal.internal.statemachines.ExecuteActivityParameters;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
-import io.temporal.internal.statemachines.LocalActivityCallback;
-import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -162,8 +158,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /**
    * Start a Nexus operation.
    *
-   * @param attributes nexus operation attributes
-   * @param metadata user metadata to be associated with the operation.
+   * @param parameters encapsulates all the information required to schedule a Nexus operation
    * @param startedCallback callback that is called when the operation is start if async, or
    *     completes if it is sync.
    * @param completionCallback callback that is called upon child workflow completion or failure
@@ -171,8 +166,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     to cancel activity task.
    */
   Functions.Proc1<Exception> startNexusOperation(
-      ScheduleNexusOperationCommandAttributes attributes,
-      @Nullable UserMetadata metadata,
+      StartNexusOperationParameters parameters,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback);
 

@@ -804,10 +804,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         makeUserMetaData(
             input.getOptions().getSummary(), null, dataConverterWithCurrentWorkflowContext);
 
+    StartNexusOperationParameters parameters =
+        new StartNexusOperationParameters(
+            attributes, input.getOptions().getCancellationType(), userMetadata);
+
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.startNexusOperation(
-            attributes.build(),
-            userMetadata,
+            parameters,
             (operationExec, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(

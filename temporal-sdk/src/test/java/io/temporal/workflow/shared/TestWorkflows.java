@@ -39,6 +39,12 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestNexusOperationCancellationType {
+    @WorkflowMethod
+    void execute(NexusOperationCancellationType cancellationType, boolean cancelImmediately);
+  }
+
+  @WorkflowInterface
   public interface TestWorkflowReturnMap {
     @WorkflowMethod
     Map<String, Map<String, Duration>> execute();

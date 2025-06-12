@@ -13,6 +13,7 @@ import com.google.protobuf.Any;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
@@ -29,6 +30,7 @@ import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
+import io.temporal.workflow.NexusOperationCancellationType;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import javax.annotation.Nonnull;
@@ -985,30 +987,69 @@ public final class WorkflowStateMachines {
   }
 
   public Functions.Proc startNexusOperation(
-      ScheduleNexusOperationCommandAttributes attributes,
-      @Nullable UserMetadata metadata,
+      StartNexusOperationParameters parameters,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
     checkEventLoopExecuting();
+    NexusOperationCancellationType cancellationType = parameters.getCancellationType();
     NexusOperationStateMachine operation =
         NexusOperationStateMachine.newInstance(
-            attributes,
-            metadata,
+            parameters.getAttributes().build(),
+            parameters.getMetadata(),
             startedCallback,
             completionCallback,
             commandSink,
             stateMachineSink);
     return () -> {
+      if (cancellationType == NexusOperationCancellationType.ABANDON) {
+        notifyNexusOperationCanceled(operation, startedCallback, completionCallback);
+        eventLoop();
+        return;
+      }
       if (operation.isCancellable()) {
         operation.cancel();
+        return;
       }
       if (!operation.isFinalState()) {
         requestCancelNexusOperation(
             RequestCancelNexusOperationCommandAttributes.newBuilder()
                 .setScheduledEventId(operation.getInitialCommandEventId())
-                .build());
+                .build(),
+            (r, f) -> {
+              if (cancellationType == NexusOperationCancellationType.WAIT_REQUESTED) {
+                notifyNexusOperationCanceled(f, operation, startedCallback, completionCallback);
+              }
+            });
+        if (cancellationType == NexusOperationCancellationType.TRY_CANCEL) {
+          notifyNexusOperationCanceled(operation, startedCallback, completionCallback);
+          eventLoop();
+        }
       }
     };
+  }
+
+  private void notifyNexusOperationCanceled(
+      NexusOperationStateMachine operation,
+      Functions.Proc2<Optional<String>, Failure> startedCallback,
+      Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
+    Failure cause =
+        Failure.newBuilder()
+            .setMessage("operation canceled")
+            .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+            .build();
+    notifyNexusOperationCanceled(cause, operation, startedCallback, completionCallback);
+  }
+
+  private void notifyNexusOperationCanceled(
+      Failure cause,
+      NexusOperationStateMachine operation,
+      Functions.Proc2<Optional<String>, Failure> startedCallback,
+      Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
+    Failure failure = operation.createCancelNexusOperationFailure(cause);
+    if (!operation.isAsync()) {
+      startedCallback.apply(Optional.empty(), failure);
+    }
+    completionCallback.apply(Optional.empty(), failure);
   }
 
   private void notifyChildCanceled(
@@ -1044,10 +1085,15 @@ public final class WorkflowStateMachines {
 
   /**
    * @param attributes attributes to use to cancel a nexus operation
+   * @param completionCallback one of NexusOperationCancelRequestCompleted or
+   *     NexusOperationCancelRequestFailed events
    */
-  public void requestCancelNexusOperation(RequestCancelNexusOperationCommandAttributes attributes) {
+  public void requestCancelNexusOperation(
+      RequestCancelNexusOperationCommandAttributes attributes,
+      Functions.Proc2<Void, Failure> completionCallback) {
     checkEventLoopExecuting();
-    CancelNexusOperationStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    CancelNexusOperationStateMachine.newInstance(
+        attributes, completionCallback, commandSink, stateMachineSink);
   }
 
   public void upsertSearchAttributes(SearchAttributes attributes) {
@@ -1540,6 +1586,12 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
         return OptionalLong.of(
             event.getNexusOperationTimedOutEventAttributes().getScheduledEventId());
+      case EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_COMPLETED:
+        return OptionalLong.of(
+            event.getNexusOperationCancelRequestCompletedEventAttributes().getRequestedEventId());
+      case EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED:
+        return OptionalLong.of(
+            event.getNexusOperationCancelRequestFailedEventAttributes().getRequestedEventId());
       case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
       case EVENT_TYPE_TIMER_STARTED:
       case EVENT_TYPE_MARKER_RECORDED:
