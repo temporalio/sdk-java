@@ -71,7 +71,7 @@ spring:
     workers-auto-discovery:
       packages:
         - io.temporal.spring.boot.autoconfigure.byworkername
-        -
+
 ---
 spring:
   config:
