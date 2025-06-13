@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.BeanNotOfRequiredTypeException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -45,26 +46,30 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private final @Nonnull TemporalProperties temporalProperties;
   private final @Nullable List<NonRootNamespaceProperties> namespaceProperties;
-  private final @Nullable Tracer tracer;
-  private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
-  private final @Nullable Scope metricsScope;
+  private @Nullable Tracer tracer;
+  private @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
+  private @Nullable Scope metricsScope;
 
-  public NonRootBeanPostProcessor(
-      @Nonnull TemporalProperties temporalProperties,
-      @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable Scope metricsScope) {
+  public NonRootBeanPostProcessor(@Nonnull TemporalProperties temporalProperties) {
     this.temporalProperties = temporalProperties;
     this.namespaceProperties = temporalProperties.getNamespaces();
-    this.tracer = tracer;
-    this.testWorkflowEnvironment = testWorkflowEnvironment;
-    this.metricsScope = metricsScope;
   }
 
   @Override
-  public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+  public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName)
+      throws BeansException {
     if (bean instanceof NamespaceTemplate && beanName.equals("temporalRootNamespaceTemplate")) {
       if (namespaceProperties != null) {
+        // If there are non-root namespaces, we need to inject beans for each of them. Look
+        // up the bean manually instead of using @Autowired to avoid circular dependencies or causing the dependency to
+        // get initialized to early and skip post-processing.
+        //
+        // Note: We don't use @Lazy here because these dependencies are optional and @Lazy doesn't interact well with
+        // optional dependencies.
+        metricsScope = findBean("temporalMetricsScope", Scope.class);
+        tracer = findBean(Tracer.class);
+        testWorkflowEnvironment =
+            findBean("temporalTestWorkflowEnvironment", TestWorkflowEnvironmentAdapter.class);
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
     }
@@ -159,6 +164,24 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
       return beanFactory.getBean(beanPrefix + clazz.getSimpleName(), clazz);
     } catch (NoSuchBeanDefinitionException ignore) {
       // Made non-namespace bean optional
+    }
+    return null;
+  }
+
+  private <T> @Nullable T findBean(Class<T> clazz) {
+    try {
+      return beanFactory.getBean(clazz);
+    } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException ignore) {
+      // Ignore if the bean is not found or not of the required type
+    }
+    return null;
+  }
+
+  private <T> @Nullable T findBean(String beanName, Class<T> clazz) {
+    try {
+      return beanFactory.getBean(beanName, clazz);
+    } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException ignore) {
+      // Ignore if the bean is not found or not of the required type
     }
     return null;
   }

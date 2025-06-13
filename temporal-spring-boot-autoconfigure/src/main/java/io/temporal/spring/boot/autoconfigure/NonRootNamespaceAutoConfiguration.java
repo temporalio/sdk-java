@@ -1,12 +1,9 @@
 package io.temporal.spring.boot.autoconfigure;
 
 import com.google.common.base.MoreObjects;
-import com.uber.m3.tally.Scope;
-import io.opentracing.Tracer;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
-import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
 import java.util.List;
 import java.util.Optional;
@@ -15,8 +12,6 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -36,27 +31,21 @@ import org.springframework.context.event.ContextRefreshedEvent;
 @AutoConfigureAfter({RootNamespaceAutoConfiguration.class, ServiceStubsAutoConfiguration.class})
 @ConditionalOnBean(ServiceStubsAutoConfiguration.class)
 @ConditionalOnExpression(
-    "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
+    "(${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0) && ('${spring.temporal.namespaces:}'.length() > 0)")
 public class NonRootNamespaceAutoConfiguration {
 
   protected static final Logger log =
       LoggerFactory.getLogger(NonRootNamespaceAutoConfiguration.class);
 
   @Bean
-  public NonRootBeanPostProcessor nonRootBeanPostProcessor(
-      TemporalProperties properties,
-      @Autowired(required = false) @Nullable Tracer otTracer,
-      @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable
-          Scope metricsScope) {
-    return new NonRootBeanPostProcessor(
-        properties, otTracer, testWorkflowEnvironment, metricsScope);
+  public static NonRootBeanPostProcessor nonRootBeanPostProcessor(
+      @Lazy TemporalProperties properties) {
+    return new NonRootBeanPostProcessor(properties);
   }
 
   @Bean
-  public NonRootNamespaceEventListener nonRootNamespaceEventListener(
-      TemporalProperties temporalProperties,
+  public static NonRootNamespaceEventListener nonRootNamespaceEventListener(
+      @Lazy TemporalProperties temporalProperties,
       @Nullable @Lazy List<WorkersTemplate> workersTemplates) {
     return new NonRootNamespaceEventListener(temporalProperties, workersTemplates);
   }
