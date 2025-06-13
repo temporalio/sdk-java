@@ -730,17 +730,17 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     private final HashMap<String, RegisteredNexusServiceInfo> registeredNexusServiceInfos =
         new HashMap<>();
 
-    private RegisteredInfo addActivityInfo(RegisteredActivityInfo activityInfo) {
+    public RegisteredInfo addActivityInfo(RegisteredActivityInfo activityInfo) {
       registeredActivityInfo.put(activityInfo.getBeanName(), activityInfo);
       return this;
     }
 
-    private RegisteredInfo addNexusServiceInfo(RegisteredNexusServiceInfo nexusServiceInfo) {
+    public RegisteredInfo addNexusServiceInfo(RegisteredNexusServiceInfo nexusServiceInfo) {
       registeredNexusServiceInfos.put(nexusServiceInfo.getBeanName(), nexusServiceInfo);
       return this;
     }
 
-    private RegisteredInfo addWorkflowInfo(RegisteredWorkflowInfo workflowInfo) {
+    public RegisteredInfo addWorkflowInfo(RegisteredWorkflowInfo workflowInfo) {
       registeredWorkflowInfo.put(workflowInfo.getImplementationClass(), workflowInfo);
       return this;
     }
