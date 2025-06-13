@@ -20,6 +20,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ApplicationContextEvent;
@@ -30,8 +31,9 @@ import org.springframework.context.event.ContextRefreshedEvent;
 @EnableConfigurationProperties(TemporalProperties.class)
 @AutoConfigureAfter({RootNamespaceAutoConfiguration.class, ServiceStubsAutoConfiguration.class})
 @ConditionalOnBean(ServiceStubsAutoConfiguration.class)
+@Conditional(NamespacesPresentCondition.class)
 @ConditionalOnExpression(
-    "(${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0) && ('${spring.temporal.namespaces:}'.length() > 0)")
+    "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class NonRootNamespaceAutoConfiguration {
 
   protected static final Logger log =

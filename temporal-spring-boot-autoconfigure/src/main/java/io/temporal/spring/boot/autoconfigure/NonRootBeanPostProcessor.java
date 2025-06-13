@@ -61,10 +61,12 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     if (bean instanceof NamespaceTemplate && beanName.equals("temporalRootNamespaceTemplate")) {
       if (namespaceProperties != null) {
         // If there are non-root namespaces, we need to inject beans for each of them. Look
-        // up the bean manually instead of using @Autowired to avoid circular dependencies or causing the dependency to
+        // up the bean manually instead of using @Autowired to avoid circular dependencies or
+        // causing the dependency to
         // get initialized to early and skip post-processing.
         //
-        // Note: We don't use @Lazy here because these dependencies are optional and @Lazy doesn't interact well with
+        // Note: We don't use @Lazy here because these dependencies are optional and @Lazy doesn't
+        // interact well with
         // optional dependencies.
         metricsScope = findBean("temporalMetricsScope", Scope.class);
         tracer = findBean(Tracer.class);
