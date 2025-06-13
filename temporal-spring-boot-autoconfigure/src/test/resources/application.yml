@@ -71,6 +71,23 @@ spring:
     workers-auto-discovery:
       packages:
         - io.temporal.spring.boot.autoconfigure.byworkername
+        -
+---
+spring:
+  config:
+    activate:
+      on-profile: auto-discovery-and-explicit-with-duplicate
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        workflow-classes:
+          - io.temporal.spring.boot.autoconfigure.byworkername.TestWorkflowImpl
+        activity-beans:
+          - TestActivityImpl
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.byworkername
 
 ---
 spring:

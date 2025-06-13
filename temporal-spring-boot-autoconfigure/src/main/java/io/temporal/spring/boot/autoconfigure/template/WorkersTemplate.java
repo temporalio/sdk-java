@@ -409,6 +409,17 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       String byWorkerName,
       Workers workers) {
     try {
+      if (registeredInfo.containsKey(worker.getTaskQueue())
+          && registeredInfo.get(worker.getTaskQueue()).isActivityRegistered(beanName)) {
+        if (log.isInfoEnabled()) {
+          log.debug(
+              "Activity bean {} is already registered on a worker {} with a task queue '{}'",
+              beanName,
+              byWorkerName != null ? "'" + byWorkerName + "' " : "",
+              worker.getTaskQueue());
+        }
+        return; // already registered
+      }
       worker.registerActivitiesImplementations(bean);
       POJOActivityImplMetadata activityImplMetadata =
           POJOActivityImplMetadata.newInstance(AopUtils.getTargetClass(bean));
@@ -446,6 +457,17 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       String byWorkerName,
       Workers workers) {
     try {
+      if (registeredInfo.containsKey(worker.getTaskQueue())
+          && registeredInfo.get(worker.getTaskQueue()).isNexusServiceRegistered(beanName)) {
+        if (log.isInfoEnabled()) {
+          log.debug(
+              "Nexus service bean {} is already registered on a worker {} with a task queue '{}'",
+              beanName,
+              byWorkerName != null ? "'" + byWorkerName + "' " : "",
+              worker.getTaskQueue());
+        }
+        return; // already registered
+      }
       worker.registerNexusServiceImplementation(bean);
       addRegisteredNexusServiceImpl(
           worker,
@@ -480,10 +502,21 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private void configureWorkflowImplementationAutoDiscovery(
       Worker worker, Class<?> clazz, String byWorkerName, Workers workers) {
     try {
+      if (registeredInfo.containsKey(worker.getTaskQueue())
+          && registeredInfo.get(worker.getTaskQueue()).isWorkflowRegistered(clazz)) {
+        if (log.isInfoEnabled()) {
+          log.debug(
+              "Workflow class {} is already registered on a worker {} with a task queue '{}'",
+              clazz,
+              byWorkerName != null ? "'" + byWorkerName + "' " : "",
+              worker.getTaskQueue());
+        }
+        return; // already registered
+      }
       configureWorkflowImplementation(worker, clazz);
       if (log.isInfoEnabled()) {
         log.info(
-            "Registering auto-discovered workflow class {} on a worker {}with a task queue '{}'",
+            "Registering auto-discovered workflow class {} on a worker {} with a task queue '{}'",
             clazz,
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
             worker.getTaskQueue());
@@ -494,7 +527,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       }
       if (log.isInfoEnabled()) {
         log.info(
-            "Skip registering of auto-discovered workflow class {} on a worker {}with a task queue '{}' "
+            "Skipping registering of auto-discovered workflow class {} on a worker {} with a task queue '{}' "
                 + "as workflow type '{}' is already registered on the worker",
             clazz,
             byWorkerName != null ? "'" + byWorkerName + "' " : "",
@@ -605,7 +638,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           },
           workflowImplementationOptions);
       addRegisteredWorkflowImpl(
-          worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
+          worker, clazz, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
     } else {
       for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
         if (deploymentOptions != null && deploymentOptions.isUsingVersioning()) {
@@ -623,7 +656,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             () -> (T) beanFactory.createBean(clazz),
             workflowImplementationOptions);
         addRegisteredWorkflowImpl(
-            worker, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
+            worker, clazz, workflowMethod.getWorkflowInterface().getName(), workflowMetadata);
       }
     }
   }
@@ -658,97 +691,82 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   }
 
   private void addRegisteredWorkflowImpl(
-      Worker worker, String workflowClass, POJOWorkflowImplMetadata metadata) {
-    if (!registeredInfo.containsKey(worker.getTaskQueue())) {
-      registeredInfo.put(
-          worker.getTaskQueue(),
-          new RegisteredInfo()
-              .addWorkflowInfo(
-                  new RegisteredWorkflowInfo().addClassName(workflowClass).addMetadata(metadata)));
-    } else {
-      registeredInfo
-          .get(worker.getTaskQueue())
-          .getRegisteredWorkflowInfo()
-          .add(new RegisteredWorkflowInfo().addClassName(workflowClass).addMetadata(metadata));
-    }
+      Worker worker, Class<?> clazz, String workflowClass, POJOWorkflowImplMetadata metadata) {
+    registeredInfo
+        .computeIfAbsent(worker.getTaskQueue(), (k) -> new RegisteredInfo())
+        .addWorkflowInfo(
+            new RegisteredWorkflowInfo()
+                .addImplementationClass(clazz)
+                .addClassName(workflowClass)
+                .addMetadata(metadata));
   }
 
   private void addRegisteredActivityImpl(
       Worker worker, String beanName, String beanClass, POJOActivityImplMetadata metadata) {
-    if (!registeredInfo.containsKey(worker.getTaskQueue())) {
-      registeredInfo.put(
-          worker.getTaskQueue(),
-          new RegisteredInfo()
-              .addActivityInfo(
-                  new RegisteredActivityInfo()
-                      .addBeanName(beanName)
-                      .addClassName(beanClass)
-                      .addMetadata(metadata)));
-    } else {
-      registeredInfo
-          .get(worker.getTaskQueue())
-          .getRegisteredActivityInfo()
-          .add(
-              new RegisteredActivityInfo()
-                  .addBeanName(beanName)
-                  .addClassName(beanClass)
-                  .addMetadata(metadata));
-    }
+    registeredInfo
+        .computeIfAbsent(worker.getTaskQueue(), (k) -> new RegisteredInfo())
+        .addActivityInfo(
+            new RegisteredActivityInfo()
+                .addBeanName(beanName)
+                .addClassName(beanClass)
+                .addMetadata(metadata));
   }
 
   private void addRegisteredNexusServiceImpl(
       Worker worker, String beanName, String beanClass, ServiceDefinition serviceDefinition) {
-    if (!registeredInfo.containsKey(worker.getTaskQueue())) {
-      registeredInfo.put(
-          worker.getTaskQueue(),
-          new RegisteredInfo()
-              .addNexusServiceInfo(
-                  new RegisteredNexusServiceInfo()
-                      .addBeanName(beanName)
-                      .addClassName(beanClass)
-                      .addDefinition(serviceDefinition)));
-    } else {
-      registeredInfo
-          .get(worker.getTaskQueue())
-          .getRegisteredNexusServiceInfos()
-          .add(
-              new RegisteredNexusServiceInfo()
-                  .addBeanName(beanName)
-                  .addClassName(beanClass)
-                  .addDefinition(serviceDefinition));
-    }
+    registeredInfo
+        .computeIfAbsent(worker.getTaskQueue(), (k) -> new RegisteredInfo())
+        .addNexusServiceInfo(
+            new RegisteredNexusServiceInfo()
+                .addBeanName(beanName)
+                .addClassName(beanClass)
+                .addDefinition(serviceDefinition));
   }
 
   public static class RegisteredInfo {
-    private final List<RegisteredActivityInfo> registeredActivityInfo = new ArrayList<>();
-    private final List<RegisteredWorkflowInfo> registeredWorkflowInfo = new ArrayList<>();
-    private final List<RegisteredNexusServiceInfo> registeredNexusServiceInfos = new ArrayList<>();
+    private final HashMap<Class<?>, RegisteredWorkflowInfo> registeredWorkflowInfo =
+        new HashMap<>();
+    private final HashMap<String, RegisteredActivityInfo> registeredActivityInfo = new HashMap<>();
+    private final HashMap<String, RegisteredNexusServiceInfo> registeredNexusServiceInfos =
+        new HashMap<>();
 
-    public RegisteredInfo addActivityInfo(RegisteredActivityInfo activityInfo) {
-      registeredActivityInfo.add(activityInfo);
+    private RegisteredInfo addActivityInfo(RegisteredActivityInfo activityInfo) {
+      registeredActivityInfo.put(activityInfo.getBeanName(), activityInfo);
       return this;
     }
 
-    public RegisteredInfo addNexusServiceInfo(RegisteredNexusServiceInfo nexusServiceInfo) {
-      registeredNexusServiceInfos.add(nexusServiceInfo);
+    private RegisteredInfo addNexusServiceInfo(RegisteredNexusServiceInfo nexusServiceInfo) {
+      registeredNexusServiceInfos.put(nexusServiceInfo.getBeanName(), nexusServiceInfo);
       return this;
     }
 
-    public RegisteredInfo addWorkflowInfo(RegisteredWorkflowInfo workflowInfo) {
-      registeredWorkflowInfo.add(workflowInfo);
+    private RegisteredInfo addWorkflowInfo(RegisteredWorkflowInfo workflowInfo) {
+      registeredWorkflowInfo.put(workflowInfo.getImplementationClass(), workflowInfo);
       return this;
+    }
+
+    public boolean isWorkflowRegistered(Class<?> workflowClass) {
+      return registeredWorkflowInfo.containsKey(workflowClass);
+    }
+
+    public boolean isActivityRegistered(String beanName) {
+      return registeredActivityInfo.containsKey(beanName);
+    }
+
+    public boolean isNexusServiceRegistered(String beanName) {
+      return registeredNexusServiceInfos.containsKey(beanName);
     }
 
     public List<RegisteredActivityInfo> getRegisteredActivityInfo() {
-      return registeredActivityInfo;
+      return new ArrayList<>(registeredActivityInfo.values());
     }
 
     public List<RegisteredWorkflowInfo> getRegisteredWorkflowInfo() {
-      return registeredWorkflowInfo;
+      return new ArrayList<>(registeredWorkflowInfo.values());
     }
 
     public List<RegisteredNexusServiceInfo> getRegisteredNexusServiceInfos() {
-      return registeredNexusServiceInfos;
+      return new ArrayList<>(registeredNexusServiceInfos.values());
     }
   }
 
@@ -822,11 +840,17 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
   @Experimental
   public static class RegisteredWorkflowInfo {
+    private Class<?> implementationClass;
     private String className;
     private POJOWorkflowImplMetadata metadata;
 
     public RegisteredWorkflowInfo addClassName(String className) {
       this.className = className;
+      return this;
+    }
+
+    public RegisteredWorkflowInfo addImplementationClass(Class<?> implementationClass) {
+      this.implementationClass = implementationClass;
       return this;
     }
 
@@ -841,6 +865,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
 
     public POJOWorkflowImplMetadata getMetadata() {
       return metadata;
+    }
+
+    public Class<?> getImplementationClass() {
+      return implementationClass;
     }
   }
 
