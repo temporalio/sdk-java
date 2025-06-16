@@ -36,6 +36,7 @@ public class MultiNamespaceTest {
   @Test
   @Timeout(value = 10)
   public void shouldContainsNonRootRelatedBean() {
+    Assertions.assertTrue(applicationContext.containsBean("nonRootBeanPostProcessor"));
     Assertions.assertTrue(applicationContext.containsBean("ns1NamespaceTemplate"));
     Assertions.assertTrue(applicationContext.containsBean("namespace2NamespaceTemplate"));
     Assertions.assertTrue(applicationContext.containsBean("ns1ClientTemplate"));
