@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.temporal</groupId>
+    <artifactId>temporal-workflowcheck-samples-maven</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.temporal</groupId>
+            <artifactId>temporal-sdk</artifactId>
+            <version>1.22.3</version>
+        </dependency>
+    </dependencies>
+
+    <!--
+    Setup the workflow check Maven repo built by 'gradle publish`. This isn't
+    normally here if using the non-local dependency.
+    -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>temporal-workflowcheck-repo</id>
+            <url>file://${project.basedir}/../../temporal-workflowcheck/build/repo</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <!--
+    Setup the workflowcheck execution
+    -->
+    <build>
+        <plugins>
+            <!--
+            We need the classpath to become a string for our use, so we store
+            in a classpath.txt in the build dir that we will read next
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>generate-classpath-file</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>build-classpath</goal>
+                        </goals>
+                        <configuration>
+                            <outputFile>${project.build.directory}/classpath.txt</outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+            Run workflowcheck using the filename to the classpath file
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.1</version>
+                <executions>
+                    <execution>
+                        <id>workflowcheck</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <mainClass>io.temporal.workflowcheck.Main</mainClass>
+                            <arguments>
+                                <argument>check</argument>
+                                <!--
+                                A file referencing the classpath and the compiled dir
+                                -->
+                                <argument>@${project.build.directory}/classpath.txt</argument>
+                                <argument>${project.build.outputDirectory}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.temporal</groupId>
+                        <artifactId>temporal-workflowcheck</artifactId>
+                        <version>1.0-SNAPSHOT</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
