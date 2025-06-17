@@ -554,6 +554,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return callback.result;
   }
 
+  @SuppressWarnings("deprecation")
   private ExecuteActivityParameters constructExecuteActivityParameters(
       String name, ActivityOptions options, Header header, Optional<Payloads> input) {
     String taskQueue = options.getTaskQueue();
