@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
@@ -18,6 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles(profiles = "disable-start-workers")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class StartWorkersTest {
+  @Autowired ConfigurableApplicationContext applicationContext;
 
   @Autowired TemporalProperties temporalProperties;
 
@@ -33,6 +36,7 @@ public class StartWorkersTest {
   @Timeout(value = 10)
   public void testWorkersStarted() {
     Worker worker = testWorkflowEnvironment.getWorkerFactory().getWorker("UnitTest");
+    Assertions.assertFalse(applicationContext.containsBean("nonRootBeanPostProcessor"));
     assertNotNull(worker);
     assertTrue(worker.isSuspended());
   }
