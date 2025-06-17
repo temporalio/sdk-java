@@ -41,7 +41,10 @@ public final class ActivityOptions {
     private List<ContextPropagator> contextPropagators;
     private ActivityCancellationType cancellationType;
     private boolean disableEagerExecution;
+
+    @SuppressWarnings("deprecation")
     private VersioningIntent versioningIntent;
+
     private String summary;
     private Priority priority;
 
@@ -219,7 +222,10 @@ public final class ActivityOptions {
     /**
      * Specifies whether this activity should run on a worker with a compatible Build Id or not. See
      * the variants of {@link VersioningIntent}.
+     *
+     * @deprecated Use Worker Deployments
      */
+    @Deprecated
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {
       this.versioningIntent = versioningIntent;
       return this;
@@ -249,6 +255,7 @@ public final class ActivityOptions {
       return this;
     }
 
+    @SuppressWarnings("deprecation")
     public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
@@ -309,6 +316,7 @@ public final class ActivityOptions {
           priority);
     }
 
+    @SuppressWarnings("deprecation")
     public ActivityOptions validateAndBuildWithDefaults() {
       return new ActivityOptions(
           heartbeatTimeout,
@@ -337,7 +345,10 @@ public final class ActivityOptions {
   private final List<ContextPropagator> contextPropagators;
   private final ActivityCancellationType cancellationType;
   private final boolean disableEagerExecution;
+
+  @SuppressWarnings("deprecation")
   private final VersioningIntent versioningIntent;
+
   private final String summary;
   private final Priority priority;
 
@@ -351,7 +362,7 @@ public final class ActivityOptions {
       List<ContextPropagator> contextPropagators,
       ActivityCancellationType cancellationType,
       boolean disableEagerExecution,
-      VersioningIntent versioningIntent,
+      @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
       String summary,
       Priority priority) {
     this.heartbeatTimeout = heartbeatTimeout;
@@ -430,7 +441,10 @@ public final class ActivityOptions {
 
   /**
    * @see ActivityOptions.Builder#setVersioningIntent(VersioningIntent)
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
+  @Deprecated
   public VersioningIntent getVersioningIntent() {
     return versioningIntent;
   }

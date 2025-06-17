@@ -4,6 +4,7 @@ package io.temporal.common;
  * Indicates whether the user intends certain commands to be run on a compatible worker Build Id
  * version or not.
  */
+@Deprecated
 public enum VersioningIntent {
   /**
    * Indicates that the SDK should choose the most sensible default behavior for the type of

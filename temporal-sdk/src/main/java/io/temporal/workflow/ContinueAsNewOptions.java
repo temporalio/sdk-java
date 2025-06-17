@@ -1,8 +1,6 @@
 package io.temporal.workflow;
 
-import io.temporal.common.RetryOptions;
-import io.temporal.common.SearchAttributes;
-import io.temporal.common.VersioningIntent;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
 import java.util.List;
@@ -43,6 +41,8 @@ public final class ContinueAsNewOptions {
     private Map<String, Object> searchAttributes;
     private SearchAttributes typedSearchAttributes;
     private List<ContextPropagator> contextPropagators;
+
+    @SuppressWarnings("deprecation")
     private VersioningIntent versioningIntent;
 
     private Builder() {}
@@ -121,7 +121,11 @@ public final class ContinueAsNewOptions {
     /**
      * Specifies whether this continued workflow should run on a worker with a compatible Build Id
      * or not. See the variants of {@link VersioningIntent}.
+     *
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
+    @Deprecated
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {
       this.versioningIntent = versioningIntent;
       return this;
@@ -149,6 +153,8 @@ public final class ContinueAsNewOptions {
   private final @Nullable Map<String, Object> searchAttributes;
   private final @Nullable SearchAttributes typedSearchAttributes;
   private final @Nullable List<ContextPropagator> contextPropagators;
+
+  @SuppressWarnings("deprecation")
   private final @Nullable VersioningIntent versioningIntent;
 
   public ContinueAsNewOptions(
@@ -160,7 +166,7 @@ public final class ContinueAsNewOptions {
       @Nullable Map<String, Object> searchAttributes,
       @Nullable SearchAttributes typedSearchAttributes,
       @Nullable List<ContextPropagator> contextPropagators,
-      @Nullable VersioningIntent versioningIntent) {
+      @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
@@ -209,6 +215,11 @@ public final class ContinueAsNewOptions {
     return contextPropagators;
   }
 
+  /**
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
+   */
+  @Deprecated
   public @Nullable VersioningIntent getVersioningIntent() {
     return versioningIntent;
   }

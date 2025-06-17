@@ -52,7 +52,10 @@ public final class ChildWorkflowOptions {
     private SearchAttributes typedSearchAttributes;
     private List<ContextPropagator> contextPropagators;
     private ChildWorkflowCancellationType cancellationType;
+
+    @SuppressWarnings("deprecation")
     private VersioningIntent versioningIntent;
+
     private String staticSummary;
     private String staticDetails;
     private Priority priority;
@@ -283,7 +286,11 @@ public final class ChildWorkflowOptions {
     /**
      * Specifies whether this child workflow should run on a worker with a compatible Build Id or
      * not. See the variants of {@link VersioningIntent}.
+     *
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
+    @Deprecated
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {
       this.versioningIntent = versioningIntent;
       return this;
@@ -347,6 +354,7 @@ public final class ChildWorkflowOptions {
           priority);
     }
 
+    @SuppressWarnings("deprecation")
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
       return new ChildWorkflowOptions(
           namespace,
@@ -390,7 +398,10 @@ public final class ChildWorkflowOptions {
   private final SearchAttributes typedSearchAttributes;
   private final List<ContextPropagator> contextPropagators;
   private final ChildWorkflowCancellationType cancellationType;
+
+  @SuppressWarnings("deprecation")
   private final VersioningIntent versioningIntent;
+
   private final String staticSummary;
   private final String staticDetails;
   private final Priority priority;
@@ -411,7 +422,7 @@ public final class ChildWorkflowOptions {
       SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
       ChildWorkflowCancellationType cancellationType,
-      VersioningIntent versioningIntent,
+      @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
       String staticSummary,
       String staticDetails,
       Priority priority) {
@@ -500,6 +511,11 @@ public final class ChildWorkflowOptions {
     return cancellationType;
   }
 
+  /**
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
+   */
+  @Deprecated
   public VersioningIntent getVersioningIntent() {
     return versioningIntent;
   }
