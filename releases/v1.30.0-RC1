@@ -1,0 +1,81 @@
+# **💥 BREAKING CHANGES**
+
+## Workflow Metadata **(Public Preview)**
+
+The built in  `__temporal_workflow_metadata`  query now uses `io.temporal.common.converter.RawValue`  for the `return type. This should help address issues where users data converters could not properly convert the `WorkflowMetadata` protobuf type. If you are using a custom data converter that does not support `RawValue`  you will need to update it to support this type.
+
+Note: The built in Temporal `DefaultDataConverter` already supports `RawValue`  and does not require any changes.
+
+## Nexus
+
+When an `ApplicationFailure` is returned from a Nexus operation handler the SDK will now translate it into an `INTERNAL` non-retryable error. Previously it was translated to a `BAD_REQUEST` error. This is to align with the behavior of Nexus operations in other SDKs.
+
+# **Highlights**
+
+### Nexus Operation Cancellation Types (Pre-release)
+
+Users can now specify the cancellation type when cancelling a Nexus operations from a workflow. This allows for more granular control over how Nexus operations are cancelled, and how the caller is notified of the cancellation.
+
+### Springboot (Pre-release)
+
+Temporal Java SDK Springboot integration now automatically registers Temporal interceptors. Interceptors will be registered in the order specified by the `@Order` annotation.
+
+### Automatic Poller Scaling (Pre-release)
+
+Users can now configure Workers to automatically scale the number of concurrent polls they make. To enable use `setWorkflowTaskPollersBehavior`, `setNexusTaskPollersBehavior`, and `setActivityTaskPollersBehavior` arguments of the `WorkerOptions.Builder` constructor to `PollerBehaviorAutoscaling`. You can expect fewer unnecessary polls during low load, and increased polls during high load when they can be used to increase task throughput.
+
+# What's Changed
+
+2025-04-21 - afb01831 - ARM64 build for Test Server (#2448)
+2025-04-23 - 08d60898 - Remove old workflow run operation token format (#2486)
+2025-04-23 - 0f9813c1 - Handle async completion in TestActivityEnvironment (#2487)
+2025-04-24 - 28077712 - Warn if root thread yields (#2483)
+2025-04-24 - 620eeaf1 - Update contrib (#2489)
+2025-04-25 - 74601564 - Add application err category (#2485)
+2025-04-29 - 3c9e819a - Add RawValue support (#2492)
+2025-04-30 - 04fe25ac - Fix NPE getting a non existent memo from a schedule. (#2497)
+2025-04-30 - f6d4d466 - Make sure user metadata is set on WorkflowExecutionStartedEvent (#2496)
+2025-05-01 - 537d99d2 - Add ApplicationFailure.Builder (#2495)
+2025-05-02 - 1feb16fa - Remove license in file (#2505)
+2025-05-02 - 2e1c89e1 - Add support for dynamics workflows to Springboot (#2506)
+2025-05-05 - 0d539ffc - Support WorkflowImplementationOptionsCustomizer (#2503)
+2025-05-05 - 0e8ac356 - Make @Profile annotation work (#2501)
+2025-05-05 - 8fbb0683 - Add interceptor support to springboot integration (#2500)
+2025-05-06 - 7a093846 - Update proto v1.49.0 (#2510)
+2025-05-07 - 4da87cc3 - Spring boot: fail creation if duplicate definitions detected (#2511)
+2025-05-07 - e5bb3a54 - Bump edge Java SDK test version (#2507)
+2025-05-08 - e7a7f0c3 - Set links in Nexus callback (#2513)
+2025-05-09 - 6c961a0a - Make CancellationScopeImpl more deterministic (#2512)
+2025-05-13 - b7c72a28 - Add num_pollers metric (#2514)
+2025-05-14 - 076f9819 - Add test coverage for starting a child workflow from a cancelled work… (#2516)
+2025-05-14 - 3f294e17 - Remove license check from contrib (#2522)
+2025-05-14 - 58a42000 - RequestIdInfo and links changes in test server (#2515)
+2025-05-14 - 70465938 - Add test coverage for cancellation of external workflow (#2517)
+2025-05-14 - b9458fc3 - Wire reason parameter in workflow cancellation request (#2519)
+2025-05-14 - e8d9fdaa - Add API to count workflows (#2518)
+2025-05-15 - d01c85b1 - Add AGENTS.md (#2527)
+2025-05-16 - 437c6126 - Fix Workflow.getWorkflowExecution for ExternalWorkflowStub (#2529)
+2025-05-16 - 95314a23 - Versioning Override support (#2530)
+2025-05-16 - e793db83 - Make asyncThrottlerExecutor use a daemon thread (#2528)
+2025-05-26 - 2d9b9063 - Fix newExternalWorkflowStub on a interfaces without a WorkflowMethod (#2531)
+2025-05-26 - f45c9470 - Cancel pending heartbeat when activity completes (#2526)
+2025-05-27 - 0b885071 - Bump some proto dep. (#2536)
+2025-05-27 - 5d64818a - Fix javadoc for ActivityExecutionContext.getHeartbeatDetails​ (#2525)
+2025-05-28 - 44d9abe9 - Set TemporalChangeVersion when workflow version is updated (#2464)
+2025-05-28 - 8613b18b - Fix nexus error translation (#2539)
+2025-06-02 - cea73d3f - Add support for calling `Workflow.getInfo` from query handler (#2541)
+2025-06-03 - ed2b8cc0 - Add an interceptor for listExecutions (#2524)
+2025-06-04 - 35386dae - Clear MDC context after each task (#2545)
+2025-06-04 - dc1e26db - Update cloud ops apis to the latest (#2544)
+2025-06-09 - 402392ce - Use link from start workflow request for Nexus operations (#2547)
+2025-06-10 - 02683902 - __temporal_workflow_metadata query responses should use "RawValue" (#2551)
+2025-06-10 - 746d3c31 - Issue #2057: parsing workflow id from WorkflowExecutionStartedEventAttributes (#2542)
+2025-06-11 - 4f313bb5 - Add poller autoscaling (#2535)
+2025-06-11 - bdc94f79 - Add native build to CI and MUSL build (#2490)
+2025-06-12 - 5978835f - Set deploymentOptions on other types of poll requests (#2555)
+2025-06-12 - a25f6ba5 - Fix ignoreDuplicateDefinitions to log only if we are ignoring (#2553)
+2025-06-12 - b581ede5 - Add poller autoscaling options for Springboot (#2554)
+2025-06-12 - e7e3fa6e - Implement Nexus operation cancellation types (#2520)
+2025-06-13 - 231c7242 - Don't fail Springboot if a bean is specified twice (#2558)
+2025-06-17 - 46866913 - Fix some dependency issues with NonRootBeanPostProcessor (#2556)
+2025-06-17 - a1208870 - Deprecate VersioningIntent (#2561)
