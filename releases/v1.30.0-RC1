@@ -2,7 +2,7 @@
 
 ## Workflow Metadata **(Public Preview)**
 
-The built in  `__temporal_workflow_metadata`  query now uses `io.temporal.common.converter.RawValue`  for the `return type. This should help address issues where users data converters could not properly convert the `WorkflowMetadata` protobuf type. If you are using a custom data converter that does not support `RawValue`  you will need to update it to support this type.
+The built in  `__temporal_workflow_metadata`  query now uses `io.temporal.common.converter.RawValue`  for the return type. This should help address issues where users data converters could not properly convert the `WorkflowMetadata` protobuf type. If you are using a custom data converter that does not support `RawValue`  you will need to update it to support this type.
 
 Note: The built in Temporal `DefaultDataConverter` already supports `RawValue`  and does not require any changes.
 
