@@ -101,7 +101,7 @@ jobs:
             sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
-        if: ${{ inputs.upload_artifact == 'true'}}
+        if: ${{ inputs.upload_artifact }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)}}
