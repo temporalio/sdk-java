@@ -199,5 +199,4 @@ jobs:
     name: Build native test server
     uses: ./.github/workflows/build-native-image.yml
     with:
-      upload_artifact: true
       ref: ${{ github.event.pull_request.head.sha }}
