@@ -1,5 +1,6 @@
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /**
@@ -9,6 +10,7 @@ import java.util.Objects;
  * <p>If the server does not support autoscaling, then the number of pollers will stay at the
  * initial number of pollers.
  */
+@Experimental
 public final class PollerBehaviorAutoscaling implements PollerBehavior {
   private final int minConcurrentTaskPollers;
   private final int maxConcurrentTaskPollers;
