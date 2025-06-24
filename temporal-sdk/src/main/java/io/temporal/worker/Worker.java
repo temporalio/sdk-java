@@ -616,12 +616,22 @@ public final class Worker {
       maxConcurrentWorkflowTaskPollers = 2;
     }
 
+    PollerBehavior pollerBehavior = options.getWorkflowTaskPollersBehavior();
+    if (pollerBehavior instanceof PollerBehaviorSimpleMaximum) {
+      if (((PollerBehaviorSimpleMaximum) pollerBehavior).getMaxConcurrentTaskPollers() == 1) {
+        log.warn(
+            "WorkerOptions.Builder#setWorkflowTaskPollersBehavior was set to {}. This is an illegal value. The number of Workflow Task Pollers is forced to 2. See documentation on WorkerOptions.Builder#setWorkflowTaskPollersBehavior",
+            pollerBehavior);
+        pollerBehavior = new PollerBehaviorSimpleMaximum(2);
+      }
+    }
+
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
-                    options.getWorkflowTaskPollersBehavior() != null
-                        ? options.getWorkflowTaskPollersBehavior()
+                    pollerBehavior != null
+                        ? pollerBehavior
                         : new PollerBehaviorSimpleMaximum(maxConcurrentWorkflowTaskPollers))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnWorkflowWorker())
                 .build())

@@ -1,5 +1,7 @@
 package io.temporal.worker.tuning;
 
+import io.temporal.common.Experimental;
+
 /**
  * Defines the behavior of a poller.
  *
@@ -8,4 +10,5 @@ package io.temporal.worker.tuning;
  * PollerBehaviorSimpleMaximum}. For all intents and purpose this interface should be considered
  * sealed.
  */
+@Experimental
 public interface PollerBehavior {}

@@ -496,6 +496,10 @@ public final class WorkerOptions {
     /**
      * Set the poller behavior for workflow task pollers.
      *
+     * <p>Note: If the poller behavior is set to {@link PollerBehaviorSimpleMaximum}, the maximum
+     * number of concurrent workflow task pollers must be at least 2 to account for the sticky and
+     * non-sticky task poller. If it is set to 1 it will be automatically adjusted to 2.
+     *
      * <p>If the sticky queue is enabled, the poller behavior will be used for the sticky queue as
      * well.
      */
@@ -866,34 +870,42 @@ public final class WorkerOptions {
     return identity;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnWorkflowWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnActivityWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnLocalActivityWorker() {
     return usingVirtualThreadsOnLocalActivityWorker;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnNexusWorker() {
     return usingVirtualThreadsOnNexusWorker;
   }
 
+  @Experimental
   public WorkerDeploymentOptions getDeploymentOptions() {
     return deploymentOptions;
   }
 
+  @Experimental
   public PollerBehavior getWorkflowTaskPollersBehavior() {
     return workflowTaskPollersBehavior;
   }
 
+  @Experimental
   public PollerBehavior getActivityTaskPollersBehavior() {
     return activityTaskPollersBehavior;
   }
 
+  @Experimental
   public PollerBehavior getNexusTaskPollersBehavior() {
     return nexusTaskPollersBehavior;
   }
