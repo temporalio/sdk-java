@@ -200,3 +200,4 @@ jobs:
     uses: ./.github/workflows/build-native-image.yml
     with:
       ref: ${{ github.event.pull_request.head.sha }}
+      upload_artifact: true
