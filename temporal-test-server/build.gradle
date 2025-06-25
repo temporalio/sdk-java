@@ -128,6 +128,7 @@ if (project.hasProperty("nativeBuild")) {
                 }
                 buildArgs.add("-H:+UnlockExperimentalVMOptions")
                 buildArgs.add("-Os")
+                buildArgs.add("-march=compatibility")
 
                 runtimeArgs.add("7233")
             }
