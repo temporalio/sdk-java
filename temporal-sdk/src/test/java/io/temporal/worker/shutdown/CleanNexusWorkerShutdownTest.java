@@ -47,7 +47,7 @@ public class CleanNexusWorkerShutdownTest {
   public static Collection<PollerBehavior> data() {
     return Arrays.asList(
         new PollerBehavior[] {
-          new PollerBehaviorSimpleMaximum(10), new PollerBehaviorAutoscaling(1, 10, 5),
+          new PollerBehaviorSimpleMaximum(10), new PollerBehaviorAutoscaling(),
         });
   }
 

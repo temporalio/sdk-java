@@ -17,6 +17,19 @@ public final class PollerBehaviorAutoscaling implements PollerBehavior {
   private final int initialConcurrentTaskPollers;
 
   /**
+   * Creates a new PollerBehaviorAutoscaling with default parameters.
+   *
+   * <p> Default parameters are:
+   * <ul>
+   *     <li>minConcurrentTaskPollers = 1</li>
+   *     <li>maxConcurrentTaskPollers = 100</li>
+   *     <li>initialConcurrentTaskPollers = 5</li>
+   */
+  public PollerBehaviorAutoscaling() {
+    this(1, 100, 5);
+  }
+
+  /**
    * Creates a new PollerBehaviorAutoscaling with the specified parameters.
    *
    * @param minConcurrentTaskPollers Minimum number of concurrent task pollers.
