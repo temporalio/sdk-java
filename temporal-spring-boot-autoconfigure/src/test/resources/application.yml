@@ -115,13 +115,14 @@ spring:
           max-concurrent-nexus-task-executors: 1
           max-concurrent-activity-executors: 1
           max-concurrent-local-activity-executors: 1
-          max-concurrent-activity-task-pollers: 1
           max-concurrent-nexus-task-pollers: 1
           workflow-task-pollers-configuration:
             poller-behavior-autoscaling:
               min-concurrent-task-pollers: 1
               max-concurrent-task-pollers: 10
-              initial-concurrent-task-pollers: 5
+          activity-task-pollers-configuration:
+            poller-behavior-autoscaling:
+              enabled: true
         rate-limits:
           max-worker-activities-per-second: 1.0
           max-task-queue-activities-per-second: 1.0

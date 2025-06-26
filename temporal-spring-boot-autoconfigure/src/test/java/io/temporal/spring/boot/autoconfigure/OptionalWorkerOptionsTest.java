@@ -114,11 +114,23 @@ public class OptionalWorkerOptionsTest {
                 "Values from the Spring Config should be respected");
             assertEquals(
                 5,
-                autoscaling.getInitialMaxConcurrentTaskPollers(),
+                autoscaling.getInitialConcurrentTaskPollers(),
                 "Values from the Spring Config should be respected");
+            assertNotNull(options.getActivityTaskPollersBehavior());
+            assertInstanceOf(
+                PollerBehaviorAutoscaling.class, options.getActivityTaskPollersBehavior());
+            autoscaling = (PollerBehaviorAutoscaling) options.getActivityTaskPollersBehavior();
             assertEquals(
                 1,
-                options.getMaxConcurrentActivityTaskPollers(),
+                autoscaling.getMinConcurrentTaskPollers(),
+                "Values from the Spring Config should be respected");
+            assertEquals(
+                100,
+                autoscaling.getMaxConcurrentTaskPollers(),
+                "Values from the Spring Config should be respected");
+            assertEquals(
+                5,
+                autoscaling.getInitialConcurrentTaskPollers(),
                 "Values from the Spring Config should be respected");
             assertEquals(
                 1,
