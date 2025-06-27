@@ -52,7 +52,7 @@ We'd love your help in improving the Temporal Java SDK. Please review our [contr
 
 We also publish snapshot releases during SDK development often under the version `1.x.0-SNAPSHOT`. This allows users to test out new SDK features before an official SDK release.
 
-[Snapshot releases](https://oss.sonatype.org/content/repositories/snapshots/io/temporal/temporal-sdk/) Find the latest snapsphot release.
+[Snapshot releases](https://central.sonatype.com/service/rest/repository/browse/maven-snapshots/io/temporal/) Find the latest snapsphot release.
 
 To add Sonatype snapshot repository to your *pom.xml*:
 
@@ -60,7 +60,7 @@ To add Sonatype snapshot repository to your *pom.xml*:
         <repository>
             <id>oss-sonatype</id>
             <name>oss-sonatype</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
@@ -71,7 +71,7 @@ Or to *build.gradle*:
 
     repositories {
         maven {
-            url "https://oss.sonatype.org/content/repositories/snapshots/"
+            url "https://central.sonatype.com/repository/maven-snapshots/"
         }
       ...
     }
