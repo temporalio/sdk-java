@@ -12,11 +12,16 @@ public class PollScaleReportHandleTest {
   public void handleResourceExhaustedError() {
     // Mock dependencies
     Functions.Proc1<Integer> mockScaleCallback = Mockito.mock(Functions.Proc1.class);
+    ScalingTask mockTask = Mockito.mock(ScalingTask.class);
+    ScalingTask.ScalingDecision mockDecision = Mockito.mock(ScalingTask.ScalingDecision.class);
+    Mockito.when(mockTask.getScalingDecision()).thenReturn(mockDecision);
+    Mockito.when(mockDecision.getPollRequestDeltaSuggestion()).thenReturn(0);
     PollScaleReportHandle<ScalingTask> handle =
         new PollScaleReportHandle<>(1, 10, 8, mockScaleCallback);
 
     // Simulate RESOURCE_EXHAUSTED error
     StatusRuntimeException exception = new StatusRuntimeException(Status.RESOURCE_EXHAUSTED);
+    handle.report(mockTask, null);
     handle.report(null, exception);
 
     // Verify target poller count is halved and callback is invoked
@@ -27,10 +32,15 @@ public class PollScaleReportHandleTest {
   public void handleGenericError() {
     // Mock dependencies
     Functions.Proc1<Integer> mockScaleCallback = Mockito.mock(Functions.Proc1.class);
+    ScalingTask mockTask = Mockito.mock(ScalingTask.class);
+    ScalingTask.ScalingDecision mockDecision = Mockito.mock(ScalingTask.ScalingDecision.class);
+    Mockito.when(mockTask.getScalingDecision()).thenReturn(mockDecision);
+    Mockito.when(mockDecision.getPollRequestDeltaSuggestion()).thenReturn(0);
     PollScaleReportHandle<ScalingTask> handle =
         new PollScaleReportHandle<>(1, 10, 5, mockScaleCallback);
 
     // Simulate a generic error
+    handle.report(mockTask, null);
     handle.report(null, new RuntimeException("Generic error"));
 
     // Verify target poller count is decremented and callback is invoked
