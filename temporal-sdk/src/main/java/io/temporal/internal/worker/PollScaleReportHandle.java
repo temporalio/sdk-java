@@ -36,6 +36,11 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
 
   public synchronized void report(T task, Throwable e) {
     if (e != null) {
+      // We want to avoid scaling down on errors if we have never seen a scaling decision
+      // since we might never scale up again.
+      if (!everSawScalingDecision) {
+        return;
+      }
       if ((e instanceof StatusRuntimeException)) {
         StatusRuntimeException statusRuntimeException = (StatusRuntimeException) e;
         if (statusRuntimeException.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
