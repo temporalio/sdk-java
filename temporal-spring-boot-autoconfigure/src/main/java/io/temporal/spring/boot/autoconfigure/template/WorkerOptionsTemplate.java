@@ -92,51 +92,50 @@ class WorkerOptionsTemplate {
                     pollerBehaviorAutoscaling.getInitialConcurrentTaskPollers()));
           }
         }
+      }
 
-        WorkerProperties.RateLimitsConfigurationProperties rateLimitConfiguration =
-            workerProperties.getRateLimits();
-        if (rateLimitConfiguration != null) {
-          Optional.ofNullable(rateLimitConfiguration.getMaxWorkerActivitiesPerSecond())
-              .ifPresent(options::setMaxWorkerActivitiesPerSecond);
-          Optional.ofNullable(rateLimitConfiguration.getMaxTaskQueueActivitiesPerSecond())
-              .ifPresent(options::setMaxTaskQueueActivitiesPerSecond);
-        }
+      WorkerProperties.RateLimitsConfigurationProperties rateLimitConfiguration =
+          workerProperties.getRateLimits();
+      if (rateLimitConfiguration != null) {
+        Optional.ofNullable(rateLimitConfiguration.getMaxWorkerActivitiesPerSecond())
+            .ifPresent(options::setMaxWorkerActivitiesPerSecond);
+        Optional.ofNullable(rateLimitConfiguration.getMaxTaskQueueActivitiesPerSecond())
+            .ifPresent(options::setMaxTaskQueueActivitiesPerSecond);
+      }
 
-        WorkerProperties.BuildIdConfigurationProperties buildIdConfigurations =
-            workerProperties.getBuildId();
-        if (buildIdConfigurations != null) {
-          Optional.ofNullable(buildIdConfigurations.getWorkerBuildId())
-              .ifPresent(options::setBuildId);
-          options.setUseBuildIdForVersioning(buildIdConfigurations.getEnabledWorkerVersioning());
-        }
+      WorkerProperties.BuildIdConfigurationProperties buildIdConfigurations =
+          workerProperties.getBuildId();
+      if (buildIdConfigurations != null) {
+        Optional.ofNullable(buildIdConfigurations.getWorkerBuildId())
+            .ifPresent(options::setBuildId);
+        options.setUseBuildIdForVersioning(buildIdConfigurations.getEnabledWorkerVersioning());
+      }
 
-        WorkerProperties.VirtualThreadConfigurationProperties virtualThreadConfiguration =
-            workerProperties.getVirtualThreads();
-        if (virtualThreadConfiguration != null) {
-          Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreads())
-              .ifPresent(options::setUsingVirtualThreads);
-          Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnWorkflowWorker())
-              .ifPresent(options::setUsingVirtualThreadsOnWorkflowWorker);
-          Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnActivityWorker())
-              .ifPresent(options::setUsingVirtualThreadsOnActivityWorker);
-          Optional.ofNullable(
-                  virtualThreadConfiguration.isUsingVirtualThreadsOnLocalActivityWorker())
-              .ifPresent(options::setUsingVirtualThreadsOnLocalActivityWorker);
-          Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnNexusWorker())
-              .ifPresent(options::setUsingVirtualThreadsOnNexusWorker);
-        }
-        WorkerProperties.WorkerDeploymentConfigurationProperties workerDeploymentConfiguration =
-            workerProperties.getDeploymentProperties();
-        if (workerDeploymentConfiguration != null) {
-          WorkerDeploymentOptions.Builder opts = WorkerDeploymentOptions.newBuilder();
-          Optional.ofNullable(workerDeploymentConfiguration.getUseVersioning())
-              .ifPresent(opts::setUseVersioning);
-          Optional.ofNullable(workerDeploymentConfiguration.getDeploymentVersion())
-              .ifPresent((v) -> opts.setVersion(WorkerDeploymentVersion.fromCanonicalString(v)));
-          Optional.ofNullable(workerDeploymentConfiguration.getDefaultVersioningBehavior())
-              .ifPresent(opts::setDefaultVersioningBehavior);
-          options.setDeploymentOptions(opts.build());
-        }
+      WorkerProperties.VirtualThreadConfigurationProperties virtualThreadConfiguration =
+          workerProperties.getVirtualThreads();
+      if (virtualThreadConfiguration != null) {
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreads())
+            .ifPresent(options::setUsingVirtualThreads);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnWorkflowWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnWorkflowWorker);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnActivityWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnActivityWorker);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnLocalActivityWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnLocalActivityWorker);
+        Optional.ofNullable(virtualThreadConfiguration.isUsingVirtualThreadsOnNexusWorker())
+            .ifPresent(options::setUsingVirtualThreadsOnNexusWorker);
+      }
+      WorkerProperties.WorkerDeploymentConfigurationProperties workerDeploymentConfiguration =
+          workerProperties.getDeploymentProperties();
+      if (workerDeploymentConfiguration != null) {
+        WorkerDeploymentOptions.Builder opts = WorkerDeploymentOptions.newBuilder();
+        Optional.ofNullable(workerDeploymentConfiguration.getUseVersioning())
+            .ifPresent(opts::setUseVersioning);
+        Optional.ofNullable(workerDeploymentConfiguration.getDeploymentVersion())
+            .ifPresent((v) -> opts.setVersion(WorkerDeploymentVersion.fromCanonicalString(v)));
+        Optional.ofNullable(workerDeploymentConfiguration.getDefaultVersioningBehavior())
+            .ifPresent(opts::setDefaultVersioningBehavior);
+        options.setDeploymentOptions(opts.build());
       }
     }
 
