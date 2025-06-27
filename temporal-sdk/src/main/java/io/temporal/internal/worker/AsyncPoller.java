@@ -103,12 +103,12 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
     for (PollTaskAsync<T> asyncTaskPoller : asyncTaskPollers) {
       log.info("Starting async poller: {}", asyncTaskPoller.getLabel());
       AdjustableSemaphore pollerSemaphore =
-          new AdjustableSemaphore(pollerBehavior.getInitialMaxConcurrentTaskPollers());
+          new AdjustableSemaphore(pollerBehavior.getInitialConcurrentTaskPollers());
       PollScaleReportHandle<T> pollScaleReportHandle =
           new PollScaleReportHandle<>(
               pollerBehavior.getMinConcurrentTaskPollers(),
               pollerBehavior.getMaxConcurrentTaskPollers(),
-              pollerBehavior.getInitialMaxConcurrentTaskPollers(),
+              pollerBehavior.getInitialConcurrentTaskPollers(),
               (newTarget) -> {
                 log.debug(
                     "Updating maximum number of pollers for {} to: {}",

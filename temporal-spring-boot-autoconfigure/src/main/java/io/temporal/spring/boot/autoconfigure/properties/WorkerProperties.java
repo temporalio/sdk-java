@@ -4,7 +4,6 @@ import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.tuning.PollerBehavior;
-import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -97,19 +96,62 @@ public class WorkerProperties {
   }
 
   public static class PollerConfigurationProperties {
-    private final @Nullable PollerBehaviorAutoscaling pollerBehaviorAutoscaling;
+    public static class PollerBehaviorAutoscalingConfiguration {
+      private final Boolean enabled;
+      private final Integer minConcurrentTaskPollers;
+      private final Integer maxConcurrentTaskPollers;
+      private final Integer initialConcurrentTaskPollers;
+
+      @ConstructorBinding
+      public PollerBehaviorAutoscalingConfiguration(
+          @Nullable Boolean enabled,
+          @Nullable Integer minConcurrentTaskPollers,
+          @Nullable Integer maxConcurrentTaskPollers,
+          @Nullable Integer initialConcurrentTaskPollers) {
+        this.enabled = enabled;
+        this.minConcurrentTaskPollers = minConcurrentTaskPollers;
+        this.maxConcurrentTaskPollers = maxConcurrentTaskPollers;
+        this.initialConcurrentTaskPollers = initialConcurrentTaskPollers;
+      }
+
+      @Nullable
+      public Boolean isEnabled() {
+        // If enabled is true or any of the other parameters are set, then autoscaling is enabled.
+        return Boolean.TRUE.equals(enabled)
+            || minConcurrentTaskPollers != null
+            || maxConcurrentTaskPollers != null
+            || initialConcurrentTaskPollers != null;
+      }
+
+      @Nullable
+      public Integer getMinConcurrentTaskPollers() {
+        return minConcurrentTaskPollers;
+      }
+
+      @Nullable
+      public Integer getMaxConcurrentTaskPollers() {
+        return maxConcurrentTaskPollers;
+      }
+
+      @Nullable
+      public Integer getInitialConcurrentTaskPollers() {
+        return initialConcurrentTaskPollers;
+      }
+    }
+
+    private final @Nullable PollerBehaviorAutoscalingConfiguration pollerBehaviorAutoscaling;
 
     /**
      * @param pollerBehaviorAutoscaling defines poller behavior for autoscaling
      */
     @ConstructorBinding
     public PollerConfigurationProperties(
-        @Nullable PollerBehaviorAutoscaling pollerBehaviorAutoscaling) {
+        @Nullable PollerBehaviorAutoscalingConfiguration pollerBehaviorAutoscaling) {
       this.pollerBehaviorAutoscaling = pollerBehaviorAutoscaling;
     }
 
     @Nullable
-    public PollerBehaviorAutoscaling getPollerBehaviorAutoscaling() {
+    public PollerBehaviorAutoscalingConfiguration getPollerBehaviorAutoscaling() {
       return pollerBehaviorAutoscaling;
     }
   }

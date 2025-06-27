@@ -6,6 +6,7 @@ import io.temporal.spring.boot.WorkerOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -50,25 +51,46 @@ class WorkerOptionsTemplate {
         Optional.ofNullable(threadsConfiguration.getMaxConcurrentNexusTaskPollers())
             .ifPresent(options::setMaxConcurrentNexusTaskPollers);
         if (threadsConfiguration.getWorkflowTaskPollersConfiguration() != null) {
-          Optional.ofNullable(
+          WorkerProperties.PollerConfigurationProperties.PollerBehaviorAutoscalingConfiguration
+              pollerBehaviorAutoscaling =
                   threadsConfiguration
                       .getWorkflowTaskPollersConfiguration()
-                      .getPollerBehaviorAutoscaling())
-              .ifPresent(options::setWorkflowTaskPollersBehavior);
+                      .getPollerBehaviorAutoscaling();
+          if (pollerBehaviorAutoscaling != null && pollerBehaviorAutoscaling.isEnabled()) {
+            options.setWorkflowTaskPollersBehavior(
+                new PollerBehaviorAutoscaling(
+                    pollerBehaviorAutoscaling.getMinConcurrentTaskPollers(),
+                    pollerBehaviorAutoscaling.getMaxConcurrentTaskPollers(),
+                    pollerBehaviorAutoscaling.getInitialConcurrentTaskPollers()));
+          }
         }
         if (threadsConfiguration.getActivityTaskPollersConfiguration() != null) {
-          Optional.ofNullable(
+          WorkerProperties.PollerConfigurationProperties.PollerBehaviorAutoscalingConfiguration
+              pollerBehaviorAutoscaling =
                   threadsConfiguration
                       .getActivityTaskPollersConfiguration()
-                      .getPollerBehaviorAutoscaling())
-              .ifPresent(options::setActivityTaskPollersBehavior);
+                      .getPollerBehaviorAutoscaling();
+          if (pollerBehaviorAutoscaling != null && pollerBehaviorAutoscaling.isEnabled()) {
+            options.setActivityTaskPollersBehavior(
+                new PollerBehaviorAutoscaling(
+                    pollerBehaviorAutoscaling.getMinConcurrentTaskPollers(),
+                    pollerBehaviorAutoscaling.getMaxConcurrentTaskPollers(),
+                    pollerBehaviorAutoscaling.getInitialConcurrentTaskPollers()));
+          }
         }
         if (threadsConfiguration.getNexusTaskPollersConfiguration() != null) {
-          Optional.ofNullable(
+          WorkerProperties.PollerConfigurationProperties.PollerBehaviorAutoscalingConfiguration
+              pollerBehaviorAutoscaling =
                   threadsConfiguration
                       .getNexusTaskPollersConfiguration()
-                      .getPollerBehaviorAutoscaling())
-              .ifPresent(options::setNexusTaskPollersBehavior);
+                      .getPollerBehaviorAutoscaling();
+          if (pollerBehaviorAutoscaling != null && pollerBehaviorAutoscaling.isEnabled()) {
+            options.setNexusTaskPollersBehavior(
+                new PollerBehaviorAutoscaling(
+                    pollerBehaviorAutoscaling.getMinConcurrentTaskPollers(),
+                    pollerBehaviorAutoscaling.getMaxConcurrentTaskPollers(),
+                    pollerBehaviorAutoscaling.getInitialConcurrentTaskPollers()));
+          }
         }
       }
 

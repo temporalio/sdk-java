@@ -2,6 +2,7 @@ package io.temporal.worker.tuning;
 
 import io.temporal.common.Experimental;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * A poller behavior that will automatically scale the number of pollers based on feedback from the
@@ -17,16 +18,39 @@ public final class PollerBehaviorAutoscaling implements PollerBehavior {
   private final int initialConcurrentTaskPollers;
 
   /**
+   * Creates a new PollerBehaviorAutoscaling with default parameters.
+   *
+   * <p>Default parameters are:
+   *
+   * <ul>
+   *   <li>minConcurrentTaskPollers = 1
+   *   <li>maxConcurrentTaskPollers = 100
+   *   <li>initialConcurrentTaskPollers = 5
+   */
+  public PollerBehaviorAutoscaling() {
+    this(null, null, null);
+  }
+
+  /**
    * Creates a new PollerBehaviorAutoscaling with the specified parameters.
    *
-   * @param minConcurrentTaskPollers Minimum number of concurrent task pollers.
-   * @param maxConcurrentTaskPollers Maximum number of concurrent task pollers.
-   * @param initialConcurrentTaskPollers Initial number of concurrent task pollers.
+   * @param minConcurrentTaskPollers Minimum number of concurrent task pollers. Default is 1.
+   * @param maxConcurrentTaskPollers Maximum number of concurrent task pollers. Default is 100.
+   * @param initialConcurrentTaskPollers Initial number of concurrent task pollers. Default is 5.
    */
   public PollerBehaviorAutoscaling(
-      int minConcurrentTaskPollers,
-      int maxConcurrentTaskPollers,
-      int initialConcurrentTaskPollers) {
+      @Nullable Integer minConcurrentTaskPollers,
+      @Nullable Integer maxConcurrentTaskPollers,
+      @Nullable Integer initialConcurrentTaskPollers) {
+    if (minConcurrentTaskPollers == null) {
+      minConcurrentTaskPollers = 1;
+    }
+    if (maxConcurrentTaskPollers == null) {
+      maxConcurrentTaskPollers = 100;
+    }
+    if (initialConcurrentTaskPollers == null) {
+      initialConcurrentTaskPollers = 5;
+    }
     if (minConcurrentTaskPollers < 1) {
       throw new IllegalArgumentException("minConcurrentTaskPollers must be at least 1");
     }
@@ -67,7 +91,7 @@ public final class PollerBehaviorAutoscaling implements PollerBehavior {
    *
    * @return Initial number of concurrent task pollers.
    */
-  public int getInitialMaxConcurrentTaskPollers() {
+  public int getInitialConcurrentTaskPollers() {
     return initialConcurrentTaskPollers;
   }
 
