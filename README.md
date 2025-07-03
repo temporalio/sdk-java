@@ -50,9 +50,7 @@ We'd love your help in improving the Temporal Java SDK. Please review our [contr
 
 ## Snapshot release
 
-We also publish snapshot releases during SDK development often under the version `1.x.0-SNAPSHOT`. This allows users to test out new SDK features before an official SDK release.
-
-[Snapshot releases](https://central.sonatype.com/service/rest/repository/browse/maven-snapshots/io/temporal/) Find the latest snapsphot release.
+We also publish snapshot releases during SDK development often under the version `1.x.0-SNAPSHOT` where `x` is the next minor release. This allows users to test out new SDK features before an official SDK release.
 
 To add Sonatype snapshot repository to your *pom.xml*:
 
