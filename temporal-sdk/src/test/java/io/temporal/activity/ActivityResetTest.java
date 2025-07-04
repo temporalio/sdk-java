@@ -18,6 +18,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
+import static org.junit.Assume.assumeTrue;
+
 public class ActivityResetTest {
 
   @Rule
@@ -25,13 +27,12 @@ public class ActivityResetTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new HeartBeatingActivityImpl())
-          .setUseExternalService(true)
           .build();
 
   @Test
   public void activityReset() {
-    //    assumeTrue(
-    //        "Test Server doesn't support activity pause", SDKTestWorkflowRule.useExternalService);
+    assumeTrue(
+        "Test Server doesn't support activity pause", SDKTestWorkflowRule.useExternalService);
 
     TestWorkflows.TestWorkflowReturnString workflow =
         testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class);

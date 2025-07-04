@@ -188,10 +188,10 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
-        } else if (status.getActivityPaused()) {
-          throw new ActivityPausedException();
         } else if (status.getActivityReset()) {
           throw new ActivityResetException();
+        } else if (status.getActivityPaused()) {
+          throw new ActivityPausedException();
         }
       } else {
         RecordActivityTaskHeartbeatByIdResponse status =
@@ -205,10 +205,10 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
-        } else if (status.getActivityPaused()) {
-          throw new ActivityPausedException();
         } else if (status.getActivityReset()) {
           throw new ActivityResetException();
+        } else if (status.getActivityPaused()) {
+          throw new ActivityPausedException();
         }
       }
     } catch (Exception e) {
