@@ -179,6 +179,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
   }
 
+  @SuppressWarnings("deprecation") // Continue to check operation id for history compatibility
   private CancelOperationResponse handleCancelledOperation(
       OperationContext.Builder ctx, CancelOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
@@ -237,6 +238,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
   }
 
+  @SuppressWarnings("deprecation") // Continue to check operation id for history compatibility
   private StartOperationResponse handleStartOperation(
       OperationContext.Builder ctx, StartOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());

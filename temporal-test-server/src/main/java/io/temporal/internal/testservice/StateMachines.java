@@ -315,7 +315,7 @@ class StateMachines {
     // Timeout for an individual Start or Cancel Operation request.
     final Duration requestTimeout = Durations.fromSeconds(10);
 
-    String operationId = "";
+    String operationToken = "";
     Endpoint endpoint;
     NexusOperationScheduledEventAttributes scheduledEvent;
     TestWorkflowStore.NexusTask nexusTask;
@@ -739,7 +739,6 @@ class StateMachines {
             .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED)
             .setNexusOperationStartedEventAttributes(
                 NexusOperationStartedEventAttributes.newBuilder()
-                    .setOperationId(resp.getOperationId())
                     .setOperationToken(resp.getOperationToken())
                     .setScheduledEventId(data.scheduledEventId)
                     .setRequestId(data.scheduledEvent.getRequestId()));
@@ -753,7 +752,7 @@ class StateMachines {
     }
 
     ctx.addEvent(event.build());
-    ctx.onCommit(historySize -> data.operationId = resp.getOperationId());
+    ctx.onCommit(historySize -> data.operationToken = resp.getOperationToken());
   }
 
   private static void completeNexusOperation(
@@ -784,7 +783,7 @@ class StateMachines {
                     .setEndpoint(data.scheduledEvent.getEndpoint())
                     .setService(data.scheduledEvent.getService())
                     .setOperation(data.scheduledEvent.getOperation())
-                    .setOperationId(data.operationId)
+                    .setOperationToken(data.operationToken)
                     .setScheduledEventId(data.scheduledEventId))
             .setCause(
                 Failure.newBuilder()
@@ -823,7 +822,7 @@ class StateMachines {
                                       .setEndpoint(data.scheduledEvent.getEndpoint())
                                       .setService(data.scheduledEvent.getService())
                                       .setOperation(data.scheduledEvent.getOperation())
-                                      .setOperationId(data.operationId)
+                                      .setOperationToken(data.operationToken)
                                       .setScheduledEventId(data.scheduledEventId)
                                       .build())
                               .build()))
@@ -838,7 +837,7 @@ class StateMachines {
       // operation's schedule-to-close timeout, so do not fail the operation here and allow
       // it to be timed out by the timer set in
       // io.temporal.internal.testservice.TestWorkflowMutableStateImpl.timeoutNexusOperation
-      return (Strings.isNullOrEmpty(data.operationId)) ? INITIATED : STARTED;
+      return (Strings.isNullOrEmpty(data.operationToken)) ? INITIATED : STARTED;
     }
 
     Failure wrapped =
@@ -849,7 +848,7 @@ class StateMachines {
                     .setEndpoint(data.scheduledEvent.getEndpoint())
                     .setService(data.scheduledEvent.getService())
                     .setOperation(data.scheduledEvent.getOperation())
-                    .setOperationId(data.operationId)
+                    .setOperationToken(data.operationToken)
                     .setScheduledEventId(data.scheduledEventId))
             .setCause(failure)
             .build();
@@ -953,7 +952,7 @@ class StateMachines {
                 io.temporal.api.nexus.v1.Request.newBuilder()
                     .setCancelOperation(
                         CancelOperationRequest.newBuilder()
-                            .setOperationId(data.operationId)
+                            .setOperationToken(data.operationToken)
                             .setOperation(data.scheduledEvent.getOperation())
                             .setService(data.scheduledEvent.getService())));
 
@@ -986,7 +985,7 @@ class StateMachines {
                     .setEndpoint(data.scheduledEvent.getEndpoint())
                     .setService(data.scheduledEvent.getService())
                     .setOperation(data.scheduledEvent.getOperation())
-                    .setOperationId(data.operationId)
+                    .setOperationToken(data.operationToken)
                     .setScheduledEventId(data.scheduledEventId));
     if (failure != null) {
       wrapped.setCause(failure);
@@ -1128,7 +1127,6 @@ class StateMachines {
       long workflowTaskCompletedEventId) {
     StartChildWorkflowExecutionInitiatedEventAttributes.Builder a =
         StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder()
-            .setControl(d.getControl())
             .setInput(d.getInput())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
             .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
@@ -1371,6 +1369,7 @@ class StateMachines {
     ctx.addEvent(event);
   }
 
+  @SuppressWarnings("deprecation")
   private static void continueAsNewWorkflow(
       RequestContext ctx,
       WorkflowData data,
@@ -2389,7 +2388,6 @@ class StateMachines {
     SignalExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
         SignalExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
-            .setControl(d.getControl())
             .setInput(d.getInput())
             .setNamespace(d.getNamespace())
             .setChildWorkflowOnly(d.getChildWorkflowOnly())
@@ -2419,7 +2417,6 @@ class StateMachines {
         SignalExternalWorkflowExecutionFailedEventAttributes.newBuilder()
             .setInitiatedEventId(data.initiatedEventId)
             .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
-            .setControl(initiatedEvent.getControl())
             .setCause(cause)
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
@@ -2439,7 +2436,6 @@ class StateMachines {
         ExternalWorkflowExecutionSignaledEventAttributes.newBuilder()
             .setInitiatedEventId(data.initiatedEventId)
             .setWorkflowExecution(signaledExecution)
-            .setControl(initiatedEvent.getControl())
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -2457,7 +2453,6 @@ class StateMachines {
     RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
         RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
-            .setControl(d.getControl())
             .setNamespace(d.getNamespace())
             .setChildWorkflowOnly(d.getChildWorkflowOnly())
             .setWorkflowExecution(
@@ -2511,7 +2506,6 @@ class StateMachines {
         RequestCancelExternalWorkflowExecutionFailedEventAttributes.newBuilder()
             .setInitiatedEventId(data.initiatedEventId)
             .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
-            .setControl(initiatedEvent.getControl())
             .setCause(cause)
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =

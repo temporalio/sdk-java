@@ -2358,7 +2358,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void completeAsyncNexusOperation(
       NexusOperationRef ref,
       Payload result,
-      String operationID,
+      String operationToken,
       io.temporal.api.nexus.v1.Link startLink) {
     update(
         ctx -> {
@@ -2368,7 +2368,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             // Received completion before start, so fabricate started event.
             StartOperationResponse.Async start =
                 StartOperationResponse.Async.newBuilder()
-                    .setOperationId(operationID)
+                    .setOperationToken(operationToken)
                     .addLinks(startLink)
                     .build();
             operation.action(Action.START, ctx, start, 0);
@@ -2487,7 +2487,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
           LockHandle lockHandle =
               timerService.lockTimeSkipping(
-                  "nexusOperationRetryTimer " + operation.getData().operationId);
+                  "nexusOperationRetryTimer " + operation.getData().operationToken);
           boolean unlockTimer = false;
           data.isBackingOff = false;
 
@@ -2506,7 +2506,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           } finally {
             if (unlockTimer) {
               // Allow time skipping when waiting for an operation retry
-              lockHandle.unlock("nexusOperationRetryTimer " + operation.getData().operationId);
+              lockHandle.unlock("nexusOperationRetryTimer " + operation.getData().operationToken);
             }
           }
         },
@@ -3361,7 +3361,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setEndpoint(data.scheduledEvent.getEndpoint())
             .setService(data.scheduledEvent.getService())
             .setOperation(data.scheduledEvent.getOperation())
-            .setOperationId(data.operationId)
+            .setOperationToken(data.operationToken)
             .setScheduledEventId(data.scheduledEventId)
             .setScheduleToCloseTimeout(data.scheduledEvent.getScheduleToCloseTimeout())
             .setState(convertNexusOperationState(sm.getState(), data))

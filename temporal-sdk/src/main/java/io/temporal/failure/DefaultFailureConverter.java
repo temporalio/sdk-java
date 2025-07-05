@@ -70,6 +70,7 @@ public final class DefaultFailureConverter implements FailureConverter {
     return result;
   }
 
+  @SuppressWarnings("deprecation") // Continue to check operation id for history compatibility
   private RuntimeException failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
     Exception cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
@@ -217,6 +218,7 @@ public final class DefaultFailureConverter implements FailureConverter {
   }
 
   @Nonnull
+  @SuppressWarnings("deprecation") // Continue to check operation id for history compatibility
   private Failure exceptionToFailure(Throwable throwable) {
     if (throwable instanceof CheckedExceptionWrapper) {
       return exceptionToFailure(throwable.getCause());
