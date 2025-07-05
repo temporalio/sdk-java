@@ -105,7 +105,7 @@ public class CancelNexusOperationStateMachineTest {
             NexusOperationStartedEventAttributes.newBuilder()
                 .setScheduledEventId(scheduledEventId)
                 .setRequestId("requestId")
-                .setOperationId(OPERATION_ID)
+                .setOperationToken(OPERATION_ID)
                 .build())
         .addWorkflowTask();
     long cancelRequestedEventId =
@@ -196,7 +196,7 @@ public class CancelNexusOperationStateMachineTest {
             NexusOperationStartedEventAttributes.newBuilder()
                 .setScheduledEventId(scheduledEventId)
                 .setRequestId("requestId")
-                .setOperationId(OPERATION_ID)
+                .setOperationToken(OPERATION_ID)
                 .build())
         .addWorkflowTask();
     long cancelRequestedEventId =

@@ -156,7 +156,7 @@ public class NexusTaskHandlerImplTest {
     Assert.assertNull(result.getHandlerError());
     Assert.assertNotNull(result.getResponse());
     Assert.assertEquals(
-        "test id", result.getResponse().getStartOperation().getAsyncSuccess().getOperationId());
+        "test id", result.getResponse().getStartOperation().getAsyncSuccess().getOperationToken());
   }
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)

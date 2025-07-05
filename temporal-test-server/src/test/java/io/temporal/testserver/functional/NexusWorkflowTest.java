@@ -1009,7 +1009,7 @@ public class NexusWorkflowTest {
             .setStartOperation(
                 StartOperationResponse.newBuilder()
                     .setAsyncSuccess(
-                        StartOperationResponse.Async.newBuilder().setOperationId(operationId)))
+                        StartOperationResponse.Async.newBuilder().setOperationToken(operationId)))
             .build());
   }
 
@@ -1055,7 +1055,7 @@ public class NexusWorkflowTest {
 
   private void assertOperationFailureInfo(String operationID, NexusOperationFailureInfo info) {
     Assert.assertNotNull(info);
-    Assert.assertEquals(operationID, info.getOperationId());
+    Assert.assertEquals(operationID, info.getOperationToken());
     Assert.assertEquals(testEndpoint.getSpec().getName(), info.getEndpoint());
     Assert.assertEquals(testService, info.getService());
     Assert.assertEquals(testOperation, info.getOperation());

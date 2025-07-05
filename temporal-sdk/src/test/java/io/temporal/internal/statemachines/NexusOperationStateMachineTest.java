@@ -461,7 +461,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
@@ -553,7 +553,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
@@ -645,7 +645,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
@@ -737,7 +737,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
