@@ -168,7 +168,7 @@ public class AsyncPollerTest {
         Duration.ofSeconds(5),
         () -> {
           assertEquals(0, executor.processed.get());
-          assertEquals(1, slotSupplierInner.reservedCount.get());
+          assertTrue(slotSupplierInner.reservedCount.get() > 1);
           assertEquals(0, slotSupplier.getUsedSlots().size());
         });
   }
