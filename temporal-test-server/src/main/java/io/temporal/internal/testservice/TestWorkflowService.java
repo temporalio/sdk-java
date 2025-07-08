@@ -1424,7 +1424,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setSignalName(r.getSignalName())
               .setWorkflowExecution(executionId.getExecution())
               .setRequestId(r.getRequestId())
-              .setControl(r.getControl())
               .setNamespace(r.getNamespace())
               .setIdentity(r.getIdentity())
               .addAllLinks(r.getLinksList())
@@ -1526,6 +1525,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    *
    * @return RunId
    */
+  @SuppressWarnings("deprecation")
   public String continueAsNew(
       StartWorkflowExecutionRequest previousRunStartRequest,
       ContinueAsNewWorkflowExecutionCommandAttributes ca,

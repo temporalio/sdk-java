@@ -268,6 +268,7 @@ public class UpdateTest {
     assertEquals("Execute-Hello Update", workflow.update(0, "Hello Update"));
 
     // Reset the workflow
+    @SuppressWarnings("deprecation")
     ResetWorkflowExecutionResponse resetResponse =
         workflowClient
             .getWorkflowServiceStubs()
