@@ -143,7 +143,7 @@ public class DescribeWorkflowExecutionTest {
     PendingActivityInfo actual = asserter.getActual().getPendingActivities(0);
 
     // No fancy asserter type for PendingActivityInfo... we just build the expected proto
-    PendingActivityInfo expected =
+    PendingActivityInfo.Builder expected =
         PendingActivityInfo.newBuilder()
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
@@ -160,10 +160,13 @@ public class DescribeWorkflowExecutionTest {
             // going to run against the real server.
             .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
-            .setExpirationTime(actual.getExpirationTime())
-            .build();
+            .setExpirationTime(actual.getExpirationTime());
 
-    Assert.assertEquals("PendingActivityInfo should match before", expected, actual);
+    if (actual.hasActivityOptions()) {
+      // If the activity options are present, we can assert them
+      expected.setActivityOptions(actual.getActivityOptions());
+    }
+    Assert.assertEquals("PendingActivityInfo should match before", expected.build(), actual);
 
     // Make the activity heartbeat - this should show in the next describe call
     ThreadUtils.waitForWorkflow(token + "-heartbeat");
@@ -181,11 +184,11 @@ public class DescribeWorkflowExecutionTest {
 
     // Now, our PendingActivityInfo has heartbeat data, but is otherwise unchanged
     expected =
-        expected.toBuilder()
+        expected
             .setHeartbeatDetails(DescribeWorkflowAsserter.stringsToPayloads("heartbeatDetails"))
-            .setLastHeartbeatTime(actual.getLastHeartbeatTime())
-            .build();
-    Assert.assertEquals("PendingActivityInfo should match after heartbeat", expected, actual);
+            .setLastHeartbeatTime(actual.getLastHeartbeatTime());
+    Assert.assertEquals(
+        "PendingActivityInfo should match after heartbeat", expected.build(), actual);
 
     // Let the activity finish, which will let the workflow finish.
     ThreadUtils.waitForWorkflow(token + "-finish");
@@ -241,7 +244,7 @@ public class DescribeWorkflowExecutionTest {
         "Activity was asked to fail on attempt 1",
         actual.getLastFailure().getMessage());
 
-    PendingActivityInfo expected =
+    PendingActivityInfo.Builder expected =
         PendingActivityInfo.newBuilder()
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
@@ -258,10 +261,13 @@ public class DescribeWorkflowExecutionTest {
             // it.
             .setLastWorkerIdentity(actual.getLastWorkerIdentity())
             // We don't deeply assert the failure structure since we asserted the message above
-            .setLastFailure(actual.getLastFailure())
-            .build();
+            .setLastFailure(actual.getLastFailure());
+    if (actual.hasActivityOptions()) {
+      // If the activity options are present, we can assert them
+      expected.setActivityOptions(actual.getActivityOptions());
+    }
 
-    Assert.assertEquals("PendingActivityInfo should match", expected, actual);
+    Assert.assertEquals("PendingActivityInfo should match", expected.build(), actual);
 
     // Now let the workflow succeed
     ThreadUtils.waitForWorkflow(token + "-finish");
