@@ -1,5 +1,7 @@
 package io.temporal.worker;
 
+import static io.temporal.api.enums.v1.VersioningBehavior.VERSIONING_BEHAVIOR_PINNED;
+import static io.temporal.api.workflow.v1.VersioningOverride.PinnedOverrideBehavior.PINNED_OVERRIDE_BEHAVIOR_PINNED;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.protobuf.ByteString;
@@ -273,8 +275,7 @@ public class WorkerVersioningTest {
                 e ->
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
                         && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
-                            == io.temporal.api.enums.v1.VersioningBehavior
-                                .VERSIONING_BEHAVIOR_PINNED));
+                            == VERSIONING_BEHAVIOR_PINNED));
   }
 
   public static class TestWorkerVersioningMissingAnnotation extends QueueLoop
@@ -353,8 +354,7 @@ public class WorkerVersioningTest {
                 e ->
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
                         && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
-                            == io.temporal.api.enums.v1.VersioningBehavior
-                                .VERSIONING_BEHAVIOR_PINNED));
+                            == VERSIONING_BEHAVIOR_PINNED));
   }
 
   @WorkflowInterface
@@ -426,9 +426,9 @@ public class WorkerVersioningTest {
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
                         && e.getWorkflowExecutionStartedEventAttributes()
                                 .getVersioningOverride()
+                                .getPinned()
                                 .getBehavior()
-                            == io.temporal.api.enums.v1.VersioningBehavior
-                                .VERSIONING_BEHAVIOR_PINNED));
+                            == PINNED_OVERRIDE_BEHAVIOR_PINNED));
   }
 
   @SuppressWarnings("deprecation")
