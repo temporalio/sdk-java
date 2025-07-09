@@ -311,7 +311,7 @@ public class DescribeWorkflowExecutionTest {
 
     PendingActivityInfo actual = asserter.getActual().getPendingActivities(0);
 
-    PendingActivityInfo expected =
+    PendingActivityInfo.Builder expected =
         PendingActivityInfo.newBuilder()
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
@@ -325,10 +325,13 @@ public class DescribeWorkflowExecutionTest {
             .setExpirationTime(actual.getExpirationTime())
             // this ends up being a dummy value, but if it weren't, we still wouldn't expect to know
             // it.
-            .setLastWorkerIdentity(actual.getLastWorkerIdentity())
-            .build();
+            .setLastWorkerIdentity(actual.getLastWorkerIdentity());
+    if (actual.hasActivityOptions()) {
+      // If the activity options are present, we can assert them
+      expected.setActivityOptions(actual.getActivityOptions());
+    }
 
-    Assert.assertEquals("PendingActivityInfo should match", expected, actual);
+    Assert.assertEquals("PendingActivityInfo should match", expected.build(), actual);
   }
 
   @Test
