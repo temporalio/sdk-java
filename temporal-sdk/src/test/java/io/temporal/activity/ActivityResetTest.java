@@ -1,5 +1,7 @@
 package io.temporal.activity;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflow.v1.PendingActivityInfo;
 import io.temporal.api.workflowservice.v1.ResetActivityRequest;
@@ -17,8 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-
-import static org.junit.Assume.assumeTrue;
 
 public class ActivityResetTest {
 
