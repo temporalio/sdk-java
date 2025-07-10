@@ -31,7 +31,7 @@ public class OperationTokenUtil {
       throw new IllegalArgumentException(
           "Invalid workflow run token: incorrect operation token type: " + token.getType());
     }
-    if (token.getVersion() != null) {
+    if (token.getVersion() != null && token.getVersion() != 0) {
       throw new IllegalArgumentException("Invalid workflow run token: unexpected version field");
     }
     if (Strings.isNullOrEmpty(token.getWorkflowId())) {
