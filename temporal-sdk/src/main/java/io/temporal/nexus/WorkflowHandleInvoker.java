@@ -1,8 +1,8 @@
 package io.temporal.nexus;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
+import io.temporal.internal.client.NexusStartWorkflowResponse;
 
 interface WorkflowHandleInvoker {
-  WorkflowExecution invoke(NexusStartWorkflowRequest request);
+  NexusStartWorkflowResponse invoke(NexusStartWorkflowRequest request);
 }
