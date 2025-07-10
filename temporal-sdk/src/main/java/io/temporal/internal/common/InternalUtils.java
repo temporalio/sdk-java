@@ -1,7 +1,9 @@
 package io.temporal.internal.common;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Defaults;
 import io.nexusrpc.Header;
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Link;
@@ -14,6 +16,9 @@ import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.OperationTokenUtil;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -60,7 +65,7 @@ public final class InternalUtils {
    *     URL and headers set
    */
   @SuppressWarnings("deprecation") // Check the OPERATION_ID header for backwards compatibility
-  public static WorkflowStub createNexusBoundStub(
+  public static NexusWorkflowStarter createNexusBoundStub(
       WorkflowStub stub, NexusStartWorkflowRequest request) {
     if (!stub.getOptions().isPresent()) {
       throw new IllegalArgumentException("Options are expected to be set on the stub");
@@ -69,6 +74,19 @@ public final class InternalUtils {
     if (options.getWorkflowId() == null) {
       throw new IllegalArgumentException(
           "WorkflowId is expected to be set on WorkflowOptions when used with Nexus");
+    }
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+    // Generate the operation token for the new workflow.
+    String operationToken;
+    try {
+      operationToken =
+          OperationTokenUtil.generateWorkflowRunOperationToken(
+              options.getWorkflowId(), nexusContext.getNamespace());
+    } catch (JsonProcessingException e) {
+      // Not expected as the link is constructed by the SDK.
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST,
+          new IllegalArgumentException("failed to generate workflow operation token", e));
     }
     // Add the Nexus operation ID to the headers if it is not already present to support fabricating
     // a NexusOperationStarted event if the completion is received before the response to a
@@ -82,10 +100,10 @@ public final class InternalUtils {
                     (a, b) -> a,
                     () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
     if (!headers.containsKey(Header.OPERATION_ID)) {
-      headers.put(Header.OPERATION_ID.toLowerCase(), options.getWorkflowId());
+      headers.put(Header.OPERATION_ID.toLowerCase(), operationToken);
     }
     if (!headers.containsKey(Header.OPERATION_TOKEN)) {
-      headers.put(Header.OPERATION_TOKEN.toLowerCase(), options.getWorkflowId());
+      headers.put(Header.OPERATION_TOKEN.toLowerCase(), operationToken);
     }
     List<Link> links =
         request.getLinks() == null
@@ -134,7 +152,7 @@ public final class InternalUtils {
             .setAttachCompletionCallbacks(true)
             .build());
 
-    return stub.newInstance(nexusWorkflowOptions.build());
+    return new NexusWorkflowStarter(stub.newInstance(nexusWorkflowOptions.build()), operationToken);
   }
 
   /** Check the method name for reserved prefixes or names. */

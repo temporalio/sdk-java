@@ -1,6 +1,5 @@
 package io.temporal.internal.client;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Functions;
@@ -18,5 +17,5 @@ public interface WorkflowClientInternal {
 
   void deregisterWorkerFactory(WorkerFactory workerFactory);
 
-  WorkflowExecution startNexus(NexusStartWorkflowRequest request, Functions.Proc workflow);
+  NexusStartWorkflowResponse startNexus(NexusStartWorkflowRequest request, Functions.Proc workflow);
 }

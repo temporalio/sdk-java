@@ -2,9 +2,9 @@ package io.temporal.nexus;
 
 import static io.temporal.internal.common.InternalUtils.createNexusBoundStub;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
+import io.temporal.internal.client.NexusStartWorkflowResponse;
 
 class WorkflowStubHandleInvoker implements WorkflowHandleInvoker {
   final Object[] args;
@@ -16,7 +16,7 @@ class WorkflowStubHandleInvoker implements WorkflowHandleInvoker {
   }
 
   @Override
-  public WorkflowExecution invoke(NexusStartWorkflowRequest request) {
+  public NexusStartWorkflowResponse invoke(NexusStartWorkflowRequest request) {
     return createNexusBoundStub(stub, request).start(args);
   }
 }
