@@ -29,9 +29,9 @@ class GrpcRetryerUtils {
       @Nonnull StatusRuntimeException currentException,
       @Nonnull RpcRetryOptions options,
       GetSystemInfoResponse.Capabilities serverCapabilities) {
-    Status.Code code = currentException.getStatus().getCode();
+    Status status = currentException.getStatus();
 
-    switch (code) {
+    switch (status.getCode()) {
       // CANCELLED and DEADLINE_EXCEEDED usually considered non-retryable in GRPC world, for
       // example:
       // https://github.com/grpc-ecosystem/go-grpc-middleware/blob/master/retry/retry.go#L287
@@ -56,9 +56,22 @@ class GrpcRetryerUtils {
         // By default, we keep retrying with DEADLINE_EXCEEDED assuming that it's the deadline of
         // one attempt which expired, but not the whole sequence.
         break;
+      case RESOURCE_EXHAUSTED:
+        // Retry RESOURCE_EXHAUSTED unless the max message size was exceeded
+        if (status.getDescription() != null
+            && (status.getDescription().startsWith("grpc: received message larger than max")
+                || status
+                    .getDescription()
+                    .startsWith("grpc: message after decompression larger than max")
+                || status
+                    .getDescription()
+                    .startsWith("grpc: received message after decompression larger than max"))) {
+          return new GrpcMessageTooLargeException(currentException);
+        }
+        break;
       default:
         for (RpcRetryOptions.DoNotRetryItem pair : options.getDoNotRetry()) {
-          if (pair.getCode() == code
+          if (pair.getCode() == status.getCode()
               && (pair.getDetailsClass() == null
                   || StatusUtils.hasFailure(currentException, pair.getDetailsClass()))) {
             return currentException;
