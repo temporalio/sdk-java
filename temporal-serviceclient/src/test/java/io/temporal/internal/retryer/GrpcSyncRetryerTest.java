@@ -324,4 +324,42 @@ public class GrpcSyncRetryerTest {
     assertEquals(CONGESTION_INITIAL_INTERVAL, options.getCongestionInitialInterval());
     assertEquals(MAXIMUM_JITTER_COEFFICIENT, options.getMaximumJitterCoefficient(), 0.01);
   }
+
+  @Test
+  public void testMessageLargerThanMaxFailure() {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .validateBuildWithDefaults();
+
+    for (String description :
+        new String[] {
+          "grpc: received message larger than max (2000 vs. 1000)",
+          "grpc: message after decompression larger than max (2000 vs. 1000)",
+          "grpc: received message after decompression larger than max (2000 vs. 1000)",
+        }) {
+      long start = System.currentTimeMillis();
+      final AtomicInteger attempts = new AtomicInteger();
+      StatusRuntimeException e =
+          assertThrows(
+              StatusRuntimeException.class,
+              () ->
+                  DEFAULT_SYNC_RETRYER.retry(
+                      () -> {
+                        if (attempts.incrementAndGet() > 1) {
+                          fail(
+                              "We should not retry on RESOURCE_EXHAUSTED with description: "
+                                  + description);
+                        }
+                        throw new StatusRuntimeException(
+                            Status.RESOURCE_EXHAUSTED.withDescription(description));
+                      },
+                      new GrpcRetryer.GrpcRetryerOptions(options, null),
+                      GetSystemInfoResponse.Capabilities.getDefaultInstance()));
+      assertEquals(Status.Code.RESOURCE_EXHAUSTED, e.getStatus().getCode());
+      assertEquals(description, e.getStatus().getDescription());
+    }
+  }
 }
