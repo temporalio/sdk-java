@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,7 +12,6 @@ import javax.annotation.Nullable;
  *
  * @param <R> type of the workflow result
  */
-@Experimental
 public final class WithStartWorkflowOperation<R> {
 
   private final AtomicBoolean invoked = new AtomicBoolean(false);
