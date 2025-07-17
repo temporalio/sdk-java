@@ -848,7 +848,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -866,7 +865,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc1<A1> updateMethod,
       A1 arg1,
@@ -887,7 +885,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc2<A1, A2> updateMethod,
       A1 arg1,
@@ -910,7 +907,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc3<A1, A2, A3> updateMethod,
       A1 arg1,
@@ -935,7 +931,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc4<A1, A2, A3, A4> updateMethod,
       A1 arg1,
@@ -962,7 +957,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc5<A1, A2, A3, A4, A5> updateMethod,
       A1 arg1,
@@ -991,7 +985,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
       A1 arg1,
@@ -1015,7 +1008,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -1034,7 +1026,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Func1<A1, R> updateMethod,
       A1 arg1,
@@ -1055,7 +1046,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
@@ -1078,7 +1068,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func3<A1, A2, A3, R> updateMethod,
       A1 arg1,
@@ -1103,7 +1092,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, A4, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
@@ -1130,7 +1118,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
       A1 arg1,
@@ -1159,7 +1146,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, A6, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
       A1 arg1,
@@ -1183,7 +1169,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R> R executeUpdateWithStart(
       Functions.Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -1201,7 +1186,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1> R executeUpdateWithStart(
       Proc1<A1> updateMethod,
       A1 arg1,
@@ -1222,7 +1206,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2> R executeUpdateWithStart(
       Proc2<A1, A2> updateMethod,
       A1 arg1,
@@ -1245,7 +1228,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3> R executeUpdateWithStart(
       Proc3<A1, A2, A3> updateMethod,
       A1 arg1,
@@ -1270,7 +1252,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3, A4> R executeUpdateWithStart(
       Proc4<A1, A2, A3, A4> updateMethod,
       A1 arg1,
@@ -1297,7 +1278,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5> R executeUpdateWithStart(
       Proc5<A1, A2, A3, A4, A5> updateMethod,
       A1 arg1,
@@ -1326,7 +1306,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5, A6> R executeUpdateWithStart(
       Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
       A1 arg1,
@@ -1349,7 +1328,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R> R executeUpdateWithStart(
       Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -1367,7 +1345,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, R> R executeUpdateWithStart(
       Func1<A1, R> updateMethod,
       A1 arg1,
@@ -1387,7 +1364,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, R> R executeUpdateWithStart(
       Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
@@ -1409,7 +1385,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, R> R executeUpdateWithStart(
       Functions.Func3<A1, A2, A3, R> updateMethod,
       A1 arg1,
@@ -1433,7 +1408,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, A4, R> R executeUpdateWithStart(
       Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
@@ -1459,7 +1433,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, R> R executeUpdateWithStart(
       Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
       A1 arg1,
@@ -1487,7 +1460,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, A6, R> R executeUpdateWithStart(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
       A1 arg1,

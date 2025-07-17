@@ -3,7 +3,6 @@ package io.temporal.client;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
-import io.temporal.common.Experimental;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
@@ -144,7 +143,6 @@ public interface WorkflowStub {
    * @param <R> type of the update workflow result
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
@@ -159,7 +157,6 @@ public interface WorkflowStub {
    * @param <R> type of the update workflow result
    * @return update result
    */
-  @Experimental
   <R> R executeUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
