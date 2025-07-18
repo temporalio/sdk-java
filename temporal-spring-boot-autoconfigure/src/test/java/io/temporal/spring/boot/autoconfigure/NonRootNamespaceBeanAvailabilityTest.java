@@ -2,6 +2,7 @@ package io.temporal.spring.boot.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.temporal.client.WorkflowClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -62,6 +63,22 @@ public class NonRootNamespaceBeanAvailabilityTest {
   public void applicationContextStartsSuccessfully() {
     assertThat(applicationContext.isRunning()).isTrue();
     assertThat(applicationContext.isActive()).isTrue();
+  }
+
+  @Test
+  @Timeout(value = 10)
+  public void shouldStartSuccessfullyWithNonRootNamespaceConfiguration() {
+    assertThat(applicationContext.isRunning()).isTrue();
+    assertThat(applicationContext.isActive()).isTrue();
+
+    assertThat(applicationContext.getBean("ns1WorkflowClient")).isNotNull();
+    assertThat(applicationContext.getBean("namespace2WorkflowClient")).isNotNull();
+
+   WorkflowClient ns1Client = (WorkflowClient) applicationContext.getBean("ns1WorkflowClient");
+   WorkflowClient ns2Client = (WorkflowClient) applicationContext.getBean("namespace2WorkflowClient");
+
+    assertThat(ns1Client.getOptions().getNamespace()).isEqualTo("namespace1");
+    assertThat(ns2Client.getOptions().getNamespace()).isEqualTo("namespace2");
   }
 
   @EnableAutoConfiguration

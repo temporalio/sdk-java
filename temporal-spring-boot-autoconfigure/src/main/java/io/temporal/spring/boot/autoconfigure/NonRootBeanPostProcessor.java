@@ -55,13 +55,16 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   }
 
   @Override
-  public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName)
-      throws BeansException {
-    if (bean instanceof NamespaceTemplate && beanName.equals("temporalRootNamespaceTemplate")) {
-      if (!beansCreated) {
-        createNonRootNamespaceBeans();
-        beansCreated = true;
-      }
+  public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+    this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
+  }
+
+  @Override
+  public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+    // Create non-root namespace beans when the root namespace template is initialized
+    if ("temporalRootNamespaceTemplate".equals(beanName) && !beansCreated) {
+      createNonRootNamespaceBeans();
+      beansCreated = true;
     }
     return bean;
   }
@@ -154,11 +157,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     beanFactory.registerSingleton(
         beanPrefix + ScheduleClient.class.getSimpleName(), scheduleClient);
     beanFactory.registerSingleton(beanPrefix + WorkerFactory.class.getSimpleName(), workerFactory);
-  }
-
-  @Override
-  public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-    this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
   }
 
   private <T> T findBeanByNamespace(String beanPrefix, Class<T> clazz) {
