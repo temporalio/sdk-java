@@ -61,7 +61,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-    // Create non-root namespace beans when the root namespace template is initialized
     if ("temporalRootNamespaceTemplate".equals(beanName) && !beansCreated) {
       createNonRootNamespaceBeans();
       beansCreated = true;
