@@ -83,4 +83,18 @@ public class NonRootBeanPostProcessorTest {
             rootNamespaceTemplate, "temporalRootNamespaceTemplate");
     assertThat(result).isSameAs(rootNamespaceTemplate);
   }
+
+  @Test
+  void shouldNotProcessNonRootNamespaceBeansUntilRootNamespaceTemplateIsProcessed() {
+    when(temporalProperties.getNamespaces()).thenReturn(Collections.emptyList());
+
+    Object otherBean = new Object();
+    Object result1 = processor.postProcessAfterInitialization(otherBean, "someOtherBean");
+    assertThat(result1).isSameAs(otherBean);
+
+    Object result2 =
+        processor.postProcessAfterInitialization(
+            rootNamespaceTemplate, "temporalRootNamespaceTemplate");
+    assertThat(result2).isSameAs(rootNamespaceTemplate);
+  }
 }
