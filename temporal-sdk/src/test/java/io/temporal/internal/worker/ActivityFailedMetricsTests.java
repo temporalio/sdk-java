@@ -89,7 +89,10 @@ public class ActivityFailedMetricsTests {
     @Override
     public void execute(boolean isBenign) {
       if (!isBenign) {
-        throw ApplicationFailure.newFailure("Non-benign activity failure", "NonBenignType");
+        throw ApplicationFailure.newBuilder()
+            .setMessage("Non-benign activity failure")
+            .setType("NonBenignType")
+            .build();
       } else {
         throw ApplicationFailure.newBuilder()
             .setMessage("Benign activity failure")

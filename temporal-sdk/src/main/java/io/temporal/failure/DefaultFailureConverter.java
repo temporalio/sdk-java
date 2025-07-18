@@ -244,14 +244,16 @@ public final class DefaultFailureConverter implements FailureConverter {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
-              .setNonRetryable(ae.isNonRetryable())
-              .setCategory(FailureUtils.categoryToProto(ae.getCategory()));
+              .setNonRetryable(ae.isNonRetryable());
       Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
       }
       if (ae.getNextRetryDelay() != null) {
         info.setNextRetryDelay(ProtobufTimeUtils.toProtoDuration(ae.getNextRetryDelay()));
+      }
+      if (ae.getCategory() != null) {
+        info.setCategory(FailureUtils.categoryToProto(ae.getCategory()));
       }
       failure.setApplicationFailureInfo(info);
     } else if (throwable instanceof TimeoutFailure) {
