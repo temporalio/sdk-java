@@ -43,39 +43,41 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   private static final Logger log = LoggerFactory.getLogger(NonRootBeanPostProcessor.class);
 
   private ConfigurableListableBeanFactory beanFactory;
+  private boolean beansCreated = false;
 
   private final @Nonnull TemporalProperties temporalProperties;
-  private final @Nullable List<NonRootNamespaceProperties> namespaceProperties;
   private @Nullable Tracer tracer;
   private @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
   private @Nullable Scope metricsScope;
 
   public NonRootBeanPostProcessor(@Nonnull TemporalProperties temporalProperties) {
     this.temporalProperties = temporalProperties;
-    this.namespaceProperties = temporalProperties.getNamespaces();
   }
 
   @Override
-  public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName)
-      throws BeansException {
-    if (bean instanceof NamespaceTemplate && beanName.equals("temporalRootNamespaceTemplate")) {
-      if (namespaceProperties != null) {
-        // If there are non-root namespaces, we need to inject beans for each of them. Look
-        // up the bean manually instead of using @Autowired to avoid circular dependencies or
-        // causing the dependency to
-        // get initialized to early and skip post-processing.
-        //
-        // Note: We don't use @Lazy here because these dependencies are optional and @Lazy doesn't
-        // interact well with
-        // optional dependencies.
-        metricsScope = findBean("temporalMetricsScope", Scope.class);
-        tracer = findBean(Tracer.class);
-        testWorkflowEnvironment =
-            findBean("temporalTestWorkflowEnvironment", TestWorkflowEnvironmentAdapter.class);
-        namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
-      }
+  public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+    this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
+  }
+
+  @Override
+  public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+    if ("temporalRootNamespaceTemplate".equals(beanName) && !beansCreated) {
+      createNonRootNamespaceBeans();
+      beansCreated = true;
     }
     return bean;
+  }
+
+  private void createNonRootNamespaceBeans() {
+    List<NonRootNamespaceProperties> namespaces = temporalProperties.getNamespaces();
+    if (namespaces != null) {
+      // Look up dependencies that might not be available at bean definition time
+      metricsScope = findBean("temporalMetricsScope", Scope.class);
+      tracer = findBean(Tracer.class);
+      testWorkflowEnvironment =
+          findBean("temporalTestWorkflowEnvironment", TestWorkflowEnvironmentAdapter.class);
+      namespaces.forEach(this::injectBeanByNonRootNamespace);
+    }
   }
 
   private void injectBeanByNonRootNamespace(NonRootNamespaceProperties ns) {
@@ -154,11 +156,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     beanFactory.registerSingleton(
         beanPrefix + ScheduleClient.class.getSimpleName(), scheduleClient);
     beanFactory.registerSingleton(beanPrefix + WorkerFactory.class.getSimpleName(), workerFactory);
-  }
-
-  @Override
-  public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-    this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
   }
 
   private <T> T findBeanByNamespace(String beanPrefix, Class<T> clazz) {
