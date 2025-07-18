@@ -90,9 +90,9 @@ public class ActivityFailedMetricsTests {
     public void execute(boolean isBenign) {
       if (!isBenign) {
         throw ApplicationFailure.newBuilder()
-                .setMessage("Non-benign activity failure")
-                .setType("NonBenignType")
-                .build();
+            .setMessage("Non-benign activity failure")
+            .setType("NonBenignType")
+            .build();
       } else {
         throw ApplicationFailure.newBuilder()
             .setMessage("Benign activity failure")
