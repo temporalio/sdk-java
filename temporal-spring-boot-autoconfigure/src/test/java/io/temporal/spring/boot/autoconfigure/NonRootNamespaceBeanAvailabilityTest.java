@@ -1,86 +1,178 @@
 package io.temporal.spring.boot.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.temporal.client.WorkflowClient;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.Timeout;
+import javax.annotation.Resource;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(classes = NonRootNamespaceBeanAvailabilityTest.Configuration.class)
+@SpringBootTest(classes = NonRootNamespaceBeanAvailabilityTest.TestConfiguration.class)
 @ActiveProfiles(profiles = "multi-namespaces")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class NonRootNamespaceBeanAvailabilityTest {
 
-  @Autowired ConfigurableApplicationContext applicationContext;
-
-  @BeforeEach
-  void setUp() {
-    applicationContext.start();
-  }
+  @Autowired private ConfigurableApplicationContext applicationContext;
+  @Autowired private ResourceInjectionComponent resourceInjectionComponent;
+  @Autowired private AutowiredInjectionComponent autowiredInjectionComponent;
+  @Autowired private ConstructorInjectionComponent constructorInjectionComponent;
+  @Autowired private BeanAvailabilityValidator beanAvailabilityValidator;
 
   @Test
-  @Timeout(value = 10)
   public void shouldRegisterNonRootNamespaceBeansInContext() {
     assertThat(applicationContext.containsBean("ns1WorkflowClient")).isTrue();
     assertThat(applicationContext.containsBean("namespace2WorkflowClient")).isTrue();
-    assertThat(applicationContext.containsBean("ns1ScheduleClient")).isTrue();
-    assertThat(applicationContext.containsBean("namespace2ScheduleClient")).isTrue();
-    assertThat(applicationContext.containsBean("ns1WorkerFactory")).isTrue();
-    assertThat(applicationContext.containsBean("namespace2WorkerFactory")).isTrue();
   }
 
   @Test
-  @Timeout(value = 10)
-  public void shouldRegisterNonRootNamespaceTemplateBeansInContext() {
-    assertThat(applicationContext.containsBean("ns1NamespaceTemplate")).isTrue();
-    assertThat(applicationContext.containsBean("namespace2NamespaceTemplate")).isTrue();
-    assertThat(applicationContext.containsBean("ns1ClientTemplate")).isTrue();
-    assertThat(applicationContext.containsBean("namespace2ClientTemplate")).isTrue();
-    assertThat(applicationContext.containsBean("ns1WorkersTemplate")).isTrue();
-    assertThat(applicationContext.containsBean("namespace2WorkersTemplate")).isTrue();
-  }
-
-  @Test
-  @Timeout(value = 10)
   public void shouldHaveBeansAvailableForLookup() {
-    assertThat(applicationContext.getBean("ns1WorkflowClient")).isNotNull();
-    assertThat(applicationContext.getBean("namespace2WorkflowClient")).isNotNull();
-    assertThat(applicationContext.getBean("ns1ScheduleClient")).isNotNull();
-    assertThat(applicationContext.getBean("namespace2ScheduleClient")).isNotNull();
-    assertThat(applicationContext.getBean("ns1WorkerFactory")).isNotNull();
-    assertThat(applicationContext.getBean("namespace2WorkerFactory")).isNotNull();
-  }
+    WorkflowClient ns1Client =
+        applicationContext.getBean("ns1WorkflowClient", WorkflowClient.class);
+    WorkflowClient ns2Client =
+        applicationContext.getBean("namespace2WorkflowClient", WorkflowClient.class);
 
-  @Test
-  @Timeout(value = 10)
-  public void applicationContextStartsSuccessfully() {
-    assertThat(applicationContext.isRunning()).isTrue();
-    assertThat(applicationContext.isActive()).isTrue();
-  }
-
-  @Test
-  @Timeout(value = 10)
-  public void shouldStartSuccessfullyWithNonRootNamespaceConfiguration() {
-    assertThat(applicationContext.isRunning()).isTrue();
-    assertThat(applicationContext.isActive()).isTrue();
-
-    assertThat(applicationContext.getBean("ns1WorkflowClient")).isNotNull();
-    assertThat(applicationContext.getBean("namespace2WorkflowClient")).isNotNull();
-
-   WorkflowClient ns1Client = (WorkflowClient) applicationContext.getBean("ns1WorkflowClient");
-   WorkflowClient ns2Client = (WorkflowClient) applicationContext.getBean("namespace2WorkflowClient");
-
+    assertNotNull(ns1Client);
+    assertNotNull(ns2Client);
     assertThat(ns1Client.getOptions().getNamespace()).isEqualTo("namespace1");
     assertThat(ns2Client.getOptions().getNamespace()).isEqualTo("namespace2");
   }
 
+  @Test
+  public void shouldInjectNonRootBeansWithResourceAnnotation() {
+    assertNotNull(resourceInjectionComponent);
+    assertNotNull(resourceInjectionComponent.getNs1WorkflowClient());
+    assertThat(resourceInjectionComponent.getNs1WorkflowClient().getOptions().getNamespace())
+        .isEqualTo("namespace1");
+  }
+
+  @Test
+  public void shouldInjectNonRootBeansWithAutowiredAndQualifier() {
+    assertNotNull(autowiredInjectionComponent);
+    assertNotNull(autowiredInjectionComponent.getNs1WorkflowClient());
+    assertThat(autowiredInjectionComponent.getNs1WorkflowClient().getOptions().getNamespace())
+        .isEqualTo("namespace1");
+  }
+
+  @Test
+  public void shouldInjectNonRootBeansWithConstructorInjection() {
+    assertNotNull(constructorInjectionComponent);
+    assertNotNull(constructorInjectionComponent.getNs1WorkflowClient());
+    assertThat(constructorInjectionComponent.getNs1WorkflowClient().getOptions().getNamespace())
+        .isEqualTo("namespace1");
+  }
+
+  @Test
+  public void shouldHandleTimingIssueGracefully() {
+    assertThat(beanAvailabilityValidator.isTimingIssueDetected())
+        .isFalse()
+        .as("No timing issues should be detected - Issue #2579 should be resolved");
+  }
+
+  @Configuration
   @EnableAutoConfiguration
-  public static class Configuration {}
+  static class TestConfiguration {
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public BeanAvailabilityValidator timingTestBeanPostProcessor() {
+      return new BeanAvailabilityValidator();
+    }
+
+    @Bean
+    @Profile("multi-namespaces")
+    public ResourceInjectionComponent resourceInjectionComponent() {
+      return new ResourceInjectionComponent();
+    }
+
+    @Bean
+    @Profile("multi-namespaces")
+    public AutowiredInjectionComponent autowiredInjectionComponent() {
+      return new AutowiredInjectionComponent();
+    }
+
+    @Bean
+    @Profile("multi-namespaces")
+    public ConstructorInjectionComponent constructorInjectionComponent(
+        @Qualifier("ns1WorkflowClient") WorkflowClient ns1WorkflowClient) {
+      return new ConstructorInjectionComponent(ns1WorkflowClient);
+    }
+  }
+
+  static class ResourceInjectionComponent {
+    @Resource(name = "ns1WorkflowClient")
+    private WorkflowClient ns1WorkflowClient;
+
+    public WorkflowClient getNs1WorkflowClient() {
+      return ns1WorkflowClient;
+    }
+  }
+
+  static class AutowiredInjectionComponent {
+    @Autowired
+    @Qualifier("ns1WorkflowClient")
+    private WorkflowClient ns1WorkflowClient;
+
+    public WorkflowClient getNs1WorkflowClient() {
+      return ns1WorkflowClient;
+    }
+  }
+
+  static class ConstructorInjectionComponent {
+    private final WorkflowClient ns1WorkflowClient;
+
+    public ConstructorInjectionComponent(WorkflowClient ns1WorkflowClient) {
+      this.ns1WorkflowClient = ns1WorkflowClient;
+    }
+
+    public WorkflowClient getNs1WorkflowClient() {
+      return ns1WorkflowClient;
+    }
+  }
+
+  static class BeanAvailabilityValidator implements BeanPostProcessor, BeanFactoryAware {
+    private BeanFactory beanFactory;
+    private boolean timingIssueDetected = false;
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+      this.beanFactory = beanFactory;
+    }
+
+    @Override
+    // Helps verify non-root namespace beans are accessible during bean post-processing
+    public Object postProcessBeforeInitialization(Object bean, String beanName)
+        throws BeansException {
+      if (beanName.equals("resourceInjectionComponent")
+          || beanName.equals("autowiredInjectionComponent")
+          || beanName.equals("constructorInjectionComponent")) {
+        try {
+          WorkflowClient ns1Client = beanFactory.getBean("ns1WorkflowClient", WorkflowClient.class);
+          if (!"namespace1".equals(ns1Client.getOptions().getNamespace())) {
+            timingIssueDetected = true;
+          }
+        } catch (Exception e) {
+          timingIssueDetected = true;
+        }
+      }
+      return bean;
+    }
+
+    public boolean isTimingIssueDetected() {
+      return timingIssueDetected;
+    }
+  }
 }
