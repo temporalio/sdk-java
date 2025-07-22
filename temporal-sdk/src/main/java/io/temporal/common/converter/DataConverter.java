@@ -10,6 +10,7 @@ import io.temporal.common.Experimental;
 import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
@@ -132,7 +133,7 @@ public interface DataConverter {
     if (!content.isPresent()) {
       // Return defaults for all the parameters
       for (int i = 0; i < parameterTypes.length; i++) {
-        result[i] = Defaults.defaultValue((Class<?>) genericParameterTypes[i]);
+        result[i] = Defaults.defaultValue(getRawClass(genericParameterTypes[i]));
       }
       return result;
     }
@@ -142,7 +143,7 @@ public interface DataConverter {
       Class<?> pt = parameterTypes[i];
       Type gt = genericParameterTypes[i];
       if (i >= count) {
-        result[i] = Defaults.defaultValue((Class<?>) gt);
+        result[i] = Defaults.defaultValue(getRawClass(gt));
       } else {
         result[i] = this.fromPayload(payloads.getPayloads(i), pt, gt);
       }
@@ -213,5 +214,21 @@ public interface DataConverter {
       Type[] genericParameterTypes)
       throws DataConverterException {
     return converter.fromPayloads(content, parameterTypes, genericParameterTypes);
+  }
+
+  /**
+   * Extract the raw Class from a Type, handling both regular classes and parameterized types.
+   *
+   * @param type the Type to extract from (could be Class or ParameterizedType)
+   * @return the raw Class for the type
+   */
+  static Class<?> getRawClass(Type type) {
+    if (type instanceof Class) {
+      return (Class<?>) type;
+    } else if (type instanceof ParameterizedType) {
+      return (Class<?>) ((ParameterizedType) type).getRawType();
+    } else {
+      return Object.class;
+    }
   }
 }
