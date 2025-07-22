@@ -428,10 +428,8 @@ public class GrpcAsyncRetryerTest {
                           GetSystemInfoResponse.Capabilities.getDefaultInstance())
                       .retry()
                       .get());
-      assertTrue(e.getCause() instanceof StatusRuntimeException);
-      Status status = ((StatusRuntimeException) e.getCause()).getStatus();
-      assertEquals(Status.Code.RESOURCE_EXHAUSTED, status.getCode());
-      assertEquals(description, status.getDescription());
+      assertTrue(e.getCause() instanceof GrpcMessageTooLargeException);
+      assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getMessage());
     }
   }
 }

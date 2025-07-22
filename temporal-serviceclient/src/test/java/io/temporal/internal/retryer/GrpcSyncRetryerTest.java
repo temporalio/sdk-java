@@ -342,9 +342,9 @@ public class GrpcSyncRetryerTest {
         }) {
       long start = System.currentTimeMillis();
       final AtomicInteger attempts = new AtomicInteger();
-      StatusRuntimeException e =
+      GrpcMessageTooLargeException e =
           assertThrows(
-              StatusRuntimeException.class,
+              GrpcMessageTooLargeException.class,
               () ->
                   DEFAULT_SYNC_RETRYER.retry(
                       () -> {
@@ -358,8 +358,7 @@ public class GrpcSyncRetryerTest {
                       },
                       new GrpcRetryer.GrpcRetryerOptions(options, null),
                       GetSystemInfoResponse.Capabilities.getDefaultInstance()));
-      assertEquals(Status.Code.RESOURCE_EXHAUSTED, e.getStatus().getCode());
-      assertEquals(description, e.getStatus().getDescription());
+      assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getMessage());
     }
   }
 }
