@@ -236,9 +236,7 @@ public final class ApplicationFailure extends TemporalFailure {
     private Duration nextRetryDelay;
     private ApplicationErrorCategory category;
 
-    private Builder() {
-      category = ApplicationErrorCategory.UNSPECIFIED;
-    }
+    private Builder() {}
 
     private Builder(ApplicationFailure options) {
       if (options == null) {
