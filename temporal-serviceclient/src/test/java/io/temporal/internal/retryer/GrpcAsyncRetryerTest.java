@@ -429,7 +429,7 @@ public class GrpcAsyncRetryerTest {
                       .retry()
                       .get());
       assertTrue(e.getCause() instanceof GrpcMessageTooLargeException);
-      assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getMessage());
+      assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getCause().getMessage());
     }
   }
 }
