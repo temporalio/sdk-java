@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
@@ -46,6 +47,7 @@ public class ServiceStubsAutoConfiguration {
   }
 
   @Bean(name = "temporalWorkflowServiceStubs")
+  @Primary
   public WorkflowServiceStubs workflowServiceStubsTemplate(
       @Qualifier("temporalServiceStubsTemplate") ServiceStubsTemplate serviceStubsTemplate) {
     return serviceStubsTemplate.getWorkflowServiceStubs();
