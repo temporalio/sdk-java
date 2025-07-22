@@ -341,7 +341,7 @@ public final class ApplicationFailure extends TemporalFailure {
           details == null ? new EncodedValues(null) : details,
           cause,
           nextRetryDelay,
-          category);
+          category == null ? ApplicationErrorCategory.UNSPECIFIED : category);
     }
   }
 }
