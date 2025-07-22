@@ -217,7 +217,7 @@ public interface DataConverter {
   }
 
   /**
-   * Extract the raw Class from a Type, handling both regular classes and parameterized types.
+   * Extract the raw Class from a Type; handles both regular classes and parameterized types.
    *
    * @param type the Type to extract from (could be Class or ParameterizedType)
    * @return the raw Class for the type
