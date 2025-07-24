@@ -10,6 +10,8 @@ import io.temporal.common.Experimental;
 import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
+import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -217,9 +219,10 @@ public interface DataConverter {
   }
 
   /**
-   * Extract the raw Class from a Type; handles both regular classes and parameterized types.
+   * Extract the raw Class from a Type; handles regular classes, parameterized types, and generic
+   * array types.
    *
-   * @param type the Type to extract from (could be Class or ParameterizedType)
+   * @param type the Type to extract from (could be Class, ParameterizedType, or GenericArrayType)
    * @return the raw Class for the type
    */
   static Class<?> getRawClass(Type type) {
@@ -227,6 +230,10 @@ public interface DataConverter {
       return (Class<?>) type;
     } else if (type instanceof ParameterizedType) {
       return (Class<?>) ((ParameterizedType) type).getRawType();
+    } else if (type instanceof GenericArrayType) {
+      Type componentType = ((GenericArrayType) type).getGenericComponentType();
+      Class<?> componentClass = getRawClass(componentType);
+      return Array.newInstance(componentClass, 0).getClass();
     } else {
       return Object.class;
     }
