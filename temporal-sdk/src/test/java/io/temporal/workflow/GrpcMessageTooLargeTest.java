@@ -7,22 +7,23 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowServiceException;
+import io.temporal.client.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
+import io.temporal.internal.worker.PollerOptions;
+import io.temporal.testUtils.LoggerUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GrpcMessageTooLargeTest {
+  private static final String QUERY_ERROR_MESSAGE =
+      "Failed to send query response: RESOURCE_EXHAUSTED: grpc: received message larger than max";
   private static final String VERY_LARGE_DATA;
 
   static {
@@ -36,16 +37,27 @@ public class GrpcMessageTooLargeTest {
   }
 
   @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
+  public SDKTestWorkflowRule activityStartWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflowImpl.class)
+          .setWorkflowTypes(ActivityStartWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
           .build();
 
+  @Rule
+  public SDKTestWorkflowRule failureWorkflowRule =
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(FailureWorkflowImpl.class).build();
+
+  @Rule
+  public SDKTestWorkflowRule querySuccessWorkflowRule =
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(QuerySuccessWorkflowImpl.class).build();
+
+  @Rule
+  public SDKTestWorkflowRule queryFailureWorkflowRule =
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(QueryFailureWorkflowImpl.class).build();
+
   @Test
   public void workflowStartTooLarge() {
-    TestWorkflows.TestWorkflowStringArg workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowStringArg.class);
+    TestWorkflow workflow = createWorkflowStub(TestWorkflow.class, activityStartWorkflowRule);
     WorkflowServiceException e =
         assertThrows(
             WorkflowServiceException.class,
@@ -55,40 +67,137 @@ public class GrpcMessageTooLargeTest {
 
   @Test
   public void activityStartTooLarge() {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(1))
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .build();
-    TestWorkflows.TestWorkflowStringArg workflow =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflowStringArg.class, options);
+    TestWorkflow workflow = createWorkflowStub(TestWorkflow.class, activityStartWorkflowRule);
 
     WorkflowFailedException e =
         assertThrows(WorkflowFailedException.class, () -> workflow.execute(""));
     assertTrue(e.getCause() instanceof TimeoutFailure);
 
+    String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
+    assertTrue(
+        activityStartWorkflowRule
+            .getHistoryEvents(workflowId, EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED)
+            .isEmpty());
     List<HistoryEvent> events =
-        testWorkflowRule.getHistoryEvents(
-            e.getExecution().getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
-    assertFalse(events.isEmpty());
-    for (HistoryEvent event : events) {
+        activityStartWorkflowRule.getHistoryEvents(
+            workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+    assertEquals(1, events.size());
+    assertEquals(
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE,
+        events.get(0).getWorkflowTaskFailedEventAttributes().getCause());
+  }
+
+  @Test
+  public void workflowFailureTooLarge() {
+    // Avoding logging exception with very large data
+    try (LoggerUtils.SilenceLoggers sl =
+        LoggerUtils.silenceLoggers(ReplayWorkflowTaskHandler.class, PollerOptions.class)) {
+      TestWorkflow workflow = createWorkflowStub(TestWorkflow.class, failureWorkflowRule);
+
+      WorkflowFailedException e =
+          assertThrows(WorkflowFailedException.class, () -> workflow.execute(""));
+
+      assertTrue(e.getCause() instanceof TimeoutFailure);
+      String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
+      List<HistoryEvent> events =
+          failureWorkflowRule.getHistoryEvents(
+              workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+      assertEquals(1, events.size());
       assertEquals(
           WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE,
-          event.getWorkflowTaskFailedEventAttributes().getCause());
+          events.get(0).getWorkflowTaskFailedEventAttributes().getCause());
     }
   }
 
-  public static class TestWorkflowImpl implements TestWorkflows.TestWorkflowStringArg {
+  @Test
+  public void queryResultTooLarge() {
+    TestWorkflowWithQuery workflow =
+        createWorkflowStub(TestWorkflowWithQuery.class, querySuccessWorkflowRule);
+    workflow.execute();
+
+    WorkflowQueryException e = assertThrows(WorkflowQueryException.class, workflow::query);
+
+    assertNotNull(e.getCause());
+    // The exception will not contain the original failure object, so instead of type check we're
+    // checking the message to ensure the correct error is being sent.
+    assertTrue(e.getCause().getMessage().contains(QUERY_ERROR_MESSAGE));
+  }
+
+  @Test
+  public void queryErrorTooLarge() {
+    TestWorkflowWithQuery workflow =
+        createWorkflowStub(TestWorkflowWithQuery.class, queryFailureWorkflowRule);
+    workflow.execute();
+
+    WorkflowQueryException e = assertThrows(WorkflowQueryException.class, workflow::query);
+
+    assertNotNull(e.getCause());
+    assertTrue(e.getCause().getMessage().contains(QUERY_ERROR_MESSAGE));
+  }
+
+  private static <T> T createWorkflowStub(Class<T> clazz, SDKTestWorkflowRule workflowRule) {
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(1))
+            .setWorkflowTaskTimeout(Duration.ofMillis(250))
+            .setTaskQueue(workflowRule.getTaskQueue())
+            .build();
+    return workflowRule.getWorkflowClient().newWorkflowStub(clazz, options);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflow {
+    @WorkflowMethod
+    void execute(String arg);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowWithQuery {
+    @WorkflowMethod
+    void execute();
+
+    @QueryMethod
+    String query();
+  }
+
+  public static class ActivityStartWorkflowImpl implements TestWorkflow {
+    private final TestActivities.TestActivity1 activity =
+        Workflow.newActivityStub(
+            TestActivities.TestActivity1.class,
+            ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(1))
+                .validateAndBuildWithDefaults());
+
     @Override
     public void execute(String arg) {
-      Workflow.newActivityStub(
-              TestActivities.TestActivity1.class,
-              ActivityOptions.newBuilder()
-                  .setStartToCloseTimeout(Duration.ofSeconds(1))
-                  .validateAndBuildWithDefaults())
-          .execute(VERY_LARGE_DATA);
+      activity.execute(VERY_LARGE_DATA);
+    }
+  }
+
+  public static class FailureWorkflowImpl implements TestWorkflow {
+    @Override
+    public void execute(String arg) {
+      throw new RuntimeException(VERY_LARGE_DATA);
+    }
+  }
+
+  public static class QuerySuccessWorkflowImpl implements TestWorkflowWithQuery {
+    @Override
+    public void execute() {}
+
+    @Override
+    public String query() {
+      return VERY_LARGE_DATA;
+    }
+  }
+
+  public static class QueryFailureWorkflowImpl implements TestWorkflowWithQuery {
+    @Override
+    public void execute() {}
+
+    @Override
+    public String query() {
+      throw new RuntimeException(VERY_LARGE_DATA);
     }
   }
 

@@ -340,7 +340,6 @@ public class GrpcSyncRetryerTest {
           "grpc: message after decompression larger than max (2000 vs. 1000)",
           "grpc: received message after decompression larger than max (2000 vs. 1000)",
         }) {
-      long start = System.currentTimeMillis();
       final AtomicInteger attempts = new AtomicInteger();
       GrpcMessageTooLargeException e =
           assertThrows(
@@ -359,6 +358,7 @@ public class GrpcSyncRetryerTest {
                       new GrpcRetryer.GrpcRetryerOptions(options, null),
                       GetSystemInfoResponse.Capabilities.getDefaultInstance()));
       assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getMessage());
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
     }
   }
 }

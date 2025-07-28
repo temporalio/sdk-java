@@ -405,7 +405,6 @@ public class GrpcAsyncRetryerTest {
           "grpc: message after decompression larger than max (2000 vs. 1000)",
           "grpc: received message after decompression larger than max (2000 vs. 1000)",
         }) {
-      long start = System.currentTimeMillis();
       final AtomicInteger attempts = new AtomicInteger();
       ExecutionException e =
           assertThrows(
@@ -430,6 +429,7 @@ public class GrpcAsyncRetryerTest {
                       .get());
       assertTrue(e.getCause() instanceof GrpcMessageTooLargeException);
       assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getCause().getMessage());
+      assertTrue(e.getCause().getCause() instanceof StatusRuntimeException);
     }
   }
 }
