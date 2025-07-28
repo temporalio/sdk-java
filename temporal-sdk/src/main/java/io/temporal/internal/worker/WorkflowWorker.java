@@ -9,7 +9,9 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
@@ -405,8 +407,30 @@ final class WorkflowWorker implements SuspendableWorker {
             RespondQueryTaskCompletedRequest queryCompleted = result.getQueryCompleted();
 
             if (queryCompleted != null) {
-              sendDirectQueryCompletedResponse(
-                  currentTask.getTaskToken(), queryCompleted.toBuilder(), workflowTypeScope);
+              try {
+                sendDirectQueryCompletedResponse(
+                    currentTask.getTaskToken(), queryCompleted.toBuilder(), workflowTypeScope);
+              } catch (StatusRuntimeException e) {
+                GrpcMessageTooLargeException tooLargeException =
+                    GrpcMessageTooLargeException.tryWrap(e);
+                if (tooLargeException == null) {
+                  throw e;
+                }
+                Failure failure =
+                    grpcMessageTooLargeFailure(
+                        workflowExecution.getWorkflowId(),
+                        tooLargeException,
+                        "Failed to send query response");
+                RespondQueryTaskCompletedRequest.Builder queryFailedBuilder =
+                    RespondQueryTaskCompletedRequest.newBuilder()
+                        .setTaskToken(currentTask.getTaskToken())
+                        .setNamespace(namespace)
+                        .setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
+                        .setErrorMessage(failure.getMessage())
+                        .setFailure(failure);
+                sendDirectQueryCompletedResponse(
+                    currentTask.getTaskToken(), queryFailedBuilder, workflowTypeScope);
+              }
             } else {
               try {
                 if (taskCompleted != null) {
@@ -443,33 +467,28 @@ final class WorkflowWorker implements SuspendableWorker {
                       workflowTypeScope);
                 }
               } catch (GrpcMessageTooLargeException e) {
+                // Only fail workflow task on the first attempt, subsequent failures of the same
+                // workflow task should timeout.
+                if (currentTask.getAttempt() > 1) {
+                  throw e;
+                }
+
                 releaseReason = SlotReleaseReason.error(e);
                 handleReportingFailure(
                     e, currentTask, result, workflowExecution, workflowTypeScope);
-                // replacing failure cause for metrics purposes
+                // setting/replacing failure cause for metrics purposes
                 taskFailedCause =
                     WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE;
 
-                String message =
+                String messagePrefix =
                     String.format(
-                        "Failed to send workflow task %s: %s",
-                        taskFailed == null ? "completion" : "failure", e.getMessage());
-                ApplicationFailure applicationFailure =
-                    ApplicationFailure.newBuilder()
-                        .setMessage(message)
-                        .setType("GrpcMessageTooLargeException")
-                        .setNonRetryable(true)
-                        .build();
-                Failure failure =
-                    options
-                        .getDataConverter()
-                        .withContext(
-                            new WorkflowSerializationContext(
-                                namespace, workflowExecution.getWorkflowId()))
-                        .exceptionToFailure(applicationFailure);
+                        "Failed to send workflow task %s",
+                        taskFailed == null ? "completion" : "failure");
                 RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
                     RespondWorkflowTaskFailedRequest.newBuilder()
-                        .setFailure(failure)
+                        .setFailure(
+                            grpcMessageTooLargeFailure(
+                                workflowExecution.getWorkflowId(), e, messagePrefix))
                         .setCause(
                             WorkflowTaskFailedCause
                                 .WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE);
@@ -670,6 +689,20 @@ final class WorkflowWorker implements SuspendableWorker {
       // knows next time.
       cache.invalidate(
           workflowExecution, workflowTypeScope, "Failed result reporting to the server", e);
+    }
+
+    private Failure grpcMessageTooLargeFailure(
+        String workflowId, GrpcMessageTooLargeException e, String messagePrefix) {
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage(messagePrefix + ": " + e.getMessage())
+              .setType(GrpcMessageTooLargeException.class.getSimpleName())
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]); // don't serialize stack trace
+      return options
+          .getDataConverter()
+          .withContext(new WorkflowSerializationContext(namespace, workflowId))
+          .exceptionToFailure(applicationFailure);
     }
   }
 }

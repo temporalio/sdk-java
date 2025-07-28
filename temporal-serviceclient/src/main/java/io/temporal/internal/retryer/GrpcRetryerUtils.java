@@ -58,15 +58,9 @@ class GrpcRetryerUtils {
         break;
       case RESOURCE_EXHAUSTED:
         // Retry RESOURCE_EXHAUSTED unless the max message size was exceeded
-        if (status.getDescription() != null
-            && (status.getDescription().startsWith("grpc: received message larger than max")
-                || status
-                    .getDescription()
-                    .startsWith("grpc: message after decompression larger than max")
-                || status
-                    .getDescription()
-                    .startsWith("grpc: received message after decompression larger than max"))) {
-          return new GrpcMessageTooLargeException(currentException);
+        GrpcMessageTooLargeException e = GrpcMessageTooLargeException.tryWrap(currentException);
+        if (e != null) {
+          return e;
         }
         break;
       default:
