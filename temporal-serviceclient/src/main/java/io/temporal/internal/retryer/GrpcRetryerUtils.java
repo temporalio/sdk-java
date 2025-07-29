@@ -29,9 +29,9 @@ class GrpcRetryerUtils {
       @Nonnull StatusRuntimeException currentException,
       @Nonnull RpcRetryOptions options,
       GetSystemInfoResponse.Capabilities serverCapabilities) {
-    Status status = currentException.getStatus();
+    Status.Code code = currentException.getStatus().getCode();
 
-    switch (status.getCode()) {
+    switch (code) {
       // CANCELLED and DEADLINE_EXCEEDED usually considered non-retryable in GRPC world, for
       // example:
       // https://github.com/grpc-ecosystem/go-grpc-middleware/blob/master/retry/retry.go#L287
@@ -65,7 +65,7 @@ class GrpcRetryerUtils {
         break;
       default:
         for (RpcRetryOptions.DoNotRetryItem pair : options.getDoNotRetry()) {
-          if (pair.getCode() == status.getCode()
+          if (pair.getCode() == code
               && (pair.getDetailsClass() == null
                   || StatusUtils.hasFailure(currentException, pair.getDetailsClass()))) {
             return currentException;
