@@ -43,7 +43,7 @@ public class ResourceBasedController {
     this.systemInfoSupplier = systemInfoSupplier;
     this.memoryController =
         new PIDController(
-            options.getTargetCPUUsage(),
+            options.getTargetMemoryUsage(),
             options.getMemoryPGain(),
             options.getMemoryIGain(),
             options.getMemoryDGain());
@@ -63,6 +63,7 @@ public class ResourceBasedController {
     try {
       double memoryUsage = systemInfoSupplier.getMemoryUsagePercent();
       double cpuUsage = systemInfoSupplier.getCPUUsagePercent();
+
       double memoryOutput =
           memoryController.getOutput(lastPidRefresh.getEpochSecond(), memoryUsage);
       double cpuOutput = cpuController.getOutput(lastPidRefresh.getEpochSecond(), cpuUsage);
