@@ -13,6 +13,13 @@ final class ActivityStubImpl extends ActivityStubBase {
   private final WorkflowOutboundCallsInterceptor activityExecutor;
   private final Functions.Proc assertReadOnly;
 
+  private void assertSameWorkflow() {
+    if (activityExecutor != WorkflowInternal.getWorkflowOutboundInterceptor()) {
+      throw new IllegalStateException(
+          "Activity stub belongs to a different workflow. Create a new stub for each workflow instance.");
+    }
+  }
+
   static ActivityStub newInstance(
       ActivityOptions options,
       WorkflowOutboundCallsInterceptor activityExecutor,
@@ -34,6 +41,7 @@ final class ActivityStubImpl extends ActivityStubBase {
   @Override
   public <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args) {
+    assertSameWorkflow();
     this.assertReadOnly.apply();
     return activityExecutor
         .executeActivity(
