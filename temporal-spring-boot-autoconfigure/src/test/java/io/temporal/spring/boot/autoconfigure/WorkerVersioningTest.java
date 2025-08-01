@@ -18,6 +18,8 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SpringBootTest(classes = WorkerVersioningTest.Configuration.class)
 @ActiveProfiles(profiles = "worker-versioning")
@@ -26,15 +28,18 @@ public class WorkerVersioningTest {
   @Autowired ConfigurableApplicationContext applicationContext;
   @Autowired WorkflowClient workflowClient;
 
+  private static final Logger log = LoggerFactory.getLogger("sleep-activity");
+
   @BeforeAll
   static void checkDockerService() {
     String useDocker = System.getenv("USE_DOCKER_SERVICE");
-    System.out.println("USE_DOCKER_SERVICE123: " + useDocker);
+    log.info("USE_DOCKER_SERVICE123: " + useDocker);
     if (useDocker != null) {
-      System.out.println("useDocker.equalsIgnoreCase(true): " + useDocker.equalsIgnoreCase("true"));
+      log.info("useDocker.equalsIgnoreCase(true): " + useDocker.equalsIgnoreCase("true"));
     }
+    log.info("new condition" + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
     Assumptions.assumeTrue(
-        useDocker != null && useDocker.equalsIgnoreCase("true"),
+        useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true")),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
   }
 
