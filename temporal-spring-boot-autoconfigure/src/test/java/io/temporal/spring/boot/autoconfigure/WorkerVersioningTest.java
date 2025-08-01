@@ -41,14 +41,14 @@ public class WorkerVersioningTest {
         "new condition"
             + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
     Assumptions.assumeTrue(
-        useDocker != null && useDocker.equalsIgnoreCase("true"),
+        (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
   }
 
-//  @BeforeEach
-//  void setUp() {
-//    applicationContext.start();
-//  }
+  //  @BeforeEach
+  //  void setUp() {
+  //    applicationContext.start();
+  //  }
 
   @SuppressWarnings("deprecation")
   @Test
