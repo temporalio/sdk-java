@@ -2,6 +2,7 @@ package io.temporal.workflow;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
@@ -19,7 +20,8 @@ public class GenericParametersWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(GenericParametersWorkflowImpl.class)
+          .setWorkflowTypes(
+              GenericParametersWorkflowImpl.class, MissingParametersWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
@@ -61,6 +63,14 @@ public class GenericParametersWorkflowTest {
     Assert.assertEquals(expectedResult, result);
   }
 
+  @Test
+  public void testMissingGenericParameterWithUntypedStub() {
+    WorkflowStub untypedStub = testWorkflowRule.newUntypedWorkflowStub("MissingParametersWorkflow");
+    untypedStub.start("test-name");
+    String result = untypedStub.getResult(String.class);
+    Assert.assertEquals("test-name", result);
+  }
+
   @ActivityInterface
   public interface GenericParametersActivity {
 
@@ -78,6 +88,13 @@ public class GenericParametersWorkflowTest {
 
     @QueryMethod
     List<UUID> query(List<UUID> arg);
+  }
+
+  @WorkflowInterface
+  public interface MissingParametersWorkflow {
+
+    @WorkflowMethod
+    String execute(String name, List<String> names);
   }
 
   public static class GenericParametersActivityImpl implements GenericParametersActivity {
@@ -117,6 +134,18 @@ public class GenericParametersWorkflowTest {
       result.addAll(arg);
       result.addAll(signaled);
       return result;
+    }
+  }
+
+  public static class MissingParametersWorkflowImpl implements MissingParametersWorkflow {
+
+    @Override
+    public String execute(String name, List<String> names) {
+      if (names == null) {
+        return name;
+      } else {
+        return name + ":" + String.join(",", names);
+      }
     }
   }
 }
