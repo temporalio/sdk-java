@@ -12,14 +12,14 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SpringBootTest(classes = WorkerVersioningTest.Configuration.class)
 @ActiveProfiles(profiles = "worker-versioning")
@@ -37,7 +37,9 @@ public class WorkerVersioningTest {
     if (useDocker != null) {
       log.info("useDocker.equalsIgnoreCase(true): " + useDocker.equalsIgnoreCase("true"));
     }
-    log.info("new condition" + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
+    log.info(
+        "new condition"
+            + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
     Assumptions.assumeTrue(
         useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true")),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
