@@ -32,7 +32,7 @@ jobs:
     - name: Run unit tests
       env:
         USER: unittest
-        USE_DOCKER_SERVICE: false
+#        USE_DOCKER_SERVICE: false
       run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Run independent resource tuner test
