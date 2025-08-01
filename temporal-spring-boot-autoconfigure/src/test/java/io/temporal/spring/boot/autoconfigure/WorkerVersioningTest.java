@@ -45,15 +45,16 @@ public class WorkerVersioningTest {
         "Skipping tests because USE_DOCKER_SERVICE is not set");
   }
 
-  @BeforeEach
-  void setUp() {
-    applicationContext.start();
-  }
+//  @BeforeEach
+//  void setUp() {
+//    applicationContext.start();
+//  }
 
   @SuppressWarnings("deprecation")
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
+    applicationContext.start();
     log.info("testAutoDiscovery started");
     workflowClient
         .getWorkflowServiceStubs()
