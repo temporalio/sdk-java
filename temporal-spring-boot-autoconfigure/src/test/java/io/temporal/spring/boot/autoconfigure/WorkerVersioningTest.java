@@ -12,6 +12,8 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -26,23 +28,34 @@ public class WorkerVersioningTest {
   @Autowired ConfigurableApplicationContext applicationContext;
   @Autowired WorkflowClient workflowClient;
 
+  private static final Logger log = LoggerFactory.getLogger("worker-versioning");
+
   @BeforeAll
   static void checkDockerService() {
     String useDocker = System.getenv("USE_DOCKER_SERVICE");
+    log.info("USE_DOCKER_SERVICE123: " + useDocker);
+    if (useDocker != null) {
+      log.info("useDocker.equalsIgnoreCase(true): " + useDocker.equalsIgnoreCase("true"));
+    }
+    log.info(
+        "new condition"
+            + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
     Assumptions.assumeTrue(
-        useDocker != null && useDocker.equalsIgnoreCase("true"),
+        (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
   }
 
-  @BeforeEach
-  void setUp() {
-    applicationContext.start();
-  }
+  //  @BeforeEach
+  //  void setUp() {
+  //    applicationContext.start();
+  //  }
 
   @SuppressWarnings("deprecation")
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
+    applicationContext.start();
+    log.info("testAutoDiscovery started");
     workflowClient
         .getWorkflowServiceStubs()
         .blockingStub()
@@ -52,10 +65,12 @@ public class WorkerVersioningTest {
                 .setDeploymentName("dname")
                 .setVersion("dname.bid")
                 .build());
+    log.info("testAutoDiscovery 1");
 
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
+    log.info("testAutoDiscovery 2");
     WorkflowExecution we1 = WorkflowClient.start(testWorkflow::execute, "hi");
     workflowClient.newUntypedWorkflowStub(we1.getWorkflowId()).getResult(String.class);
     // Should've used pinned (via default)
@@ -82,6 +97,7 @@ public class WorkerVersioningTest {
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
                         && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
                             == VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE));
+    log.info("testAutoDiscovery done");
   }
 
   @ComponentScan(
