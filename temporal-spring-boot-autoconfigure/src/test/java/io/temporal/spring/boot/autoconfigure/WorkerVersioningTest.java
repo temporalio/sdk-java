@@ -28,7 +28,7 @@ public class WorkerVersioningTest {
   @Autowired ConfigurableApplicationContext applicationContext;
   @Autowired WorkflowClient workflowClient;
 
-  private static final Logger log = LoggerFactory.getLogger("sleep-activity");
+  private static final Logger log = LoggerFactory.getLogger("worker-versioning");
 
   @BeforeAll
   static void checkDockerService() {
@@ -41,7 +41,7 @@ public class WorkerVersioningTest {
         "new condition"
             + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
     Assumptions.assumeTrue(
-        useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true")),
+        useDocker != null && useDocker.equalsIgnoreCase("true"),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
   }
 
@@ -54,6 +54,7 @@ public class WorkerVersioningTest {
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
+    log.info("testAutoDiscovery started");
     workflowClient
         .getWorkflowServiceStubs()
         .blockingStub()
@@ -63,10 +64,12 @@ public class WorkerVersioningTest {
                 .setDeploymentName("dname")
                 .setVersion("dname.bid")
                 .build());
+    log.info("testAutoDiscovery 1");
 
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
+    log.info("testAutoDiscovery 2");
     WorkflowExecution we1 = WorkflowClient.start(testWorkflow::execute, "hi");
     workflowClient.newUntypedWorkflowStub(we1.getWorkflowId()).getResult(String.class);
     // Should've used pinned (via default)
@@ -93,6 +96,7 @@ public class WorkerVersioningTest {
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
                         && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
                             == VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE));
+    log.info("testAutoDiscovery done");
   }
 
   @ComponentScan(
