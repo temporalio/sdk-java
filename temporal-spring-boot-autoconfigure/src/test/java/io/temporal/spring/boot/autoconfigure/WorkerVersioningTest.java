@@ -29,6 +29,10 @@ public class WorkerVersioningTest {
   @BeforeAll
   static void checkDockerService() {
     String useDocker = System.getenv("USE_DOCKER_SERVICE");
+    System.out.println("USE_DOCKER_SERVICE123: " + useDocker);
+    if (useDocker != null) {
+      System.out.println("useDocker.equalsIgnoreCase(true): " + useDocker.equalsIgnoreCase("true"));
+    }
     Assumptions.assumeTrue(
         useDocker != null && useDocker.equalsIgnoreCase("true"),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
