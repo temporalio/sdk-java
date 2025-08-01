@@ -63,7 +63,6 @@ public class ResourceBasedController {
     try {
       double memoryUsage = systemInfoSupplier.getMemoryUsagePercent();
       double cpuUsage = systemInfoSupplier.getCPUUsagePercent();
-
       double memoryOutput =
           memoryController.getOutput(lastPidRefresh.getEpochSecond(), memoryUsage);
       double cpuOutput = cpuController.getOutput(lastPidRefresh.getEpochSecond(), cpuUsage);
