@@ -4,7 +4,7 @@ import io.nexusrpc.OperationException;
 import io.nexusrpc.OperationState;
 import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.client.ServiceClient;
-import io.nexusrpc.client.StartOperationResult;
+import io.nexusrpc.client.StartOperationResponse;
 import io.nexusrpc.handler.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -112,17 +112,17 @@ public class NexusServiceClientSyncOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> result =
+    StartOperationResponse<String> result =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
-    Assert.assertTrue(result instanceof StartOperationResult.Sync);
-    StartOperationResult.Sync<String> syncResult = (StartOperationResult.Sync<String>) result;
+    Assert.assertTrue(result instanceof StartOperationResponse.Sync);
+    StartOperationResponse.Sync<String> syncResult = (StartOperationResponse.Sync<String>) result;
     Assert.assertEquals("Hello World", syncResult.getResult());
 
-    CompletableFuture<StartOperationResult<String>> asyncResult =
+    CompletableFuture<StartOperationResponse<String>> asyncResult =
         serviceClient.startOperationAsync(
             TestNexusServices.TestNexusService1::operation, "World Async");
-    Assert.assertTrue(asyncResult.join() instanceof StartOperationResult.Sync);
-    syncResult = (StartOperationResult.Sync<String>) asyncResult.join();
+    Assert.assertTrue(asyncResult.join() instanceof StartOperationResponse.Sync);
+    syncResult = (StartOperationResponse.Sync<String>) asyncResult.join();
     Assert.assertEquals("Hello World Async", syncResult.getResult());
   }
 
@@ -144,7 +144,7 @@ public class NexusServiceClientSyncOperationTest {
     Assert.assertEquals(OperationState.FAILED, oe.getState());
     Assert.assertTrue(oe.getCause() instanceof ApplicationFailure);
 
-    CompletableFuture<StartOperationResult<String>> asyncResult =
+    CompletableFuture<StartOperationResponse<String>> asyncResult =
         serviceClient.startOperationAsync(TestNexusServices.TestNexusService1::operation, "fail");
     ExecutionException ee = Assert.assertThrows(ExecutionException.class, asyncResult::get);
     Assert.assertTrue(ee.getCause() instanceof OperationException);
@@ -171,7 +171,7 @@ public class NexusServiceClientSyncOperationTest {
     Assert.assertEquals(OperationState.CANCELED, oe.getState());
     Assert.assertTrue(oe.getCause() instanceof ApplicationFailure);
 
-    CompletableFuture<StartOperationResult<String>> asyncResult =
+    CompletableFuture<StartOperationResponse<String>> asyncResult =
         serviceClient.startOperationAsync(TestNexusServices.TestNexusService1::operation, "cancel");
     ExecutionException ee = Assert.assertThrows(ExecutionException.class, asyncResult::get);
     Assert.assertTrue(ee.getCause() instanceof OperationException);

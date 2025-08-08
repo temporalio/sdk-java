@@ -127,10 +127,11 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
     OperationHandle<String> newHandler =
         serviceClient.newHandle(
             TestNexusServices.TestNexusService1::operation, handle.getOperationToken());
@@ -151,10 +152,11 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
 
     OperationHandle<String> newHandler =
         serviceClient.newHandle(
@@ -216,10 +218,11 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
     Assert.assertThrows(
         OperationStillRunningException.class,
         () ->
@@ -245,10 +248,11 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
     handle.cancel();
     // Verify that we can call cancel again without issues
     handle.cancel();
@@ -274,12 +278,13 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient
             .startOperationAsync(TestNexusServices.TestNexusService1::operation, "World")
             .join();
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
     Assert.assertNotNull(handle);
     handle.cancelAsync().join();
     CompletionException ce =
@@ -306,12 +311,13 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient
             .startOperationAsync(TestNexusServices.TestNexusService1::operation, "World")
             .join();
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
     Assert.assertEquals(OperationState.RUNNING, handle.fetchInfoAsync().join().getState());
     CompletionException ce =
         Assert.assertThrows(
@@ -343,10 +349,11 @@ public class NexusServiceClientWorkflowOperationTest {
                 TestNexusServices.TestNexusService1.class,
                 testWorkflowRule.getNexusEndpoint().getSpec().getName());
 
-    StartOperationResult<String> startResult =
+    StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "fail");
-    Assert.assertTrue(startResult instanceof StartOperationResult.Async);
-    OperationHandle<String> handle = ((StartOperationResult.Async<String>) startResult).getHandle();
+    Assert.assertTrue(startResult instanceof StartOperationResponse.Async);
+    OperationHandle<String> handle =
+        ((StartOperationResponse.Async<String>) startResult).getHandle();
     OperationException oe =
         Assert.assertThrows(
             OperationException.class,
