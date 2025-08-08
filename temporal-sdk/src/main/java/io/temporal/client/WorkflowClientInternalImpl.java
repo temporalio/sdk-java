@@ -6,6 +6,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
+import io.nexusrpc.client.CompletionClient;
+import io.nexusrpc.client.ServiceClient;
+import io.nexusrpc.client.ServiceClientOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TaskReachability;
 import io.temporal.api.history.v1.History;
@@ -21,6 +24,7 @@ import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.nexus.PayloadSerializer;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -99,6 +103,21 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Override
   public WorkflowServiceStubs getWorkflowServiceStubs() {
     return workflowServiceStubs;
+  }
+
+  @Override
+  public <T> ServiceClient<T> newNexusServiceClient(
+      Class<T> nexusServiceInterface, String endpoint) {
+    return new ServiceClient<>(
+        ServiceClientOptions.newBuilder(nexusServiceInterface)
+            .setTransport(new workflowServiceNexusTransport(genericClient, endpoint, options))
+            .setSerializer(new PayloadSerializer(options.getDataConverter()))
+            .build());
+  }
+
+  @Override
+  public CompletionClient newNexusCompletionClient() {
+    return new CompletionClient(new workflowServiceNexusTransport(genericClient, "", options));
   }
 
   @Override

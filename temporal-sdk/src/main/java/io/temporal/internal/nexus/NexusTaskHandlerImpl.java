@@ -5,11 +5,14 @@ import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.Header;
+import io.nexusrpc.OperationDefinition;
 import io.nexusrpc.OperationException;
+import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.nexus.v1.*;
+import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponseOrBuilder;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.converter.DataConverter;
@@ -17,6 +20,7 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.NexusUtil;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.internal.worker.ShutdownManager;
@@ -72,6 +76,34 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     return true;
   }
 
+  private String getNexusTaskService(PollNexusTaskQueueResponseOrBuilder pollResponse) {
+    Request request = pollResponse.getRequest();
+    if (request.hasStartOperation()) {
+      return request.getStartOperation().getService();
+    } else if (request.hasCancelOperation()) {
+      return request.getCancelOperation().getService();
+    } else if (request.hasGetOperationInfo()) {
+      return request.getGetOperationInfo().getService();
+    } else if (request.hasGetOperationResult()) {
+      return request.getGetOperationResult().getService();
+    }
+    return "";
+  }
+
+  private String getNexusTaskOperation(PollNexusTaskQueueResponseOrBuilder pollResponse) {
+    Request request = pollResponse.getRequest();
+    if (request.hasStartOperation()) {
+      return request.getStartOperation().getOperation();
+    } else if (request.hasCancelOperation()) {
+      return request.getCancelOperation().getOperation();
+    } else if (request.hasGetOperationInfo()) {
+      return request.getGetOperationInfo().getOperation();
+    } else if (request.hasGetOperationResult()) {
+      return request.getGetOperationResult().getOperation();
+    }
+    return "";
+  }
+
   @Override
   public Result handle(NexusTask task, Scope metricsScope) throws TimeoutException {
     Request request = task.getResponse().getRequest();
@@ -109,8 +141,20 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         }
       }
 
+      // TODO: refactor
+      OperationDefinition operationDefinition = null;
+      String service = getNexusTaskService(task.getResponse());
+      String operation = getNexusTaskOperation(task.getResponse());
+      if (serviceHandler.getInstances().containsKey(service)) {
+        ServiceImplInstance serviceImpl = serviceHandler.getInstances().get(service);
+        if (serviceImpl.getDefinition().getOperations().containsKey(operation)) {
+          operationDefinition = serviceImpl.getDefinition().getOperations().get(operation);
+        }
+      }
+
       CurrentNexusOperationContext.set(
-          new InternalNexusOperationContext(namespace, taskQueue, metricsScope, client));
+          new InternalNexusOperationContext(
+              namespace, taskQueue, operationDefinition, metricsScope, client));
 
       switch (request.getVariantCase()) {
         case START_OPERATION:
@@ -121,6 +165,14 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
           CancelOperationResponse cancelResponse =
               handleCancelledOperation(ctx, request.getCancelOperation());
           return new Result(Response.newBuilder().setCancelOperation(cancelResponse).build());
+        case GET_OPERATION_INFO:
+          GetOperationInfoResponse getInfoResponse =
+              handleGetOperationInfo(ctx, request.getGetOperationInfo());
+          return new Result(Response.newBuilder().setGetOperationInfo(getInfoResponse).build());
+        case GET_OPERATION_RESULT:
+          GetOperationResultResponse getResultResponse =
+              handleGetOperationResult(ctx, request.getGetOperationResult());
+          return new Result(Response.newBuilder().setGetOperationResult(getResultResponse).build());
         default:
           throw new HandlerException(
               HandlerException.ErrorType.NOT_IMPLEMENTED,
@@ -150,6 +202,92 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
       CurrentNexusOperationContext.unset();
     }
+  }
+
+  private GetOperationResultResponse handleGetOperationResult(
+      OperationContext.Builder ctx, GetOperationResultRequest task) {
+    ctx.setService(task.getService()).setOperation(task.getOperation());
+
+    OperationFetchResultDetails operationFetchResultDetails =
+        OperationFetchResultDetails.newBuilder()
+            .setOperationToken(task.getOperationToken())
+            .setTimeout(ProtobufTimeUtils.toJavaDuration(task.getWait()))
+            .build();
+    try {
+      try {
+        HandlerResultContent result =
+            serviceHandler.fetchOperationResult(ctx.build(), operationFetchResultDetails);
+        return GetOperationResultResponse.newBuilder()
+            .setSuccessful(
+                GetOperationResultResponse.Successful.newBuilder()
+                    .setResult(Payload.parseFrom(result.getDataBytes()))
+                    .build())
+            .build();
+      } catch (OperationStillRunningException e) {
+        return GetOperationResultResponse.newBuilder()
+            .setStillRunning(GetOperationResultResponse.StillRunning.newBuilder().build())
+            .build();
+      } catch (Throwable e) {
+        Throwable failure = CheckedExceptionWrapper.unwrap(e);
+        log.warn(
+            "Nexus fetch operation result failure. Service={}, Operation={}",
+            task.getService(),
+            task.getOperation(),
+            failure);
+        // Re-throw the original exception to handle it in the caller
+        throw e;
+      }
+    } catch (OperationException e) {
+      return GetOperationResultResponse.newBuilder()
+          .setUnsuccessful(
+              GetOperationResultResponse.Unsuccessful.newBuilder()
+                  .setOperationError(
+                      UnsuccessfulOperationError.newBuilder()
+                          .setOperationState(e.getState().toString().toLowerCase())
+                          .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
+                          .build()))
+          .build();
+    } catch (Throwable failure) {
+      convertKnownFailures(failure);
+    }
+    throw new HandlerException(
+        HandlerException.ErrorType.INTERNAL,
+        new RuntimeException("Failed to handle get operation result"),
+        HandlerException.RetryBehavior.NON_RETRYABLE);
+  }
+
+  private GetOperationInfoResponse handleGetOperationInfo(
+      OperationContext.Builder ctx, GetOperationInfoRequest task) {
+    ctx.setService(task.getService()).setOperation(task.getOperation());
+
+    OperationFetchInfoDetails details =
+        OperationFetchInfoDetails.newBuilder().setOperationToken(task.getOperationToken()).build();
+    try {
+      try {
+        io.nexusrpc.OperationInfo info = serviceHandler.fetchOperationInfo(ctx.build(), details);
+        return GetOperationInfoResponse.newBuilder()
+            .setInfo(
+                OperationInfo.newBuilder()
+                    .setState(info.getState().toString().toLowerCase())
+                    .setToken(info.getToken())
+                    .build())
+            .build();
+      } catch (Throwable e) {
+        Throwable failure = CheckedExceptionWrapper.unwrap(e);
+        log.warn(
+            "Nexus cancel operation failure. Service={}, Operation={}",
+            task.getService(),
+            task.getOperation(),
+            failure);
+        // Re-throw the original exception to handle it in the caller
+        throw e;
+      }
+    } catch (Throwable failure) {
+      convertKnownFailures(failure);
+    }
+    return GetOperationInfoResponse.newBuilder()
+        .setInfo(OperationInfo.newBuilder().build())
+        .build();
   }
 
   private NexusHandlerErrorRetryBehavior mapRetryBehavior(
@@ -263,7 +401,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
-
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
     OperationContext context = ctx.build();
     try {

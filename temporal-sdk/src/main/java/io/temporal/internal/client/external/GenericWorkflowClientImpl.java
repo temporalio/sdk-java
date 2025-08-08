@@ -60,6 +60,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         .build();
   }
 
+  private static Map<String, String> tagsFoNexusOperations(String service, String operation) {
+    return new ImmutableMap.Builder<String, String>(2)
+        .put(MetricsTag.NEXUS_SERVICE, service)
+        .put(MetricsTag.OPERATION_NAME, operation)
+        .build();
+  }
+
   @Override
   public void signal(SignalWorkflowExecutionRequest request) {
     Map<String, String> tags =
@@ -421,6 +428,150 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .withDeadline(deadline)
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .executeMultiOperation(req),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public GetNexusOperationInfoResponse getNexusOperationInfo(GetNexusOperationInfoRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .getNexusOperationInfo(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public StartNexusOperationResponse startNexusOperation(StartNexusOperationRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                .startNexusOperation(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public RequestCancelNexusOperationResponse requestCancelNexusOperation(
+      RequestCancelNexusOperationRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                .requestCancelNexusOperation(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public GetNexusOperationResultResponse getNexusOperationResult(
+      GetNexusOperationResultRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    Deadline deadline = Deadline.after(request.getWait().getSeconds(), TimeUnit.SECONDS);
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                .withDeadline(deadline)
+                .getNexusOperationResult(request),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  @Override
+  public CompleteNexusOperationResponse completeNexusOperation(
+      CompleteNexusOperationRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .completeNexusOperation(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<GetNexusOperationInfoResponse> getNexusOperationInfoAsync(
+      GetNexusOperationInfoRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                    .getNexusOperationInfo(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<StartNexusOperationResponse> startNexusOperationAsync(
+      StartNexusOperationRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                    .startNexusOperation(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<RequestCancelNexusOperationResponse> requestCancelNexusOperationAsync(
+      RequestCancelNexusOperationRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                    .requestCancelNexusOperation(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<GetNexusOperationResultResponse> getNexusOperationResultAsync(
+      GetNexusOperationResultRequest request) {
+    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Scope scope = metricsScope.tagged(tags);
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                    .getNexusOperationResult(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<CompleteNexusOperationResponse> completeNexusOperationAsync(
+      CompleteNexusOperationRequest request) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .completeNexusOperation(request)),
         grpcRetryerOptions);
   }
 }

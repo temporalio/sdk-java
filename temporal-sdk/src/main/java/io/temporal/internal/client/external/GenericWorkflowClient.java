@@ -75,4 +75,40 @@ public interface GenericWorkflowClient {
 
   @Experimental
   GetWorkerTaskReachabilityResponse GetWorkerTaskReachability(GetWorkerTaskReachabilityRequest req);
+
+  @Experimental
+  GetNexusOperationInfoResponse getNexusOperationInfo(GetNexusOperationInfoRequest request);
+
+  @Experimental
+  StartNexusOperationResponse startNexusOperation(StartNexusOperationRequest request);
+
+  @Experimental
+  RequestCancelNexusOperationResponse requestCancelNexusOperation(
+      RequestCancelNexusOperationRequest request);
+
+  @Experimental
+  GetNexusOperationResultResponse getNexusOperationResult(GetNexusOperationResultRequest request);
+
+  @Experimental
+  CompleteNexusOperationResponse completeNexusOperation(CompleteNexusOperationRequest request);
+
+  @Experimental
+  CompletableFuture<GetNexusOperationInfoResponse> getNexusOperationInfoAsync(
+      GetNexusOperationInfoRequest request);
+
+  @Experimental
+  CompletableFuture<StartNexusOperationResponse> startNexusOperationAsync(
+      StartNexusOperationRequest request);
+
+  @Experimental
+  CompletableFuture<RequestCancelNexusOperationResponse> requestCancelNexusOperationAsync(
+      RequestCancelNexusOperationRequest request);
+
+  @Experimental
+  CompletableFuture<GetNexusOperationResultResponse> getNexusOperationResultAsync(
+      GetNexusOperationResultRequest request);
+
+  @Experimental
+  CompletableFuture<CompleteNexusOperationResponse> completeNexusOperationAsync(
+      CompleteNexusOperationRequest request);
 }

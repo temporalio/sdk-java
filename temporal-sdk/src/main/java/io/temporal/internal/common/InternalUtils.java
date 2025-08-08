@@ -2,6 +2,7 @@ package io.temporal.internal.common;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Defaults;
+import com.google.common.base.Strings;
 import io.nexusrpc.Header;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.ServiceImplInstance;
@@ -88,23 +89,7 @@ public final class InternalUtils {
           HandlerException.ErrorType.BAD_REQUEST,
           new IllegalArgumentException("failed to generate workflow operation token", e));
     }
-    // Add the Nexus operation ID to the headers if it is not already present to support fabricating
-    // a NexusOperationStarted event if the completion is received before the response to a
-    // StartOperation request.
-    Map<String, String> headers =
-        request.getCallbackHeaders().entrySet().stream()
-            .collect(
-                Collectors.toMap(
-                    (k) -> k.getKey().toLowerCase(),
-                    Map.Entry::getValue,
-                    (a, b) -> a,
-                    () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
-    if (!headers.containsKey(Header.OPERATION_ID)) {
-      headers.put(Header.OPERATION_ID.toLowerCase(), operationToken);
-    }
-    if (!headers.containsKey(Header.OPERATION_TOKEN)) {
-      headers.put(Header.OPERATION_TOKEN.toLowerCase(), operationToken);
-    }
+
     List<Link> links =
         request.getLinks() == null
             ? null
@@ -127,21 +112,43 @@ public final class InternalUtils {
                     })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-    Callback.Builder cbBuilder =
-        Callback.newBuilder()
-            .setNexus(
-                Callback.Nexus.newBuilder()
-                    .setUrl(request.getCallbackUrl())
-                    .putAllHeader(headers)
-                    .build());
-    if (links != null) {
-      cbBuilder.addAllLinks(links);
-    }
+
     WorkflowOptions.Builder nexusWorkflowOptions =
-        WorkflowOptions.newBuilder(options)
-            .setRequestId(request.getRequestId())
-            .setCompletionCallbacks(Collections.singletonList(cbBuilder.build()))
-            .setLinks(links);
+        WorkflowOptions.newBuilder(options).setRequestId(request.getRequestId()).setLinks(links);
+
+    if (!Strings.isNullOrEmpty(request.getCallbackUrl())) {
+      // Add the Nexus operation ID to the headers if it is not already present to support
+      // fabricating
+      // a NexusOperationStarted event if the completion is received before the response to a
+      // StartOperation request.
+      Map<String, String> callbackHeaders =
+          request.getCallbackHeaders().entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      (k) -> k.getKey().toLowerCase(),
+                      Map.Entry::getValue,
+                      (a, b) -> a,
+                      () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
+      if (!callbackHeaders.containsKey(Header.OPERATION_ID)) {
+        callbackHeaders.put(Header.OPERATION_ID.toLowerCase(), operationToken);
+      }
+      if (!callbackHeaders.containsKey(Header.OPERATION_TOKEN)) {
+        callbackHeaders.put(Header.OPERATION_TOKEN.toLowerCase(), operationToken);
+      }
+
+      Callback.Builder cbBuilder =
+          Callback.newBuilder()
+              .setNexus(
+                  Callback.Nexus.newBuilder()
+                      .setUrl(request.getCallbackUrl())
+                      .putAllHeader(callbackHeaders)
+                      .build());
+      if (links != null) {
+        cbBuilder.addAllLinks(links);
+      }
+      nexusWorkflowOptions.setCompletionCallbacks(Collections.singletonList(cbBuilder.build()));
+    }
+
     if (options.getTaskQueue() == null) {
       nexusWorkflowOptions.setTaskQueue(request.getTaskQueue());
     }

@@ -1,6 +1,7 @@
 package io.temporal.common.interceptors;
 
 import io.nexusrpc.OperationException;
+import io.nexusrpc.OperationStillRunningException;
 import io.temporal.common.Experimental;
 
 /** Convenience base class for {@link NexusOperationInboundCallsInterceptor} implementations. */
@@ -21,6 +22,17 @@ public class NexusOperationInboundCallsInterceptorBase
   @Override
   public StartOperationOutput startOperation(StartOperationInput input) throws OperationException {
     return next.startOperation(input);
+  }
+
+  @Override
+  public FetchOperationResultOutput fetchOperationResult(FetchOperationResultInput input)
+      throws OperationStillRunningException, OperationException {
+    return next.fetchOperationResult(input);
+  }
+
+  @Override
+  public FetchOperationInfoResponse fetchOperationInfo(FetchOperationInfoInput input) {
+    return next.fetchOperationInfo(input);
   }
 
   @Override

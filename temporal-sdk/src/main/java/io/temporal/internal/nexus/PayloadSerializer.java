@@ -14,10 +14,10 @@ import javax.annotation.Nullable;
  * io.nexusrpc.Serializer.Content} objects by using the {@link DataConverter} to convert objects to
  * and from {@link Payload} objects.
  */
-class PayloadSerializer implements Serializer {
+public class PayloadSerializer implements Serializer {
   DataConverter dataConverter;
 
-  PayloadSerializer(DataConverter dataConverter) {
+  public PayloadSerializer(DataConverter dataConverter) {
     this.dataConverter = dataConverter;
   }
 

@@ -1,5 +1,7 @@
 package io.temporal.client;
 
+import io.nexusrpc.client.CompletionClient;
+import io.nexusrpc.client.ServiceClient;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -125,6 +127,24 @@ public interface WorkflowClient {
   WorkflowClientOptions getOptions();
 
   WorkflowServiceStubs getWorkflowServiceStubs();
+
+  /**
+   * Create a new {@link ServiceClient} that can be used to start operations or get handlers to
+   * operations on a Nexus services.
+   *
+   * @param nexusServiceInterface The interface of the Nexus service to create a client for.
+   * @return A new {@link ServiceClient} instance backed by this {@link WorkflowClient} instance.
+   */
+  @Experimental
+  <T> ServiceClient<T> newNexusServiceClient(Class<T> nexusServiceInterface, String endpoint);
+
+  /**
+   * Creates a new {@link CompletionClient} that can be used to complete or fail async operations
+   *
+   * @return A new {@link CompletionClient} instance backed by this {@link WorkflowClient} instance.
+   */
+  @Experimental
+  CompletionClient newNexusCompletionClient();
 
   /**
    * Creates workflow client stub that can be used to start a single workflow execution. The first

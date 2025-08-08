@@ -3,7 +3,10 @@ package io.temporal.internal.common;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.nexusrpc.Link;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.nexus.v1.Failure;
 import io.temporal.common.converter.DataConverter;
 import java.net.URI;
@@ -63,6 +66,42 @@ public class NexusUtil {
         .setDetails(ByteString.copyFromUtf8(details))
         .putAllMetadata(NEXUS_FAILURE_METADATA)
         .build();
+  }
+
+  public static HandlerException grpcExceptionToHandlerException(StatusRuntimeException sre) {
+    Status status = sre.getStatus();
+    switch (status.getCode()) {
+      case ALREADY_EXISTS:
+      case INVALID_ARGUMENT:
+      case FAILED_PRECONDITION:
+      case OUT_OF_RANGE:
+        return new HandlerException(HandlerException.ErrorType.BAD_REQUEST, sre);
+      case ABORTED:
+      case UNAVAILABLE:
+        return new HandlerException(HandlerException.ErrorType.UNAVAILABLE, sre);
+      case CANCELLED:
+        return new HandlerException(HandlerException.ErrorType.INTERNAL, sre);
+      case DATA_LOSS:
+      case INTERNAL:
+      case UNKNOWN:
+        return new HandlerException(HandlerException.ErrorType.INTERNAL, sre);
+      case UNAUTHENTICATED:
+        return new HandlerException(HandlerException.ErrorType.UNAUTHENTICATED, sre);
+      case PERMISSION_DENIED:
+        return new HandlerException(HandlerException.ErrorType.UNAUTHORIZED, sre);
+      case NOT_FOUND:
+        return new HandlerException(HandlerException.ErrorType.NOT_FOUND, sre);
+      case RESOURCE_EXHAUSTED:
+        return new HandlerException(HandlerException.ErrorType.RESOURCE_EXHAUSTED, sre);
+      case UNIMPLEMENTED:
+        return new HandlerException(HandlerException.ErrorType.NOT_IMPLEMENTED, sre);
+      case DEADLINE_EXCEEDED:
+        return new HandlerException(HandlerException.ErrorType.UPSTREAM_TIMEOUT, sre);
+      default:
+        return new HandlerException(
+            HandlerException.ErrorType.INTERNAL,
+            new IllegalStateException("Unexpected gRPC status code: " + status.getCode(), sre));
+    }
   }
 
   private NexusUtil() {}

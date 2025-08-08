@@ -2,6 +2,7 @@ package io.temporal.internal.nexus;
 
 import io.nexusrpc.OperationException;
 import io.nexusrpc.OperationInfo;
+import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.handler.*;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -51,15 +52,21 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
     @Override
     public Object fetchResult(
         OperationContext operationContext, OperationFetchResultDetails operationFetchResultDetails)
-        throws OperationException {
-      throw new UnsupportedOperationException("Not implemented");
+        throws OperationException, OperationStillRunningException {
+      return next.fetchOperationResult(
+              new NexusOperationInboundCallsInterceptor.FetchOperationResultInput(
+                  operationContext, operationFetchResultDetails))
+          .getResult();
     }
 
     @Override
     public OperationInfo fetchInfo(
         OperationContext operationContext, OperationFetchInfoDetails operationFetchInfoDetails)
         throws HandlerException {
-      throw new UnsupportedOperationException("Not implemented");
+      return next.fetchOperationInfo(
+              new NexusOperationInboundCallsInterceptor.FetchOperationInfoInput(
+                  operationContext, operationFetchInfoDetails))
+          .getOperationInfo();
     }
 
     @Override

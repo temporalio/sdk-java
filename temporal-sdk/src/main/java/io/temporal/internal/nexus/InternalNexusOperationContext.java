@@ -1,6 +1,7 @@
 package io.temporal.internal.nexus;
 
 import com.uber.m3.tally.Scope;
+import io.nexusrpc.OperationDefinition;
 import io.temporal.api.common.v1.Link;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
@@ -9,15 +10,21 @@ import io.temporal.nexus.NexusOperationContext;
 public class InternalNexusOperationContext {
   private final String namespace;
   private final String taskQueue;
+  private final OperationDefinition operationDefinition;
   private final Scope metricScope;
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
   Link startWorkflowResponseLink;
 
   public InternalNexusOperationContext(
-      String namespace, String taskQueue, Scope metricScope, WorkflowClient client) {
+      String namespace,
+      String taskQueue,
+      OperationDefinition operationDefinition,
+      Scope metricScope,
+      WorkflowClient client) {
     this.namespace = namespace;
     this.taskQueue = taskQueue;
+    this.operationDefinition = operationDefinition;
     this.metricScope = metricScope;
     this.client = client;
   }
@@ -36,6 +43,10 @@ public class InternalNexusOperationContext {
 
   public String getNamespace() {
     return namespace;
+  }
+
+  public OperationDefinition getOperationDefinition() {
+    return operationDefinition;
   }
 
   public void setOutboundInterceptor(NexusOperationOutboundCallsInterceptor outboundCalls) {

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.tally.Scope;
 import io.nexusrpc.OperationException;
+import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.handler.OperationContext;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
@@ -482,6 +483,27 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
               + " "
               + input.getOperationContext().getOperation());
       return next.startOperation(input);
+    }
+
+    @Override
+    public FetchOperationResultOutput fetchOperationResult(FetchOperationResultInput input)
+        throws OperationStillRunningException, OperationException {
+      trace.add(
+          "fetchOperationResult "
+              + input.getOperationContext().getService()
+              + " "
+              + input.getOperationContext().getOperation());
+      return next.fetchOperationResult(input);
+    }
+
+    @Override
+    public FetchOperationInfoResponse fetchOperationInfo(FetchOperationInfoInput input) {
+      trace.add(
+          "fetchOperationInfo "
+              + input.getOperationContext().getService()
+              + " "
+              + input.getOperationContext().getOperation());
+      return next.fetchOperationInfo(input);
     }
 
     @Override
