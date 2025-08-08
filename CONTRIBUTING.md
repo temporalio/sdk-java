@@ -28,6 +28,17 @@ Overcommit adds some requirements to your commit messages. We follow the
 [Chris Beams](http://chris.beams.io/posts/git-commit/) guide to writing git
 commit messages. Read it, follow it, learn it, love it.
 
+## Running features tests in CI
+
+For each PR we run the java tests from the [features repo](https://github.com/temporalio/features/). This requires
+your branch to have tags. Without tags, the features tests in CI will fail with a message like 
+```
+> Configure project :sdk-java
+fatal: No names found, cannot describe anything.
+```
+This can be done resolved by running `git fetch --tags` on your branch. Note, make sure your fork has tags copied from
+the main repo. 
+
 ## Test and Build
 
 Testing and building `sdk-java` requires running temporal docker locally, execute:
