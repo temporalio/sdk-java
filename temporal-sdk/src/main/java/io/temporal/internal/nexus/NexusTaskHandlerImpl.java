@@ -4,6 +4,7 @@ import static io.temporal.internal.common.NexusUtil.exceptionToNexusFailure;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
 import com.uber.m3.tally.Scope;
+import io.grpc.StatusRuntimeException;
 import io.nexusrpc.Header;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
@@ -12,6 +13,7 @@ import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
@@ -203,6 +205,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private void convertKnownFailures(Throwable e) {
     Throwable failure = CheckedExceptionWrapper.unwrap(e);
     if (failure instanceof WorkflowException) {
+      if (failure instanceof WorkflowNotFoundException) {
+        throw new HandlerException(HandlerException.ErrorType.NOT_FOUND, failure);
+      }
       throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, failure);
     }
     if (failure instanceof ApplicationFailure) {
@@ -213,12 +218,55 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             HandlerException.RetryBehavior.NON_RETRYABLE);
       }
     }
+    if (failure instanceof StatusRuntimeException) {
+      StatusRuntimeException statusRuntimeException = (StatusRuntimeException) failure;
+      throw convertStatusRuntimeExceptionToHandlerException(statusRuntimeException);
+    }
     if (failure instanceof Error) {
       throw (Error) failure;
     }
     throw failure instanceof RuntimeException
         ? (RuntimeException) failure
         : new RuntimeException(failure);
+  }
+
+  private HandlerException convertStatusRuntimeExceptionToHandlerException(
+      StatusRuntimeException sre) {
+    switch (sre.getStatus().getCode()) {
+      case INVALID_ARGUMENT:
+        return new HandlerException(HandlerException.ErrorType.BAD_REQUEST, sre);
+      case ALREADY_EXISTS:
+      case FAILED_PRECONDITION:
+      case OUT_OF_RANGE:
+        return new HandlerException(
+            HandlerException.ErrorType.INTERNAL, sre, HandlerException.RetryBehavior.NON_RETRYABLE);
+      case ABORTED:
+      case UNAVAILABLE:
+        return new HandlerException(HandlerException.ErrorType.UNAVAILABLE, sre);
+      case CANCELLED:
+      case DATA_LOSS:
+      case INTERNAL:
+      case UNKNOWN:
+      case UNAUTHENTICATED:
+      case PERMISSION_DENIED:
+        // Note that codes.Unauthenticated, codes.PermissionDenied have Nexus error types but we
+        // convert to internal
+        // because this is not a client auth error and happens when the handler fails to auth with
+        // Temporal and should
+        // be considered retryable.
+        return new HandlerException(HandlerException.ErrorType.INTERNAL, sre);
+      case NOT_FOUND:
+        return new HandlerException(HandlerException.ErrorType.NOT_FOUND, sre);
+      case RESOURCE_EXHAUSTED:
+        return new HandlerException(HandlerException.ErrorType.RESOURCE_EXHAUSTED, sre);
+      case UNIMPLEMENTED:
+        return new HandlerException(HandlerException.ErrorType.NOT_IMPLEMENTED, sre);
+      case DEADLINE_EXCEEDED:
+        return new HandlerException(HandlerException.ErrorType.UPSTREAM_TIMEOUT, sre);
+      default:
+        // If the status code is not recognized, we treat it as an internal error
+        return new HandlerException(HandlerException.ErrorType.INTERNAL, sre);
+    }
   }
 
   private OperationStartResult<HandlerResultContent> startOperation(
