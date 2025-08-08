@@ -29,7 +29,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
       OperationContext ctx, OperationStartDetails operationStartDetails, T input) {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
 
-    WorkflowHandle handle = handleFactory.apply(ctx, operationStartDetails, input);
+    WorkflowHandle<R> handle = handleFactory.apply(ctx, operationStartDetails, input);
 
     NexusStartWorkflowRequest nexusRequest =
         new NexusStartWorkflowRequest(
