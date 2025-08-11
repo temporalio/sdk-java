@@ -143,7 +143,7 @@ public interface DataConverter {
       Class<?> pt = parameterTypes[i];
       Type gt = genericParameterTypes[i];
       if (i >= count) {
-        result[i] = Defaults.defaultValue(TypeToken.of(genericParameterTypes[i]).getRawType());
+        result[i] = Defaults.defaultValue(TypeToken.of(gt).getRawType());
       } else {
         result[i] = this.fromPayload(payloads.getPayloads(i), pt, gt);
       }
