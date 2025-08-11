@@ -21,7 +21,6 @@ public class NexusServiceClientSyncOperationTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(true)
           .build();
 
   @Test
@@ -73,6 +72,24 @@ public class NexusServiceClientSyncOperationTest {
     oe = (OperationException) ee.getCause();
     Assert.assertEquals(OperationState.FAILED, oe.getState());
     Assert.assertTrue(oe.getCause() instanceof ApplicationFailure);
+  }
+
+  @Test
+  public void executeSyncOperationHandlerError() {
+    ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newNexusServiceClient(
+                TestNexusServices.TestNexusService1.class,
+                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+
+    HandlerException he =
+        Assert.assertThrows(
+            HandlerException.class,
+            () ->
+                serviceClient.executeOperation(
+                    TestNexusServices.TestNexusService1::operation, "handlerError"));
+    System.out.println(he.getMessage());
   }
 
   @Test
@@ -190,6 +207,11 @@ public class NexusServiceClientSyncOperationTest {
               throw OperationException.failure(new IllegalArgumentException("fail"));
             } else if (Objects.equals(param, "cancel")) {
               throw OperationException.canceled(new IllegalArgumentException("cancel"));
+            } else if (Objects.equals(param, "handlerError")) {
+              throw new HandlerException(
+                  HandlerException.ErrorType.RESOURCE_EXHAUSTED,
+                  new IllegalArgumentException("handlerError"),
+                  HandlerException.RetryBehavior.RETRYABLE);
             }
             return "Hello " + param;
           });

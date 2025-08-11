@@ -3,12 +3,15 @@ package io.temporal.internal.testservice;
 import com.google.protobuf.Timestamp;
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.Priority;
+import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 interface TestWorkflowStore {
@@ -170,6 +173,28 @@ interface TestWorkflowStore {
       TaskQueueId taskQueue,
       PollWorkflowTaskQueueResponse.Builder task,
       Priority priority);
+
+  void respondGetNexusOperationInfoTask(String id, GetOperationInfoResponse getOperationInfo);
+
+  void respondCancelNexusOperationTask(String requestId);
+
+  void respondStartNexusOperationTask(String id, StartOperationResponse startOperation);
+
+  void respondGetNexusOperationResultTask(String id, GetOperationResultResponse getOperationResult);
+
+  void respondFailNexusTask(String requestId, HandlerError handlerError);
+
+  CompletableFuture<StartNexusOperationResponse> startNexusOperation(
+      TaskQueueId taskQueueId, StartOperationRequest taskRequest, Map<String, String> headers);
+
+  CompletableFuture<RequestCancelNexusOperationResponse> requestCancelNexusOperation(
+      TaskQueueId taskQueueId, CancelOperationRequest taskRequest, Map<String, String> headers);
+
+  CompletableFuture<GetNexusOperationInfoResponse> getNexusOperationInfo(
+      TaskQueueId taskQueueId, GetOperationInfoRequest taskRequest, Map<String, String> headers);
+
+  CompletableFuture<GetNexusOperationResultResponse> getNexusOperationResult(
+      TaskQueueId taskQueueId, GetOperationResultRequest taskRequest, Map<String, String> headers);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
       ExecutionId executionId,

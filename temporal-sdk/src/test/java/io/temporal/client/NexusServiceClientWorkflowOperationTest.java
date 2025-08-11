@@ -29,7 +29,6 @@ public class NexusServiceClientWorkflowOperationTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(true)
           .build();
 
   @Test(timeout = 5000000)

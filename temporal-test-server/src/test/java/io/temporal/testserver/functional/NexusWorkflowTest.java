@@ -22,6 +22,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.testservice.NexusTaskToken;
+import io.temporal.internal.testservice.NexusWorkflowTaskToken;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
 import java.util.Arrays;
@@ -834,9 +835,9 @@ public class NexusWorkflowTest {
         pollNexusTask()
             .thenCompose(
                 task -> {
-                  NexusTaskToken valid = NexusTaskToken.fromBytes(task.getTaskToken());
-                  NexusTaskToken invalid =
-                      new NexusTaskToken(
+                  NexusWorkflowTaskToken valid = NexusTaskToken.fromBytes(task.getTaskToken());
+                  NexusWorkflowTaskToken invalid =
+                      new NexusWorkflowTaskToken(
                           valid.getOperationRef(),
                           (int) (valid.getAttempt() + 20),
                           valid.isCancel());

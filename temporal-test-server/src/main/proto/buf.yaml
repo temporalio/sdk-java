@@ -1,4 +1,6 @@
 version: v1beta1
+deps:
+  - ../temporal-serviceclient/src/main/proto
 build:
   roots:
     - .

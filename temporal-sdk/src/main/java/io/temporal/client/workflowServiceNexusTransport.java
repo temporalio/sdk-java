@@ -12,6 +12,7 @@ import io.grpc.StatusRuntimeException;
 import io.nexusrpc.*;
 import io.nexusrpc.client.transport.*;
 import io.nexusrpc.handler.HandlerException;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
@@ -371,12 +372,17 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   private CompleteNexusOperationRequest createCompleteNexusOperationRequest(
-      String operationToken, CompleteOperationOptions options) {
+      String url, CompleteOperationOptions options) {
+    Callback.Nexus.Builder callbackBuilder = Callback.Nexus.newBuilder().setUrl(url);
+    if (options.getHeaders() != null) {
+      callbackBuilder.putAllHeader(options.getHeaders());
+    }
+
     CompleteNexusOperationRequest.Builder request =
         CompleteNexusOperationRequest.newBuilder()
             .setIdentity(clientOptions.getIdentity())
             .setNamespace(clientOptions.getNamespace())
-            .setOperationToken(operationToken);
+            .setCallback(callbackBuilder.build());
 
     request.setRequestId(UUID.randomUUID().toString());
 
@@ -384,14 +390,16 @@ public class workflowServiceNexusTransport implements Transport {
       request.setStartedTime(ProtobufTimeUtils.toProtoTimestamp(options.getStartTime()));
     }
 
-    options.getLinks().stream()
-        .map(
-            link ->
-                io.temporal.api.nexus.v1.Link.newBuilder()
-                    .setType(link.getType())
-                    .setUrl(link.getUri().toString())
-                    .build())
-        .forEach(request::addLinks);
+    if (options.getLinks() != null) {
+      options.getLinks().stream()
+          .map(
+              link ->
+                  io.temporal.api.nexus.v1.Link.newBuilder()
+                      .setType(link.getType())
+                      .setUrl(link.getUri().toString())
+                      .build())
+          .forEach(request::addLinks);
+    }
 
     if (options.getResult() != null) {
       request.setResult(clientOptions.getDataConverter().toPayload(options.getResult()).get());
@@ -418,12 +426,10 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CompleteOperationResponse completeOperation(
-      String operationToken, CompleteOperationOptions options) {
+  public CompleteOperationResponse completeOperation(String url, CompleteOperationOptions options) {
     try {
       return createCompleteOperationResponse(
-          client.completeNexusOperation(
-              createCompleteNexusOperationRequest(operationToken, options)));
+          client.completeNexusOperation(createCompleteNexusOperationRequest(url, options)));
     } catch (StatusRuntimeException sre) {
       throw NexusUtil.grpcExceptionToHandlerException(sre);
     }

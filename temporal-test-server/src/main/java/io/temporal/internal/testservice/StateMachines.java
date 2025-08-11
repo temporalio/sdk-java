@@ -675,7 +675,7 @@ class StateMachines {
 
     long scheduledEventId = ctx.addEvent(event.build());
     NexusOperationRef ref = new NexusOperationRef(ctx.getExecutionId(), scheduledEventId);
-    NexusTaskToken taskToken = new NexusTaskToken(ref, data.getAttempt(), false);
+    NexusWorkflowTaskToken taskToken = new NexusWorkflowTaskToken(ref, data.getAttempt(), false);
 
     Link link =
         workflowEventToNexusLink(
@@ -914,7 +914,7 @@ class StateMachines {
             data.nextAttemptScheduleTime =
                 Timestamps.add(ProtobufTimeUtils.getCurrentProtoTime(), data.nextBackoffInterval);
             task.setTaskToken(
-                new NexusTaskToken(
+                new NexusWorkflowTaskToken(
                         ctx.getExecutionId(),
                         data.scheduledEventId,
                         nextAttempt.getAttempt(),
@@ -942,8 +942,9 @@ class StateMachines {
                         .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
                 .build());
 
-    NexusTaskToken taskToken =
-        new NexusTaskToken(ctx.getExecutionId(), data.scheduledEventId, data.getAttempt(), true);
+    NexusWorkflowTaskToken taskToken =
+        new NexusWorkflowTaskToken(
+            ctx.getExecutionId(), data.scheduledEventId, data.getAttempt(), true);
 
     PollNexusTaskQueueResponse.Builder pollResponse =
         PollNexusTaskQueueResponse.newBuilder()

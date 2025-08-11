@@ -9,6 +9,7 @@ import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.protobuf.*;
 import com.google.protobuf.util.JsonFormat;
@@ -509,7 +510,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                             // context deadline and throw DEADLINE_EXCEEDED if the deadline is less
                             // than 20s.
                             // If it's longer than 20 seconds - we return an empty result.
-                            Deadline.after(20, TimeUnit.SECONDS)));
+                            Deadline.after(100, TimeUnit.MILLISECONDS)));
                     responseObserver.onCompleted();
                   } catch (StatusRuntimeException e) {
                     if (e.getStatus().getCode() == Status.Code.INTERNAL) {
@@ -885,57 +886,94 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         .build();
   }
 
+  private io.temporal.api.testservice.internal.v1.NexusTaskToken parseNexusTaskToken(
+      ByteString token) {
+    try {
+      return io.temporal.api.testservice.internal.v1.NexusTaskToken.parseFrom(token);
+    } catch (Exception e) {
+      throw Status.INVALID_ARGUMENT
+          .withCause(e)
+          .withDescription(e.getMessage())
+          .asRuntimeException();
+    }
+  }
+
   @Override
   public void respondNexusTaskCompleted(
       RespondNexusTaskCompletedRequest request,
       StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {
     try {
-      NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
-      TestWorkflowMutableState mutableState =
-          getMutableState(tt.getOperationRef().getExecutionId());
-      if (!mutableState.validateOperationTaskToken(tt)) {
-        responseObserver.onNext(RespondNexusTaskCompletedResponse.getDefaultInstance());
-        responseObserver.onCompleted();
-        return;
-      }
+      io.temporal.api.testservice.internal.v1.NexusTaskToken nexusTaskToken =
+          parseNexusTaskToken(request.getTaskToken());
 
-      if (request.getResponse().hasCancelOperation()) {
-        mutableState.cancelNexusOperationRequestAcknowledge(tt.getOperationRef());
-      } else if (request.getResponse().hasStartOperation()) {
-        StartOperationResponse startResp = request.getResponse().getStartOperation();
-        if (startResp.hasOperationError()) {
-          UnsuccessfulOperationError opError = startResp.getOperationError();
-          Failure.Builder b = Failure.newBuilder().setMessage(opError.getFailure().getMessage());
+      if (nexusTaskToken.hasWorkflowCaller()) {
+        NexusWorkflowTaskToken tt = NexusWorkflowTaskToken.fromTaskToken(nexusTaskToken);
+        TestWorkflowMutableState mutableState =
+            getMutableState(tt.getOperationRef().getExecutionId());
+        if (!mutableState.validateOperationTaskToken(tt)) {
+          responseObserver.onNext(RespondNexusTaskCompletedResponse.getDefaultInstance());
+          responseObserver.onCompleted();
+          return;
+        }
+        if (request.getResponse().hasCancelOperation()) {
+          mutableState.cancelNexusOperationRequestAcknowledge(tt.getOperationRef());
+        } else if (request.getResponse().hasStartOperation()) {
+          StartOperationResponse startResp = request.getResponse().getStartOperation();
+          if (startResp.hasOperationError()) {
+            UnsuccessfulOperationError opError = startResp.getOperationError();
+            Failure.Builder b = Failure.newBuilder().setMessage(opError.getFailure().getMessage());
 
-          if (startResp.getOperationError().getOperationState().equals("canceled")) {
-            b.setCanceledFailureInfo(
-                CanceledFailureInfo.newBuilder()
-                    .setDetails(nexusFailureMetadataToPayloads(opError.getFailure())));
-            mutableState.cancelNexusOperation(tt.getOperationRef(), b.build());
+            if (startResp.getOperationError().getOperationState().equals("canceled")) {
+              b.setCanceledFailureInfo(
+                  CanceledFailureInfo.newBuilder()
+                      .setDetails(nexusFailureMetadataToPayloads(opError.getFailure())));
+              mutableState.cancelNexusOperation(tt.getOperationRef(), b.build());
+            } else {
+              mutableState.failNexusOperation(
+                  tt.getOperationRef(),
+                  wrapNexusOperationFailure(nexusFailureToAPIFailure(opError.getFailure(), false)));
+            }
+          } else if (startResp.hasAsyncSuccess()) {
+            // Start event is only recorded for async success
+            mutableState.startNexusOperation(
+                tt.getOperationRef().getScheduledEventId(),
+                request.getIdentity(),
+                startResp.getAsyncSuccess());
+          } else if (startResp.hasSyncSuccess()) {
+            mutableState.completeNexusOperation(
+                tt.getOperationRef(), startResp.getSyncSuccess().getPayload());
           } else {
-            mutableState.failNexusOperation(
-                tt.getOperationRef(),
-                wrapNexusOperationFailure(nexusFailureToAPIFailure(opError.getFailure(), false)));
+            throw Status.INVALID_ARGUMENT
+                .withDescription("Expected success or OperationError to be set on request.")
+                .asRuntimeException();
           }
-        } else if (startResp.hasAsyncSuccess()) {
-          // Start event is only recorded for async success
-          mutableState.startNexusOperation(
-              tt.getOperationRef().getScheduledEventId(),
-              request.getIdentity(),
-              startResp.getAsyncSuccess());
-        } else if (startResp.hasSyncSuccess()) {
-          mutableState.completeNexusOperation(
-              tt.getOperationRef(), startResp.getSyncSuccess().getPayload());
         } else {
           throw Status.INVALID_ARGUMENT
-              .withDescription("Expected success or OperationError to be set on request.")
+              .withDescription("Expected StartOperation or CancelOperation to be set on request.")
               .asRuntimeException();
         }
-      } else {
-        throw Status.INVALID_ARGUMENT
-            .withDescription("Expected StartOperation or CancelOperation to be set on request.")
-            .asRuntimeException();
+      } else if (nexusTaskToken.hasExternalCaller()) {
+        if (request.getResponse().hasStartOperation()) {
+          store.respondStartNexusOperationTask(
+              nexusTaskToken.getExternalCaller().getId(),
+              request.getResponse().getStartOperation());
+        } else if (request.getResponse().hasCancelOperation()) {
+          store.respondCancelNexusOperationTask(nexusTaskToken.getExternalCaller().getId());
+        } else if (request.getResponse().hasGetOperationInfo()) {
+          store.respondGetNexusOperationInfoTask(
+              nexusTaskToken.getExternalCaller().getId(),
+              request.getResponse().getGetOperationInfo());
+        } else if (request.getResponse().hasGetOperationResult()) {
+          store.respondGetNexusOperationResultTask(
+              nexusTaskToken.getExternalCaller().getId(),
+              request.getResponse().getGetOperationResult());
+        } else {
+          throw Status.INVALID_ARGUMENT
+              .withDescription("Expected StartOperation or CancelOperation to be set on request.")
+              .asRuntimeException();
+        }
       }
+
       responseObserver.onNext(RespondNexusTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -953,12 +991,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .withDescription("Nexus handler error not set on RespondNexusTaskFailedRequest")
             .asRuntimeException();
       }
-      NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
-      TestWorkflowMutableState mutableState =
-          getMutableState(tt.getOperationRef().getExecutionId());
-      if (mutableState.validateOperationTaskToken(tt)) {
-        Failure failure = handlerErrorToFailure(request.getError());
-        mutableState.failNexusOperation(tt.getOperationRef(), failure);
+      io.temporal.api.testservice.internal.v1.NexusTaskToken nexusTaskToken =
+          parseNexusTaskToken(request.getTaskToken());
+
+      if (nexusTaskToken.hasWorkflowCaller()) {
+        NexusWorkflowTaskToken tt = NexusWorkflowTaskToken.fromTaskToken(nexusTaskToken);
+        TestWorkflowMutableState mutableState =
+            getMutableState(tt.getOperationRef().getExecutionId());
+        if (mutableState.validateOperationTaskToken(tt)) {
+          Failure failure = handlerErrorToFailure(request.getError());
+          mutableState.failNexusOperation(tt.getOperationRef(), failure);
+        }
+      } else if (nexusTaskToken.hasExternalCaller()) {
+        String requestId = nexusTaskToken.getExternalCaller().getId();
+        store.respondFailNexusTask(requestId, request.getError());
       }
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
@@ -1870,6 +1916,228 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .withDescription("Worker Versioning not yet supported in test server")
             .asRuntimeException(),
         responseObserver);
+  }
+
+  private TestWorkflowStore.TaskQueueId getTaskQueueIdFromTarget(
+      String namespace, TaskDispatchTarget target) {
+    if (target.hasEndpoint()) {
+      Endpoint endpoint = nexusEndpointStore.getEndpointByName(target.getEndpoint());
+      return new TestWorkflowStore.TaskQueueId(
+          endpoint.getSpec().getTarget().getWorker().getNamespace(),
+          endpoint.getSpec().getTarget().getWorker().getTaskQueue());
+    } else if (target.hasTaskQueue()) {
+      return new TestWorkflowStore.TaskQueueId(namespace, target.getTaskQueue());
+    } else {
+      throw createInvalidArgument("Target must have either endpoint or task queue set.");
+    }
+  }
+
+  public void startNexusOperation(
+      StartNexusOperationRequest request,
+      StreamObserver<StartNexusOperationResponse> responseObserver) {
+    try {
+      if (request.getNamespace().isEmpty()) {
+        throw createInvalidArgument("Namespace not set on request.");
+      }
+      if (!request.hasTarget()) {
+        throw createInvalidArgument("Target not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperation())) {
+        throw createInvalidArgument("Operation not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getService())) {
+        throw createInvalidArgument("Service not set on request.");
+      }
+
+      TestWorkflowStore.TaskQueueId taskQueueId =
+          getTaskQueueIdFromTarget(request.getNamespace(), request.getTarget());
+      StartOperationRequest.Builder taskRequest =
+          StartOperationRequest.newBuilder()
+              .setService(request.getService())
+              .setOperation(request.getOperation())
+              .setRequestId(request.getRequestId())
+              .setCallback(request.getCallback())
+              .putAllCallbackHeader(request.getCallbackHeaderMap())
+              .addAllLinks(request.getLinksList());
+
+      if (request.hasPayload()) {
+        taskRequest.setPayload(request.getPayload());
+      }
+
+      // @Nullable Deadline deadline = Context.current().getDeadline();
+      store
+          .startNexusOperation(taskQueueId, taskRequest.build(), request.getHeaderMap())
+          .thenAccept(
+              response -> {
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+              });
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
+  public void requestCancelNexusOperation(
+      RequestCancelNexusOperationRequest request,
+      StreamObserver<RequestCancelNexusOperationResponse> responseObserver) {
+    try {
+      if (request.getNamespace().isEmpty()) {
+        throw createInvalidArgument("Namespace not set on request.");
+      }
+      if (!request.hasTarget()) {
+        throw createInvalidArgument("Target not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperation())) {
+        throw createInvalidArgument("Operation not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getService())) {
+        throw createInvalidArgument("Service not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperationToken())) {
+        throw createInvalidArgument("Operation token not set on request.");
+      }
+
+      TestWorkflowStore.TaskQueueId taskQueueId =
+          getTaskQueueIdFromTarget(request.getNamespace(), request.getTarget());
+      store
+          .requestCancelNexusOperation(
+              taskQueueId,
+              CancelOperationRequest.newBuilder()
+                  .setOperation(request.getOperation())
+                  .setService(request.getService())
+                  .setOperationToken(request.getOperationToken())
+                  .build(),
+              request.getHeaderMap())
+          .thenApply(
+              response -> {
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return null;
+              });
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  public void getNexusOperationInfo(
+      GetNexusOperationInfoRequest request,
+      io.grpc.stub.StreamObserver<GetNexusOperationInfoResponse> responseObserver) {
+    try {
+      if (request.getNamespace().isEmpty()) {
+        throw createInvalidArgument("Namespace not set on request.");
+      }
+      if (!request.hasTarget()) {
+        throw createInvalidArgument("Target not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperation())) {
+        throw createInvalidArgument("Operation not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getService())) {
+        throw createInvalidArgument("Service not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperationToken())) {
+        throw createInvalidArgument("Operation token not set on request.");
+      }
+
+      TestWorkflowStore.TaskQueueId taskQueueId =
+          getTaskQueueIdFromTarget(request.getNamespace(), request.getTarget());
+      store
+          .getNexusOperationInfo(
+              taskQueueId,
+              GetOperationInfoRequest.newBuilder()
+                  .setService(request.getService())
+                  .setOperation(request.getOperation())
+                  .setOperationToken(request.getOperationToken())
+                  .build(),
+              request.getHeaderMap())
+          .thenAccept(
+              response -> {
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+              });
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  @Override
+  public void getNexusOperationResult(
+      GetNexusOperationResultRequest request,
+      StreamObserver<GetNexusOperationResultResponse> responseObserver) {
+    try {
+      if (request.getNamespace().isEmpty()) {
+        throw createInvalidArgument("Namespace not set on request.");
+      }
+      if (!request.hasTarget()) {
+        throw createInvalidArgument("Target not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperation())) {
+        throw createInvalidArgument("Operation not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getService())) {
+        throw createInvalidArgument("Service not set on request.");
+      }
+      if (Strings.isNullOrEmpty(request.getOperationToken())) {
+        throw createInvalidArgument("Operation token not set on request.");
+      }
+
+      TestWorkflowStore.TaskQueueId taskQueueId =
+          getTaskQueueIdFromTarget(request.getNamespace(), request.getTarget());
+
+      GetOperationResultRequest.Builder taskRequest =
+          GetOperationResultRequest.newBuilder()
+              .setService(request.getService())
+              .setOperation(request.getOperation())
+              .setOperationToken(request.getOperationToken());
+      if (request.hasWait()) {
+        taskRequest.setWait(request.getWait());
+      }
+
+      store
+          .getNexusOperationResult(taskQueueId, taskRequest.build(), request.getHeaderMap())
+          .thenAccept(
+              response -> {
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+              });
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  public void completeNexusOperation(
+      CompleteNexusOperationRequest request,
+      StreamObserver<CompleteNexusOperationResponse> responseObserver) {
+    try {
+      if (!request.hasCallback()) {
+        throw createInvalidArgument("Callback not set on request.");
+      }
+
+      String serializedRef = request.getCallback().getHeaderOrThrow("operation-reference");
+      NexusOperationRef ref = NexusOperationRef.fromBytes(serializedRef.getBytes());
+      TestWorkflowMutableState target = getMutableState(ref.getExecutionId());
+      Payload p = request.hasResult() ? request.getResult() : Payload.getDefaultInstance();
+      if (request.hasResult()) {
+        target.completeAsyncNexusOperation(
+            ref,
+            p,
+            request.getOperationToken(),
+            io.temporal.api.nexus.v1.Link.getDefaultInstance());
+      } else if (request.hasOperationError()) {
+        target.failNexusOperation(
+            ref,
+            wrapNexusOperationFailure(
+                nexusFailureToAPIFailure(request.getOperationError().getFailure(), false)));
+      } else {
+        throw createInvalidArgument("Either result or operation error must be set on request.");
+      }
+
+      responseObserver.onNext(CompleteNexusOperationResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
   }
 
   private <R> R requireNotNull(String fieldName, R value) {

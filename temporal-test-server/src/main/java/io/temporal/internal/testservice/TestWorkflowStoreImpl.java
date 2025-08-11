@@ -13,7 +13,9 @@ import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.nexus.v1.*;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.testservice.internal.v1.NexusTaskToken;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -22,17 +24,15 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +48,14 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private final Map<TaskQueueId, TaskQueue<PollWorkflowTaskQueueResponse.Builder>>
       workflowTaskQueues = new HashMap<>();
   private final Map<TaskQueueId, TaskQueue<NexusTask>> nexusTaskQueues = new HashMap<>();
+  private final Map<String, Consumer<StartNexusOperationResponse>>
+      nexusExternalCallerStartRequests = new HashMap<>();
+  private final Map<String, Consumer<RequestCancelNexusOperationResponse>>
+      nexusExternalCallerCancelRequests = new HashMap<>();
+  private final Map<String, Consumer<GetNexusOperationInfoResponse>>
+      nexusExternalCallerGetInfoRequests = new HashMap<>();
+  private final Map<String, Consumer<GetNexusOperationResultResponse>>
+      nexusExternalCallerGetResultRequests = new HashMap<>();
   private final SelfAdvancingTimer selfAdvancingTimer;
 
   private static class HistoryStore {
@@ -382,6 +390,267 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     TaskQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
         getWorkflowTaskQueueQueue(taskQueue);
     workflowTaskQueue.add(task, priority);
+  }
+
+  @Override
+  public void respondGetNexusOperationInfoTask(
+      String requestId, GetOperationInfoResponse getOperationInfo) {
+    Consumer<GetNexusOperationInfoResponse> callback =
+        nexusExternalCallerGetInfoRequests.remove(requestId);
+    if (callback == null) {
+      throw Status.NOT_FOUND
+          .withDescription("No such requestId: " + requestId)
+          .asRuntimeException();
+    }
+    callback.accept(
+        GetNexusOperationInfoResponse.newBuilder().setInfo(getOperationInfo.getInfo()).build());
+  }
+
+  @Override
+  public void respondCancelNexusOperationTask(String requestId) {
+    Consumer<RequestCancelNexusOperationResponse> callback =
+        nexusExternalCallerCancelRequests.remove(requestId);
+    if (callback == null) {
+      throw Status.NOT_FOUND
+          .withDescription("No such requestId: " + requestId)
+          .asRuntimeException();
+    }
+    callback.accept(RequestCancelNexusOperationResponse.getDefaultInstance());
+  }
+
+  @Override
+  public void respondStartNexusOperationTask(
+      String requestId, StartOperationResponse startOperation) {
+    Consumer<StartNexusOperationResponse> callback =
+        nexusExternalCallerStartRequests.remove(requestId);
+    if (callback == null) {
+      throw Status.NOT_FOUND
+          .withDescription("No such requestId: " + requestId)
+          .asRuntimeException();
+    }
+    StartNexusOperationResponse.Builder response = StartNexusOperationResponse.newBuilder();
+    if (startOperation.hasSyncSuccess()) {
+      response.setSyncSuccess(
+          StartNexusOperationResponse.Sync.newBuilder()
+              .setResult(startOperation.getSyncSuccess().getPayload())
+              .build());
+    } else if (startOperation.hasAsyncSuccess()) {
+      response.setAsyncSuccess(
+          StartNexusOperationResponse.Async.newBuilder()
+              .setOperationToken(startOperation.getAsyncSuccess().getOperationToken())
+              .build());
+    } else if (startOperation.hasOperationError()) {
+      response.setUnsuccessful(
+          StartNexusOperationResponse.Unsuccessful.newBuilder()
+              .setOperationError(startOperation.getOperationError())
+              .build());
+    } else {
+      throw Status.INTERNAL
+          .withDescription("Unexpected StartOperationResponse: " + startOperation)
+          .asRuntimeException();
+    }
+    callback.accept(response.build());
+  }
+
+  @Override
+  public void respondGetNexusOperationResultTask(
+      String requestId, GetOperationResultResponse getOperationResult) {
+    Consumer<GetNexusOperationResultResponse> callback =
+        nexusExternalCallerGetResultRequests.remove(requestId);
+    if (callback == null) {
+      throw Status.NOT_FOUND
+          .withDescription("No such requestId: " + requestId)
+          .asRuntimeException();
+    }
+    GetNexusOperationResultResponse.Builder response = GetNexusOperationResultResponse.newBuilder();
+    if (getOperationResult.hasSuccessful()) {
+      response.setSuccessful(
+          GetNexusOperationResultResponse.Successful.newBuilder()
+              .setResult(getOperationResult.getSuccessful().getResult())
+              .build());
+    } else if (getOperationResult.hasStillRunning()) {
+      response.setStillRunning(GetNexusOperationResultResponse.StillRunning.newBuilder().build());
+    } else if (getOperationResult.hasUnsuccessful()) {
+      response.setUnsuccessful(
+          GetNexusOperationResultResponse.Unsuccessful.newBuilder()
+              .setOperationError(getOperationResult.getUnsuccessful().getOperationError())
+              .build());
+    } else {
+      throw Status.INTERNAL
+          .withDescription("Unexpected GetOperationResultResponse: " + getOperationResult)
+          .asRuntimeException();
+    }
+    callback.accept(response.build());
+  }
+
+  @Override
+  public void respondFailNexusTask(String requestId, HandlerError handlerError) {
+    if (nexusExternalCallerStartRequests.containsKey(requestId)) {
+      nexusExternalCallerStartRequests
+          .remove(requestId)
+          .accept(StartNexusOperationResponse.newBuilder().setHandlerError(handlerError).build());
+    } else if (nexusExternalCallerCancelRequests.containsKey(requestId)) {
+      Consumer<RequestCancelNexusOperationResponse> f =
+          nexusExternalCallerCancelRequests.remove(requestId);
+      f.accept(
+          RequestCancelNexusOperationResponse.newBuilder().setHandlerError(handlerError).build());
+    } else if (nexusExternalCallerGetInfoRequests.containsKey(requestId)) {
+      Consumer<GetNexusOperationInfoResponse> f =
+          nexusExternalCallerGetInfoRequests.remove(requestId);
+      f.accept(GetNexusOperationInfoResponse.newBuilder().setHandlerError(handlerError).build());
+    } else if (nexusExternalCallerGetResultRequests.containsKey(requestId)) {
+      Consumer<GetNexusOperationResultResponse> f =
+          nexusExternalCallerGetResultRequests.remove(requestId);
+      f.accept(GetNexusOperationResultResponse.newBuilder().setHandlerError(handlerError).build());
+    } else {
+      throw Status.NOT_FOUND
+          .withDescription("No such requestId: " + requestId)
+          .asRuntimeException();
+    }
+  }
+
+  @Override
+  public CompletableFuture<StartNexusOperationResponse> startNexusOperation(
+      TaskQueueId taskQueueId, StartOperationRequest startRequest, Map<String, String> headers) {
+    TaskQueue<NexusTask> taskQueue = getNexusTaskQueueQueue(taskQueueId);
+
+    // Create the task token
+    String requestId = UUID.randomUUID().toString();
+    CompletableFuture<StartNexusOperationResponse> future = new CompletableFuture<>();
+    nexusExternalCallerStartRequests.put(requestId, future::complete);
+    NexusTaskToken nexusTaskToken =
+        NexusTaskToken.newBuilder()
+            .setAttempt(1)
+            .setExternalCaller(
+                NexusTaskToken.ExternalCallerTaskToken.newBuilder().setId(requestId).build())
+            .build();
+    // Create the task
+    Request request =
+        Request.newBuilder()
+            .setScheduledTime(Timestamps.now())
+            .setStartOperation(startRequest)
+            .putAllHeader(headers)
+            .build();
+    PollNexusTaskQueueResponse.Builder pollNexusTaskQueueResponse =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setTaskToken(nexusTaskToken.toByteString())
+            .setRequest(request);
+    taskQueue.add(
+        new NexusTask(
+            taskQueueId,
+            pollNexusTaskQueueResponse,
+            // TODO: Derive the deadline from the context
+            Timestamps.fromMillis(System.currentTimeMillis() + 1000 * 10) // 10s
+            ));
+    return future;
+  }
+
+  @Override
+  public CompletableFuture<RequestCancelNexusOperationResponse> requestCancelNexusOperation(
+      TaskQueueId taskQueueId, CancelOperationRequest taskRequest, Map<String, String> headers) {
+    TaskQueue<NexusTask> taskQueue = getNexusTaskQueueQueue(taskQueueId);
+
+    // Create the task token
+    String requestId = UUID.randomUUID().toString();
+    CompletableFuture<RequestCancelNexusOperationResponse> future = new CompletableFuture<>();
+    nexusExternalCallerCancelRequests.put(requestId, future::complete);
+    NexusTaskToken nexusTaskToken =
+        NexusTaskToken.newBuilder()
+            .setAttempt(1)
+            .setExternalCaller(
+                NexusTaskToken.ExternalCallerTaskToken.newBuilder().setId(requestId).build())
+            .build();
+    // Create the task
+    Request request =
+        Request.newBuilder()
+            .setScheduledTime(Timestamps.now())
+            .setCancelOperation(taskRequest)
+            .putAllHeader(headers)
+            .build();
+    PollNexusTaskQueueResponse.Builder pollNexusTaskQueueResponse =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setTaskToken(nexusTaskToken.toByteString())
+            .setRequest(request);
+    taskQueue.add(
+        new NexusTask(
+            taskQueueId,
+            pollNexusTaskQueueResponse,
+            // TODO: Derive the deadline from the context
+            Timestamps.fromMillis(System.currentTimeMillis() + 1000 * 10) // 10s
+            ));
+    return future;
+  }
+
+  @Override
+  public CompletableFuture<GetNexusOperationInfoResponse> getNexusOperationInfo(
+      TaskQueueId taskQueueId, GetOperationInfoRequest taskRequest, Map<String, String> headers) {
+    TaskQueue<NexusTask> taskQueue = getNexusTaskQueueQueue(taskQueueId);
+
+    // Create the task token
+    String requestId = UUID.randomUUID().toString();
+    CompletableFuture<GetNexusOperationInfoResponse> future = new CompletableFuture<>();
+    nexusExternalCallerGetInfoRequests.put(requestId, future::complete);
+    NexusTaskToken nexusTaskToken =
+        NexusTaskToken.newBuilder()
+            .setAttempt(1)
+            .setExternalCaller(
+                NexusTaskToken.ExternalCallerTaskToken.newBuilder().setId(requestId).build())
+            .build();
+    // Create the task
+    Request request =
+        Request.newBuilder()
+            .setScheduledTime(Timestamps.now())
+            .setGetOperationInfo(taskRequest)
+            .putAllHeader(headers)
+            .build();
+    PollNexusTaskQueueResponse.Builder pollNexusTaskQueueResponse =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setTaskToken(nexusTaskToken.toByteString())
+            .setRequest(request);
+    taskQueue.add(
+        new NexusTask(
+            taskQueueId,
+            pollNexusTaskQueueResponse,
+            // TODO: Derive the deadline from the context
+            Timestamps.fromMillis(System.currentTimeMillis() + 1000 * 10) // 10s
+            ));
+    return future;
+  }
+
+  @Override
+  public CompletableFuture<GetNexusOperationResultResponse> getNexusOperationResult(
+      TaskQueueId taskQueueId, GetOperationResultRequest taskRequest, Map<String, String> headers) {
+    TaskQueue<NexusTask> taskQueue = getNexusTaskQueueQueue(taskQueueId);
+
+    // Create the task token
+    String requestId = UUID.randomUUID().toString();
+    CompletableFuture<GetNexusOperationResultResponse> future = new CompletableFuture<>();
+    nexusExternalCallerGetResultRequests.put(requestId, future::complete);
+    NexusTaskToken nexusTaskToken =
+        NexusTaskToken.newBuilder()
+            .setAttempt(1)
+            .setExternalCaller(
+                NexusTaskToken.ExternalCallerTaskToken.newBuilder().setId(requestId).build())
+            .build();
+    // Create the task
+    Request request =
+        Request.newBuilder()
+            .setScheduledTime(Timestamps.now())
+            .setGetOperationResult(taskRequest)
+            .putAllHeader(headers)
+            .build();
+    PollNexusTaskQueueResponse.Builder pollNexusTaskQueueResponse =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setTaskToken(nexusTaskToken.toByteString())
+            .setRequest(request);
+    taskQueue.add(
+        new NexusTask(
+            taskQueueId,
+            pollNexusTaskQueueResponse,
+            // TODO: Derive the deadline from the context
+            Timestamps.fromMillis(System.currentTimeMillis() + 1000 * 10) // 10s
+            ));
+    return future;
   }
 
   @Override

@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package temporal.api.testservice.internal.v1;
+
+option java_package = "io.temporal.api.testservice.internal.v1";
+option java_multiple_files = true;
+option java_outer_classname = "Messages";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "temporal/api/common/v1/message.proto";
+
+message NexusTaskToken {
+    message WorkflowCallerTaskToken {
+        string namespace = 1;
+        temporal.api.common.v1.WorkflowExecution execution = 2;
+        int64 scheduledEventId = 3;
+    }
+
+    message ExternalCallerTaskToken {
+        string id = 1;
+    }
+
+    oneof test_oneof {
+        ExternalCallerTaskToken externalCaller = 1;
+        WorkflowCallerTaskToken workflowCaller = 2;
+    }
+    int32 attempt = 3;
+    bool cancelled = 4;
+}

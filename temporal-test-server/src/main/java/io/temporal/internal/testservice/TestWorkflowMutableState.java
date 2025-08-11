@@ -112,7 +112,7 @@ interface TestWorkflowMutableState {
 
   void failNexusOperation(NexusOperationRef ref, Failure failure);
 
-  boolean validateOperationTaskToken(NexusTaskToken tt);
+  boolean validateOperationTaskToken(NexusWorkflowTaskToken tt);
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 

@@ -3651,7 +3651,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean validateOperationTaskToken(NexusTaskToken tt) {
+  public boolean validateOperationTaskToken(NexusWorkflowTaskToken tt) {
     NexusOperationData data =
         getPendingNexusOperation(tt.getOperationRef().getScheduledEventId()).getData();
     if (tt.getAttempt() != data.getAttempt()) {

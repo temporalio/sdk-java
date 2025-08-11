@@ -474,15 +474,16 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
       GetNexusOperationResultRequest request) {
     Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
-    Deadline deadline = Deadline.after(request.getWait().getSeconds(), TimeUnit.SECONDS);
+    //    Deadline deadline =
+    //        Deadline.after(request.getWait().getSeconds() * 1000, TimeUnit.MILLISECONDS);
     return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                .withDeadline(deadline)
+                // .withDeadline(deadline)
                 .getNexusOperationResult(request),
-        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+        grpcRetryerOptions);
   }
 
   @Override
