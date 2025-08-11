@@ -4,7 +4,9 @@ import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowFailedException;
+import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -58,6 +60,24 @@ public class OperationFailureConversionTest {
     Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
   }
 
+  @Test
+  public void nexusOperationWorkflowNotFoundFailureConversion() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    WorkflowFailedException exception =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("WorkflowNotFound"));
+    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
+    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
+    Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
+    HandlerException handlerFailure = (HandlerException) nexusFailure.getCause();
+    Assert.assertEquals(HandlerException.ErrorType.NOT_FOUND, handlerFailure.getErrorType());
+    Assert.assertTrue(handlerFailure.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) handlerFailure.getCause();
+    Assert.assertEquals(
+        "io.temporal.client.WorkflowNotFoundException", applicationFailure.getType());
+  }
+
   public static class TestNexus implements TestWorkflow1 {
     @Override
     public String execute(String testcase) {
@@ -96,6 +116,9 @@ public class OperationFailureConversionTest {
             } else if (name.equals("ApplicationFailureNonRetryable")) {
               throw ApplicationFailure.newNonRetryableFailure(
                   "failed to call operation", "TestFailure");
+            } else if (name.equals("WorkflowNotFound")) {
+              throw new WorkflowNotFoundException(
+                  WorkflowExecution.getDefaultInstance(), "TestWorkflowType", null);
             }
             Assert.fail();
             return "fail";
