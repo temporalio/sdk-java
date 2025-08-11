@@ -24,10 +24,10 @@ public class DataConverterTest {
   @Test
   public void noContent() throws NoSuchMethodException {
     DataConverter dc = GlobalDataConverter.get();
-    Method m = this.getClass().getMethod("testMethod", String.class, List.class);
+    Method m = this.getClass().getMethod("testMethodGenericParameter", String.class, List.class);
     Object[] result =
         dc.fromPayloads(Optional.empty(), m.getParameterTypes(), m.getGenericParameterTypes());
-    Assert.assertNull("test", result[0]);
+    Assert.assertNull(result[0]);
     Assert.assertNull(result[1]);
   }
 
