@@ -54,6 +54,7 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
     SpanOperationType operationType = context.getSpanOperationType();
     switch (operationType) {
       case START_WORKFLOW:
+      case UPDATE_WITH_START_WORKFLOW:
       case SIGNAL_WITH_START_WORKFLOW:
         return ImmutableMap.of(StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
       case START_CHILD_WORKFLOW:
