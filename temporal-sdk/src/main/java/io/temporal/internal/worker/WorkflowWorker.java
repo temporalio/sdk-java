@@ -9,12 +9,18 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.retryer.GrpcRetryer;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -394,73 +400,125 @@ final class WorkflowWorker implements SuspendableWorker {
           PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
           nextWFTResponse = Optional.empty();
           WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
+          WorkflowTaskFailedCause taskFailedCause = null;
           try {
             RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();
             RespondWorkflowTaskFailedRequest taskFailed = result.getTaskFailed();
             RespondQueryTaskCompletedRequest queryCompleted = result.getQueryCompleted();
 
-            if (taskCompleted != null) {
-              RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
-                  taskCompleted.toBuilder();
-              try (EagerActivitySlotsReservation activitySlotsReservation =
-                  new EagerActivitySlotsReservation(eagerActivityDispatcher)) {
-                activitySlotsReservation.applyToRequest(requestBuilder);
-                RespondWorkflowTaskCompletedResponse response =
-                    sendTaskCompleted(
-                        currentTask.getTaskToken(),
-                        requestBuilder,
-                        result.getRequestRetryOptions(),
-                        workflowTypeScope);
-                // If we were processing a speculative WFT the server may instruct us that the task
-                // was dropped by resting out event ID.
-                long resetEventId = response.getResetHistoryEventId();
-                if (resetEventId != 0) {
-                  result.getResetEventIdHandle().apply(resetEventId);
+            if (queryCompleted != null) {
+              try {
+                sendDirectQueryCompletedResponse(
+                    currentTask.getTaskToken(), queryCompleted.toBuilder(), workflowTypeScope);
+              } catch (StatusRuntimeException e) {
+                GrpcMessageTooLargeException tooLargeException =
+                    GrpcMessageTooLargeException.tryWrap(e);
+                if (tooLargeException == null) {
+                  throw e;
                 }
-                nextWFTResponse =
-                    response.hasWorkflowTask()
-                        ? Optional.of(response.getWorkflowTask())
-                        : Optional.empty();
-                // TODO we don't have to do this under the runId lock
-                activitySlotsReservation.handleResponse(response);
+                Failure failure =
+                    grpcMessageTooLargeFailure(
+                        workflowExecution.getWorkflowId(),
+                        tooLargeException,
+                        "Failed to send query response");
+                RespondQueryTaskCompletedRequest.Builder queryFailedBuilder =
+                    RespondQueryTaskCompletedRequest.newBuilder()
+                        .setTaskToken(currentTask.getTaskToken())
+                        .setNamespace(namespace)
+                        .setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
+                        .setErrorMessage(failure.getMessage())
+                        .setFailure(failure);
+                sendDirectQueryCompletedResponse(
+                    currentTask.getTaskToken(), queryFailedBuilder, workflowTypeScope);
               }
-            } else if (taskFailed != null) {
-              sendTaskFailed(
-                  currentTask.getTaskToken(),
-                  taskFailed.toBuilder(),
-                  result.getRequestRetryOptions(),
-                  workflowTypeScope);
-            } else if (queryCompleted != null) {
-              sendDirectQueryCompletedResponse(
-                  currentTask.getTaskToken(), queryCompleted.toBuilder(), workflowTypeScope);
+            } else {
+              try {
+                if (taskCompleted != null) {
+                  RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
+                      taskCompleted.toBuilder();
+                  try (EagerActivitySlotsReservation activitySlotsReservation =
+                      new EagerActivitySlotsReservation(eagerActivityDispatcher)) {
+                    activitySlotsReservation.applyToRequest(requestBuilder);
+                    RespondWorkflowTaskCompletedResponse response =
+                        sendTaskCompleted(
+                            currentTask.getTaskToken(),
+                            requestBuilder,
+                            result.getRequestRetryOptions(),
+                            workflowTypeScope);
+                    // If we were processing a speculative WFT the server may instruct us that the
+                    // task was dropped by resting out event ID.
+                    long resetEventId = response.getResetHistoryEventId();
+                    if (resetEventId != 0) {
+                      result.getResetEventIdHandle().apply(resetEventId);
+                    }
+                    nextWFTResponse =
+                        response.hasWorkflowTask()
+                            ? Optional.of(response.getWorkflowTask())
+                            : Optional.empty();
+                    // TODO we don't have to do this under the runId lock
+                    activitySlotsReservation.handleResponse(response);
+                  }
+                } else if (taskFailed != null) {
+                  taskFailedCause = taskFailed.getCause();
+                  sendTaskFailed(
+                      currentTask.getTaskToken(),
+                      taskFailed.toBuilder(),
+                      result.getRequestRetryOptions(),
+                      workflowTypeScope);
+                }
+              } catch (GrpcMessageTooLargeException e) {
+                // Only fail workflow task on the first attempt, subsequent failures of the same
+                // workflow task should timeout.
+                if (currentTask.getAttempt() > 1) {
+                  throw e;
+                }
+
+                releaseReason = SlotReleaseReason.error(e);
+                handleReportingFailure(
+                    e, currentTask, result, workflowExecution, workflowTypeScope);
+                // setting/replacing failure cause for metrics purposes
+                taskFailedCause =
+                    WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE;
+
+                String messagePrefix =
+                    String.format(
+                        "Failed to send workflow task %s",
+                        taskFailed == null ? "completion" : "failure");
+                RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
+                    RespondWorkflowTaskFailedRequest.newBuilder()
+                        .setFailure(
+                            grpcMessageTooLargeFailure(
+                                workflowExecution.getWorkflowId(), e, messagePrefix))
+                        .setCause(
+                            WorkflowTaskFailedCause
+                                .WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE);
+                sendTaskFailed(
+                    currentTask.getTaskToken(),
+                    taskFailedBuilder,
+                    result.getRequestRetryOptions(),
+                    workflowTypeScope);
+              }
             }
           } catch (Exception e) {
-            logExceptionDuringResultReporting(e, currentTask, result);
             releaseReason = SlotReleaseReason.error(e);
-            // if we failed to report the workflow task completion back to the server,
-            // our cached version of the workflow may be more advanced than the server is aware of.
-            // We should discard this execution and perform a clean replay based on what server
-            // knows next time.
-            cache.invalidate(
-                workflowExecution, workflowTypeScope, "Failed result reporting to the server", e);
+            handleReportingFailure(e, currentTask, result, workflowExecution, workflowTypeScope);
             throw e;
           }
 
-          if (result.getTaskFailed() != null) {
-            Scope workflowTaskFailureScope = workflowTypeScope;
-            if (result
-                .getTaskFailed()
-                .getCause()
-                .equals(
-                    WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR)) {
-              workflowTaskFailureScope =
-                  workflowTaskFailureScope.tagged(
-                      ImmutableMap.of(TASK_FAILURE_TYPE, "NonDeterminismError"));
-            } else {
-              workflowTaskFailureScope =
-                  workflowTaskFailureScope.tagged(
-                      ImmutableMap.of(TASK_FAILURE_TYPE, "WorkflowError"));
+          if (taskFailedCause != null) {
+            String taskFailureType;
+            switch (taskFailedCause) {
+              case WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR:
+                taskFailureType = "NonDeterminismError";
+                break;
+              case WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE:
+                taskFailureType = "GrpcMessageTooLarge";
+                break;
+              default:
+                taskFailureType = "WorkflowError";
             }
+            Scope workflowTaskFailureScope =
+                workflowTypeScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, taskFailureType));
             // we don't trigger the counter in case of the legacy query
             // (which never has taskFailed set)
             workflowTaskFailureScope
@@ -616,6 +674,35 @@ final class WorkflowWorker implements SuspendableWorker {
             currentTask.getStartedEventId(),
             e);
       }
+    }
+
+    private void handleReportingFailure(
+        Exception e,
+        PollWorkflowTaskQueueResponse currentTask,
+        WorkflowTaskHandler.Result result,
+        WorkflowExecution workflowExecution,
+        Scope workflowTypeScope) {
+      logExceptionDuringResultReporting(e, currentTask, result);
+      // if we failed to report the workflow task completion back to the server,
+      // our cached version of the workflow may be more advanced than the server is aware of.
+      // We should discard this execution and perform a clean replay based on what server
+      // knows next time.
+      cache.invalidate(
+          workflowExecution, workflowTypeScope, "Failed result reporting to the server", e);
+    }
+
+    private Failure grpcMessageTooLargeFailure(
+        String workflowId, GrpcMessageTooLargeException e, String messagePrefix) {
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage(messagePrefix + ": " + e.getMessage())
+              .setType(GrpcMessageTooLargeException.class.getSimpleName())
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]); // don't serialize stack trace
+      return options
+          .getDataConverter()
+          .withContext(new WorkflowSerializationContext(namespace, workflowId))
+          .exceptionToFailure(applicationFailure);
     }
   }
 }

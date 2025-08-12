@@ -56,6 +56,13 @@ class GrpcRetryerUtils {
         // By default, we keep retrying with DEADLINE_EXCEEDED assuming that it's the deadline of
         // one attempt which expired, but not the whole sequence.
         break;
+      case RESOURCE_EXHAUSTED:
+        // Retry RESOURCE_EXHAUSTED unless the max message size was exceeded
+        GrpcMessageTooLargeException e = GrpcMessageTooLargeException.tryWrap(currentException);
+        if (e != null) {
+          return e;
+        }
+        break;
       default:
         for (RpcRetryOptions.DoNotRetryItem pair : options.getDoNotRetry()) {
           if (pair.getCode() == code
