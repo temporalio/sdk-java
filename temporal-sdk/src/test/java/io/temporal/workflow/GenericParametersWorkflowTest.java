@@ -2,6 +2,8 @@ package io.temporal.workflow;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowStub;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
@@ -19,7 +21,8 @@ public class GenericParametersWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(GenericParametersWorkflowImpl.class)
+          .setWorkflowTypes(
+              GenericParametersWorkflowImpl.class, MissingGenericParametersWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
@@ -117,6 +120,33 @@ public class GenericParametersWorkflowTest {
       result.addAll(arg);
       result.addAll(signaled);
       return result;
+    }
+  }
+
+  @Test
+  public void testMissingGenericParameter() {
+    WorkflowStub untypedStub =
+        testWorkflowRule.newUntypedWorkflowStub("MissingGenericParametersWorkflow");
+    untypedStub.start(testWorkflowRule.getTaskQueue());
+    String result = untypedStub.getResult(String.class);
+    Assert.assertEquals(testWorkflowRule.getTaskQueue(), result);
+  }
+
+  @WorkflowInterface
+  public interface MissingGenericParametersWorkflow {
+    @WorkflowMethod
+    String execute(String name, List<String> names);
+  }
+
+  public static class MissingGenericParametersWorkflowImpl
+      implements MissingGenericParametersWorkflow {
+    @Override
+    public String execute(String name, List<String> names) {
+      if (names != null) {
+        throw ApplicationFailure.newFailure(
+            "Generic parameter should not be present", "GenericParameterError");
+      }
+      return name;
     }
   }
 }

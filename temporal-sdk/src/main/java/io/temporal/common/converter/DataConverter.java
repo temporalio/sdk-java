@@ -3,6 +3,7 @@ package io.temporal.common.converter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
 import com.google.common.base.Preconditions;
+import com.google.common.reflect.TypeToken;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
@@ -132,7 +133,7 @@ public interface DataConverter {
     if (!content.isPresent()) {
       // Return defaults for all the parameters
       for (int i = 0; i < parameterTypes.length; i++) {
-        result[i] = Defaults.defaultValue((Class<?>) genericParameterTypes[i]);
+        result[i] = Defaults.defaultValue(TypeToken.of(genericParameterTypes[i]).getRawType());
       }
       return result;
     }
@@ -142,7 +143,7 @@ public interface DataConverter {
       Class<?> pt = parameterTypes[i];
       Type gt = genericParameterTypes[i];
       if (i >= count) {
-        result[i] = Defaults.defaultValue((Class<?>) gt);
+        result[i] = Defaults.defaultValue(TypeToken.of(gt).getRawType());
       } else {
         result[i] = this.fromPayload(payloads.getPayloads(i), pt, gt);
       }
