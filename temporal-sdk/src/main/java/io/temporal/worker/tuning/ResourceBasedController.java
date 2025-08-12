@@ -43,7 +43,7 @@ public class ResourceBasedController {
     this.systemInfoSupplier = systemInfoSupplier;
     this.memoryController =
         new PIDController(
-            options.getTargetCPUUsage(),
+            options.getTargetMemoryUsage(),
             options.getMemoryPGain(),
             options.getMemoryIGain(),
             options.getMemoryDGain());
