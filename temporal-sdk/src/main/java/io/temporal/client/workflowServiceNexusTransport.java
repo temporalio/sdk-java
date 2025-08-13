@@ -44,10 +44,16 @@ public class workflowServiceNexusTransport implements Transport {
   private final TaskDispatchTarget dispatchTarget;
 
   public workflowServiceNexusTransport(
-      GenericWorkflowClient client, String endpoint, WorkflowClientOptions options) {
+      GenericWorkflowClient client, TemporalNexusServiceClientOptions serviceClientOptions, WorkflowClientOptions options) {
     this.client = client;
     this.clientOptions = options;
-    this.dispatchTarget = TaskDispatchTarget.newBuilder().setEndpoint(endpoint).build();
+    if (serviceClientOptions.getEndpoint() != null) {
+      this.dispatchTarget = TaskDispatchTarget.newBuilder().setEndpoint(serviceClientOptions.getEndpoint()).build();
+    } else if (serviceClientOptions.getTaskQueue() != null) {
+      this.dispatchTarget = TaskDispatchTarget.newBuilder().setTaskQueue(serviceClientOptions.getTaskQueue()).build();
+    } else {
+      throw new IllegalArgumentException("No target specified");
+    }
   }
 
   private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
