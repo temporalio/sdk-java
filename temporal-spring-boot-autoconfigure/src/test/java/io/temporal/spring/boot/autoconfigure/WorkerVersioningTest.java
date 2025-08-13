@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.VersioningBehavior;
-import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
-import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
 import io.temporal.api.workflowservice.v1.SetWorkerDeploymentCurrentVersionRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -49,20 +47,6 @@ public class WorkerVersioningTest {
     Assumptions.assumeTrue(
         (useDocker != null && useDocker.equalsIgnoreCase("true")),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
-
-    try {
-      workflowClient
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .describeNamespace(
-              DescribeNamespaceRequest.newBuilder().setNamespace("UnitTest").build());
-    } catch (Exception e) {
-      workflowClient
-          .getWorkflowServiceStubs()
-          .blockingStub()
-          .registerNamespace(
-              RegisterNamespaceRequest.newBuilder().setNamespace("UnitTest").build());
-    }
   }
 
   //  @BeforeEach
