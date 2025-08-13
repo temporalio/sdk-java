@@ -5,13 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.VersioningBehavior;
+import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
+import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
 import io.temporal.api.workflowservice.v1.SetWorkerDeploymentCurrentVersionRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,18 +37,32 @@ public class WorkerVersioningTest {
   private static final Logger log = LoggerFactory.getLogger("worker-versioning");
 
   @BeforeAll
-  static void checkDockerService() {
+  void checkDockerServiceAndNamespace() {
     String useDocker = System.getenv("USE_DOCKER_SERVICE");
     log.info("USE_DOCKER_SERVICE123: " + useDocker);
     if (useDocker != null) {
       log.info("useDocker.equalsIgnoreCase(true): " + useDocker.equalsIgnoreCase("true"));
     }
     log.info(
-        "new condition"
-            + (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))));
+        "(useDocker != null && useDocker.equalsIgnoreCase())"
+            + (useDocker != null && useDocker.equalsIgnoreCase("true")));
     Assumptions.assumeTrue(
-        (useDocker == null || (useDocker != null && useDocker.equalsIgnoreCase("true"))),
+        (useDocker != null && useDocker.equalsIgnoreCase("true")),
         "Skipping tests because USE_DOCKER_SERVICE is not set");
+
+    try {
+      workflowClient
+          .getWorkflowServiceStubs()
+          .blockingStub()
+          .describeNamespace(
+              DescribeNamespaceRequest.newBuilder().setNamespace("UnitTest").build());
+    } catch (Exception e) {
+      workflowClient
+          .getWorkflowServiceStubs()
+          .blockingStub()
+          .registerNamespace(
+              RegisterNamespaceRequest.newBuilder().setNamespace("UnitTest").build());
+    }
   }
 
   //  @BeforeEach
@@ -65,12 +85,12 @@ public class WorkerVersioningTest {
                 .setDeploymentName("dname")
                 .setVersion("dname.bid")
                 .build());
-    log.info("testAutoDiscovery 1");
+    //    log.info("testAutoDiscovery 1");
 
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
-    log.info("testAutoDiscovery 2");
+    //    log.info("testAutoDiscovery 2");
     WorkflowExecution we1 = WorkflowClient.start(testWorkflow::execute, "hi");
     workflowClient.newUntypedWorkflowStub(we1.getWorkflowId()).getResult(String.class);
     // Should've used pinned (via default)
