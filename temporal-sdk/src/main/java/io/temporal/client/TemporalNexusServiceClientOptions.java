@@ -15,11 +15,11 @@ public class TemporalNexusServiceClientOptions {
     this.taskQueue = taskQueue;
   }
 
-  String getEndpoint() {
+  public String getEndpoint() {
     return endpoint;
   }
 
-  String getTaskQueue() {
+  public String getTaskQueue() {
     return taskQueue;
   }
 
@@ -27,27 +27,24 @@ public class TemporalNexusServiceClientOptions {
     private String endpoint;
     private String taskQueue;
 
-    Builder setTaskQueue(String taskQueue) {
+    public Builder setTaskQueue(String taskQueue) {
       this.taskQueue = taskQueue;
       return this;
     }
 
-    Builder setEndpoint(String endpoint) {
+    public Builder setEndpoint(String endpoint) {
       this.endpoint = endpoint;
       return this;
     }
 
-    TemporalNexusServiceClientOptions build() {
+    public TemporalNexusServiceClientOptions build() {
       if (Strings.isNullOrEmpty(endpoint) && Strings.isNullOrEmpty(taskQueue)) {
         throw new IllegalArgumentException("Must provide either a task queue or an endpoint");
       } else if (!Strings.isNullOrEmpty(endpoint) && !Strings.isNullOrEmpty(taskQueue)) {
         throw new IllegalArgumentException("Must provide only a task queue or an endpoint");
       }
 
-
-      return new TemporalNexusServiceClientOptions(
-              endpoint, taskQueue
-      );
+      return new TemporalNexusServiceClientOptions(endpoint, taskQueue);
     }
   }
 }

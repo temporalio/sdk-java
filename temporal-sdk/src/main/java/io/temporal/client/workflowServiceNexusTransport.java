@@ -44,13 +44,17 @@ public class workflowServiceNexusTransport implements Transport {
   private final TaskDispatchTarget dispatchTarget;
 
   public workflowServiceNexusTransport(
-      GenericWorkflowClient client, TemporalNexusServiceClientOptions serviceClientOptions, WorkflowClientOptions options) {
+      GenericWorkflowClient client,
+      TemporalNexusServiceClientOptions serviceClientOptions,
+      WorkflowClientOptions options) {
     this.client = client;
     this.clientOptions = options;
     if (serviceClientOptions.getEndpoint() != null) {
-      this.dispatchTarget = TaskDispatchTarget.newBuilder().setEndpoint(serviceClientOptions.getEndpoint()).build();
+      this.dispatchTarget =
+          TaskDispatchTarget.newBuilder().setEndpoint(serviceClientOptions.getEndpoint()).build();
     } else if (serviceClientOptions.getTaskQueue() != null) {
-      this.dispatchTarget = TaskDispatchTarget.newBuilder().setTaskQueue(serviceClientOptions.getTaskQueue()).build();
+      this.dispatchTarget =
+          TaskDispatchTarget.newBuilder().setTaskQueue(serviceClientOptions.getTaskQueue()).build();
     } else {
       throw new IllegalArgumentException("No target specified");
     }

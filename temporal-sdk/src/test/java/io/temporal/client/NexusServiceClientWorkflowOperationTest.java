@@ -35,11 +35,7 @@ public class NexusServiceClientWorkflowOperationTest {
   public void executeWorkflowOperationSuccess()
       throws OperationStillRunningException, OperationException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     Assert.assertEquals(
         "Hello World",
@@ -59,11 +55,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void executeWorkflowOperationFail() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     OperationException oe =
         Assert.assertThrows(
@@ -92,12 +84,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void executeWorkflowOperationStillRunning() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
-
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
     Assert.assertThrows(
         OperationStillRunningException.class,
         () ->
@@ -120,11 +107,7 @@ public class NexusServiceClientWorkflowOperationTest {
   public void createHandle()
       throws OperationException, OperationStillRunningException, InterruptedException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
@@ -145,11 +128,7 @@ public class NexusServiceClientWorkflowOperationTest {
   public void createHandleUntyped()
       throws OperationException, OperationStillRunningException, InterruptedException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
@@ -170,11 +149,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void createInvalidHandle() throws JsonProcessingException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     OperationHandle<String> badHandle =
         serviceClient.newHandle(TestNexusServices.TestNexusService1::operation, "BAD_TOKEN");
@@ -211,11 +186,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void startAsyncOperation() throws OperationException, OperationStillRunningException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
@@ -241,11 +212,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void cancelAsyncOperation() throws OperationException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
@@ -271,11 +238,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void cancelAsyncOperationAsync() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient
@@ -304,11 +267,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void startAsyncOperationAsync() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient
@@ -342,11 +301,7 @@ public class NexusServiceClientWorkflowOperationTest {
   @Test
   public void startWorkflowOperationFail() throws OperationException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> startResult =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "fail");

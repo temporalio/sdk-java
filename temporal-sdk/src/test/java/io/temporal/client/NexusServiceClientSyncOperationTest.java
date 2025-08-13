@@ -30,11 +30,7 @@ public class NexusServiceClientSyncOperationTest {
           ExecutionException,
           InterruptedException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     String result =
         serviceClient.executeOperation(TestNexusServices.TestNexusService1::operation, "World");
@@ -50,11 +46,7 @@ public class NexusServiceClientSyncOperationTest {
   @Test
   public void executeSyncOperationFail() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     OperationException oe =
         Assert.assertThrows(
@@ -77,11 +69,7 @@ public class NexusServiceClientSyncOperationTest {
   @Test
   public void executeSyncOperationHandlerError() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     HandlerException he =
         Assert.assertThrows(
@@ -95,11 +83,7 @@ public class NexusServiceClientSyncOperationTest {
   @Test
   public void executeSyncOperationCancel() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     OperationException oe =
         Assert.assertThrows(
@@ -123,11 +107,7 @@ public class NexusServiceClientSyncOperationTest {
   @Test
   public void startSyncOperation() throws OperationException {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     StartOperationResponse<String> result =
         serviceClient.startOperation(TestNexusServices.TestNexusService1::operation, "World");
@@ -146,11 +126,7 @@ public class NexusServiceClientSyncOperationTest {
   @Test
   public void startSyncOperationFail() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     OperationException oe =
         Assert.assertThrows(
@@ -173,11 +149,7 @@ public class NexusServiceClientSyncOperationTest {
   @Test
   public void startSyncOperationCancel() {
     ServiceClient<TestNexusServices.TestNexusService1> serviceClient =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newNexusServiceClient(
-                TestNexusServices.TestNexusService1.class,
-                testWorkflowRule.getNexusEndpoint().getSpec().getName());
+        testWorkflowRule.newNexusServiceClient(TestNexusServices.TestNexusService1.class);
 
     OperationException oe =
         Assert.assertThrows(

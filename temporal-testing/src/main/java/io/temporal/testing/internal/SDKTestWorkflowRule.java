@@ -8,15 +8,13 @@ import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import com.uber.m3.tally.Scope;
+import io.nexusrpc.client.ServiceClient;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.nexus.v1.Endpoint;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowQueryException;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -365,6 +363,16 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public WorkflowClient getWorkflowClient() {
     return testWorkflowRule.getWorkflowClient();
+  }
+
+  public <T> ServiceClient<T> newNexusServiceClient(Class<T> nexusServiceInterface) {
+    return testWorkflowRule
+        .getWorkflowClient()
+        .newNexusServiceClient(
+            nexusServiceInterface,
+            TemporalNexusServiceClientOptions.newBuilder()
+                .setEndpoint(getNexusEndpoint().getSpec().getName())
+                .build());
   }
 
   public WorkflowServiceStubs getWorkflowServiceStubs() {

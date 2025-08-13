@@ -110,14 +110,17 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
       Class<T> nexusServiceInterface, TemporalNexusServiceClientOptions serviceClientOptions) {
     return new ServiceClient<>(
         ServiceClientOptions.newBuilder(nexusServiceInterface)
-            .setTransport(new workflowServiceNexusTransport(genericClient, serviceClientOptions, options))
+            .setTransport(
+                new workflowServiceNexusTransport(genericClient, serviceClientOptions, options))
             .setSerializer(new PayloadSerializer(options.getDataConverter()))
             .build());
   }
 
   @Override
   public CompletionClient newNexusCompletionClient() {
-    return new CompletionClient(new workflowServiceNexusTransport(genericClient, "", options));
+    return new CompletionClient(
+        new workflowServiceNexusTransport(
+            genericClient, TemporalNexusServiceClientOptions.newBuilder().build(), options));
   }
 
   @Override

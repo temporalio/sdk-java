@@ -136,7 +136,8 @@ public interface WorkflowClient {
    * @return A new {@link ServiceClient} instance backed by this {@link WorkflowClient} instance.
    */
   @Experimental
-  <T> ServiceClient<T> newNexusServiceClient(Class<T> nexusServiceInterface, TemporalNexusServiceClientOptions options);
+  <T> ServiceClient<T> newNexusServiceClient(
+      Class<T> nexusServiceInterface, TemporalNexusServiceClientOptions options);
 
   /**
    * Creates a new {@link CompletionClient} that can be used to complete or fail async operations
