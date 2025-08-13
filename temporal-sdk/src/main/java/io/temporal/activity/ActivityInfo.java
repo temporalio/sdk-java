@@ -3,6 +3,7 @@ package io.temporal.activity;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
+import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -131,4 +132,9 @@ public interface ActivityInfo {
   @Experimental
   @Nonnull
   Priority getPriority();
+
+  /**
+   * @return Retry options for the Activity Execution.
+   */
+  RetryOptions getRetryOptions();
 }
