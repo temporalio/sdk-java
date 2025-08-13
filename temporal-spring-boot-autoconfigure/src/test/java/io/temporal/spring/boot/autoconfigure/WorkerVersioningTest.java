@@ -11,6 +11,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
+import io.temporal.worker.WorkerFactory;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,6 +44,9 @@ public class WorkerVersioningTest {
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
+    WorkerFactory workerFactory = applicationContext.getBean(WorkerFactory.class);
+    workerFactory.start();
+
     workflowClient
         .getWorkflowServiceStubs()
         .blockingStub()
