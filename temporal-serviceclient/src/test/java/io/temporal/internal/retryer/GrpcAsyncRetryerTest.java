@@ -389,4 +389,47 @@ public class GrpcAsyncRetryerTest {
         "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
         elapsedTime >= 2000);
   }
+
+  @Test
+  public void testMessageLargerThanMaxFailureAsync() throws InterruptedException {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .validateBuildWithDefaults();
+
+    for (String description :
+        new String[] {
+          "grpc: received message larger than max (2000 vs. 1000)",
+          "grpc: message after decompression larger than max (2000 vs. 1000)",
+          "grpc: received message after decompression larger than max (2000 vs. 1000)",
+        }) {
+      final AtomicInteger attempts = new AtomicInteger();
+      ExecutionException e =
+          assertThrows(
+              ExecutionException.class,
+              () ->
+                  new GrpcAsyncRetryer<>(
+                          scheduledExecutor,
+                          () -> {
+                            if (attempts.incrementAndGet() > 1)
+                              fail(
+                                  "We should not retry on RESOURCE_EXHAUSTED with description: "
+                                      + description);
+                            CompletableFuture<Void> result = new CompletableFuture<>();
+                            result.completeExceptionally(
+                                new StatusRuntimeException(
+                                    Status.RESOURCE_EXHAUSTED.withDescription(description)));
+                            return result;
+                          },
+                          new GrpcRetryer.GrpcRetryerOptions(options, null),
+                          GetSystemInfoResponse.Capabilities.getDefaultInstance())
+                      .retry()
+                      .get());
+      assertTrue(e.getCause() instanceof GrpcMessageTooLargeException);
+      assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getCause().getMessage());
+      assertTrue(e.getCause().getCause() instanceof StatusRuntimeException);
+    }
+  }
 }
