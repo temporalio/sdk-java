@@ -9,6 +9,7 @@ import com.uber.m3.tally.Scope;
 import io.nexusrpc.client.CompletionClient;
 import io.nexusrpc.client.ServiceClient;
 import io.nexusrpc.client.ServiceClientOptions;
+import io.nexusrpc.client.transport.Transport;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TaskReachability;
 import io.temporal.api.history.v1.History;
@@ -16,6 +17,8 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.interceptors.NexusServiceClientInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientInterceptorRoot;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -108,10 +111,16 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Override
   public <T> ServiceClient<T> newNexusServiceClient(
       Class<T> nexusServiceInterface, TemporalNexusServiceClientOptions serviceClientOptions) {
+    Transport baseTransport =
+        new workflowServiceNexusTransport(genericClient, serviceClientOptions, options);
+    NexusServiceClientInterceptor interceptorChain =
+        new NexusServiceClientInterceptorRoot(baseTransport);
+    for (WorkflowClientInterceptor interceptor : interceptors) {
+      interceptorChain = interceptor.nexusServiceClientInterceptor(interceptorChain);
+    }
     return new ServiceClient<>(
         ServiceClientOptions.newBuilder(nexusServiceInterface)
-            .setTransport(
-                new workflowServiceNexusTransport(genericClient, serviceClientOptions, options))
+            .setTransport((Transport) interceptorChain)
             .setSerializer(new PayloadSerializer(options.getDataConverter()))
             .build());
   }

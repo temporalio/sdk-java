@@ -40,6 +40,20 @@ public interface WorkflowClientInterceptor {
   ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 
   /**
+   * Called when a Nexus {@link io.nexusrpc.client.ServiceClient} is created through {@link
+   * io.temporal.client.WorkflowClient#newNexusServiceClient(Class,
+   * io.temporal.client.TemporalNexusServiceClientOptions)}. Allows decorating the transport used by
+   * the service client.
+   *
+   * @param next next interceptor in the chain
+   * @return interceptor that should decorate calls to {@code next}
+   */
+  default NexusServiceClientInterceptor nexusServiceClientInterceptor(
+      NexusServiceClientInterceptor next) {
+    return next;
+  }
+
+  /**
    * Called once during creation of WorkflowClient to create a chain of Client Workflow Interceptors
    *
    * @param next next workflow client interceptor in the chain of interceptors
