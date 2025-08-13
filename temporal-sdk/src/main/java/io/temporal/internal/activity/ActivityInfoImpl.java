@@ -5,8 +5,10 @@ import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.common.Priority;
+import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Base64;
@@ -136,9 +138,15 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
     return local;
   }
 
+  @Nonnull
   @Override
   public Priority getPriority() {
     return ProtoConverters.fromProto(response.getPriority());
+  }
+
+  @Override
+  public RetryOptions getRetryOptions() {
+    return RetryOptionsUtils.toRetryOptions(response.getRetryPolicy());
   }
 
   @Override
@@ -165,7 +173,7 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   @Override
   public String toString() {
     return "WorkflowInfo{"
-        + ", workflowId="
+        + "workflowId="
         + getWorkflowId()
         + ", runId="
         + getRunId()
@@ -191,11 +199,17 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
         + getWorkflowType()
         + ", namespace="
         + getNamespace()
+        + ", activityTaskQueue="
+        + getActivityTaskQueue()
         + ", attempt="
         + getAttempt()
         + ", isLocal="
         + isLocal()
-        + "taskToken="
+        + ", priority="
+        + getPriority()
+        + ", retryOptions="
+        + getRetryOptions()
+        + ", taskToken="
         + Base64.getEncoder().encodeToString(getTaskToken())
         + '}';
   }

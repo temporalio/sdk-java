@@ -44,10 +44,9 @@ public class SDKTestOptions {
         .build();
   }
 
-  public static ActivityOptions newActivityOptionsForTaskQueue(String taskQueue) {
+  public static ActivityOptions newActivityOptions() {
     if (DEBUGGER_TIMEOUTS) {
       return ActivityOptions.newBuilder()
-          .setTaskQueue(taskQueue)
           .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
           .setHeartbeatTimeout(Duration.ofSeconds(1000))
           .setScheduleToStartTimeout(Duration.ofSeconds(1000))
@@ -55,13 +54,16 @@ public class SDKTestOptions {
           .build();
     } else {
       return ActivityOptions.newBuilder()
-          .setTaskQueue(taskQueue)
           .setScheduleToCloseTimeout(Duration.ofSeconds(5))
           .setHeartbeatTimeout(Duration.ofSeconds(5))
           .setScheduleToStartTimeout(Duration.ofSeconds(5))
           .setStartToCloseTimeout(Duration.ofSeconds(5))
           .build();
     }
+  }
+
+  public static ActivityOptions newActivityOptionsForTaskQueue(String taskQueue) {
+    return ActivityOptions.newBuilder(newActivityOptions()).setTaskQueue(taskQueue).build();
   }
 
   public static LocalActivityOptions newLocalActivityOptions() {
