@@ -39,10 +39,7 @@ jobs:
       env:
         USER: unittest
         USE_DOCKER_SERVICE: false
-      run: |
-        echo "USER: $USER"
-        echo "USE_DOCKER_SERVICE: $USE_DOCKER_SERVICE"
-        ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+      run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Publish Test Report
       uses: mikepenz/action-junit-report@v5
