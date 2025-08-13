@@ -44,6 +44,9 @@ public class WorkerVersioningTest {
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
+    // Manually start the worker because we disable automatic worker start, due to
+    // automatic worker start running prior to the docker check, which causes namespace
+    // errors when running in-mem unit tests
     WorkerFactory workerFactory = applicationContext.getBean(WorkerFactory.class);
     workerFactory.start();
 
