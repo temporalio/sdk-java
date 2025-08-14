@@ -28,7 +28,7 @@ jobs:
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v4
-    
+
     - name: Run unit tests
       env:
         USER: unittest
@@ -152,7 +152,7 @@ jobs:
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v4
-    
+
     - name: Run cloud test
       # Only supported in non-fork runs, since secrets are not available in forks. We intentionally
       # are only doing this check on the step instead of the job so we require job passing in CI
@@ -191,10 +191,10 @@ jobs:
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v4
-    
+
     - name: Run copyright and code format checks
       run: ./gradlew --no-daemon spotlessCheck
-  
+
   build_native_images:
     name: Build native test server
     uses: ./.github/workflows/build-native-image.yml

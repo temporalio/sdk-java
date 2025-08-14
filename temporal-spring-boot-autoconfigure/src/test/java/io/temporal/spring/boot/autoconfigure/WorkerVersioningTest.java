@@ -11,6 +11,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
+import io.temporal.worker.WorkerFactory;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,7 +21,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(classes = WorkerVersioningTest.Configuration.class)
-@ActiveProfiles(profiles = "worker-versioning")
+@ActiveProfiles(profiles = {"worker-versioning", "disable-start-workers"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class WorkerVersioningTest {
   @Autowired ConfigurableApplicationContext applicationContext;
@@ -43,6 +44,12 @@ public class WorkerVersioningTest {
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
+    // Manually start the worker because we disable automatic worker start, due to
+    // automatic worker start running prior to the docker check, which causes namespace
+    // errors when running in-mem unit tests
+    WorkerFactory workerFactory = applicationContext.getBean(WorkerFactory.class);
+    workerFactory.start();
+
     workflowClient
         .getWorkflowServiceStubs()
         .blockingStub()
