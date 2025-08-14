@@ -1,4 +1,4 @@
-package io.temporal.client;
+package io.temporal.internal.client;
 
 import static io.temporal.internal.common.NexusUtil.exceptionToNexusFailure;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -7,11 +7,9 @@ import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.nexusrpc.*;
 import io.nexusrpc.client.transport.*;
-import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
@@ -22,6 +20,9 @@ import io.temporal.api.nexus.v1.HandlerError;
 import io.temporal.api.nexus.v1.TaskDispatchTarget;
 import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.client.TemporalNexusServiceClientOptions;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.interceptors.NexusServiceClientInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -29,26 +30,24 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
-/**
- * workflowServiceNexusTransport is a transport implementation for the Nexus API that is backed by
- * the Temporal workflow service gRPC API.
- */
-public class workflowServiceNexusTransport implements Transport {
+public final class NexusServiceClientInterceptorRoot implements NexusServiceClientInterceptor {
+  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
+  private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
+
   private final GenericWorkflowClient client;
   private final WorkflowClientOptions clientOptions;
   private final TaskDispatchTarget dispatchTarget;
 
-  public workflowServiceNexusTransport(
+  public NexusServiceClientInterceptorRoot(
       GenericWorkflowClient client,
-      TemporalNexusServiceClientOptions serviceClientOptions,
-      WorkflowClientOptions options) {
+      WorkflowClientOptions clientOptions,
+      TemporalNexusServiceClientOptions serviceClientOptions) {
     this.client = client;
-    this.clientOptions = options;
+    this.clientOptions = clientOptions;
     if (serviceClientOptions.getEndpoint() != null) {
       this.dispatchTarget =
           TaskDispatchTarget.newBuilder().setEndpoint(serviceClientOptions.getEndpoint()).build();
@@ -59,10 +58,6 @@ public class workflowServiceNexusTransport implements Transport {
       throw new IllegalArgumentException("No target specified");
     }
   }
-
-  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
-
-  private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
 
   private static Failure handlerErrorToFailure(HandlerError err) {
     return Failure.newBuilder()
@@ -192,14 +187,16 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public StartOperationResponse startOperation(
-      String operationName, String serviceName, Object input, StartOperationOptions options)
-      throws OperationException {
+  public StartOperationOutput startOperation(StartOperationInput input) throws OperationException {
     try {
       StartNexusOperationResponse response =
           client.startNexusOperation(
-              createStartOperationRequest(operationName, serviceName, input, options));
-      return createStartOperationResponse(response);
+              createStartOperationRequest(
+                  input.getOperationName(),
+                  input.getServiceName(),
+                  input.getInput(),
+                  input.getOptions()));
+      return new StartOperationOutput(createStartOperationResponse(response));
     } catch (StatusRuntimeException sre) {
       throw NexusUtil.grpcExceptionToHandlerException(sre);
     }
@@ -257,11 +254,7 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public FetchOperationResultResponse fetchOperationResult(
-      String operationName,
-      String serviceName,
-      String operationToken,
-      FetchOperationResultOptions options)
+  public FetchOperationResultOutput fetchOperationResult(FetchOperationResultInput input)
       throws OperationException, OperationStillRunningException {
     Instant startTime = Instant.now();
     while (true) {
@@ -270,14 +263,17 @@ public class workflowServiceNexusTransport implements Transport {
           GetNexusOperationResultResponse response =
               client.getNexusOperationResult(
                   createGetNexusOperationResultRequest(
-                      operationName, serviceName, operationToken, options));
-          return createGetOperationResultResponse(response);
+                      input.getOperationName(),
+                      input.getServiceName(),
+                      input.getOperationToken(),
+                      input.getOptions()));
+          return new FetchOperationResultOutput(createGetOperationResultResponse(response));
         } catch (StatusRuntimeException sre) {
           throw NexusUtil.grpcExceptionToHandlerException(sre);
         }
       } catch (OperationStillRunningException e) {
         // If the operation is still running, we wait for the specified timeout before retrying.
-        if (Instant.now().isAfter(startTime.plus(options.getTimeout()))) {
+        if (Instant.now().isAfter(startTime.plus(input.getOptions().getTimeout()))) {
           throw e; // Timeout reached, rethrow the exception.
         }
         // TODO implement exponential backoff or other retry strategies.
@@ -321,16 +317,16 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public FetchOperationInfoResponse fetchOperationInfo(
-      String operationName,
-      String serviceName,
-      String operationToken,
-      FetchOperationInfoOptions options) {
+  public FetchOperationInfoOutput fetchOperationInfo(FetchOperationInfoInput input) {
     try {
-      return createGetOperationInfoResponse(
-          client.getNexusOperationInfo(
-              createGetNexusOperationInfoRequest(
-                  operationName, serviceName, operationToken, options)));
+      return new FetchOperationInfoOutput(
+          createGetOperationInfoResponse(
+              client.getNexusOperationInfo(
+                  createGetNexusOperationInfoRequest(
+                      input.getOperationName(),
+                      input.getServiceName(),
+                      input.getOperationToken(),
+                      input.getOptions()))));
     } catch (StatusRuntimeException sre) {
       throw NexusUtil.grpcExceptionToHandlerException(sre);
     }
@@ -366,16 +362,16 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CancelOperationResponse cancelOperation(
-      String operationName,
-      String serviceName,
-      String operationToken,
-      CancelOperationOptions options) {
+  public CancelOperationOutput cancelOperation(CancelOperationInput input) {
     try {
-      return createRequestCancelNexusOperationResponse(
-          client.requestCancelNexusOperation(
-              createRequestCancelNexusOperationRequest(
-                  operationName, serviceName, operationToken, options)));
+      return new CancelOperationOutput(
+          createRequestCancelNexusOperationResponse(
+              client.requestCancelNexusOperation(
+                  createRequestCancelNexusOperationRequest(
+                      input.getOperationName(),
+                      input.getServiceName(),
+                      input.getOperationToken(),
+                      input.getOptions()))));
     } catch (StatusRuntimeException sre) {
       throw NexusUtil.grpcExceptionToHandlerException(sre);
     }
@@ -436,21 +432,26 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CompleteOperationResponse completeOperation(String url, CompleteOperationOptions options) {
+  public CompleteOperationOutput completeOperation(CompleteOperationInput input) {
     try {
-      return createCompleteOperationResponse(
-          client.completeNexusOperation(createCompleteNexusOperationRequest(url, options)));
+      return new CompleteOperationOutput(
+          createCompleteOperationResponse(
+              client.completeNexusOperation(
+                  createCompleteNexusOperationRequest(input.getUrl(), input.getOptions()))));
     } catch (StatusRuntimeException sre) {
       throw NexusUtil.grpcExceptionToHandlerException(sre);
     }
   }
 
   @Override
-  public CompletableFuture<StartOperationResponse> startOperationAsync(
-      String operationName, String serviceName, Object input, StartOperationOptions options) {
+  public CompletableFuture<StartOperationOutput> startOperationAsync(StartOperationInput input) {
     return client
         .startNexusOperationAsync(
-            createStartOperationRequest(operationName, serviceName, input, options))
+            createStartOperationRequest(
+                input.getOperationName(),
+                input.getServiceName(),
+                input.getInput(),
+                input.getOptions()))
         .thenApply(
             response -> {
               try {
@@ -459,6 +460,7 @@ public class workflowServiceNexusTransport implements Transport {
                 throw new CompletionException(e);
               }
             })
+        .thenApply(StartOperationOutput::new)
         .exceptionally(
             ex -> {
               if (ex.getCause() instanceof StatusRuntimeException) {
@@ -492,18 +494,21 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CompletableFuture<FetchOperationResultResponse> fetchOperationResultAsync(
-      String operationName,
-      String serviceName,
-      String operationToken,
-      FetchOperationResultOptions options) {
+  public CompletableFuture<FetchOperationResultOutput> fetchOperationResultAsync(
+      FetchOperationResultInput input) {
     Instant startTime = Instant.now();
     GetNexusOperationResultRequest request =
-        createGetNexusOperationResultRequest(operationName, serviceName, operationToken, options);
+        createGetNexusOperationResultRequest(
+            input.getOperationName(),
+            input.getServiceName(),
+            input.getOperationToken(),
+            input.getOptions());
     CompletableFuture<GetNexusOperationResultResponse> response =
         client.getNexusOperationResultAsync(request);
     return response
-        .thenComposeAsync(r -> waitForResult(startTime, options.getTimeout(), request, r))
+        .thenComposeAsync(
+            r -> waitForResult(startTime, input.getOptions().getTimeout(), request, r))
+        .thenApply(FetchOperationResultOutput::new)
         .exceptionally(
             ex -> {
               if (ex.getCause() instanceof StatusRuntimeException) {
@@ -518,15 +523,17 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CompletableFuture<FetchOperationInfoResponse> fetchOperationInfoAsync(
-      String operationName,
-      String serviceName,
-      String operationToken,
-      FetchOperationInfoOptions options) {
+  public CompletableFuture<FetchOperationInfoOutput> fetchOperationInfoAsync(
+      FetchOperationInfoInput input) {
     return client
         .getNexusOperationInfoAsync(
-            createGetNexusOperationInfoRequest(operationName, serviceName, operationToken, options))
+            createGetNexusOperationInfoRequest(
+                input.getOperationName(),
+                input.getServiceName(),
+                input.getServiceName(),
+                input.getOptions()))
         .thenApply(this::createGetOperationInfoResponse)
+        .thenApply(FetchOperationInfoOutput::new)
         .exceptionally(
             ex -> {
               if (ex.getCause() instanceof StatusRuntimeException) {
@@ -541,16 +548,16 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CompletableFuture<CancelOperationResponse> cancelOperationAsync(
-      String operationName,
-      String serviceName,
-      String operationToken,
-      CancelOperationOptions options) {
+  public CompletableFuture<CancelOperationOutput> cancelOperationAsync(CancelOperationInput input) {
     return client
         .requestCancelNexusOperationAsync(
             createRequestCancelNexusOperationRequest(
-                operationName, serviceName, operationToken, options))
+                input.getOperationName(),
+                input.getServiceName(),
+                input.getOperationToken(),
+                input.getOptions()))
         .thenApply(this::createRequestCancelNexusOperationResponse)
+        .thenApply(CancelOperationOutput::new)
         .exceptionally(
             ex -> {
               if (ex.getCause() instanceof StatusRuntimeException) {
@@ -565,11 +572,13 @@ public class workflowServiceNexusTransport implements Transport {
   }
 
   @Override
-  public CompletableFuture<CompleteOperationResponse> completeOperationAsync(
-      String operationToken, CompleteOperationOptions options) {
+  public CompletableFuture<CompleteOperationOutput> completeOperationAsync(
+      CompleteOperationAsyncInput input) {
     return client
-        .completeNexusOperationAsync(createCompleteNexusOperationRequest(operationToken, options))
+        .completeNexusOperationAsync(
+            createCompleteNexusOperationRequest(input.getOperationToken(), input.getOptions()))
         .thenApply(this::createCompleteOperationResponse)
+        .thenApply(CompleteOperationOutput::new)
         .exceptionally(
             ex -> {
               if (ex.getCause() instanceof StatusRuntimeException) {
@@ -581,48 +590,5 @@ public class workflowServiceNexusTransport implements Transport {
                 throw new CompletionException(ex);
               }
             });
-  }
-
-  <T> T callClientMethod(Callable<T> c) {
-    try {
-      return c.call();
-    } catch (StatusRuntimeException sre) {
-      Status status = sre.getStatus();
-      switch (status.getCode()) {
-        case INVALID_ARGUMENT:
-          throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, sre);
-        case ALREADY_EXISTS:
-        case FAILED_PRECONDITION:
-        case OUT_OF_RANGE:
-          throw new HandlerException(
-              HandlerException.ErrorType.INTERNAL,
-              sre,
-              HandlerException.RetryBehavior.NON_RETRYABLE);
-        case ABORTED:
-        case UNAVAILABLE:
-          throw new HandlerException(HandlerException.ErrorType.UNAVAILABLE, sre);
-        case CANCELLED:
-        case DATA_LOSS:
-        case INTERNAL:
-        case UNKNOWN:
-        case UNAUTHENTICATED:
-        case PERMISSION_DENIED:
-          throw new HandlerException(HandlerException.ErrorType.INTERNAL, sre);
-        case NOT_FOUND:
-          throw new HandlerException(HandlerException.ErrorType.NOT_FOUND, sre);
-        case RESOURCE_EXHAUSTED:
-          throw new HandlerException(HandlerException.ErrorType.RESOURCE_EXHAUSTED, sre);
-        case UNIMPLEMENTED:
-          throw new HandlerException(HandlerException.ErrorType.NOT_IMPLEMENTED, sre);
-        case DEADLINE_EXCEEDED:
-          throw new HandlerException(HandlerException.ErrorType.UPSTREAM_TIMEOUT, sre);
-        default:
-          throw new HandlerException(
-              HandlerException.ErrorType.INTERNAL,
-              new IllegalStateException("Unexpected gRPC status code: " + status.getCode(), sre));
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 }

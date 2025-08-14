@@ -42,8 +42,8 @@ public interface WorkflowClientInterceptor {
   /**
    * Called when a Nexus {@link io.nexusrpc.client.ServiceClient} is created through {@link
    * io.temporal.client.WorkflowClient#newNexusServiceClient(Class,
-   * io.temporal.client.TemporalNexusServiceClientOptions)}. Allows decorating the transport used by
-   * the service client.
+   * io.temporal.client.TemporalNexusServiceClientOptions)}. Allows decorating the temporalTransport
+   * used by the service client.
    *
    * @param next next interceptor in the chain
    * @return interceptor that should decorate calls to {@code next}

@@ -2,7 +2,6 @@ package io.temporal.common.interceptors;
 
 import io.nexusrpc.OperationException;
 import io.nexusrpc.OperationStillRunningException;
-import io.nexusrpc.client.StartOperationResponse;
 import io.nexusrpc.client.transport.CancelOperationOptions;
 import io.nexusrpc.client.transport.CancelOperationResponse;
 import io.nexusrpc.client.transport.CompleteOperationOptions;
@@ -280,13 +279,13 @@ public interface NexusServiceClientInterceptor {
   }
 
   final class StartOperationOutput {
-    private final StartOperationResponse response;
+    private final io.nexusrpc.client.transport.StartOperationResponse response;
 
-    public StartOperationOutput(StartOperationResponse response) {
+    public StartOperationOutput(io.nexusrpc.client.transport.StartOperationResponse response) {
       this.response = response;
     }
 
-    public StartOperationResponse getResponse() {
+    public io.nexusrpc.client.transport.StartOperationResponse getResponse() {
       return response;
     }
   }
