@@ -9,6 +9,10 @@ import io.temporal.failure.CanceledFailure;
  * CanceledFailure} thrown from the Nexus operation method. If the caller exits without waiting, the
  * cancellation request may not be delivered to the handler, regardless of indicated cancellation
  * type.
+ *
+ * <p>Note: Nexus operation cancellation can fail if the operation handler fails the cancellation
+ * request. In this case, the operation will throw the exception from the handler if cancellation
+ * has not already been reported to the caller.
  */
 @Experimental
 public enum NexusOperationCancellationType {
@@ -28,6 +32,8 @@ public enum NexusOperationCancellationType {
    */
   TRY_CANCEL,
 
-  /** Do not request cancellation of the operation. */
+  /**
+   * Do not request cancellation of the operation and immediately report cancellation to the caller.
+   */
   ABANDON,
 }
