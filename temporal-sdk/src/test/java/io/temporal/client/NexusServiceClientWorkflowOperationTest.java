@@ -179,7 +179,7 @@ public class NexusServiceClientWorkflowOperationTest {
     he = Assert.assertThrows(HandlerException.class, missingHandle::cancel);
     Assert.assertEquals(HandlerException.ErrorType.NOT_FOUND, he.getErrorType());
 
-    he = Assert.assertThrows(HandlerException.class, missingHandle::getInfo);
+    he = Assert.assertThrows(HandlerException.class, missingHandle::fetchInfo);
     Assert.assertEquals(HandlerException.ErrorType.NOT_FOUND, he.getErrorType());
   }
 
@@ -200,13 +200,13 @@ public class NexusServiceClientWorkflowOperationTest {
                 FetchOperationResultOptions.newBuilder()
                     .setTimeout(Duration.ofSeconds(1))
                     .build()));
-    Assert.assertEquals(OperationState.RUNNING, handle.getInfo().getState());
+    Assert.assertEquals(OperationState.RUNNING, handle.fetchInfo().getState());
     // Thread.sleep(6000); // Wait for the operation to complete
     String operationResult =
         handle.fetchResult(
             FetchOperationResultOptions.newBuilder().setTimeout(Duration.ofSeconds(10)).build());
     Assert.assertEquals("Hello World", operationResult);
-    Assert.assertEquals(OperationState.SUCCEEDED, handle.getInfo().getState());
+    Assert.assertEquals(OperationState.SUCCEEDED, handle.fetchInfo().getState());
   }
 
   @Test
@@ -318,7 +318,7 @@ public class NexusServiceClientWorkflowOperationTest {
                         .build()));
     Assert.assertTrue(oe.getCause() instanceof ApplicationFailure);
 
-    OperationInfo info = handle.getInfo();
+    OperationInfo info = handle.fetchInfo();
     Assert.assertEquals(OperationState.FAILED, info.getState());
   }
 

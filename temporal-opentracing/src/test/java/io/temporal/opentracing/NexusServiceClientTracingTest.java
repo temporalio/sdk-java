@@ -60,7 +60,7 @@ public class NexusServiceClientTracingTest {
       OperationHandle<String> handle = ((StartOperationResponse.Async<String>) result).getHandle();
       handle.cancel();
       assertEquals("Hello World", handle.fetchResult());
-      handle.getInfo();
+      handle.fetchInfo();
     } finally {
       span.finish();
     }
