@@ -26,6 +26,9 @@ public enum ChildWorkflowCancellationType {
    */
   TRY_CANCEL,
 
-  /** Do not request cancellation of the child workflow */
+  /**
+   * Do not request cancellation of the child workflow and immediately report cancellation to the
+   * caller.
+   */
   ABANDON,
 }
