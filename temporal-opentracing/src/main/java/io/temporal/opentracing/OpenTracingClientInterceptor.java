@@ -31,7 +31,7 @@ public class OpenTracingClientInterceptor extends WorkflowClientInterceptorBase 
   }
 
   @Override
-  public NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
+  public NexusServiceClientCallsInterceptor nexusServiceClientCallsInterceptor(
       NexusServiceClientCallsInterceptor next) {
     return new OpenTracingNexusServiceClientCallsInterceptor(
         next, options, spanFactory, contextAccessor);

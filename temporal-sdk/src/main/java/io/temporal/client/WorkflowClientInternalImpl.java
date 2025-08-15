@@ -113,7 +113,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     NexusServiceClientCallsInterceptor interceptorChain =
         new NexusServiceClientCallsInterceptorRoot(genericClient, options, serviceClientOptions);
     for (WorkflowClientInterceptor interceptor : interceptors) {
-      interceptorChain = interceptor.nexusServiceClientInterceptor(interceptorChain);
+      interceptorChain = interceptor.nexusServiceClientCallsInterceptor(interceptorChain);
     }
     return new ServiceClient<>(
         ServiceClientOptions.newBuilder(nexusServiceInterface)
@@ -128,7 +128,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         new NexusServiceClientCallsInterceptorRoot(
             genericClient, options, TemporalNexusServiceClientOptions.newBuilder().build());
     for (WorkflowClientInterceptor interceptor : interceptors) {
-      interceptorChain = interceptor.nexusServiceClientInterceptor(interceptorChain);
+      interceptorChain = interceptor.nexusServiceClientCallsInterceptor(interceptorChain);
     }
     return new CompletionClient(new temporalNexusTransport(interceptorChain));
   }

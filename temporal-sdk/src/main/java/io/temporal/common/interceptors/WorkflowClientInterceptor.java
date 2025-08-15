@@ -49,7 +49,7 @@ public interface WorkflowClientInterceptor {
    * @return interceptor that should decorate calls to {@code next}
    */
   @Experimental
-  NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
+  NexusServiceClientCallsInterceptor nexusServiceClientCallsInterceptor(
       NexusServiceClientCallsInterceptor next);
 
   /**

@@ -86,7 +86,13 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
             StandardTagNames.RUN_ID, context.getRunId());
       case RUN_START_NEXUS_OPERATION:
       case RUN_CANCEL_NEXUS_OPERATION:
+      case RUN_FETCH_NEXUS_OPERATION_INFO:
+      case RUN_FETCH_NEXUS_OPERATION_RESULT:
       case HANDLE_QUERY:
+      case CLIENT_START_NEXUS_OPERATION:
+      case CLIENT_CANCEL_NEXUS_OPERATION:
+      case CLIENT_FETCH_NEXUS_OPERATION_INFO:
+      case CLIENT_FETCH_NEXUS_OPERATION_RESULT:
         return ImmutableMap.of();
     }
     throw new IllegalArgumentException("Unknown span operation type provided");

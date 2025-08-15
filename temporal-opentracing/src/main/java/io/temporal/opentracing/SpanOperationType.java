@@ -17,7 +17,13 @@ public enum SpanOperationType {
   HANDLE_UPDATE("HandleUpdate"),
   START_NEXUS_OPERATION("StartNexusOperation"),
   RUN_START_NEXUS_OPERATION("RunStartNexusOperationHandler"),
-  RUN_CANCEL_NEXUS_OPERATION("RunCancelNexusOperationHandler");
+  RUN_CANCEL_NEXUS_OPERATION("RunCancelNexusOperationHandler"),
+  RUN_FETCH_NEXUS_OPERATION_INFO("RunFetchNexusOperationInfoHandler"),
+  RUN_FETCH_NEXUS_OPERATION_RESULT("RunFetchNexusOperationResultHandler"),
+  CLIENT_START_NEXUS_OPERATION("ClientStartNexusOperation"),
+  CLIENT_CANCEL_NEXUS_OPERATION("ClientCancelNexusOperation"),
+  CLIENT_FETCH_NEXUS_OPERATION_INFO("ClientFetchNexusOperationInfo"),
+  CLIENT_FETCH_NEXUS_OPERATION_RESULT("ClientFetchNexusOperationResult");
 
   private final String defaultPrefix;
 

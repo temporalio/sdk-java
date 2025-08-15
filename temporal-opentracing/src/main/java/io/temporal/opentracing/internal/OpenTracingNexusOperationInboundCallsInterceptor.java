@@ -1,6 +1,7 @@
 package io.temporal.opentracing.internal;
 
 import io.nexusrpc.OperationException;
+import io.nexusrpc.OperationStillRunningException;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -71,6 +72,50 @@ public class OpenTracingNexusOperationInboundCallsInterceptor
       throw t;
     } finally {
       operationCancelSpan.finish();
+    }
+  }
+
+  @Override
+  public FetchOperationResultOutput fetchOperationResult(FetchOperationResultInput input)
+      throws OperationException, OperationStillRunningException {
+    SpanContext rootSpanContext =
+        contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders(), tracer);
+
+    Span operationFetchResultSpan =
+        spanFactory
+            .createFetchNexusOperationResultSpan(
+                tracer,
+                input.getOperationContext().getService(),
+                input.getOperationContext().getOperation(),
+                rootSpanContext)
+            .start();
+    try (Scope scope = tracer.scopeManager().activate(operationFetchResultSpan)) {
+      return super.fetchOperationResult(input);
+    } catch (Throwable t) {
+      spanFactory.logFail(operationFetchResultSpan, t);
+      throw t;
+    } finally {
+      operationFetchResultSpan.finish();
+    }
+  }
+
+  @Override
+  public FetchOperationInfoResponse fetchOperationInfo(FetchOperationInfoInput input) {
+    SpanContext rootSpanContext =
+        contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders(), tracer);
+
+    Span operationFetchInfoSpan =
+        spanFactory
+            .createFetchNexusOperationInfoSpan(
+                tracer,
+                input.getOperationContext().getService(),
+                input.getOperationContext().getOperation(),
+                rootSpanContext)
+            .start();
+    try (Scope scope = tracer.scopeManager().activate(operationFetchInfoSpan)) {
+      return super.fetchOperationInfo(input);
+    } finally {
+      operationFetchInfoSpan.finish();
     }
   }
 }

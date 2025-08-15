@@ -69,6 +69,46 @@ public class SpanFactory {
     return createSpan(context, tracer, null, References.CHILD_OF);
   }
 
+  public Tracer.SpanBuilder createClientStartNexusOperationSpan(
+      Tracer tracer, String serviceName, String operationName) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.CLIENT_START_NEXUS_OPERATION)
+            .setActionName(serviceName + "/" + operationName)
+            .build();
+    return createSpan(context, tracer, null, References.CHILD_OF);
+  }
+
+  public Tracer.SpanBuilder createClientCancelNexusOperationSpan(
+      Tracer tracer, String serviceName, String operationName) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.CLIENT_CANCEL_NEXUS_OPERATION)
+            .setActionName(serviceName + "/" + operationName)
+            .build();
+    return createSpan(context, tracer, null, References.CHILD_OF);
+  }
+
+  public Tracer.SpanBuilder createClientFetchNexusOperationInfoSpan(
+      Tracer tracer, String serviceName, String operationName) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.CLIENT_FETCH_NEXUS_OPERATION_INFO)
+            .setActionName(serviceName + "/" + operationName)
+            .build();
+    return createSpan(context, tracer, null, References.CHILD_OF);
+  }
+
+  public Tracer.SpanBuilder createClientFetchNexusOperationResultSpan(
+      Tracer tracer, String serviceName, String operationName, String operationToken) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.CLIENT_FETCH_NEXUS_OPERATION_RESULT)
+            .setActionName(serviceName + "/" + operationName)
+            .build();
+    return createSpan(context, tracer, null, References.CHILD_OF);
+  }
+
   public Tracer.SpanBuilder createExternalWorkflowSignalSpan(
       Tracer tracer, String signalName, String workflowId, String runId) {
     SpanCreationContext context =
@@ -180,6 +220,26 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.RUN_CANCEL_NEXUS_OPERATION)
+            .setActionName(serviceName + "/" + operationName)
+            .build();
+    return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createFetchNexusOperationResultSpan(
+      Tracer tracer, String serviceName, String operationName, SpanContext nexusStartSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.RUN_FETCH_NEXUS_OPERATION_RESULT)
+            .setActionName(serviceName + "/" + operationName)
+            .build();
+    return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createFetchNexusOperationInfoSpan(
+      Tracer tracer, String serviceName, String operationName, SpanContext nexusStartSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.RUN_FETCH_NEXUS_OPERATION_INFO)
             .setActionName(serviceName + "/" + operationName)
             .build();
     return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);

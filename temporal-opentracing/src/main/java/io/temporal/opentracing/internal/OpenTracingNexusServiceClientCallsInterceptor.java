@@ -38,8 +38,8 @@ public class OpenTracingNexusServiceClientCallsInterceptor
         contextAccessor.writeSpanContextToHeader(
             () ->
                 spanFactory
-                    .createStartNexusOperationSpan(
-                        tracer, input.getServiceName(), input.getOperationName(), null, null)
+                    .createClientStartNexusOperationSpan(
+                        tracer, input.getServiceName(), input.getOperationName())
                     .start(),
             input.getOptions().getHeaders(),
             tracer);
@@ -59,8 +59,8 @@ public class OpenTracingNexusServiceClientCallsInterceptor
         contextAccessor.writeSpanContextToHeader(
             () ->
                 spanFactory
-                    .createStartNexusOperationSpan(
-                        tracer, input.getServiceName(), input.getOperationName(), null, null)
+                    .createClientStartNexusOperationSpan(
+                        tracer, input.getServiceName(), input.getOperationName())
                     .start(),
             input.getOptions().getHeaders(),
             tracer);
@@ -82,8 +82,8 @@ public class OpenTracingNexusServiceClientCallsInterceptor
         contextAccessor.writeSpanContextToHeader(
             () ->
                 spanFactory
-                    .createCancelNexusOperationSpan(
-                        tracer, input.getServiceName(), input.getOperationName(), null)
+                    .createClientCancelNexusOperationSpan(
+                        tracer, input.getServiceName(), input.getOperationName())
                     .start(),
             input.getOptions().getHeaders(),
             tracer);
@@ -103,8 +103,8 @@ public class OpenTracingNexusServiceClientCallsInterceptor
         contextAccessor.writeSpanContextToHeader(
             () ->
                 spanFactory
-                    .createCancelNexusOperationSpan(
-                        tracer, input.getServiceName(), input.getOperationName(), null)
+                    .createClientCancelNexusOperationSpan(
+                        tracer, input.getServiceName(), input.getOperationName())
                     .start(),
             input.getOptions().getHeaders(),
             tracer);
@@ -123,14 +123,47 @@ public class OpenTracingNexusServiceClientCallsInterceptor
   @Override
   public FetchOperationResultOutput fetchOperationResult(FetchOperationResultInput input)
       throws OperationException, OperationStillRunningException {
-    propagate(input.getOptions().getHeaders());
-    return super.fetchOperationResult(input);
+    Span span =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createClientFetchNexusOperationResultSpan(
+                        tracer,
+                        input.getServiceName(),
+                        input.getOperationName(),
+                        input.getOperationToken())
+                    .start(),
+            input.getOptions().getHeaders(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(span)) {
+      return super.fetchOperationResult(input);
+    } catch (Throwable t) {
+      spanFactory.logFail(span, t);
+      throw t;
+    } finally {
+      span.finish();
+    }
   }
 
   @Override
   public FetchOperationInfoOutput fetchOperationInfo(FetchOperationInfoInput input) {
-    propagate(input.getOptions().getHeaders());
-    return super.fetchOperationInfo(input);
+    Span span =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createClientFetchNexusOperationInfoSpan(
+                        tracer, input.getServiceName(), input.getOperationName())
+                    .start(),
+            input.getOptions().getHeaders(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(span)) {
+      return super.fetchOperationInfo(input);
+    } catch (Throwable t) {
+      spanFactory.logFail(span, t);
+      throw t;
+    } finally {
+      span.finish();
+    }
   }
 
   @Override
@@ -142,15 +175,52 @@ public class OpenTracingNexusServiceClientCallsInterceptor
   @Override
   public CompletableFuture<FetchOperationResultOutput> fetchOperationResultAsync(
       FetchOperationResultInput input) {
-    propagate(input.getOptions().getHeaders());
-    return super.fetchOperationResultAsync(input);
+    Span span =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createClientFetchNexusOperationResultSpan(
+                        tracer,
+                        input.getServiceName(),
+                        input.getOperationName(),
+                        input.getOperationToken())
+                    .start(),
+            input.getOptions().getHeaders(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(span)) {
+      return super.fetchOperationResultAsync(input)
+          .whenComplete(
+              (r, e) -> {
+                if (e != null) {
+                  spanFactory.logFail(span, e);
+                }
+                span.finish();
+              });
+    }
   }
 
   @Override
   public CompletableFuture<FetchOperationInfoOutput> fetchOperationInfoAsync(
       FetchOperationInfoInput input) {
-    propagate(input.getOptions().getHeaders());
-    return super.fetchOperationInfoAsync(input);
+    Span span =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                spanFactory
+                    .createClientFetchNexusOperationInfoSpan(
+                        tracer, input.getServiceName(), input.getOperationName())
+                    .start(),
+            input.getOptions().getHeaders(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(span)) {
+      return super.fetchOperationInfoAsync(input)
+          .whenComplete(
+              (r, e) -> {
+                if (e != null) {
+                  spanFactory.logFail(span, e);
+                }
+                span.finish();
+              });
+    }
   }
 
   @Override

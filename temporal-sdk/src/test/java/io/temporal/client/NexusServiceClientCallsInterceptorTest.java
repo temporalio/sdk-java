@@ -28,8 +28,9 @@ public class NexusServiceClientCallsInterceptorTest {
                   .setInterceptors(
                       new WorkflowClientInterceptorBase() {
                         @Override
-                        public NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
-                            NexusServiceClientCallsInterceptor next) {
+                        public NexusServiceClientCallsInterceptor
+                            nexusServiceClientCallsInterceptor(
+                                NexusServiceClientCallsInterceptor next) {
                           return new NexusServiceClientCallsInterceptorBase(next) {
                             @Override
                             public StartOperationOutput startOperation(StartOperationInput input)
