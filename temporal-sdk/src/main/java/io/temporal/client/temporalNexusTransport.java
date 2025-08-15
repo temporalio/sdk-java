@@ -123,11 +123,10 @@ class temporalNexusTransport implements Transport {
 
   @Override
   public CompletableFuture<CompleteOperationResponse> completeOperationAsync(
-      String operationToken, CompleteOperationOptions options) {
+      String url, CompleteOperationOptions options) {
     return interceptor
         .completeOperationAsync(
-            new NexusServiceClientCallsInterceptor.CompleteOperationAsyncInput(
-                operationToken, options))
+            new NexusServiceClientCallsInterceptor.CompleteOperationAsyncInput(url, options))
         .thenApply(NexusServiceClientCallsInterceptor.CompleteOperationOutput::getResponse);
   }
 }

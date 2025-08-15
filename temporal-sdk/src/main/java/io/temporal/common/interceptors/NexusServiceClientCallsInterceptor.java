@@ -264,16 +264,16 @@ public interface NexusServiceClientCallsInterceptor {
   }
 
   final class CompleteOperationAsyncInput {
-    private final String operationToken;
+    private final String url;
     private final CompleteOperationOptions options;
 
-    public CompleteOperationAsyncInput(String operationToken, CompleteOperationOptions options) {
-      this.operationToken = operationToken;
+    public CompleteOperationAsyncInput(String url, CompleteOperationOptions options) {
+      this.url = url;
       this.options = options;
     }
 
-    public String getOperationToken() {
-      return operationToken;
+    public String getUrl() {
+      return url;
     }
 
     public CompleteOperationOptions getOptions() {

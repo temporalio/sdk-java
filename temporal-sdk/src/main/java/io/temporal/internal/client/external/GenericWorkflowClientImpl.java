@@ -60,7 +60,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         .build();
   }
 
-  private static Map<String, String> tagsFoNexusOperations(String service, String operation) {
+  private static Map<String, String> tagsForNexusOperations(String service, String operation) {
     return new ImmutableMap.Builder<String, String>(2)
         .put(MetricsTag.NEXUS_SERVICE, service)
         .put(MetricsTag.OPERATION_NAME, operation)
@@ -444,7 +444,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public StartNexusOperationResponse startNexusOperation(StartNexusOperationRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResult(
         () ->
@@ -458,7 +458,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public RequestCancelNexusOperationResponse requestCancelNexusOperation(
       RequestCancelNexusOperationRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResult(
         () ->
@@ -472,7 +472,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public GetNexusOperationResultResponse getNexusOperationResult(
       GetNexusOperationResultRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     //    Deadline deadline =
     //        Deadline.after(request.getWait().getSeconds() * 1000, TimeUnit.MILLISECONDS);
@@ -501,7 +501,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public CompletableFuture<GetNexusOperationInfoResponse> getNexusOperationInfoAsync(
       GetNexusOperationInfoRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResultAsync(
         asyncThrottlerExecutor,
@@ -517,7 +517,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public CompletableFuture<StartNexusOperationResponse> startNexusOperationAsync(
       StartNexusOperationRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResultAsync(
         asyncThrottlerExecutor,
@@ -533,7 +533,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public CompletableFuture<RequestCancelNexusOperationResponse> requestCancelNexusOperationAsync(
       RequestCancelNexusOperationRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResultAsync(
         asyncThrottlerExecutor,
@@ -549,7 +549,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public CompletableFuture<GetNexusOperationResultResponse> getNexusOperationResultAsync(
       GetNexusOperationResultRequest request) {
-    Map<String, String> tags = tagsFoNexusOperations(request.getService(), request.getOperation());
+    Map<String, String> tags = tagsForNexusOperations(request.getService(), request.getOperation());
     Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResultAsync(
         asyncThrottlerExecutor,

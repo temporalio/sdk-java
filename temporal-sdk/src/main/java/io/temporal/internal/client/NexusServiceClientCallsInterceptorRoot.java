@@ -479,7 +479,7 @@ public final class NexusServiceClientCallsInterceptorRoot
             createGetNexusOperationInfoRequest(
                 input.getOperationName(),
                 input.getServiceName(),
-                input.getServiceName(),
+                input.getOperationToken(),
                 input.getOptions()))
         .thenApply(this::createGetOperationInfoResponse)
         .thenApply(FetchOperationInfoOutput::new)
@@ -525,7 +525,7 @@ public final class NexusServiceClientCallsInterceptorRoot
       CompleteOperationAsyncInput input) {
     return client
         .completeNexusOperationAsync(
-            createCompleteNexusOperationRequest(input.getOperationToken(), input.getOptions()))
+            createCompleteNexusOperationRequest(input.getUrl(), input.getOptions()))
         .thenApply(this::createCompleteOperationResponse)
         .thenApply(CompleteOperationOutput::new)
         .exceptionally(
