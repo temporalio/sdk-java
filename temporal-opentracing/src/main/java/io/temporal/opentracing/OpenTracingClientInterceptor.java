@@ -1,10 +1,10 @@
 package io.temporal.opentracing;
 
-import io.temporal.common.interceptors.NexusServiceClientInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.opentracing.internal.ContextAccessor;
-import io.temporal.opentracing.internal.OpenTracingNexusServiceClientInterceptor;
+import io.temporal.opentracing.internal.OpenTracingNexusServiceClientCallsInterceptor;
 import io.temporal.opentracing.internal.OpenTracingWorkflowClientCallsInterceptor;
 import io.temporal.opentracing.internal.SpanFactory;
 
@@ -31,9 +31,9 @@ public class OpenTracingClientInterceptor extends WorkflowClientInterceptorBase 
   }
 
   @Override
-  public NexusServiceClientInterceptor nexusServiceClientInterceptor(
-      NexusServiceClientInterceptor next) {
-    return new OpenTracingNexusServiceClientInterceptor(
+  public NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
+      NexusServiceClientCallsInterceptor next) {
+    return new OpenTracingNexusServiceClientCallsInterceptor(
         next, options, spanFactory, contextAccessor);
   }
 }

@@ -1,15 +1,17 @@
 package io.temporal.common.interceptors;
 
+import io.nexusrpc.Experimental;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.OperationStillRunningException;
 import java.util.concurrent.CompletableFuture;
 
-/** Convenience base class for {@link NexusServiceClientInterceptor} implementations. */
-public class NexusServiceClientInterceptorBase implements NexusServiceClientInterceptor {
+/** Convenience base class for {@link NexusServiceClientCallsInterceptor} implementations. */
+@Experimental
+public class NexusServiceClientCallsInterceptorBase implements NexusServiceClientCallsInterceptor {
 
-  private final NexusServiceClientInterceptor next;
+  private final NexusServiceClientCallsInterceptor next;
 
-  public NexusServiceClientInterceptorBase(NexusServiceClientInterceptor next) {
+  public NexusServiceClientCallsInterceptorBase(NexusServiceClientCallsInterceptor next) {
     this.next = next;
   }
 

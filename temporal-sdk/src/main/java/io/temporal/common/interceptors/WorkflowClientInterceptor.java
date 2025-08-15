@@ -48,10 +48,9 @@ public interface WorkflowClientInterceptor {
    * @param next next interceptor in the chain
    * @return interceptor that should decorate calls to {@code next}
    */
-  default NexusServiceClientInterceptor nexusServiceClientInterceptor(
-      NexusServiceClientInterceptor next) {
-    return next;
-  }
+  @Experimental
+  NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
+      NexusServiceClientCallsInterceptor next);
 
   /**
    * Called once during creation of WorkflowClient to create a chain of Client Workflow Interceptors

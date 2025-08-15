@@ -29,8 +29,8 @@ public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor 
   }
 
   @Override
-  public NexusServiceClientInterceptor nexusServiceClientInterceptor(
-      NexusServiceClientInterceptor next) {
+  public NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
+      NexusServiceClientCallsInterceptor next) {
     return next;
   }
 

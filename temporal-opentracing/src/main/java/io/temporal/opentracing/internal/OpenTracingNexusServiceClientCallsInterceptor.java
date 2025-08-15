@@ -5,19 +5,8 @@ import io.nexusrpc.OperationStillRunningException;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.CancelOperationInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.CancelOperationOutput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.CompleteOperationAsyncInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.CompleteOperationInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.CompleteOperationOutput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.FetchOperationInfoInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.FetchOperationInfoOutput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.FetchOperationResultInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.FetchOperationResultOutput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.StartOperationInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.StartOperationOutput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptorBase;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptorBase;
 import io.temporal.opentracing.OpenTracingOptions;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -26,13 +15,14 @@ import java.util.concurrent.CompletableFuture;
  * Nexus service client interceptor that creates OpenTracing spans and propagates the active span
  * context.
  */
-public class OpenTracingNexusServiceClientInterceptor extends NexusServiceClientInterceptorBase {
+public class OpenTracingNexusServiceClientCallsInterceptor
+    extends NexusServiceClientCallsInterceptorBase {
   private final SpanFactory spanFactory;
   private final Tracer tracer;
   private final ContextAccessor contextAccessor;
 
-  public OpenTracingNexusServiceClientInterceptor(
-      NexusServiceClientInterceptor next,
+  public OpenTracingNexusServiceClientCallsInterceptor(
+      NexusServiceClientCallsInterceptor next,
       OpenTracingOptions options,
       SpanFactory spanFactory,
       ContextAccessor contextAccessor) {

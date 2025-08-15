@@ -1,106 +1,44 @@
 package io.temporal.internal.client;
 
+import static io.temporal.internal.common.NexusFailureUtil.nexusFailureToAPIFailure;
 import static io.temporal.internal.common.NexusUtil.exceptionToNexusFailure;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Strings;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.StatusRuntimeException;
 import io.nexusrpc.*;
 import io.nexusrpc.client.transport.*;
 import io.temporal.api.common.v1.Callback;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.failure.v1.ApplicationFailureInfo;
-import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.NexusHandlerFailureInfo;
 import io.temporal.api.nexus.v1.HandlerError;
 import io.temporal.api.nexus.v1.TaskDispatchTarget;
 import io.temporal.api.nexus.v1.UnsuccessfulOperationError;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.TemporalNexusServiceClientOptions;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.NexusFailureUtil;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
-public final class NexusServiceClientInterceptorRoot implements NexusServiceClientInterceptor {
-  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
-  private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
-
+public final class NexusServiceClientCallsInterceptorRoot
+    implements NexusServiceClientCallsInterceptor {
   private final GenericWorkflowClient client;
   private final WorkflowClientOptions clientOptions;
   private final TaskDispatchTarget dispatchTarget;
 
-  public NexusServiceClientInterceptorRoot(
+  public NexusServiceClientCallsInterceptorRoot(
       GenericWorkflowClient client,
       WorkflowClientOptions clientOptions,
       TemporalNexusServiceClientOptions serviceClientOptions) {
     this.client = client;
     this.clientOptions = clientOptions;
-    if (serviceClientOptions.getEndpoint() != null) {
-      this.dispatchTarget =
-          TaskDispatchTarget.newBuilder().setEndpoint(serviceClientOptions.getEndpoint()).build();
-    } else if (serviceClientOptions.getTaskQueue() != null) {
-      this.dispatchTarget =
-          TaskDispatchTarget.newBuilder().setTaskQueue(serviceClientOptions.getTaskQueue()).build();
-    } else {
-      throw new IllegalArgumentException("No target specified");
-    }
-  }
-
-  private static Failure handlerErrorToFailure(HandlerError err) {
-    return Failure.newBuilder()
-        .setMessage(err.getFailure().getMessage())
-        .setNexusHandlerFailureInfo(
-            NexusHandlerFailureInfo.newBuilder()
-                .setType(err.getErrorType())
-                .setRetryBehavior(err.getRetryBehavior())
-                .build())
-        .setCause(nexusFailureToAPIFailure(err.getFailure(), false))
-        .build();
-  }
-
-  private static Failure nexusFailureToAPIFailure(
-      io.temporal.api.nexus.v1.Failure failure, boolean retryable) {
-    Failure.Builder apiFailure = Failure.newBuilder();
-    if (failure.getMetadataMap().containsKey("type")
-        && failure.getMetadataMap().get("type").equals(FAILURE_TYPE_STRING)) {
-      try {
-        JSON_PARSER.merge(failure.getDetails().toString(UTF_8), apiFailure);
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      Payloads payloads = nexusFailureMetadataToPayloads(failure);
-      ApplicationFailureInfo.Builder applicationFailureInfo = ApplicationFailureInfo.newBuilder();
-      applicationFailureInfo.setType("NexusFailure");
-      applicationFailureInfo.setDetails(payloads);
-      applicationFailureInfo.setNonRetryable(!retryable);
-      apiFailure.setApplicationFailureInfo(applicationFailureInfo.build());
-    }
-    apiFailure.setMessage(failure.getMessage());
-    return apiFailure.build();
-  }
-
-  private static Payloads nexusFailureMetadataToPayloads(io.temporal.api.nexus.v1.Failure failure) {
-    Map<String, ByteString> metadata =
-        failure.getMetadataMap().entrySet().stream()
-            .collect(
-                Collectors.toMap(Map.Entry::getKey, e -> ByteString.copyFromUtf8(e.getValue())));
-    return Payloads.newBuilder()
-        .addPayloads(Payload.newBuilder().putAllMetadata(metadata).setData(failure.getDetails()))
-        .build();
+    this.dispatchTarget =
+        TaskDispatchTarget.newBuilder().setEndpoint(serviceClientOptions.getEndpoint()).build();
   }
 
   private OperationState deserializeOperationState(String state) {
@@ -172,7 +110,8 @@ public final class NexusServiceClientInterceptorRoot implements NexusServiceClie
       Throwable cause =
           clientOptions
               .getDataConverter()
-              .failureToException(nexusFailureToAPIFailure(error.getFailure(), false));
+              .failureToException(
+                  NexusFailureUtil.nexusFailureToAPIFailure(error.getFailure(), false));
       if (error.getOperationState().equals("canceled")) {
         throw OperationException.canceled(cause);
       } else {
@@ -180,7 +119,9 @@ public final class NexusServiceClientInterceptorRoot implements NexusServiceClie
       }
     } else if (response.hasHandlerError()) {
       HandlerError error = response.getHandlerError();
-      throw clientOptions.getDataConverter().failureToException(handlerErrorToFailure(error));
+      throw clientOptions
+          .getDataConverter()
+          .failureToException(NexusFailureUtil.handlerErrorToFailure(error));
     } else {
       throw new IllegalStateException("Unknown response from startNexusCall: " + response);
     }
@@ -245,7 +186,9 @@ public final class NexusServiceClientInterceptorRoot implements NexusServiceClie
       }
     } else if (response.hasHandlerError()) {
       HandlerError error = response.getHandlerError();
-      throw clientOptions.getDataConverter().failureToException(handlerErrorToFailure(error));
+      throw clientOptions
+          .getDataConverter()
+          .failureToException(NexusFailureUtil.handlerErrorToFailure(error));
     } else if (response.hasStillRunning()) {
       throw new OperationStillRunningException();
     } else {
@@ -304,7 +247,9 @@ public final class NexusServiceClientInterceptorRoot implements NexusServiceClie
       GetNexusOperationInfoResponse response) {
     if (response.hasHandlerError()) {
       HandlerError error = response.getHandlerError();
-      throw clientOptions.getDataConverter().failureToException(handlerErrorToFailure(error));
+      throw clientOptions
+          .getDataConverter()
+          .failureToException(NexusFailureUtil.handlerErrorToFailure(error));
     }
 
     return FetchOperationInfoResponse.newBuilder()
@@ -355,7 +300,9 @@ public final class NexusServiceClientInterceptorRoot implements NexusServiceClie
       RequestCancelNexusOperationResponse response) {
     if (response.hasHandlerError()) {
       HandlerError error = response.getHandlerError();
-      throw clientOptions.getDataConverter().failureToException(handlerErrorToFailure(error));
+      throw clientOptions
+          .getDataConverter()
+          .failureToException(NexusFailureUtil.handlerErrorToFailure(error));
     }
 
     return new CancelOperationResponse();
@@ -425,7 +372,9 @@ public final class NexusServiceClientInterceptorRoot implements NexusServiceClie
       CompleteNexusOperationResponse response) {
     if (response.hasHandlerError()) {
       HandlerError error = response.getHandlerError();
-      throw clientOptions.getDataConverter().failureToException(handlerErrorToFailure(error));
+      throw clientOptions
+          .getDataConverter()
+          .failureToException(NexusFailureUtil.handlerErrorToFailure(error));
     }
 
     return new CompleteOperationResponse();

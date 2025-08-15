@@ -1,5 +1,6 @@
 package io.temporal.common.interceptors;
 
+import io.nexusrpc.Experimental;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.client.transport.CancelOperationOptions;
@@ -16,11 +17,13 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Intercepts calls made by a {@link io.nexusrpc.client.ServiceClient}.
  *
- * <p>Prefer extending {@link NexusServiceClientInterceptorBase} and overriding only the methods you
- * need instead of implementing this interface directly. {@link NexusServiceClientInterceptorBase}
- * provides correct default implementations to all the methods of this interface.
+ * <p>Prefer extending {@link NexusServiceClientCallsInterceptorBase} and overriding only the
+ * methods you need instead of implementing this interface directly. {@link
+ * NexusServiceClientCallsInterceptorBase} provides correct default implementations to all the
+ * methods of this interface.
  */
-public interface NexusServiceClientInterceptor {
+@Experimental
+public interface NexusServiceClientCallsInterceptor {
 
   /**
    * Intercepts a request to start a Nexus operation.

@@ -6,10 +6,8 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.OperationStartDetails;
 import io.nexusrpc.handler.ServiceImpl;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.StartOperationInput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor.StartOperationOutput;
-import io.temporal.common.interceptors.NexusServiceClientInterceptorBase;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -18,7 +16,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class NexusServiceClientInterceptorTest {
+public class NexusServiceClientCallsInterceptorTest {
   private final AtomicInteger intercepted = new AtomicInteger();
 
   @Rule
@@ -30,9 +28,9 @@ public class NexusServiceClientInterceptorTest {
                   .setInterceptors(
                       new WorkflowClientInterceptorBase() {
                         @Override
-                        public NexusServiceClientInterceptor nexusServiceClientInterceptor(
-                            NexusServiceClientInterceptor next) {
-                          return new NexusServiceClientInterceptorBase(next) {
+                        public NexusServiceClientCallsInterceptor nexusServiceClientInterceptor(
+                            NexusServiceClientCallsInterceptor next) {
+                          return new NexusServiceClientCallsInterceptorBase(next) {
                             @Override
                             public StartOperationOutput startOperation(StartOperationInput input)
                                 throws io.nexusrpc.OperationException {

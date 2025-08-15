@@ -3,23 +3,23 @@ package io.temporal.client;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.client.transport.*;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptor;
 import java.util.concurrent.CompletableFuture;
 
-class temporalTransport implements Transport {
-  private final NexusServiceClientInterceptor interceptor;
+class temporalNexusTransport implements Transport {
+  private final NexusServiceClientCallsInterceptor interceptor;
 
-  public temporalTransport(NexusServiceClientInterceptor interceptor) {
+  public temporalNexusTransport(NexusServiceClientCallsInterceptor interceptor) {
     this.interceptor = interceptor;
   }
 
   @Override
-  public io.nexusrpc.client.transport.StartOperationResponse startOperation(
+  public StartOperationResponse startOperation(
       String operationName, String serviceName, Object input, StartOperationOptions options)
       throws OperationException {
     return interceptor
         .startOperation(
-            new NexusServiceClientInterceptor.StartOperationInput(
+            new NexusServiceClientCallsInterceptor.StartOperationInput(
                 operationName, serviceName, input, options))
         .getResponse();
   }
@@ -33,7 +33,7 @@ class temporalTransport implements Transport {
       throws OperationException, OperationStillRunningException {
     return interceptor
         .fetchOperationResult(
-            new NexusServiceClientInterceptor.FetchOperationResultInput(
+            new NexusServiceClientCallsInterceptor.FetchOperationResultInput(
                 operationName, serviceName, operationToken, options))
         .getResponse();
   }
@@ -46,7 +46,7 @@ class temporalTransport implements Transport {
       FetchOperationInfoOptions options) {
     return interceptor
         .fetchOperationInfo(
-            new NexusServiceClientInterceptor.FetchOperationInfoInput(
+            new NexusServiceClientCallsInterceptor.FetchOperationInfoInput(
                 operationName, serviceName, operationToken, options))
         .getResponse();
   }
@@ -59,7 +59,7 @@ class temporalTransport implements Transport {
       CancelOperationOptions options) {
     return interceptor
         .cancelOperation(
-            new NexusServiceClientInterceptor.CancelOperationInput(
+            new NexusServiceClientCallsInterceptor.CancelOperationInput(
                 operationName, serviceName, operationToken, options))
         .getResponse();
   }
@@ -67,7 +67,8 @@ class temporalTransport implements Transport {
   @Override
   public CompleteOperationResponse completeOperation(String url, CompleteOperationOptions options) {
     return interceptor
-        .completeOperation(new NexusServiceClientInterceptor.CompleteOperationInput(url, options))
+        .completeOperation(
+            new NexusServiceClientCallsInterceptor.CompleteOperationInput(url, options))
         .getResponse();
   }
 
@@ -76,9 +77,9 @@ class temporalTransport implements Transport {
       String operationName, String serviceName, Object input, StartOperationOptions options) {
     return interceptor
         .startOperationAsync(
-            new NexusServiceClientInterceptor.StartOperationInput(
+            new NexusServiceClientCallsInterceptor.StartOperationInput(
                 operationName, serviceName, input, options))
-        .thenApply(NexusServiceClientInterceptor.StartOperationOutput::getResponse);
+        .thenApply(NexusServiceClientCallsInterceptor.StartOperationOutput::getResponse);
   }
 
   @Override
@@ -89,9 +90,9 @@ class temporalTransport implements Transport {
       FetchOperationResultOptions options) {
     return interceptor
         .fetchOperationResultAsync(
-            new NexusServiceClientInterceptor.FetchOperationResultInput(
+            new NexusServiceClientCallsInterceptor.FetchOperationResultInput(
                 operationName, serviceName, operationToken, options))
-        .thenApply(NexusServiceClientInterceptor.FetchOperationResultOutput::getResponse);
+        .thenApply(NexusServiceClientCallsInterceptor.FetchOperationResultOutput::getResponse);
   }
 
   @Override
@@ -102,9 +103,9 @@ class temporalTransport implements Transport {
       FetchOperationInfoOptions options) {
     return interceptor
         .fetchOperationInfoAsync(
-            new NexusServiceClientInterceptor.FetchOperationInfoInput(
+            new NexusServiceClientCallsInterceptor.FetchOperationInfoInput(
                 operationName, serviceName, operationToken, options))
-        .thenApply(NexusServiceClientInterceptor.FetchOperationInfoOutput::getResponse);
+        .thenApply(NexusServiceClientCallsInterceptor.FetchOperationInfoOutput::getResponse);
   }
 
   @Override
@@ -115,9 +116,9 @@ class temporalTransport implements Transport {
       CancelOperationOptions options) {
     return interceptor
         .cancelOperationAsync(
-            new NexusServiceClientInterceptor.CancelOperationInput(
+            new NexusServiceClientCallsInterceptor.CancelOperationInput(
                 operationName, serviceName, operationToken, options))
-        .thenApply(NexusServiceClientInterceptor.CancelOperationOutput::getResponse);
+        .thenApply(NexusServiceClientCallsInterceptor.CancelOperationOutput::getResponse);
   }
 
   @Override
@@ -125,7 +126,8 @@ class temporalTransport implements Transport {
       String operationToken, CompleteOperationOptions options) {
     return interceptor
         .completeOperationAsync(
-            new NexusServiceClientInterceptor.CompleteOperationAsyncInput(operationToken, options))
-        .thenApply(NexusServiceClientInterceptor.CompleteOperationOutput::getResponse);
+            new NexusServiceClientCallsInterceptor.CompleteOperationAsyncInput(
+                operationToken, options))
+        .thenApply(NexusServiceClientCallsInterceptor.CompleteOperationOutput::getResponse);
   }
 }

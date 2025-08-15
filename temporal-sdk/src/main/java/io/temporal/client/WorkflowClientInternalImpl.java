@@ -16,12 +16,12 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
-import io.temporal.common.interceptors.NexusServiceClientInterceptor;
+import io.temporal.common.interceptors.NexusServiceClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
-import io.temporal.internal.client.NexusServiceClientInterceptorRoot;
+import io.temporal.internal.client.NexusServiceClientCallsInterceptorRoot;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
@@ -110,27 +110,27 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Override
   public <T> ServiceClient<T> newNexusServiceClient(
       Class<T> nexusServiceInterface, TemporalNexusServiceClientOptions serviceClientOptions) {
-    NexusServiceClientInterceptor interceptorChain =
-        new NexusServiceClientInterceptorRoot(genericClient, options, serviceClientOptions);
+    NexusServiceClientCallsInterceptor interceptorChain =
+        new NexusServiceClientCallsInterceptorRoot(genericClient, options, serviceClientOptions);
     for (WorkflowClientInterceptor interceptor : interceptors) {
       interceptorChain = interceptor.nexusServiceClientInterceptor(interceptorChain);
     }
     return new ServiceClient<>(
         ServiceClientOptions.newBuilder(nexusServiceInterface)
-            .setTransport(new temporalTransport(interceptorChain))
+            .setTransport(new temporalNexusTransport(interceptorChain))
             .setSerializer(new PayloadSerializer(options.getDataConverter()))
             .build());
   }
 
   @Override
   public CompletionClient newNexusCompletionClient() {
-    NexusServiceClientInterceptor interceptorChain =
-        new NexusServiceClientInterceptorRoot(
+    NexusServiceClientCallsInterceptor interceptorChain =
+        new NexusServiceClientCallsInterceptorRoot(
             genericClient, options, TemporalNexusServiceClientOptions.newBuilder().build());
     for (WorkflowClientInterceptor interceptor : interceptors) {
       interceptorChain = interceptor.nexusServiceClientInterceptor(interceptorChain);
     }
-    return new CompletionClient(new temporalTransport(interceptorChain));
+    return new CompletionClient(new temporalNexusTransport(interceptorChain));
   }
 
   @Override
