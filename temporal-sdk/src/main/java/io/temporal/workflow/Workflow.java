@@ -964,7 +964,7 @@ public final class Workflow {
    * for example change activity3 to activity4, you just need to update the maxVersion from 2 to 3.
    *
    * <p>Note that, you only need to preserve the first call to GetVersion() for each changeId. All
-   * subsequent call to GetVersion() with same changeId are safe to remove. However, if you really
+   * subsequent calls to GetVersion() with same changeId are safe to remove. However, if you really
    * want to get rid of the first GetVersion() call as well, you can do so, but you need to make
    * sure: 1) all older version executions are completed; 2) you can no longer use “fooChange” as
    * changeId. If you ever need to make changes to that same part, you would need to use a different
