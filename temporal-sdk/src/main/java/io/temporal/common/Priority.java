@@ -31,12 +31,16 @@ public class Priority {
 
   public static final class Builder {
     private int priorityKey;
+    private String fairnessKey;
+    private float fairnessWeight;
 
     private Builder(Priority options) {
       if (options == null) {
         return;
       }
       this.priorityKey = options.getPriorityKey();
+      this.fairnessKey = options.getFairnessKey();
+      this.fairnessWeight = options.getFairnessWeight();
     }
 
     /**
@@ -55,16 +59,44 @@ public class Priority {
       return this;
     }
 
+    /**
+     * A fairness key is a short string used for balancing task dispatch. Tasks with the same
+     * fairness key will be processed proportionally according to their fairness weight.
+     *
+     * <p>If not set, inherits from the parent workflow or uses an empty string if there is no
+     * parent.
+     */
+    public Builder setFairnessKey(String fairnessKey) {
+      this.fairnessKey = fairnessKey;
+      return this;
+    }
+
+    /**
+     * A fairness weight determines the relative proportion of task processing for a given fairness
+     * key. The weight should be a positive number. A higher weight means more tasks will be
+     * processed for that fairness key.
+     *
+     * <p>If not set or 0, defaults to 1.0. If there is a parent workflow, inherits from the parent.
+     */
+    public Builder setFairnessWeight(float fairnessWeight) {
+      this.fairnessWeight = fairnessWeight;
+      return this;
+    }
+
     public Priority build() {
-      return new Priority(priorityKey);
+      return new Priority(priorityKey, fairnessKey, fairnessWeight);
     }
   }
 
-  private Priority(int priorityKey) {
+  private Priority(int priorityKey, String fairnessKey, float fairnessWeight) {
     this.priorityKey = priorityKey;
+    this.fairnessKey = fairnessKey;
+    this.fairnessWeight = fairnessWeight;
   }
 
   private final int priorityKey;
+  private final String fairnessKey;
+  private final float fairnessWeight;
 
   /**
    * See {@link Builder#setPriorityKey(int)}
@@ -75,20 +107,48 @@ public class Priority {
     return priorityKey;
   }
 
+  /**
+   * See {@link Builder#setFairnessKey(String)}
+   *
+   * @return The fairness key
+   */
+  public String getFairnessKey() {
+    return fairnessKey;
+  }
+
+  /**
+   * See {@link Builder#setFairnessWeight(float)}
+   *
+   * @return The fairness weight
+   */
+  public float getFairnessWeight() {
+    return fairnessWeight;
+  }
+
   @Override
   public String toString() {
-    return "Priority{" + "priorityKey=" + priorityKey + '}';
+    return "Priority{"
+        + "priorityKey="
+        + priorityKey
+        + ", fairnessKey='"
+        + fairnessKey
+        + '\''
+        + ", fairnessWeight="
+        + fairnessWeight
+        + '}';
   }
 
   @Override
   public boolean equals(Object o) {
     if (o == null || getClass() != o.getClass()) return false;
     Priority priority = (Priority) o;
-    return priorityKey == priority.priorityKey;
+    return priorityKey == priority.priorityKey
+        && Float.compare(priority.fairnessWeight, fairnessWeight) == 0
+        && Objects.equals(fairnessKey, priority.fairnessKey);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(priorityKey);
+    return Objects.hash(priorityKey, fairnessKey, fairnessWeight);
   }
 }
