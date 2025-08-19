@@ -8,14 +8,27 @@ import javax.annotation.Nonnull;
 
 public class ProtoConverters {
   public static Priority toProto(io.temporal.common.Priority priority) {
-    return Priority.newBuilder().setPriorityKey(priority.getPriorityKey()).build();
+    Priority.Builder builder = Priority.newBuilder().setPriorityKey(priority.getPriorityKey());
+    if (priority.getFairnessKey() != null) {
+      builder.setFairnessKey(priority.getFairnessKey());
+    }
+    if (priority.getFairnessWeight() != 0.0f) {
+      builder.setFairnessWeight(priority.getFairnessWeight());
+    }
+    return builder.build();
   }
 
   @Nonnull
   public static io.temporal.common.Priority fromProto(@Nonnull Priority priority) {
-    return io.temporal.common.Priority.newBuilder()
-        .setPriorityKey(priority.getPriorityKey())
-        .build();
+    io.temporal.common.Priority.Builder builder =
+        io.temporal.common.Priority.newBuilder().setPriorityKey(priority.getPriorityKey());
+    if (!priority.getFairnessKey().isEmpty()) {
+      builder.setFairnessKey(priority.getFairnessKey());
+    }
+    if (priority.getFairnessWeight() != 0.0f) {
+      builder.setFairnessWeight(priority.getFairnessWeight());
+    }
+    return builder.build();
   }
 
   public static io.temporal.api.deployment.v1.WorkerDeploymentVersion toProto(

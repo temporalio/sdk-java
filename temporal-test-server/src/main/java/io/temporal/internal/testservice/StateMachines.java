@@ -2563,8 +2563,16 @@ class StateMachines {
     }
     Priority.Builder result = Priority.newBuilder();
     result.setPriorityKey(parent.getPriorityKey());
+    result.setFairnessKey(child.getFairnessKey());
+    result.setFairnessWeight(child.getFairnessWeight());
     if (child.getPriorityKey() != 0) {
       result.setPriorityKey(child.getPriorityKey());
+    }
+    if (!child.getFairnessKey().isEmpty()) {
+      result.setFairnessKey(child.getFairnessKey());
+    }
+    if (child.getFairnessWeight() != 0) {
+      result.setFairnessWeight(child.getFairnessWeight());
     }
     return result.build();
   }
