@@ -60,11 +60,16 @@ public class Priority {
     }
 
     /**
-     * A fairness key is a short string used for balancing task dispatch. Tasks with the same
-     * fairness key will be processed proportionally according to their fairness weight.
+     * FairnessKey is a short string that's used as a key for a fairness balancing mechanism. It may
+     * correspond to a tenant id, or to a fixed string like "high" or "low". The default is the
+     * empty string.
      *
-     * <p>If not set, inherits from the parent workflow or uses an empty string if there is no
-     * parent.
+     * <p>>The fairness mechanism attempts to dispatch tasks for a given key in proportion to its
+     * weight. For example, using a thousand distinct tenant ids, each with a weight of 1.0 (the
+     * default) will result in each tenant getting a roughly equal share of task dispatch
+     * throughput.
+     *
+     * <p>Fairness keys are limited to 64 bytes.
      */
     public Builder setFairnessKey(String fairnessKey) {
       this.fairnessKey = fairnessKey;
@@ -72,11 +77,17 @@ public class Priority {
     }
 
     /**
-     * A fairness weight determines the relative proportion of task processing for a given fairness
-     * key. The weight should be a positive number. A higher weight means more tasks will be
-     * processed for that fairness key.
+     * FairnessWeight for a task can come from multiple sources for flexibility. From highest to
+     * lowest precedence:
      *
-     * <p>If not set or 0, defaults to 1.0. If there is a parent workflow, inherits from the parent.
+     * <ul>
+     *   <li>Weights for a small set of keys can be overridden in task queue configuration with an
+     *       API.
+     *   <li>It can be attached to the workflow/activity in this field.
+     *   <li>The default weight of 1.0 will be used.
+     * </ul>
+     *
+     * <p>Weight values are clamped to the range [0.001, 1000].
      */
     public Builder setFairnessWeight(float fairnessWeight) {
       this.fairnessWeight = fairnessWeight;
