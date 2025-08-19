@@ -190,6 +190,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       OperationContext.Builder ctx, CancelOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
 
+    @SuppressWarnings("deprecation") // getOperationId kept to support old server for a while
     OperationCancelDetails operationCancelDetails =
         OperationCancelDetails.newBuilder()
             .setOperationToken(
@@ -241,6 +242,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
   }
 
+  @SuppressWarnings("deprecation") // getOperationId kept to support old server for a while
   private StartOperationResponse handleStartOperation(
       OperationContext.Builder ctx, StartOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());

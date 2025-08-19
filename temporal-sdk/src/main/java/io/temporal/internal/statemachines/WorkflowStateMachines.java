@@ -377,6 +377,7 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
         WorkflowTaskCompletedEventAttributes completedEvent =
             event.getWorkflowTaskCompletedEventAttributes();
+        @SuppressWarnings("deprecation")
         String maybeBuildId = completedEvent.getWorkerVersion().getBuildId();
         if (!maybeBuildId.isEmpty()) {
           currentTaskBuildId = maybeBuildId;

@@ -182,14 +182,19 @@ public final class DefaultFailureConverter implements FailureConverter {
       case NEXUS_OPERATION_EXECUTION_FAILURE_INFO:
         {
           NexusOperationFailureInfo info = failure.getNexusOperationExecutionFailureInfo();
-          return new NexusOperationFailure(
-              failure.getMessage(),
-              info.getScheduledEventId(),
-              info.getEndpoint(),
-              info.getService(),
-              info.getOperation(),
-              info.getOperationToken().isEmpty() ? info.getOperationId() : info.getOperationToken(),
-              cause);
+          @SuppressWarnings("deprecation")
+          NexusOperationFailure f =
+              new NexusOperationFailure(
+                  failure.getMessage(),
+                  info.getScheduledEventId(),
+                  info.getEndpoint(),
+                  info.getService(),
+                  info.getOperation(),
+                  info.getOperationToken().isEmpty()
+                      ? info.getOperationId()
+                      : info.getOperationToken(),
+                  cause);
+          return f;
         }
       case NEXUS_HANDLER_FAILURE_INFO:
         {
@@ -320,6 +325,7 @@ public final class DefaultFailureConverter implements FailureConverter {
       failure.setCanceledFailureInfo(info);
     } else if (throwable instanceof NexusOperationFailure) {
       NexusOperationFailure no = (NexusOperationFailure) throwable;
+      @SuppressWarnings("deprecation")
       NexusOperationFailureInfo.Builder op =
           NexusOperationFailureInfo.newBuilder()
               .setScheduledEventId(no.getScheduledEventId())

@@ -193,6 +193,7 @@ final class NexusOperationStateMachine
     String operationToken =
         currentEvent.getNexusOperationStartedEventAttributes().getOperationToken();
     // TODO(#2423) Remove support for operationId
+    @SuppressWarnings("deprecation")
     String operationId = currentEvent.getNexusOperationStartedEventAttributes().getOperationId();
     startedCallback.apply(
         Optional.of(operationToken.isEmpty() ? operationId : operationToken), null);
