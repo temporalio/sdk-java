@@ -1125,9 +1125,11 @@ class StateMachines {
       ChildWorkflowData data,
       StartChildWorkflowExecutionCommandAttributes d,
       long workflowTaskCompletedEventId) {
+    @SuppressWarnings("deprecation") // Control is still used by some SDKs
     StartChildWorkflowExecutionInitiatedEventAttributes.Builder a =
         StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setInput(d.getInput())
+            .setControl(d.getControl())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
             .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
             .setWorkflowExecutionTimeout(d.getWorkflowExecutionTimeout())
@@ -2385,9 +2387,11 @@ class StateMachines {
       SignalExternalData data,
       SignalExternalWorkflowExecutionCommandAttributes d,
       long workflowTaskCompletedEventId) {
+    @SuppressWarnings("deprecation") // Control is still used by some SDKs
     SignalExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
         SignalExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
+            .setControl(d.getControl())
             .setInput(d.getInput())
             .setNamespace(d.getNamespace())
             .setChildWorkflowOnly(d.getChildWorkflowOnly())
@@ -2413,9 +2417,11 @@ class StateMachines {
       SignalExternalWorkflowExecutionFailedCause cause,
       long notUsed) {
     SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent = data.initiatedEvent;
+    @SuppressWarnings("deprecation") // Control is still used by some SDKs
     SignalExternalWorkflowExecutionFailedEventAttributes.Builder a =
         SignalExternalWorkflowExecutionFailedEventAttributes.newBuilder()
             .setInitiatedEventId(data.initiatedEventId)
+            .setControl(initiatedEvent.getControl())
             .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
             .setCause(cause)
             .setNamespace(initiatedEvent.getNamespace());
@@ -2432,9 +2438,11 @@ class StateMachines {
     SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent = data.initiatedEvent;
     WorkflowExecution signaledExecution =
         initiatedEvent.getWorkflowExecution().toBuilder().setRunId(runId).build();
+    @SuppressWarnings("deprecation") // Control is still used by some SDKs
     ExternalWorkflowExecutionSignaledEventAttributes.Builder a =
         ExternalWorkflowExecutionSignaledEventAttributes.newBuilder()
             .setInitiatedEventId(data.initiatedEventId)
+            .setControl(initiatedEvent.getControl())
             .setWorkflowExecution(signaledExecution)
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
@@ -2450,9 +2458,11 @@ class StateMachines {
       CancelExternalData data,
       RequestCancelExternalWorkflowExecutionCommandAttributes d,
       long workflowTaskCompletedEventId) {
+    @SuppressWarnings("deprecation") // Control is still used by some SDKs
     RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
         RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
+            .setControl(d.getControl())
             .setNamespace(d.getNamespace())
             .setChildWorkflowOnly(d.getChildWorkflowOnly())
             .setWorkflowExecution(
@@ -2502,10 +2512,12 @@ class StateMachines {
       long notUsed) {
     RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent =
         data.initiatedEvent;
+    @SuppressWarnings("deprecation") // Control is still used by some SDKs
     RequestCancelExternalWorkflowExecutionFailedEventAttributes.Builder a =
         RequestCancelExternalWorkflowExecutionFailedEventAttributes.newBuilder()
             .setInitiatedEventId(data.initiatedEventId)
             .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
+            .setControl(initiatedEvent.getControl())
             .setCause(cause)
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
