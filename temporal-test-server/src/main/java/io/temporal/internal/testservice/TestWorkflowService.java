@@ -1418,12 +1418,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       ExecutionId executionId = new ExecutionId(r.getNamespace(), r.getWorkflowId(), null);
       TestWorkflowMutableState mutableState = getMutableState(executionId, false);
+      @SuppressWarnings("deprecation") // Control is still used by some SDKs
       SignalWorkflowExecutionRequest signalRequest =
           SignalWorkflowExecutionRequest.newBuilder()
               .setInput(r.getSignalInput())
               .setSignalName(r.getSignalName())
               .setWorkflowExecution(executionId.getExecution())
               .setRequestId(r.getRequestId())
+              .setControl(r.getControl())
               .setNamespace(r.getNamespace())
               .setIdentity(r.getIdentity())
               .addAllLinks(r.getLinksList())
