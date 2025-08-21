@@ -1,0 +1,41 @@
+# **Highlights**
+
+## Task Queue Fairness (Pre-release)
+
+This release adds support for Task Queue Fairness. Fairness is a new feature of Temporal’s task queues that allows for more control over the order that tasks are dispatched from a backlog. It’s intended to address common situations like multi-tenant applications and reserved capacity bands. For more details see the javadoc's on `io.temporal.common.Priority`.
+
+Fairness is currently not supported in any OSS Temporal release, but support will be coming soon. To experiment with this feature please see the [pre-release development server](https://github.com/temporalio/cli/releases/tag/v1.4.1-cloud-v1-29-0-139-2.0) or if you are a Temporal Cloud customer reach out to your SA to be enabled once it is available in Temporal Cloud.
+
+# Bugfixes
+
+## No longer retry "gRPC message size to large" error
+
+The SDK will no longer retry "gRPC message size to large" errors or related errors. These errors occur if the user tries to make a gRPC request that exceeds the Temporal Service limits (typically 4 MB).
+
+# What's Changed
+
+2025-06-26 - 68e4c4c5 - Add defaults for PollerBehaviorAutoscaling (#2574)
+2025-06-27 - 4afe41b6 - Publish to Sonatype central (#2576)
+2025-06-27 - a1eb7dc9 - Don't scale down on error if we have never seen a poller decision (#2575)
+2025-07-03 - f919926a - Update snapshot URL (#2577)
+2025-07-07 - fd648d1c - Fix flake in testNullTaskReleasesSlot (#2583)
+2025-07-08 - 4acf6742 - Update test server to v1.4.0 (#2587)
+2025-07-08 - d310594f - Add support for activity reset (#2546)
+2025-07-08 - d75b253d - Update Proto API to v1.50.0 (#2581)
+2025-07-10 - bc5ab1d7 - When parsing operation token allow a zero version (#2591)
+2025-07-10 - ca3a27a4 - Use correct operation token on OPERATION_TOKEN (#2589)
+2025-07-17 - ffb44f9f - Remove @Experimental notice from Update-with-start (#2599)
+2025-07-22 - 76672fa0 - Fix ApplicationFailure.Builder handling a null Category (#2602)
+2025-08-01 - 26546a7f - Fix using wrong config option for resource controller (#2607)
+2025-08-11 - f9580aaf - Align Nexus handler failure conversion with other SDKs (#2613)
+2025-08-12 - b5057e86 - Fix adding a generic parameter failing (#2619)
+2025-08-12 - cd76ad6e - Do not auto-retry gRPC-message-size-too-large errors (#2604)
+2025-08-12 - ff939d7f - Nexus - Only pass a completion callback if a completion URL is provided (#2615)
+2025-08-13 - 0dd76e06 - Add info on features test issue for CI (#2623)
+2025-08-13 - 5b7e82cd - Added retry options to ActivityInfo. Added ActivityInfo tests. (#2622)
+2025-08-15 - acf7473a - Bump some Github actions (#2628)
+2025-08-15 - b854df4c - Clarify NexusOperationCancellationType (#2630)
+2025-08-15 - f2475c19 - Bump cloud api version to v0.7.1
+2025-08-18 - 71c7426b - Fix Javadoc of io.temporal.workflow.Workflow#getVersion (#2631)
+2025-08-19 - b6b42903 - Fairness Keys & Weights (#2633)
+2025-08-20 - 943fe2e3 - Revert removing "Control" field (#2634)
