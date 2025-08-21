@@ -118,7 +118,7 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
 
       - name: Publish
-        run: ./gradlew publishToSonatype
+        run: ./gradlew publishToSonatype closeSonatypeStagingRepository
 
   build_native_images:
     name: Build native test server
