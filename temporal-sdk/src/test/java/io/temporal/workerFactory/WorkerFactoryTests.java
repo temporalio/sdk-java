@@ -1,9 +1,14 @@
 package io.temporal.workerFactory;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactory;
@@ -127,5 +132,25 @@ public class WorkerFactoryTests {
     factory.awaitTermination(1, TimeUnit.MILLISECONDS);
     factory.shutdown();
     factory.awaitTermination(1, TimeUnit.MILLISECONDS);
+  }
+
+  @Test
+  public void startFailsOnNonexistentNamespace() {
+    WorkflowServiceStubs serviceLocal =
+        WorkflowServiceStubs.newServiceStubs(
+            WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+    WorkflowClient clientLocal =
+        WorkflowClient.newInstance(
+            serviceLocal, WorkflowClientOptions.newBuilder().setNamespace("i_dont_exist").build());
+    WorkerFactory factoryLocal = WorkerFactory.newInstance(clientLocal);
+    factoryLocal.newWorker("task-queue");
+
+    StatusRuntimeException ex = assertThrows(StatusRuntimeException.class, factoryLocal::start);
+    assertEquals(Status.Code.NOT_FOUND, ex.getStatus().getCode());
+
+    factoryLocal.shutdownNow();
+    factoryLocal.awaitTermination(5, TimeUnit.SECONDS);
+    serviceLocal.shutdownNow();
+    serviceLocal.awaitTermination(5, TimeUnit.SECONDS);
   }
 }
