@@ -2,6 +2,8 @@ package io.temporal.spring.boot.autoconfigure;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.VersioningBehavior;
@@ -11,7 +13,14 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
-import org.junit.jupiter.api.*;
+import io.temporal.worker.WorkerFactory;
+import java.time.Duration;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -20,7 +29,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(classes = WorkerVersioningTest.Configuration.class)
-@ActiveProfiles(profiles = "worker-versioning")
+@ActiveProfiles(profiles = {"worker-versioning", "disable-start-workers"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class WorkerVersioningTest {
   @Autowired ConfigurableApplicationContext applicationContext;
@@ -43,15 +52,13 @@ public class WorkerVersioningTest {
   @Test
   @Timeout(value = 10)
   public void testAutoDiscovery() {
-    workflowClient
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .setWorkerDeploymentCurrentVersion(
-            SetWorkerDeploymentCurrentVersionRequest.newBuilder()
-                .setNamespace(workflowClient.getOptions().getNamespace())
-                .setDeploymentName("dname")
-                .setVersion("dname.bid")
-                .build());
+    // Manually start the worker because we disable automatic worker start, due to
+    // automatic worker start running prior to the docker check, which causes namespace
+    // errors when running in-mem unit tests
+    WorkerFactory workerFactory = applicationContext.getBean(WorkerFactory.class);
+    workerFactory.start();
+
+    setCurrentVersionWithRetry();
 
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(
@@ -82,6 +89,36 @@ public class WorkerVersioningTest {
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
                         && e.getWorkflowTaskCompletedEventAttributes().getVersioningBehavior()
                             == VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE));
+  }
+
+  @SuppressWarnings("deprecation")
+  private void setCurrentVersionWithRetry() {
+    long deadline = System.currentTimeMillis() + Duration.ofSeconds(10).toMillis();
+    while (true) {
+      try {
+        workflowClient
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .setWorkerDeploymentCurrentVersion(
+                SetWorkerDeploymentCurrentVersionRequest.newBuilder()
+                    .setNamespace(workflowClient.getOptions().getNamespace())
+                    .setDeploymentName("dname")
+                    .setVersion("dname.bid")
+                    .build());
+        return;
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() != Status.Code.NOT_FOUND
+            || System.currentTimeMillis() > deadline) {
+          throw e;
+        }
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(ie);
+        }
+      }
+    }
   }
 
   @ComponentScan(
