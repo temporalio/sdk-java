@@ -62,7 +62,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: recursive
