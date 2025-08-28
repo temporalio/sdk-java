@@ -179,6 +179,9 @@ public class MetricsTest {
     reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
     reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
     reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
+    reporter.assertCounter(
+        "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
+    reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
     // We ran some workflow and activity tasks, so we should have some timers here.
     reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
     reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
@@ -221,6 +224,9 @@ public class MetricsTest {
     reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
     reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
     reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
+    reporter.assertCounter(
+        "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
+    reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
     // We ran some workflow and activity tasks, so we should have some timers here.
     reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
     reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
