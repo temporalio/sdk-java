@@ -151,6 +151,9 @@ public class AsyncWorkflowPollTask
                     .inc(1);
                 return null;
               }
+              pollerMetricScope
+                  .counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER)
+                  .inc(1);
               Timestamp startedTime = ProtobufTimeUtils.getCurrentProtoTime();
               pollerMetricScope
                   .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
