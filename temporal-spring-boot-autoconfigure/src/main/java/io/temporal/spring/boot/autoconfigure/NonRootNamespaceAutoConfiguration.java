@@ -22,6 +22,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ApplicationContextEvent;
 import org.springframework.context.event.ContextClosedEvent;
@@ -34,16 +35,11 @@ import org.springframework.context.event.ContextRefreshedEvent;
 @Conditional(NamespacesPresentCondition.class)
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
+@Import(NonRootNamespaceRegistrar.class)
 public class NonRootNamespaceAutoConfiguration {
 
   protected static final Logger log =
       LoggerFactory.getLogger(NonRootNamespaceAutoConfiguration.class);
-
-  @Bean
-  public static NonRootBeanPostProcessor nonRootBeanPostProcessor(
-      @Lazy TemporalProperties properties) {
-    return new NonRootBeanPostProcessor(properties);
-  }
 
   @Bean
   public static NonRootNamespaceEventListener nonRootNamespaceEventListener(
