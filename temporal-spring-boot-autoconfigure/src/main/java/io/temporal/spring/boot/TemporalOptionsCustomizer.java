@@ -12,7 +12,9 @@ import javax.annotation.Nonnull;
  * Beans of this class can be added to Spring context to get a fine control over *Options objects
  * that are created by Temporal Spring Boot Autoconfigure module.
  *
- * <p>Only one bean of each generic type can be added to Spring context.
+ * <p>Multiple beans of each generic type can be added to Spring context. They will be ordered,
+ * taking into account {@link org.springframework.core.Ordered Ordered} and {@link
+ * org.springframework.core.annotation.Order @Order} values of the target
  *
  * @param <T> Temporal Options Builder to customize. Respected types: {@link
  *     WorkflowServiceStubsOptions.Builder}, {@link WorkflowClientOptions.Builder}, {@link
