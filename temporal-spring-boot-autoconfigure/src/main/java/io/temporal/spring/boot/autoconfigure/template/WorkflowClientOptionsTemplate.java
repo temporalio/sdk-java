@@ -62,8 +62,9 @@ public class WorkflowClientOptionsTemplate {
 
     options.setInterceptors(interceptors.toArray(new WorkflowClientInterceptor[0]));
 
-    if (clientCustomizer != null) {
-      for (TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer : clientCustomizer) {
+    if (clientCustomizers != null) {
+      for (TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer :
+          clientCustomizers) {
         options = customizer.customize(options);
       }
     }
@@ -78,9 +79,9 @@ public class WorkflowClientOptionsTemplate {
       options.setInterceptors(scheduleClientInterceptors);
     }
 
-    if (scheduleCustomizer != null) {
+    if (scheduleCustomizers != null) {
       for (TemporalOptionsCustomizer<ScheduleClientOptions.Builder> customizer :
-          scheduleCustomizer) {
+          scheduleCustomizers) {
         options = customizer.customize(options);
       }
     }
