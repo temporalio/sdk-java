@@ -105,14 +105,13 @@ class AutoConfigurationUtils {
           }
           Map.Entry<String, TemporalOptionsCustomizer<?>> entry =
               (Map.Entry<String, TemporalOptionsCustomizer<?>>) o;
-          // The AnnotationAwareOrderComparator does not have the "withSourceProvider" method
-          // The OrderComparator.withSourceProvider does not properly account for the annotations
+          // Check if the bean itself has a Priority annotation
           Integer priority = AnnotationAwareOrderComparator.INSTANCE.getPriority(entry.getValue());
           if (priority != null) {
             return (Ordered) () -> priority;
           }
 
-          // Consult the bean factory method for annotations
+          // Check if the bean factory method or the bean has an Order annotations
           String beanName = entry.getKey();
           if (beanName != null) {
             Order order = beanFactory.findAnnotationOnBean(beanName, Order.class);
