@@ -15,7 +15,7 @@ public class WorkflowImplementationOptionsTemplate {
   public WorkflowImplementationOptionsTemplate(
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>> customizers) {
-    this.customizer = customizers;
+    this.customizers = customizers;
   }
 
   public WorkflowImplementationOptions createWorkflowImplementationOptions(

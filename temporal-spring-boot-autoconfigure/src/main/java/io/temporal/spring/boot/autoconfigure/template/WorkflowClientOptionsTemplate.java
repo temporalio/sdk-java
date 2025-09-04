@@ -33,7 +33,8 @@ public class WorkflowClientOptionsTemplate {
       @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
       @Nullable Tracer tracer,
       @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
-      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer) {
+      @Nullable
+          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.workflowClientInterceptors = workflowClientInterceptors;

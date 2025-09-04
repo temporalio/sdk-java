@@ -28,14 +28,14 @@ public class NamespaceTemplate {
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private final @Nullable List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
-      workerFactoryCustomizer;
-  private final @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizer;
+      workerFactoryCustomizers;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>>
-      clientCustomizer;
+      clientCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
-      scheduleCustomizer;
+      scheduleCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
-      workflowImplementationCustomizer;
+      workflowImplementationCustomizers;
 
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
@@ -50,13 +50,13 @@ public class NamespaceTemplate {
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable
-          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizer,
-      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizer,
-      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizer,
-      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer,
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
-              workflowImplementationCustomizer) {
+              workflowImplementationCustomizers) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;
@@ -66,11 +66,11 @@ public class NamespaceTemplate {
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
 
-    this.workerFactoryCustomizer = workerFactoryCustomizer;
-    this.workerCustomizer = workerCustomizer;
-    this.clientCustomizer = clientCustomizer;
-    this.scheduleCustomizer = scheduleCustomizer;
-    this.workflowImplementationCustomizer = workflowImplementationCustomizer;
+    this.workerFactoryCustomizers = workerFactoryCustomizers;
+    this.workerCustomizers = workerCustomizers;
+    this.clientCustomizers = clientCustomizers;
+    this.scheduleCustomizers = scheduleCustomizers;
+    this.workflowImplementationCustomizers = workflowImplementationCustomizers;
   }
 
   public ClientTemplate getClientTemplate() {
@@ -84,8 +84,8 @@ public class NamespaceTemplate {
               tracer,
               workflowServiceStubs,
               testWorkflowEnvironment,
-              clientCustomizer,
-              scheduleCustomizer);
+              clientCustomizers,
+              scheduleCustomizers);
     }
     return clientTemplate;
   }
@@ -99,9 +99,9 @@ public class NamespaceTemplate {
               workerInterceptors,
               tracer,
               testWorkflowEnvironment,
-              workerFactoryCustomizer,
-              workerCustomizer,
-              workflowImplementationCustomizer);
+              workerFactoryCustomizers,
+              workerCustomizers,
+              workflowImplementationCustomizers);
     }
     return this.workersTemplate;
   }
