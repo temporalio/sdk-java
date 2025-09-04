@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,6 +43,12 @@ import org.springframework.context.annotation.Configuration;
 public class TestServerAutoConfiguration {
 
   private static final Logger log = LoggerFactory.getLogger(TestServerAutoConfiguration.class);
+
+  private final ConfigurableListableBeanFactory beanFactory;
+
+  public TestServerAutoConfiguration(ConfigurableListableBeanFactory beanFactory) {
+    this.beanFactory = beanFactory;
+  }
 
   @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
   public TestWorkflowEnvironmentAdapter testTestWorkflowEnvironmentAdapter(
@@ -64,7 +71,7 @@ public class TestServerAutoConfiguration {
           List<ScheduleClientInterceptor> scheduleClientInterceptors,
       @Autowired(required = false) @Nullable List<WorkerInterceptor> workerInterceptors,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer,
+          List<TemporalOptionsCustomizer<TestEnvironmentOptions.Builder>> testEnvOptionsCustomizers,
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
               workerFactoryCustomizerMap,
@@ -84,15 +91,18 @@ public class TestServerAutoConfiguration {
     List<WorkerInterceptor> chosenWorkerInterceptors =
         AutoConfigurationUtils.chooseWorkerInterceptors(workerInterceptors, properties);
 
-    TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            workerFactoryCustomizerMap, WorkerFactoryOptions.Builder.class, properties);
-    TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
-    TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory,
+            workerFactoryCustomizerMap,
+            WorkerFactoryOptions.Builder.class,
+            properties);
+    List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
 
     TestEnvironmentOptions.Builder options =
         TestEnvironmentOptions.newBuilder()
@@ -116,8 +126,11 @@ public class TestServerAutoConfiguration {
                 properties, chosenWorkerInterceptors, otTracer, workerFactoryCustomizer)
             .createWorkerFactoryOptions());
 
-    if (testEnvOptionsCustomizer != null) {
-      options = testEnvOptionsCustomizer.customize(options);
+    if (testEnvOptionsCustomizers != null) {
+      for (TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer :
+          testEnvOptionsCustomizers) {
+        options = testEnvOptionsCustomizer.customize(options);
+      }
     }
 
     return TestWorkflowEnvironment.newInstance(options.build());

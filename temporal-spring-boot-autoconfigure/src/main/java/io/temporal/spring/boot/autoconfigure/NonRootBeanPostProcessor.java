@@ -24,8 +24,8 @@ import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions.Builder;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -83,19 +83,20 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     DataConverter dataConverterByNamespace = findBeanByNamespace(beanPrefix, DataConverter.class);
 
     // found regarding namespace customizer bean, it can be optional
-    TemporalOptionsCustomizer<Builder> workFactoryCustomizer =
+    List<TemporalOptionsCustomizer<Builder>> workFactoryCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, Builder.class);
-    TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder> workflowServiceStubsCustomizer =
-        findBeanByNameSpaceForTemporalCustomizer(
-            beanPrefix, WorkflowServiceStubsOptions.Builder.class);
-    TemporalOptionsCustomizer<WorkerOptions.Builder> WorkerCustomizer =
+    List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
+        workflowServiceStubsCustomizers =
+            findBeanByNameSpaceForTemporalCustomizer(
+                beanPrefix, WorkflowServiceStubsOptions.Builder.class);
+    List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkerOptions.Builder.class);
-    TemporalOptionsCustomizer<WorkflowClientOptions.Builder> workflowClientCustomizer =
+    List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> workflowClientCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkflowClientOptions.Builder.class);
-    TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleClientCustomizer =
+    List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleClientCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, ScheduleClientOptions.Builder.class);
-    TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-        workflowImplementationCustomizer =
+    List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+        workflowImplementationCustomizers =
             findBeanByNameSpaceForTemporalCustomizer(
                 beanPrefix, WorkflowImplementationOptions.Builder.class);
 
@@ -107,7 +108,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             connectionProperties,
             metricsScope,
             testWorkflowEnvironment,
-            workflowServiceStubsCustomizer);
+            workflowServiceStubsCustomizers);
     WorkflowServiceStubs workflowServiceStubs = serviceStubsTemplate.getWorkflowServiceStubs();
 
     NonRootNamespaceTemplate namespaceTemplate =
@@ -121,16 +122,11 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             null,
             tracer,
             testWorkflowEnvironment,
-            workFactoryCustomizer,
-            WorkerCustomizer,
-            builder ->
-                // Must make sure the namespace is set at the end of the builder chain
-                Optional.ofNullable(workflowClientCustomizer)
-                    .map(c -> c.customize(builder))
-                    .orElse(builder)
-                    .setNamespace(ns.getNamespace()),
-            scheduleClientCustomizer,
-            workflowImplementationCustomizer);
+            workFactoryCustomizers,
+            workerCustomizers,
+            workflowClientCustomizers,
+            scheduleClientCustomizers,
+            workflowImplementationCustomizers);
 
     ClientTemplate clientTemplate = namespaceTemplate.getClientTemplate();
     WorkflowClient workflowClient = clientTemplate.getWorkflowClient();
@@ -188,18 +184,17 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     return null;
   }
 
-  private <T> TemporalOptionsCustomizer<T> findBeanByNameSpaceForTemporalCustomizer(
+  private <T> List<TemporalOptionsCustomizer<T>> findBeanByNameSpaceForTemporalCustomizer(
       String beanPrefix, Class<T> genericOptionsBuilderClass) {
     String beanName =
         AutoConfigurationUtils.temporalCustomizerBeanName(beanPrefix, genericOptionsBuilderClass);
     try {
-      TemporalOptionsCustomizer genericOptionsCustomizer =
+      TemporalOptionsCustomizer<T> genericOptionsCustomizer =
           beanFactory.getBean(beanName, TemporalOptionsCustomizer.class);
-      return (TemporalOptionsCustomizer<T>) genericOptionsCustomizer;
+      return Collections.singletonList(genericOptionsCustomizer);
     } catch (BeansException e) {
       log.warn("No TemporalOptionsCustomizer found for {}. ", beanName);
       if (genericOptionsBuilderClass.isAssignableFrom(Builder.class)) {
-        //        print tips once
         log.debug(
             "No TemporalOptionsCustomizer found for {}. \n You can add Customizer bean to do by namespace customization. \n "
                 + "Note: bean name should start with namespace name and end with Customizer, and the middle part should be the customizer "

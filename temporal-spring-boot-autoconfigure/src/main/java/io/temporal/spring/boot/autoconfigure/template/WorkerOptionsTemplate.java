@@ -7,6 +7,7 @@ import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,17 +16,17 @@ class WorkerOptionsTemplate {
   private final @Nonnull String taskQueue;
   private final @Nonnull String workerName;
   private final @Nullable WorkerProperties workerProperties;
-  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> customizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> customizers;
 
   WorkerOptionsTemplate(
       @Nonnull String workerName,
       @Nonnull String taskQueue,
       @Nullable WorkerProperties workerProperties,
-      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> customizer) {
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> customizers) {
     this.workerName = workerName;
     this.taskQueue = taskQueue;
     this.workerProperties = workerProperties;
-    this.customizer = customizer;
+    this.customizers = customizers;
   }
 
   @SuppressWarnings("deprecation")
@@ -139,13 +140,15 @@ class WorkerOptionsTemplate {
       }
     }
 
-    if (customizer != null) {
-      options = customizer.customize(options);
-      if (customizer instanceof WorkerOptionsCustomizer) {
-        options = ((WorkerOptionsCustomizer) customizer).customize(options, workerName, taskQueue);
+    if (customizers != null) {
+      for (TemporalOptionsCustomizer<WorkerOptions.Builder> customizer : customizers) {
+        options = customizer.customize(options);
+        if (customizer instanceof WorkerOptionsCustomizer) {
+          options =
+              ((WorkerOptionsCustomizer) customizer).customize(options, workerName, taskQueue);
+        }
       }
     }
-
     return options.build();
   }
 }

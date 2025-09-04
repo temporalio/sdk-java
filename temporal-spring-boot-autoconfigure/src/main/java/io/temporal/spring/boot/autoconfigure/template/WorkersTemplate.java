@@ -56,12 +56,12 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
-  private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
-      workerFactoryCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
+      workerFactoryCustomizers;
 
-  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-      workflowImplementationCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+      workflowImplementationCustomizers;
 
   private ConfigurableListableBeanFactory beanFactory;
   private Environment environment;
@@ -76,20 +76,21 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       @Nullable List<WorkerInterceptor> workerInterceptors,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
       @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-              workflowImplementationCustomizer) {
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizers) {
     this.namespaceProperties = namespaceProperties;
     this.workerInterceptors = workerInterceptors;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
     this.clientTemplate = clientTemplate;
 
-    this.workerFactoryCustomizer = workerFactoryCustomizer;
-    this.workerCustomizer = workerCustomizer;
-    this.workflowImplementationCustomizer = workflowImplementationCustomizer;
+    this.workerFactoryCustomizers = workerFactoryCustomizers;
+    this.workerCustomizers = workerCustomizers;
+    this.workflowImplementationCustomizers = workflowImplementationCustomizers;
   }
 
   public NamespaceProperties getNamespaceProperties() {
@@ -125,7 +126,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     } else {
       WorkerFactoryOptions workerFactoryOptions =
           new WorkerFactoryOptionsTemplate(
-                  namespaceProperties, workerInterceptors, tracer, workerFactoryCustomizer)
+                  namespaceProperties, workerInterceptors, tracer, workerFactoryCustomizers)
               .createWorkerFactoryOptions();
       return WorkerFactory.newInstance(workflowClient, workerFactoryOptions);
     }
@@ -547,7 +548,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
             ReflectionUtils.getWorkflowInitConstructor(
                 clazz, Collections.singletonList(executeMethod));
         WorkflowImplementationOptions workflowImplementationOptions =
-            new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+            new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizers)
                 .createWorkflowImplementationOptions(worker, clazz, null);
         worker.registerWorkflowImplementationFactory(
             DynamicWorkflow.class,
@@ -614,7 +615,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       }
 
       WorkflowImplementationOptions workflowImplementationOptions =
-          new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+          new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizers)
               .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
@@ -649,7 +650,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               deploymentOptions.isUsingVersioning());
         }
         WorkflowImplementationOptions workflowImplementationOptions =
-            new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizer)
+            new WorkflowImplementationOptionsTemplate(workflowImplementationCustomizers)
                 .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
         worker.registerWorkflowImplementationFactory(
             (Class<T>) workflowMethod.getWorkflowInterface(),
@@ -683,7 +684,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         properties != null && properties.getName() != null ? properties.getName() : taskQueue;
 
     WorkerOptions workerOptions =
-        new WorkerOptionsTemplate(workerName, taskQueue, properties, workerCustomizer)
+        new WorkerOptionsTemplate(workerName, taskQueue, properties, workerCustomizers)
             .createWorkerOptions();
     Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
     workers.addWorker(workerName, worker);

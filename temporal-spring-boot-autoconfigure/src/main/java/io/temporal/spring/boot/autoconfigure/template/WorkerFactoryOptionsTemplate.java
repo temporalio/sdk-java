@@ -17,13 +17,13 @@ public class WorkerFactoryOptionsTemplate {
   private final @Nonnull NamespaceProperties namespaceProperties;
   private final @Nullable List<WorkerInterceptor> workerInterceptors;
   private final @Nullable Tracer tracer;
-  private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> customizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> customizer;
 
   public WorkerFactoryOptionsTemplate(
       @Nonnull NamespaceProperties namespaceProperties,
       @Nullable List<WorkerInterceptor> workerInterceptors,
       @Nullable Tracer tracer,
-      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> customizer) {
+      @Nullable List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> customizer) {
     this.namespaceProperties = namespaceProperties;
     this.workerInterceptors = workerInterceptors;
     this.tracer = tracer;
@@ -54,12 +54,13 @@ public class WorkerFactoryOptionsTemplate {
     if (workerInterceptors != null) {
       interceptors.addAll(workerInterceptors);
     }
-    options.setWorkerInterceptors(interceptors.stream().toArray(WorkerInterceptor[]::new));
+    options.setWorkerInterceptors(interceptors.toArray(new WorkerInterceptor[0]));
 
     if (customizer != null) {
-      options = customizer.customize(options);
+      for (TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> customizer : customizer) {
+        options = customizer.customize(options);
+      }
     }
-
     return options.build();
   }
 }

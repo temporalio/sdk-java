@@ -98,21 +98,25 @@ public class RootNamespaceAutoConfiguration {
             scheduleClientInterceptors, properties);
     List<WorkerInterceptor> chosenWorkerInterceptors =
         AutoConfigurationUtils.chooseWorkerInterceptors(workerInterceptors, properties);
-    TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            workerFactoryCustomizerMap, WorkerFactoryOptions.Builder.class, properties);
-    TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            workerCustomizerMap, WorkerOptions.Builder.class, properties);
-    TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
-    TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
-    TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+    List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory,
+            workerFactoryCustomizerMap,
+            WorkerFactoryOptions.Builder.class,
+            properties);
+    List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, workerCustomizerMap, WorkerOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
         workflowImplementationCustomizer =
-            AutoConfigurationUtils.chooseTemporalCustomizerBean(
+            AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+                beanFactory,
                 workflowImplementationCustomizerMap,
                 WorkflowImplementationOptions.Builder.class,
                 properties);

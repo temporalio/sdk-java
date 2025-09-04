@@ -32,8 +32,9 @@ public class ClientTemplate {
       @Nullable Tracer tracer,
       @Nullable WorkflowServiceStubs workflowServiceStubs,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomer) {
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
     this.optionsTemplate =
         new WorkflowClientOptionsTemplate(
             namespace,
@@ -41,8 +42,8 @@ public class ClientTemplate {
             workflowClientInterceptors,
             scheduleClientInterceptors,
             tracer,
-            clientCustomizer,
-            scheduleCustomer);
+            clientCustomizers,
+            scheduleCustomizers);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }

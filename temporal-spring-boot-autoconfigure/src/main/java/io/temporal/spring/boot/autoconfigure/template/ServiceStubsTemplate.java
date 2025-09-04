@@ -5,6 +5,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,8 +16,8 @@ public class ServiceStubsTemplate {
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
-  private final @Nullable TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
-      workflowServiceStubsCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
+      workflowServiceStubsCustomizers;
 
   private WorkflowServiceStubs workflowServiceStubs;
 
@@ -25,12 +26,12 @@ public class ServiceStubsTemplate {
       @Nullable Scope metricsScope,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable
-          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
-              workflowServiceStubsCustomizer) {
+          List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
+              workflowServiceStubsCustomizers) {
     this.connectionProperties = connectionProperties;
     this.metricsScope = metricsScope;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
-    this.workflowServiceStubsCustomizer = workflowServiceStubsCustomizer;
+    this.workflowServiceStubsCustomizers = workflowServiceStubsCustomizers;
   }
 
   public WorkflowServiceStubs getWorkflowServiceStubs() {
@@ -53,7 +54,7 @@ public class ServiceStubsTemplate {
           workflowServiceStubs =
               WorkflowServiceStubs.newServiceStubs(
                   new ServiceStubOptionsTemplate(
-                          connectionProperties, metricsScope, workflowServiceStubsCustomizer)
+                          connectionProperties, metricsScope, workflowServiceStubsCustomizers)
                       .createServiceStubOptions());
       }
     }
