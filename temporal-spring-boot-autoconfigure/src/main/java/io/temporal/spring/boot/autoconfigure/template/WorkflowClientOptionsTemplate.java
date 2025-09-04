@@ -21,9 +21,10 @@ public class WorkflowClientOptionsTemplate {
   private final @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors;
   private final @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors;
   private final @Nullable Tracer tracer;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder>
-      scheduleCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>>
+      clientCustomizers;
+  private final @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
+      scheduleCustomizers;
 
   public WorkflowClientOptionsTemplate(
       @Nonnull String namespace,
@@ -31,15 +32,15 @@ public class WorkflowClientOptionsTemplate {
       @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
       @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
       @Nullable Tracer tracer,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer) {
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.workflowClientInterceptors = workflowClientInterceptors;
     this.scheduleClientInterceptors = scheduleClientInterceptors;
     this.tracer = tracer;
-    this.clientCustomizer = clientCustomizer;
-    this.scheduleCustomizer = scheduleCustomizer;
+    this.clientCustomizers = clientCustomizers;
+    this.scheduleCustomizers = scheduleCustomizers;
   }
 
   public WorkflowClientOptions createWorkflowClientOptions() {
@@ -58,12 +59,13 @@ public class WorkflowClientOptionsTemplate {
       interceptors.addAll(workflowClientInterceptors);
     }
 
-    options.setInterceptors(interceptors.stream().toArray(WorkflowClientInterceptor[]::new));
+    options.setInterceptors(interceptors.toArray(new WorkflowClientInterceptor[0]));
 
     if (clientCustomizer != null) {
-      options = clientCustomizer.customize(options);
+      for (TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer : clientCustomizer) {
+        options = customizer.customize(options);
+      }
     }
-
     return options.build();
   }
 
@@ -76,7 +78,10 @@ public class WorkflowClientOptionsTemplate {
     }
 
     if (scheduleCustomizer != null) {
-      options = scheduleCustomizer.customize(options);
+      for (TemporalOptionsCustomizer<ScheduleClientOptions.Builder> customizer :
+          scheduleCustomizer) {
+        options = customizer.customize(options);
+      }
     }
 
     return options.build();

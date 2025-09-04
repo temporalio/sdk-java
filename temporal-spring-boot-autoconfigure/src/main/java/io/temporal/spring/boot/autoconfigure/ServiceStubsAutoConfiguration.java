@@ -8,10 +8,12 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ServiceStubsTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -26,6 +28,12 @@ import org.springframework.context.annotation.Configuration;
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class ServiceStubsAutoConfiguration {
 
+  ConfigurableListableBeanFactory beanFactory;
+
+  public ServiceStubsAutoConfiguration(ConfigurableListableBeanFactory beanFactory) {
+    this.beanFactory = beanFactory;
+  }
+
   @Bean(name = "temporalServiceStubsTemplate")
   public ServiceStubsTemplate serviceStubsTemplate(
       TemporalProperties properties,
@@ -35,9 +43,9 @@ public class ServiceStubsAutoConfiguration {
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
               workflowServiceStubsCustomizerMap) {
-    TemporalOptionsCustomizer<Builder> workflowServiceStubsCustomizer =
-        AutoConfigurationUtils.chooseTemporalCustomizerBean(
-            workflowServiceStubsCustomizerMap, Builder.class, properties);
+    List<TemporalOptionsCustomizer<Builder>> workflowServiceStubsCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, workflowServiceStubsCustomizerMap, Builder.class, properties);
     return new ServiceStubsTemplate(
         properties.getConnection(),
         metricsScope,

@@ -21,7 +21,7 @@ import org.springframework.core.env.Environment;
 
 public class NonRootNamespaceTemplate extends NamespaceTemplate {
 
-  private BeanFactory beanFactory;
+  private final BeanFactory beanFactory;
 
   public NonRootNamespaceTemplate(
       @Nonnull BeanFactory beanFactory,
@@ -33,13 +33,14 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
       @Nullable List<WorkerInterceptor> workerInterceptors,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
       @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
-              workflowImplementationCustomizer) {
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizers) {
     super(
         namespaceProperties,
         workflowServiceStubs,
@@ -49,11 +50,11 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
         workerInterceptors,
         tracer,
         testWorkflowEnvironment,
-        workerFactoryCustomizer,
-        workerCustomizer,
-        clientCustomizer,
-        scheduleCustomizer,
-        workflowImplementationCustomizer);
+        workerFactoryCustomizers,
+        workerCustomizers,
+        clientCustomizers,
+        scheduleCustomizers,
+        workflowImplementationCustomizers);
     this.beanFactory = beanFactory;
   }
 

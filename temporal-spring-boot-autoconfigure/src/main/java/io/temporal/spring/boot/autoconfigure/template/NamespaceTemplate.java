@@ -27,13 +27,14 @@ public class NamespaceTemplate {
   private final @Nullable Tracer tracer;
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
-  private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
       workerFactoryCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder>
+  private final @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>>
+      clientCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
       scheduleCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
       workflowImplementationCustomizer;
 
   private ClientTemplate clientTemplate;
@@ -48,12 +49,13 @@ public class NamespaceTemplate {
       @Nullable List<WorkerInterceptor> workerInterceptors,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
       @Nullable
-          TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizer,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizer,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizer,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
               workflowImplementationCustomizer) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
