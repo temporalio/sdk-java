@@ -26,6 +26,7 @@ import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -93,6 +94,16 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkerOptions.Builder.class);
     List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> workflowClientCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkflowClientOptions.Builder.class);
+    if (workflowClientCustomizers != null) {
+      workflowClientCustomizers =
+              workflowClientCustomizers.stream()
+                      .map(
+                              c ->
+                                      (TemporalOptionsCustomizer<WorkflowClientOptions.Builder>)
+                                              (WorkflowClientOptions.Builder o) ->
+                                                      c.customize(o).setNamespace(ns.getNamespace()))
+                      .collect(Collectors.toList());
+    }
     List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleClientCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, ScheduleClientOptions.Builder.class);
     List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
@@ -189,6 +200,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     String beanName =
         AutoConfigurationUtils.temporalCustomizerBeanName(beanPrefix, genericOptionsBuilderClass);
     try {
+      // TODO(https://github.com/temporalio/sdk-java/issues/2638): Support multiple customizers in
+      // the non root namespace
       TemporalOptionsCustomizer<T> genericOptionsCustomizer =
           beanFactory.getBean(beanName, TemporalOptionsCustomizer.class);
       return Collections.singletonList(genericOptionsCustomizer);

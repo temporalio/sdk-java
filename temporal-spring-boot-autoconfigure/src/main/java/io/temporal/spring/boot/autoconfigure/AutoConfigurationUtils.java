@@ -11,6 +11,7 @@ import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
@@ -96,6 +97,11 @@ class AutoConfigurationUtils {
     return workerInterceptor;
   }
 
+  /**
+   * Create a comparator that can extract @Order and @Priority from beans in the given bean factory.
+   * This is needed because the default OrderComparator doesn't know about the bean factory and
+   * therefore can't look up annotations on beans.
+   */
   private static Comparator<Object> beanFactoryAwareOrderComparator(
       ListableBeanFactory beanFactory) {
     return OrderComparator.INSTANCE.withSourceProvider(
@@ -134,25 +140,22 @@ class AutoConfigurationUtils {
       return null;
     }
     List<NonRootNamespaceProperties> nonRootNamespaceProperties = properties.getNamespaces();
-    // If we only have one namespace (the root one), use all customizers
-    if (Objects.isNull(nonRootNamespaceProperties) || nonRootNamespaceProperties.isEmpty()) {
-      return customizerMap.entrySet().stream()
-          .sorted(beanFactoryAwareOrderComparator(beanFactory))
-          .map(Entry::getValue)
-          .collect(Collectors.toList());
+    Stream<Entry<String, TemporalOptionsCustomizer<T>>> customizerStream =
+        customizerMap.entrySet().stream();
+    if (!(Objects.isNull(nonRootNamespaceProperties) || nonRootNamespaceProperties.isEmpty())) {
+      // Non-root namespace bean names, such as "nsWorkerFactoryCustomizer", "nsWorkerCustomizer"
+      List<String> nonRootBeanNames =
+          nonRootNamespaceProperties.stream()
+              .map(
+                  ns ->
+                      temporalCustomizerBeanName(
+                          MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace()),
+                          genericOptionsBuilderClass))
+              .collect(Collectors.toList());
+      customizerStream =
+          customizerStream.filter(entry -> !nonRootBeanNames.contains(entry.getKey()));
     }
-    // Non-root namespace bean names, such as "nsWorkerFactoryCustomizer", "nsWorkerCustomizer"
-    List<String> nonRootBeanNames =
-        nonRootNamespaceProperties.stream()
-            .map(
-                ns ->
-                    temporalCustomizerBeanName(
-                        MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace()),
-                        genericOptionsBuilderClass))
-            .collect(Collectors.toList());
-
-    return customizerMap.entrySet().stream()
-        .filter(entry -> !nonRootBeanNames.contains(entry.getKey()))
+    return customizerStream
         .sorted(beanFactoryAwareOrderComparator(beanFactory))
         .map(Entry::getValue)
         .collect(Collectors.toList());
