@@ -96,13 +96,13 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, WorkflowClientOptions.Builder.class);
     if (workflowClientCustomizers != null) {
       workflowClientCustomizers =
-              workflowClientCustomizers.stream()
-                      .map(
-                              c ->
-                                      (TemporalOptionsCustomizer<WorkflowClientOptions.Builder>)
-                                              (WorkflowClientOptions.Builder o) ->
-                                                      c.customize(o).setNamespace(ns.getNamespace()))
-                      .collect(Collectors.toList());
+          workflowClientCustomizers.stream()
+              .map(
+                  c ->
+                      (TemporalOptionsCustomizer<WorkflowClientOptions.Builder>)
+                          (WorkflowClientOptions.Builder o) ->
+                              c.customize(o).setNamespace(ns.getNamespace()))
+              .collect(Collectors.toList());
     }
     List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleClientCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, ScheduleClientOptions.Builder.class);
