@@ -4,6 +4,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Link;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
+import io.temporal.nexus.NexusInfo;
 import io.temporal.nexus.NexusOperationContext;
 
 public class InternalNexusOperationContext {
@@ -58,6 +59,11 @@ public class InternalNexusOperationContext {
   }
 
   private class NexusOperationContextImpl implements NexusOperationContext {
+    @Override
+    public NexusInfo getInfo() {
+      return outboundCalls.getInfo();
+    }
+
     @Override
     public Scope getMetricsScope() {
       return outboundCalls.getMetricsScope();

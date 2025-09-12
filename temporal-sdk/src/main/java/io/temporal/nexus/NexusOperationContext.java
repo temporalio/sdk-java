@@ -10,6 +10,9 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
  */
 public interface NexusOperationContext {
 
+  /** Get Temporal information about the Nexus Operation. */
+  NexusInfo getInfo();
+
   /**
    * Get scope for reporting business metrics in a nexus handler. This scope is tagged with the
    * service and operation.
