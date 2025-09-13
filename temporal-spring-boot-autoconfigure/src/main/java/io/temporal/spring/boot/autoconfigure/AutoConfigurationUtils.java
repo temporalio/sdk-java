@@ -8,14 +8,17 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
+import org.springframework.core.OrderComparator;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
+import org.springframework.core.annotation.Order;
 
 class AutoConfigurationUtils {
 
@@ -94,7 +97,42 @@ class AutoConfigurationUtils {
     return workerInterceptor;
   }
 
-  static <T> TemporalOptionsCustomizer<T> chooseTemporalCustomizerBean(
+  /**
+   * Create a comparator that can extract @Order and @Priority from beans in the given bean factory.
+   * This is needed because the default OrderComparator doesn't know about the bean factory and
+   * therefore can't look up annotations on beans.
+   */
+  private static Comparator<Object> beanFactoryAwareOrderComparator(
+      ListableBeanFactory beanFactory) {
+    return OrderComparator.INSTANCE.withSourceProvider(
+        o -> {
+          if (!(o instanceof Map.Entry)) {
+            throw new IllegalStateException("Unexpected object type: " + o);
+          }
+          Map.Entry<String, TemporalOptionsCustomizer<?>> entry =
+              (Map.Entry<String, TemporalOptionsCustomizer<?>>) o;
+          // Check if the bean itself has a Priority annotation
+          Integer priority = AnnotationAwareOrderComparator.INSTANCE.getPriority(entry.getValue());
+          if (priority != null) {
+            return (Ordered) () -> priority;
+          }
+
+          // Check if the bean factory method or the bean has an Order annotations
+          String beanName = entry.getKey();
+          if (beanName != null) {
+            Order order = beanFactory.findAnnotationOnBean(beanName, Order.class);
+            if (order != null) {
+              return (Ordered) order::value;
+            }
+          }
+
+          // Nothing present
+          return null;
+        });
+  }
+
+  static <T> List<TemporalOptionsCustomizer<T>> chooseTemporalCustomizerBeans(
+      ListableBeanFactory beanFactory,
       Map<String, TemporalOptionsCustomizer<T>> customizerMap,
       Class<T> genericOptionsBuilderClass,
       TemporalProperties properties) {
@@ -102,24 +140,25 @@ class AutoConfigurationUtils {
       return null;
     }
     List<NonRootNamespaceProperties> nonRootNamespaceProperties = properties.getNamespaces();
-    if (Objects.isNull(nonRootNamespaceProperties) || nonRootNamespaceProperties.isEmpty()) {
-      return customizerMap.values().stream().findFirst().orElse(null);
+    Stream<Entry<String, TemporalOptionsCustomizer<T>>> customizerStream =
+        customizerMap.entrySet().stream();
+    if (!(Objects.isNull(nonRootNamespaceProperties) || nonRootNamespaceProperties.isEmpty())) {
+      // Non-root namespace bean names, such as "nsWorkerFactoryCustomizer", "nsWorkerCustomizer"
+      List<String> nonRootBeanNames =
+          nonRootNamespaceProperties.stream()
+              .map(
+                  ns ->
+                      temporalCustomizerBeanName(
+                          MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace()),
+                          genericOptionsBuilderClass))
+              .collect(Collectors.toList());
+      customizerStream =
+          customizerStream.filter(entry -> !nonRootBeanNames.contains(entry.getKey()));
     }
-    // Non-root namespace bean names, such as "nsWorkerFactoryCustomizer", "nsWorkerCustomizer"
-    List<String> nonRootBeanNames =
-        nonRootNamespaceProperties.stream()
-            .map(
-                ns ->
-                    temporalCustomizerBeanName(
-                        MoreObjects.firstNonNull(ns.getAlias(), ns.getNamespace()),
-                        genericOptionsBuilderClass))
-            .collect(Collectors.toList());
-
-    return customizerMap.entrySet().stream()
-        .filter(entry -> !nonRootBeanNames.contains(entry.getKey()))
-        .findFirst()
+    return customizerStream
+        .sorted(beanFactoryAwareOrderComparator(beanFactory))
         .map(Entry::getValue)
-        .orElse(null);
+        .collect(Collectors.toList());
   }
 
   static String temporalCustomizerBeanName(String beanPrefix, Class<?> optionsBuilderClass) {

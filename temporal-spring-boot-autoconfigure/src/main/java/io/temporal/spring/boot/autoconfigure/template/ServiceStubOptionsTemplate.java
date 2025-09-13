@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.BeanCreationException;
@@ -21,14 +22,14 @@ import org.springframework.util.ResourceUtils;
 public class ServiceStubOptionsTemplate {
   private final @Nonnull ConnectionProperties connectionProperties;
   private final @Nullable Scope metricsScope;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
       workflowServiceStubsCustomizer;
 
   public ServiceStubOptionsTemplate(
       @Nonnull ConnectionProperties connectionProperties,
       @Nullable Scope metricsScope,
       @Nullable
-          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+          List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
               workflowServiceStubsCustomizer) {
     this.connectionProperties = connectionProperties;
     this.metricsScope = metricsScope;
@@ -45,7 +46,7 @@ public class ServiceStubOptionsTemplate {
     stubsOptionsBuilder.setEnableHttps(Boolean.TRUE.equals(connectionProperties.isEnableHttps()));
 
     if (connectionProperties.getApiKey() != null && !connectionProperties.getApiKey().isEmpty()) {
-      stubsOptionsBuilder.addApiKey(() -> connectionProperties.getApiKey());
+      stubsOptionsBuilder.addApiKey(connectionProperties::getApiKey);
       // Unless HTTPS is explicitly disabled, enable it by default for API keys
       if (connectionProperties.isEnableHttps() == null) {
         stubsOptionsBuilder.setEnableHttps(true);
@@ -59,9 +60,11 @@ public class ServiceStubOptionsTemplate {
     }
 
     if (workflowServiceStubsCustomizer != null) {
-      stubsOptionsBuilder = workflowServiceStubsCustomizer.customize(stubsOptionsBuilder);
+      for (TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+          workflowServiceStubsCustomizer : workflowServiceStubsCustomizer) {
+        stubsOptionsBuilder = workflowServiceStubsCustomizer.customize(stubsOptionsBuilder);
+      }
     }
-
     return stubsOptionsBuilder.build();
   }
 
