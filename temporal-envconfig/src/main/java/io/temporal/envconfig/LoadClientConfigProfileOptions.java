@@ -13,6 +13,10 @@ public class LoadClientConfigProfileOptions {
     return new Builder();
   }
 
+  public static Builder newBuilder(LoadClientConfigProfileOptions options) {
+    return new Builder(options);
+  }
+
   private final String configFileProfile;
   private final String configFilePath;
   private final byte[] configFileData;
@@ -21,7 +25,7 @@ public class LoadClientConfigProfileOptions {
   private final boolean disableEnv;
   private final Map<String, String> envOverrides;
 
-  public LoadClientConfigProfileOptions(
+  private LoadClientConfigProfileOptions(
       String configFileProfile,
       String configFilePath,
       byte[] configFileData,
@@ -75,15 +79,16 @@ public class LoadClientConfigProfileOptions {
     private boolean disableEnv;
     private Map<String, String> envOverrides;
 
-    public LoadClientConfigProfileOptions build() {
-      return new LoadClientConfigProfileOptions(
-          configFileProfile,
-          configFilePath,
-          configFileData,
-          configFileStrict,
-          disableFile,
-          disableEnv,
-          envOverrides);
+    private Builder() {}
+
+    private Builder(LoadClientConfigProfileOptions options) {
+      this.configFileProfile = options.configFileProfile;
+      this.configFilePath = options.configFilePath;
+      this.configFileData = options.configFileData;
+      this.configFileStrict = options.configFileStrict;
+      this.disableFile = options.disableFile;
+      this.disableEnv = options.disableEnv;
+      this.envOverrides = options.envOverrides;
     }
 
     /** If true, will error if there are unrecognized keys. Defaults to false. */
@@ -149,6 +154,17 @@ public class LoadClientConfigProfileOptions {
     public Builder setEnvOverrides(Map<String, String> envOverrides) {
       this.envOverrides = envOverrides;
       return this;
+    }
+
+    public LoadClientConfigProfileOptions build() {
+      return new LoadClientConfigProfileOptions(
+          configFileProfile,
+          configFilePath,
+          configFileData,
+          configFileStrict,
+          disableFile,
+          disableEnv,
+          envOverrides);
     }
   }
 }

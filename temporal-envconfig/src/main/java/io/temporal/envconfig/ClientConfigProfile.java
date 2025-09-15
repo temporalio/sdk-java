@@ -2,6 +2,7 @@ package io.temporal.envconfig;
 
 import io.grpc.Metadata;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
+import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -30,6 +31,7 @@ public class ClientConfigProfile {
     return new Builder(profile);
   }
 
+  /** Returns a default instance of ClientConfigProfile with all fields unset. */
   public static ClientConfigProfile getDefaultInstance() {
     return new Builder().build();
   }
@@ -100,11 +102,14 @@ public class ClientConfigProfile {
           trustCertCollectionInputStream = null;
         }
 
-        builder.setSslContext(
-            SslContextBuilder.forClient()
-                .trustManager(trustCertCollectionInputStream)
-                .keyManager(clientCertStream, keyFile)
-                .build());
+        SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
+        if (trustCertCollectionInputStream != null) {
+          sslContextBuilder.trustManager(trustCertCollectionInputStream);
+        } else if (this.tls.isDisableHostVerification()) {
+          sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        }
+        sslContextBuilder.keyManager(clientCertStream, keyFile);
+        builder.setSslContext(sslContextBuilder.build());
       } catch (IOException e) {
         throw new RuntimeException("Unable to create SSL context", e);
       }
@@ -273,15 +278,8 @@ public class ClientConfigProfile {
         if (tlsBuilder == null) {
           tlsBuilder = ClientConfigTLS.newBuilder();
         }
-        // tlsBuilder.setDisableHostVerification(v);
+        tlsBuilder.setDisableHostVerification(v);
       }
-    }
-    if (env.containsKey("TEMPORAL_TLS_SERVER_NAME")) {
-      String s = env.get("TEMPORAL_TLS_SERVER_NAME");
-      if (tlsBuilder == null) {
-        tlsBuilder = ClientConfigTLS.newBuilder();
-      }
-      tlsBuilder.setServerName(s);
     }
     // Apply the TLS changes if any
     if (tlsBuilder != null) {
@@ -335,9 +333,9 @@ public class ClientConfigProfile {
     private Metadata metadata;
     private ClientConfigTLS tls;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(ClientConfigProfile profile) {
+    private Builder(ClientConfigProfile profile) {
       this.namespace = profile.namespace;
       this.address = profile.address;
       this.apiKey = profile.apiKey;

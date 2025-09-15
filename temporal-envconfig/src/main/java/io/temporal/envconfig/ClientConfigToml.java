@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.grpc.Metadata;
 import io.temporal.common.Experimental;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -119,16 +120,26 @@ class ClientConfigToml {
     ClientConfigTLS tls = null;
     if (tomlProfile.tls != null) {
       tls =
-          new ClientConfigTLS(
-              tomlProfile.tls.disabled,
-              tomlProfile.tls.clientCertPath,
-              tomlProfile.tls.clientCertData.getBytes(),
-              tomlProfile.tls.clientKeyPath,
-              tomlProfile.tls.clientKeyData.getBytes(),
-              tomlProfile.tls.serverCACertPath,
-              tomlProfile.tls.serverCACertData.getBytes(),
-              tomlProfile.tls.serverName,
-              tomlProfile.tls.disableHostVerification);
+          ClientConfigTLS.newBuilder()
+              .setClientCertData(
+                  tomlProfile.tls.clientCertData != null
+                      ? tomlProfile.tls.clientCertData.getBytes(StandardCharsets.UTF_8)
+                      : null)
+              .setClientCertPath(tomlProfile.tls.clientCertPath)
+              .setClientKeyData(
+                  tomlProfile.tls.clientKeyData != null
+                      ? tomlProfile.tls.clientKeyData.getBytes(StandardCharsets.UTF_8)
+                      : null)
+              .setClientKeyPath(tomlProfile.tls.clientKeyPath)
+              .setServerCACertData(
+                  tomlProfile.tls.serverCACertData != null
+                      ? tomlProfile.tls.serverCACertData.getBytes(StandardCharsets.UTF_8)
+                      : null)
+              .setServerCACertPath(tomlProfile.tls.serverCACertPath)
+              .setDisabled(tomlProfile.tls.disabled)
+              .setServerName(tomlProfile.tls.serverName)
+              .setDisableHostVerification(tomlProfile.tls.disableHostVerification)
+              .build();
     }
     return tls;
   }

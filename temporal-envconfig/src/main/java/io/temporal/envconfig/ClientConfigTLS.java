@@ -5,8 +5,14 @@ import io.temporal.common.Experimental;
 /** TLS configuration for a client. */
 @Experimental
 public class ClientConfigTLS {
+  /** Create a builder for {@link ClientConfigTLS}. */
   public static Builder newBuilder() {
     return new Builder();
+  }
+
+  /** Create a builder from an existing {@link ClientConfigTLS}. */
+  public static Builder newBuilder(ClientConfigTLS config) {
+    return new Builder(config);
   }
 
   private final boolean disabled;
@@ -17,8 +23,9 @@ public class ClientConfigTLS {
   private final String serverCACertPath;
   private final byte[] serverCACertData;
   private final String serverName;
+  private final boolean disableHostVerification;
 
-  public ClientConfigTLS(
+  private ClientConfigTLS(
       boolean disabled,
       String clientCertPath,
       byte[] clientCertData,
@@ -36,6 +43,7 @@ public class ClientConfigTLS {
     this.serverCACertPath = serverCACertPath;
     this.serverCACertData = serverCACertData;
     this.serverName = serverName;
+    this.disableHostVerification = disableHostVerification;
   }
 
   public boolean isDisabled() {
@@ -70,19 +78,37 @@ public class ClientConfigTLS {
     return serverName;
   }
 
+  public boolean isDisableHostVerification() {
+    return disableHostVerification;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
 
   public static class Builder {
+    private String clientCertPath;
+    private byte[] clientCertData;
+    private String clientKeyPath;
+    private byte[] clientKeyData;
+    private String serverCACertPath;
+    private byte[] serverCACertData;
     private boolean disabled;
     private String serverName;
+    private boolean disableHostVerification;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(ClientConfigTLS clientConfigTLS) {
+    private Builder(ClientConfigTLS clientConfigTLS) {
       this.disabled = clientConfigTLS.disabled;
       this.serverName = clientConfigTLS.serverName;
+      this.clientCertPath = clientConfigTLS.clientCertPath;
+      this.clientCertData = clientConfigTLS.clientCertData;
+      this.clientKeyPath = clientConfigTLS.clientKeyPath;
+      this.clientKeyData = clientConfigTLS.clientKeyData;
+      this.serverCACertPath = clientConfigTLS.serverCACertPath;
+      this.serverCACertData = clientConfigTLS.serverCACertData;
+      this.disableHostVerification = clientConfigTLS.disableHostVerification;
     }
 
     /** Disable TLS. Default: false. */
@@ -102,36 +128,57 @@ public class ClientConfigTLS {
 
     /** Path to client mTLS certificate. Mutually exclusive with ClientCertData. */
     public Builder setClientCertPath(String clientCertPath) {
+      this.clientCertPath = clientCertPath;
       return this;
     }
 
     /** PEM bytes for client mTLS certificate. Mutually exclusive with ClientCertPath. */
     public Builder setClientCertData(byte[] bytes) {
+      this.clientCertData = bytes;
       return this;
     }
 
     /** Path to client mTLS key. Mutually exclusive with ClientKeyData. */
     public Builder setClientKeyPath(String clientKeyPath) {
+      this.clientKeyPath = clientKeyPath;
       return this;
     }
 
     /** PEM bytes for client mTLS key. Mutually exclusive with ClientKeyPath. */
-    public Builder setClientKeyData(byte[] bytes) {
+    public Builder setClientKeyData(byte[] clientKeyData) {
+      this.clientKeyData = clientKeyData;
       return this;
     }
 
     /** Path to server CA cert override. Mutually exclusive with ServerCACertData. */
-    public Builder setServerCACertPath(String s) {
+    public Builder setServerCACertPath(String serverCACertPath) {
+      this.serverCACertPath = serverCACertPath;
       return this;
     }
 
     /** PEM bytes for server CA cert override. Mutually exclusive with ServerCACertPath. */
-    public Builder setServerCACertData(byte[] bytes) {
+    public Builder setServerCACertData(byte[] serverCACertData) {
+      this.serverCACertData = serverCACertData;
+      return this;
+    }
+
+    /** Disable server host verification. Default: false */
+    public Builder setDisableHostVerification(boolean disableHostVerification) {
+      this.setDisableHostVerification(disableHostVerification);
       return this;
     }
 
     public ClientConfigTLS build() {
-      return new ClientConfigTLS(disabled, null, null, null, null, null, null, serverName, false);
+      return new ClientConfigTLS(
+          disabled,
+          clientCertPath,
+          clientCertData,
+          clientKeyPath,
+          clientKeyData,
+          serverCACertPath,
+          serverCACertData,
+          serverName,
+          disableHostVerification);
     }
   }
 }
