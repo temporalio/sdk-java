@@ -3,46 +3,10 @@ package io.temporal.envconfig;
 import io.temporal.common.Experimental;
 import java.util.Map;
 
-//// LoadClientConfigProfileOptions are options for [LoadClientConfigProfile].
-// type LoadClientConfigProfileOptions struct {
-//    // Override the file path to use to load the TOML file for config. Defaults to
-// TEMPORAL_CONFIG_FILE environment
-//    // variable or if that is unset/empty, defaults to [os.UserConfigDir]/temporal/temporal.toml.
-// If ConfigFileData is
-//    // set, this cannot be set and no file loading from disk occurs. Ignored if DisableFile is
-// true.
-//    ConfigFilePath string
-//
-//    // TOML data to load for config. If set, this overrides any file loading. Cannot be set if
-// ConfigFilePath is set.
-//    // Ignored if DisableFile is true.
-//    ConfigFileData []byte
-//
-//    // Specific profile to use after file is loaded. Defaults to TEMPORAL_PROFILE environment
-// variable or if that is
-//    // unset/empty, defaults to "default". If either this or the environment variable are set,
-// load will fail if the
-//    // profile isn't present in the config. Ignored if DisableFile is true.
-//    ConfigFileProfile string
-//
-//    // If true, will error if there are unrecognized keys.
-//    ConfigFileStrict bool
-//
-//    // If true, will not do any TOML loading from file or data. This and DisableEnv cannot both be
-// true.
-//    DisableFile bool
-//
-//    // If true, will not apply environment variables on top of file config for the client options,
-// but
-//    // TEMPORAL_CONFIG_FILE and TEMPORAL_PROFILE environment variables may still by used to
-// populate defaults in this
-//    // options structure.
-//    DisableEnv bool
-//
-//    // Override the environment variable lookup. If nil, defaults to [EnvLookupOS].
-//    EnvLookup EnvLookup
-// }
-
+/**
+ * Options for loading a client config profile via {@link
+ * ClientConfigProfile#load(LoadClientConfigProfileOptions)}
+ */
 @Experimental
 public class LoadClientConfigProfileOptions {
   public static Builder newBuilder() {
@@ -56,10 +20,6 @@ public class LoadClientConfigProfileOptions {
   private final boolean disableFile;
   private final boolean disableEnv;
   private final Map<String, String> envOverrides;
-
-  public LoadClientConfigProfileOptions() {
-    this("default", null, null, false, false, false, null);
-  }
 
   public LoadClientConfigProfileOptions(
       String configFileProfile,
@@ -126,36 +86,66 @@ public class LoadClientConfigProfileOptions {
           envOverrides);
     }
 
+    /** If true, will error if there are unrecognized keys. Defaults to false. */
     public Builder setConfigFileStrict(boolean configFileStrict) {
       this.configFileStrict = configFileStrict;
       return this;
     }
 
+    /**
+     * If true, will not do any TOML loading from file or data. This and DisableEnv cannot both be
+     * true. Defaults to false.
+     */
     public Builder setDisableFile(boolean disableFile) {
       this.disableFile = disableFile;
       return this;
     }
 
+    /**
+     * If true, will not apply environment variables on top of file config for the client options,
+     * but TEMPORAL_CONFIG_FILE and TEMPORAL_PROFILE environment variables may still by used to
+     * populate defaults in this options structure. Defaults to false.
+     */
     public Builder setDisableEnv(boolean disableEnv) {
       this.disableEnv = disableEnv;
       return this;
     }
 
+    /**
+     * Override the file path to use to load the TOML file for config. Defaults to
+     * TEMPORAL_CONFIG_FILE environment variable or if that is unset/empty, defaults to
+     * [os.UserConfigDir]/temporal/temporal.toml. If ConfigFileData is set, this cannot be set and
+     * no file loading from disk occurs. Ignored if DisableFile is true.
+     */
     public Builder setConfigFilePath(String configFilePath) {
       this.configFilePath = configFilePath;
       return this;
     }
 
+    /**
+     * TOML data to load for config. If set, this overrides any file loading. Cannot be set if
+     * ConfigFilePath is set. Ignored if DisableFile is true.
+     */
     public Builder setConfigFileData(byte[] bytes) {
       this.configFileData = bytes;
       return this;
     }
 
+    /**
+     * Set specific profile to use after file is loaded. Defaults to TEMPORAL_PROFILE environment
+     * variable or if that is unset/empty, defaults to "default". If either this or the environment
+     * variable are set, load will fail if the profile isn't present in the config. Ignored if
+     * DisableFile is true.
+     */
     public Builder setConfigFileProfile(String foo) {
       this.configFileProfile = foo;
       return this;
     }
 
+    /**
+     * Set environment variable overrides. If set, these will be used instead of the actual
+     * environment variables. If not set, the actual environment variables will be used.
+     */
     public Builder setEnvOverrides(Map<String, String> envOverrides) {
       this.envOverrides = envOverrides;
       return this;

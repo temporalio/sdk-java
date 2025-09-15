@@ -16,5 +16,6 @@ dependencies {
         api project(':temporal-spring-boot-starter')
         api project(':temporal-test-server')
         api project(':temporal-testing')
+        api project(':temporal-envconfig')
     }
 }

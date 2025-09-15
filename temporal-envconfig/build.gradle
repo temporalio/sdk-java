@@ -4,7 +4,6 @@ dependencies {
     // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
     compileOnly project(':temporal-sdk')
 
-    implementation 'org.tomlj:tomlj:1.1.1'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-toml:2.15.4'
     testImplementation project(":temporal-testing")
     testImplementation "junit:junit:${junitVersion}"
