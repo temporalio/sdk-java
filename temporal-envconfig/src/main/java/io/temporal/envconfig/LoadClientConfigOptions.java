@@ -10,6 +10,10 @@ public class LoadClientConfigOptions {
     return new Builder();
   }
 
+  public static Builder newBuilder(LoadClientConfigOptions options) {
+    return new Builder(options);
+  }
+
   private final String configFilePath;
   private final byte[] configFileData;
   private final boolean strictConfigFile;
@@ -48,7 +52,14 @@ public class LoadClientConfigOptions {
     private boolean strictConfigFile;
     private Map<String, String> envOverrides;
 
-    public Builder() {}
+    private Builder() {}
+
+    private Builder(LoadClientConfigOptions options) {
+      this.configFilePath = options.configFilePath;
+      this.configFileData = options.configFileData;
+      this.strictConfigFile = options.strictConfigFile;
+      this.envOverrides = options.envOverrides;
+    }
 
     public LoadClientConfigOptions build() {
       return new LoadClientConfigOptions(
