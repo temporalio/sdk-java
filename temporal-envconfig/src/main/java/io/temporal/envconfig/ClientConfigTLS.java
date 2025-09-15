@@ -164,7 +164,7 @@ public class ClientConfigTLS {
 
     /** Disable server host verification. Default: false */
     public Builder setDisableHostVerification(boolean disableHostVerification) {
-      this.setDisableHostVerification(disableHostVerification);
+      this.disableHostVerification = disableHostVerification;
       return this;
     }
 
