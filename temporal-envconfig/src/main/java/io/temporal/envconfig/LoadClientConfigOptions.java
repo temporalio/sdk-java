@@ -3,26 +3,7 @@ package io.temporal.envconfig;
 import io.temporal.common.Experimental;
 import java.util.Map;
 
-// type LoadClientConfigOptions struct {
-//    // Override the file path to use to load the TOML file for config. Defaults to
-// TEMPORAL_CONFIG_FILE environment
-//    // variable or if that is unset/empty, defaults to [os.UserConfigDir]/temporal/temporal.toml.
-// If ConfigFileData is
-//    // set, this cannot be set and no file loading from disk occurs.
-//    ConfigFilePath string
-//
-//    // TOML data to load for config. If set, this overrides any file loading. Cannot be set if
-// ConfigFilePath is set.
-//    ConfigFileData []byte
-//
-//    // If true, will error if there are unrecognized keys.
-//    ConfigFileStrict bool
-//
-//    // Override the environment variable lookup (only used to determine which config file to
-// load). If nil,
-//    // defaults to [EnvLookupOS].
-//    EnvLookup EnvLookup
-// }
+/** Options for loading a client config via {@link ClientConfig#load(LoadClientConfigOptions)} */
 @Experimental
 public class LoadClientConfigOptions {
   public static Builder newBuilder() {
@@ -74,21 +55,36 @@ public class LoadClientConfigOptions {
           configFilePath, configFileData, strictConfigFile, envOverrides);
     }
 
+    /** If true, will error if there are unrecognized keys. Defaults to false. */
     public Builder setStrictConfigFile(boolean configFileStrict) {
       this.strictConfigFile = configFileStrict;
       return this;
     }
 
+    /**
+     * Set environment variable overrides. If set, these will be used instead of the actual
+     * environment variables. If not set, the actual environment variables will be used.
+     */
     public Builder setEnvOverrides(Map<String, String> envOverrides) {
       this.envOverrides = envOverrides;
       return this;
     }
 
+    /**
+     * TOML data to load for config. If set, this overrides any file loading. Cannot be set if
+     * ConfigFilePath is set. Ignored if DisableFile is true.
+     */
     public Builder setConfigFileData(byte[] bytes) {
       this.configFileData = bytes;
       return this;
     }
 
+    /**
+     * Override the file path to use to load the TOML file for config. Defaults to
+     * TEMPORAL_CONFIG_FILE environment variable or if that is unset/empty, defaults to
+     * [os.UserConfigDir]/temporal/temporal.toml. If ConfigFileData is set, this cannot be set and
+     * no file loading from disk occurs. Ignored if DisableFile is true.
+     */
     public Builder setConfigFilePath(String configFilePath) {
       this.configFilePath = configFilePath;
       return this;

@@ -2,19 +2,7 @@ package io.temporal.envconfig;
 
 import io.temporal.common.Experimental;
 
-//// Path to client mTLS certificate. Mutually exclusive with ClientCertData.
-// ClientCertPath string
-//        // PEM bytes for client mTLS certificate. Mutually exclusive with ClientCertPath.
-//        ClientCertData []byte
-//        // Path to client mTLS key. Mutually exclusive with ClientKeyData.
-//        ClientKeyPath string
-//        // PEM bytes for client mTLS key. Mutually exclusive with ClientKeyPath.
-//        ClientKeyData []byte
-//        // Path to server CA cert override. Mutually exclusive with ServerCACertData.
-//        ServerCACertPath string
-//        // PEM bytes for server CA cert override. Mutually exclusive with ServerCACertPath.
-//        ServerCACertData []byte
-
+/** TLS configuration for a client. */
 @Experimental
 public class ClientConfigTLS {
   public static Builder newBuilder() {
@@ -97,36 +85,47 @@ public class ClientConfigTLS {
       this.serverName = clientConfigTLS.serverName;
     }
 
+    /** Disable TLS. Default: false. */
     public Builder setDisabled(boolean disabled) {
       this.disabled = disabled;
       return this;
     }
 
+    /**
+     * Server name for TLS verification. If not set, the hostname from the target endpoint will be
+     * used.
+     */
     public Builder setServerName(String serverName) {
       this.serverName = serverName;
       return this;
     }
 
+    /** Path to client mTLS certificate. Mutually exclusive with ClientCertData. */
     public Builder setClientCertPath(String clientCertPath) {
       return this;
     }
 
+    /** PEM bytes for client mTLS certificate. Mutually exclusive with ClientCertPath. */
     public Builder setClientCertData(byte[] bytes) {
       return this;
     }
 
+    /** Path to client mTLS key. Mutually exclusive with ClientKeyData. */
     public Builder setClientKeyPath(String clientKeyPath) {
       return this;
     }
 
+    /** PEM bytes for client mTLS key. Mutually exclusive with ClientKeyPath. */
     public Builder setClientKeyData(byte[] bytes) {
       return this;
     }
 
+    /** Path to server CA cert override. Mutually exclusive with ServerCACertData. */
     public Builder setServerCACertPath(String s) {
       return this;
     }
 
+    /** PEM bytes for server CA cert override. Mutually exclusive with ServerCACertPath. */
     public Builder setServerCACertData(byte[] bytes) {
       return this;
     }

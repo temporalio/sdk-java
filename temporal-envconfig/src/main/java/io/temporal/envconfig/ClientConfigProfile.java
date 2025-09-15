@@ -15,10 +15,17 @@ import java.util.Map;
 /** ClientConfigProfile is profile-level configuration for a client. */
 @Experimental
 public class ClientConfigProfile {
+  /** Creates a new builder to build a ClientConfigProfile. */
   public static Builder newBuilder() {
     return new Builder();
   }
 
+  /**
+   * Creates a new builder to build a ClientConfigProfile based on an existing profile.
+   *
+   * @param profile the existing profile to base the builder on
+   * @return a new Builder instance
+   */
   public static Builder newBuilder(ClientConfigProfile profile) {
     return new Builder(profile);
   }
@@ -46,6 +53,10 @@ public class ClientConfigProfile {
     return new Builder(this);
   }
 
+  /**
+   * Converts this profile to WorkflowServiceStubsOptions. Note that not all fields are converted,
+   * only those relevant to service stubs.
+   */
   public WorkflowServiceStubsOptions toWorkflowServiceStubsOptions() {
     WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
     if (this.address != null && !this.address.isEmpty()) {
@@ -100,11 +111,18 @@ public class ClientConfigProfile {
       if (this.tls.getServerName() != null && !this.tls.getServerName().isEmpty()) {
         builder.setChannelInitializer(c -> c.overrideAuthority(this.tls.getServerName()));
       }
+    } else if (this.apiKey != null && !this.apiKey.isEmpty()) {
+      // If API key is set, TLS is required, so enable it with defaults
+      builder.setEnableHttps(true);
     }
 
     return builder.build();
   }
 
+  /**
+   * Converts this profile to WorkflowClientOptions. Note that not all fields are converted, only
+   * those relevant to client options.
+   */
   public WorkflowClientOptions toWorkflowClientOptions() {
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     if (this.namespace != null && !this.namespace.isEmpty()) {
@@ -156,8 +174,7 @@ public class ClientConfigProfile {
     }
     // If env is enabled, apply it on top of an empty profile
     if (!options.isDisableEnv()) {
-      Map<String, String> overrideEnvVars = null;
-      clientConfigProfile.applyEnvOverrides(overrideEnvVars);
+      clientConfigProfile.applyEnvOverrides(options.getEnvOverrides());
     }
     return clientConfigProfile;
   }
@@ -328,26 +345,42 @@ public class ClientConfigProfile {
       this.tls = profile.tls;
     }
 
+    /**
+     * Sets the namespace for the client. This is optional; if not set, the default namespace will
+     * be used.
+     */
     public Builder setNamespace(String namespace) {
       this.namespace = namespace;
       return this;
     }
 
+    /**
+     * Sets the address of the Temporal service endpoint. This is optional; if not set, the default
+     * address will be used.
+     */
     public Builder setAddress(String address) {
       this.address = address;
       return this;
     }
 
+    /** Sets the API key for the client. This is optional; if not set, no API key will be used. */
     public Builder setApiKey(String apiKey) {
       this.apiKey = apiKey;
       return this;
     }
 
+    /**
+     * Sets the gRPC metadata to be sent with each request. This is optional; if not set, no
+     * metadata will be sent.
+     */
     public Builder setMetadata(Metadata metadata) {
       this.metadata = metadata;
       return this;
     }
 
+    /**
+     * Sets the TLS configuration for the client. This is optional; if not set, no TLS will be used.
+     */
     public Builder setTls(ClientConfigTLS tls) {
       this.tls = tls;
       return this;
