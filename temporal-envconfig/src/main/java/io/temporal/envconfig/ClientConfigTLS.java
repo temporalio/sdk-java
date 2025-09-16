@@ -15,7 +15,12 @@ public class ClientConfigTLS {
     return new Builder(config);
   }
 
-  private final boolean disabled;
+  /** Returns a default instance of {@link ClientConfigTLS} with all fields unset. */
+  public static ClientConfigTLS getDefaultInstance() {
+    return new Builder().build();
+  }
+
+  private final Boolean disabled;
   private final String clientCertPath;
   private final byte[] clientCertData;
   private final String clientKeyPath;
@@ -23,10 +28,10 @@ public class ClientConfigTLS {
   private final String serverCACertPath;
   private final byte[] serverCACertData;
   private final String serverName;
-  private final boolean disableHostVerification;
+  private final Boolean disableHostVerification;
 
   private ClientConfigTLS(
-      boolean disabled,
+      Boolean disabled,
       String clientCertPath,
       byte[] clientCertData,
       String clientKeyPath,
@@ -34,7 +39,7 @@ public class ClientConfigTLS {
       String serverCACertPath,
       byte[] serverCACertData,
       String serverName,
-      boolean disableHostVerification) {
+      Boolean disableHostVerification) {
     this.disabled = disabled;
     this.clientCertPath = clientCertPath;
     this.clientCertData = clientCertData;
@@ -46,7 +51,7 @@ public class ClientConfigTLS {
     this.disableHostVerification = disableHostVerification;
   }
 
-  public boolean isDisabled() {
+  public Boolean isDisabled() {
     return disabled;
   }
 
@@ -78,7 +83,7 @@ public class ClientConfigTLS {
     return serverName;
   }
 
-  public boolean isDisableHostVerification() {
+  public Boolean isDisableHostVerification() {
     return disableHostVerification;
   }
 
@@ -93,9 +98,9 @@ public class ClientConfigTLS {
     private byte[] clientKeyData;
     private String serverCACertPath;
     private byte[] serverCACertData;
-    private boolean disabled;
+    private Boolean disabled;
     private String serverName;
-    private boolean disableHostVerification;
+    private Boolean disableHostVerification;
 
     private Builder() {}
 
@@ -112,7 +117,7 @@ public class ClientConfigTLS {
     }
 
     /** Disable TLS. Default: false. */
-    public Builder setDisabled(boolean disabled) {
+    public Builder setDisabled(Boolean disabled) {
       this.disabled = disabled;
       return this;
     }
@@ -163,7 +168,7 @@ public class ClientConfigTLS {
     }
 
     /** Disable server host verification. Default: false */
-    public Builder setDisableHostVerification(boolean disableHostVerification) {
+    public Builder setDisableHostVerification(Boolean disableHostVerification) {
       this.disableHostVerification = disableHostVerification;
       return this;
     }

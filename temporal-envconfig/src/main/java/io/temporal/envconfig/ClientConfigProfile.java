@@ -16,13 +16,13 @@ import java.util.Map;
 /** ClientConfigProfile is profile-level configuration for a client. */
 @Experimental
 public class ClientConfigProfile {
-  /** Creates a new builder to build a ClientConfigProfile. */
+  /** Creates a new builder to build a {@link ClientConfigProfile}. */
   public static Builder newBuilder() {
     return new Builder();
   }
 
   /**
-   * Creates a new builder to build a ClientConfigProfile based on an existing profile.
+   * Creates a new builder to build a {@link ClientConfigProfile} based on an existing profile.
    *
    * @param profile the existing profile to base the builder on
    * @return a new Builder instance
@@ -31,116 +31,29 @@ public class ClientConfigProfile {
     return new Builder(profile);
   }
 
-  /** Returns a default instance of ClientConfigProfile with all fields unset. */
+  /** Returns a default instance of {@link ClientConfigProfile} with all fields unset. */
   public static ClientConfigProfile getDefaultInstance() {
     return new Builder().build();
   }
 
-  private String namespace;
-  private String address;
-  private String apiKey;
-  private Metadata metadata;
-  private ClientConfigTLS tls;
-
-  private ClientConfigProfile(
-      String namespace, String address, String apiKey, Metadata metadata, ClientConfigTLS tls) {
-    this.namespace = namespace;
-    this.address = address;
-    this.apiKey = apiKey;
-    this.metadata = metadata;
-    this.tls = tls;
-  }
-
-  public Builder toBuilder() {
-    return new Builder(this);
-  }
-
   /**
-   * Converts this profile to WorkflowServiceStubsOptions. Note that not all fields are converted,
-   * only those relevant to service stubs.
+   * Load a client profile from given sources, applying environment variable overrides.
+   *
+   * <p>This is a convenience method for {@link #load(LoadClientConfigProfileOptions)} with default
+   * options.
+   *
+   * @throws IOException if the config file cannot be read or parsed
    */
-  public WorkflowServiceStubsOptions toWorkflowServiceStubsOptions() {
-    WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
-    if (this.address != null && !this.address.isEmpty()) {
-      builder.setTarget(this.address);
-    }
-    if (this.apiKey != null && !this.apiKey.isEmpty()) {
-      builder.addApiKey(() -> this.apiKey);
-    }
-    if (this.metadata != null) {
-      builder.addGrpcMetadataProvider(() -> this.metadata);
-    }
-    if (this.tls != null && !this.tls.isDisabled()) {
-      try {
-        InputStream clientCertStream;
-        if (this.tls.getClientCertPath() != null && !this.tls.getClientCertPath().isEmpty()) {
-          clientCertStream = Files.newInputStream(Paths.get(this.tls.getClientCertPath()));
-        } else if (this.tls.getClientCertData() != null
-            && this.tls.getClientCertData().length > 0) {
-          clientCertStream = new ByteArrayInputStream(this.tls.getClientCertData());
-        } else {
-          clientCertStream = null;
-        }
-
-        InputStream keyFile;
-        if (this.tls.getClientKeyPath() != null && !this.tls.getClientKeyPath().isEmpty()) {
-          keyFile = Files.newInputStream(Paths.get(this.tls.getClientKeyPath()));
-        } else if (this.tls.getClientKeyData() != null && this.tls.getClientKeyData().length > 0) {
-          keyFile = new ByteArrayInputStream(this.tls.getClientKeyData());
-        } else {
-          keyFile = null;
-        }
-
-        InputStream trustCertCollectionInputStream;
-        if (this.tls.getServerCACertPath() != null && !this.tls.getServerCACertPath().isEmpty()) {
-          trustCertCollectionInputStream =
-              Files.newInputStream(Paths.get(this.tls.getServerCACertPath()));
-        } else if (this.tls.getServerCACertData() != null
-            && this.tls.getServerCACertData().length > 0) {
-          trustCertCollectionInputStream = new ByteArrayInputStream(this.tls.getServerCACertData());
-        } else {
-          trustCertCollectionInputStream = null;
-        }
-
-        SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
-        if (trustCertCollectionInputStream != null) {
-          sslContextBuilder.trustManager(trustCertCollectionInputStream);
-        } else if (this.tls.isDisableHostVerification()) {
-          sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-        }
-        sslContextBuilder.keyManager(clientCertStream, keyFile);
-        builder.setSslContext(sslContextBuilder.build());
-      } catch (IOException e) {
-        throw new RuntimeException("Unable to create SSL context", e);
-      }
-      if (this.tls.getServerName() != null && !this.tls.getServerName().isEmpty()) {
-        builder.setChannelInitializer(c -> c.overrideAuthority(this.tls.getServerName()));
-      }
-    } else if (this.apiKey != null && !this.apiKey.isEmpty()) {
-      // If API key is set, TLS is required, so enable it with defaults
-      builder.setEnableHttps(true);
-    }
-
-    return builder.build();
-  }
-
-  /**
-   * Converts this profile to WorkflowClientOptions. Note that not all fields are converted, only
-   * those relevant to client options.
-   */
-  public WorkflowClientOptions toWorkflowClientOptions() {
-    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    if (this.namespace != null && !this.namespace.isEmpty()) {
-      builder.setNamespace(this.namespace);
-    }
-
-    return builder.build();
-  }
-
   public static ClientConfigProfile load() throws IOException {
     return load(LoadClientConfigProfileOptions.newBuilder().build());
   }
 
+  /**
+   * Load a client profile from given sources, applying environment variable overrides.
+   *
+   * @param options options to control loading the profile
+   * @throws IOException if the config file cannot be read or parsed
+   */
   public static ClientConfigProfile load(LoadClientConfigProfileOptions options)
       throws IOException {
     if (options.isDisableFile() && options.isDisableEnv()) {
@@ -182,6 +95,123 @@ public class ClientConfigProfile {
       clientConfigProfile.applyEnvOverrides(options.getEnvOverrides());
     }
     return clientConfigProfile;
+  }
+
+  private String namespace;
+  private String address;
+  private String apiKey;
+  private Metadata metadata;
+  private ClientConfigTLS tls;
+
+  private ClientConfigProfile(
+      String namespace, String address, String apiKey, Metadata metadata, ClientConfigTLS tls) {
+    this.namespace = namespace;
+    this.address = address;
+    this.apiKey = apiKey;
+    this.metadata = metadata;
+    this.tls = tls;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
+  /**
+   * Converts this profile to WorkflowServiceStubsOptions. Note that not all fields are converted,
+   * only those relevant to service stubs.
+   */
+  public WorkflowServiceStubsOptions toWorkflowServiceStubsOptions() {
+    WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
+    if (this.address != null && !this.address.isEmpty()) {
+      builder.setTarget(this.address);
+    }
+    if (this.apiKey != null && !this.apiKey.isEmpty()) {
+      builder.addApiKey(() -> this.apiKey);
+    }
+    if (this.metadata != null) {
+      builder.addGrpcMetadataProvider(() -> this.metadata);
+    }
+    if (this.tls != null && !Boolean.FALSE.equals(this.tls.isDisabled())) {
+      InputStream clientCertStream = null;
+      InputStream keyFileStream = null;
+      InputStream trustCertCollectionInputStream = null;
+      try {
+        if (this.tls.getClientCertPath() != null && !this.tls.getClientCertPath().isEmpty()) {
+          clientCertStream = Files.newInputStream(Paths.get(this.tls.getClientCertPath()));
+        } else if (this.tls.getClientCertData() != null
+            && this.tls.getClientCertData().length > 0) {
+          clientCertStream = new ByteArrayInputStream(this.tls.getClientCertData());
+        }
+
+        if (this.tls.getClientKeyPath() != null && !this.tls.getClientKeyPath().isEmpty()) {
+          keyFileStream = Files.newInputStream(Paths.get(this.tls.getClientKeyPath()));
+        } else if (this.tls.getClientKeyData() != null && this.tls.getClientKeyData().length > 0) {
+          keyFileStream = new ByteArrayInputStream(this.tls.getClientKeyData());
+        }
+
+        if (this.tls.getServerCACertPath() != null && !this.tls.getServerCACertPath().isEmpty()) {
+          trustCertCollectionInputStream =
+              Files.newInputStream(Paths.get(this.tls.getServerCACertPath()));
+        } else if (this.tls.getServerCACertData() != null
+            && this.tls.getServerCACertData().length > 0) {
+          trustCertCollectionInputStream = new ByteArrayInputStream(this.tls.getServerCACertData());
+        }
+
+        SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
+        if (trustCertCollectionInputStream != null) {
+          sslContextBuilder.trustManager(trustCertCollectionInputStream);
+        } else if (Boolean.TRUE.equals(this.tls.isDisableHostVerification())) {
+          sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        }
+        sslContextBuilder.keyManager(clientCertStream, keyFileStream);
+        builder.setSslContext(sslContextBuilder.build());
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to create SSL context", e);
+      } finally {
+        if (clientCertStream != null) {
+          try {
+            clientCertStream.close();
+          } catch (IOException e) {
+            // Ignore
+          }
+        }
+        if (keyFileStream != null) {
+          try {
+            keyFileStream.close();
+          } catch (IOException e) {
+            // Ignore
+          }
+        }
+        if (trustCertCollectionInputStream != null) {
+          try {
+            trustCertCollectionInputStream.close();
+          } catch (IOException e) {
+            // Ignore
+          }
+        }
+      }
+      if (this.tls.getServerName() != null && !this.tls.getServerName().isEmpty()) {
+        builder.setChannelInitializer(c -> c.overrideAuthority(this.tls.getServerName()));
+      }
+    } else if (this.apiKey != null && !this.apiKey.isEmpty()) {
+      // If API key is set, TLS is required, so enable it with defaults
+      builder.setEnableHttps(true);
+    }
+
+    return builder.build();
+  }
+
+  /**
+   * Converts this profile to WorkflowClientOptions. Note that not all fields are converted, only
+   * those relevant to client options.
+   */
+  public WorkflowClientOptions toWorkflowClientOptions() {
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
+    if (this.namespace != null && !this.namespace.isEmpty()) {
+      builder.setNamespace(this.namespace);
+    }
+
+    return builder.build();
   }
 
   private void applyEnvOverrides(Map<String, String> overrideEnvVars) {

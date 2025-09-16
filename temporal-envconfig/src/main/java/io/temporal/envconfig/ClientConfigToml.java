@@ -65,7 +65,7 @@ class ClientConfigToml {
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   static class TomlClientConfigTLS {
     @JsonProperty("disabled")
-    public boolean disabled;
+    public Boolean disabled;
 
     @JsonProperty("client_cert_path")
     public String clientCertPath;
@@ -89,12 +89,12 @@ class ClientConfigToml {
     public String serverName;
 
     @JsonProperty("disable_host_verification")
-    public boolean disableHostVerification;
+    public Boolean disableHostVerification;
 
     protected TomlClientConfigTLS() {}
 
     TomlClientConfigTLS(
-        boolean disabled,
+        Boolean disabled,
         String clientCertPath,
         String clientCertData,
         String clientKeyPath,
@@ -102,7 +102,7 @@ class ClientConfigToml {
         String serverCACertPath,
         String serverCACertData,
         String serverName,
-        boolean disableHostVerification) {
+        Boolean disableHostVerification) {
       this.disabled = disabled;
       this.clientCertPath = clientCertPath;
       this.clientCertData = clientCertData;
