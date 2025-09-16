@@ -6,12 +6,19 @@ import java.util.Map;
 /** Options for loading a client config via {@link ClientConfig#load(LoadClientConfigOptions)} */
 @Experimental
 public class LoadClientConfigOptions {
+  /** Create a builder for {@link LoadClientConfigOptions}. */
   public static Builder newBuilder() {
     return new Builder();
   }
 
+  /** Create a builder from an existing {@link LoadClientConfigOptions}. */
   public static Builder newBuilder(LoadClientConfigOptions options) {
     return new Builder(options);
+  }
+
+  /** Returns a default instance of {@link LoadClientConfigOptions} with all fields unset. */
+  public static LoadClientConfigOptions getDefaultInstance() {
+    return new Builder().build();
   }
 
   private final String configFilePath;
@@ -19,7 +26,7 @@ public class LoadClientConfigOptions {
   private final boolean strictConfigFile;
   private final Map<String, String> envOverrides;
 
-  public LoadClientConfigOptions(
+  private LoadClientConfigOptions(
       String configFilePath,
       byte[] configFileData,
       boolean strictConfigFile,
@@ -61,11 +68,6 @@ public class LoadClientConfigOptions {
       this.envOverrides = options.envOverrides;
     }
 
-    public LoadClientConfigOptions build() {
-      return new LoadClientConfigOptions(
-          configFilePath, configFileData, strictConfigFile, envOverrides);
-    }
-
     /** If true, will error if there are unrecognized keys. Defaults to false. */
     public Builder setStrictConfigFile(boolean configFileStrict) {
       this.strictConfigFile = configFileStrict;
@@ -99,6 +101,11 @@ public class LoadClientConfigOptions {
     public Builder setConfigFilePath(String configFilePath) {
       this.configFilePath = configFilePath;
       return this;
+    }
+
+    public LoadClientConfigOptions build() {
+      return new LoadClientConfigOptions(
+          configFilePath, configFileData, strictConfigFile, envOverrides);
     }
   }
 }

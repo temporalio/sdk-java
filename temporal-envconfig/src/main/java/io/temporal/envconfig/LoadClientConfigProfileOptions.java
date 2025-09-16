@@ -9,12 +9,19 @@ import java.util.Map;
  */
 @Experimental
 public class LoadClientConfigProfileOptions {
+  /** Create a builder for {@link LoadClientConfigProfileOptions}. */
   public static Builder newBuilder() {
     return new Builder();
   }
 
+  /** Create a builder from an existing {@link LoadClientConfigProfileOptions}. */
   public static Builder newBuilder(LoadClientConfigProfileOptions options) {
     return new Builder(options);
+  }
+
+  /** Returns a default instance of {@link LoadClientConfigProfileOptions} with all fields unset. */
+  public static LoadClientConfigProfileOptions getDefaultInstance() {
+    return new Builder().build();
   }
 
   private final String configFileProfile;
