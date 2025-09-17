@@ -4,8 +4,8 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Link;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
-import io.temporal.nexus.NexusOperationInfo;
 import io.temporal.nexus.NexusOperationContext;
+import io.temporal.nexus.NexusOperationInfo;
 
 public class InternalNexusOperationContext {
   private final String namespace;
