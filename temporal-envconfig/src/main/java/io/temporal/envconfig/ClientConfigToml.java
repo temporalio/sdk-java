@@ -180,4 +180,51 @@ class ClientConfigToml {
     }
     return profiles;
   }
+
+  public static Map<String, TomlClientConfigProfile> fromClientProfiles(
+      Map<String, ClientConfigProfile> profiles) {
+    Map<String, TomlClientConfigProfile> tomlProfiles = new HashMap<>(profiles.size());
+    for (Map.Entry<String, ClientConfigProfile> entry : profiles.entrySet()) {
+      String profileName = entry.getKey();
+      ClientConfigProfile profile = entry.getValue();
+      TomlClientConfigTLS tls = null;
+      if (profile.getTls() != null) {
+        tls =
+            new TomlClientConfigTLS(
+                profile.getTls().isDisabled(),
+                profile.getTls().getClientCertPath(),
+                profile.getTls().getClientCertData() != null
+                    ? new String(profile.getTls().getClientCertData(), StandardCharsets.UTF_8)
+                    : null,
+                profile.getTls().getClientKeyPath(),
+                profile.getTls().getClientKeyData() != null
+                    ? new String(profile.getTls().getClientKeyData(), StandardCharsets.UTF_8)
+                    : null,
+                profile.getTls().getServerCACertPath(),
+                profile.getTls().getServerCACertData() != null
+                    ? new String(profile.getTls().getServerCACertData(), StandardCharsets.UTF_8)
+                    : null,
+                profile.getTls().getServerName(),
+                profile.getTls().isDisableHostVerification());
+      }
+      Map<String, String> grpcMeta = null;
+      if (profile.getMetadata() != null) {
+        grpcMeta = new HashMap<>();
+        for (String key : profile.getMetadata().keys()) {
+          Metadata.Key<String> metaKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+          Iterable<String> values = profile.getMetadata().getAll(metaKey);
+          if (values != null) {
+            // Join multiple values with comma
+            String joinedValues = String.join(",", values);
+            grpcMeta.put(key, joinedValues);
+          }
+        }
+      }
+      TomlClientConfigProfile tomlProfile =
+          new TomlClientConfigProfile(
+              profile.getAddress(), profile.getNamespace(), profile.getApiKey(), tls, grpcMeta);
+      tomlProfiles.put(profileName, tomlProfile);
+    }
+    return tomlProfiles;
+  }
 }
