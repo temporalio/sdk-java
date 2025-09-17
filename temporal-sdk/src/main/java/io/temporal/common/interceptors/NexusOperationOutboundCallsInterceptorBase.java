@@ -3,7 +3,7 @@ package io.temporal.common.interceptors;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
-import io.temporal.nexus.NexusInfo;
+import io.temporal.nexus.NexusOperationInfo;
 
 /** Convenience base class for {@link NexusOperationOutboundCallsInterceptor} implementations. */
 @Experimental
@@ -16,7 +16,7 @@ public class NexusOperationOutboundCallsInterceptorBase
   }
 
   @Override
-  public NexusInfo getInfo() {
+  public NexusOperationInfo getInfo() {
     return next.getInfo();
   }
 

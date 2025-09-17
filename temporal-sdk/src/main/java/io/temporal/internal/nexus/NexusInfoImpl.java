@@ -1,8 +1,8 @@
 package io.temporal.internal.nexus;
 
-import io.temporal.nexus.NexusInfo;
+import io.temporal.nexus.NexusOperationInfo;
 
-class NexusInfoImpl implements NexusInfo {
+class NexusInfoImpl implements NexusOperationInfo {
   private final String namespace;
   private final String taskQueue;
 

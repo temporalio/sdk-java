@@ -4,7 +4,7 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.nexus.Nexus;
-import io.temporal.nexus.NexusInfo;
+import io.temporal.nexus.NexusOperationInfo;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -46,7 +46,7 @@ public class NexusOperationInfoTest {
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (context, details, input) -> {
-            NexusInfo info = Nexus.getOperationContext().getInfo();
+            NexusOperationInfo info = Nexus.getOperationContext().getInfo();
             return info.getNamespace() + ":" + info.getTaskQueue();
           });
     }
