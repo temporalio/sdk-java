@@ -42,8 +42,9 @@ public class ClientConfigFromTomlOptions {
     /**
      * When true, the parser will fail if the config file contains unknown fields. Default is false.
      */
-    public Boolean isStrictConfigFile() {
-      return strictConfigFile;
+    public Builder setStrictConfigFile(Boolean strictConfigFile) {
+      this.strictConfigFile = strictConfigFile;
+      return this;
     }
 
     public ClientConfigFromTomlOptions build() {
