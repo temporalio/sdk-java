@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Objects;
 
 /** ClientConfigProfile is profile-level configuration for a client. */
 @Experimental
@@ -354,6 +355,62 @@ public class ClientConfigProfile {
 
   public ClientConfigTLS getTls() {
     return tls;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    ClientConfigProfile profile = (ClientConfigProfile) o;
+    // Compare metadata properly
+    if (this.metadata == null) {
+      if (profile.metadata != null && profile.metadata.keys() != null) {
+        return false;
+      }
+    } else if (profile.metadata == null) {
+      if (this.metadata.keys() != null) {
+        return false;
+      }
+    } else {
+      // Both non-null, compare keys and values
+      if (!Objects.equals(this.metadata.keys(), profile.metadata.keys())) {
+        return false;
+      }
+      for (String key : this.metadata.keys()) {
+        if (!Objects.equals(
+            this.metadata.get(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER)),
+            profile.metadata.get(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER)))) {
+          return false;
+        }
+      }
+    }
+    return Objects.equals(namespace, profile.namespace)
+        && Objects.equals(address, profile.address)
+        && Objects.equals(apiKey, profile.apiKey)
+        && Objects.equals(tls, profile.tls);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(namespace, address, apiKey, metadata, tls);
+  }
+
+  @Override
+  public String toString() {
+    return "ClientConfigProfile{"
+        + "namespace='"
+        + namespace
+        + '\''
+        + ", address='"
+        + address
+        + '\''
+        + ", apiKey='"
+        + apiKey
+        + '\''
+        + ", metadata="
+        + metadata
+        + ", tls="
+        + tls
+        + '}';
   }
 
   public static final class Builder {

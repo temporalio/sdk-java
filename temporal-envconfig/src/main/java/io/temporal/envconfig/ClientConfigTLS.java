@@ -1,6 +1,8 @@
 package io.temporal.envconfig;
 
 import io.temporal.common.Experimental;
+import java.util.Arrays;
+import java.util.Objects;
 
 /** TLS configuration for a client. */
 @Experimental
@@ -89,6 +91,63 @@ public class ClientConfigTLS {
 
   public Builder toBuilder() {
     return new Builder(this);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    ClientConfigTLS that = (ClientConfigTLS) o;
+    return Objects.equals(disabled, that.disabled)
+        && Objects.equals(clientCertPath, that.clientCertPath)
+        && Objects.deepEquals(clientCertData, that.clientCertData)
+        && Objects.equals(clientKeyPath, that.clientKeyPath)
+        && Objects.deepEquals(clientKeyData, that.clientKeyData)
+        && Objects.equals(serverCACertPath, that.serverCACertPath)
+        && Objects.deepEquals(serverCACertData, that.serverCACertData)
+        && Objects.equals(serverName, that.serverName)
+        && Objects.equals(disableHostVerification, that.disableHostVerification);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        disabled,
+        clientCertPath,
+        Arrays.hashCode(clientCertData),
+        clientKeyPath,
+        Arrays.hashCode(clientKeyData),
+        serverCACertPath,
+        Arrays.hashCode(serverCACertData),
+        serverName,
+        disableHostVerification);
+  }
+
+  @Override
+  public String toString() {
+    return "ClientConfigTLS{"
+        + "disabled="
+        + disabled
+        + ", clientCertPath='"
+        + clientCertPath
+        + '\''
+        + ", clientCertData="
+        + Arrays.toString(clientCertData)
+        + ", clientKeyPath='"
+        + clientKeyPath
+        + '\''
+        + ", clientKeyData="
+        + Arrays.toString(clientKeyData)
+        + ", serverCACertPath='"
+        + serverCACertPath
+        + '\''
+        + ", serverCACertData="
+        + Arrays.toString(serverCACertData)
+        + ", serverName='"
+        + serverName
+        + '\''
+        + ", disableHostVerification="
+        + disableHostVerification
+        + '}';
   }
 
   public static class Builder {

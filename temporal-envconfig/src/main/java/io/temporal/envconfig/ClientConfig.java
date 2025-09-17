@@ -1,10 +1,12 @@
 package io.temporal.envconfig;
 
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.toml.TomlMapper;
 import io.temporal.common.Experimental;
 import java.io.*;
 import java.util.Map;
+import java.util.Objects;
 
 /** ClientConfig represents a client config file. */
 @Experimental
@@ -51,7 +53,6 @@ public class ClientConfig {
           reader.withoutFeatures(
               com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
-
     if (options.getConfigFileData() != null && options.getConfigFileData().length > 0) {
       if (options.getConfigFilePath() != null && !options.getConfigFilePath().isEmpty()) {
         throw new IllegalArgumentException(
@@ -79,6 +80,56 @@ public class ClientConfig {
     }
   }
 
+  /**
+   * Load client config from given TOML data.
+   *
+   * @param tomlData TOML data to parse
+   * @return the parsed client config
+   * @throws IOException if the TOML data cannot be parsed
+   */
+  public static ClientConfig fromToml(byte[] tomlData) throws IOException {
+    return fromToml(tomlData, ClientConfigFromTomlOptions.getDefaultInstance());
+  }
+
+  /**
+   * Load client config from given TOML data.
+   *
+   * @param tomlData TOML data to parse
+   * @param options options to control parsing the TOML data
+   * @return the parsed client config
+   * @throws IOException if the TOML data cannot be parsed
+   */
+  public static ClientConfig fromToml(byte[] tomlData, ClientConfigFromTomlOptions options)
+      throws IOException {
+    ObjectReader reader = new TomlMapper().readerFor(ClientConfigToml.TomlClientConfig.class);
+    if (options.isStrictConfigFile()) {
+      reader =
+          reader.withFeatures(
+              com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    } else {
+      reader =
+          reader.withoutFeatures(
+              com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
+    ClientConfigToml.TomlClientConfig result = reader.readValue(tomlData);
+    return new ClientConfig(ClientConfigToml.getClientProfiles(result));
+  }
+
+  /**
+   * Convert the client config to TOML data. Encoding is UTF-8.
+   *
+   * @param config the client config to convert
+   * @return the TOML data as bytes
+   * @apiNote The output will not be identical to the input if the config was loaded from a file
+   *     because comments and formatting are not preserved.
+   */
+  public static byte[] toTomlAsBytes(ClientConfig config) throws IOException {
+    ObjectWriter writer = new TomlMapper().writerFor(ClientConfigToml.TomlClientConfig.class);
+    return writer.writeValueAsBytes(
+        new ClientConfigToml.TomlClientConfig(
+            ClientConfigToml.fromClientProfiles(config.getProfiles())));
+  }
+
   public ClientConfig(Map<String, ClientConfigProfile> profiles) {
     this.profiles = profiles;
   }
@@ -88,5 +139,22 @@ public class ClientConfig {
   /** All profiles loaded from the config file, may be empty but never null. */
   public Map<String, ClientConfigProfile> getProfiles() {
     return profiles;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    ClientConfig that = (ClientConfig) o;
+    return Objects.equals(profiles, that.profiles);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(profiles);
+  }
+
+  @Override
+  public String toString() {
+    return "ClientConfig{" + "profiles=" + profiles + '}';
   }
 }
