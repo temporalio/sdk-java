@@ -132,7 +132,7 @@ public class ClientConfigProfile {
     if (this.metadata != null) {
       builder.addGrpcMetadataProvider(() -> this.metadata);
     }
-    if (this.tls != null && !Boolean.FALSE.equals(this.tls.isDisabled())) {
+    if (this.tls != null && this.tls.isDisabled() != null && !this.tls.isDisabled()) {
       InputStream clientCertStream = null;
       InputStream keyFileStream = null;
       InputStream trustCertCollectionInputStream = null;
