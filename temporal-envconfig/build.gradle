@@ -1,0 +1,13 @@
+description = '''Temporal Java SDK Environment Config Module'''
+
+dependencies {
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-sdk')
+
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-toml:${jacksonVersion}"
+    testImplementation project(":temporal-testing")
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
