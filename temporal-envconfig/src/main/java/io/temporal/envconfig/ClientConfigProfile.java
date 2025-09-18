@@ -132,7 +132,7 @@ public class ClientConfigProfile {
     if (this.metadata != null) {
       builder.addGrpcMetadataProvider(() -> this.metadata);
     }
-    if (this.tls != null && this.tls.isDisabled() != null && !this.tls.isDisabled()) {
+    if (this.tls != null && (this.tls.isDisabled() == null || !this.tls.isDisabled())) {
       InputStream clientCertStream = null;
       InputStream keyFileStream = null;
       InputStream trustCertCollectionInputStream = null;
@@ -195,8 +195,12 @@ public class ClientConfigProfile {
         builder.setChannelInitializer(c -> c.overrideAuthority(this.tls.getServerName()));
       }
     } else if (this.apiKey != null && !this.apiKey.isEmpty()) {
-      // If API key is set, TLS is required, so enable it with defaults
-      builder.setEnableHttps(true);
+      if (this.getTls() == null
+          || this.tls.isDisabled() == null
+          || (this.tls.isDisabled() != null && !this.tls.isDisabled())) {
+        // If API key is set, TLS is required, so enable it with defaults
+        builder.setEnableHttps(true);
+      }
     }
 
     return builder.build();

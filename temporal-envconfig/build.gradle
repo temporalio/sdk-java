@@ -4,7 +4,7 @@ dependencies {
     // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
     compileOnly project(':temporal-sdk')
 
-    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-toml:2.15.4'
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-toml:${jacksonVersion}"
     testImplementation project(":temporal-testing")
     testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
