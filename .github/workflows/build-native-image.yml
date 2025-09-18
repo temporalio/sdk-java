@@ -97,7 +97,7 @@ jobs:
         run: |
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            $(docker build -q ./docker/native-image-musl) \
+            $(docker build ./docker/native-image-musl) \
             sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
