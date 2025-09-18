@@ -7,7 +7,7 @@ curl -O https://zlib.net/fossils/zlib-1.2.13.tar.gz
 
 # Build musl from source
 tar -xzvf musl-1.2.5.tar.gz
-cd musl-1.2.5
+cd musl-1.2.5 || exit
 ./configure --prefix=$MUSL_HOME --static
 # The next operation may require privileged access to system resources, so use sudo
 make && make install
@@ -22,7 +22,7 @@ x86_64-linux-musl-gcc --version
 
 # Build zlib with musl from source and install into the MUSL_HOME directory
 tar -xzvf zlib-1.2.13.tar.gz
-cd zlib-1.2.13
+cd zlib-1.2.13 || exit
 CC=musl-gcc ./configure --prefix=$MUSL_HOME --static
 make && make install
 cd ..
