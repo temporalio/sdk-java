@@ -12,5 +12,7 @@ WORKDIR /opt
 RUN ./install-musl.sh
 ENV MUSL_HOME=/opt/musl-toolchain
 ENV PATH="$MUSL_HOME/bin:$PATH"
+# Verify installation
+RUN x86_64-linux-musl-gcc --version
 # Avoid errors like: "fatal: detected dubious ownership in repository"
 RUN git config --global --add safe.directory '*'

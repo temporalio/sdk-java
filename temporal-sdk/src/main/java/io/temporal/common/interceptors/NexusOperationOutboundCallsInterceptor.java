@@ -3,6 +3,7 @@ package io.temporal.common.interceptors;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
+import io.temporal.nexus.NexusOperationInfo;
 
 /**
  * Can be used to intercept calls from a Nexus operation into the Temporal APIs.
@@ -20,6 +21,9 @@ import io.temporal.common.Experimental;
  */
 @Experimental
 public interface NexusOperationOutboundCallsInterceptor {
+  /** Intercepts call to get the Nexus info in a Nexus operation. */
+  NexusOperationInfo getInfo();
+
   /** Intercepts call to get the metric scope in a Nexus operation. */
   Scope getMetricsScope();
 
