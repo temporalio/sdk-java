@@ -9,6 +9,7 @@ import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import io.opentracing.log.Fields;
 import io.opentracing.tag.Tags;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.SpanOperationType;
@@ -238,8 +239,9 @@ public class SpanFactory {
   @SuppressWarnings("deprecation")
   public void logFail(Span toSpan, Throwable failReason) {
     toSpan.setTag(StandardTagNames.FAILED, true);
-    toSpan.setTag(Tags.ERROR, options.getIsErrorPredicate().test(failReason));
-
+    if (!FailureUtils.isBenignApplicationFailure(failReason)) {
+      toSpan.setTag(Tags.ERROR, options.getIsErrorPredicate().test(failReason));
+    }
     Map<String, Object> logPayload = new HashMap<>();
     logPayload.put(Fields.EVENT, "error");
     logPayload.put(Fields.ERROR_KIND, failReason.getClass().getName());
