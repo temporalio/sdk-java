@@ -1,6 +1,7 @@
 package io.temporal.envconfig;
 
 import io.grpc.Metadata;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.temporal.client.WorkflowClientOptions;
@@ -158,7 +159,7 @@ public class ClientConfigProfile {
           trustCertCollectionInputStream = new ByteArrayInputStream(this.tls.getServerCACertData());
         }
 
-        SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
+          sslContextBuilder = GrpcSslContexts.forClient();
         if (trustCertCollectionInputStream != null) {
           sslContextBuilder.trustManager(trustCertCollectionInputStream);
         } else if (Boolean.TRUE.equals(this.tls.isDisableHostVerification())) {
