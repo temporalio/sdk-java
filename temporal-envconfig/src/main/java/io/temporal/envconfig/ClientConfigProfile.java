@@ -159,7 +159,7 @@ public class ClientConfigProfile {
           trustCertCollectionInputStream = new ByteArrayInputStream(this.tls.getServerCACertData());
         }
 
-          sslContextBuilder = GrpcSslContexts.forClient();
+        SslContextBuilder sslContextBuilder = GrpcSslContexts.forClient();
         if (trustCertCollectionInputStream != null) {
           sslContextBuilder.trustManager(trustCertCollectionInputStream);
         } else if (Boolean.TRUE.equals(this.tls.isDisableHostVerification())) {
