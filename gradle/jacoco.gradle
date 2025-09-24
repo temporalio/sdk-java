@@ -13,6 +13,7 @@ dependencies {
     jacocoAggregation project(':temporal-spring-boot-starter')
     jacocoAggregation project(':temporal-test-server')
     jacocoAggregation project(':temporal-testing')
+    jacocoAggregation project(':temporal-envconfig')
 }
 
 def jacocoExclusions = [
