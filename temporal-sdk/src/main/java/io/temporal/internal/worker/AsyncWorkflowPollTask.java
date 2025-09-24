@@ -154,10 +154,9 @@ public class AsyncWorkflowPollTask
               pollerMetricScope
                   .counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER)
                   .inc(1);
-              Timestamp startedTime = ProtobufTimeUtils.getCurrentProtoTime();
               pollerMetricScope
                   .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
-                  .record(ProtobufTimeUtils.toM3Duration(startedTime, r.getScheduledTime()));
+                  .record(ProtobufTimeUtils.toM3Duration(r.getStartedTime(), r.getScheduledTime()));
               return new WorkflowTask(r, (reason) -> slotSupplier.releaseSlot(reason, permit));
             })
         .whenComplete(
