@@ -5,12 +5,32 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.toml.TomlMapper;
 import io.temporal.common.Experimental;
 import java.io.*;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 /** ClientConfig represents a client config file. */
 @Experimental
 public class ClientConfig {
+  /** Creates a new builder to build a {@link ClientConfig}. */
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a new builder to build a {@link ClientConfig} based on an existing config.
+   *
+   * @param profile the existing profile to base the builder on
+   * @return a new Builder instance
+   */
+  public static Builder newBuilder(ClientConfig profile) {
+    return new Builder(profile);
+  }
+
+  /** Returns a default instance of {@link ClientConfig} with all fields unset. */
+  public static ClientConfig getDefaultInstance() {
+    return new ClientConfig.Builder().build();
+  }
 
   /** Get the default config file path: $HOME/.config/temporal/temporal.toml */
   private static String getDefaultConfigFilePath() {
@@ -130,7 +150,7 @@ public class ClientConfig {
             ClientConfigToml.fromClientProfiles(config.getProfiles())));
   }
 
-  public ClientConfig(Map<String, ClientConfigProfile> profiles) {
+  private ClientConfig(Map<String, ClientConfigProfile> profiles) {
     this.profiles = profiles;
   }
 
@@ -138,7 +158,7 @@ public class ClientConfig {
 
   /** All profiles loaded from the config file, may be empty but never null. */
   public Map<String, ClientConfigProfile> getProfiles() {
-    return profiles;
+    return new HashMap<>(profiles);
   }
 
   @Override
@@ -156,5 +176,26 @@ public class ClientConfig {
   @Override
   public String toString() {
     return "ClientConfig{" + "profiles=" + profiles + '}';
+  }
+
+  public static final class Builder {
+    private final Map<String, ClientConfigProfile> profiles;
+
+    public Builder(ClientConfig config) {
+      this.profiles = config.getProfiles();
+    }
+
+    public Builder() {
+      this.profiles = new HashMap<>();
+    }
+
+    public Builder putProfile(String name, ClientConfigProfile profile) {
+      profiles.put(name, profile);
+      return this;
+    }
+
+    public ClientConfig build() {
+      return new ClientConfig(profiles);
+    }
   }
 }
