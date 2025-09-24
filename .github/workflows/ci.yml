@@ -23,7 +23,7 @@ jobs:
     - name: Set up Java
       uses: actions/setup-java@v5
       with:
-        java-version: "25"
+        java-version: "23"
         distribution: "temurin"
 
     - name: Set up Gradle
