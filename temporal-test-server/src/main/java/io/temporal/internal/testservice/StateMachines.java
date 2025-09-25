@@ -393,14 +393,22 @@ class StateMachines {
   static final class ChildWorkflowData {
 
     final TestWorkflowService service;
+    final String workflowId;
+    final String workflowType;
     final UserMetadata metadata;
     StartChildWorkflowExecutionInitiatedEventAttributes initiatedEvent;
     long initiatedEventId;
     long startedEventId;
     WorkflowExecution execution;
 
-    public ChildWorkflowData(TestWorkflowService service, UserMetadata metadata) {
+    public ChildWorkflowData(
+        TestWorkflowService service,
+        String workflowId,
+        String workflowType,
+        UserMetadata metadata) {
       this.service = service;
+      this.workflowId = workflowId;
+      this.workflowType = workflowType;
       this.metadata = metadata;
     }
 
@@ -568,8 +576,8 @@ class StateMachines {
   }
 
   public static StateMachine<ChildWorkflowData> newChildWorkflowStateMachine(
-      TestWorkflowService service, UserMetadata metadata) {
-    return new StateMachine<>(new ChildWorkflowData(service, metadata))
+      TestWorkflowService service, String workflowId, String workflowType, UserMetadata metadata) {
+    return new StateMachine<>(new ChildWorkflowData(service, workflowId, workflowType, metadata))
         .add(NONE, INITIATE, INITIATED, StateMachines::initiateChildWorkflow)
         .add(INITIATED, START, STARTED, StateMachines::childWorkflowStarted)
         .add(INITIATED, FAIL, FAILED, StateMachines::startChildWorkflowFailed)
