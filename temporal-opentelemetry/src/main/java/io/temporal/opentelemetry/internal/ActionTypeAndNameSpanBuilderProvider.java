@@ -1,6 +1,5 @@
 package io.temporal.opentelemetry.internal;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.Tracer;
@@ -9,6 +8,9 @@ import io.temporal.opentelemetry.SpanCreationContext;
 import io.temporal.opentelemetry.SpanOperationType;
 import io.temporal.opentelemetry.StandardTagNames;
 import java.util.Map;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default implementation of the {@link SpanBuilderProvider}. Uses both the {@link
@@ -18,6 +20,8 @@ import java.util.Map;
  * ID, as attributes depending on the context of the operation.
  */
 public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider {
+  private static final Logger logger =
+      LoggerFactory.getLogger(ActionTypeAndNameSpanBuilderProvider.class);
   public static final ActionTypeAndNameSpanBuilderProvider INSTANCE =
       new ActionTypeAndNameSpanBuilderProvider();
 
@@ -57,19 +61,24 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
    */
   protected Map<String, String> getSpanTags(SpanCreationContext context) {
     SpanOperationType operationType = context.getSpanOperationType();
+
+    // Use a builder approach to safely handle nulls
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+
     switch (operationType) {
       case START_WORKFLOW:
       case SIGNAL_WITH_START_WORKFLOW:
-        return ImmutableMap.of(StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+        addIfNotNull(builder, StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+        break;
       case START_CHILD_WORKFLOW:
-        return ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
-            StandardTagNames.PARENT_WORKFLOW_ID, context.getParentWorkflowId(),
-            StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
+        addIfNotNull(builder, StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+        addIfNotNull(builder, StandardTagNames.PARENT_WORKFLOW_ID, context.getParentWorkflowId());
+        addIfNotNull(builder, StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
+        break;
       case START_CONTINUE_AS_NEW_WORKFLOW:
-        return ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
-            StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
+        addIfNotNull(builder, StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+        addIfNotNull(builder, StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
+        break;
       case RUN_WORKFLOW:
       case START_ACTIVITY:
       case RUN_ACTIVITY:
@@ -80,20 +89,40 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
       case HANDLE_SIGNAL:
       case HANDLE_UPDATE:
         String runId = context.getRunId();
-        Preconditions.checkNotNull(
-            runId, "runId is expected to be not null for span operation type %s", operationType);
-        return ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
-            StandardTagNames.RUN_ID, context.getRunId());
+        if (runId != null) {
+          addIfNotNull(builder, StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+          addIfNotNull(builder, StandardTagNames.RUN_ID, runId);
+        } else {
+          // Log a warning for operations where runId is expected but missing
+          logger.warn("runId is null for span operation type {}", operationType);
+        }
+        break;
       case START_NEXUS_OPERATION:
-        return ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
-            StandardTagNames.RUN_ID, context.getRunId());
+        addIfNotNull(builder, StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+        addIfNotNull(builder, StandardTagNames.RUN_ID, context.getRunId());
+        break;
       case RUN_START_NEXUS_OPERATION:
       case RUN_CANCEL_NEXUS_OPERATION:
       case HANDLE_QUERY:
-        return ImmutableMap.of();
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown span operation type provided");
     }
-    throw new IllegalArgumentException("Unknown span operation type provided");
+
+    return builder.build();
+  }
+
+  /**
+   * Helper method to add a tag to the builder only if the value is not null.
+   *
+   * @param builder The ImmutableMap.Builder to add to
+   * @param key The tag key
+   * @param value The tag value (can be null)
+   */
+  private void addIfNotNull(
+      ImmutableMap.Builder<String, String> builder, String key, @Nullable String value) {
+    if (value != null) {
+      builder.put(key, value);
+    }
   }
 }

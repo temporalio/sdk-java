@@ -45,7 +45,7 @@ public class OpenTelemetryWorkflowInboundCallsInterceptor
     Tracer tracer = options.getTracer();
 
     // Read the context from the header which should include both span context and baggage
-    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader());
 
     Span workflowRunSpan =
         spanFactory
@@ -74,7 +74,7 @@ public class OpenTelemetryWorkflowInboundCallsInterceptor
   @Override
   public void handleSignal(SignalInput input) {
     Tracer tracer = options.getTracer();
-    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader());
     Span workflowSignalSpan =
         spanFactory
             .createWorkflowHandleSignalSpan(
@@ -102,7 +102,7 @@ public class OpenTelemetryWorkflowInboundCallsInterceptor
   @Override
   public QueryOutput handleQuery(QueryInput input) {
     Tracer tracer = options.getTracer();
-    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader());
     Span workflowQuerySpan =
         spanFactory
             .createWorkflowHandleQuerySpan(tracer, input.getQueryName(), parentContext)
@@ -125,7 +125,7 @@ public class OpenTelemetryWorkflowInboundCallsInterceptor
   @Override
   public UpdateOutput executeUpdate(UpdateInput input) {
     Tracer tracer = options.getTracer();
-    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader());
     Span workflowUpdateSpan =
         spanFactory
             .createWorkflowExecuteUpdateSpan(

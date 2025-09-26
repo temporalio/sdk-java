@@ -10,13 +10,6 @@ import javax.annotation.Nullable;
 /**
  * Implementation of {@link OpenTelemetrySpanContextCodec} that uses the specified TextMapPropagator
  * for transporting spans between services.
- *
- * <p>NOTE: This implementation is identical to {@link TextMapInjectExtractCodec}. Unlike in the
- * OpenTracing implementation where TextMapCodec was a fallback using a different propagation
- * format, in OpenTelemetry there's no distinction between the two codecs as OpenTelemetry has a
- * unified API for context propagation.
- *
- * <p>Prefer using {@link TextMapInjectExtractCodec} directly as it is the default implementation.
  */
 public class TextMapCodec implements OpenTelemetrySpanContextCodec {
   public static final TextMapCodec INSTANCE = new TextMapCodec();

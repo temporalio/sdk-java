@@ -32,8 +32,7 @@ public class OpenTelemetryWorkflowClientCallsInterceptor
         contextAccessor.writeSpanContextToHeader(
             () ->
                 createWorkflowStartSpanBuilder(input, SpanOperationType.START_WORKFLOW).startSpan(),
-            input.getHeader(),
-            tracer);
+            input.getHeader());
     try (Scope ignored = workflowStartSpan.makeCurrent()) {
       return super.start(input);
     } finally {
@@ -53,8 +52,7 @@ public class OpenTelemetryWorkflowClientCallsInterceptor
                         input.getWorkflowExecution().getWorkflowId(),
                         input.getWorkflowExecution().getRunId())
                     .startSpan(),
-            input.getHeader(),
-            tracer);
+            input.getHeader());
     try (Scope ignored = workflowSignalSpan.makeCurrent()) {
       return super.signal(input);
     } finally {
@@ -71,8 +69,7 @@ public class OpenTelemetryWorkflowClientCallsInterceptor
                 createWorkflowStartSpanBuilder(
                         workflowStartInput, SpanOperationType.SIGNAL_WITH_START_WORKFLOW)
                     .startSpan(),
-            workflowStartInput.getHeader(),
-            tracer);
+            workflowStartInput.getHeader());
     try (Scope ignored = workflowStartSpan.makeCurrent()) {
       return super.signalWithStart(input);
     } finally {
@@ -92,8 +89,7 @@ public class OpenTelemetryWorkflowClientCallsInterceptor
                         input.getWorkflowExecution().getWorkflowId(),
                         input.getWorkflowExecution().getRunId())
                     .startSpan(),
-            input.getHeader(),
-            tracer);
+            input.getHeader());
     try (Scope ignored = workflowQuerySpan.makeCurrent()) {
       return super.query(input);
     } finally {
@@ -113,8 +109,7 @@ public class OpenTelemetryWorkflowClientCallsInterceptor
                         input.getWorkflowExecution().getWorkflowId(),
                         input.getWorkflowExecution().getRunId())
                     .startSpan(),
-            input.getHeader(),
-            tracer);
+            input.getHeader());
     try (Scope ignored = workflowStartUpdateSpan.makeCurrent()) {
       return super.startUpdate(input);
     } finally {

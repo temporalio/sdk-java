@@ -2,7 +2,6 @@ package io.temporal.opentelemetry.internal;
 
 import com.google.common.reflect.TypeToken;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.temporal.api.common.v1.Payload;
@@ -32,24 +31,22 @@ public class ContextAccessor {
     this.propagator = options.getPropagator();
   }
 
-  public Span writeSpanContextToHeader(
-      Supplier<Span> spanSupplier, Header toHeader, Tracer tracer) {
+  public Span writeSpanContextToHeader(Supplier<Span> spanSupplier, Header toHeader) {
     Span span = spanSupplier.get();
-    writeSpanContextToHeader(Context.current().with(span), toHeader, tracer);
+    writeSpanContextToHeader(Context.current().with(span), toHeader);
     return span;
   }
 
-  public void writeSpanContextToHeader(Context context, Header header, Tracer tracer) {
-    // Create a new map and use the propagator directly to ensure both trace context AND baggage are
-    // injected
-    Map<String, String> serializedContext = new HashMap<>();
-    propagator.inject(context, serializedContext, MapTextMapSetter.INSTANCE);
+  public void writeSpanContextToHeader(Context context, Header header) {
+    // Use the codec to encode the context - codec implementation should properly handle both trace
+    // and baggage
+    Map<String, String> serializedContext = codec.encode(context, propagator);
 
     Optional<Payload> payload = DefaultDataConverter.STANDARD_INSTANCE.toPayload(serializedContext);
     header.getValues().put(TRACER_HEADER_KEY, payload.get());
   }
 
-  public Context readSpanContextFromHeader(Header header, Tracer tracer) {
+  public Context readSpanContextFromHeader(Header header) {
     Payload payload = header.getValues().get(TRACER_HEADER_KEY);
     if (payload == null) {
       return Context.current();
@@ -62,18 +59,17 @@ public class ContextAccessor {
     return propagator.extract(Context.current(), serializedContext, MapTextMapGetter.INSTANCE);
   }
 
-  public Span writeSpanContextToHeader(
-      Supplier<Span> spanSupplier, Map<String, String> header, Tracer tracer) {
+  public Span writeSpanContextToHeader(Supplier<Span> spanSupplier, Map<String, String> header) {
     Span span = spanSupplier.get();
-    writeSpanContextToHeader(Context.current().with(span), header, tracer);
+    writeSpanContextToHeader(Context.current().with(span), header);
     return span;
   }
 
-  public void writeSpanContextToHeader(Context context, Map<String, String> header, Tracer tracer) {
+  public void writeSpanContextToHeader(Context context, Map<String, String> header) {
     propagator.inject(context, header, MapTextMapSetter.INSTANCE);
   }
 
-  public Context readSpanContextFromHeader(Map<String, String> header, Tracer tracer) {
+  public Context readSpanContextFromHeader(Map<String, String> header) {
     return propagator.extract(Context.current(), header, MapTextMapGetter.INSTANCE);
   }
 }

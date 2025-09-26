@@ -111,8 +111,7 @@ public class OpenTelemetryWorkflowOutboundCallsInterceptor
       Span activityStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createActivityStartSpanBuilder(input.getActivityName()).startSpan(),
-              input.getHeader(),
-              tracer);
+              input.getHeader());
       try (Scope ignored = activityStartSpan.makeCurrent()) {
         ActivityOutput<R> output = super.executeActivity(input);
         return new ActivityOutput<>(
@@ -132,8 +131,7 @@ public class OpenTelemetryWorkflowOutboundCallsInterceptor
       Span activityStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createActivityStartSpanBuilder(input.getActivityName()).startSpan(),
-              input.getHeader(),
-              tracer);
+              input.getHeader());
       try (Scope ignored = activityStartSpan.makeCurrent()) {
         LocalActivityOutput<R> output = super.executeLocalActivity(input);
         return new LocalActivityOutput<>(new PromiseWrapper<>(capturedSpan, output.getResult()));
@@ -151,9 +149,7 @@ public class OpenTelemetryWorkflowOutboundCallsInterceptor
       Span capturedSpan = Span.current();
       Span childWorkflowStartSpan =
           contextAccessor.writeSpanContextToHeader(
-              () -> createChildWorkflowStartSpanBuilder(input).startSpan(),
-              input.getHeader(),
-              tracer);
+              () -> createChildWorkflowStartSpanBuilder(input).startSpan(), input.getHeader());
       try (Scope ignored = childWorkflowStartSpan.makeCurrent()) {
         ChildWorkflowOutput<R> output = super.executeChildWorkflow(input);
         return new ChildWorkflowOutput<>(
@@ -182,8 +178,7 @@ public class OpenTelemetryWorkflowOutboundCallsInterceptor
                           workflowInfo.getWorkflowId(),
                           workflowInfo.getRunId())
                       .startSpan(),
-              input.getHeader(),
-              tracer);
+              input.getHeader());
       try (Scope ignored = signalExternalSpan.makeCurrent()) {
         SignalExternalOutput output = super.signalExternalWorkflow(input);
         return new SignalExternalOutput(new PromiseWrapper<>(capturedSpan, output.getResult()));
@@ -201,8 +196,7 @@ public class OpenTelemetryWorkflowOutboundCallsInterceptor
       Span continueAsNewStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createContinueAsNewWorkflowStartSpanBuilder(input).startSpan(),
-              input.getHeader(),
-              tracer);
+              input.getHeader());
       try (Scope ignored = continueAsNewStartSpan.makeCurrent()) {
         super.continueAsNew(input);
       } finally {

@@ -44,7 +44,7 @@ public class OpenTelemetryActivityInboundCallsInterceptor
   @Override
   public ActivityOutput execute(ActivityInput input) {
     // Extract the parent context including both span context and baggage
-    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+    Context parentContext = contextAccessor.readSpanContextFromHeader(input.getHeader());
     ActivityInfo activityInfo = activityExecutionContext.getInfo();
 
     // Create the activity span with the parent context

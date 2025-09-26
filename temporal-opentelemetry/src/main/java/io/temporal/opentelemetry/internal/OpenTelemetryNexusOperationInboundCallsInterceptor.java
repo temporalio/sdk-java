@@ -30,7 +30,7 @@ public class OpenTelemetryNexusOperationInboundCallsInterceptor
   @Override
   public StartOperationOutput startOperation(StartOperationInput input) throws OperationException {
     Context parentContext =
-        contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders(), tracer);
+        contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders());
 
     Span operationStartSpan =
         spanFactory
@@ -54,7 +54,7 @@ public class OpenTelemetryNexusOperationInboundCallsInterceptor
   @Override
   public CancelOperationOutput cancelOperation(CancelOperationInput input) {
     Context parentContext =
-        contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders(), tracer);
+        contextAccessor.readSpanContextFromHeader(input.getOperationContext().getHeaders());
 
     Span operationCancelSpan =
         spanFactory
