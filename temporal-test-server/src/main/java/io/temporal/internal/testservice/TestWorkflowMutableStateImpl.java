@@ -1150,7 +1150,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId) {
     a = validateStartChildExecutionAttributes(a);
     StateMachine<ChildWorkflowData> child =
-        StateMachines.newChildWorkflowStateMachine(service, metadata);
+        StateMachines.newChildWorkflowStateMachine(
+            service, a.getWorkflowId(), a.getWorkflowType().getName(), metadata);
     childWorkflows.put(ctx.getNextEventId(), child);
     child.action(StateMachines.Action.INITIATE, ctx, a, workflowTaskCompletedId);
     ctx.lockTimer("processStartChildWorkflow");
@@ -3253,13 +3254,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private static PendingChildExecutionInfo constructPendingChildExecutionInfo(
       StateMachine<ChildWorkflowData> sm) {
     ChildWorkflowData data = sm.getData();
-    return PendingChildExecutionInfo.newBuilder()
-        .setWorkflowId(data.execution.getWorkflowId())
-        .setRunId(data.execution.getRunId())
-        .setWorkflowTypeName(data.initiatedEvent.getWorkflowType().getName())
-        .setInitiatedId(data.initiatedEventId)
-        .setParentClosePolicy(data.initiatedEvent.getParentClosePolicy())
-        .build();
+    PendingChildExecutionInfo.Builder builder =
+        PendingChildExecutionInfo.newBuilder()
+            .setWorkflowId(data.workflowId)
+            .setWorkflowTypeName(data.workflowType);
+    // These fields may not be set if the child workflow hasn't been started yet
+    if (data.execution != null) {
+      builder.setRunId(data.execution.getRunId());
+    }
+    if (data.initiatedEvent != null) {
+      builder
+          .setInitiatedId(data.initiatedEventId)
+          .setParentClosePolicy(data.initiatedEvent.getParentClosePolicy());
+    }
+    return builder.build();
   }
 
   private static PendingActivityInfo constructPendingActivityInfo(
