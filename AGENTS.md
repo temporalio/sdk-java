@@ -9,6 +9,7 @@
 - `temporal-spring-boot-autoconfigure`: Spring Boot auto configuration.
 - `temporal-kotlin`: Kotlin DSL for the SDK.
 - `temporal-opentracing`: OpenTracing interceptor integration.
+- `temporal-opentelemetry`: OpenTelemetry interceptor integration.
 
 ## General Guidance
 - Avoid changing public API signatures. Anything under an `internal` directory

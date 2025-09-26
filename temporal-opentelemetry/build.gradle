@@ -1,0 +1,26 @@
+description = '''Temporal Java SDK OpenTelemetry Support Module'''
+
+ext {
+    openTelemetryVersion = '1.54.1'  // Using latest stable version
+}
+
+dependencies {
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-sdk')
+
+    // OpenTelemetry API
+    api group: 'io.opentelemetry', name: 'opentelemetry-api', version: "$openTelemetryVersion"
+    api group: 'io.opentelemetry', name: 'opentelemetry-context', version: "$openTelemetryVersion"
+
+    implementation "com.google.guava:guava:$guavaVersion"
+    implementation group: 'io.opentelemetry', name: 'opentelemetry-sdk', version: "$openTelemetryVersion"
+    implementation group: 'io.opentelemetry', name: 'opentelemetry-sdk-trace', version: "$openTelemetryVersion"
+
+    testImplementation project(":temporal-testing")
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation group: 'io.opentelemetry', name: 'opentelemetry-sdk-testing', version: "$openTelemetryVersion"
+    testImplementation group: 'io.opentelemetry', name: 'opentelemetry-exporter-otlp', version: "$openTelemetryVersion"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
