@@ -132,10 +132,28 @@ class WorkerOptionsTemplate {
         WorkerDeploymentOptions.Builder opts = WorkerDeploymentOptions.newBuilder();
         Optional.ofNullable(workerDeploymentConfiguration.getUseVersioning())
             .ifPresent(opts::setUseVersioning);
-        Optional.ofNullable(workerDeploymentConfiguration.getDeploymentVersion())
-            .ifPresent((v) -> opts.setVersion(WorkerDeploymentVersion.fromCanonicalString(v)));
         Optional.ofNullable(workerDeploymentConfiguration.getDefaultVersioningBehavior())
             .ifPresent(opts::setDefaultVersioningBehavior);
+
+        if (workerDeploymentConfiguration.getDeploymentName() != null
+            || workerDeploymentConfiguration.getBuildId() != null) {
+          if (workerDeploymentConfiguration.getBuildId() == null
+              || workerDeploymentConfiguration.getDeploymentName() == null) {
+            throw new IllegalArgumentException(
+                "deploymentName and buildId must both be set when either is specified");
+          }
+          if (workerDeploymentConfiguration.getDeploymentVersion() != null) {
+            throw new IllegalArgumentException(
+                "deploymentVersion is exclusive with deploymentName and buildId");
+          }
+          opts.setVersion(
+              new WorkerDeploymentVersion(
+                  workerDeploymentConfiguration.getDeploymentName(),
+                  workerDeploymentConfiguration.getBuildId()));
+        } else {
+          Optional.ofNullable(workerDeploymentConfiguration.getDeploymentVersion())
+              .ifPresent((v) -> opts.setVersion(WorkerDeploymentVersion.fromCanonicalString(v)));
+        }
         options.setDeploymentOptions(opts.build());
       }
     }
