@@ -19,16 +19,16 @@ on:
         default: false
   workflow_call:
     inputs:
-        ref:
-          type: string
-          description: "Git ref from which to release"
-          required: true
-          default: "master"
-        upload_artifact:
-          type: boolean
-          description: "Upload the native test server executable as an artifact"
-          required: false
-          default: false
+      ref:
+        type: string
+        description: "Git ref from which to release"
+        required: true
+        default: "master"
+      upload_artifact:
+        type: boolean
+        description: "Upload the native test server executable as an artifact"
+        required: false
+        default: false
 env:
   INPUT_REF: ${{ inputs.ref }}
 
@@ -47,7 +47,7 @@ jobs:
             os_family: linux
             arch: amd64
             musl: false
-          - runner: macos-13
+          - runner: macos-15-intel
             os_family: macOS
             arch: amd64
           - runner: macos-latest
@@ -67,7 +67,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ env.INPUT_REF }}
-      
+
       - name: Set up Java
         if: matrix.os_family != 'Linux'
         uses: actions/setup-java@v5
@@ -91,7 +91,7 @@ jobs:
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             $(docker build -q ./docker/native-image) \
             sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeCompile"
-      
+
       - name: Build native test server (Docker musl)
         if: matrix.os_family == 'Linux' && matrix.musl == true
         run: |
@@ -109,4 +109,3 @@ jobs:
             temporal-test-server/build/native/nativeCompile/temporal-test-server*
           if-no-files-found: error
           retention-days: 1
-
