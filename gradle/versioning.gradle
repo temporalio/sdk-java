@@ -1,9 +1,13 @@
 // v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
 ext.getTag = { ->
     def stdout = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'describe', '--tags'
-        standardOutput = stdout
+    try {
+        exec {
+            commandLine 'git', 'describe', '--tags'
+            standardOutput = stdout
+        }
+    } catch (ignored) {
+        return "unknown"
     }
     return stdout.toString().trim().substring(1)
 }
@@ -21,7 +25,11 @@ ext.getVersionName = { ->
 
     // The last element of describe should start with g according to git describe format
     // if we are not exactly on a tag. If it doesn't - we are on a tag
-    def (_, major, minor, patch, rc, extra, git) = (tag =~ /^(\d+)[.](\d+)[.](\d+)(?:-RC(\d+))?(-.*?)?(-g[0-9a-f]+)?$/)[0];
+    def match = (tag =~ /^(\d+)[.](\d+)[.](\d+)(?:-RC(\d+))?(-.*?)?(-g[0-9a-f]+)?$/)
+    if (match.size() == 0) {
+        return "unknown"
+    }
+    def (_, major, minor, patch, rc, extra, git) = match[0];
 
     if (git) {
         if (rc) {
