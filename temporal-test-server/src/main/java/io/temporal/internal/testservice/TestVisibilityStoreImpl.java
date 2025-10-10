@@ -1,6 +1,7 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
@@ -14,6 +15,7 @@ import javax.annotation.Nonnull;
 
 class TestVisibilityStoreImpl implements TestVisibilityStore {
 
+  private static final String METADATA_TYPE_KEY = "type";
   private static final String DEFAULT_KEY_STRING = "CustomStringField";
   private static final String DEFAULT_KEY_TEXT = "CustomTextField";
   private static final String DEFAULT_KEY_KEYWORD = "CustomKeywordField";
@@ -76,13 +78,38 @@ class TestVisibilityStoreImpl implements TestVisibilityStore {
   public SearchAttributes upsertSearchAttributesForExecution(
       ExecutionId executionId, @Nonnull SearchAttributes searchAttributes) {
     validateSearchAttributes(searchAttributes);
+
+    SearchAttributes.Builder searchAttributesWithType = SearchAttributes.newBuilder();
+    Map<String, IndexedValueType> registeredAttributes = getRegisteredSearchAttributes();
+
+    for (Map.Entry<String, Payload> entry : searchAttributes.getIndexedFieldsMap().entrySet()) {
+      String attributeName = entry.getKey();
+      Payload payload = entry.getValue();
+      IndexedValueType expectedType = registeredAttributes.get(attributeName);
+
+      if (expectedType != null && !payload.getMetadataMap().containsKey(METADATA_TYPE_KEY)) {
+        // Add type metadata if it's missing
+        payload =
+            payload.toBuilder()
+                .putMetadata(
+                    METADATA_TYPE_KEY,
+                    ByteString.copyFromUtf8(
+                        ProtoEnumNameUtils.uniqueToSimplifiedName(expectedType)))
+                .build();
+      }
+
+      searchAttributesWithType.putIndexedFields(attributeName, payload);
+    }
+
+    SearchAttributes searchAttributesWithMetadata = searchAttributesWithType.build();
+
     return executionSearchAttributes.compute(
         executionId,
         (key, value) ->
             value == null
-                ? searchAttributes
+                ? searchAttributesWithMetadata
                 : value.toBuilder()
-                    .putAllIndexedFields(searchAttributes.getIndexedFieldsMap())
+                    .putAllIndexedFields(searchAttributesWithMetadata.getIndexedFieldsMap())
                     .build());
   }
 
