@@ -1,11 +1,9 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.util.Objects;
 
 /** Options resource-based slot suppliers */
-@Experimental
 public class ResourceBasedSlotOptions {
   private final int minimumSlots;
   private final int maximumSlots;

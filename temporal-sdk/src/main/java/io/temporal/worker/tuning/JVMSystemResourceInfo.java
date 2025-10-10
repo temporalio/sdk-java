@@ -1,14 +1,12 @@
 package io.temporal.worker.tuning;
 
 import com.sun.management.OperatingSystemMXBean;
-import io.temporal.common.Experimental;
 import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** {@link SystemResourceInfo} implementation that uses JVM-specific APIs to get resource usage. */
-@Experimental
 public class JVMSystemResourceInfo implements SystemResourceInfo {
   // As of relatively recent Java versions (including backports), this class will properly deal with
   // containerized environments as well as running on bare metal.

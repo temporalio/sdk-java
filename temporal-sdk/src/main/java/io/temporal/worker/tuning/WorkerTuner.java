@@ -1,10 +1,8 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import javax.annotation.Nonnull;
 
 /** WorkerTuners allow for the dynamic customization of some aspects of worker configuration. */
-@Experimental
 public interface WorkerTuner {
   /**
    * @return A {@link SlotSupplier} for workflow tasks.
