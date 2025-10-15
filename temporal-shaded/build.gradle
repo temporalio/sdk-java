@@ -57,6 +57,8 @@ dependencies {
     shadow "io.grpc:grpc-stub:$grpcVersion"
     shadow "io.grpc:grpc-netty-shaded:$grpcVersion"
     shadow "io.grpc:grpc-services:$grpcVersion"
+    shadow "io.grpc:grpc-inprocess:$grpcVersion"
+    shadow "io.grpc:grpc-util:$grpcVersion"
     shadow "com.google.api.grpc:proto-google-common-protos:2.9.0"
 }
 
