@@ -15,7 +15,7 @@ Temporal:
 
 - [Temporal docs](https://docs.temporal.io/)
 - [Install Temporal Server](https://docs.temporal.io/docs/server/quick-install)
-- [Temporal CLI](https://docs.temporal.io/docs/devtools/tctl/)
+- [Temporal CLI](https://docs.temporal.io/cli/)
 
 ## Supported Java runtimes
 

@@ -502,9 +502,6 @@ public class TestWorkflowExtension
      * @param name name of the search attribute
      * @param type search attribute type
      * @return {@code this}
-     * @see <a
-     *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
-     *     a Custom Search Attribute Using tctl</a>
      */
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       this.searchAttributes.put(name, type);

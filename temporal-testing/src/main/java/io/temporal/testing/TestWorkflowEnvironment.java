@@ -134,9 +134,6 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @param name Search Attribute name
    * @param type Search Attribute type to be used for an elastic search index
    * @return {@code true} if the search attribute was registered, false if it was registered already
-   * @see <a
-   *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
-   *     a Custom Search Attribute Using tctl</a>
    */
   boolean registerSearchAttribute(String name, IndexedValueType type);
 
