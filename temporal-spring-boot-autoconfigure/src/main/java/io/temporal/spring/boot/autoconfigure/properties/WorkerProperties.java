@@ -385,6 +385,8 @@ public class WorkerProperties {
     private final @Nullable String deploymentVersion;
     private final @Nullable Boolean useVersioning;
     private final @Nullable VersioningBehavior defaultVersioningBehavior;
+    private final @Nullable String deploymentName;
+    private final @Nullable String buildId;
 
     /**
      * Sets options that will be passed to {@link
@@ -396,15 +398,25 @@ public class WorkerProperties {
      *     io.temporal.worker.WorkerDeploymentOptions.Builder#setUseVersioning(boolean)}
      * @param defaultVersioningBehavior defines {@link
      *     io.temporal.worker.WorkerDeploymentOptions.Builder#setDefaultVersioningBehavior(VersioningBehavior)}
+     * @param deploymentName defines the deployment name component of {@link
+     *     io.temporal.worker.WorkerDeploymentOptions.Builder#setVersion(WorkerDeploymentVersion)}.
+     *     Exclusive with `deploymentVersion`.
+     * @param buildId defines the build id component of {@link
+     *     io.temporal.worker.WorkerDeploymentOptions.Builder#setVersion(WorkerDeploymentVersion)}.
+     *     Exclusive with `deploymentVersion`.
      */
     @ConstructorBinding
     public WorkerDeploymentConfigurationProperties(
-        @Nullable String deploymentVersion,
+        @Deprecated @Nullable String deploymentVersion,
         @Nullable Boolean useVersioning,
-        @Nullable VersioningBehavior defaultVersioningBehavior) {
+        @Nullable VersioningBehavior defaultVersioningBehavior,
+        @Nullable String deploymentName,
+        @Nullable String buildId) {
       this.deploymentVersion = deploymentVersion;
       this.useVersioning = useVersioning;
       this.defaultVersioningBehavior = defaultVersioningBehavior;
+      this.deploymentName = deploymentName;
+      this.buildId = buildId;
     }
 
     @Nullable
@@ -420,6 +432,16 @@ public class WorkerProperties {
     @Nullable
     public VersioningBehavior getDefaultVersioningBehavior() {
       return defaultVersioningBehavior;
+    }
+
+    @Nullable
+    public String getDeploymentName() {
+      return deploymentName;
+    }
+
+    @Nullable
+    public String getBuildId() {
+      return buildId;
     }
   }
 }

@@ -190,7 +190,8 @@ spring:
         name: mainWorker
         deployment-properties:
           default-versioning-behavior: PINNED
-          deployment-version: "dname.bid"
+          deployment-name: "dname"
+          build-id: "bid"
           use-versioning: true
 
 ---
@@ -210,3 +211,39 @@ spring:
           # missing default is the key thing here
           deployment-version: "dname.bid"
           use-versioning: true
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning-need-both-deployname-buildid
+  temporal:
+    namespace: UnitTest
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          use-versioning: true
+          default-versioning-behavior: PINNED
+          deployment-name: "dname"
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning-cant-use-old-version-and-new
+  temporal:
+    namespace: UnitTest
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          use-versioning: true
+          default-versioning-behavior: PINNED
+          deployment-name: "dname"
+          build-id: "bid"
+          deployment-version: "dname.bid"
