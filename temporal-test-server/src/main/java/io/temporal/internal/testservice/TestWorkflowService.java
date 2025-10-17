@@ -69,7 +69,6 @@ import org.slf4j.LoggerFactory;
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
-  private static final JsonFormat.Printer JSON_PRINTER = JsonFormat.printer();
   private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
 
   private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
@@ -77,6 +76,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
   // key->WorkflowId
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
+  private final Map<WorkflowChainId, TestWorkflowMutableState> executionsByFirstExecutionRunId =
+      new HashMap<>();
   private final ExecutorService executor = Executors.newCachedThreadPool();
   private final Lock lock = new ReentrantLock();
 
@@ -166,6 +167,52 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return getMutableState(executionId, true);
   }
 
+  private static final class WorkflowChainId {
+    private final String namespace;
+    private final String workflowId;
+    private final String firstExecutionRunId;
+
+    private WorkflowChainId(String namespace, String workflowId, String firstExecutionRunId) {
+      this.namespace = Objects.requireNonNull(namespace);
+      this.workflowId = Objects.requireNonNull(workflowId);
+      this.firstExecutionRunId = Objects.requireNonNull(firstExecutionRunId);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      WorkflowChainId that = (WorkflowChainId) o;
+      return namespace.equals(that.namespace)
+          && workflowId.equals(that.workflowId)
+          && firstExecutionRunId.equals(that.firstExecutionRunId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(namespace, workflowId, firstExecutionRunId);
+    }
+
+    @Override
+    public String toString() {
+      return "WorkflowChainId{"
+          + "namespace='"
+          + namespace
+          + '\''
+          + ", workflowId='"
+          + workflowId
+          + '\''
+          + ", firstExecutionRunId='"
+          + firstExecutionRunId
+          + '\''
+          + '}';
+    }
+  }
+
   private TestWorkflowMutableState getMutableState(ExecutionId executionId, boolean failNotExists) {
     lock.lock();
     try {
@@ -203,6 +250,63 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } finally {
       lock.unlock();
     }
+  }
+
+  private TestWorkflowMutableState getMutableState(
+      WorkflowChainId workflowChainId, boolean failNotExists) {
+    lock.lock();
+    try {
+      TestWorkflowMutableState mutableState = executionsByFirstExecutionRunId.get(workflowChainId);
+      if (mutableState == null && failNotExists) {
+        throw Status.NOT_FOUND
+            .withDescription("Execution not found in mutable state: " + workflowChainId)
+            .asRuntimeException();
+      }
+      return mutableState;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private TestWorkflowMutableState getMutableState(
+      String namespace,
+      WorkflowExecution execution,
+      String firstExecutionRunId,
+      boolean failNotExists) {
+    ExecutionId executionId = new ExecutionId(namespace, execution);
+    WorkflowChainId workflowChainId =
+        firstExecutionRunId.isEmpty()
+            ? null
+            : new WorkflowChainId(namespace, execution.getWorkflowId(), firstExecutionRunId);
+
+    if (workflowChainId != null) {
+      TestWorkflowMutableState mutableStateByFirstRunId = getMutableState(workflowChainId, false);
+      if (mutableStateByFirstRunId != null) {
+        return mutableStateByFirstRunId;
+      }
+    }
+
+    TestWorkflowMutableState mutableState = getMutableState(executionId, false);
+    if (mutableState != null) {
+      if (workflowChainId == null) {
+        return mutableState;
+      }
+      WorkflowExecution mutableStateExecution = mutableState.getExecutionId().getExecution();
+      if (mutableStateExecution.getRunId().equals(execution.getRunId())
+          && firstExecutionRunId.equals(mutableState.getFirstExecutionRunId())) {
+        return mutableState;
+      }
+    }
+
+    if (failNotExists) {
+      if (workflowChainId != null) {
+        throw Status.NOT_FOUND
+            .withDescription("Execution not found in mutable state: " + workflowChainId)
+            .asRuntimeException();
+      }
+      return getMutableState(executionId, true);
+    }
+    return null;
   }
 
   @Override
@@ -454,6 +558,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
+    if (!firstExecutionRunId.isEmpty()) {
+      executionsByFirstExecutionRunId.put(
+          new WorkflowChainId(namespace, workflowId.getWorkflowId(), firstExecutionRunId),
+          mutableState);
+    }
     executions.put(executionId, mutableState);
 
     PollWorkflowTaskQueueRequest eagerWorkflowTaskPollRequest =
@@ -1094,9 +1203,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   void requestCancelWorkflowExecution(
       RequestCancelWorkflowExecutionRequest cancelRequest,
       Optional<TestWorkflowMutableStateImpl.CancelExternalWorkflowExecutionCallerInfo> callerInfo) {
-    ExecutionId executionId =
-        new ExecutionId(cancelRequest.getNamespace(), cancelRequest.getWorkflowExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
+    TestWorkflowMutableState mutableState =
+        getMutableState(
+            cancelRequest.getNamespace(),
+            cancelRequest.getWorkflowExecution(),
+            cancelRequest.getFirstExecutionRunId(),
+            true);
     mutableState.requestCancelWorkflowExecution(cancelRequest, callerInfo);
   }
 
@@ -1114,9 +1226,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   private void terminateWorkflowExecution(TerminateWorkflowExecutionRequest request) {
-    ExecutionId executionId =
-        new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
+    TestWorkflowMutableState mutableState =
+        getMutableState(
+            request.getNamespace(),
+            request.getWorkflowExecution(),
+            request.getFirstExecutionRunId(),
+            true);
     mutableState.terminateWorkflowExecution(request);
   }
 
