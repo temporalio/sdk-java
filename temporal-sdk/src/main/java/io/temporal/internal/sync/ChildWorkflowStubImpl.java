@@ -18,6 +18,13 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   private final CompletablePromise<WorkflowExecution> execution;
   private final Functions.Proc1<String> assertReadOnly;
 
+  private void assertSameWorkflow() {
+    if (outboundCallsInterceptor != WorkflowInternal.getWorkflowOutboundInterceptor()) {
+      throw new IllegalStateException(
+          "Child workflow stub belongs to a different workflow. Create a new stub for each workflow instance.");
+    }
+  }
+
   ChildWorkflowStubImpl(
       String workflowType,
       ChildWorkflowOptions options,
@@ -60,6 +67,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> R execute(Class<R> resultClass, Type resultType, Object... args) {
+    assertSameWorkflow();
     assertReadOnly.apply("schedule child workflow");
     Promise<R> result = executeAsync(resultClass, resultType, args);
     if (AsyncInternal.isAsync()) {
@@ -83,6 +91,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args) {
+    assertSameWorkflow();
     assertReadOnly.apply("schedule child workflow");
     ChildWorkflowOutput<R> result =
         outboundCallsInterceptor.executeChildWorkflow(
@@ -100,6 +109,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    assertSameWorkflow();
     assertReadOnly.apply("signal workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor

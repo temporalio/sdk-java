@@ -13,6 +13,13 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
   private final WorkflowExecution execution;
   private Functions.Proc1<String> assertReadOnly;
 
+  private void assertSameWorkflow() {
+    if (outboundCallsInterceptor != WorkflowInternal.getWorkflowOutboundInterceptor()) {
+      throw new IllegalStateException(
+          "External workflow stub belongs to a different workflow. Create a new stub for each workflow instance.");
+    }
+  }
+
   public ExternalWorkflowStubImpl(
       WorkflowExecution execution,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor,
@@ -29,6 +36,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    assertSameWorkflow();
     assertReadOnly.apply("signal external workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
@@ -52,6 +60,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
+    assertSameWorkflow();
     assertReadOnly.apply("cancel external workflow");
     Promise<Void> cancelRequested =
         outboundCallsInterceptor

@@ -13,6 +13,13 @@ public class NexusServiceStubImpl implements NexusServiceStub {
   private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final Functions.Proc1<String> assertReadOnly;
 
+  private void assertSameWorkflow() {
+    if (outboundCallsInterceptor != WorkflowInternal.getWorkflowOutboundInterceptor()) {
+      throw new IllegalStateException(
+          "Nexus service stub belongs to a different workflow. Create a new stub for each workflow instance.");
+    }
+  }
+
   public NexusServiceStubImpl(
       String name,
       NexusServiceOptions options,
@@ -31,6 +38,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
 
   @Override
   public <R> R execute(String operationName, Class<R> resultClass, Type resultType, Object arg) {
+    assertSameWorkflow();
     assertReadOnly.apply("execute nexus operation");
     Promise<R> result = executeAsync(operationName, resultClass, resultType, arg);
     if (AsyncInternal.isAsync()) {
@@ -55,6 +63,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
   @Override
   public <R> Promise<R> executeAsync(
       String operationName, Class<R> resultClass, Type resultType, Object arg) {
+    assertSameWorkflow();
     assertReadOnly.apply("execute nexus operation");
     NexusOperationOptions mergedOptions =
         NexusOperationOptions.newBuilder(options.getOperationOptions())
@@ -82,6 +91,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
   @Override
   public <R> NexusOperationHandle<R> start(
       String operationName, Class<R> resultClass, Type resultType, Object arg) {
+    assertSameWorkflow();
     assertReadOnly.apply("schedule nexus operation");
     NexusOperationOptions mergedOptions =
         NexusOperationOptions.newBuilder(options.getOperationOptions())
