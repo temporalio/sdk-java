@@ -1,6 +1,5 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.util.Optional;
 
 /**
@@ -13,7 +12,6 @@ import java.util.Optional;
  *     {@link WorkflowSlotInfo}, {@link ActivitySlotInfo}, {@link LocalActivitySlotInfo}, and {@link
  *     NexusSlotInfo}.
  */
-@Experimental
 public interface SlotSupplier<SI extends SlotInfo> {
   /**
    * This function is called before polling for new tasks. Your implementation should return a

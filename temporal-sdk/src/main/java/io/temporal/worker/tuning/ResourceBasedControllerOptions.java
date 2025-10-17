@@ -1,10 +1,8 @@
 package io.temporal.worker.tuning;
 
 import com.google.common.base.Preconditions;
-import io.temporal.common.Experimental;
 
 /** Options for a {@link ResourceBasedController} */
-@Experimental
 public class ResourceBasedControllerOptions {
 
   public static ResourceBasedControllerOptions.Builder newBuilder(

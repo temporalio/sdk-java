@@ -1,13 +1,11 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.*;
 
 /** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
-@Experimental
 public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSupplier<SI> {
 
   private final ResourceBasedController resourceController;

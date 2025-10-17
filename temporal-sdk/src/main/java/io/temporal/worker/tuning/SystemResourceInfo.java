@@ -1,9 +1,6 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
-
 /** Implementors determine how resource usage is measured. */
-@Experimental
 public interface SystemResourceInfo {
   /**
    * @return System-wide CPU usage as a percentage [0.0, 1.0]

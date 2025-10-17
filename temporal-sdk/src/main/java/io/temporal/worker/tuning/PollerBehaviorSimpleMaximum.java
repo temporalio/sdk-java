@@ -1,13 +1,11 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /**
  * A poller behavior that will attempt to poll as long as a slot is available, up to the provided
  * maximum. Cannot be less than two for workflow tasks, or one for other tasks.
  */
-@Experimental
 public class PollerBehaviorSimpleMaximum implements PollerBehavior {
   private final int maxConcurrentTaskPollers;
 

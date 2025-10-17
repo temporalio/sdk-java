@@ -1,10 +1,8 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /** Contains information about a slot that is being used to execute a nexus task. */
-@Experimental
 public class NexusSlotInfo extends SlotInfo {
   private final String service;
   private final String operation;

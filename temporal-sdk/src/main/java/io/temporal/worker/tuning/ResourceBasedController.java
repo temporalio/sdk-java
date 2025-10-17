@@ -2,7 +2,6 @@ package io.temporal.worker.tuning;
 
 import com.uber.m3.tally.Gauge;
 import com.uber.m3.tally.Scope;
-import io.temporal.common.Experimental;
 import io.temporal.worker.MetricsType;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,7 +11,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * Is used by {@link ResourceBasedSlotSupplier} and {@link ResourceBasedTuner} to make decisions
  * about whether slots should be handed out based on system resource usage.
  */
-@Experimental
 public class ResourceBasedController {
   public final ResourceBasedControllerOptions options;
 
