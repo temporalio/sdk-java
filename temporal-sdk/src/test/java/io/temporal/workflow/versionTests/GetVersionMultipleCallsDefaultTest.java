@@ -58,22 +58,22 @@ public class GetVersionMultipleCallsDefaultTest extends BaseVersionTest {
       System.out.println("Calling getVersion for the fist time");
       if (WorkflowUnsafe.isReplaying()) {
         int version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-        assertEquals(version, Workflow.DEFAULT_VERSION);
+        assertEquals(Workflow.DEFAULT_VERSION, version);
 
         // Try again in the same WFT
         version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-        assertEquals(version, Workflow.DEFAULT_VERSION);
+        assertEquals(Workflow.DEFAULT_VERSION, version);
       }
 
       // Create a new WFT by sleeping
       Workflow.sleep(1000);
       int version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, Workflow.DEFAULT_VERSION);
+      assertEquals(Workflow.DEFAULT_VERSION, version);
 
       String result = "activity" + testActivities.activity1(1);
 
       version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, Workflow.DEFAULT_VERSION);
+      assertEquals(Workflow.DEFAULT_VERSION, version);
       return result;
     }
   }

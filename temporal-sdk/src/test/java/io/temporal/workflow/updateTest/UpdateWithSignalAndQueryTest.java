@@ -20,14 +20,14 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateWithSignalAndQuery {
+public class UpdateWithSignalAndQueryTest {
   private static final Logger log = LoggerFactory.getLogger(UpdateTest.class);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setWorkflowTypes(UpdateWithSignalAndQuery.TestUpdateWithSignalWorkflowImpl.class)
+          .setWorkflowTypes(UpdateWithSignalAndQueryTest.TestUpdateWithSignalWorkflowImpl.class)
           .setActivityImplementations(new UpdateTest.ActivityImpl())
           .build();
 

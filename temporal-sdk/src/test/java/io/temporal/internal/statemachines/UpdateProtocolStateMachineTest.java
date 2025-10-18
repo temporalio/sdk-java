@@ -816,13 +816,13 @@ public class UpdateProtocolStateMachineTest {
             .add(
                 (r) -> {
                   assertEquals(
-                      message.getMessage().getBody().getTypeUrl(),
-                      "type.googleapis.com/temporal.api.update.v1.Request");
+                      "type.googleapis.com/temporal.api.update.v1.Request",
+                      message.getMessage().getBody().getTypeUrl());
                   Request update = null;
                   try {
                     update = message.getMessage().getBody().unpack(Request.class);
                   } catch (InvalidProtocolBufferException e) {
-                    assertTrue(false);
+                    fail();
                   }
                   assertEquals("updateName", update.getInput().getName());
                   message.getCallbacks().accept();

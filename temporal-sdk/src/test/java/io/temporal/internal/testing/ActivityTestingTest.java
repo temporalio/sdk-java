@@ -80,7 +80,7 @@ public class ActivityTestingTest {
     } catch (ActivityFailure e) {
       assertTrue(e.getMessage().contains("Activity1"));
       assertTrue(e.getCause() instanceof ApplicationFailure);
-      assertTrue(((ApplicationFailure) e.getCause()).getType().equals(IOException.class.getName()));
+      assertEquals(((ApplicationFailure) e.getCause()).getType(), IOException.class.getName());
 
       assertEquals(
           "message='simulated', type='java.io.IOException', nonRetryable=false",

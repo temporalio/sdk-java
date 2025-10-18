@@ -12,7 +12,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CommandsGeneratePlantUMLStateDiagrams {
+public class CommandsGeneratePlantUMLStateDiagramsTest {
 
   private static final Logger log =
       LoggerFactory.getLogger(CommandsGeneratePlantUMLStateDiagrams.class);

@@ -1,8 +1,8 @@
 package io.temporal.workflow.updateTest;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.activity.*;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -12,8 +12,7 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.Rule;
@@ -21,27 +20,26 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateWithLocalActivity {
+public class UpdateBadValidatorTest {
+  private static int testWorkflowTaskFailureReplayCount;
 
   private static final Logger log = LoggerFactory.getLogger(UpdateTest.class);
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(WorkerOptions.newBuilder().build())
-          .setWorkflowTypes(TestUpdateWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setWorkflowTypes(TestUpdateWithBadValidatorWorkflowImpl.class)
           .build();
 
-  @Test
-  public void testUpdateWithLocalActivities() {
+  @Test(timeout = 30000)
+  public void testBadUpdateValidator() {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(workflowId)
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .build();
     TestWorkflows.WorkflowWithUpdate workflow =
         workflowClient.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class, options);
@@ -49,15 +47,14 @@ public class UpdateWithLocalActivity {
     // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
 
-    assertEquals(workflowId, execution.getWorkflowId());
-
     SDKTestWorkflowRule.waitForOKQuery(workflow);
     assertEquals("initial", workflow.getState());
 
-    assertEquals("Hello Update sleepActivity0 activity", workflow.update(0, "Hello Update"));
-    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
-    testWorkflowRule.invalidateWorkflowCache();
-    assertEquals("Hello Update 2 sleepActivity1 activity", workflow.update(1, "Hello Update 2"));
+    assertEquals(workflowId, execution.getWorkflowId());
+    for (String testCase : TestWorkflows.illegalCallCases) {
+      assertEquals("2", workflow.update(0, testCase));
+      testWorkflowTaskFailureReplayCount = 0;
+    }
 
     workflow.complete();
 
@@ -66,22 +63,18 @@ public class UpdateWithLocalActivity {
             .getWorkflowClient()
             .newUntypedWorkflowStub(execution, Optional.empty())
             .getResult(String.class);
-    assertEquals(
-        "Hello Update sleepActivity0 activity Hello Update 2 sleepActivity1 activity", result);
+    assertEquals("", result);
   }
 
-  public static class TestUpdateWorkflowImpl implements TestWorkflows.WorkflowWithUpdate {
+  public static class TestUpdateWithBadValidatorWorkflowImpl
+      implements TestWorkflows.WorkflowWithUpdate {
     String state = "initial";
-    List<String> updates = new ArrayList<>();
     CompletablePromise<Void> promise = Workflow.newPromise();
-    TestActivities.VariousTestActivities localActivities =
-        Workflow.newLocalActivityStub(
-            TestActivities.VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
 
     @Override
     public String execute() {
       promise.get();
-      return updates.get(0) + " " + updates.get(1);
+      return "";
     }
 
     @Override
@@ -91,14 +84,15 @@ public class UpdateWithLocalActivity {
 
     @Override
     public String update(Integer index, String value) {
-      String result =
-          value
-              + " "
-              + localActivities.sleepActivity(100, index)
-              + " "
-              + localActivities.activity();
-      updates.add(result);
-      return result;
+      return String.valueOf(testWorkflowTaskFailureReplayCount);
+    }
+
+    @Override
+    public void updateValidator(Integer index, String testCase) {
+      if (testWorkflowTaskFailureReplayCount < 2) {
+        testWorkflowTaskFailureReplayCount += 1;
+        TestWorkflows.illegalCalls(testCase);
+      }
     }
 
     @Override
@@ -108,15 +102,18 @@ public class UpdateWithLocalActivity {
 
     @Override
     public void completeValidator() {}
+  }
 
+  @ActivityInterface
+  public interface GreetingActivities {
+    @ActivityMethod
+    String hello(String input);
+  }
+
+  public static class ActivityImpl implements TestActivities.TestActivity1 {
     @Override
-    public void updateValidator(Integer index, String value) {
-      if (index < 0 || value == "") {
-        throw new IllegalArgumentException("Validation failed");
-      }
-      if (updates.size() >= 2) {
-        throw new RuntimeException("Received more then 2 update requests");
-      }
+    public String execute(String input) {
+      return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
     }
   }
 }

@@ -23,7 +23,7 @@ public class UntypedChildStubWorkflowAsyncInvokeTest {
   @Test
   public void testUntypedChildStubWorkflowAsyncInvoke() {
     TestWorkflow1 client = testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflow1.class);
-    Assert.assertEquals(null, client.execute(testWorkflowRule.getTaskQueue()));
+    Assert.assertNull(client.execute(testWorkflowRule.getTaskQueue()));
   }
 
   public static class TestUntypedChildStubWorkflowAsyncInvoke implements TestWorkflow1 {

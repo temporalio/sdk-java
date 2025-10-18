@@ -94,8 +94,8 @@ public class POJOWorkflowImplMetadataTest {
         metadata ->
             assertNotEquals(
                 "O is not a workflow interface and shouldn't be returned",
-                metadata.getInterfaceClass(),
-                POJOWorkflowInterfaceMetadataTest.O.class));
+                POJOWorkflowInterfaceMetadataTest.O.class,
+                metadata.getInterfaceClass()));
   }
 
   @Test
