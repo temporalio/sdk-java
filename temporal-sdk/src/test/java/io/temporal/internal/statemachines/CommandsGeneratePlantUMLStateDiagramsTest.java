@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 public class CommandsGeneratePlantUMLStateDiagramsTest {
 
   private static final Logger log =
-      LoggerFactory.getLogger(CommandsGeneratePlantUMLStateDiagrams.class);
+      LoggerFactory.getLogger(CommandsGeneratePlantUMLStateDiagramsTest.class);
 
   @Test
   public void plantUML() {
@@ -74,7 +74,7 @@ public class CommandsGeneratePlantUMLStateDiagramsTest {
           "` Generated from "
               + fullRelativePath
               + ".java\n` by "
-              + CommandsGeneratePlantUMLStateDiagrams.class.getName()
+              + CommandsGeneratePlantUMLStateDiagramsTest.class.getName()
               + ".\n");
       content.append("\n\n");
       content.append(diagram);

@@ -152,7 +152,7 @@ public class UpdateTestTimeoutTest {
     void complete();
   }
 
-  public static class BlockingWorkflowImpl implements UpdateTestTimeout.BlockingWorkflow {
+  public static class BlockingWorkflowImpl implements BlockingWorkflow {
     CompletablePromise<Void> promise = Workflow.newPromise();
     CompletablePromise<Void> updateExecutePromise = Workflow.newPromise();
 

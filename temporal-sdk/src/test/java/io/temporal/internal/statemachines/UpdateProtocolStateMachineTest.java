@@ -48,7 +48,7 @@ public class UpdateProtocolStateMachineTest {
             UpdateProtocolStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           VersionStateMachine.class,
           UpdateProtocolStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
