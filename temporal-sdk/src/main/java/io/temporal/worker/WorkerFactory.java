@@ -5,7 +5,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
-import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
@@ -19,11 +18,7 @@ import io.temporal.serviceclient.MetricsTag;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -204,14 +199,13 @@ public final class WorkerFactory {
 
     // Workers check and require that Temporal Server is available during start to fail-fast in case
     // of configuration issues.
-    DescribeNamespaceResponse response =
-        workflowClient
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .describeNamespace(
-                DescribeNamespaceRequest.newBuilder()
-                    .setNamespace(workflowClient.getOptions().getNamespace())
-                    .build());
+    workflowClient
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .describeNamespace(
+            DescribeNamespaceRequest.newBuilder()
+                .setNamespace(workflowClient.getOptions().getNamespace())
+                .build());
 
     for (Worker worker : workers.values()) {
       worker.start();
