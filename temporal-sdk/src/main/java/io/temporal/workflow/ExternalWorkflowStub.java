@@ -34,8 +34,19 @@ public interface ExternalWorkflowStub {
     return (ExternalWorkflowStub) supplier.__getUntypedStub();
   }
 
+  /**
+   * @return workflow execution used to create this stub.
+   */
   WorkflowExecution getExecution();
 
+  /**
+   * Synchronously signals a workflow by invoking its signal handler. Usually a signal handler is a
+   * method annotated with {@link io.temporal.workflow.SignalMethod}.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param args signal method arguments
+   * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
+   */
   void signal(String signalName, Object... args);
 
   void cancel();

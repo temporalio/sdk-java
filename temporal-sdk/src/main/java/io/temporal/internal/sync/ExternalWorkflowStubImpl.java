@@ -43,7 +43,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
     try {
       signaled.get();
     } catch (SignalExternalWorkflowException e) {
-      // Reset stack to the current one. Otherwise it is very confusing to see a stack of
+      // Reset stack to the current one. Otherwise, it is very confusing to see a stack of
       // an event handling method.
       e.setStackTrace(Thread.currentThread().getStackTrace());
       throw e;
