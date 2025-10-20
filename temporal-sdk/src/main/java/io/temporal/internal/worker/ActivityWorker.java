@@ -338,19 +338,20 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     /**
-     * Executes a gRPC call with proper interrupted flag handling. This method temporarily clears
-     * the interrupted flag before making gRPC calls and restores it afterward to ensure gRPC calls
-     * succeed even when the thread has been interrupted.
+     * Executes a gRPC call with proper interrupted flag handling.
+     * Activities that return with the 'interrupted' flag set, were unable to report their completion to the server.
+     * We need to clear 'interrupted' flag to allow gRPC calls to succeed,then restore it after reporting completion,
+     * to ensure gRPC calls succeed even when the thread has been interrupted.
      *
      * @param grpcCall the gRPC call to execute
      * @see <a href="https://github.com/temporalio/sdk-java/issues/731">GitHub Issue #731</a>
      */
     private void executeGrpcCallWithInterruptHandling(Runnable grpcCall) {
       // Check if the current thread is interrupted before making gRPC calls
-      // If it is, we need to temporarily clear the flag to allow gRPC calls to succeed,then restore it after reporting.
+      // If it is, we need to clear the flag to allow gRPC calls to succeed,then restore it after reporting.
       // This handles the case where an activity catches InterruptedException, restores the interrupted flag,
       // and continues to return a result.
-      // See: https://github.com/temporalio/sdk-java/issues/731
+
       boolean wasInterrupted = Thread.interrupted(); // This clears the flag
       try {
         grpcCall.run();
