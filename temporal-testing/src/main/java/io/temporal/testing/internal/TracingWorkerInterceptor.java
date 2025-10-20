@@ -134,8 +134,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
   }
 
-  private static class TracingWorkflowOutboundCallsInterceptor
-      implements WorkflowOutboundCallsInterceptor {
+  static class TracingWorkflowOutboundCallsInterceptor implements WorkflowOutboundCallsInterceptor {
 
     private final FilteredTrace trace;
     private final WorkflowOutboundCallsInterceptor next;
@@ -259,6 +258,15 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public <R> R sideEffect(
+        Class<R> resultClass, Type resultType, Functions.Func<R> func, SideEffectOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("sideEffect");
+      }
+      return next.sideEffect(resultClass, resultType, func, options);
+    }
+
+    @Override
     public <R> R mutableSideEffect(
         String id,
         Class<R> resultClass,
@@ -269,6 +277,20 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         trace.add("mutableSideEffect");
       }
       return next.mutableSideEffect(id, resultClass, resultType, updated, func);
+    }
+
+    @Override
+    public <R> R mutableSideEffect(
+        String id,
+        Class<R> resultClass,
+        Type resultType,
+        BiPredicate<R, R> updated,
+        Functions.Func<R> func,
+        MutableSideEffectOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("mutableSideEffect");
+      }
+      return next.mutableSideEffect(id, resultClass, resultType, updated, func, options);
     }
 
     @Override
