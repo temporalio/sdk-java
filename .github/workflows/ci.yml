@@ -27,7 +27,7 @@ jobs:
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
     
     - name: Run unit tests
       env:
@@ -68,7 +68,7 @@ jobs:
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
 
     - name: Start containerized server and dependencies
       env:
@@ -151,7 +151,7 @@ jobs:
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
     
     - name: Run cloud test
       # Only supported in non-fork runs, since secrets are not available in forks. We intentionally
@@ -190,7 +190,7 @@ jobs:
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
     
     - name: Run copyright and code format checks
       run: ./gradlew --no-daemon spotlessCheck
