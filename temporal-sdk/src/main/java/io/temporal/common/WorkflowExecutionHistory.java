@@ -36,7 +36,8 @@ public final class WorkflowExecutionHistory
   }
 
   /**
-   * @param serialized history json (temporal CLI format) to import and deserialize into {@link History}
+   * @param serialized history json (temporal CLI format) to import and deserialize into {@link
+   *     History}
    * @return WorkflowExecutionHistory
    */
   public static WorkflowExecutionHistory fromJson(String serialized) {
@@ -56,7 +57,8 @@ public final class WorkflowExecutionHistory
   }
 
   /**
-   * @param serialized history json (temporal CLI format) to import and deserialize into {@link History}
+   * @param serialized history json (temporal CLI format) to import and deserialize into {@link
+   *     History}
    * @param workflowId workflow id to be used in {@link #getWorkflowExecution()}
    * @return WorkflowExecutionHistory
    */
