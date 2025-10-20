@@ -10,7 +10,9 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
+import io.temporal.api.deployment.v1.WorkerDeploymentOptions;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
+import io.temporal.api.enums.v1.WorkerVersioningMode;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
@@ -71,6 +73,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
       startRequest.setRequestEagerExecution(requestEagerExecution);
+      if (requestEagerExecution && eagerDispatchHandle.getDeploymentOptions() != null) {
+        startRequest.setEagerWorkerDeploymentOptions(
+            toProtoDeploymentOptions(eagerDispatchHandle.getDeploymentOptions()));
+      }
       StartWorkflowExecutionResponse response = genericClient.start(startRequest.build());
       WorkflowExecution execution =
           WorkflowExecution.newBuilder()
@@ -742,5 +748,23 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       return null;
     }
     return eagerWorkflowTaskDispatcher.tryGetLocalDispatchHandler(input);
+  }
+
+  private static WorkerDeploymentOptions toProtoDeploymentOptions(
+      io.temporal.worker.WorkerDeploymentOptions deploymentOptions) {
+    WorkerDeploymentOptions.Builder builder = WorkerDeploymentOptions.newBuilder();
+
+    if (deploymentOptions.getVersion() != null) {
+      builder.setDeploymentName(deploymentOptions.getVersion().getDeploymentName());
+      builder.setBuildId(deploymentOptions.getVersion().getBuildId());
+    }
+
+    if (deploymentOptions.isUsingVersioning()) {
+      builder.setWorkerVersioningMode(WorkerVersioningMode.WORKER_VERSIONING_MODE_VERSIONED);
+    } else {
+      builder.setWorkerVersioningMode(WorkerVersioningMode.WORKER_VERSIONING_MODE_UNVERSIONED);
+    }
+
+    return builder.build();
   }
 }

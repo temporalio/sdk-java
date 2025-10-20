@@ -11,24 +11,31 @@ import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class WorkflowTaskDispatchHandle implements Closeable {
   private final AtomicBoolean completed = new AtomicBoolean();
   private final Function<WorkflowTask, Boolean> dispatchCallback;
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
   private final SlotPermit permit;
+  private final WorkerDeploymentOptions deploymentOptions;
 
   /**
    * @param dispatchCallback callback into a {@code WorkflowWorker} to dispatch a workflow task.
    * @param slotSupplier slot supplier that was used to reserve a slot for this workflow task
+   * @param permit the slot permit reserved for this workflow task
+   * @param deploymentOptions deployment options of the worker that reserved the slot, or null if
+   *     not configured
    */
   public WorkflowTaskDispatchHandle(
       DispatchCallback dispatchCallback,
       TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
-      SlotPermit permit) {
+      SlotPermit permit,
+      @Nullable WorkerDeploymentOptions deploymentOptions) {
     this.dispatchCallback = dispatchCallback;
     this.slotSupplier = slotSupplier;
     this.permit = permit;
+    this.deploymentOptions = deploymentOptions;
   }
 
   /**
@@ -45,6 +52,14 @@ public class WorkflowTaskDispatchHandle implements Closeable {
     } else {
       return false;
     }
+  }
+
+  /**
+   * @return deployment options of the worker that reserved the slot, or null if not configured
+   */
+  @Nullable
+  public WorkerDeploymentOptions getDeploymentOptions() {
+    return deploymentOptions;
   }
 
   @Override
