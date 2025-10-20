@@ -917,6 +917,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .setWorkflowExecution(
                           WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
                       .setNamespace(ctx.getNamespace())
+                      .setReason(attr.getReason())
                       .build();
               CancelExternalWorkflowExecutionCallerInfo info =
                   new CancelExternalWorkflowExecutionCallerInfo(
@@ -2011,6 +2012,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     // Do not lock if there is an outstanding workflow task.
     if (beforeState == State.NONE && workflowTaskStateMachine.getState() == State.INITIATED) {
       ctx.lockTimer("scheduleWorkflowTask");
+    } else {
+      log.info("not lockings");
     }
   }
 
