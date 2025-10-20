@@ -502,6 +502,9 @@ public class TestWorkflowExtension
      * @param name name of the search attribute
      * @param type search attribute type
      * @return {@code this}
+     * @see <a
+     *     href="https://docs.temporal.io/self-hosted-guide/visibility#create-custom-search-attributes">
+     *     How to create custom Search Attributes</a>
      */
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       this.searchAttributes.put(name, type);

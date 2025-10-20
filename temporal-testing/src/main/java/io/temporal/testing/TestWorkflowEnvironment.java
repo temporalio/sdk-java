@@ -134,6 +134,9 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @param name Search Attribute name
    * @param type Search Attribute type to be used for an elastic search index
    * @return {@code true} if the search attribute was registered, false if it was registered already
+   * @see <a
+     *     href="https://docs.temporal.io/self-hosted-guide/visibility#create-custom-search-attributes">
+     *     How to create custom Search Attributes</a>
    */
   boolean registerSearchAttribute(String name, IndexedValueType type);
 
