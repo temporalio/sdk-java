@@ -2,6 +2,11 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -9,11 +14,14 @@ import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SideEffectTest {
+  static final String sideEffectSummary = "side-effect-summary";
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -39,6 +47,15 @@ public class SideEffectTest {
             "sleep PT1S",
             "executeActivity customActivity1",
             "activity customActivity1");
+
+    WorkflowExecution exec = WorkflowStub.fromTyped(workflowStub).getExecution();
+    WorkflowExecutionHistory workflowExecutionHistory =
+        testWorkflowRule.getWorkflowClient().fetchHistory(exec.getWorkflowId());
+    List<HistoryEvent> sideEffectMarkerEvents =
+        workflowExecutionHistory.getEvents().stream()
+            .filter(HistoryEvent::hasMarkerRecordedEventAttributes)
+            .collect(Collectors.toList());
+    HistoryUtils.assertEventMetadata(sideEffectMarkerEvents.get(0), sideEffectSummary, null);
   }
 
   public static class TestSideEffectWorkflowImpl implements TestWorkflow1 {
@@ -51,7 +68,11 @@ public class SideEffectTest {
               SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
       long workflowTime = Workflow.currentTimeMillis();
-      long time1 = Workflow.sideEffect(long.class, () -> workflowTime);
+      long time1 =
+          Workflow.sideEffect(
+              long.class,
+              () -> workflowTime,
+              SideEffectOptions.newBuilder().setSummary(sideEffectSummary).build());
       long time2 = Workflow.sideEffect(long.class, () -> workflowTime);
       assertEquals(time1, time2);
       Workflow.sleep(Duration.ofSeconds(1));

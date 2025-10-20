@@ -3,8 +3,11 @@ package io.temporal.testUtils;
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static io.temporal.testing.internal.TestServiceUtils.*;
+import static org.junit.Assert.assertEquals;
 
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testserver.TestServer;
@@ -81,5 +84,20 @@ public class HistoryUtils {
         service);
     return pollWorkflowTaskQueue(
         namespace, createStickyTaskQueue(stickyTaskQueueName, normalTaskQueueName), service);
+  }
+
+  public static void assertEventMetadata(HistoryEvent event, String summary, String details) {
+    if (summary != null) {
+      String describedSummary =
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+              event.getUserMetadata().getSummary(), String.class, String.class);
+      assertEquals(summary, describedSummary);
+    }
+    if (details != null) {
+      String describedDetails =
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+              event.getUserMetadata().getDetails(), String.class, String.class);
+      assertEquals(details, describedDetails);
+    }
   }
 }

@@ -1027,6 +1027,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
+    return sideEffect(resultClass, resultType, func, SideEffectOptions.newBuilder().build());
+  }
+
+  @Override
+  public <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
     try {
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
@@ -1039,6 +1048,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               readOnly = false;
             }
           },
+          userMetadata,
           (p) ->
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
@@ -1054,8 +1064,23 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    return mutableSideEffect(
+        id, resultClass, resultType, updated, func, MutableSideEffectOptions.newBuilder().build());
+  }
+
+  @Override
+  public <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
     try {
-      return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
+      return mutableSideEffectImpl(id, userMetadata, resultClass, resultType, updated, func);
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
       // behavior. So fail the workflow task by throwing an Error.
@@ -1064,11 +1089,17 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private <R> R mutableSideEffectImpl(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      String id,
+      UserMetadata metadata,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     replayContext.mutableSideEffect(
         id,
+        metadata,
         (storedBinary) -> {
           Optional<R> stored =
               storedBinary.map(
