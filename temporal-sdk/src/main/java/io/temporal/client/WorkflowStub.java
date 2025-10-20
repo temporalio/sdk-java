@@ -167,6 +167,22 @@ public interface WorkflowStub {
   WorkflowExecution getExecution();
 
   /**
+   * Returns the workflow ID that will be used or is being used by this workflow execution. Unlike
+   * {@link #getExecution()}, this method returns the workflow ID even before the workflow is
+   * started.
+   *
+   * <p><strong>Warning:</strong> When this stub is bound to a specific run ID (e.g., created via
+   * {@link WorkflowClient#newUntypedWorkflowStub(WorkflowExecution, Optional)}), be aware that
+   * targeting a specific run can be flaky when the workflow uses "continue as new". The workflow ID
+   * remains constant across continue-as-new operations, but the run ID changes. If you need to
+   * interact with the current run of a workflow that may have continued as new, consider using a
+   * stub bound only to the workflow ID (with empty run ID) instead.
+   *
+   * @return the workflow ID for this workflow stub
+   */
+  String getWorkflowId();
+
+  /**
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
    * call performs long poll on Temporal service waiting for workflow completion notification.
    *

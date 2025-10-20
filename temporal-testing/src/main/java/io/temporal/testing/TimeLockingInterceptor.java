@@ -83,6 +83,11 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public String getWorkflowId() {
+      return next.getWorkflowId();
+    }
+
+    @Override
     public <R> R getResult(Class<R> resultClass, Type resultType) {
       locker.unlockTimeSkipping();
       try {

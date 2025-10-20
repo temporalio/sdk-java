@@ -227,6 +227,31 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
+  public String getWorkflowId() {
+    // If workflow is already started, get ID from execution
+    WorkflowExecution currentExecution = getExecution();
+    if (currentExecution != null) {
+      return currentExecution.getWorkflowId();
+    }
+
+    // If workflow is not started yet, get ID from options
+    if (options != null) {
+      String workflowId = options.getWorkflowId();
+      if (workflowId != null && !workflowId.isEmpty()) {
+        return workflowId;
+      }
+      // If no workflow ID is set in options, we cannot determine it before start
+      // because it would be auto-generated at start time
+      throw new IllegalStateException(
+          "Cannot determine workflow ID before start when no explicit workflow ID is set in options");
+    }
+
+    // This should not happen in normal usage
+    throw new IllegalStateException(
+        "Cannot determine workflow ID: stub has no execution or options");
+  }
+
+  @Override
   public <R> R getResult(Class<R> resultClass) {
     return getResult(resultClass, resultClass);
   }
