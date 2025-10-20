@@ -37,8 +37,8 @@ public class MutableSideEffectOptions {
     }
 
     /**
-     * Single-line fixed summary for this timer that will appear in UI/CLI. This can be in
-     * single-line Temporal Markdown format.
+     * Single-line fixed summary for this mutable side effect that will appear in UI/CLI. This can
+     * be in single-line Temporal Markdown format.
      *
      * <p>Default is none/empty.
      */
@@ -69,7 +69,7 @@ public class MutableSideEffectOptions {
 
   @Override
   public String toString() {
-    return "TimerOptions{" + "summary='" + summary + '\'' + '}';
+    return "MutableSideEffectOptions{" + "summary='" + summary + '\'' + '}';
   }
 
   @Override
