@@ -223,7 +223,15 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public WorkflowExecution getExecution() {
-    return options != null ? startedExecution.get() : execution.get();
+    if (options != null) {
+      // For stubs created with options (for starting workflows), prefer startedExecution if
+      // available
+      WorkflowExecution started = startedExecution.get();
+      return started != null ? started : execution.get();
+    } else {
+      // For stubs bound to existing executions, use execution directly
+      return execution.get();
+    }
   }
 
   @Override
