@@ -1,6 +1,5 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -8,7 +7,6 @@ import javax.annotation.Nonnull;
  * Can be used to create a {@link WorkerTuner} which uses specific {@link SlotSupplier}s for each
  * type of slot.
  */
-@Experimental
 public class CompositeTuner implements WorkerTuner {
   private final @Nonnull SlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier;
   private final @Nonnull SlotSupplier<ActivitySlotInfo> activityTaskSlotSupplier;

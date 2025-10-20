@@ -417,7 +417,6 @@ public final class WorkerOptions {
      * Set a {@link WorkerTuner} to determine how slots will be allocated for different types of
      * tasks.
      */
-    @Experimental
     public Builder setWorkerTuner(WorkerTuner workerTuner) {
       this.workerTuner = workerTuner;
       return this;

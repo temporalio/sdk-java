@@ -1,12 +1,10 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.Nonnull;
 
 /** A {@link WorkerTuner} that attempts to allocate slots based on available system resources. */
-@Experimental
 public class ResourceBasedTuner implements WorkerTuner {
   public static final ResourceBasedSlotOptions DEFAULT_WORKFLOW_SLOT_OPTIONS =
       ResourceBasedSlotOptions.newBuilder()
