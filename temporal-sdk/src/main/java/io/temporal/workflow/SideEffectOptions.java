@@ -37,7 +37,7 @@ public class SideEffectOptions {
     }
 
     /**
-     * Single-line fixed summary for this timer that will appear in UI/CLI. This can be in
+     * Single-line fixed summary for this side effect that will appear in UI/CLI. This can be in
      * single-line Temporal Markdown format.
      *
      * <p>Default is none/empty.
@@ -69,7 +69,7 @@ public class SideEffectOptions {
 
   @Override
   public String toString() {
-    return "TimerOptions{" + "summary='" + summary + '\'' + '}';
+    return "SideEffectOptions{" + "summary='" + summary + '\'' + '}';
   }
 
   @Override
