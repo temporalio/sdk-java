@@ -280,7 +280,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             : new WorkflowChainId(namespace, execution.getWorkflowId(), firstExecutionRunId);
 
     if (workflowChainId != null) {
-      return getMutableState(workflowChainId, true);
+      return getMutableState(workflowChainId, failNotExists);
     }
     return getMutableState(executionId, failNotExists);
   }
