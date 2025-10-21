@@ -280,33 +280,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             : new WorkflowChainId(namespace, execution.getWorkflowId(), firstExecutionRunId);
 
     if (workflowChainId != null) {
-      TestWorkflowMutableState mutableStateByFirstRunId = getMutableState(workflowChainId, false);
-      if (mutableStateByFirstRunId != null) {
-        return mutableStateByFirstRunId;
-      }
+      return getMutableState(workflowChainId, true);
     }
-
-    TestWorkflowMutableState mutableState = getMutableState(executionId, false);
-    if (mutableState != null) {
-      if (workflowChainId == null) {
-        return mutableState;
-      }
-      WorkflowExecution mutableStateExecution = mutableState.getExecutionId().getExecution();
-      if (mutableStateExecution.getRunId().equals(execution.getRunId())
-          && firstExecutionRunId.equals(mutableState.getFirstExecutionRunId())) {
-        return mutableState;
-      }
-    }
-
-    if (failNotExists) {
-      if (workflowChainId != null) {
-        throw Status.NOT_FOUND
-            .withDescription("Execution not found in mutable state: " + workflowChainId)
-            .asRuntimeException();
-      }
-      return getMutableState(executionId, true);
-    }
-    return null;
+    return getMutableState(executionId, failNotExists);
   }
 
   @Override

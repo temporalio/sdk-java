@@ -1,9 +1,9 @@
 package io.temporal.testserver.functional;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
@@ -17,11 +17,13 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.UUID;
+import javax.annotation.Nullable;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class FirstExecutionRunIdSupportTest {
+  private static final String BAD_RUN_ID = UUID.randomUUID().toString();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -33,21 +35,36 @@ public class FirstExecutionRunIdSupportTest {
   public void requestCancelWorkflowExecutionUsesFirstExecutionRunId() {
     WorkflowHandle handle = startWorkflow("cancel-first-execution-" + UUID.randomUUID());
 
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .requestCancelWorkflowExecution(
-            RequestCancelWorkflowExecutionRequest.newBuilder()
-                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                .setWorkflowExecution(
+    StatusRuntimeException sre =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                requestCancelWorkflowExecution(
                     WorkflowExecution.newBuilder()
                         .setWorkflowId(handle.execution.getWorkflowId())
-                        .build())
-                .setFirstExecutionRunId(handle.execution.getRunId())
-                .setIdentity("test-client")
-                .build());
+                        .setRunId(BAD_RUN_ID)
+                        .build(),
+                    BAD_RUN_ID));
+    Assert.assertEquals(
+        "Cancel with bad runID should fail", Status.NOT_FOUND.getCode(), sre.getStatus().getCode());
 
+    sre =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                requestCancelWorkflowExecution(
+                    WorkflowExecution.newBuilder()
+                        .setWorkflowId(handle.execution.getWorkflowId())
+                        .build(),
+                    BAD_RUN_ID));
+    Assert.assertEquals(
+        "Cancel with bad firstExecutionRunId should fail",
+        Status.NOT_FOUND.getCode(),
+        sre.getStatus().getCode());
+
+    requestCancelWorkflowExecution(
+        WorkflowExecution.newBuilder().setWorkflowId(handle.execution.getWorkflowId()).build(),
+        handle.execution.getRunId());
     WorkflowFailedException failure =
         Assert.assertThrows(WorkflowFailedException.class, () -> handle.stub.getResult(Void.class));
     Assert.assertTrue(failure.getCause() instanceof CanceledFailure);
@@ -57,21 +74,38 @@ public class FirstExecutionRunIdSupportTest {
   public void terminateWorkflowExecutionUsesFirstExecutionRunId() {
     WorkflowHandle handle = startWorkflow("terminate-first-execution-" + UUID.randomUUID());
 
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .terminateWorkflowExecution(
-            TerminateWorkflowExecutionRequest.newBuilder()
-                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                .setWorkflowExecution(
+    StatusRuntimeException sre =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                terminateWorkflowExecution(
                     WorkflowExecution.newBuilder()
                         .setWorkflowId(handle.execution.getWorkflowId())
-                        .build())
-                .setFirstExecutionRunId(handle.execution.getRunId())
-                .setReason("terminated for test")
-                .setIdentity("test-client")
-                .build());
+                        .setRunId(BAD_RUN_ID)
+                        .build(),
+                    null));
+    Assert.assertEquals(
+        "Terminate with bad runID should fail",
+        Status.NOT_FOUND.getCode(),
+        sre.getStatus().getCode());
+
+    sre =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                terminateWorkflowExecution(
+                    WorkflowExecution.newBuilder()
+                        .setWorkflowId(handle.execution.getWorkflowId())
+                        .build(),
+                    BAD_RUN_ID));
+    Assert.assertEquals(
+        "Terminate with bad firstExecutionRunId should fail",
+        Status.NOT_FOUND.getCode(),
+        sre.getStatus().getCode());
+
+    terminateWorkflowExecution(
+        WorkflowExecution.newBuilder().setWorkflowId(handle.execution.getWorkflowId()).build(),
+        handle.execution.getRunId());
 
     WorkflowFailedException failure =
         Assert.assertThrows(WorkflowFailedException.class, () -> handle.stub.getResult(Void.class));
@@ -86,25 +120,100 @@ public class FirstExecutionRunIdSupportTest {
     String continuedRunId = awaitContinuedRun(handle);
     Assert.assertNotEquals(handle.firstExecution.getRunId(), continuedRunId);
 
-    testWorkflowRule
-        .getWorkflowClient()
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .requestCancelWorkflowExecution(
-            RequestCancelWorkflowExecutionRequest.newBuilder()
-                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                .setWorkflowExecution(
+    StatusRuntimeException sre =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                requestCancelWorkflowExecution(
                     WorkflowExecution.newBuilder()
                         .setWorkflowId(handle.firstExecution.getWorkflowId())
-                        .setRunId(handle.firstExecution.getRunId())
-                        .build())
-                .setFirstExecutionRunId(handle.firstExecution.getRunId())
-                .setIdentity("test-client")
-                .build());
+                        .build(),
+                    continuedRunId));
+    // Using continued runId as firstExecutionRunId should fail
+    Assert.assertEquals(
+        "Cancel with wrong firstExecutionRunId should fail",
+        Status.NOT_FOUND.getCode(),
+        sre.getStatus().getCode());
+
+    requestCancelWorkflowExecution(
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(handle.firstExecution.getWorkflowId())
+            .setRunId(handle.firstExecution.getRunId())
+            .build(),
+        handle.firstExecution.getRunId());
 
     WorkflowFailedException failure =
         Assert.assertThrows(WorkflowFailedException.class, () -> handle.stub.getResult(Void.class));
     Assert.assertTrue(failure.getCause() instanceof CanceledFailure);
+  }
+
+  @Test
+  public void terminateWorkflowExecutionUsesFirstExecutionRunIdAfterContinueAsNew() {
+    ContinueAsNewWorkflowHandle handle =
+        startContinueAsNewWorkflow("cancel-first-execution-after-continue-" + UUID.randomUUID());
+
+    String continuedRunId = awaitContinuedRun(handle);
+    Assert.assertNotEquals(handle.firstExecution.getRunId(), continuedRunId);
+
+    StatusRuntimeException sre =
+        Assert.assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                terminateWorkflowExecution(
+                    WorkflowExecution.newBuilder()
+                        .setWorkflowId(handle.firstExecution.getWorkflowId())
+                        .build(),
+                    continuedRunId));
+    // Using continued runId as firstExecutionRunId should fail
+    Assert.assertEquals(
+        "Terminate with wrong firstExecutionRunId should fail",
+        Status.NOT_FOUND.getCode(),
+        sre.getStatus().getCode());
+
+    terminateWorkflowExecution(
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(handle.firstExecution.getWorkflowId())
+            .setRunId(handle.firstExecution.getRunId())
+            .build(),
+        handle.firstExecution.getRunId());
+
+    WorkflowFailedException failure =
+        Assert.assertThrows(WorkflowFailedException.class, () -> handle.stub.getResult(Void.class));
+    Assert.assertTrue(failure.getCause() instanceof TerminatedFailure);
+  }
+
+  private RequestCancelWorkflowExecutionResponse requestCancelWorkflowExecution(
+      WorkflowExecution exec, @Nullable String firstRunId) {
+    RequestCancelWorkflowExecutionRequest.Builder cancelBuilder =
+        RequestCancelWorkflowExecutionRequest.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .setWorkflowExecution(exec)
+            .setIdentity("test-client");
+    if (firstRunId != null) {
+      cancelBuilder.setFirstExecutionRunId(firstRunId);
+    }
+    return testWorkflowRule
+        .getWorkflowClient()
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .requestCancelWorkflowExecution(cancelBuilder.build());
+  }
+
+  private TerminateWorkflowExecutionResponse terminateWorkflowExecution(
+      WorkflowExecution exec, @Nullable String firstRunId) {
+    TerminateWorkflowExecutionRequest.Builder terminateBuilder =
+        TerminateWorkflowExecutionRequest.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .setWorkflowExecution(exec)
+            .setIdentity("test-client");
+    if (firstRunId != null) {
+      terminateBuilder.setFirstExecutionRunId(firstRunId);
+    }
+    return testWorkflowRule
+        .getWorkflowClient()
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .terminateWorkflowExecution(terminateBuilder.build());
   }
 
   private WorkflowHandle startWorkflow(String workflowId) {
