@@ -26,6 +26,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.worker.WorkerVersioningProtoUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -75,7 +76,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       startRequest.setRequestEagerExecution(requestEagerExecution);
       if (requestEagerExecution && eagerDispatchHandle.getDeploymentOptions() != null) {
         startRequest.setEagerWorkerDeploymentOptions(
-            toProtoDeploymentOptions(eagerDispatchHandle.getDeploymentOptions()));
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(eagerDispatchHandle.getDeploymentOptions()));
       }
       StartWorkflowExecutionResponse response = genericClient.start(startRequest.build());
       WorkflowExecution execution =
@@ -748,23 +749,5 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       return null;
     }
     return eagerWorkflowTaskDispatcher.tryGetLocalDispatchHandler(input);
-  }
-
-  private static WorkerDeploymentOptions toProtoDeploymentOptions(
-      io.temporal.worker.WorkerDeploymentOptions deploymentOptions) {
-    WorkerDeploymentOptions.Builder builder = WorkerDeploymentOptions.newBuilder();
-
-    if (deploymentOptions.getVersion() != null) {
-      builder.setDeploymentName(deploymentOptions.getVersion().getDeploymentName());
-      builder.setBuildId(deploymentOptions.getVersion().getBuildId());
-    }
-
-    if (deploymentOptions.isUsingVersioning()) {
-      builder.setWorkerVersioningMode(WorkerVersioningMode.WORKER_VERSIONING_MODE_VERSIONED);
-    } else {
-      builder.setWorkerVersioningMode(WorkerVersioningMode.WORKER_VERSIONING_MODE_UNVERSIONED);
-    }
-
-    return builder.build();
   }
 }
