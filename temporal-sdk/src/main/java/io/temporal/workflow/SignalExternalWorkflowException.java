@@ -4,7 +4,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowException;
 
 /** Exception used to communicate failure of a request to signal an external workflow. */
-@SuppressWarnings("serial")
 public final class SignalExternalWorkflowException extends WorkflowException {
 
   public SignalExternalWorkflowException(WorkflowExecution execution, String workflowType) {
