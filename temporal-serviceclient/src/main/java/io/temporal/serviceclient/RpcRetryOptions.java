@@ -107,7 +107,7 @@ public final class RpcRetryOptions {
      */
     public Builder setInitialInterval(Duration initialInterval) {
       if (isInvalidDuration(initialInterval)) {
-        throw new IllegalArgumentException("invalid interval: " + initialInterval);
+        throw new IllegalArgumentException("invalid initialInterval: " + initialInterval);
       }
       this.initialInterval = initialInterval;
       return this;
@@ -122,7 +122,8 @@ public final class RpcRetryOptions {
      */
     public Builder setCongestionInitialInterval(Duration congestionInitialInterval) {
       if (isInvalidDuration(congestionInitialInterval)) {
-        throw new IllegalArgumentException("invalid interval: " + congestionInitialInterval);
+        throw new IllegalArgumentException(
+            "invalid congestionInitialInterval: " + congestionInitialInterval);
       }
       this.congestionInitialInterval = congestionInitialInterval;
       return this;
@@ -139,7 +140,7 @@ public final class RpcRetryOptions {
      */
     public Builder setExpiration(Duration expiration) {
       if (isInvalidDuration(expiration)) {
-        throw new IllegalArgumentException("invalid interval: " + expiration);
+        throw new IllegalArgumentException("invalid expiration : " + expiration);
       }
       this.expiration = expiration;
       return this;
@@ -155,7 +156,7 @@ public final class RpcRetryOptions {
     public Builder setBackoffCoefficient(double backoffCoefficient) {
       if (isInvalidBackoffCoefficient(backoffCoefficient)) {
         throw new IllegalArgumentException(
-            "coefficient must be >= 1.0 and finite: " + backoffCoefficient);
+            "backoffCoefficient must be >= 1.0 and finite: " + backoffCoefficient);
       }
       this.backoffCoefficient = backoffCoefficient;
       return this;
@@ -189,7 +190,7 @@ public final class RpcRetryOptions {
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
       if (isInvalidDuration(maximumInterval)) {
-        throw new IllegalArgumentException("invalid interval: " + maximumInterval);
+        throw new IllegalArgumentException("invalid maximumInterval: " + maximumInterval);
       }
       this.maximumInterval = maximumInterval;
       return this;
@@ -204,7 +205,7 @@ public final class RpcRetryOptions {
     public Builder setMaximumJitterCoefficient(double maximumJitterCoefficient) {
       if (isInvalidJitterCoefficient(maximumJitterCoefficient)) {
         throw new IllegalArgumentException(
-            "coefficient must be >= 0 and < 1.0: " + maximumJitterCoefficient);
+            "maximumJitterCoefficient must be >= 0 and < 1.0: " + maximumJitterCoefficient);
       }
       this.maximumJitterCoefficient = maximumJitterCoefficient;
       return this;
@@ -468,7 +469,7 @@ public final class RpcRetryOptions {
               + initialInterval);
     }
     if (backoffCoefficient != 0d && backoffCoefficient < 1.0) {
-      throw new IllegalArgumentException("coefficient less than 1");
+      throw new IllegalArgumentException("backoffCoefficient less than 1");
     }
     if (!Double.isFinite(maximumJitterCoefficient)
         || maximumJitterCoefficient < 0
