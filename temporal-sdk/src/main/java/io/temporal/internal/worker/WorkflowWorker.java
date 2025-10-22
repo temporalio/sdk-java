@@ -328,7 +328,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       }
                     },
                     slotSupplier,
-                    slotPermit))
+                    slotPermit,
+                    options.getDeploymentOptions()))
         .orElse(null);
   }
 

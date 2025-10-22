@@ -24,6 +24,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.worker.WorkerVersioningProtoUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -71,6 +72,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
       startRequest.setRequestEagerExecution(requestEagerExecution);
+      if (requestEagerExecution && eagerDispatchHandle.getDeploymentOptions() != null) {
+        startRequest.setEagerWorkerDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(
+                eagerDispatchHandle.getDeploymentOptions()));
+      }
       StartWorkflowExecutionResponse response = genericClient.start(startRequest.build());
       WorkflowExecution execution =
           WorkflowExecution.newBuilder()
