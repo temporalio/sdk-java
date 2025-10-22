@@ -374,6 +374,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
+  public String getFirstExecutionRunId() {
+    return workflow.getData().firstExecutionRunId;
+  }
+
+  @Override
   public WorkflowExecutionStatus getWorkflowExecutionStatus() {
     switch (workflow.getState()) {
       case NONE:
