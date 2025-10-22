@@ -100,10 +100,9 @@ public class ScheduleWithTypedSearchAttributesTest {
     // Verify the actions search attributes
     ScheduleActionStartWorkflow action =
         (ScheduleActionStartWorkflow) description.getSchedule().getAction();
-    Assert.assertEquals(null, action.getOptions().getSearchAttributes());
+    Assert.assertNull(action.getOptions().getSearchAttributes());
     Assert.assertEquals(3, action.getOptions().getTypedSearchAttributes().size());
-    Assert.assertEquals(
-        true, action.getOptions().getTypedSearchAttributes().containsKey(CUSTOM_DOUBLE_SA));
+    Assert.assertTrue(action.getOptions().getTypedSearchAttributes().containsKey(CUSTOM_DOUBLE_SA));
     // Clean up schedule
     handle.delete();
   }

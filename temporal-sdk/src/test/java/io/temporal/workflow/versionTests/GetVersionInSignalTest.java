@@ -2,6 +2,7 @@ package io.temporal.workflow.versionTests;
 
 import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
@@ -42,7 +43,7 @@ public class GetVersionInSignalTest extends BaseVersionTest {
       assertEquals(1, versions.size());
       assertEquals("some-id-2", versions.get(0));
     } else {
-      assertEquals(null, versions);
+      assertNull(versions);
     }
   }
 

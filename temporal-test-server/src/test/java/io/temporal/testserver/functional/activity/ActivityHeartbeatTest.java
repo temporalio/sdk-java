@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class ActivityHeartbeat {
+public class ActivityHeartbeatTest {
   private static final ConcurrentLinkedQueue<Optional<Payloads>> activityHeartbeats =
       new ConcurrentLinkedQueue<>();
 

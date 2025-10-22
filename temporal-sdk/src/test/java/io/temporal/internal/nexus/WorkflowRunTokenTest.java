@@ -71,7 +71,7 @@ public class WorkflowRunTokenTest {
         OperationTokenUtil.loadWorkflowRunOperationToken(encoder.encodeToString(json.getBytes()));
     Assert.assertEquals("workflowId", token.getWorkflowId());
     Assert.assertEquals("namespace", token.getNamespace());
-    Assert.assertEquals(null, token.getVersion());
+    Assert.assertNull(token.getVersion());
     Assert.assertEquals(OperationTokenType.WORKFLOW_RUN, token.getType());
 
     Assert.assertEquals(

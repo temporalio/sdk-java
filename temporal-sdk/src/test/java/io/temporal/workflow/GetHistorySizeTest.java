@@ -1,6 +1,6 @@
 package io.temporal.workflow;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.testing.WorkflowReplayer;
@@ -42,13 +42,13 @@ public class GetHistorySizeTest {
           Workflow.newLocalActivityStub(TestActivities.VariousTestActivities.class, options);
 
       assertEquals(408, Workflow.getInfo().getHistorySize());
-      assertEquals(false, Workflow.getInfo().isContinueAsNewSuggested());
+      assertFalse(Workflow.getInfo().isContinueAsNewSuggested());
 
       // Force WFT heartbeat
       activities.sleepActivity(TimeUnit.SECONDS.toMillis(10), 1);
 
       assertEquals(897, Workflow.getInfo().getHistorySize());
-      assertEquals(true, Workflow.getInfo().isContinueAsNewSuggested());
+      assertTrue(Workflow.getInfo().isContinueAsNewSuggested());
 
       return "done";
     }

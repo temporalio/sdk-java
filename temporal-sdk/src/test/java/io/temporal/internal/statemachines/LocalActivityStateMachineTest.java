@@ -55,7 +55,7 @@ public class LocalActivityStateMachineTest {
             LocalActivityStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           LocalActivityStateMachine.class,
           LocalActivityStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

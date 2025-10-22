@@ -12,7 +12,7 @@ import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SignalAllHandlersFinished {
+public class SignalAllHandlersFinishedTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

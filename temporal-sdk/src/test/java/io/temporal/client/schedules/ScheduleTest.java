@@ -125,37 +125,37 @@ public class ScheduleTest {
     ScheduleDescription description = handle.describe();
     // Verify the initial state of the schedule
     Assert.assertEquals("", description.getSchedule().getState().getNote());
-    Assert.assertEquals(false, description.getSchedule().getState().isPaused());
+    Assert.assertFalse(description.getSchedule().getState().isPaused());
     // Pause the schedule
     handle.pause();
     description = handle.describe();
     Assert.assertEquals("Paused via Java SDK", description.getSchedule().getState().getNote());
-    Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    Assert.assertTrue(description.getSchedule().getState().isPaused());
 
     handle.unpause();
     description = handle.describe();
     Assert.assertEquals("Unpaused via Java SDK", description.getSchedule().getState().getNote());
-    Assert.assertEquals(false, description.getSchedule().getState().isPaused());
+    Assert.assertFalse(description.getSchedule().getState().isPaused());
 
     handle.pause("pause via test");
     description = handle.describe();
     Assert.assertEquals("pause via test", description.getSchedule().getState().getNote());
-    Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    Assert.assertTrue(description.getSchedule().getState().isPaused());
 
     handle.pause("");
     description = handle.describe();
     Assert.assertEquals("Paused via Java SDK", description.getSchedule().getState().getNote());
-    Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    Assert.assertTrue(description.getSchedule().getState().isPaused());
 
     handle.unpause("unpause via test");
     description = handle.describe();
     Assert.assertEquals("unpause via test", description.getSchedule().getState().getNote());
-    Assert.assertEquals(false, description.getSchedule().getState().isPaused());
+    Assert.assertFalse(description.getSchedule().getState().isPaused());
 
     handle.unpause("");
     description = handle.describe();
     Assert.assertEquals("Unpaused via Java SDK", description.getSchedule().getState().getNote());
-    Assert.assertEquals(false, description.getSchedule().getState().isPaused());
+    Assert.assertFalse(description.getSchedule().getState().isPaused());
     // Cleanup schedule
     handle.delete();
     // Try to unpause a deleted schedule
@@ -182,7 +182,7 @@ public class ScheduleTest {
     // Verify all 3 actions have run
     ScheduleDescription description = handle.describe();
     Assert.assertEquals(0, description.getSchedule().getState().getRemainingActions());
-    Assert.assertEquals(true, description.getSchedule().getState().isLimitedAction());
+    Assert.assertTrue(description.getSchedule().getState().isLimitedAction());
     // Cleanup schedule
     handle.delete();
   }
@@ -463,7 +463,7 @@ public class ScheduleTest {
     Assert.assertEquals("memoval3", memoValue);
     //
     Assert.assertNotEquals(expectedUpdateTime, description.getInfo().getLastUpdatedAt());
-    Assert.assertEquals(true, description.getSchedule().getState().isPaused());
+    Assert.assertTrue(description.getSchedule().getState().isPaused());
     Assert.assertEquals(1, description.getTypedSearchAttributes().size());
     Assert.assertEquals(
         keywordSAValue, description.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
@@ -527,7 +527,7 @@ public class ScheduleTest {
     Assert.assertEquals(scheduleId, listDescription.getScheduleId());
     // Verify the state
     Assert.assertEquals("schedule list", listDescription.getSchedule().getState().getNote());
-    Assert.assertEquals(true, listDescription.getSchedule().getState().isPaused());
+    Assert.assertTrue(listDescription.getSchedule().getState().isPaused());
     // Verify the spec
     Assert.assertEquals(
         ScheduleSpec.newBuilder(schedule.getSpec())

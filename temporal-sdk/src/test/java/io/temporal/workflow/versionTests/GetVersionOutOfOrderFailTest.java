@@ -87,7 +87,7 @@ public class GetVersionOutOfOrderFailTest extends BaseVersionTest {
       // Create a timer to generate a command
       Promise timer = Workflow.newTimer(Duration.ofSeconds(5));
       int version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
 
       timer.get();
 

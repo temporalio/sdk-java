@@ -1,6 +1,6 @@
 ` PlantUML <plantuml.com> State Diagram.
 ` Generated from src/main/java/io/temporal/internal/statemachines/ChildWorkflowStateMachine.java
-` by io.temporal.internal.statemachines.CommandsGeneratePlantUMLStateDiagrams.
+` by io.temporal.internal.statemachines.CommandsGeneratePlantUMLStateDiagramsTest.
 
 
 @startuml

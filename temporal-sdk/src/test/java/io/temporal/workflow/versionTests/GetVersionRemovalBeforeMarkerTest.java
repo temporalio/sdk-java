@@ -83,7 +83,7 @@ public class GetVersionRemovalBeforeMarkerTest extends BaseVersionTest {
       // Test removing a version check in replaying code with an additional thread running.
       if (!WorkflowUnsafe.isReplaying()) {
         int version = Workflow.getVersion("changeId", 1, 2);
-        assertEquals(version, 2);
+        assertEquals(2, version);
       } else {
         hasReplayed = true;
       }

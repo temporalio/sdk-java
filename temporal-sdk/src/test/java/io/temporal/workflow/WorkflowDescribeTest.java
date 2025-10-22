@@ -9,7 +9,7 @@ import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowDescribe {
+public class WorkflowDescribeTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

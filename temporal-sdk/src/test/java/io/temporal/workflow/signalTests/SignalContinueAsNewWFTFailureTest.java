@@ -17,7 +17,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SignalContinueAsNewWFTFailure {
+public class SignalContinueAsNewWFTFailureTest {
   private static final Semaphore workflowTaskProcessed = new Semaphore(1);
 
   private static final CompletableFuture<Boolean> continueAsNew = new CompletableFuture<>();

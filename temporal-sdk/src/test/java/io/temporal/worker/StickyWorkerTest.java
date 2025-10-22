@@ -416,13 +416,13 @@ public class StickyWorkerTest {
     assertEquals(1, cache.size());
 
     // Assert
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    assertEquals(GreetingSignalWorkflow.Status.WAITING_FOR_NAME, workflow.getProgress());
 
     workflow.waitForName("World");
     String greeting = workflow.getGreeting();
 
     assertEquals("Hello World!", greeting);
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
+    assertEquals(GreetingSignalWorkflow.Status.GREETING_GENERATED, workflow.getProgress());
 
     wrapper.close();
   }
@@ -462,7 +462,7 @@ public class StickyWorkerTest {
     assertEquals(0, cache.size());
 
     // Assert
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    assertEquals(GreetingSignalWorkflow.Status.WAITING_FOR_NAME, workflow.getProgress());
     SDKTestWorkflowRule.assertNoHistoryEvent(
         wrapper.testEnv.getWorkflowClient().fetchHistory(execution.getWorkflowId()).getHistory(),
         EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
@@ -505,7 +505,7 @@ public class StickyWorkerTest {
     assertEquals(0, cache.size());
 
     // Assert
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    assertEquals(GreetingSignalWorkflow.Status.WAITING_FOR_NAME, workflow.getProgress());
 
     // Signal and get result to make sure the workflow successfully completed
     workflow.waitForName("World");
@@ -513,7 +513,7 @@ public class StickyWorkerTest {
     assertEquals("Hello World!", greeting);
 
     // Query after completion
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
+    assertEquals(GreetingSignalWorkflow.Status.GREETING_GENERATED, workflow.getProgress());
     SDKTestWorkflowRule.assertNoHistoryEvent(
         wrapper.testEnv.getWorkflowClient().fetchHistory(execution.getWorkflowId()).getHistory(),
         EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
