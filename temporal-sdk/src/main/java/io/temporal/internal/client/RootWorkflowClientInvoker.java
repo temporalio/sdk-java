@@ -10,9 +10,7 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
-import io.temporal.api.deployment.v1.WorkerDeploymentOptions;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
-import io.temporal.api.enums.v1.WorkerVersioningMode;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
@@ -76,7 +74,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       startRequest.setRequestEagerExecution(requestEagerExecution);
       if (requestEagerExecution && eagerDispatchHandle.getDeploymentOptions() != null) {
         startRequest.setEagerWorkerDeploymentOptions(
-            WorkerVersioningProtoUtils.deploymentOptionsToProto(eagerDispatchHandle.getDeploymentOptions()));
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(
+                eagerDispatchHandle.getDeploymentOptions()));
       }
       StartWorkflowExecutionResponse response = genericClient.start(startRequest.build());
       WorkflowExecution execution =
