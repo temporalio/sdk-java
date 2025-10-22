@@ -5,6 +5,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.*;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
@@ -52,10 +53,26 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
+    cancel(null);
+  }
+
+  @Override
+  public void cancel(@Nullable String reason) {
     assertReadOnly.apply("cancel external workflow");
+    if (reason == null) {
+      try {
+        CancellationScope currentScope = CancellationScope.current();
+        if (currentScope.isCancelRequested()) {
+          reason = currentScope.getCancellationReason();
+        }
+      } catch (IllegalStateException ignored) {
+        // Outside of workflow thread; leave reason as null.
+      }
+    }
     Promise<Void> cancelRequested =
         outboundCallsInterceptor
-            .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
+            .cancelWorkflow(
+                new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution, reason))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(cancelRequested);

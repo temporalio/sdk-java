@@ -77,7 +77,7 @@ jobs:
 
       - name: Set up Gradle
         if: matrix.os_family != 'Linux'
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'Linux'
