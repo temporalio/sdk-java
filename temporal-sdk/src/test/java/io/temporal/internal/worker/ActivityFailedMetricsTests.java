@@ -180,8 +180,8 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         nonBenignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
-    assertNotSame(
-        "Failure should not be benign", af.getCategory(), ApplicationErrorCategory.BENIGN);
+    assertNotEquals(
+        "Failure should not be benign", ApplicationErrorCategory.BENIGN, af.getCategory());
     assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     reporter.assertCounter(
@@ -209,7 +209,7 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         benignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
-    assertSame("Failure should be benign", af2.getCategory(), ApplicationErrorCategory.BENIGN);
+    assertEquals("Failure should be benign", ApplicationErrorCategory.BENIGN, af2.getCategory());
     assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure
@@ -250,8 +250,8 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         nonBenignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
-    assertNotSame(
-        "Failure should not be benign", af.getCategory(), ApplicationErrorCategory.BENIGN);
+    assertNotEquals(
+        "Failure should not be benign", ApplicationErrorCategory.BENIGN, af.getCategory());
     assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     // Expect metrics to be incremented for non-benign failure
@@ -279,7 +279,7 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         benignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
-    assertSame("Failure should be benign", af2.getCategory(), ApplicationErrorCategory.BENIGN);
+    assertEquals("Failure should be benign", ApplicationErrorCategory.BENIGN, af2.getCategory());
     assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure

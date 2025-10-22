@@ -552,7 +552,7 @@ public class NexusWorkflowTest {
 
       // Poll again to verify task is resent on timeout
       PollNexusTaskQueueResponse nextNexusPollResp = pollNexusTask().get();
-      Assert.assertFalse(nexusPollResp.getTaskToken().equals(nextNexusPollResp.getTaskToken()));
+      Assert.assertNotEquals(nexusPollResp.getTaskToken(), nextNexusPollResp.getTaskToken());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     }
