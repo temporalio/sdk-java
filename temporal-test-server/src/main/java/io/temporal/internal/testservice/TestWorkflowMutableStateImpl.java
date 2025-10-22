@@ -2012,8 +2012,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     // Do not lock if there is an outstanding workflow task.
     if (beforeState == State.NONE && workflowTaskStateMachine.getState() == State.INITIATED) {
       ctx.lockTimer("scheduleWorkflowTask");
-    } else {
-      log.info("not lockings");
     }
   }
 
