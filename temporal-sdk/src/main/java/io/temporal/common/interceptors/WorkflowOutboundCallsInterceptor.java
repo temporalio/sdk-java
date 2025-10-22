@@ -378,13 +378,26 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class CancelWorkflowInput {
     private final WorkflowExecution execution;
+    private final @Nullable String reason;
 
+    // Kept for backward compatibility
+    @Deprecated
     public CancelWorkflowInput(WorkflowExecution execution) {
+      this(execution, null);
+    }
+
+    public CancelWorkflowInput(WorkflowExecution execution, @Nullable String reason) {
       this.execution = execution;
+      this.reason = reason;
     }
 
     public WorkflowExecution getExecution() {
       return execution;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
     }
   }
 

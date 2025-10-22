@@ -1374,6 +1374,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Void> result = Workflow.newPromise();
     replayContext.requestCancelExternalWorkflowExecution(
         input.getExecution(),
+        input.getReason(),
         (r, exception) -> {
           if (exception == null) {
             result.complete(null);

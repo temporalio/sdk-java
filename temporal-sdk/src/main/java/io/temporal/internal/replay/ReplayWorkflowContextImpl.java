@@ -231,13 +231,17 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void requestCancelExternalWorkflowExecution(
-      WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback) {
-    RequestCancelExternalWorkflowExecutionCommandAttributes attributes =
+      WorkflowExecution execution,
+      @Nullable String reason,
+      Functions.Proc2<Void, RuntimeException> callback) {
+    RequestCancelExternalWorkflowExecutionCommandAttributes.Builder attributes =
         RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowId(execution.getWorkflowId())
-            .setRunId(execution.getRunId())
-            .build();
-    workflowStateMachines.requestCancelExternalWorkflowExecution(attributes, callback);
+            .setRunId(execution.getRunId());
+    if (reason != null) {
+      attributes.setReason(reason);
+    }
+    workflowStateMachines.requestCancelExternalWorkflowExecution(attributes.build(), callback);
   }
 
   @Override

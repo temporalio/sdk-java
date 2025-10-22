@@ -917,6 +917,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .setWorkflowExecution(
                           WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
                       .setNamespace(ctx.getNamespace())
+                      .setReason(attr.getReason())
                       .build();
               CancelExternalWorkflowExecutionCallerInfo info =
                   new CancelExternalWorkflowExecutionCallerInfo(

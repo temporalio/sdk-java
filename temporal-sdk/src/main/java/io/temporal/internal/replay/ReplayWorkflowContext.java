@@ -185,10 +185,13 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * Request cancellation of a workflow execution by WorkflowId and optionally RunId.
    *
    * @param execution contains WorkflowId and optional RunId of the workflow to send request to.
+   * @param reason optional reason for cancellation.
    * @param callback callback notified about the operation result
    */
   void requestCancelExternalWorkflowExecution(
-      WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback);
+      WorkflowExecution execution,
+      @Nullable String reason,
+      Functions.Proc2<Void, RuntimeException> callback);
 
   /**
    * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the workflow task
