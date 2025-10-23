@@ -160,10 +160,25 @@ public interface WorkflowStub {
   <R> R executeUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
+  /**
+   * Sends a signal to a workflow, starting the workflow if it is not already running.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param signalArgs signal method arguments
+   * @param startArgs workflow start arguments
+   * @return workflow execution
+   */
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
+  /**
+   * @return workflow type name if it was provided when the stub was created.
+   */
   Optional<String> getWorkflowType();
 
+  /**
+   * @return current workflow execution. Returns null if the workflow has not been started yet.
+   */
+  @Nullable
   WorkflowExecution getExecution();
 
   /**
@@ -406,6 +421,9 @@ public interface WorkflowStub {
    */
   WorkflowExecutionDescription describe();
 
+  /**
+   * @return workflow options if they were provided when the stub was created.
+   */
   Optional<WorkflowOptions> getOptions();
 
   /**

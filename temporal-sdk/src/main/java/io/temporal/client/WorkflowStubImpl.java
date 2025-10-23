@@ -35,12 +35,16 @@ class WorkflowStubImpl implements WorkflowStub {
   // if null, this stub is created to bound to an existing execution.
   // This stub is created to bound to an existing execution otherwise.
   private final @Nullable WorkflowOptions options;
+  private final boolean legacyTargeting;
+  private final @Nullable String firstExecutionRunId;
 
   WorkflowStubImpl(
       WorkflowClientOptions clientOptions,
       WorkflowClientCallsInterceptor workflowClientInvoker,
       Optional<String> workflowType,
-      WorkflowExecution execution) {
+      WorkflowExecution execution,
+      boolean legacyTargeting,
+      @Nullable String firstExecutionRunId) {
     this.clientOptions = clientOptions;
     this.workflowClientInvoker = workflowClientInvoker;
     this.workflowType = workflowType;
@@ -48,6 +52,8 @@ class WorkflowStubImpl implements WorkflowStub {
       throw new IllegalArgumentException("null or empty workflowId");
     }
     this.execution.set(execution);
+    this.legacyTargeting = legacyTargeting;
+    this.firstExecutionRunId = firstExecutionRunId;
     this.options = null;
   }
 
@@ -60,12 +66,14 @@ class WorkflowStubImpl implements WorkflowStub {
     this.workflowClientInvoker = workflowClientInvoker;
     this.workflowType = Optional.of(workflowType);
     this.options = options;
+    this.legacyTargeting = false;
+    this.firstExecutionRunId = null;
   }
 
   @Override
   public void signal(String signalName, Object... args) {
     checkStarted();
-    WorkflowExecution targetExecution = currentExecutionWithoutRunId();
+    WorkflowExecution targetExecution = currentExecutionCheckLegacy();
     try {
       workflowClientInvoker.signal(
           new WorkflowClientCallsInterceptor.WorkflowSignalInput(
@@ -338,6 +346,7 @@ class WorkflowStubImpl implements WorkflowStub {
               .setUpdateName(updateName)
               .setWaitForStage(WorkflowUpdateStage.COMPLETED)
               .setResultClass(resultClass)
+              .setFirstExecutionRunId(firstExecutionRunId)
               .build();
       return startUpdate(options, args).getResultAsync().get();
     } catch (InterruptedException e) {
@@ -385,21 +394,17 @@ class WorkflowStubImpl implements WorkflowStub {
         Strings.isNullOrEmpty(options.getUpdateId())
             ? UUID.randomUUID().toString()
             : options.getUpdateId();
-    WorkflowClientCallsInterceptor.StartUpdateInput<R> input =
-        new WorkflowClientCallsInterceptor.StartUpdateInput<>(
-            targetExecution,
-            workflowType,
-            options.getUpdateName(),
-            Header.empty(),
-            updateId,
-            args,
-            options.getResultClass(),
-            options.getResultType(),
-            options.getFirstExecutionRunId(),
-            WaitPolicy.newBuilder()
-                .setLifecycleStage(options.getWaitForStage().getProto())
-                .build());
-    return input;
+    return new WorkflowClientCallsInterceptor.StartUpdateInput<>(
+        targetExecution,
+        workflowType,
+        options.getUpdateName(),
+        Header.empty(),
+        updateId,
+        args,
+        options.getResultClass(),
+        options.getResultType(),
+        options.getFirstExecutionRunId(),
+        WaitPolicy.newBuilder().setLifecycleStage(options.getWaitForStage().getProto()).build());
   }
 
   @Override
@@ -435,10 +440,11 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public void cancel(@Nullable String reason) {
     checkStarted();
-    WorkflowExecution targetExecution = currentExecutionWithoutRunId();
+    WorkflowExecution targetExecution = currentExecutionCheckLegacy();
     try {
       workflowClientInvoker.cancel(
-          new WorkflowClientCallsInterceptor.CancelInput(targetExecution, reason));
+          new WorkflowClientCallsInterceptor.CancelInput(
+              targetExecution, firstExecutionRunId, reason));
     } catch (Exception e) {
       Throwable failure = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), failure);
@@ -448,10 +454,11 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public void terminate(@Nullable String reason, Object... details) {
     checkStarted();
-    WorkflowExecution targetExecution = currentExecutionWithoutRunId();
+    WorkflowExecution targetExecution = currentExecutionCheckLegacy();
     try {
       workflowClientInvoker.terminate(
-          new WorkflowClientCallsInterceptor.TerminateInput(targetExecution, reason, details));
+          new WorkflowClientCallsInterceptor.TerminateInput(
+              targetExecution, firstExecutionRunId, reason, details));
     } catch (Exception e) {
       Throwable failure = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), failure);
@@ -532,6 +539,14 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
+  private WorkflowExecution currentExecutionCheckLegacy() {
+    if (legacyTargeting) {
+      return currentExecutionWithoutRunId();
+    } else {
+      return execution.get();
+    }
+  }
+
   private <R> R throwAsWorkflowFailureExceptionForQuery(
       Throwable failure,
       @SuppressWarnings("unused") Class<R> returnType,
@@ -589,6 +604,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private void populateExecutionAfterStart(WorkflowExecution startedExecution) {
     this.startedExecution.set(startedExecution);
+    // this.firstExecutionRunId.set(startedExecution.getRunId());
     // bind to an execution without a runId, so queries follow runId chains by default
     this.execution.set(WorkflowExecution.newBuilder(startedExecution).setRunId("").build());
   }

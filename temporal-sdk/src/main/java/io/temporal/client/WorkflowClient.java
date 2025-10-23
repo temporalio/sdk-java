@@ -151,6 +151,16 @@ public interface WorkflowClient {
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId);
 
   /**
+   * Creates workflow client stub for a known execution. Use it to send signals or queries to a
+   * running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowInterface interface that given workflow implements.
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @return Stub that implements workflowInterface and can be used to signal or query it.
+   */
+  <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions);
+
+  /**
    * Creates workflow client stub for a known execution. Use it to send signals, updates, or queries
    * to a running workflow. Do not call methods annotated with @WorkflowMethod.
    *
@@ -204,6 +214,17 @@ public interface WorkflowClient {
    * @return Stub that can be used to start workflow and later to signal or query it.
    */
   WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  WorkflowStub newUntypedWorkflowStub(
+      Optional<String> workflowType, WorkflowTargetOptions workflowTargetOptions);
 
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities

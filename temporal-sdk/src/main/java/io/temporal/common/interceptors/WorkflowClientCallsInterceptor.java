@@ -433,6 +433,7 @@ public interface WorkflowClientCallsInterceptor {
 
   final class CancelInput {
     private final WorkflowExecution workflowExecution;
+    private final @Nullable String firstExecutionRunId;
     private final @Nullable String reason;
 
     /**
@@ -445,7 +446,15 @@ public interface WorkflowClientCallsInterceptor {
     }
 
     public CancelInput(WorkflowExecution workflowExecution, @Nullable String reason) {
+      this(workflowExecution, null, reason);
+    }
+
+    public CancelInput(
+        WorkflowExecution workflowExecution,
+        @Nullable String firstExecutionRunId,
+        @Nullable String reason) {
       this.workflowExecution = workflowExecution;
+      this.firstExecutionRunId = firstExecutionRunId;
       this.reason = reason;
     }
 
@@ -456,6 +465,11 @@ public interface WorkflowClientCallsInterceptor {
     @Nullable
     public String getReason() {
       return reason;
+    }
+
+    @Nullable
+    public String getFirstExecutionRunId() {
+      return firstExecutionRunId;
     }
   }
 
@@ -606,18 +620,33 @@ public interface WorkflowClientCallsInterceptor {
 
   final class TerminateInput {
     private final WorkflowExecution workflowExecution;
+    private final @Nullable String firstExecutionRunId;
     private final @Nullable String reason;
     private final Object[] details;
 
     public TerminateInput(
         WorkflowExecution workflowExecution, @Nullable String reason, Object[] details) {
+      this(workflowExecution, null, reason, details);
+    }
+
+    public TerminateInput(
+        WorkflowExecution workflowExecution,
+        @Nullable String firstExecutionRunId,
+        @Nullable String reason,
+        Object[] details) {
       this.workflowExecution = workflowExecution;
+      this.firstExecutionRunId = firstExecutionRunId;
       this.reason = reason;
       this.details = details;
     }
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+
+    @Nullable
+    public String getFirstExecutionRunId() {
+      return firstExecutionRunId;
     }
 
     @Nullable
