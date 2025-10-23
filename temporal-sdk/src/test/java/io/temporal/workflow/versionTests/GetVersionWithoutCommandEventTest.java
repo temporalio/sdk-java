@@ -1,7 +1,7 @@
 package io.temporal.workflow.versionTests;
 
 import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
@@ -55,7 +55,7 @@ public class GetVersionWithoutCommandEventTest extends BaseVersionTest {
             .describe()
             .getTypedSearchAttributes()
             .get(TEMPORAL_CHANGE_VERSION);
-    assertEquals(null, versions);
+    assertNull(versions);
   }
 
   public static class TestGetVersionWithoutCommandEventWorkflowImpl

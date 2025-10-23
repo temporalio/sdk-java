@@ -17,7 +17,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowCancellationScopeDeterminism {
+public class WorkflowCancellationScopeDeterminismTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()

@@ -1,6 +1,7 @@
 package io.temporal.opentracing;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import io.opentracing.Scope;
 import io.opentracing.mock.MockSpan;
@@ -252,10 +253,10 @@ public class ActivityFailureTest {
 
     // Second attempt: benign failure - should NOT have ERROR tag
     MockSpan secondAttemptSpan = activityRunSpans.get(1);
-    assertEquals(null, secondAttemptSpan.tags().get(Tags.ERROR.getKey()));
+    assertNull(secondAttemptSpan.tags().get(Tags.ERROR.getKey()));
 
     // Third attempt: success - should not have ERROR tag
     MockSpan thirdAttemptSpan = activityRunSpans.get(2);
-    assertEquals(null, thirdAttemptSpan.tags().get(Tags.ERROR.getKey()));
+    assertNull(thirdAttemptSpan.tags().get(Tags.ERROR.getKey()));
   }
 }

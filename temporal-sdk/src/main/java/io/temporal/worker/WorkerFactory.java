@@ -5,7 +5,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
-import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
@@ -196,21 +195,21 @@ public final class WorkerFactory {
             statusErrorMessage,
             "start WorkerFactory",
             state.name(),
-            String.format("%s, %s", State.Initial.name(), State.Initial.name())));
+            String.format("%s, %s", State.Initial.name(), State.Started.name())));
+
     if (state == State.Started) {
       return;
     }
 
     // Workers check and require that Temporal Server is available during start to fail-fast in case
     // of configuration issues.
-    DescribeNamespaceResponse response =
-        workflowClient
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .describeNamespace(
-                DescribeNamespaceRequest.newBuilder()
-                    .setNamespace(workflowClient.getOptions().getNamespace())
-                    .build());
+    workflowClient
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .describeNamespace(
+            DescribeNamespaceRequest.newBuilder()
+                .setNamespace(workflowClient.getOptions().getNamespace())
+                .build());
 
     for (Worker worker : workers.values()) {
       worker.start();

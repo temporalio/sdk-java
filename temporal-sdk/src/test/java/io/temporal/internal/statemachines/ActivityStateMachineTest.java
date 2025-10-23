@@ -52,7 +52,7 @@ public class ActivityStateMachineTest {
         missed =
             ActivityStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           ActivityStateMachine.class,
           ActivityStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

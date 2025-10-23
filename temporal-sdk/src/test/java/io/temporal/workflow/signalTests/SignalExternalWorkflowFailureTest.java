@@ -82,7 +82,7 @@ public class SignalExternalWorkflowFailureTest {
     latch2.countDown();
 
     WorkflowStub workflowStub2 = WorkflowStub.fromTyped(signalingWorkflow);
-    assertEquals(workflowStub2.getResult(String.class), "Success!");
+    assertEquals("Success!", workflowStub2.getResult(String.class));
   }
 
   public static class TestSignalExternalWorkflowFailure implements TestWorkflow1 {

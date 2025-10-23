@@ -1,6 +1,7 @@
 package io.temporal.serviceclient.functional;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -14,8 +15,8 @@ public class KeepAliveTest {
   @Test
   public void testKeepAliveOnByDefault() {
     WorkflowServiceStubsOptions options = testWorkflowRule.getWorkflowServiceStubs().getOptions();
-    assertEquals(true, options.getEnableKeepAlive());
-    assertEquals(true, options.getKeepAlivePermitWithoutStream());
+    assertTrue(options.getEnableKeepAlive());
+    assertTrue(options.getKeepAlivePermitWithoutStream());
     assertEquals(Duration.ofSeconds(30), options.getKeepAliveTime());
     assertEquals(Duration.ofSeconds(15), options.getKeepAliveTimeout());
   }

@@ -109,7 +109,7 @@ public class GetVersionUpsertSATest extends BaseVersionTest {
 
       // Test adding a version check in non-replay code.
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       // Test a user manually setting the TemporalChangeVersion search attributes.
       Workflow.upsertTypedSearchAttributes(
           TEMPORAL_CHANGE_VERSION.valueSet(Collections.singletonList("test_change-1")));
@@ -117,7 +117,7 @@ public class GetVersionUpsertSATest extends BaseVersionTest {
 
       // Test version change in non-replay code.
       version = Workflow.getVersion("test_change", 1, 2);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       // Test a user manually setting the TemporalChangeVersion search attributes even when the SDK
       // normally wouldn't.
       // Intentionally use a value that the SDK would normally not set.
@@ -129,14 +129,14 @@ public class GetVersionUpsertSATest extends BaseVersionTest {
       if (WorkflowUnsafe.isReplaying()) {
         hasReplayed = true;
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 1);
-        assertEquals(version2, Workflow.DEFAULT_VERSION);
+        assertEquals(Workflow.DEFAULT_VERSION, version2);
       }
       result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
 
       // Test get version in replay mode.
       Workflow.sleep(1000);
       version = Workflow.getVersion("test_change", 1, 2);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       result += "activity" + testActivities.activity1(1);
       return result;
     }

@@ -1,8 +1,6 @@
 package io.temporal.worker;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 import io.temporal.worker.tuning.*;
@@ -150,9 +148,9 @@ public class WorkerOptionsTest {
   public void verifyMaxTaskQueuePerSecondsDisablesEagerExecution() {
     // Verify that by default eager execution is enabled
     WorkerOptions w1 = WorkerOptions.newBuilder().build();
-    assertEquals(false, w1.isEagerExecutionDisabled());
+    assertFalse(w1.isEagerExecutionDisabled());
     // Verify that setting maxTaskQueueActivitiesPerSecond disables eager
     WorkerOptions w2 = WorkerOptions.newBuilder().setMaxTaskQueueActivitiesPerSecond(2.0).build();
-    assertEquals(true, w2.isEagerExecutionDisabled());
+    assertTrue(w2.isEagerExecutionDisabled());
   }
 }

@@ -42,7 +42,7 @@ public class CancelNexusOperationStateMachineTest {
             CancelNexusOperationStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           CancelNexusOperationStateMachine.class,
           CancelNexusOperationStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

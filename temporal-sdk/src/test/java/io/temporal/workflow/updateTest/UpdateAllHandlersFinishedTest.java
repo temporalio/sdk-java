@@ -15,7 +15,7 @@ import java.util.concurrent.ExecutionException;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class UpdateAllHandlersFinished {
+public class UpdateAllHandlersFinishedTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

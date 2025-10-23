@@ -1,8 +1,7 @@
 package io.temporal.workflow.versionTests;
 
 import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.WorkflowReplayer;
@@ -76,7 +75,7 @@ public class GetVersionTest extends BaseVersionTest {
       assertEquals(1, versions.size());
       assertEquals("test_change-1", versions.get(0));
     } else {
-      assertEquals(null, versions);
+      assertNull(versions);
     }
   }
 
@@ -103,26 +102,26 @@ public class GetVersionTest extends BaseVersionTest {
 
       // Test adding a version check in non-replay code.
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       String result = testActivities.activity2("activity2", 2);
 
       // Test version change in non-replay code.
       version = Workflow.getVersion("test_change", 1, 2);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       result += "activity" + testActivities.activity1(1);
 
       // Test adding a version check in replay code.
       if (WorkflowUnsafe.isReplaying()) {
         hasReplayed = true;
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 1);
-        assertEquals(version2, Workflow.DEFAULT_VERSION);
+        assertEquals(Workflow.DEFAULT_VERSION, version2);
       }
       result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
 
       // Test get version in replay mode.
       Workflow.sleep(1000);
       version = Workflow.getVersion("test_change", 1, 2);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       result += "activity" + testActivities.activity1(1);
       return result;
     }

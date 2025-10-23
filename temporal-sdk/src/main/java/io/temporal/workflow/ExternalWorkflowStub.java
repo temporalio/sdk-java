@@ -2,6 +2,7 @@ package io.temporal.workflow;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.sync.StubMarker;
+import javax.annotation.Nullable;
 
 /**
  * Supports signalling and cancelling any workflows by the workflow type and their id. This is
@@ -49,5 +50,13 @@ public interface ExternalWorkflowStub {
    */
   void signal(String signalName, Object... args);
 
+  /** Request cancellation of the workflow execution. */
   void cancel();
+
+  /**
+   * Request cancellation of the workflow execution with a reason.
+   *
+   * @param reason optional reason for cancellation.
+   */
+  void cancel(@Nullable String reason);
 }
