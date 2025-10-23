@@ -147,8 +147,23 @@ public interface WorkflowClient {
    * @param workflowInterface interface that given workflow implements.
    * @param workflowId Workflow id.
    * @return Stub that implements workflowInterface and can be used to signal or query it.
+   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead.
    */
+  @Deprecated
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId);
+
+  /**
+   * Creates workflow client stub for a known execution. Use it to send signals, updates, or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowInterface interface that given workflow implements.
+   * @param workflowId Workflow id.
+   * @param runId Run id of the workflow execution.
+   * @return Stub that implements workflowInterface and can be used to signal, update, or query it.
+   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead.
+   */
+  @Deprecated
+  <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
 
   /**
    * Creates workflow client stub for a known execution. Use it to send signals or queries to a
@@ -159,17 +174,6 @@ public interface WorkflowClient {
    * @return Stub that implements workflowInterface and can be used to signal or query it.
    */
   <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions);
-
-  /**
-   * Creates workflow client stub for a known execution. Use it to send signals, updates, or queries
-   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
-   *
-   * @param workflowInterface interface that given workflow implements.
-   * @param workflowId Workflow id.
-   * @param runId Run id of the workflow execution.
-   * @return Stub that implements workflowInterface and can be used to signal, update, or query it.
-   */
-  <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
 
   /**
    * Creates workflow untyped client stub that can be used to start a single workflow execution. Use
@@ -201,7 +205,9 @@ public interface WorkflowClient {
    *     workflowId is assumed.
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
+   * @deprecated Use {@link #newUntypedWorkflowStub(Optional, WorkflowTargetOptions)} instead.
    */
+  @Deprecated
   WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType);
 
@@ -212,6 +218,7 @@ public interface WorkflowClient {
    * @param execution workflow id and optional run id for execution
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
+   * @deprecated Use {@link #newUntypedWorkflowStub(Optional, WorkflowTargetOptions)} instead.
    */
   WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
 
