@@ -1,7 +1,9 @@
 package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import java.util.Objects;
 
+/** Options for targeting a specific workflow execution. */
 public final class WorkflowTargetOptions {
   public static WorkflowTargetOptions.Builder newBuilder() {
     return new WorkflowTargetOptions.Builder();
@@ -56,21 +58,28 @@ public final class WorkflowTargetOptions {
       this.firstExecutionRunId = options.firstExecutionRunId;
     }
 
+    /** Sets the workflowId of the target workflow. */
     public Builder setWorkflowId(String workflowId) {
       this.workflowId = workflowId;
       return this;
     }
 
+    /** Sets the runId of a specific execution of a workflow. */
     public Builder setRunId(String runId) {
       this.runId = runId;
       return this;
     }
 
+    /**
+     * Sets the runId of the first execution of a workflow. This is useful for targeting workflows
+     * that have been continued as new.
+     */
     public Builder setFirstExecutionRunId(String firstExecutionRunId) {
       this.firstExecutionRunId = firstExecutionRunId;
       return this;
     }
 
+    /** Sets both workflowId and runId from a WorkflowExecution object. */
     public Builder setWorkflowExecution(WorkflowExecution execution) {
       this.workflowId = execution.getWorkflowId();
       this.runId = execution.getRunId();
@@ -80,5 +89,34 @@ public final class WorkflowTargetOptions {
     public WorkflowTargetOptions build() {
       return new WorkflowTargetOptions(workflowId, runId, firstExecutionRunId);
     }
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowTargetOptions{"
+        + "workflowId='"
+        + workflowId
+        + '\''
+        + ", runId='"
+        + runId
+        + '\''
+        + ", firstExecutionRunId='"
+        + firstExecutionRunId
+        + '\''
+        + '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    WorkflowTargetOptions that = (WorkflowTargetOptions) o;
+    return Objects.equals(workflowId, that.workflowId)
+        && Objects.equals(runId, that.runId)
+        && Objects.equals(firstExecutionRunId, that.firstExecutionRunId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(workflowId, runId, firstExecutionRunId);
   }
 }
