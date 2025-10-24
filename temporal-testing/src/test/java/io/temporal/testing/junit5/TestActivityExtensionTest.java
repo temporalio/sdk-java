@@ -1,9 +1,6 @@
 package io.temporal.testing.junit5;
 
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.uber.m3.tally.NoopScope;
 import io.temporal.activity.Activity;
@@ -36,8 +33,9 @@ public class TestActivityExtensionTest {
   private static class MyActivityImpl implements MyActivity {
     @Override
     public String activity1(String input) {
-      assertTrue(
-          Activity.getExecutionContext().getMetricsScope() instanceof CustomMetricsScope,
+      assertInstanceOf(
+          CustomMetricsScope.class,
+          Activity.getExecutionContext().getMetricsScope(),
           "The custom metrics scope should be available for the activity");
       return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
     }

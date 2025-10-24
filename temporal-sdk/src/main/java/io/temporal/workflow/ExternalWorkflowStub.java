@@ -2,6 +2,7 @@ package io.temporal.workflow;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.sync.StubMarker;
+import javax.annotation.Nullable;
 
 /**
  * Supports signalling and cancelling any workflows by the workflow type and their id. This is
@@ -34,9 +35,28 @@ public interface ExternalWorkflowStub {
     return (ExternalWorkflowStub) supplier.__getUntypedStub();
   }
 
+  /**
+   * @return workflow execution used to create this stub.
+   */
   WorkflowExecution getExecution();
 
+  /**
+   * Synchronously signals a workflow by invoking its signal handler. Usually a signal handler is a
+   * method annotated with {@link io.temporal.workflow.SignalMethod}.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param args signal method arguments
+   * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
+   */
   void signal(String signalName, Object... args);
 
+  /** Request cancellation of the workflow execution. */
   void cancel();
+
+  /**
+   * Request cancellation of the workflow execution with a reason.
+   *
+   * @param reason optional reason for cancellation.
+   */
+  void cancel(@Nullable String reason);
 }

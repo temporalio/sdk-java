@@ -484,7 +484,7 @@ public class UpdateWithStartTest {
           workflow::update, 0, "Hello Update", createUpdateOptions(), startOp);
       fail("unreachable");
     } catch (WorkflowServiceException e) {
-      assertEquals(e.getCause().getMessage(), "UNIMPLEMENTED: internal error");
+      assertEquals("UNIMPLEMENTED: internal error", e.getCause().getMessage());
     }
   }
 
@@ -611,7 +611,7 @@ public class UpdateWithStartTest {
           startOp); // re-use same `startOp`
       fail("unreachable");
     } catch (IllegalStateException e) {
-      assertEquals(e.getMessage(), "WithStartWorkflowOperation was already executed");
+      assertEquals("WithStartWorkflowOperation was already executed", e.getMessage());
     }
   }
 
@@ -637,8 +637,8 @@ public class UpdateWithStartTest {
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(
-          e.getMessage(),
-          "Update name in the options doesn't match the method name: custom_update_name != testUpdate");
+          "Update name in the options doesn't match the method name: custom_update_name != testUpdate",
+          e.getMessage());
     }
   }
 
@@ -723,7 +723,7 @@ public class UpdateWithStartTest {
           startOp);
       fail("unreachable");
     } catch (IllegalStateException e) {
-      assertEquals(e.getMessage(), "waitForStage must not be null");
+      assertEquals("waitForStage must not be null", e.getMessage());
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
@@ -747,7 +747,7 @@ public class UpdateWithStartTest {
       workflow.startUpdateWithStart(
           updateOptions, new Object[] {0, "Hello Update"}, new Object[] {});
     } catch (IllegalStateException e) {
-      assertEquals(e.getMessage(), "Required parameter WorkflowOptions is missing in WorkflowStub");
+      assertEquals("Required parameter WorkflowOptions is missing in WorkflowStub", e.getMessage());
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
@@ -777,8 +777,8 @@ public class UpdateWithStartTest {
           updateOptions, new Object[] {0, "Hello Update"}, new Object[] {});
     } catch (IllegalStateException e) {
       assertEquals(
-          e.getMessage(),
-          "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start");
+          "WorkflowIdConflictPolicy is required in WorkflowOptions for Update-With-Start",
+          e.getMessage());
     }
   }
 
@@ -805,7 +805,7 @@ public class UpdateWithStartTest {
           startOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
-      assertEquals(e.getMessage(), "waitForStage must be unspecified or COMPLETED");
+      assertEquals("waitForStage must be unspecified or COMPLETED", e.getMessage());
     }
 
     // untyped
@@ -821,7 +821,7 @@ public class UpdateWithStartTest {
           new Object[] {});
       fail("unreachable");
     } catch (IllegalArgumentException e) {
-      assertEquals(e.getMessage(), "waitForStage must be unspecified or COMPLETED");
+      assertEquals("waitForStage must be unspecified or COMPLETED", e.getMessage());
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
@@ -846,7 +846,7 @@ public class UpdateWithStartTest {
           startOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
-      assertEquals(e.getMessage(), "Method 'execute' is not an @UpdateMethod");
+      assertEquals("Method 'execute' is not an @UpdateMethod", e.getMessage());
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
@@ -873,7 +873,7 @@ public class UpdateWithStartTest {
           startOp);
       fail("unreachable");
     } catch (IllegalArgumentException e) {
-      assertEquals(e.getMessage(), "Method 'update' is not a @WorkflowMethod");
+      assertEquals("Method 'update' is not a @WorkflowMethod", e.getMessage());
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());
@@ -902,7 +902,7 @@ public class UpdateWithStartTest {
       fail("unreachable");
     } catch (IllegalArgumentException e) {
       assertEquals(
-          e.getMessage(), "WithStartWorkflowOperation invoked on different workflow stubs");
+          "WithStartWorkflowOperation invoked on different workflow stubs", e.getMessage());
     }
 
     ensureNoWorkflowStarted(workflowClient, options.getWorkflowId());

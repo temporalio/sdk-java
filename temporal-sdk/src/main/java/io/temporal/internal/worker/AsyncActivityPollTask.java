@@ -3,7 +3,6 @@ package io.temporal.internal.worker;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.protobuf.DoubleValue;
-import com.google.protobuf.Timestamp;
 import com.uber.m3.tally.Scope;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
@@ -113,10 +112,11 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
                 metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
                 return null;
               }
-              Timestamp startedTime = ProtobufTimeUtils.getCurrentProtoTime();
               metricsScope
                   .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-                  .record(ProtobufTimeUtils.toM3Duration(startedTime, r.getScheduledTime()));
+                  .record(
+                      ProtobufTimeUtils.toM3Duration(
+                          r.getStartedTime(), r.getCurrentAttemptScheduledTime()));
               return new ActivityTask(
                   r,
                   permit,

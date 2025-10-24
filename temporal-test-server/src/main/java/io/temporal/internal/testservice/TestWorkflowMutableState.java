@@ -26,6 +26,8 @@ interface TestWorkflowMutableState {
 
   ExecutionId getExecutionId();
 
+  String getFirstExecutionRunId();
+
   WorkflowExecutionStatus getWorkflowExecutionStatus();
 
   StartWorkflowExecutionRequest getStartRequest();

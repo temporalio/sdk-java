@@ -92,16 +92,16 @@ public class WorkflowLocalsTest {
       assertNull(workflowThreadLocal.get());
       assertNull(workflowThreadLocal.get());
       workflowThreadLocal.set(55);
-      assertEquals((long) workflowThreadLocal.get(), 55);
-      assertEquals(threadLocalCalls.get(), 1);
+      assertEquals(55, (long) workflowThreadLocal.get());
+      assertEquals(1, threadLocalCalls.get());
 
       assertNull(workflowLocal.get());
       workflowLocal.set(null);
       assertNull(workflowLocal.get());
       assertNull(workflowLocal.get());
       workflowLocal.set(58);
-      assertEquals((long) workflowLocal.get(), 58);
-      assertEquals(localCalls.get(), 1);
+      assertEquals(58, (long) workflowLocal.get());
+      assertEquals(1, localCalls.get());
       return "ok";
     }
   }

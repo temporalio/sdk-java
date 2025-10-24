@@ -1,6 +1,7 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.common.base.Objects;
 import io.temporal.api.common.v1.Payloads;
@@ -118,9 +119,9 @@ public class JsonDataConverterTest {
         converter.fromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(5, deserializedArguments.length);
     assertEquals(1, (int) deserializedArguments[0]);
-    assertEquals(null, deserializedArguments[1]);
-    assertEquals(null, deserializedArguments[2]);
-    assertEquals(null, deserializedArguments[3]);
-    assertEquals(null, deserializedArguments[4]);
+    assertNull(deserializedArguments[1]);
+    assertNull(deserializedArguments[2]);
+    assertNull(deserializedArguments[3]);
+    assertNull(deserializedArguments[4]);
   }
 }

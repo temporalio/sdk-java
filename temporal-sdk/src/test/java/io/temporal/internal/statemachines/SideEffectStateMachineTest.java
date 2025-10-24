@@ -48,7 +48,7 @@ public class SideEffectStateMachineTest {
             SideEffectStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           SideEffectStateMachine.class,
           SideEffectStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

@@ -1,9 +1,6 @@
 package io.temporal.activity;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -49,8 +46,8 @@ public class ActivityOptionsTest {
     } catch (IllegalArgumentException e) {
       Assert.assertTrue(e instanceof IllegalArgumentException);
       Assert.assertEquals(
-          e.getMessage(),
-          "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for Activity1 activity. Please set at least one of the above through the ActivityStub or WorkflowImplementationOptions.");
+          "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for Activity1 activity. Please set at least one of the above through the ActivityStub or WorkflowImplementationOptions.",
+          e.getMessage());
     }
   }
 
@@ -124,6 +121,6 @@ public class ActivityOptionsTest {
     assertNotNull(retryOptions);
     assertEquals(2.0, retryOptions.getBackoffCoefficient(), 0e-5);
     assertEquals(Duration.ofSeconds(1), retryOptions.getInitialInterval());
-    assertEquals(null, retryOptions.getMaximumInterval());
+    assertNull(retryOptions.getMaximumInterval());
   }
 }

@@ -147,7 +147,7 @@ public class WorkflowWorkerTest {
                       false,
                       (id) -> {
                         // verify the lock is still being held
-                        assertEquals(runLockManager.totalLocks(), 1);
+                        assertEquals(1, runLockManager.totalLocks());
                       });
                 });
 
@@ -158,7 +158,7 @@ public class WorkflowWorkerTest {
             (Answer<RespondWorkflowTaskCompletedResponse>)
                 invocation -> {
                   // verify the lock is still being held
-                  assertEquals(runLockManager.totalLocks(), 1);
+                  assertEquals(1, runLockManager.totalLocks());
                   return RespondWorkflowTaskCompletedResponse.newBuilder()
                       .setWorkflowTask(pollResponse)
                       .build();
@@ -167,7 +167,7 @@ public class WorkflowWorkerTest {
             (Answer<RespondWorkflowTaskCompletedResponse>)
                 invocation -> {
                   // verify the lock is still being held
-                  assertEquals(runLockManager.totalLocks(), 1);
+                  assertEquals(1, runLockManager.totalLocks());
                   respondTaskLatch.countDown();
                   return RespondWorkflowTaskCompletedResponse.newBuilder().build();
                 });
@@ -186,7 +186,7 @@ public class WorkflowWorkerTest {
           // Since all polls have the same runID only one should get through, the other two should
           // be
           // blocked
-          assertEquals(runLockManager.totalLocks(), 1);
+          assertEquals(1, runLockManager.totalLocks());
           reporter.assertGauge(
               MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
               ImmutableMap.of("worker_type", "WorkflowWorker"),
@@ -199,7 +199,7 @@ public class WorkflowWorkerTest {
         Duration.ofSeconds(10),
         () -> {
           // No task should have the lock anymore
-          assertEquals(runLockManager.totalLocks(), 0);
+          assertEquals(0, runLockManager.totalLocks());
           reporter.assertGauge(
               MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
               ImmutableMap.of("worker_type", "WorkflowWorker"),

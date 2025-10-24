@@ -23,7 +23,7 @@ public interface CancellationScope extends Runnable {
   /**
    * Cancels the scope as well as all its children.
    *
-   * @param reason human readable reason for the cancellation. Becomes message of the
+   * @param reason human-readable reason for the cancellation. Becomes message of the
    *     CanceledException thrown.
    */
   void cancel(String reason);
