@@ -525,11 +525,29 @@ public final class WorkflowInternal {
     return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func);
   }
 
+  public static <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    assertNotReadOnly("side effect");
+    return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func, options);
+  }
+
   public static <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     assertNotReadOnly("mutable side effect");
     return getWorkflowOutboundInterceptor()
         .mutableSideEffect(id, resultClass, resultType, updated, func);
+  }
+
+  public static <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    assertNotReadOnly("mutable side effect");
+    return getWorkflowOutboundInterceptor()
+        .mutableSideEffect(id, resultClass, resultType, updated, func, options);
   }
 
   public static int getVersion(String changeId, int minSupported, int maxSupported) {

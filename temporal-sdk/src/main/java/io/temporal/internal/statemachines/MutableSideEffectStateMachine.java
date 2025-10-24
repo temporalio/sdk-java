@@ -8,6 +8,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.workflow.Functions;
@@ -24,6 +25,7 @@ final class MutableSideEffectStateMachine {
   static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
 
   private final String id;
+  private UserMetadata metadata;
   private final Functions.Func<Boolean> replaying;
   private final Functions.Proc1<CancellableCommand> commandSink;
 
@@ -174,7 +176,8 @@ final class MutableSideEffectStateMachine {
                 .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
                 .putAllDetails(details)
                 .build();
-        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
+        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes, metadata));
+        metadata = null; // only used once
         currentSkipCount = 0;
         return State.MARKER_COMMAND_CREATED;
       }
@@ -244,18 +247,22 @@ final class MutableSideEffectStateMachine {
   /** Creates new MutableSideEffectStateMachine */
   public static MutableSideEffectStateMachine newInstance(
       String id,
+      UserMetadata metadata,
       Functions.Func<Boolean> replaying,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    return new MutableSideEffectStateMachine(id, replaying, commandSink, stateMachineSink);
+    return new MutableSideEffectStateMachine(
+        id, metadata, replaying, commandSink, stateMachineSink);
   }
 
   private MutableSideEffectStateMachine(
       String id,
+      UserMetadata metadata,
       Functions.Func<Boolean> replaying,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     this.id = Objects.requireNonNull(id);
+    this.metadata = metadata;
     this.replaying = Objects.requireNonNull(replaying);
     this.commandSink = Objects.requireNonNull(commandSink);
   }

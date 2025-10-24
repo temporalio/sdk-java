@@ -253,13 +253,16 @@ public class DummySyncWorkflowContext {
 
     @Override
     public void sideEffect(
-        Functions.Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
+        Functions.Func<Optional<Payloads>> func,
+        UserMetadata userMetadata,
+        Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply());
     }
 
     @Override
     public void mutableSideEffect(
         String id,
+        UserMetadata userMetadata,
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
         Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply(Optional.empty()));

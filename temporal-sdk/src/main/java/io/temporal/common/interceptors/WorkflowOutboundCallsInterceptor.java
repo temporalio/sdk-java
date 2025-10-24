@@ -748,8 +748,18 @@ public interface WorkflowOutboundCallsInterceptor {
 
   <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func);
 
+  <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options);
+
   <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func);
+
+  <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options);
 
   int getVersion(String changeId, int minSupported, int maxSupported);
 
