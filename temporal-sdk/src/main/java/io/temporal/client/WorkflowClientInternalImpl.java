@@ -149,24 +149,49 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return newWorkflowStub(workflowInterface, workflowId, Optional.empty());
   }
 
+  public <T> T newWorkflowStub(
+      Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions) {
+    return newWorkflowStub(workflowInterface, workflowTargetOptions, true);
+  }
+
   @Override
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
+    return newWorkflowStub(
+        workflowInterface,
+        WorkflowTargetOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setRunId(runId.orElse(null))
+            .build());
+  }
+
+  public <T> T newWorkflowStub(
+      Class<T> workflowInterface,
+      WorkflowTargetOptions workflowTargetOptions,
+      boolean legacyTargeting) {
     checkAnnotation(
         workflowInterface,
         WorkflowMethod.class,
         QueryMethod.class,
         SignalMethod.class,
         UpdateMethod.class);
-    if (Strings.isNullOrEmpty(workflowId)) {
+    if (Strings.isNullOrEmpty(workflowTargetOptions.getWorkflowId())) {
       throw new IllegalArgumentException("workflowId is null or empty");
     }
-    WorkflowExecution execution =
-        WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.orElse("")).build();
+    WorkflowExecution.Builder execution =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowTargetOptions.getWorkflowId());
+    if (!Strings.isNullOrEmpty(workflowTargetOptions.getRunId())) {
+      execution.setRunId(workflowTargetOptions.getRunId());
+    }
 
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, this.getOptions(), workflowClientCallsInvoker, execution);
+            workflowInterface,
+            this.getOptions(),
+            workflowClientCallsInvoker,
+            execution.build(),
+            legacyTargeting,
+            workflowTargetOptions.getFirstExecutionRunId());
     @SuppressWarnings("unchecked")
     T result =
         (T)
@@ -202,13 +227,43 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
-  @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
+    return newUntypedWorkflowStub(
+        workflowType,
+        true,
+        WorkflowTargetOptions.newBuilder()
+            .setWorkflowId(execution.getWorkflowId())
+            .setRunId(execution.getRunId())
+            .build());
+  }
+
+  @Override
+  public WorkflowStub newUntypedWorkflowStub(
+      Optional<String> workflowType, WorkflowTargetOptions workflowTargetOptions) {
+    return newUntypedWorkflowStub(workflowType, false, workflowTargetOptions);
+  }
+
+  @SuppressWarnings("deprecation")
+  WorkflowStub newUntypedWorkflowStub(
+      Optional<String> workflowType,
+      boolean legacyTargeting,
+      WorkflowTargetOptions workflowTargetOptions) {
+    WorkflowExecution.Builder execution =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowTargetOptions.getWorkflowId());
+    if (!Strings.isNullOrEmpty(workflowTargetOptions.getRunId())) {
+      execution.setRunId(workflowTargetOptions.getRunId());
+    }
     WorkflowStub result =
-        new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, execution);
+        new WorkflowStubImpl(
+            options,
+            workflowClientCallsInvoker,
+            workflowType,
+            execution.build(),
+            legacyTargeting,
+            workflowTargetOptions.getFirstExecutionRunId());
     for (WorkflowClientInterceptor i : interceptors) {
-      result = i.newUntypedWorkflowStub(execution, workflowType, result);
+      result = i.newUntypedWorkflowStub(execution.build(), workflowType, result);
     }
     return result;
   }

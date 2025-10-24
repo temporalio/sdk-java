@@ -32,8 +32,6 @@ public class CancelTest {
     assertThrows(WorkflowNotFoundException.class, untyped::cancel);
   }
 
-  // Testing the current behavior, this test MAY break after fixing:
-  // https://github.com/temporalio/temporal/issues/2860
   @Test
   public void secondCancellationImmediately() {
     TestWorkflows.TestWorkflow1 workflow =
@@ -44,8 +42,6 @@ public class CancelTest {
     untyped.cancel();
   }
 
-  // Testing the current behavior, this test WILL break after fixing:
-  // https://github.com/temporalio/temporal/issues/2860
   @Test
   public void secondCancellationAfterWorkflowIsCancelled() {
     TestWorkflows.TestWorkflow1 workflow =
