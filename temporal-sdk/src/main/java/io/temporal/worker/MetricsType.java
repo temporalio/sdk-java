@@ -125,7 +125,6 @@ public final class MetricsType {
   public static final String WORKER_TASK_SLOTS_AVAILABLE =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_available";
 
-  @Experimental
   public static final String WORKER_TASK_SLOTS_USED =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_used";
 
@@ -192,8 +191,12 @@ public final class MetricsType {
   // Resource tuner
   //
   // Tagged with namespace & task_queue
-  public static final String RESOURCE_MEM_USAGE = "resource_slots_mem_usage";
-  public static final String RESOURCE_CPU_USAGE = "resource_slots_cpu_usage";
-  public static final String RESOURCE_MEM_PID = "resource_slots_mem_pid_output";
-  public static final String RESOURCE_CPU_PID = "resource_slots_cpu_pid_output";
+  public static final String RESOURCE_MEM_USAGE =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_mem_usage";
+  public static final String RESOURCE_CPU_USAGE =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_cpu_usage";
+  public static final String RESOURCE_MEM_PID =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_mem_pid_output";
+  public static final String RESOURCE_CPU_PID =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_cpu_pid_output";
 }

@@ -21,7 +21,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
-public class WarnUnfinishedHandlers {
+public class WarnUnfinishedHandlersTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -82,14 +82,14 @@ public class WarnUnfinishedHandlers {
       assertEquals(Level.WARN, logsList.get(0).getLevel());
       assertEquals(unfinishedSignalHandlesWarnMessage, logsList.get(0).getMessage());
       assertEquals(
-          logsList.get(0).getMDCPropertyMap().get("Signals"),
-          "[SignalHandlerInfo{eventId=5, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=9, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=13, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=17, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=21, name='warningSignalHandler', policy=WARN_AND_ABANDON}]");
+          "[SignalHandlerInfo{eventId=5, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=9, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=13, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=17, name='warningSignalHandler', policy=WARN_AND_ABANDON}, SignalHandlerInfo{eventId=21, name='warningSignalHandler', policy=WARN_AND_ABANDON}]",
+          logsList.get(0).getMDCPropertyMap().get("Signals"));
 
       assertEquals(Level.WARN, logsList.get(1).getLevel());
       assertEquals(unfinishedUpdateHandlesWarnMessage, logsList.get(1).getMessage());
       assertEquals(
-          logsList.get(1).getMDCPropertyMap().get("Updates"),
-          "[UpdateHandlerInfo{updateId='0', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='1', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='2', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='3', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='4', name='warningUpdateHandler', policy=WARN_AND_ABANDON}]");
+          "[UpdateHandlerInfo{updateId='0', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='1', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='2', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='3', name='warningUpdateHandler', policy=WARN_AND_ABANDON}, UpdateHandlerInfo{updateId='4', name='warningUpdateHandler', policy=WARN_AND_ABANDON}]",
+          logsList.get(1).getMDCPropertyMap().get("Updates"));
     } else {
       assertEquals(0, logsList.size());
     }

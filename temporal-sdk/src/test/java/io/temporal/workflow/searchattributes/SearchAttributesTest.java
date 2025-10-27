@@ -225,7 +225,7 @@ public class SearchAttributesTest {
     } catch (WorkflowServiceException exception) {
       assertTrue(exception.getCause() instanceof StatusRuntimeException);
       StatusRuntimeException e = (StatusRuntimeException) exception.getCause();
-      assertEquals(e.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+      assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
     }
   }
 

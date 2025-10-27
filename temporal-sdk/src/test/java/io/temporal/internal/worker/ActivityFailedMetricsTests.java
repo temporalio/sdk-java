@@ -1,9 +1,6 @@
 package io.temporal.internal.worker;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
@@ -183,8 +180,8 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         nonBenignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
-    assertFalse(
-        "Failure should not be benign", af.getCategory() == ApplicationErrorCategory.BENIGN);
+    assertNotEquals(
+        "Failure should not be benign", ApplicationErrorCategory.BENIGN, af.getCategory());
     assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     reporter.assertCounter(
@@ -212,7 +209,7 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         benignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
-    assertTrue("Failure should be benign", af2.getCategory() == ApplicationErrorCategory.BENIGN);
+    assertEquals("Failure should be benign", ApplicationErrorCategory.BENIGN, af2.getCategory());
     assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure
@@ -222,8 +219,8 @@ public class ActivityFailedMetricsTests {
         1);
 
     // Verify log levels
-    assertEquals(countLogMessages("Activity failure.", Level.WARN), 1);
-    assertEquals(countLogMessages("Activity failure.", Level.DEBUG), 1);
+    assertEquals(1, countLogMessages("Activity failure.", Level.WARN));
+    assertEquals(1, countLogMessages("Activity failure.", Level.DEBUG));
   }
 
   @Test
@@ -253,8 +250,8 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         nonBenignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af = (ApplicationFailure) nonBenignErr.getCause().getCause();
-    assertFalse(
-        "Failure should not be benign", af.getCategory() == ApplicationErrorCategory.BENIGN);
+    assertNotEquals(
+        "Failure should not be benign", ApplicationErrorCategory.BENIGN, af.getCategory());
     assertEquals("Non-benign activity failure", af.getOriginalMessage());
 
     // Expect metrics to be incremented for non-benign failure
@@ -282,7 +279,7 @@ public class ActivityFailedMetricsTests {
         "Inner cause should be ApplicationFailure",
         benignErr.getCause().getCause() instanceof ApplicationFailure);
     ApplicationFailure af2 = (ApplicationFailure) benignErr.getCause().getCause();
-    assertTrue("Failure should be benign", af2.getCategory() == ApplicationErrorCategory.BENIGN);
+    assertEquals("Failure should be benign", ApplicationErrorCategory.BENIGN, af2.getCategory());
     assertEquals("Benign activity failure", af2.getOriginalMessage());
 
     // Expect metrics to remain unchanged for benign failure
@@ -292,7 +289,7 @@ public class ActivityFailedMetricsTests {
         1);
 
     // Verify log levels
-    assertEquals(countLogMessages("Local activity failure.", Level.WARN), 1);
-    assertEquals(countLogMessages("Local activity failure.", Level.DEBUG), 1);
+    assertEquals(1, countLogMessages("Local activity failure.", Level.WARN));
+    assertEquals(1, countLogMessages("Local activity failure.", Level.DEBUG));
   }
 }

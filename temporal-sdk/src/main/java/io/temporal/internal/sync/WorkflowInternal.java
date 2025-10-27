@@ -627,9 +627,13 @@ public final class WorkflowInternal {
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    return cancelWorkflow(execution, null);
+  }
+
+  public static Promise<Void> cancelWorkflow(WorkflowExecution execution, @Nullable String reason) {
     assertNotReadOnly("cancel workflow");
     return getWorkflowOutboundInterceptor()
-        .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
+        .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution, reason))
         .getResult();
   }
 

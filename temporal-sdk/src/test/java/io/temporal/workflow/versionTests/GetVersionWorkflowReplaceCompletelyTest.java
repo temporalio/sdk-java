@@ -1,8 +1,7 @@
 package io.temporal.workflow.versionTests;
 
 import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowStub;
@@ -60,7 +59,7 @@ public class GetVersionWorkflowReplaceCompletelyTest extends BaseVersionTest {
       assertEquals("changeFoo1-111", versions.get(1));
       assertEquals("changeFoo2-101", versions.get(2));
     } else {
-      assertEquals(null, versions);
+      assertNull(versions);
     }
   }
 

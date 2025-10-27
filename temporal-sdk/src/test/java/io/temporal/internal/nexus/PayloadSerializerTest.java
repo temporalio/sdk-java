@@ -24,7 +24,7 @@ public class PayloadSerializerTest {
   @Test
   public void testNull() {
     PayloadSerializer.Content content = payloadSerializer.serialize(null);
-    Assert.assertEquals(null, payloadSerializer.deserialize(content, String.class));
+    Assert.assertNull(payloadSerializer.deserialize(content, String.class));
   }
 
   @Test

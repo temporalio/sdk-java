@@ -47,7 +47,7 @@ public class VersionStateMachineTest {
         missed =
             VersionStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           VersionStateMachine.class,
           VersionStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

@@ -17,13 +17,13 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class UpdateTestTimeout {
+public class UpdateTestTimeoutTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setUseTimeskipping(false)
-          .setWorkflowTypes(UpdateTestTimeout.BlockingWorkflowImpl.class)
+          .setWorkflowTypes(UpdateTestTimeoutTest.BlockingWorkflowImpl.class)
           .build();
 
   @Test
@@ -152,7 +152,7 @@ public class UpdateTestTimeout {
     void complete();
   }
 
-  public static class BlockingWorkflowImpl implements UpdateTestTimeout.BlockingWorkflow {
+  public static class BlockingWorkflowImpl implements BlockingWorkflow {
     CompletablePromise<Void> promise = Workflow.newPromise();
     CompletablePromise<Void> updateExecutePromise = Workflow.newPromise();
 

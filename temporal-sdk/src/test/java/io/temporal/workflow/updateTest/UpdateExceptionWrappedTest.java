@@ -1,30 +1,28 @@
 package io.temporal.workflow.updateTest;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThrows;
 
-import io.temporal.activity.*;
+import io.grpc.Context;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.*;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class UpdateRetryException {
+public class UpdateExceptionWrappedTest {
 
-  private static final AtomicInteger retryCount = new AtomicInteger();
-
-  private static final Logger log = LoggerFactory.getLogger(UpdateTest.class);
+  private static ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -34,7 +32,7 @@ public class UpdateRetryException {
           .build();
 
   @Test
-  public void testUpdateExceptionRetries() {
+  public void testUpdateStart() {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
@@ -45,29 +43,21 @@ public class UpdateRetryException {
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
     // return.
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+    testWorkflowRule.getTestEnvironment().shutdownNow();
+    testWorkflowRule.getTestEnvironment().awaitTermination(1000, TimeUnit.MILLISECONDS);
 
-    SDKTestWorkflowRule.waitForOKQuery(workflow);
-    assertEquals("initial", workflow.getState());
+    final AtomicReference<WorkflowUpdateTimeoutOrCancelledException> exception =
+        new AtomicReference<>();
 
-    assertEquals(workflowId, execution.getWorkflowId());
-
-    try {
-      workflow.update(0, "");
-      Assert.fail("unreachable");
-    } catch (WorkflowUpdateException e) {
-      Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
-      Assert.assertEquals("Failure", ((ApplicationFailure) e.getCause()).getType());
-      Assert.assertEquals(
-          "message='simulated 3', type='Failure', nonRetryable=false", e.getCause().getMessage());
-    }
-    workflow.complete();
-
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
-    assertEquals("", result);
+    Context.current()
+        .withDeadlineAfter(500, TimeUnit.MILLISECONDS, scheduledExecutor)
+        .run(
+            () ->
+                exception.set(
+                    assertThrows(
+                        WorkflowUpdateTimeoutOrCancelledException.class,
+                        () -> workflow.update(0, ""))));
+    Assert.assertEquals(execution.getWorkflowId(), exception.get().getExecution().getWorkflowId());
   }
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {
@@ -88,12 +78,8 @@ public class UpdateRetryException {
 
     @Override
     public String update(Integer index, String value) {
-      int c = retryCount.incrementAndGet();
-      if (c < 3) {
-        throw new IllegalArgumentException("simulated " + c);
-      } else {
-        throw ApplicationFailure.newFailure("simulated " + c, "Failure");
-      }
+      Workflow.await(() -> false);
+      return "";
     }
 
     @Override

@@ -55,20 +55,20 @@ public class GetVersionMultipleCallsTest extends BaseVersionTest {
               VariousTestActivities.class,
               SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       int version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
 
       // Try again in the same WFT
       version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
 
       // Create a new WFT by sleeping
       Workflow.sleep(1000);
       version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
       String result = "activity" + testActivities.activity1(1);
 
       version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
 
       return result;
     }

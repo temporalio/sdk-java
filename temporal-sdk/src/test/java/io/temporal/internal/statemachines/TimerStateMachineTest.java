@@ -43,7 +43,7 @@ public class TimerStateMachineTest {
         missed =
             TimerStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           TimerStateMachine.class,
           TimerStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

@@ -71,7 +71,7 @@ public class GetVersionMultithreadingTest extends BaseVersionTest {
       if (WorkflowUnsafe.isReplaying()) {
         hasReplayed = true;
         int version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-        assertEquals(version, Workflow.DEFAULT_VERSION);
+        assertEquals(Workflow.DEFAULT_VERSION, version);
       }
       String result =
           "activity" + testActivities.activity1(1); // This is executed in non-replay mode.

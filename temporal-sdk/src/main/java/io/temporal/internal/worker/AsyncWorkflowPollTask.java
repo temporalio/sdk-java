@@ -2,7 +2,6 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
-import com.google.protobuf.Timestamp;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.Context;
@@ -154,10 +153,9 @@ public class AsyncWorkflowPollTask
               pollerMetricScope
                   .counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER)
                   .inc(1);
-              Timestamp startedTime = ProtobufTimeUtils.getCurrentProtoTime();
               pollerMetricScope
                   .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
-                  .record(ProtobufTimeUtils.toM3Duration(startedTime, r.getScheduledTime()));
+                  .record(ProtobufTimeUtils.toM3Duration(r.getStartedTime(), r.getScheduledTime()));
               return new WorkflowTask(r, (reason) -> slotSupplier.releaseSlot(reason, permit));
             })
         .whenComplete(

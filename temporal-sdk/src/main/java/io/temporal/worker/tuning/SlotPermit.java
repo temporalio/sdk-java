@@ -1,7 +1,5 @@
 package io.temporal.worker.tuning;
 
-import io.temporal.common.Experimental;
-
 /**
  * This class is handed out by implementations of {@link SlotSupplier}. Permits are held until the
  * tasks they are associated with (if any) are finished processing, or if the reservation is no
@@ -10,7 +8,6 @@ import io.temporal.common.Experimental;
  * <p>When {@link SlotSupplier#releaseSlot(SlotReleaseContext)} is called, the exact same instance
  * of the permit is passed back to the supplier.
  */
-@Experimental
 public final class SlotPermit {
   public final Object userData;
 

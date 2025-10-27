@@ -52,7 +52,7 @@ public class NexusOperationStateMachineTest {
             NexusOperationStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           NexusOperationStateMachine.class,
           NexusOperationStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(

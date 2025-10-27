@@ -9,7 +9,7 @@ import java.util.function.BiFunction;
 /**
  * Helper methods supporting transformation of History's "Proto Json" compatible format, which is
  * supported by {@link com.google.protobuf.util.JsonFormat} to the format of Temporal history
- * supported by tctl and back.
+ * supported by Temporal CLI and back.
  */
 public final class HistoryJsonUtils {
   private static final Configuration JSON_PATH_CONFIGURATION =

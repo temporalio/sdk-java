@@ -236,8 +236,7 @@ public class UpdateTest {
             .getResultAsync()
             .get());
 
-    assertEquals(
-        null,
+    assertNull(
         WorkflowClient.startUpdate(
                 workflow::complete,
                 UpdateOptions.<Void>newBuilder().setWaitForStage(COMPLETED).build())

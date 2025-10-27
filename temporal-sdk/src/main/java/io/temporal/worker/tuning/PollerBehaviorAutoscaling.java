@@ -99,9 +99,9 @@ public final class PollerBehaviorAutoscaling implements PollerBehavior {
   public boolean equals(Object o) {
     if (o == null || getClass() != o.getClass()) return false;
     PollerBehaviorAutoscaling that = (PollerBehaviorAutoscaling) o;
-    return minConcurrentTaskPollers == that.minConcurrentTaskPollers
+    return (minConcurrentTaskPollers == that.minConcurrentTaskPollers
         && maxConcurrentTaskPollers == that.maxConcurrentTaskPollers
-        && initialConcurrentTaskPollers == that.initialConcurrentTaskPollers;
+        && initialConcurrentTaskPollers == that.initialConcurrentTaskPollers);
   }
 
   @Override
@@ -112,13 +112,13 @@ public final class PollerBehaviorAutoscaling implements PollerBehavior {
 
   @Override
   public String toString() {
-    return "PollerBehaviorAutoscaling{"
+    return ("PollerBehaviorAutoscaling{"
         + "minConcurrentTaskPollers="
         + minConcurrentTaskPollers
         + ", maxConcurrentTaskPollers="
         + maxConcurrentTaskPollers
         + ", initialConcurrentTaskPollers="
         + initialConcurrentTaskPollers
-        + '}';
+        + '}');
   }
 }
