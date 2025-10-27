@@ -126,7 +126,7 @@ public class LoadClientConfigProfileOptions {
     /**
      * Override the file path to use to load the TOML file for config. Defaults to
      * TEMPORAL_CONFIG_FILE environment variable or if that is unset/empty, defaults to
-     * [os.UserConfigDir]/temporal/temporal.toml. If ConfigFileData is set, this cannot be set and
+     * [os.UserConfigDir]/temporalio/temporal.toml. If ConfigFileData is set, this cannot be set and
      * no file loading from disk occurs. Ignored if DisableFile is true.
      */
     public Builder setConfigFilePath(String configFilePath) {
