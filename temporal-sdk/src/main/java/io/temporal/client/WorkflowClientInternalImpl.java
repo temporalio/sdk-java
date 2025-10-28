@@ -155,6 +155,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
     return newWorkflowStub(
@@ -219,6 +220,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType) {
     WorkflowExecution execution =
@@ -227,6 +229,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
     return newUntypedWorkflowStub(
