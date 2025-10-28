@@ -32,13 +32,13 @@ public class ClientConfig {
     return new ClientConfig.Builder().build();
   }
 
-  /** Get the default config file path: $HOME/.config/temporal/temporal.toml */
+  /** Get the default config file path: $HOME/.config/temporalio/temporal.toml */
   private static String getDefaultConfigFilePath() {
     String userDir = System.getProperty("user.home");
     if (userDir == null || userDir.isEmpty()) {
       throw new RuntimeException("failed getting user home directory");
     }
-    return userDir + "/.config/temporal/temporal.toml";
+    return userDir + "/.config/temporalio/temporal.toml";
   }
 
   /**
