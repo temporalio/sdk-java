@@ -35,7 +35,7 @@ public class TypedUpdateTest {
     TestMultiArgWorkflowUpdateFunctions.TestMultiArgUpdateWorkflow workflow =
         workflowClient.newWorkflowStub(
             TestMultiArgWorkflowUpdateFunctions.TestMultiArgUpdateWorkflow.class, options);
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+    WorkflowClient.start(workflow::execute);
 
     Assert.assertEquals("func", workflow.func());
     Assert.assertEquals("input", workflow.func1("input"));
@@ -54,12 +54,7 @@ public class TypedUpdateTest {
     workflow.proc6("input", 2, 3, 4, 5, 6);
 
     workflow.complete();
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
-    assertEquals("procinputinput2input23input234input2345input23456", result);
+    assertEquals("procinputinput2input23input234input2345input23456", workflow.execute());
   }
 
   @Test
@@ -129,11 +124,6 @@ public class TypedUpdateTest {
         .get();
 
     workflow.complete();
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
-    assertEquals("procinputinput2input23input234input2345input23456", result);
+    assertEquals("procinputinput2input23input234input2345input23456", workflow.execute());
   }
 }

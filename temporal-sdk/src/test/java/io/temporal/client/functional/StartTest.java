@@ -9,6 +9,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -200,7 +201,9 @@ public class StartTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                Optional.empty(),
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals(expected, result);
   }
@@ -209,7 +212,9 @@ public class StartTest {
     int result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                Optional.empty(),
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(int.class);
     assertEquals(expected, result);
   }
@@ -217,7 +222,9 @@ public class StartTest {
   private void waitForProc(WorkflowExecution execution) {
     testWorkflowRule
         .getWorkflowClient()
-        .newUntypedWorkflowStub(execution, Optional.empty())
+        .newUntypedWorkflowStub(
+            Optional.empty(),
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
         .getResult(Void.class);
   }
 }

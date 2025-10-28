@@ -58,8 +58,10 @@ public class WorkflowIdConflictPolicyTest {
             testWorkflowRule
                 .getWorkflowClient()
                 .newUntypedWorkflowStub(
-                    workflowExecution1,
-                    Optional.of(TestWorkflows.TestSignaledWorkflow.class.toString()))
+                    Optional.of(TestWorkflows.TestSignaledWorkflow.class.toString()),
+                    WorkflowTargetOptions.newBuilder()
+                        .setWorkflowExecution(workflowExecution1)
+                        .build())
                 .getResult(String.class));
   }
 

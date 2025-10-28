@@ -59,7 +59,8 @@ public class SignalTest {
     // Test client created using WorkflowExecution
     QueryableWorkflow client2 =
         workflowClient.newWorkflowStub(
-            QueryableWorkflow.class, execution.getWorkflowId(), Optional.of(execution.getRunId()));
+            QueryableWorkflow.class,
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
     assertEquals("Hello ", client2.getState());
 
     testWorkflowRule.sleep(Duration.ofMillis(500));
@@ -68,7 +69,11 @@ public class SignalTest {
     assertEquals("World!", client2.getState());
     assertEquals(
         "Hello World!",
-        workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
+        workflowClient
+            .newUntypedWorkflowStub(
+                Optional.empty(),
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
+            .getResult(String.class));
     client2.execute();
   }
 
@@ -102,7 +107,11 @@ public class SignalTest {
     assertEquals("World!", client2.getState());
     assertEquals(
         "Hello World!",
-        workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
+        workflowClient
+            .newUntypedWorkflowStub(
+                Optional.empty(),
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
+            .getResult(String.class));
 
     // Check if that it starts closed workflow (AllowDuplicate is default IdReusePolicy)
     QueryableWorkflow client3 = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
@@ -160,7 +169,9 @@ public class SignalTest {
     assertEquals(
         "Hello World!",
         workflowClient
-            .newUntypedWorkflowStub(execution, Optional.of(workflowType))
+            .newUntypedWorkflowStub(
+                Optional.of(workflowType),
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class));
     assertEquals("Hello World!", workflowStub.getResult(String.class));
     assertEquals("World!", workflowStub.query("getState", String.class));
@@ -173,7 +184,9 @@ public class SignalTest {
                 .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =
-        client.newUntypedWorkflowStub(execution, Optional.of(workflowType));
+        client.newUntypedWorkflowStub(
+            Optional.of(workflowType),
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
     try {
       workflowStubNotOptionRejectCondition.query("getState", String.class);
       fail("unreachable");

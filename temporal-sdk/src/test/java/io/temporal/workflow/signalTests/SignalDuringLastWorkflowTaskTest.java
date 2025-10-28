@@ -5,6 +5,7 @@ import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
@@ -56,7 +57,9 @@ public class SignalDuringLastWorkflowTaskTest {
               "Signal Input",
               testWorkflowRule
                   .getWorkflowClient()
-                  .newUntypedWorkflowStub(execution, Optional.empty())
+                  .newUntypedWorkflowStub(
+                      Optional.empty(),
+                      WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
                   .getResult(String.class));
           assertCompleted.complete(true);
         });

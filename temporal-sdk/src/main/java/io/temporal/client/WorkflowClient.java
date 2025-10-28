@@ -147,9 +147,7 @@ public interface WorkflowClient {
    * @param workflowInterface interface that given workflow implements.
    * @param workflowId Workflow id.
    * @return Stub that implements workflowInterface and can be used to signal or query it.
-   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead.
    */
-  @Deprecated
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId);
 
   /**
