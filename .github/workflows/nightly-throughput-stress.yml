@@ -119,6 +119,7 @@ jobs:
             --duration $TEST_DURATION \
             --timeout $TEST_TIMEOUT \
             --max-concurrent 10 \
+            --log-level debug \
             --option internal-iterations=10 \
             --option continue-as-new-after-iterations=3 \
             --option sleep-time=1s \
