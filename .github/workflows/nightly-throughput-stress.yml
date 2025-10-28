@@ -114,7 +114,7 @@ jobs:
           go run ./cmd run-scenario-with-worker \
             --scenario throughput_stress \
             --language java \
-            --version $(pwd)/../sdk-java \
+            --version $(pwd)/.. \
             --run-id $RUN_ID \
             --duration $TEST_DURATION \
             --timeout $TEST_TIMEOUT \
