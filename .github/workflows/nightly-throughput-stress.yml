@@ -138,6 +138,7 @@ jobs:
         if: failure() || cancelled()
         uses: slackapi/slack-github-action@v2
         with:
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "Nightly Java throughput stress test failed",
