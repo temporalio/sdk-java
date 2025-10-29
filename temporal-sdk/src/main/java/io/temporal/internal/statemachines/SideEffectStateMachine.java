@@ -74,6 +74,7 @@ final class SideEffectStateMachine
   /**
    * Creates new SideEffect Marker
    *
+   * @param metadata user metadata to attach to the side effect marker.
    * @param func used to produce side effect value. null if replaying.
    * @param callback returns side effect value or failure
    * @param commandSink callback to send commands to

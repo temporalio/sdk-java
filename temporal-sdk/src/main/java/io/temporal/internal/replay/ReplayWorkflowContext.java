@@ -251,6 +251,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *
    * @param id id of the side effect call. It links multiple calls together. Calls with different
    *     ids are completely independent.
+   * @param userMetadata user metadata to attach to the marker event.
    * @param func function that gets as input a result of a previous {@code mutableSideEffect} call.
    *     The function executes its business logic (like checking config value) and if value didn't
    *     change returns {@link Optional#empty()}. If value has changed and needs to be recorded in
