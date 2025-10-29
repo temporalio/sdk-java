@@ -24,6 +24,10 @@ on:
         description: "Publish Java Artifacts"
         required: true
         default: "true"
+
+permissions:
+  contents: read
+
 env:
   INPUT_REF: ${{ github.event.inputs.ref }}
   INPUT_TAG: ${{ github.event.inputs.tag }}
@@ -32,6 +36,8 @@ jobs:
   create_draft_release:
     name: Create Github draft release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Audit gh version
         run: gh --version
@@ -133,6 +139,9 @@ jobs:
     name: Attach native executables to release
     needs: [build_native_images, create_draft_release]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
     steps:
       - name: Audit gh version
         run: gh --version
