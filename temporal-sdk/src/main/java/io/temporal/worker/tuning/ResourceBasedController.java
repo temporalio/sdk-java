@@ -68,8 +68,8 @@ public class ResourceBasedController {
 
       Metrics metrics = this.metrics.get();
       if (metrics != null) {
-        metrics.memUsage.update(memoryUsage);
-        metrics.cpuUsage.update(cpuUsage);
+        metrics.memUsage.update(memoryUsage * 100);
+        metrics.cpuUsage.update(cpuUsage * 100);
         metrics.memPidOut.update(memoryOutput);
         metrics.cpuPidOut.update(cpuOutput);
       }
