@@ -165,7 +165,7 @@ jobs:
         run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
 
       - name: Upload release archives
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-archives
           path: |
