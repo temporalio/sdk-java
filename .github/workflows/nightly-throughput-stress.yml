@@ -83,7 +83,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build SDK
-        run: ./gradlew build -x test
+        run: ./gradlew build -x test -x virtualThreadTests
 
       - name: Install Temporal CLI
         uses: temporalio/setup-temporal@v0
