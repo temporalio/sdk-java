@@ -79,6 +79,24 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
   }
 
   @Override
+  public WorkflowUpdateWithStartOutput updateWithStart(WorkflowUpdateWithStartInput input) {
+    WorkflowStartInput workflowStartInput = input.getWorkflowStartInput();
+    Span workflowStartSpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                createWorkflowStartSpanBuilder(
+                        workflowStartInput, SpanOperationType.UPDATE_WITH_START_WORKFLOW)
+                    .start(),
+            workflowStartInput.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
+      return super.updateWithStart(input);
+    } finally {
+      workflowStartSpan.finish();
+    }
+  }
+
+  @Override
   public <R> QueryOutput<R> query(QueryInput<R> input) {
     Span workflowQuerySpan =
         contextAccessor.writeSpanContextToHeader(
