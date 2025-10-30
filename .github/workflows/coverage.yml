@@ -4,6 +4,9 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 jobs:
   code-coverage:
     runs-on: ubuntu-latest-16-cores

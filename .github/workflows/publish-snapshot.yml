@@ -22,6 +22,9 @@ on:
     tags-ignore:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   publish-snapshot:
     if: github.repository == 'temporalio/sdk-java' || github.event_name == 'workflow_dispatch'
