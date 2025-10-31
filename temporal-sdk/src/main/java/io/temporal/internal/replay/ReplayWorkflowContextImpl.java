@@ -315,16 +315,19 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void sideEffect(
-      Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
-    workflowStateMachines.sideEffect(func, callback);
+      Func<Optional<Payloads>> func,
+      UserMetadata metadata,
+      Functions.Proc1<Optional<Payloads>> callback) {
+    workflowStateMachines.sideEffect(func, metadata, callback);
   }
 
   @Override
   public void mutableSideEffect(
       String id,
+      UserMetadata metadata,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
-    workflowStateMachines.mutableSideEffect(id, func, callback);
+    workflowStateMachines.mutableSideEffect(id, metadata, func, callback);
   }
 
   @Override

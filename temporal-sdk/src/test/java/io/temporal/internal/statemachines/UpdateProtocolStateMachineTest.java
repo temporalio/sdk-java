@@ -251,7 +251,8 @@ public class UpdateProtocolStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) -> {
                   message.getCallbacks().accept();
-                  stateMachines.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c);
+                  stateMachines.mutableSideEffect(
+                      "id1", null, (p) -> converter.toPayloads("result1"), c);
                 })
             .add(
                 (r) -> {
@@ -673,7 +674,8 @@ public class UpdateProtocolStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) -> {
                   message.getCallbacks().accept();
-                  stateMachines.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c);
+                  stateMachines.mutableSideEffect(
+                      "id1", null, (p) -> converter.toPayloads("result1"), c);
                 })
             .add(
                 (r) -> {
@@ -906,7 +908,7 @@ public class UpdateProtocolStateMachineTest {
             "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
         builder.<Optional<Payloads>>add1(
             (r, c) -> {
-              stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
+              stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), null, c);
             });
       }
 

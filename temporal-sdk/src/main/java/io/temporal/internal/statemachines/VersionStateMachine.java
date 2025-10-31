@@ -240,7 +240,7 @@ final class VersionStateMachine {
         writeVersionChangeSA = sa != null;
         RecordMarkerCommandAttributes markerAttributes =
             VersionMarkerUtils.createMarkerAttributes(changeId, version, writeVersionChangeSA);
-        Command markerCommand = StateMachineCommandUtils.createRecordMarker(markerAttributes);
+        Command markerCommand = StateMachineCommandUtils.createRecordMarker(markerAttributes, null);
         addCommand(markerCommand);
         if (writeVersionChangeSA) {
           hasWrittenVersionChangeSA = true;

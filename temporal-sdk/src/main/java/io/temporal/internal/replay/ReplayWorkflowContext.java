@@ -224,9 +224,13 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * executing operations that rely on non-global dependencies and can fail.
    *
    * @param func function that is called once to return a value.
+   * @param userMetadata user metadata to be associated with the side effect.
    * @param callback function that accepts the result of the side effect.
    */
-  void sideEffect(Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback);
+  void sideEffect(
+      Func<Optional<Payloads>> func,
+      UserMetadata userMetadata,
+      Functions.Proc1<Optional<Payloads>> callback);
 
   /**
    * {@code mutableSideEffect} is similar to {@code sideEffect} in allowing calls of
@@ -247,6 +251,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *
    * @param id id of the side effect call. It links multiple calls together. Calls with different
    *     ids are completely independent.
+   * @param userMetadata user metadata to attach to the marker event.
    * @param func function that gets as input a result of a previous {@code mutableSideEffect} call.
    *     The function executes its business logic (like checking config value) and if value didn't
    *     change returns {@link Optional#empty()}. If value has changed and needs to be recorded in
@@ -256,6 +261,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   void mutableSideEffect(
       String id,
+      UserMetadata userMetadata,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback);
 
