@@ -37,11 +37,8 @@ import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.workflow.Functions;
+import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.TimerOptions;
-import io.temporal.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
@@ -413,8 +410,25 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public <R> R sideEffect(
+        Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public <R> R mutableSideEffect(
         String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public <R> R mutableSideEffect(
+        String id,
+        Class<R> resultClass,
+        Type resultType,
+        BiPredicate<R, R> updated,
+        Func<R> func,
+        MutableSideEffectOptions options) {
       throw new UnsupportedOperationException("not implemented");
     }
 

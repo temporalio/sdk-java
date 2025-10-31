@@ -3,7 +3,9 @@ package io.temporal.common.interceptors;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.MutableSideEffectOptions;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.SideEffectOptions;
 import io.temporal.workflow.TimerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -89,9 +91,26 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    return next.sideEffect(resultClass, resultType, func, options);
+  }
+
+  @Override
   public <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     return next.mutableSideEffect(id, resultClass, resultType, updated, func);
+  }
+
+  @Override
+  public <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    return next.mutableSideEffect(id, resultClass, resultType, updated, func, options);
   }
 
   @Override
