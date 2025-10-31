@@ -60,7 +60,9 @@ public class SpeculativeUpdateTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                Optional.empty(),
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("", result);
   }
