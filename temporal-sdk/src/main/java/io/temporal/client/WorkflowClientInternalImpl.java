@@ -151,7 +151,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions) {
-    return newWorkflowStub(workflowInterface, workflowTargetOptions, true);
+    return newWorkflowStub(workflowInterface, workflowTargetOptions, false);
   }
 
   @Override
@@ -163,7 +163,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         WorkflowTargetOptions.newBuilder()
             .setWorkflowId(workflowId)
             .setRunId(runId.orElse(null))
-            .build());
+            .build(),
+            true);
   }
 
   public <T> T newWorkflowStub(
