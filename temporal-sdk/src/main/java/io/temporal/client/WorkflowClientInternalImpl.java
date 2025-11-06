@@ -164,7 +164,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .setWorkflowId(workflowId)
             .setRunId(runId.orElse(null))
             .build(),
-            true);
+        true);
   }
 
   public <T> T newWorkflowStub(
