@@ -85,7 +85,6 @@ public class UpdateTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
@@ -136,7 +135,6 @@ public class UpdateTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("Execute-Hello Update Execute-Hello Update 2", result);

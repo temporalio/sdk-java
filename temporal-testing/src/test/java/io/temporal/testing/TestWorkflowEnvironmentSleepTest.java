@@ -14,7 +14,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.After;
@@ -205,7 +204,6 @@ public class TestWorkflowEnvironmentSleepTest {
 
     WorkflowStub stubBPrime =
         client.newUntypedWorkflowStub(
-            Optional.empty(),
             WorkflowTargetOptions.newBuilder().setWorkflowExecution(executionB).build());
     waitForWorkflow(stubBPrime, "newUntypedStubForWorkflowExecution", durationToWait);
   }

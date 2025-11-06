@@ -203,7 +203,7 @@ public interface WorkflowClient {
    *     workflowId is assumed.
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
-   * @deprecated Use {@link #newUntypedWorkflowStub(Optional, WorkflowTargetOptions)} instead.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead.
    */
   @Deprecated
   WorkflowStub newUntypedWorkflowStub(
@@ -216,7 +216,7 @@ public interface WorkflowClient {
    * @param execution workflow id and optional run id for execution
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
-   * @deprecated Use {@link #newUntypedWorkflowStub(Optional, WorkflowTargetOptions)} instead.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead.
    */
   WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
 
@@ -224,12 +224,21 @@ public interface WorkflowClient {
    * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
    * to a running workflow. Do not call methods annotated with @WorkflowMethod.
    *
-   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @param workflowTargetOptions options that specify target workflow execution.
    * @return Stub that can be used to start workflow and later to signal or query it.
    */
+  WorkflowStub newUntypedWorkflowStub(WorkflowTargetOptions workflowTargetOptions);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
   WorkflowStub newUntypedWorkflowStub(
-      Optional<String> workflowType, WorkflowTargetOptions workflowTargetOptions);
+      WorkflowTargetOptions workflowTargetOptions, Optional<String> workflowType);
 
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities

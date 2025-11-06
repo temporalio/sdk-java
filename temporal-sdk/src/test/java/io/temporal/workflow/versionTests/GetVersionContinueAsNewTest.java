@@ -17,7 +17,6 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,7 +45,6 @@ public class GetVersionContinueAsNewTest extends BaseVersionTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(run1).build());
     WorkflowStub latestUntyped =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub(run1.getWorkflowId());

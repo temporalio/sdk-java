@@ -13,7 +13,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import org.junit.Assert;
@@ -60,7 +59,6 @@ public class DynamicUpdateTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals(" update complete", result);

@@ -71,7 +71,6 @@ public class SignalTest {
         "Hello World!",
         workflowClient
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class));
     client2.execute();
@@ -109,7 +108,6 @@ public class SignalTest {
         "Hello World!",
         workflowClient
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class));
 
@@ -170,8 +168,8 @@ public class SignalTest {
         "Hello World!",
         workflowClient
             .newUntypedWorkflowStub(
-                Optional.of(workflowType),
-                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build(),
+                Optional.of(workflowType))
             .getResult(String.class));
     assertEquals("Hello World!", workflowStub.getResult(String.class));
     assertEquals("World!", workflowStub.query("getState", String.class));
@@ -185,8 +183,8 @@ public class SignalTest {
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =
         client.newUntypedWorkflowStub(
-            Optional.of(workflowType),
-            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build(),
+            Optional.of(workflowType));
     try {
       workflowStubNotOptionRejectCondition.query("getState", String.class);
       fail("unreachable");

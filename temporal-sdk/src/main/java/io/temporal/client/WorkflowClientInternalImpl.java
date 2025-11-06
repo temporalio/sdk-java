@@ -242,8 +242,13 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
+  public WorkflowStub newUntypedWorkflowStub(WorkflowTargetOptions workflowTargetOptions) {
+    return newUntypedWorkflowStub(Optional.empty(), false, workflowTargetOptions);
+  }
+
+  @Override
   public WorkflowStub newUntypedWorkflowStub(
-      Optional<String> workflowType, WorkflowTargetOptions workflowTargetOptions) {
+      WorkflowTargetOptions workflowTargetOptions, Optional<String> workflowType) {
     return newUntypedWorkflowStub(workflowType, false, workflowTargetOptions);
   }
 

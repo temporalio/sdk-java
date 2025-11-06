@@ -1,28 +1,28 @@
 package io.temporal.client.functional;
 
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.*;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.TestWorkflows;
-import java.util.Optional;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowStubFirstExecutionRunIdTest {
+public class WorkflowStubRespectRunIdTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(AwaitingWorkflow.class).build();
 
   @Test
   public void terminateFollowFirstRunId() throws InterruptedException {
-    TestWorkflows.TestWorkflow1 workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflow1.class);
+    TestWorkflowWithQuery workflow = testWorkflowRule.newWorkflowStub(TestWorkflowWithQuery.class);
     WorkflowClient.start(workflow::execute, "input1");
     WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
-    // TODO wait for the continue as new to be visible
-    Thread.sleep(1000);
+    waitForContinueAsNew(untyped.getExecution());
     Assert.assertThrows(
         "If the workflow continued as new, terminating by execution without firstExecutionRunId should fail",
         WorkflowNotFoundException.class,
@@ -30,7 +30,6 @@ public class WorkflowStubFirstExecutionRunIdTest {
             testWorkflowRule
                 .getWorkflowClient()
                 .newUntypedWorkflowStub(
-                    Optional.empty(),
                     WorkflowTargetOptions.newBuilder()
                         .setWorkflowExecution(untyped.getExecution())
                         .build())
@@ -38,7 +37,6 @@ public class WorkflowStubFirstExecutionRunIdTest {
     testWorkflowRule
         .getWorkflowClient()
         .newUntypedWorkflowStub(
-            Optional.empty(),
             WorkflowTargetOptions.newBuilder()
                 .setWorkflowExecution(untyped.getExecution())
                 .setFirstExecutionRunId(untyped.getExecution().getRunId())
@@ -52,16 +50,13 @@ public class WorkflowStubFirstExecutionRunIdTest {
 
   @Test
   public void cancelFollowFirstRunId() throws InterruptedException {
-    TestWorkflows.TestWorkflow1 workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflow1.class);
+    TestWorkflowWithQuery workflow = testWorkflowRule.newWorkflowStub(TestWorkflowWithQuery.class);
     WorkflowClient.start(workflow::execute, "input1");
     WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
-    // TODO wait for the continue as new to be visible
-    Thread.sleep(1000);
+    waitForContinueAsNew(untyped.getExecution());
     testWorkflowRule
         .getWorkflowClient()
         .newUntypedWorkflowStub(
-            Optional.empty(),
             WorkflowTargetOptions.newBuilder().setWorkflowExecution(untyped.getExecution()).build())
         .cancel();
     testWorkflowRule.assertNoHistoryEvent(
@@ -72,7 +67,6 @@ public class WorkflowStubFirstExecutionRunIdTest {
     testWorkflowRule
         .getWorkflowClient()
         .newUntypedWorkflowStub(
-            Optional.empty(),
             WorkflowTargetOptions.newBuilder()
                 .setWorkflowExecution(untyped.getExecution())
                 .setFirstExecutionRunId(untyped.getExecution().getRunId())
@@ -89,19 +83,16 @@ public class WorkflowStubFirstExecutionRunIdTest {
 
   @Test
   public void signalRespectRunId() throws InterruptedException {
-    TestWorkflows.TestWorkflow1 workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflow1.class);
+    TestWorkflowWithQuery workflow = testWorkflowRule.newWorkflowStub(TestWorkflowWithQuery.class);
     WorkflowClient.start(workflow::execute, "input1");
     WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
-    // TODO wait for the continue as new to be visible
-    Thread.sleep(1000);
+    waitForContinueAsNew(untyped.getExecution());
     Assert.assertThrows(
         WorkflowNotFoundException.class,
         () ->
             testWorkflowRule
                 .getWorkflowClient()
                 .newUntypedWorkflowStub(
-                    Optional.empty(),
                     WorkflowTargetOptions.newBuilder()
                         .setWorkflowExecution(untyped.getExecution())
                         .build())
@@ -110,14 +101,78 @@ public class WorkflowStubFirstExecutionRunIdTest {
     testWorkflowRule
         .getWorkflowClient()
         .newUntypedWorkflowStub(
-            Optional.empty(),
             WorkflowTargetOptions.newBuilder()
                 .setWorkflowId(untyped.getExecution().getWorkflowId())
                 .build())
         .signal("signal");
   }
 
-  public static class AwaitingWorkflow implements TestWorkflows.TestWorkflow1 {
+  private void waitForContinueAsNew(WorkflowExecution execution) throws InterruptedException {
+    final int maxAttempts = 5; // 100 * 100ms = 10s
+    final long sleepMs = 1000L;
+    int attempts = 0;
+
+    WorkflowStub latestStub =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder()
+                    .setWorkflowId(execution.getWorkflowId())
+                    .build());
+
+    while (attempts++ < maxAttempts) {
+      try {
+        String currentRunId = latestStub.describe().getExecution().getRunId();
+        if (!execution.getRunId().equals(currentRunId)) {
+          return;
+        }
+      } catch (Exception e) {
+        // Ignore and retry until timeout (query may fail while continue-as-new is in progress)
+      }
+      Thread.sleep(sleepMs);
+    }
+
+    throw new AssertionError(
+        "ContinueAsNew event was not observed for workflowId: " + execution.getWorkflowId());
+  }
+
+  @Test
+  public void queryRespectRunId() throws InterruptedException {
+    TestWorkflowWithQuery workflow = testWorkflowRule.newWorkflowStub(TestWorkflowWithQuery.class);
+    WorkflowClient.start(workflow::execute, "input1");
+    WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
+    waitForContinueAsNew(untyped.getExecution());
+    String actualRunId =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder()
+                    .setWorkflowExecution(untyped.getExecution())
+                    .build())
+            .query("getRunId", String.class);
+    Assert.assertEquals(untyped.getExecution().getRunId(), actualRunId);
+
+    actualRunId =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder()
+                    .setWorkflowId(untyped.getExecution().getWorkflowId())
+                    .build())
+            .query("getRunId", String.class);
+    Assert.assertNotEquals(untyped.getExecution().getRunId(), actualRunId);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowWithQuery {
+    @WorkflowMethod()
+    String execute(String arg);
+
+    @QueryMethod()
+    String getRunId();
+  }
+
+  public static class AwaitingWorkflow implements TestWorkflowWithQuery {
 
     @Override
     public String execute(String arg) {
@@ -126,6 +181,11 @@ public class WorkflowStubFirstExecutionRunIdTest {
       }
       Workflow.await(() -> false);
       return "done";
+    }
+
+    @Override
+    public String getRunId() {
+      return Workflow.getInfo().getRunId();
     }
   }
 }

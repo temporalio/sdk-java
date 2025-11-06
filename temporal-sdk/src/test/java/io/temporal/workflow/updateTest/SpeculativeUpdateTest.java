@@ -15,7 +15,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows.WorkflowWithUpdate;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import org.junit.Rule;
@@ -61,7 +60,6 @@ public class SpeculativeUpdateTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("", result);

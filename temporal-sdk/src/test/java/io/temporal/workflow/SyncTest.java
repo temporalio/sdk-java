@@ -78,8 +78,8 @@ public class SyncTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                workflowStub.getWorkflowType(),
-                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build(),
+                workflowStub.getWorkflowType());
     stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));

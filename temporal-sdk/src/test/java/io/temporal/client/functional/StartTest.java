@@ -17,7 +17,6 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -202,7 +201,6 @@ public class StartTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals(expected, result);
@@ -213,7 +211,6 @@ public class StartTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                Optional.empty(),
                 WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(int.class);
     assertEquals(expected, result);
@@ -223,7 +220,6 @@ public class StartTest {
     testWorkflowRule
         .getWorkflowClient()
         .newUntypedWorkflowStub(
-            Optional.empty(),
             WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
         .getResult(Void.class);
   }

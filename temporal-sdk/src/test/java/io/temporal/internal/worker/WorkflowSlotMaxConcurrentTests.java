@@ -21,7 +21,6 @@ import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
@@ -167,7 +166,6 @@ public class WorkflowSlotMaxConcurrentTests {
     for (WorkflowExecution execution : executions) {
       WorkflowStub workflowStub =
           client.newUntypedWorkflowStub(
-              Optional.empty(),
               WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
       workflowStub.getResult(String.class);
     }
