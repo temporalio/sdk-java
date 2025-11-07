@@ -502,21 +502,18 @@ public final class WorkerOptions {
      * <p>If the sticky queue is enabled, the poller behavior will be used for the sticky queue as
      * well.
      */
-    @Experimental
     public Builder setWorkflowTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.workflowTaskPollersBehavior = pollerBehavior;
       return this;
     }
 
     /** Set the poller behavior for activity task pollers. */
-    @Experimental
     public Builder setActivityTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.activityTaskPollersBehavior = pollerBehavior;
       return this;
     }
 
     /** Set the poller behavior for nexus task pollers. */
-    @Experimental
     public Builder setNexusTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.nexusTaskPollersBehavior = pollerBehavior;
       return this;
@@ -894,17 +891,14 @@ public final class WorkerOptions {
     return deploymentOptions;
   }
 
-  @Experimental
   public PollerBehavior getWorkflowTaskPollersBehavior() {
     return workflowTaskPollersBehavior;
   }
 
-  @Experimental
   public PollerBehavior getActivityTaskPollersBehavior() {
     return activityTaskPollersBehavior;
   }
 
-  @Experimental
   public PollerBehavior getNexusTaskPollersBehavior() {
     return nexusTaskPollersBehavior;
   }
