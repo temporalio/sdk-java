@@ -310,6 +310,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     if (e instanceof NonDeterministicException) {
       failedRequest.setCause(
           WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR);
+    } else {
+      // Default task failure cause to "workflow worker unhandled failure"
+      failedRequest.setCause(
+          WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE);
     }
     return new WorkflowTaskHandler.Result(
         workflowType, null, failedRequest.build(), null, null, false, null);
