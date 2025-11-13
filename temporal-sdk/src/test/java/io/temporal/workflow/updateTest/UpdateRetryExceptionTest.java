@@ -61,13 +61,7 @@ public class UpdateRetryExceptionTest {
           "message='simulated 3', type='Failure', nonRetryable=false", e.getCause().getMessage());
     }
     workflow.complete();
-
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
-    assertEquals("", result);
+    assertEquals("", workflow.execute());
   }
 
   public static class TestUpdateWorkflowImpl implements WorkflowWithUpdate {

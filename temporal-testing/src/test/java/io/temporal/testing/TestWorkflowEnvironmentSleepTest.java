@@ -6,11 +6,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowServiceException;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.SignalMethod;
@@ -18,7 +14,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.After;
@@ -207,7 +202,9 @@ public class TestWorkflowEnvironmentSleepTest {
         client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
     WorkflowExecution executionB = stubB.start(durationToSleep);
 
-    WorkflowStub stubBPrime = client.newUntypedWorkflowStub(executionB, Optional.empty());
+    WorkflowStub stubBPrime =
+        client.newUntypedWorkflowStub(
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(executionB).build());
     waitForWorkflow(stubBPrime, "newUntypedStubForWorkflowExecution", durationToWait);
   }
 

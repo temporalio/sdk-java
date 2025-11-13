@@ -293,6 +293,10 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
   }
 
+  public WorkflowExecutionHistory getExecutionHistory(String workflowId, String runId) {
+    return testWorkflowRule.getWorkflowClient().fetchHistory(workflowId, runId);
+  }
+
   /** Returns list of all events of the given EventType found in the history. */
   public List<HistoryEvent> getHistoryEvents(String workflowId, EventType eventType) {
     List<HistoryEvent> result = new ArrayList<>();
@@ -318,7 +322,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
   /** Asserts that an event of the given EventType is found in the history. */
   public void assertHistoryEvent(String workflowId, EventType eventType) {
-    History history = getExecutionHistory(workflowId).getHistory();
+    assertHistoryEvent(workflowId, null, eventType);
+  }
+
+  public void assertHistoryEvent(String workflowId, String runId, EventType eventType) {
+    History history = getExecutionHistory(workflowId, runId).getHistory();
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         return;
@@ -329,7 +337,12 @@ public class SDKTestWorkflowRule implements TestRule {
 
   /** Asserts that an event of the given EventType is not found in the history. */
   public void assertNoHistoryEvent(String workflowId, EventType eventType) {
-    History history = getExecutionHistory(workflowId).getHistory();
+    assertNoHistoryEvent(workflowId, null, eventType);
+  }
+
+  /** Asserts that an event of the given EventType is not found in the history. */
+  public void assertNoHistoryEvent(String workflowId, String runId, EventType eventType) {
+    History history = getExecutionHistory(workflowId, runId).getHistory();
     assertNoHistoryEvent(history, eventType);
   }
 

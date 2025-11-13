@@ -10,6 +10,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -20,7 +21,6 @@ import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
@@ -164,7 +164,9 @@ public class WorkflowSlotMaxConcurrentTests {
 
     // wait for all of them to finish
     for (WorkflowExecution execution : executions) {
-      WorkflowStub workflowStub = client.newUntypedWorkflowStub(execution, Optional.empty());
+      WorkflowStub workflowStub =
+          client.newUntypedWorkflowStub(
+              WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
       workflowStub.getResult(String.class);
     }
   }

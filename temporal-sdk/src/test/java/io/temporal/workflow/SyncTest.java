@@ -6,6 +6,7 @@ import static org.junit.Assert.*;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -76,7 +77,9 @@ public class SyncTest {
     workflowStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, workflowStub.getWorkflowType());
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build(),
+                workflowStub.getWorkflowType());
     stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
