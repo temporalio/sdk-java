@@ -371,6 +371,7 @@ class WorkflowStubImpl implements WorkflowStub {
             .setWaitForStage(waitForStage)
             .setResultClass(resultClass)
             .setResultType(resultClass)
+            .setFirstExecutionRunId(firstExecutionRunId)
             .build();
 
     return startUpdate(options, args);
