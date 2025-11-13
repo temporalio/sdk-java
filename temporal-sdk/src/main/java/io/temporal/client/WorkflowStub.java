@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
  * WorkflowStub is a client side stub to a single workflow instance. It can be used to start,
  * signal, query, update, wait for completion and cancel a workflow execution. Created through
  * {@link WorkflowClient#newUntypedWorkflowStub(String, WorkflowOptions)} or {@link
- * WorkflowClient#newUntypedWorkflowStub(WorkflowExecution, Optional)}.
+ * WorkflowClient#newUntypedWorkflowStub(WorkflowTargetOptions, Optional)}.
  */
 public interface WorkflowStub {
 

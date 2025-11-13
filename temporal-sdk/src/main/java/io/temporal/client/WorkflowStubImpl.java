@@ -35,6 +35,9 @@ class WorkflowStubImpl implements WorkflowStub {
   // if null, this stub is created to bound to an existing execution.
   // This stub is created to bound to an existing execution otherwise.
   private final @Nullable WorkflowOptions options;
+  // The SDK used to have a bug where signals, queries, updates targeted the current run
+  // of the workflow even if the stub was created with a specific runId. This flag enables
+  // that legacy behavior for backward compatibility.
   private final boolean legacyTargeting;
   private final @Nullable String firstExecutionRunId;
 
@@ -603,8 +606,11 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private void populateExecutionAfterStart(WorkflowExecution startedExecution) {
+    // Currently we don't set the firstExecutionRunId on the stub after start because if the
+    // start request didn't create a new execution (e.g. because of WorkflowIdReusePolicy),
+    // the firstExecutionRunId should remain what it was before the start. To resolve this we
+    // need https://github.com/temporalio/temporal/issues/8537 to be implemented.
     this.startedExecution.set(startedExecution);
-    // this.firstExecutionRunId.set(startedExecution.getRunId());
     // bind to an execution without a runId, so queries follow runId chains by default
     this.execution.set(WorkflowExecution.newBuilder(startedExecution).setRunId("").build());
   }
