@@ -2,6 +2,7 @@ package io.temporal.workflow.updateTest;
 
 import static io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -490,6 +491,8 @@ public class UpdateWithStartTest {
 
   @Test
   public void timeoutError() {
+    assumeTrue("This test is flaky on the Test Server", SDKTestWorkflowRule.useExternalService);
+
     testWorkflowRule.getTestEnvironment().shutdownNow();
     testWorkflowRule.getTestEnvironment().awaitTermination(5, TimeUnit.SECONDS);
 
