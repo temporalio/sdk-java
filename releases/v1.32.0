@@ -50,3 +50,4 @@ For more please see our docs page [here](https://docs.temporal.io/develop/enviro
 2025-11-06 - 3f41b69b - Remove experimental labels from poller behavior options (#2721)
 2025-11-06 - be353bca - add nightly throughput stress (#2717)
 2025-11-12 - 5394310f - Set default workflow task failure cause to unhandled failure (#2706)
+2025-11-13 - 75779111 - Add new constructor for WorkflowStub to target correct execution (#2709)
