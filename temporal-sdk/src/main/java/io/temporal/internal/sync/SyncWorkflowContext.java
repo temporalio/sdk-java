@@ -1365,6 +1365,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           && options.getTypedSearchAttributes().size() > 0) {
         attributes.setSearchAttributes(
             SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
+      } else {
+        // Carry over existing search attributes if none are specified.
+        SearchAttributes existing = replayContext.getSearchAttributes();
+        if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
+          attributes.setSearchAttributes(existing);
+        }
       }
       Map<String, Object> memo = options.getMemo();
       if (memo != null) {
@@ -1380,8 +1386,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
     } else if (replayContext.getRetryOptions() != null) {
-      // Have to copy retry options as server doesn't copy them.
+      // Have to copy certain options as server doesn't copy them.
       attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
+      attributes.setSearchAttributes(replayContext.getSearchAttributes());
     }
 
     List<ContextPropagator> propagators =
