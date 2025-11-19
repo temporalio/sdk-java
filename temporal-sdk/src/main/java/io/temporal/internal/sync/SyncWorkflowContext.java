@@ -1385,10 +1385,19 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
-    } else if (replayContext.getRetryOptions() != null) {
+    }
+
+    if (options == null && replayContext.getRetryOptions() != null) {
       // Have to copy certain options as server doesn't copy them.
       attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
-      attributes.setSearchAttributes(replayContext.getSearchAttributes());
+    }
+
+    if (options == null && replayContext.getSearchAttributes() != null) {
+      // Carry over existing search attributes if none are specified.
+      SearchAttributes existing = replayContext.getSearchAttributes();
+      if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
+        attributes.setSearchAttributes(existing);
+      }
     }
 
     List<ContextPropagator> propagators =
