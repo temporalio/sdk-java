@@ -1365,7 +1365,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           && options.getTypedSearchAttributes().size() > 0) {
         attributes.setSearchAttributes(
             SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
-      } else {
+      } else if (options.getTypedSearchAttributes() == null && searchAttributes == null) {
         // Carry over existing search attributes if none are specified.
         SearchAttributes existing = replayContext.getSearchAttributes();
         if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
