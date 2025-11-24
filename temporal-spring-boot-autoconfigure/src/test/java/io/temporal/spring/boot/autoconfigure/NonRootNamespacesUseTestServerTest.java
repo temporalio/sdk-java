@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
-import javax.annotation.Resource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -35,7 +34,8 @@ public class NonRootNamespacesUseTestServerTest {
   @Qualifier("temporalTestWorkflowEnvironment")
   TestWorkflowEnvironment testWorkflowEnvironment;
 
-  @Resource(name = "pomegranateWorkflowServiceStubs")
+  @Autowired
+  @Qualifier("pomegranateWorkflowServiceStubs")
   WorkflowServiceStubs pomegranateWorkflowServiceStubs;
 
   @BeforeEach
