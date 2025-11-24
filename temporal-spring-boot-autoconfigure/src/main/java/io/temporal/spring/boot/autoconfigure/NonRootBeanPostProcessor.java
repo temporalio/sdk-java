@@ -71,8 +71,13 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         // optional dependencies.
         metricsScope = findBean("temporalMetricsScope", Scope.class);
         tracer = findBean(Tracer.class);
-        testWorkflowEnvironment =
-            findBean("temporalTestWorkflowEnvironment", TestWorkflowEnvironmentAdapter.class);
+        // Prefer resolving by type; fall back to the correctly named adapter bean
+        testWorkflowEnvironment = findBean(TestWorkflowEnvironmentAdapter.class);
+        if (testWorkflowEnvironment == null) {
+          testWorkflowEnvironment =
+              findBean(
+                  "temporalTestWorkflowEnvironmentAdapter", TestWorkflowEnvironmentAdapter.class);
+        }
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
     }
