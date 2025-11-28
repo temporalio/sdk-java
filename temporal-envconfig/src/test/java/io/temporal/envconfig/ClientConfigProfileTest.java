@@ -275,6 +275,34 @@ public class ClientConfigProfileTest {
   }
 
   @Test
+  public void loadClientConfigMissingFileReturnsDefault() throws IOException {
+    // When config file doesn't exist, should return default empty config (not throw)
+    ClientConfig config =
+        ClientConfig.load(
+            LoadClientConfigOptions.newBuilder()
+                .setConfigFilePath("/nonexistent/path/to/temporal.toml")
+                .build());
+    Assert.assertNotNull(config);
+    Assert.assertTrue(config.getProfiles().isEmpty());
+  }
+
+  @Test
+  public void loadClientConfigProfileMissingFileReturnsDefault() throws IOException {
+    // When config file doesn't exist, ClientConfigProfile.load() should also work
+    // and return a profile with default values (potentially overridden by env vars)
+    ClientConfigProfile profile =
+        ClientConfigProfile.load(
+            LoadClientConfigProfileOptions.newBuilder()
+                .setConfigFilePath("/nonexistent/path/to/temporal.toml")
+                .setEnvOverrides(Collections.emptyMap())
+                .build());
+    Assert.assertNotNull(profile);
+    // Default values should be null/empty since no file and no env vars
+    Assert.assertNull(profile.getAddress());
+    Assert.assertNull(profile.getNamespace());
+  }
+
+  @Test
   public void parseToml() throws IOException {
     String toml =
         "[profile.foo]\n"
