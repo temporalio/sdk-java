@@ -95,8 +95,13 @@ public class ClientConfig {
       if (file == null || file.isEmpty()) {
         file = getDefaultConfigFilePath();
       }
-      ClientConfigToml.TomlClientConfig result = reader.readValue(new File(file));
-      return new ClientConfig(ClientConfigToml.getClientProfiles(result));
+      try {
+        ClientConfigToml.TomlClientConfig result = reader.readValue(new File(file));
+        return new ClientConfig(ClientConfigToml.getClientProfiles(result));
+      } catch (FileNotFoundException e) {
+        // File not found is ok - return default empty config
+        return getDefaultInstance();
+      }
     }
   }
 
