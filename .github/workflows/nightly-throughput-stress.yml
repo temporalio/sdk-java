@@ -68,7 +68,7 @@ jobs:
           path: omes
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: omes/go.mod
           cache-dependency-path: omes/go.sum
