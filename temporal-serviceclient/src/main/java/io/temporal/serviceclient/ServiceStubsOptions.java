@@ -419,6 +419,7 @@ public class ServiceStubsOptions {
     private ManagedChannel channel;
     private SslContext sslContext;
     private boolean enableHttps;
+    private boolean enableHttpsExplicitlySet;
     private String target;
     private Consumer<ManagedChannelBuilder<?>> channelInitializer;
     private Duration healthCheckAttemptTimeout;
@@ -435,6 +436,7 @@ public class ServiceStubsOptions {
     private Collection<GrpcMetadataProvider> grpcMetadataProviders;
     private Collection<ClientInterceptor> grpcClientInterceptors;
     private Scope metricsScope;
+    private boolean apiKeyProvided;
 
     protected Builder() {}
 
@@ -443,6 +445,7 @@ public class ServiceStubsOptions {
       this.target = options.target;
       this.channelInitializer = options.channelInitializer;
       this.enableHttps = options.enableHttps;
+      this.enableHttpsExplicitlySet = true;
       this.sslContext = options.sslContext;
       this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
@@ -542,6 +545,7 @@ public class ServiceStubsOptions {
      */
     public T setEnableHttps(boolean enableHttps) {
       this.enableHttps = enableHttps;
+      this.enableHttpsExplicitlySet = true;
       return self();
     }
 
@@ -613,6 +617,7 @@ public class ServiceStubsOptions {
      * @return {@code this}
      */
     public T addApiKey(AuthorizationTokenSupplier apiKey) {
+      this.apiKeyProvided = true;
       addGrpcMetadataProvider(
           new AuthorizationGrpcMetadataProvider(() -> "Bearer " + apiKey.supply()));
       return self();
@@ -851,6 +856,14 @@ public class ServiceStubsOptions {
       Collection<ClientInterceptor> grpcClientInterceptors =
           MoreObjects.firstNonNull(this.grpcClientInterceptors, Collections.emptyList());
 
+      // Auto-enable TLS when API key is provided and TLS is not explicitly set
+      boolean enableHttps;
+      if (this.enableHttpsExplicitlySet) {
+        enableHttps = this.enableHttps;
+      } else {
+        enableHttps = this.apiKeyProvided;
+      }
+
       Scope metricsScope = this.metricsScope != null ? this.metricsScope : new NoopScope();
       Duration healthCheckAttemptTimeout =
           this.healthCheckAttemptTimeout != null
@@ -865,7 +878,7 @@ public class ServiceStubsOptions {
           this.channel,
           target,
           this.channelInitializer,
-          this.enableHttps,
+          enableHttps,
           this.sslContext,
           healthCheckAttemptTimeout,
           healthCheckTimeout,
