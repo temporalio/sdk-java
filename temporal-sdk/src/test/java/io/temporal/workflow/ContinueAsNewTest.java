@@ -23,10 +23,7 @@ public class ContinueAsNewTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestContinueAsNewImpl.class)
-          .setUseExternalService(true)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestContinueAsNewImpl.class).build();
 
   @Test
   public void testContinueAsNew() {
