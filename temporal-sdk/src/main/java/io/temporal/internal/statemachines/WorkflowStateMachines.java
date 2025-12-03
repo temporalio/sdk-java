@@ -10,6 +10,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Any;
+import com.uber.m3.util.Duration;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.EventType;
@@ -26,6 +27,7 @@ import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.serviceclient.Version;
+import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
@@ -186,6 +188,9 @@ public final class WorkflowStateMachines {
    * TemporalChangeVersion search attribute.
    */
   private boolean shouldSkipUpsertVersionSA = false;
+
+  private String postCompletionMetricCounter;
+  private com.uber.m3.util.Duration postCompletionEndToEndLatency;
 
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks,
@@ -873,6 +878,18 @@ public final class WorkflowStateMachines {
     return lastWFTStartedEventId;
   }
 
+  public String getPostCompletionMetricCounter() {
+    return postCompletionMetricCounter;
+  }
+
+  public Duration getPostCompletionEndToEndLatency() {
+    return postCompletionEndToEndLatency;
+  }
+
+  public void setPostCompletionEndToEndLatency(Duration postCompletionEndToEndLatency) {
+    this.postCompletionEndToEndLatency = postCompletionEndToEndLatency;
+  }
+
   /**
    * @param attributes attributes used to schedule an activity
    * @param callback completion callback
@@ -1112,11 +1129,15 @@ public final class WorkflowStateMachines {
   public void completeWorkflow(Optional<Payloads> workflowOutput) {
     checkEventLoopExecuting();
     CompleteWorkflowStateMachine.newInstance(workflowOutput, commandSink, stateMachineSink);
+    postCompletionMetricCounter = MetricsType.WORKFLOW_COMPLETED_COUNTER;
   }
 
   public void failWorkflow(Failure failure) {
     checkEventLoopExecuting();
     FailWorkflowStateMachine.newInstance(failure, commandSink, stateMachineSink);
+    if (!FailureUtils.isBenignApplicationFailure(failure)) {
+      postCompletionMetricCounter = MetricsType.WORKFLOW_FAILED_COUNTER;
+    }
   }
 
   public void cancelWorkflow() {
@@ -1125,11 +1146,13 @@ public final class WorkflowStateMachines {
         CancelWorkflowExecutionCommandAttributes.getDefaultInstance(),
         commandSink,
         stateMachineSink);
+    postCompletionMetricCounter = MetricsType.WORKFLOW_CANCELED_COUNTER;
   }
 
   public void continueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     checkEventLoopExecuting();
     ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    postCompletionMetricCounter = MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER;
   }
 
   public boolean isReplaying() {
