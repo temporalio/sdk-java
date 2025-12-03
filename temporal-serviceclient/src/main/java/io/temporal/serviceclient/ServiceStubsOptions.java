@@ -418,8 +418,7 @@ public class ServiceStubsOptions {
   public static class Builder<T extends Builder<T>> {
     private ManagedChannel channel;
     private SslContext sslContext;
-    private boolean enableHttps;
-    private boolean enableHttpsExplicitlySet;
+    private Boolean enableHttps;
     private String target;
     private Consumer<ManagedChannelBuilder<?>> channelInitializer;
     private Duration healthCheckAttemptTimeout;
@@ -445,7 +444,6 @@ public class ServiceStubsOptions {
       this.target = options.target;
       this.channelInitializer = options.channelInitializer;
       this.enableHttps = options.enableHttps;
-      this.enableHttpsExplicitlySet = true;
       this.sslContext = options.sslContext;
       this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
@@ -545,7 +543,6 @@ public class ServiceStubsOptions {
      */
     public T setEnableHttps(boolean enableHttps) {
       this.enableHttps = enableHttps;
-      this.enableHttpsExplicitlySet = true;
       return self();
     }
 
@@ -808,7 +805,7 @@ public class ServiceStubsOptions {
           this.channel,
           this.target,
           this.channelInitializer,
-          this.enableHttps,
+          this.enableHttps != null ? this.enableHttps : false,
           this.sslContext,
           this.healthCheckAttemptTimeout,
           this.healthCheckTimeout,
@@ -842,7 +839,7 @@ public class ServiceStubsOptions {
             "Only one of the 'sslContext' or 'channel' options can be set at a time");
       }
 
-      if (this.enableHttps && this.channel != null) {
+      if (Boolean.TRUE.equals(this.enableHttps) && this.channel != null) {
         throw new IllegalStateException(
             "Only one of the 'enableHttps' or 'channel' options can be set at a time");
       }
@@ -856,12 +853,12 @@ public class ServiceStubsOptions {
       Collection<ClientInterceptor> grpcClientInterceptors =
           MoreObjects.firstNonNull(this.grpcClientInterceptors, Collections.emptyList());
 
-      // Auto-enable TLS when API key is provided and TLS is not explicitly set
-      boolean enableHttps;
-      if (this.enableHttpsExplicitlySet) {
+      // Resolve enableHttps: explicit value, auto-enable with API key, or default false
+      boolean enableHttps = false;
+      if (this.enableHttps != null) {
         enableHttps = this.enableHttps;
-      } else {
-        enableHttps = this.apiKeyProvided;
+      } else if (this.apiKeyProvided && this.sslContext == null && this.channel == null) {
+        enableHttps = true;
       }
 
       Scope metricsScope = this.metricsScope != null ? this.metricsScope : new NoopScope();
