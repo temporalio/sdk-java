@@ -1,5 +1,6 @@
 package io.temporal.client.functional;
 
+import static io.temporal.testUtils.Eventually.assertEventually;
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static junit.framework.TestCase.*;
 
@@ -87,7 +88,6 @@ public class MetricsTest {
                     .setTaskQueue(testWorkflowRule.getTaskQueue())
                     .validateBuildWithDefaults());
     quicklyCompletingWorkflow.execute();
-    Thread.sleep(REPORTING_FLUSH_TIME);
 
     List<Tag> startRequestTags =
         replaceTags(
@@ -96,13 +96,16 @@ public class MetricsTest {
             "StartWorkflowExecution",
             MetricsTag.WORKFLOW_TYPE,
             "QuicklyCompletingWorkflow");
-
-    assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_REQUEST, startRequestTags));
-
     List<Tag> longPollRequestTags =
         replaceTag(TAGS_NAMESPACE, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
 
-    assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_LONG_REQUEST, longPollRequestTags));
+    assertEventually(
+        Duration.ofSeconds(2),
+        () -> {
+          assertIntCounter(
+              1, registry.counter(MetricsType.TEMPORAL_LONG_REQUEST, longPollRequestTags));
+          assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_REQUEST, startRequestTags));
+        });
   }
 
   @Test
@@ -118,7 +121,6 @@ public class MetricsTest {
     WorkflowStub workflowStub = WorkflowStub.fromTyped(quicklyCompletingWorkflow);
     workflowStub.start();
     workflowStub.getResultAsync(String.class).get();
-    Thread.sleep(REPORTING_FLUSH_TIME);
 
     List<Tag> startRequestTags =
         replaceTags(
@@ -127,13 +129,16 @@ public class MetricsTest {
             "StartWorkflowExecution",
             MetricsTag.WORKFLOW_TYPE,
             "QuicklyCompletingWorkflow");
-
-    assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_REQUEST, startRequestTags));
-
     List<Tag> longPollRequestTags =
         replaceTag(TAGS_NAMESPACE, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
 
-    assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_LONG_REQUEST, longPollRequestTags));
+    assertEventually(
+        Duration.ofSeconds(2),
+        () -> {
+          assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_REQUEST, startRequestTags));
+          assertIntCounter(
+              1, registry.counter(MetricsType.TEMPORAL_LONG_REQUEST, longPollRequestTags));
+        });
   }
 
   @Test
@@ -180,25 +185,34 @@ public class MetricsTest {
     assertEquals("success", result);
 
     // Confirm counts
-    Thread.sleep(REPORTING_FLUSH_TIME);
-    Map<String, Integer> counts = new HashMap<>();
-    registry.forEachMeter(
-        meter -> {
-          if ("MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))) {
-            if (meter instanceof Counter) {
-              counts.merge(meter.getId().getName(), (int) ((Counter) meter).count(), Integer::sum);
-            } else if (meter instanceof Timer) {
-              counts.merge(meter.getId().getName(), (int) ((Timer) meter).count(), Integer::sum);
-            }
-          }
+    assertEventually(
+        Duration.ofSeconds(2),
+        () -> {
+          Map<String, Integer> counts = new HashMap<>();
+          registry.forEachMeter(
+              meter -> {
+                if ("MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))) {
+                  if (meter instanceof Counter) {
+                    counts.merge(
+                        meter.getId().getName(), (int) ((Counter) meter).count(), Integer::sum);
+                  } else if (meter instanceof Timer) {
+                    counts.merge(
+                        meter.getId().getName(), (int) ((Timer) meter).count(), Integer::sum);
+                  }
+                }
+              });
+          assertEquals(
+              2, counts.get(io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER).intValue());
+          assertEquals(
+              1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_FAILED_COUNTER).intValue());
+          assertEquals(
+              1,
+              counts
+                  .get(io.temporal.worker.MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER)
+                  .intValue());
+          assertEquals(
+              1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_CANCELED_COUNTER).intValue());
         });
-    assertEquals(
-        2, counts.get(io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER).intValue());
-    assertEquals(1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_FAILED_COUNTER).intValue());
-    assertEquals(
-        1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).intValue());
-    assertEquals(
-        1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_CANCELED_COUNTER).intValue());
   }
 
   @Test
@@ -237,17 +251,20 @@ public class MetricsTest {
 
     // Confirm we only got the one workflow completed. Before the code fixes that were added with
     // this test, this would have returned multiple workflow completed counts.
-    Thread.sleep(REPORTING_FLUSH_TIME);
-    AtomicInteger compCount = new AtomicInteger();
-    registry.forEachMeter(
-        meter -> {
-          if ("MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))
-              && io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER.equals(
-                  meter.getId().getName())) {
-            compCount.incrementAndGet();
-          }
+    assertEventually(
+        Duration.ofSeconds(2),
+        () -> {
+          AtomicInteger compCount = new AtomicInteger();
+          registry.forEachMeter(
+              meter -> {
+                if ("MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))
+                    && io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER.equals(
+                        meter.getId().getName())) {
+                  compCount.incrementAndGet();
+                }
+              });
+          assertEquals(1, compCount.get());
         });
-    assertEquals(1, compCount.get());
   }
 
   private static List<Tag> replaceTags(List<Tag> tags, String... nameValuePairs) {
