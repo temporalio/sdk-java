@@ -252,7 +252,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         null,
         null,
         result.isFinalCommand(),
-        eventIdSetHandle);
+        eventIdSetHandle,
+        result.getApplyPostCompletionMetrics());
   }
 
   private Result failureToWFTResult(
@@ -275,7 +276,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                               .setFailure(((WorkflowExecutionException) e).getFailure()))
                       .build())
               .build();
-      return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false, null);
+      return new WorkflowTaskHandler.Result(
+          workflowType, response, null, null, null, false, null, null);
     }
 
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
@@ -316,7 +318,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE);
     }
     return new WorkflowTaskHandler.Result(
-        workflowType, null, failedRequest.build(), null, null, false, null);
+        workflowType, null, failedRequest.build(), null, null, false, null, null);
   }
 
   private Result createDirectQueryResult(
@@ -346,6 +348,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         queryCompletedRequest.build(),
         null,
         false,
+        null,
         null);
   }
 

@@ -148,7 +148,8 @@ public class WorkflowWorkerTest {
                       (id) -> {
                         // verify the lock is still being held
                         assertEquals(1, runLockManager.totalLocks());
-                      });
+                      },
+                      null);
                 });
 
     // Mock the server responding to a workflow task complete with another workflow task
@@ -301,6 +302,7 @@ public class WorkflowWorkerTest {
                       null,
                       null,
                       false,
+                      null,
                       null);
                 });
 
@@ -362,7 +364,8 @@ public class WorkflowWorkerTest {
                 (id) -> {
                   resetEventIdQueue.add(id);
                   result.getResetEventIdHandle().apply(id);
-                });
+                },
+                null);
           }
 
           @Override

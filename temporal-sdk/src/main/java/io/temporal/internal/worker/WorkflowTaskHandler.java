@@ -22,6 +22,7 @@ public interface WorkflowTaskHandler {
     private final RpcRetryOptions requestRetryOptions;
     private final boolean completionCommand;
     private final Functions.Proc1<Long> resetEventIdHandle;
+    private final Runnable applyPostCompletionMetrics;
 
     public Result(
         String workflowType,
@@ -30,7 +31,8 @@ public interface WorkflowTaskHandler {
         RespondQueryTaskCompletedRequest queryCompleted,
         RpcRetryOptions requestRetryOptions,
         boolean completionCommand,
-        Functions.Proc1<Long> resetEventIdHandle) {
+        Functions.Proc1<Long> resetEventIdHandle,
+        Runnable applyPostCompletionMetrics) {
       this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
@@ -38,6 +40,7 @@ public interface WorkflowTaskHandler {
       this.requestRetryOptions = requestRetryOptions;
       this.completionCommand = completionCommand;
       this.resetEventIdHandle = resetEventIdHandle;
+      this.applyPostCompletionMetrics = applyPostCompletionMetrics;
     }
 
     public RespondWorkflowTaskCompletedRequest getTaskCompleted() {
@@ -65,6 +68,10 @@ public interface WorkflowTaskHandler {
         return resetEventIdHandle;
       }
       return (arg) -> {};
+    }
+
+    public Runnable getApplyPostCompletionMetrics() {
+      return applyPostCompletionMetrics;
     }
 
     @Override
