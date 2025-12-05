@@ -6,7 +6,7 @@ on:
     - cron: '00 11 * * *'
   push:
     branches:
-      - upload-nightly-metrics-to-s3
+      - update-nightly-prom-metrics-s3
   workflow_dispatch:
     inputs:
       duration:
