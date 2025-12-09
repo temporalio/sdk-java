@@ -5,10 +5,7 @@ import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static junit.framework.TestCase.*;
 
 import com.uber.m3.tally.RootScopeBuilder;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.ImmutableTag;
-import io.micrometer.core.instrument.Tag;
-import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.*;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -26,9 +23,7 @@ import io.temporal.serviceclient.MetricsType;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -142,33 +137,52 @@ public class MetricsTest {
   }
 
   @Test
-  public void testWorkflowCompletion() throws Exception {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .validateBuildWithDefaults();
-
-    // Run different scenarios
+  public void testWorkflowSuccess() {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(MultiScenarioWorkflow.class, options)
+            .newWorkflowStub(
+                MultiScenarioWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .validateBuildWithDefaults())
             .execute(MultiScenarioWorkflow.Scenario.SUCCESS);
     assertEquals("success", result);
+    assertSingleMeterCountForMultiScenario(
+        io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER);
+    assertSingleMeterCountForMultiScenario(io.temporal.worker.MetricsType.WORKFLOW_E2E_LATENCY);
+  }
+
+  @Test
+  public void testWorkflowFailure() {
     try {
       testWorkflowRule
           .getWorkflowClient()
-          .newWorkflowStub(MultiScenarioWorkflow.class, options)
+          .newWorkflowStub(
+              MultiScenarioWorkflow.class,
+              WorkflowOptions.newBuilder()
+                  .setTaskQueue(testWorkflowRule.getTaskQueue())
+                  .validateBuildWithDefaults())
           .execute(MultiScenarioWorkflow.Scenario.FAILURE);
       fail();
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
     }
+    assertSingleMeterCountForMultiScenario(io.temporal.worker.MetricsType.WORKFLOW_FAILED_COUNTER);
+    assertSingleMeterCountForMultiScenario(io.temporal.worker.MetricsType.WORKFLOW_E2E_LATENCY);
+  }
+
+  @Test
+  public void testWorkflowCancel() {
     WorkflowStub stub =
         WorkflowStub.fromTyped(
             testWorkflowRule
                 .getWorkflowClient()
-                .newWorkflowStub(MultiScenarioWorkflow.class, options));
+                .newWorkflowStub(
+                    MultiScenarioWorkflow.class,
+                    WorkflowOptions.newBuilder()
+                        .setTaskQueue(testWorkflowRule.getTaskQueue())
+                        .validateBuildWithDefaults()));
     WorkflowExecution exec = stub.start(MultiScenarioWorkflow.Scenario.WAIT_FOR_CANCEL);
     testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub(exec.getWorkflowId()).cancel();
     try {
@@ -177,42 +191,30 @@ public class MetricsTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    result =
+    assertSingleMeterCountForMultiScenario(
+        io.temporal.worker.MetricsType.WORKFLOW_CANCELED_COUNTER);
+    assertSingleMeterCountForMultiScenario(io.temporal.worker.MetricsType.WORKFLOW_E2E_LATENCY);
+  }
+
+  @Test
+  public void testWorkflowContinueAsNew() {
+    String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(MultiScenarioWorkflow.class, options)
+            .newWorkflowStub(
+                MultiScenarioWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .validateBuildWithDefaults())
             .execute(MultiScenarioWorkflow.Scenario.CONTINUE_AS_NEW);
     assertEquals("success", result);
-
-    // Confirm counts
-    assertEventually(
-        Duration.ofSeconds(2),
-        () -> {
-          Map<String, Integer> counts = new HashMap<>();
-          registry.forEachMeter(
-              meter -> {
-                if ("MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))) {
-                  if (meter instanceof Counter) {
-                    counts.merge(
-                        meter.getId().getName(), (int) ((Counter) meter).count(), Integer::sum);
-                  } else if (meter instanceof Timer) {
-                    counts.merge(
-                        meter.getId().getName(), (int) ((Timer) meter).count(), Integer::sum);
-                  }
-                }
-              });
-          assertEquals(
-              2, counts.get(io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER).intValue());
-          assertEquals(
-              1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_FAILED_COUNTER).intValue());
-          assertEquals(
-              1,
-              counts
-                  .get(io.temporal.worker.MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER)
-                  .intValue());
-          assertEquals(
-              1, counts.get(io.temporal.worker.MetricsType.WORKFLOW_CANCELED_COUNTER).intValue());
-        });
+    assertSingleMeterCountForMultiScenario(
+        io.temporal.worker.MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER);
+    assertSingleMeterCountForMultiScenario(
+        io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER);
+    // We cannot reliably check e2e latency here because it compares current ms with event start ms,
+    // and event start ms for the second workflow of a continue as new when time skipping can be
+    // flaky
   }
 
   @Test
@@ -251,16 +253,24 @@ public class MetricsTest {
 
     // Confirm we only got the one workflow completed. Before the code fixes that were added with
     // this test, this would have returned multiple workflow completed counts.
+    assertSingleMeterCountForMultiScenario(
+        io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER);
+  }
+
+  private void assertSingleMeterCountForMultiScenario(String metric) {
     assertEventually(
         Duration.ofSeconds(2),
         () -> {
           AtomicInteger compCount = new AtomicInteger();
           registry.forEachMeter(
               meter -> {
-                if ("MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))
-                    && io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER.equals(
-                        meter.getId().getName())) {
-                  compCount.incrementAndGet();
+                if (metric.equals(meter.getId().getName())
+                    && "MultiScenarioWorkflow".equals(meter.getId().getTag("workflow_type"))) {
+                  if (meter instanceof Counter) {
+                    compCount.addAndGet((int) ((Counter) meter).count());
+                  } else if (meter instanceof Timer) {
+                    compCount.addAndGet((int) ((Timer) meter).count());
+                  }
                 }
               });
           assertEquals(1, compCount.get());
