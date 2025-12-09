@@ -1,0 +1,15 @@
+# Bugfixes
+
+## Spring Boot
+
+Fixed a bug preventing using the in-memory test server for non-root namespaces.
+
+## Environment Config
+
+Fixed a bug causing an exception to be thrown if the default config file was not present.
+
+# What's Changed
+
+2025-11-26 - 0bfa9103 - fix(spring-boot): use in-memory test server for non-root namespaces (#2736)
+2025-11-28 - 6bb0fdf6 - Fix Javadoc for RateLimitsConfigurationProperties (#2729)
+2025-11-29 - b06f15d6 - Allow for FileNotFound. Do not error, instead return a default instance (#2739)

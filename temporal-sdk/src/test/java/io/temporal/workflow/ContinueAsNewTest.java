@@ -16,6 +16,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class ContinueAsNewTest {
+  static final SearchAttributeKey<String> CUSTOM_KEYWORD_SA =
+      SearchAttributeKey.forKeyword("CustomKeywordField");
 
   public static final int INITIAL_COUNT = 4;
 
@@ -30,6 +32,8 @@ public class ContinueAsNewTest {
     options =
         WorkflowOptions.newBuilder(options)
             .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(10).build())
+            .setTypedSearchAttributes(
+                SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "foo0").build())
             .build();
     TestContinueAsNew client =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestContinueAsNew.class, options);
@@ -68,8 +72,10 @@ public class ContinueAsNewTest {
       String taskQueue = Workflow.getInfo().getTaskQueue();
       if (count >= INITIAL_COUNT - 2) {
         assertEquals(10, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
+        assertEquals("foo0", Workflow.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
       } else {
         assertEquals(5, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
+        assertEquals("foo1", Workflow.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
       }
       if (count == 0) {
         assertEquals(continueAsNewTaskQueue, taskQueue);
@@ -78,22 +84,22 @@ public class ContinueAsNewTest {
       Map<String, Object> memo = new HashMap<>();
       memo.put("myKey", "MyValue");
       RetryOptions retryOptions = null;
+      SearchAttributes searchAttributes = null;
       // don't specify ContinueAsNewOptions on the first continue-as-new to test that RetryOptions
+      // and SearchAttributes
       // are copied from the previous run.
       if (count == INITIAL_COUNT) {
         TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class);
         next.execute(count - 1, continueAsNewTaskQueue);
         throw new RuntimeException("unreachable");
       }
-      // don't specify RetryOptions on the second continue-as-new to test that they are copied from
+      // don't specify RetryOptions and SearchAttributes on the second continue-as-new to test that
+      // they are copied from
       // the previous run.
       if (count < INITIAL_COUNT - 1) {
         retryOptions = RetryOptions.newBuilder().setMaximumAttempts(5).build();
+        searchAttributes = SearchAttributes.newBuilder().set(CUSTOM_KEYWORD_SA, "foo1").build();
       }
-      SearchAttributes searchAttributes =
-          SearchAttributes.newBuilder()
-              .set(SearchAttributeKey.forKeyword("CustomKeywordField"), "foo1")
-              .build();
       ContinueAsNewOptions options =
           ContinueAsNewOptions.newBuilder()
               .setTaskQueue(continueAsNewTaskQueue)
