@@ -8,7 +8,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * This class contain overrides for continueAsNew call. Every field can be null and it means that
+ * This class contain overrides for continueAsNew call. Every field can be null, and it means that
  * the value of the option should be taken from the originating workflow run.
  */
 public final class ContinueAsNewOptions {
