@@ -520,6 +520,22 @@ public final class WorkflowInternal {
             });
   }
 
+  public static Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
+    assertNotReadOnly("awaitAsync");
+    // Don't wrap the condition with setReadOnly here - the condition will be evaluated
+    // from the runner thread (not a workflow thread), so getRootWorkflowContext() won't work.
+    // SyncWorkflowContext.evaluateConditionWatchers handles setReadOnly directly.
+    return getWorkflowOutboundInterceptor().awaitAsync(unblockCondition);
+  }
+
+  public static Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition) {
+    assertNotReadOnly("awaitAsync");
+    // Don't wrap the condition with setReadOnly here - the condition will be evaluated
+    // from the runner thread (not a workflow thread), so getRootWorkflowContext() won't work.
+    // SyncWorkflowContext.evaluateConditionWatchers handles setReadOnly directly.
+    return getWorkflowOutboundInterceptor().awaitAsync(timeout, unblockCondition);
+  }
+
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
     assertNotReadOnly("side effect");
     return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func);

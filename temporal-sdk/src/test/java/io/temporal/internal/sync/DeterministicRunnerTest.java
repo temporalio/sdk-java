@@ -963,4 +963,80 @@ public class DeterministicRunnerTest {
             });
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
   }
+
+  /**
+   * Test that beforeThreadsWakeUp callback is invoked BEFORE threads run. The callback sets a value
+   * that the thread reads, proving the callback ran first.
+   */
+  @Test
+  public void testBeforeThreadsWakeUpCallbackInvokedBeforeThreads() {
+    AtomicBoolean valueSetByCallback = new AtomicBoolean(false);
+    AtomicBoolean threadSawValue = new AtomicBoolean(false);
+
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              // Thread checks if callback set the value
+              threadSawValue.set(valueSetByCallback.get());
+              status = "done";
+            },
+            null,
+            () -> {
+              // Callback sets value before threads run
+              valueSetByCallback.set(true);
+              return false;
+            });
+
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+    assertTrue(d.isDone());
+    assertTrue("Callback should set value before thread runs", valueSetByCallback.get());
+    assertTrue("Thread should see value set by callback", threadSawValue.get());
+  }
+
+  /**
+   * Test that when beforeThreadsWakeUp returns true (progress made), the loop continues and threads
+   * run again. The callback can return true multiple times when notifying multiple conditions.
+   */
+  @Test
+  public void testBeforeThreadsWakeUpProgressContinuesLoop() {
+    AtomicBoolean shouldUnblock1 = new AtomicBoolean(false);
+    AtomicBoolean shouldUnblock2 = new AtomicBoolean(false);
+    AtomicInteger trueCount = new AtomicInteger(0);
+
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              status = "waiting1";
+              WorkflowThread.await("wait1", shouldUnblock1::get);
+              status = "waiting2";
+              WorkflowThread.await("wait2", shouldUnblock2::get);
+              status = "done";
+            },
+            null,
+            () -> {
+              // Callback can return true multiple times - once for each condition it unblocks
+              if (status.equals("waiting1") && !shouldUnblock1.get()) {
+                shouldUnblock1.set(true);
+                trueCount.incrementAndGet();
+                return true;
+              }
+              if (status.equals("waiting2") && !shouldUnblock2.get()) {
+                shouldUnblock2.set(true);
+                trueCount.incrementAndGet();
+                return true;
+              }
+              return false;
+            });
+
+    // Single runUntilAllBlocked: callback returns true twice (once per condition),
+    // thread advances through both waits to completion
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+    assertEquals("done", status);
+    assertTrue(d.isDone());
+    assertEquals("Callback should return true twice (once per condition)", 2, trueCount.get());
+  }
 }

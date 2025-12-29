@@ -54,6 +54,7 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
@@ -103,6 +104,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
+
+  // Condition watchers for async await functionality
+  private final List<ConditionWatcher> conditionWatchers = new ArrayList<>();
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -1327,6 +1331,135 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     WorkflowThread.await(reason, unblockCondition);
   }
 
+  @Override
+  public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
+    // Check if condition is already true
+    setReadOnly(true);
+    try {
+      if (unblockCondition.get()) {
+        return Workflow.newPromise(null);
+      }
+    } finally {
+      setReadOnly(false);
+    }
+
+    CompletablePromise<Void> result = Workflow.newPromise();
+
+    // Capture cancellation state - the condition will be evaluated from the runner thread
+    // where CancellationScope.current() is not available
+    AtomicBoolean cancelled = new AtomicBoolean(false);
+
+    Functions.Proc cancelHandle =
+        registerConditionWatcher(
+            () -> {
+              if (cancelled.get()) {
+                throw new CanceledFailure("cancelled");
+              }
+              return unblockCondition.get();
+            },
+            (e) -> {
+              // Complete promise directly - this runs after condition evaluation
+              // but before threads run, so blocked threads will see completed state
+              if (e == null) {
+                result.complete(null);
+              } else {
+                result.completeExceptionally(e);
+              }
+            });
+
+    // Handle cancellation
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              cancelled.set(true);
+              result.completeExceptionally(new CanceledFailure(r));
+              cancelHandle.apply(); // Remove the watcher
+              return r;
+            });
+
+    return result;
+  }
+
+  @Override
+  public Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition) {
+    // Check if condition is already true
+    setReadOnly(true);
+    try {
+      if (unblockCondition.get()) {
+        return Workflow.newPromise(true);
+      }
+    } finally {
+      setReadOnly(false);
+    }
+
+    CompletablePromise<Boolean> result = Workflow.newPromise();
+
+    // Capture cancellation state - the condition will be evaluated from the runner thread
+    // where CancellationScope.current() is not available
+    AtomicBoolean cancelled = new AtomicBoolean(false);
+
+    // Create timer - need access to cancellation handle
+    AtomicReference<Functions.Proc1<RuntimeException>> timerCancellation = new AtomicReference<>();
+    AtomicBoolean timerCompleted = new AtomicBoolean(false);
+
+    timerCancellation.set(
+        replayContext.newTimer(
+            timeout,
+            null, // metadata
+            (e) -> {
+              // Set timer flag directly so condition watcher sees it immediately
+              if (e == null) {
+                timerCompleted.set(true);
+              }
+              // Timer cancellation exceptions are ignored - we just care if it fired
+            }));
+
+    // Register with current CancellationScope for timer cancellation
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              timerCancellation.get().apply(new CanceledFailure(r));
+              return r;
+            });
+
+    Functions.Proc cancelHandle =
+        registerConditionWatcher(
+            () -> {
+              if (cancelled.get()) {
+                throw new CanceledFailure("cancelled");
+              }
+              return unblockCondition.get() || timerCompleted.get();
+            },
+            (e) -> {
+              // Complete promise directly so blocked threads see it immediately
+              if (e != null) {
+                result.completeExceptionally(e);
+              } else {
+                boolean conditionMet = unblockCondition.get();
+                result.complete(conditionMet);
+                if (conditionMet && !timerCompleted.get()) {
+                  // Cancel timer since condition was met first
+                  timerCancellation.get().apply(new CanceledFailure("condition met"));
+                }
+              }
+            });
+
+    // Handle cancellation - complete result promise
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              cancelled.set(true);
+              result.completeExceptionally(new CanceledFailure(r));
+              cancelHandle.apply(); // Remove the watcher
+              return r;
+            });
+
+    return result;
+  }
+
   @SuppressWarnings("deprecation")
   @Override
   public void continueAsNew(ContinueAsNewInput input) {
@@ -1582,6 +1715,93 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     public Failure getFailure() {
       return failure;
+    }
+  }
+
+  /**
+   * Returns a callback to be used by DeterministicRunner before threads wake up. This callback
+   * evaluates condition watchers and completes promises as needed.
+   */
+  public Supplier<Boolean> getBeforeThreadsWakeUpCallback() {
+    return this::evaluateConditionWatchers;
+  }
+
+  /**
+   * Registers a condition watcher for async await functionality. The condition is evaluated at the
+   * end of each event loop iteration.
+   *
+   * @param condition Supplier that returns true when the wait should complete. Evaluated in
+   *     read-only mode.
+   * @param callback Called when condition becomes true (with null) or on error (with exception).
+   * @return Handle to cancel the wait. Invoke to unregister the condition.
+   */
+  Functions.Proc registerConditionWatcher(
+      Supplier<Boolean> condition, Functions.Proc1<RuntimeException> callback) {
+    ConditionWatcher watcher = new ConditionWatcher(condition, callback);
+    conditionWatchers.add(watcher);
+    return watcher.getCancelHandler();
+  }
+
+  /**
+   * Evaluates all condition watchers and invokes callbacks for satisfied conditions. Watchers that
+   * are satisfied or have thrown exceptions are removed from the list.
+   *
+   * @return true if any condition was satisfied (indicating progress was made)
+   */
+  private boolean evaluateConditionWatchers() {
+    boolean anyMatched = false;
+    Iterator<ConditionWatcher> it = conditionWatchers.iterator();
+    while (it.hasNext()) {
+      ConditionWatcher watcher = it.next();
+      if (watcher.canceled) {
+        it.remove();
+        continue;
+      }
+
+      boolean matched;
+      try {
+        // We must set read-only mode here because the condition is evaluated from the runner
+        // thread, not a workflow thread. The wrapper in WorkflowInternal.awaitAsync uses
+        // getRootWorkflowContext() which requires being called from a workflow thread.
+        setReadOnly(true);
+        try {
+          matched = watcher.condition.get();
+        } finally {
+          setReadOnly(false);
+        }
+      } catch (RuntimeException e) {
+        // Condition threw - invoke callback with exception and remove watcher
+        it.remove();
+        watcher.callback.apply(e);
+        anyMatched = true;
+        continue;
+      }
+
+      if (matched) {
+        it.remove();
+        watcher.callback.apply(null); // null = success
+        anyMatched = true;
+      }
+    }
+    return anyMatched;
+  }
+
+  /**
+   * Holds a condition and its associated callback for async await functionality. The condition is
+   * evaluated at the end of each event loop iteration.
+   */
+  private static class ConditionWatcher {
+    final Supplier<Boolean> condition;
+    final Functions.Proc1<RuntimeException> callback;
+    boolean canceled;
+
+    ConditionWatcher(Supplier<Boolean> condition, Functions.Proc1<RuntimeException> callback) {
+      this.condition = condition;
+      this.callback = callback;
+    }
+
+    Functions.Proc getCancelHandler() {
+      return () -> canceled = true;
     }
   }
 }

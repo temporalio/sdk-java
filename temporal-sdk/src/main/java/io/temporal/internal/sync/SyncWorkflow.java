@@ -124,7 +124,8 @@ class SyncWorkflow implements ReplayWorkflow {
                           context.getWorkflowExecution()))
                   .start();
             },
-            cache);
+            cache,
+            workflowContext.getBeforeThreadsWakeUpCallback());
   }
 
   @Override

@@ -2,6 +2,7 @@ package io.temporal.workflow;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.AsyncInternal;
+import io.temporal.internal.sync.WorkflowInternal;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -229,6 +230,38 @@ public final class Async {
   public static <R> Promise<R> retry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<Promise<R>> fn) {
     return AsyncInternal.retry(options, expiration, fn);
+  }
+
+  /**
+   * Asynchronously wait until unblockCondition evaluates to true.
+   *
+   * @param unblockCondition condition that should return true to indicate completion. The condition
+   *     is called on every state transition, so it should never call any blocking operations or
+   *     contain code that mutates workflow state.
+   * @return Promise that completes when the condition becomes true, or completes exceptionally with
+   *     CanceledFailure if the enclosing CancellationScope is canceled.
+   */
+  public static Promise<Void> await(java.util.function.Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.awaitAsync(unblockCondition);
+  }
+
+  /**
+   * Asynchronously wait until unblockCondition evaluates to true or timeout expires.
+   *
+   * @param timeout maximum time to wait for the condition
+   * @param unblockCondition condition that should return true to indicate completion. The condition
+   *     is called on every state transition, so it should never call any blocking operations or
+   *     contain code that mutates workflow state.
+   * @return Promise that completes with:
+   *     <ul>
+   *       <li>true if the condition was satisfied
+   *       <li>false if the timeout expired before the condition was satisfied
+   *       <li>exceptionally with CanceledFailure if the enclosing CancellationScope is canceled
+   *     </ul>
+   */
+  public static Promise<Boolean> await(
+      Duration timeout, java.util.function.Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.awaitAsync(timeout, unblockCondition);
   }
 
   /** Prohibits instantiation. */
