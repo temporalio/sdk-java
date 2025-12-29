@@ -92,6 +92,20 @@ public class AsyncAwaitTest {
     assertEquals("cancelled", result);
   }
 
+  @Test
+  public void testTimedAsyncAwaitCancellation() {
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    String result = workflow.execute("timed-cancellation");
+    assertEquals("timed-cancelled", result);
+  }
+
+  @Test
+  public void testAsyncAwaitConditionThrows() {
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    String result = workflow.execute("condition-throws");
+    assertEquals("caught:simulated error", result);
+  }
+
   /** Combined workflow that handles all test scenarios. */
   public static class TestAsyncAwaitWorkflow implements TestWorkflow1 {
     private boolean condition1 = false;
@@ -122,6 +136,10 @@ public class AsyncAwaitTest {
           return testChaining();
         case "cancellation":
           return testCancellation();
+        case "timed-cancellation":
+          return testTimedCancellation();
+        case "condition-throws":
+          return testConditionThrows();
         default:
           return "unknown test case";
       }
@@ -285,6 +303,60 @@ public class AsyncAwaitTest {
         return "not-cancelled";
       } catch (CanceledFailure e) {
         return "cancelled";
+      }
+    }
+
+    private String testTimedCancellation() {
+      condition1 = false;
+      final Promise<Boolean>[] promiseHolder = new Promise[1];
+
+      CancellationScope scope =
+          Workflow.newCancellationScope(
+              () -> {
+                // Create a timed async await that will never complete on its own
+                promiseHolder[0] = Async.await(Duration.ofHours(1), () -> condition1);
+              });
+
+      // Run the scope (this is non-blocking since Async.await returns immediately)
+      scope.run();
+
+      // Cancel the scope
+      scope.cancel();
+
+      // The promise should fail with CanceledFailure when we try to get it
+      try {
+        promiseHolder[0].get();
+        return "timed-not-cancelled";
+      } catch (CanceledFailure e) {
+        return "timed-cancelled";
+      }
+    }
+
+    private String testConditionThrows() {
+      // Start with condition that doesn't throw, but will throw on subsequent evaluation
+      // Initial check returns false (doesn't throw), then later evaluation throws
+      counter = 0;
+
+      Promise<Void> promise =
+          Async.await(
+              () -> {
+                counter++;
+                // First evaluation (initial check) returns false
+                // Second evaluation (in evaluateConditionWatchers) throws
+                if (counter > 1) {
+                  throw new RuntimeException("simulated error");
+                }
+                return false;
+              });
+
+      // Trigger re-evaluation by sleeping (causes event loop iteration)
+      Workflow.sleep(Duration.ofMillis(1));
+
+      try {
+        promise.get();
+        return "no-exception";
+      } catch (RuntimeException e) {
+        return "caught:" + e.getMessage();
       }
     }
   }
