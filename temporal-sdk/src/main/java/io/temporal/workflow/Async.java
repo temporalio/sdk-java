@@ -240,6 +240,7 @@ public final class Async {
    *     contain code that mutates workflow state.
    * @return Promise that completes when the condition becomes true, or completes exceptionally with
    *     CanceledFailure if the enclosing CancellationScope is canceled.
+   * @see Workflow#await(java.util.function.Supplier) for a blocking version
    */
   public static Promise<Void> await(java.util.function.Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.awaitAsync(unblockCondition);
@@ -258,6 +259,8 @@ public final class Async {
    *       <li>false if the timeout expired before the condition was satisfied
    *       <li>exceptionally with CanceledFailure if the enclosing CancellationScope is canceled
    *     </ul>
+   *
+   * @see Workflow#await(Duration, java.util.function.Supplier) for a blocking version
    */
   public static Promise<Boolean> await(
       Duration timeout, java.util.function.Supplier<Boolean> unblockCondition) {

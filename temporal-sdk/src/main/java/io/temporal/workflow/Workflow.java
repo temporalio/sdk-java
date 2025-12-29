@@ -474,6 +474,7 @@ public final class Workflow {
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
    *     failed with {@link CanceledFailure} if enclosing scope is canceled.
+   * @see #sleep(Duration) for a blocking version
    */
   public static Promise<Void> newTimer(Duration delay) {
     return WorkflowInternal.newTimer(delay);
@@ -485,6 +486,7 @@ public final class Workflow {
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
    *     failed with {@link CanceledFailure} if enclosing scope is canceled.
+   * @see #sleep(Duration) for a blocking version
    */
   public static Promise<Void> newTimer(Duration delay, TimerOptions options) {
     return WorkflowInternal.newTimer(delay, options);
@@ -566,12 +568,20 @@ public final class Workflow {
     return WorkflowInternal.currentTimeMillis();
   }
 
-  /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
+  /**
+   * Must be called instead of {@link Thread#sleep(long)} to guarantee determinism.
+   *
+   * @see #newTimer(Duration) for a non-blocking version that returns a Promise
+   */
   public static void sleep(Duration duration) {
     WorkflowInternal.sleep(duration);
   }
 
-  /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
+  /**
+   * Must be called instead of {@link Thread#sleep(long)} to guarantee determinism.
+   *
+   * @see #newTimer(Duration) for a non-blocking version that returns a Promise
+   */
   public static void sleep(long millis) {
     WorkflowInternal.sleep(Duration.ofMillis(millis));
   }
@@ -585,6 +595,7 @@ public final class Workflow {
    *     contain any time based conditions. Use {@link #await(Duration, Supplier)} for those
    *     instead.
    * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
+   * @see Async#await(java.util.function.Supplier) for a non-blocking version that returns a Promise
    */
   public static void await(Supplier<Boolean> unblockCondition) {
     WorkflowInternal.await(
@@ -606,6 +617,8 @@ public final class Workflow {
    *     Use timeout parameter for those.
    * @return false if timed out.
    * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
+   * @see Async#await(Duration, java.util.function.Supplier) for a non-blocking version that returns
+   *     a Promise
    */
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(
