@@ -2,7 +2,12 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.*;
 
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
@@ -106,6 +111,21 @@ public class AsyncAwaitTest {
     assertEquals("caught:simulated error", result);
   }
 
+  static final String awaitTimerSummary = "await-timer-summary";
+
+  @Test
+  public void testAwaitWithOptionsSetsTimerSummary() {
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    String result = workflow.execute("await-with-options");
+    assertEquals("await-with-options:false", result);
+
+    // Verify the timer summary is set in the workflow history
+    WorkflowExecution exec = WorkflowStub.fromTyped(workflow).getExecution();
+    HistoryEvent timerStartedEvent =
+        testWorkflowRule.getHistoryEvent(exec.getWorkflowId(), EventType.EVENT_TYPE_TIMER_STARTED);
+    HistoryUtils.assertEventMetadata(timerStartedEvent, awaitTimerSummary, null);
+  }
+
   /** Combined workflow that handles all test scenarios. */
   public static class TestAsyncAwaitWorkflow implements TestWorkflow1 {
     private boolean condition1 = false;
@@ -140,6 +160,8 @@ public class AsyncAwaitTest {
           return testTimedCancellation();
         case "condition-throws":
           return testConditionThrows();
+        case "await-with-options":
+          return testAwaitWithOptions();
         default:
           return "unknown test case";
       }
@@ -358,6 +380,15 @@ public class AsyncAwaitTest {
       } catch (RuntimeException e) {
         return "caught:" + e.getMessage();
       }
+    }
+
+    private String testAwaitWithOptions() {
+      // Use Async.await with AwaitOptions to set a timer summary
+      AwaitOptions options = AwaitOptions.newBuilder().setTimerSummary(awaitTimerSummary).build();
+      // Use a condition that will never be true, so it times out
+      Promise<Boolean> promise = Async.await(Duration.ofMillis(100), options, () -> false);
+      boolean result = promise.get();
+      return "await-with-options:" + result;
     }
   }
 }

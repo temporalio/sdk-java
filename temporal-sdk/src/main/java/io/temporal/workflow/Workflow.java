@@ -631,6 +631,32 @@ public final class Workflow {
   }
 
   /**
+   * Block current workflow thread until unblockCondition is evaluated to true or timeout passes.
+   *
+   * @param timeout time to unblock even if unblockCondition is not satisfied.
+   * @param options options for the await operation, including timer summary
+   * @param unblockCondition condition that should return true to indicate that thread should
+   *     unblock. The condition is called on every state transition, so it should not contain any
+   *     code that mutates any workflow state. It should also not contain any time based conditions.
+   *     Use timeout parameter for those.
+   * @return false if timed out.
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
+   * @see Async#await(Duration, AwaitOptions, java.util.function.Supplier) for a non-blocking
+   *     version that returns a Promise
+   */
+  public static boolean await(
+      Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.awaitAsync(
+            timeout,
+            options,
+            () -> {
+              CancellationScope.throwCanceled();
+              return unblockCondition.get();
+            })
+        .get();
+  }
+
+  /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
    * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} for asynchronous functions.
    *

@@ -1460,6 +1460,90 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return result;
   }
 
+  @Override
+  public Promise<Boolean> awaitAsync(
+      Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
+    // Check if condition is already true
+    setReadOnly(true);
+    try {
+      if (unblockCondition.get()) {
+        return Workflow.newPromise(true);
+      }
+    } finally {
+      setReadOnly(false);
+    }
+
+    CompletablePromise<Boolean> result = Workflow.newPromise();
+
+    // Capture cancellation state - the condition will be evaluated from the runner thread
+    // where CancellationScope.current() is not available
+    AtomicBoolean cancelled = new AtomicBoolean(false);
+
+    // Create timer - need access to cancellation handle
+    AtomicReference<Functions.Proc1<RuntimeException>> timerCancellation = new AtomicReference<>();
+    AtomicBoolean timerCompleted = new AtomicBoolean(false);
+
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getTimerSummary(), null, dataConverterWithCurrentWorkflowContext);
+
+    timerCancellation.set(
+        replayContext.newTimer(
+            timeout,
+            userMetadata,
+            (e) -> {
+              // Set timer flag directly so condition watcher sees it immediately
+              if (e == null) {
+                timerCompleted.set(true);
+              }
+              // Timer cancellation exceptions are ignored - we just care if it fired
+            }));
+
+    // Register with current CancellationScope for timer cancellation
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              timerCancellation.get().apply(new CanceledFailure(r));
+              return r;
+            });
+
+    Functions.Proc cancelHandle =
+        registerConditionWatcher(
+            () -> {
+              if (cancelled.get()) {
+                throw new CanceledFailure("cancelled");
+              }
+              return unblockCondition.get() || timerCompleted.get();
+            },
+            (e) -> {
+              // Complete promise directly so blocked threads see it immediately
+              if (e != null) {
+                result.completeExceptionally(e);
+              } else {
+                boolean conditionMet = unblockCondition.get();
+                result.complete(conditionMet);
+                if (conditionMet && !timerCompleted.get()) {
+                  // Cancel timer since condition was met first
+                  timerCancellation.get().apply(new CanceledFailure("condition met"));
+                }
+              }
+            });
+
+    // Handle cancellation - complete result promise
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              cancelled.set(true);
+              result.completeExceptionally(new CanceledFailure(r));
+              cancelHandle.apply(); // Remove the watcher
+              return r;
+            });
+
+    return result;
+  }
+
   @SuppressWarnings("deprecation")
   @Override
   public void continueAsNew(ContinueAsNewInput input) {

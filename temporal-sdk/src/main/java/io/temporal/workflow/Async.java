@@ -267,6 +267,30 @@ public final class Async {
     return WorkflowInternal.awaitAsync(timeout, unblockCondition);
   }
 
+  /**
+   * Asynchronously wait until unblockCondition evaluates to true or timeout expires.
+   *
+   * @param timeout maximum time to wait for the condition
+   * @param options options for the await operation, including timer summary
+   * @param unblockCondition condition that should return true to indicate completion. The condition
+   *     is called on every state transition, so it should never call any blocking operations or
+   *     contain code that mutates workflow state.
+   * @return Promise that completes with:
+   *     <ul>
+   *       <li>true if the condition was satisfied
+   *       <li>false if the timeout expired before the condition was satisfied
+   *       <li>exceptionally with CanceledFailure if the enclosing CancellationScope is canceled
+   *     </ul>
+   *
+   * @see Workflow#await(Duration, AwaitOptions, java.util.function.Supplier) for a blocking version
+   */
+  public static Promise<Boolean> await(
+      Duration timeout,
+      AwaitOptions options,
+      java.util.function.Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.awaitAsync(timeout, options, unblockCondition);
+  }
+
   /** Prohibits instantiation. */
   private Async() {}
 }

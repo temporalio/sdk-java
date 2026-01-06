@@ -762,6 +762,19 @@ public interface WorkflowOutboundCallsInterceptor {
    */
   Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition);
 
+  /**
+   * Asynchronously wait until unblockCondition evaluates to true or timeout expires.
+   *
+   * @param timeout maximum time to wait for the condition
+   * @param options options for the await operation, including timer summary
+   * @param unblockCondition condition that should return true to indicate completion
+   * @return Promise that completes with true if the condition was satisfied, false if the timeout
+   *     expired, or exceptionally with CanceledFailure if the enclosing CancellationScope is
+   *     canceled
+   */
+  Promise<Boolean> awaitAsync(
+      Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition);
+
   Promise<Void> newTimer(Duration duration);
 
   Promise<Void> newTimer(Duration duration, TimerOptions options);

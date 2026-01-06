@@ -405,6 +405,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public Promise<Boolean> awaitAsync(
+        Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Promise<Void> newTimer(Duration duration) {
       throw new UnsupportedOperationException("not implemented");
     }
