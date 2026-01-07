@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
+import static io.temporal.testUtils.Eventually.assertEventually;
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static io.temporal.worker.MetricsType.*;
 import static org.junit.Assert.assertEquals;
@@ -55,7 +56,6 @@ import org.junit.runner.Description;
 
 public class MetricsTest {
 
-  private static final long REPORTING_FLUSH_TIME = 600;
   private static final String TASK_QUEUE = "metrics_test";
   private static final String TEST_TAG = "test_tag";
   private TestWorkflowEnvironment testEnvironment;
@@ -156,7 +156,7 @@ public class MetricsTest {
   }
 
   @Test
-  public void testWorkerMetrics() throws InterruptedException {
+  public void testWorkerMetrics() {
     setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
@@ -174,29 +174,32 @@ public class MetricsTest {
     NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     workflow.execute();
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
+          reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
+          reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
+          reporter.assertCounter(
+              "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
+          reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
+          // We ran some workflow and activity tasks, so we should have some timers here.
+          reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
+          reporter.assertTimer(
+              "temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
+          reporter.assertTimer(
+              "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
 
-    reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
-    reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
-    reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
-    reporter.assertCounter(
-        "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
-    reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
-    // We ran some workflow and activity tasks, so we should have some timers here.
-    reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
-    reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
-    reporter.assertTimer(
-        "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
-
-    reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
-    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 2);
-    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 3);
-    reporter.assertCounter("temporal_poller_start", TAGS_ACTIVITY_WORKER, 5);
-    reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
+          reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
+          reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 2);
+          reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 3);
+          reporter.assertCounter("temporal_poller_start", TAGS_ACTIVITY_WORKER, 5);
+          reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
+        });
   }
 
   @Test
-  public void testWorkerMetricsAutoPoller() throws InterruptedException {
+  public void testWorkerMetricsAutoPoller() {
     setUp(WorkerFactoryOptions.getDefaultInstance());
 
     WorkerOptions workerOptions =
@@ -219,28 +222,31 @@ public class MetricsTest {
     NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     workflow.execute();
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
+          reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
+          reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
+          reporter.assertCounter(
+              "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
+          reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
+          // We ran some workflow and activity tasks, so we should have some timers here.
+          reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
+          reporter.assertTimer(
+              "temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
+          reporter.assertTimer(
+              "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
 
-    reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
-    reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
-    reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
-    reporter.assertCounter(
-        "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
-    reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
-    // We ran some workflow and activity tasks, so we should have some timers here.
-    reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
-    reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
-    reporter.assertTimer(
-        "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
-
-    // reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
-    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 5);
-    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 5);
-    reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
+          // reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
+          reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 5);
+          reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 5);
+          reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
+        });
   }
 
   @Test
-  public void testWorkflowMetrics() throws InterruptedException {
+  public void testWorkflowMetrics() {
     setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
@@ -258,61 +264,63 @@ public class MetricsTest {
     NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     workflow.execute();
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          Map<String, String> pollActivityTaskQueueTag =
+              new ImmutableMap.Builder<String, String>()
+                  .putAll(TAGS_ACTIVITY_WORKER)
+                  .put(MetricsTag.OPERATION_NAME, "PollActivityTaskQueue")
+                  .build();
 
-    Map<String, String> pollActivityTaskQueueTag =
-        new ImmutableMap.Builder<String, String>()
-            .putAll(TAGS_ACTIVITY_WORKER)
-            .put(MetricsTag.OPERATION_NAME, "PollActivityTaskQueue")
-            .build();
+          reporter.assertCounter(TEMPORAL_LONG_REQUEST, pollActivityTaskQueueTag);
 
-    reporter.assertCounter(TEMPORAL_LONG_REQUEST, pollActivityTaskQueueTag);
+          Map<String, String> pollWorkflowTaskQueueTag =
+              new ImmutableMap.Builder<String, String>()
+                  .putAll(TAGS_WORKFLOW_WORKER)
+                  .put(MetricsTag.OPERATION_NAME, "PollWorkflowTaskQueue")
+                  .build();
 
-    Map<String, String> pollWorkflowTaskQueueTag =
-        new ImmutableMap.Builder<String, String>()
-            .putAll(TAGS_WORKFLOW_WORKER)
-            .put(MetricsTag.OPERATION_NAME, "PollWorkflowTaskQueue")
-            .build();
+          reporter.assertCounter(TEMPORAL_LONG_REQUEST, pollWorkflowTaskQueueTag);
 
-    reporter.assertCounter(TEMPORAL_LONG_REQUEST, pollWorkflowTaskQueueTag);
+          Map<String, String> workflowTags = new LinkedHashMap<>(TAGS_TASK_QUEUE);
 
-    Map<String, String> workflowTags = new LinkedHashMap<>(TAGS_TASK_QUEUE);
+          workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+          reporter.assertCounter("test_started", workflowTags, 1);
+          reporter.assertCounter("test_done", workflowTags, 1);
 
-    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
-    reporter.assertCounter("test_started", workflowTags, 1);
-    reporter.assertCounter("test_done", workflowTags, 1);
+          workflowTags.put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow");
+          reporter.assertCounter("test_child_started", workflowTags, 1);
+          reporter.assertCounter("test_child_done", workflowTags, 1);
+          reporter.assertTimerMinDuration("test_timer", workflowTags, Duration.ofSeconds(3));
 
-    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow");
-    reporter.assertCounter("test_child_started", workflowTags, 1);
-    reporter.assertCounter("test_child_done", workflowTags, 1);
-    reporter.assertTimerMinDuration("test_timer", workflowTags, Duration.ofSeconds(3));
+          Map<String, String> activityCompletionTags =
+              new ImmutableMap.Builder<String, String>()
+                  .putAll(TAGS_ACTIVITY_WORKER)
+                  .put(MetricsTag.ACTIVITY_TYPE, "Execute")
+                  .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
+                  .put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted")
+                  .build();
+          reporter.assertCounter(TEMPORAL_REQUEST, activityCompletionTags, 1);
 
-    Map<String, String> activityCompletionTags =
-        new ImmutableMap.Builder<String, String>()
-            .putAll(TAGS_ACTIVITY_WORKER)
-            .put(MetricsTag.ACTIVITY_TYPE, "Execute")
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted")
-            .build();
-    reporter.assertCounter(TEMPORAL_REQUEST, activityCompletionTags, 1);
+          workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+          workflowTags.put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
 
-    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
-    workflowTags.put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
+          reporter.assertCounter(TEMPORAL_REQUEST, workflowTags, 1);
+          reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, workflowTags);
 
-    reporter.assertCounter(TEMPORAL_REQUEST, workflowTags, 1);
-    reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, workflowTags);
-
-    Map<String, String> workflowTaskCompletionTags =
-        new ImmutableMap.Builder<String, String>()
-            .putAll(TAGS_WORKFLOW_WORKER)
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
-            .build();
-    reporter.assertCounter(TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
+          Map<String, String> workflowTaskCompletionTags =
+              new ImmutableMap.Builder<String, String>()
+                  .putAll(TAGS_WORKFLOW_WORKER)
+                  .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
+                  .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
+                  .build();
+          reporter.assertCounter(TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
+        });
   }
 
   @Test
-  public void testWorkflowMetricsInterceptor() throws InterruptedException {
+  public void testWorkflowMetricsInterceptor() {
     setUp(
         WorkerFactoryOptions.getDefaultInstance().toBuilder()
             .setWorkerInterceptors(new WorkerInterceptor())
@@ -333,24 +341,26 @@ public class MetricsTest {
     NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     workflow.execute();
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          Map<String, String> workflowTags = new LinkedHashMap<>(TAGS_TASK_QUEUE);
+          // Assert the interceptor added the extra tag
+          workflowTags.put(TEST_TAG, NAMESPACE);
 
-    Map<String, String> workflowTags = new LinkedHashMap<>(TAGS_TASK_QUEUE);
-    // Assert the interceptor added the extra tag
-    workflowTags.put(TEST_TAG, NAMESPACE);
+          workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+          reporter.assertCounter("test_started", workflowTags, 1);
+          reporter.assertCounter("test_done", workflowTags, 1);
 
-    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
-    reporter.assertCounter("test_started", workflowTags, 1);
-    reporter.assertCounter("test_done", workflowTags, 1);
-
-    workflowTags.put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow");
-    reporter.assertCounter("test_child_started", workflowTags, 1);
-    reporter.assertCounter("test_child_done", workflowTags, 1);
-    reporter.assertTimerMinDuration("test_timer", workflowTags, Duration.ofSeconds(3));
+          workflowTags.put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow");
+          reporter.assertCounter("test_child_started", workflowTags, 1);
+          reporter.assertCounter("test_child_done", workflowTags, 1);
+          reporter.assertTimerMinDuration("test_timer", workflowTags, Duration.ofSeconds(3));
+        });
   }
 
   @Test
-  public void testCorruptedSignalMetrics() throws InterruptedException {
+  public void testCorruptedSignalMetrics() {
     setUp(
         WorkerFactoryOptions.newBuilder()
             .setWorkerInterceptors(
@@ -376,18 +386,19 @@ public class MetricsTest {
         workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
     workflow.execute();
 
-    // Wait for reporter
-    Thread.sleep(REPORTING_FLUSH_TIME);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(NAMESPACE));
+          tags.put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+          tags.put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectWorkflow");
 
-    Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(NAMESPACE));
-    tags.put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
-    tags.put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectWorkflow");
-
-    reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
+          reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
+        });
   }
 
   @Test
-  public void testTemporalFailureMetric() throws InterruptedException {
+  public void testTemporalFailureMetric() {
     setUp(
         WorkerFactoryOptions.newBuilder()
             .setWorkerInterceptors(new CorruptedSignalWorkerInterceptor())
@@ -403,18 +414,20 @@ public class MetricsTest {
       assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
     }
 
-    // Wait for reporter
-    Thread.sleep(REPORTING_FLUSH_TIME);
-
-    Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
-    tags.put(MetricsTag.OPERATION_NAME, "DescribeNamespace");
-    reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
-    tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
-    reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          Map<String, String> tags =
+              new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+          tags.put(MetricsTag.OPERATION_NAME, "DescribeNamespace");
+          reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
+          tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
+          reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
+        });
   }
 
   @Test
-  public void testTemporalActivityFailureMetric() throws InterruptedException {
+  public void testTemporalActivityFailureMetric() {
     setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
@@ -431,31 +444,32 @@ public class MetricsTest {
     NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     workflow.execute();
 
-    // Wait for reporter
-    Thread.sleep(REPORTING_FLUSH_TIME);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          Map<String, String> activityTags =
+              new ImmutableMap.Builder<String, String>()
+                  .putAll(TAGS_ACTIVITY_WORKER)
+                  .put(MetricsTag.ACTIVITY_TYPE, "ThrowIO")
+                  .put(MetricsTag.EXCEPTION, "IOException")
+                  .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
+                  .build();
 
-    Map<String, String> activityTags =
-        new ImmutableMap.Builder<String, String>()
-            .putAll(TAGS_ACTIVITY_WORKER)
-            .put(MetricsTag.ACTIVITY_TYPE, "ThrowIO")
-            .put(MetricsTag.EXCEPTION, "IOException")
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .build();
+          Map<String, String> localActivityTags =
+              new ImmutableMap.Builder<String, String>()
+                  .putAll(activityTags)
+                  .put(
+                      MetricsTag.WORKER_TYPE,
+                      WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER.getValue())
+                  .build();
 
-    Map<String, String> localActivityTags =
-        new ImmutableMap.Builder<String, String>()
-            .putAll(activityTags)
-            .put(
-                MetricsTag.WORKER_TYPE,
-                WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER.getValue())
-            .build();
-
-    reporter.assertCounter(ACTIVITY_EXEC_FAILED_COUNTER, activityTags, 2);
-    reporter.assertCounter(LOCAL_ACTIVITY_EXEC_FAILED_COUNTER, localActivityTags, 3);
+          reporter.assertCounter(ACTIVITY_EXEC_FAILED_COUNTER, activityTags, 2);
+          reporter.assertCounter(LOCAL_ACTIVITY_EXEC_FAILED_COUNTER, localActivityTags, 3);
+        });
   }
 
   @Test
-  public void testTemporalInvalidRequestMetric() throws InterruptedException {
+  public void testTemporalInvalidRequestMetric() {
     setUp(
         WorkerFactoryOptions.newBuilder()
             .setWorkerInterceptors(new CorruptedSignalWorkerInterceptor())
@@ -473,26 +487,28 @@ public class MetricsTest {
       assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
     }
 
-    // Wait for reporter
-    Thread.sleep(REPORTING_FLUSH_TIME);
-
-    Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
-    tags.put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
-    reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
-    tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
-    reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          Map<String, String> tags =
+              new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+          tags.put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
+          reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
+          tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
+          reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
+        });
   }
 
   @Test
-  public void testStickyCacheSize() throws InterruptedException, ExecutionException {
+  public void testStickyCacheSize() throws ExecutionException, InterruptedException {
     setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(TestWorkflowWithSleep.class);
     testEnvironment.start();
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
-    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0);
+    assertEventually(
+        Duration.ofSeconds(5), () -> reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0));
 
     WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
@@ -504,15 +520,22 @@ public class MetricsTest {
     CompletableFuture<Void> wfFuture = WorkflowClient.execute(workflow::execute);
     SDKTestWorkflowRule.waitForOKQuery(WorkflowStub.fromTyped(workflow));
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
-    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
-    reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, val -> val == 1 || val == 2);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
+          reporter.assertGauge(
+              WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, val -> val == 1 || val == 2);
+        });
 
     wfFuture.get();
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
-    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0);
-    reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, 0);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0);
+          reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, 0);
+        });
   }
 
   @WorkflowInterface
