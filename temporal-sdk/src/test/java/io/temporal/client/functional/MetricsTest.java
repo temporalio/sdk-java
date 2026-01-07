@@ -63,6 +63,7 @@ public class MetricsTest {
 
   @Before
   public void setUp() {
+    registry.clear();
     tagsNamespaceQueue =
         replaceTags(TAGS_NAMESPACE, MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue());
   }
