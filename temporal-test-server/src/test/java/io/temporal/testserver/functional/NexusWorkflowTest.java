@@ -20,7 +20,11 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.LinkConverter;
+import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.testservice.NexusTaskToken;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
@@ -29,8 +33,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.*;
+import org.junit.runner.RunWith;
 
+@RunWith(JUnitParamsRunner.class)
 public class NexusWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -788,6 +796,81 @@ public class NexusWorkflowTest {
                                         .setFailure(
                                             Failure.newBuilder()
                                                 .setMessage("deliberate terminal error"))
+                                        .build())));
+
+    try {
+      WorkflowStub stub = newWorkflowStub("TestNexusOperationHandlerErrorWorkflow");
+      WorkflowExecution execution = stub.start();
+
+      // Get first WFT and respond with ScheduleNexusOperation command
+      PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+      completeWorkflowTask(pollResp.getTaskToken(), newScheduleOperationCommand());
+
+      // Wait for Nexus operation error to be recorded
+      nexusPoller.get();
+
+      // Poll and verify operation failure is recorded and triggers workflow progress
+      pollResp = pollWorkflowTask();
+      completeWorkflow(pollResp.getTaskToken());
+
+      List<HistoryEvent> events =
+          testWorkflowRule.getHistoryEvents(
+              execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_FAILED);
+      Assert.assertEquals(1, events.size());
+      io.temporal.api.failure.v1.Failure failure =
+          events.get(0).getNexusOperationFailedEventAttributes().getFailure();
+      assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
+      Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
+      io.temporal.api.failure.v1.Failure cause = failure.getCause();
+      Assert.assertTrue(cause.getMessage().endsWith("deliberate terminal error"));
+      Assert.assertTrue(cause.hasNexusHandlerFailureInfo());
+      Assert.assertEquals("BAD_REQUEST", cause.getNexusHandlerFailureInfo().getType());
+    } catch (Exception e) {
+      Assert.fail(e.getMessage());
+    } finally {
+      nexusPoller.cancel(true);
+    }
+  }
+
+  @Test
+  @Parameters({
+    "0", "1",
+  })
+  public void testNexusOperationHandlerTemporalFailure(int index) {
+    List<Throwable> exceptions =
+        Arrays.asList(
+            ApplicationFailure.newFailure("test failure", "testFailureType"),
+            new IllegalStateException("illegal state"));
+
+    DataConverter dataConverter = DefaultDataConverter.newDefaultInstance();
+    // Polls for nexus task -> respond with retryable failure -> poll for nexus task -> respond with
+    // non-retryable failure
+    CompletableFuture<?> nexusPoller =
+        pollNexusTask()
+            .thenCompose(
+                task ->
+                    failNexusTask(
+                        task.getTaskToken(),
+                        HandlerError.newBuilder()
+                            .setErrorType("INTERNAL")
+                            .setFailure(
+                                NexusUtil.exceptionToNexusFailure(
+                                    exceptions.get(index), dataConverter))
+                            .build()))
+            .thenRunAsync(
+                () ->
+                    pollNexusTask()
+                        .thenCompose(
+                            task ->
+                                failNexusTask(
+                                    task.getTaskToken(),
+                                    HandlerError.newBuilder()
+                                        .setErrorType("BAD_REQUEST")
+                                        .setFailure(
+                                            NexusUtil.exceptionToNexusFailure(
+                                                ApplicationFailure.newNonRetryableFailure(
+                                                    "deliberate terminal error", "testFailureType"),
+                                                dataConverter))
                                         .build())));
 
     try {
