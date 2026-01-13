@@ -660,6 +660,29 @@ class StateMachines {
             : Timestamp.getDefaultInstance();
     TestServiceRetryState retryState = new TestServiceRetryState(data.retryPolicy, expirationTime);
 
+    // Trim secondary timeouts to the primary timeout (scheduleToClose).
+    java.time.Duration scheduleToCloseTimeout =
+        ProtobufTimeUtils.toJavaDuration(attr.getScheduleToCloseTimeout());
+    java.time.Duration scheduleToStartTimeout =
+        ProtobufTimeUtils.toJavaDuration(attr.getScheduleToStartTimeout());
+    java.time.Duration startToCloseTimeout =
+        ProtobufTimeUtils.toJavaDuration(attr.getStartToCloseTimeout());
+
+    com.google.protobuf.Duration cappedScheduleToStartTimeout = attr.getScheduleToStartTimeout();
+    com.google.protobuf.Duration cappedStartToCloseTimeout = attr.getStartToCloseTimeout();
+
+    if (!scheduleToCloseTimeout.isZero()
+        && !scheduleToStartTimeout.isZero()
+        && scheduleToStartTimeout.compareTo(scheduleToCloseTimeout) > 0) {
+      cappedScheduleToStartTimeout = attr.getScheduleToCloseTimeout();
+    }
+
+    if (!scheduleToCloseTimeout.isZero()
+        && !startToCloseTimeout.isZero()
+        && startToCloseTimeout.compareTo(scheduleToCloseTimeout) > 0) {
+      cappedStartToCloseTimeout = attr.getScheduleToCloseTimeout();
+    }
+
     NexusOperationScheduledEventAttributes.Builder a =
         NexusOperationScheduledEventAttributes.newBuilder()
             .setEndpoint(attr.getEndpoint())
@@ -668,6 +691,8 @@ class StateMachines {
             .setOperation(attr.getOperation())
             .setInput(attr.getInput())
             .setScheduleToCloseTimeout(attr.getScheduleToCloseTimeout())
+            .setScheduleToStartTimeout(cappedScheduleToStartTimeout)
+            .setStartToCloseTimeout(cappedStartToCloseTimeout)
             .putAllNexusHeader(attr.getNexusHeaderMap())
             .setRequestId(UUID.randomUUID().toString())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedId);
@@ -704,9 +729,6 @@ class StateMachines {
                 io.temporal.api.nexus.v1.Request.newBuilder()
                     .setScheduledTime(ctx.currentTime())
                     .putAllHeader(attr.getNexusHeaderMap())
-                    .putHeader(
-                        io.nexusrpc.Header.OPERATION_TIMEOUT.toLowerCase(),
-                        attr.getScheduleToCloseTimeout().toString())
                     .setStartOperation(
                         StartOperationRequest.newBuilder()
                             .setService(attr.getService())
@@ -778,9 +800,25 @@ class StateMachines {
 
   private static void timeoutNexusOperation(
       RequestContext ctx, NexusOperationData data, TimeoutType timeoutType, long notUsed) {
-    if (timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE) {
+    if (timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE
+        && timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START
+        && timeoutType != TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE) {
       throw new IllegalArgumentException(
           "Timeout type not supported for Nexus operations: " + timeoutType);
+    }
+
+    String timeoutMessage;
+    switch (timeoutType) {
+      case TIMEOUT_TYPE_SCHEDULE_TO_START:
+        timeoutMessage = "operation timed out before starting";
+        break;
+      case TIMEOUT_TYPE_START_TO_CLOSE:
+        timeoutMessage = "operation timed out after starting";
+        break;
+      case TIMEOUT_TYPE_SCHEDULE_TO_CLOSE:
+      default:
+        timeoutMessage = "operation timed out";
+        break;
     }
 
     Failure failure =
@@ -795,7 +833,7 @@ class StateMachines {
                     .setScheduledEventId(data.scheduledEventId))
             .setCause(
                 Failure.newBuilder()
-                    .setMessage("operation timed out")
+                    .setMessage(timeoutMessage)
                     .setTimeoutFailureInfo(
                         TimeoutFailureInfo.newBuilder().setTimeoutType(timeoutType)))
             .build();
