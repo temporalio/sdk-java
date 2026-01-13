@@ -852,6 +852,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   operation.getData().getAttempt()),
           "NexusOperation ScheduleToCloseTimeout");
     }
+    if (attr.hasScheduleToStartTimeout()
+        && Durations.toMillis(attr.getScheduleToStartTimeout()) > 0) {
+      // ScheduleToStartTimeout is the time from schedule to start (or completion if synchronous)
+      ctx.addTimer(
+          ProtobufTimeUtils.toJavaDuration(attr.getScheduleToStartTimeout()),
+          () ->
+              timeoutNexusOperation(
+                  scheduleEventId,
+                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START,
+                  operation.getData().getAttempt()),
+          "NexusOperation ScheduleToStartTimeout");
+    }
     ctx.lockTimer("processScheduleNexusOperation");
   }
 
@@ -2309,6 +2321,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
           operation.action(StateMachines.Action.START, ctx, resp, 0);
           operation.getData().identity = clientIdentity;
+
+          // Add start-to-close timeout timer if configured
+          NexusOperationScheduledEventAttributes scheduledEvent =
+              operation.getData().scheduledEvent;
+          if (scheduledEvent.hasStartToCloseTimeout()
+              && Durations.toMillis(scheduledEvent.getStartToCloseTimeout()) > 0) {
+            // StartToCloseTimeout measures from when the operation started to when it completes
+            ctx.addTimer(
+                ProtobufTimeUtils.toJavaDuration(scheduledEvent.getStartToCloseTimeout()),
+                () ->
+                    timeoutNexusOperation(
+                        scheduledEventId,
+                        TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
+                        operation.getData().getAttempt()),
+                "NexusOperation StartToCloseTimeout");
+          }
+
           scheduleWorkflowTask(ctx);
         });
   }
@@ -3689,6 +3718,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       return false;
     }
     return true;
+  }
+
+  @Override
+  public NexusOperationScheduledEventAttributes getNexusOperationScheduledEventAttributes(
+      long scheduledEventId) {
+    StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
+    return operation.getData().scheduledEvent;
+  }
+
+  @Override
+  public boolean isNexusOperationStarted(long scheduledEventId) {
+    StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
+    // Operation is considered started if it has an operation token
+    return !operation.getData().operationToken.isEmpty();
   }
 
   private boolean isTerminalState(State workflowState) {

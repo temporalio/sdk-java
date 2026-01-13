@@ -26,6 +26,7 @@ import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.NexusOperationScheduledEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.nexus.v1.*;
@@ -285,6 +286,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return getMutableState(executionId, failNotExists);
   }
 
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   @Override
   public void startWorkflowExecution(
       StartWorkflowExecutionRequest request,
@@ -310,6 +313,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
       Duration backoffStartInterval,
@@ -325,7 +330,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     validateWorkflowIdReusePolicy(reusePolicy, conflictPolicy);
     validateOnConflictOptions(startRequest);
 
-    // Backwards compatibility: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING is deprecated
+    // Backwards compatibility: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+    // is deprecated
     if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
       conflictPolicy = WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING;
       reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
@@ -475,6 +481,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   private void validateWorkflowIdReusePolicy(
       WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
     if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
@@ -955,6 +963,65 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           task.getTask()
               .getRequestBuilder()
               .putHeader(Header.REQUEST_TIMEOUT.toLowerCase(), taskTimeout + "s");
+
+      // Calculate and set OPERATION_TIMEOUT header if not already present and operation has
+      // timeouts
+      if (req.hasStartOperation()
+          && !req.getHeaderMap().containsKey(Header.OPERATION_TIMEOUT.toLowerCase())) {
+        NexusTaskToken token = NexusTaskToken.fromBytes(task.getTask().getTaskToken());
+        TestWorkflowMutableState mutableState =
+            getMutableState(token.getOperationRef().getExecutionId());
+        long scheduledEventId = token.getOperationRef().getScheduledEventId();
+        NexusOperationScheduledEventAttributes scheduledEvent =
+            mutableState.getNexusOperationScheduledEventAttributes(scheduledEventId);
+        boolean isStarted = mutableState.isNexusOperationStarted(scheduledEventId);
+
+        Timestamp scheduledTime = req.getScheduledTime();
+        Timestamp currentTime = store.currentTime();
+        long elapsedSeconds = Timestamps.between(scheduledTime, currentTime).getSeconds();
+        long elapsedMillis = elapsedSeconds * 1000;
+
+        // Calculate minimum of all applicable timeouts
+        Long remainingMillis = null;
+
+        if (!isStarted && scheduledEvent.hasScheduleToStartTimeout()) {
+          long scheduleToStartMillis =
+              com.google.protobuf.util.Durations.toMillis(
+                  scheduledEvent.getScheduleToStartTimeout());
+          if (scheduleToStartMillis > 0) {
+            long remaining = scheduleToStartMillis - elapsedMillis;
+            remainingMillis =
+                (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
+          }
+        }
+
+        if (scheduledEvent.hasStartToCloseTimeout()) {
+          long startToCloseMillis =
+              com.google.protobuf.util.Durations.toMillis(scheduledEvent.getStartToCloseTimeout());
+          if (startToCloseMillis > 0) {
+            long remaining = startToCloseMillis - elapsedMillis;
+            remainingMillis =
+                (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
+          }
+        }
+
+        if (scheduledEvent.hasScheduleToCloseTimeout()) {
+          long scheduleToCloseMillis =
+              com.google.protobuf.util.Durations.toMillis(
+                  scheduledEvent.getScheduleToCloseTimeout());
+          if (scheduleToCloseMillis > 0) {
+            long remaining = scheduleToCloseMillis - elapsedMillis;
+            remainingMillis =
+                (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
+          }
+        }
+
+        if (remainingMillis != null && remainingMillis > 0) {
+          req.putHeader(
+              Header.OPERATION_TIMEOUT.toLowerCase(), Long.toString(remainingMillis) + "ms");
+        }
+      }
+
       PollNexusTaskQueueResponse.Builder resp = task.getTask().setRequest(req);
 
       responseObserver.onNext(resp.build());
