@@ -198,6 +198,12 @@
       ]
     },
     {
+      "type": "com.google.protobuf.Internal$EnumLite"
+    },
+    {
+      "type": "com.google.protobuf.ProtocolMessageEnum"
+    },
+    {
       "type": "com.google.protobuf.Timestamp",
       "methods": [
         {
@@ -967,6 +973,18 @@
       "type": "io.perfmark.impl.SecretPerfMarkImpl$PerfMarkImpl"
     },
     {
+      "type": "io.temporal.api.common.v1.ActivityType",
+      "methods": [
+        {
+          "name": "getName",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.ActivityType$Builder"
+    },
+    {
       "type": "io.temporal.api.common.v1.Callback"
     },
     {
@@ -1095,7 +1113,14 @@
       "type": "io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior"
     },
     {
+      "type": "io.temporal.api.enums.v1.RetryState"
+    },
+    {
       "type": "io.temporal.api.enums.v1.TaskQueueKind"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.TimeoutType",
+      "allDeclaredFields": true
     },
     {
       "type": "io.temporal.api.enums.v1.VersioningBehavior"
@@ -1187,7 +1212,40 @@
       "type": "io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure$Builder"
     },
     {
-      "type": "io.temporal.api.failure.v1.ActivityFailureInfo"
+      "type": "io.temporal.api.failure.v1.ActivityFailureInfo",
+      "methods": [
+        {
+          "name": "getActivityId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getActivityType",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIdentity",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRetryStateValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduledEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStartedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasActivityType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ActivityFailureInfo$Builder"
     },
     {
       "type": "io.temporal.api.failure.v1.ApplicationFailureInfo",
@@ -1244,20 +1302,82 @@
       ]
     },
     {
-      "type": "io.temporal.api.failure.v1.CanceledFailureInfo"
+      "type": "io.temporal.api.failure.v1.CanceledFailureInfo",
+      "methods": [
+        {
+          "name": "getDetails",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasDetails",
+          "parameterTypes": []
+        }
+      ]
     },
     {
-      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo"
+      "type": "io.temporal.api.failure.v1.CanceledFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo",
+      "methods": [
+        {
+          "name": "getInitiatedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNamespace",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRetryStateValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStartedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowExecution",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowType",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowExecution",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo$Builder"
     },
     {
       "type": "io.temporal.api.failure.v1.Failure",
       "methods": [
         {
+          "name": "getActivityFailureInfo",
+          "parameterTypes": []
+        },
+        {
           "name": "getApplicationFailureInfo",
           "parameterTypes": []
         },
         {
+          "name": "getCanceledFailureInfo",
+          "parameterTypes": []
+        },
+        {
           "name": "getCause",
+          "parameterTypes": []
+        },
+        {
+          "name": "getChildWorkflowExecutionFailureInfo",
           "parameterTypes": []
         },
         {
@@ -1282,6 +1402,14 @@
         },
         {
           "name": "getStackTrace",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTerminatedFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTimeoutFailureInfo",
           "parameterTypes": []
         },
         {
@@ -1391,7 +1519,24 @@
       "type": "io.temporal.api.failure.v1.TerminatedFailureInfo"
     },
     {
-      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo"
+      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo",
+      "methods": [
+        {
+          "name": "getLastHeartbeatDetails",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTimeoutTypeValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasLastHeartbeatDetails",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo$Builder"
     },
     {
       "type": "io.temporal.api.history.v1.ActivityPropertiesModifiedExternallyEventAttributes"
@@ -3034,6 +3179,10 @@
         },
         {
           "name": "testNexusOperationTimeout_BeforeStart",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusTemporalFailureConversion",
           "parameterTypes": []
         }
       ]

@@ -7,10 +7,7 @@ import com.google.protobuf.util.Durations;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.common.v1.Link;
-import io.temporal.api.enums.v1.CommandType;
-import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.TaskQueueKind;
-import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.enums.v1.*;
 import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.nexus.v1.*;
@@ -22,7 +19,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.*;
 import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.testservice.NexusTaskToken;
@@ -33,12 +30,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import junitparams.JUnitParamsRunner;
-import junitparams.Parameters;
 import org.junit.*;
-import org.junit.runner.RunWith;
 
-@RunWith(JUnitParamsRunner.class)
 public class NexusWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -833,15 +826,7 @@ public class NexusWorkflowTest {
   }
 
   @Test
-  @Parameters({
-    "0", "1",
-  })
-  public void testNexusOperationHandlerTemporalFailure(int index) {
-    List<Throwable> exceptions =
-        Arrays.asList(
-            ApplicationFailure.newFailure("test failure", "testFailureType"),
-            new IllegalStateException("illegal state"));
-
+  public void testNexusOperationHandlerTemporalFailure() {
     DataConverter dataConverter = DefaultDataConverter.newDefaultInstance();
     // Polls for nexus task -> respond with retryable failure -> poll for nexus task -> respond with
     // non-retryable failure
@@ -855,7 +840,9 @@ public class NexusWorkflowTest {
                             .setErrorType("INTERNAL")
                             .setFailure(
                                 NexusUtil.exceptionToNexusFailure(
-                                    exceptions.get(index), dataConverter))
+                                    ApplicationFailure.newFailure(
+                                        "test failure", "testFailureType"),
+                                    dataConverter))
                             .build()))
             .thenRunAsync(
                 () ->
