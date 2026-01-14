@@ -18,10 +18,9 @@
  * limitations under the License.
  */
 
-package io.temporal.common.plugin;
+package io.temporal.common;
 
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -41,8 +40,8 @@ import javax.annotation.Nonnull;
  * Builder for creating simple plugins that only need to modify configuration.
  *
  * <p>This builder provides a declarative way to create plugins for common use cases without
- * subclassing {@link PluginBase}. The resulting plugin implements both {@link ClientPlugin} and
- * {@link WorkerPlugin}.
+ * subclassing {@link PluginBase}. The resulting plugin implements both {@link
+ * io.temporal.client.Plugin} and {@link io.temporal.worker.Plugin}.
  *
  * <p>Example:
  *
@@ -59,8 +58,8 @@ import javax.annotation.Nonnull;
  * }</pre>
  *
  * @see PluginBase
- * @see ClientPlugin
- * @see WorkerPlugin
+ * @see io.temporal.client.Plugin
+ * @see io.temporal.worker.Plugin
  */
 @Experimental
 public final class SimplePluginBuilder {
@@ -204,8 +203,8 @@ public final class SimplePluginBuilder {
   /**
    * Builds the plugin with the configured settings.
    *
-   * @return a new plugin instance that implements both {@link ClientPlugin} and {@link
-   *     WorkerPlugin}
+   * @return a new plugin instance that implements both {@link io.temporal.client.Plugin} and {@link
+   *     io.temporal.worker.Plugin}
    */
   public PluginBase build() {
     return new SimplePlugin(

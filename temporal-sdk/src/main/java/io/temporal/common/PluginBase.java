@@ -18,15 +18,15 @@
  * limitations under the License.
  */
 
-package io.temporal.common.plugin;
+package io.temporal.common;
 
-import io.temporal.common.Experimental;
+import io.temporal.client.Plugin;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Convenience base class for plugins that implement both {@link ClientPlugin} and {@link
- * WorkerPlugin}. All methods have default no-op implementations.
+ * Convenience base class for plugins that implement both {@link io.temporal.client.Plugin} and
+ * {@link io.temporal.worker.Plugin}. All methods have default no-op implementations.
  *
  * <p>This is the recommended way to create plugins that need to customize both client and worker
  * behavior. Plugins that extend this class will automatically be propagated from the client to
@@ -59,11 +59,11 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see ClientPlugin
- * @see WorkerPlugin
+ * @see io.temporal.client.Plugin
+ * @see io.temporal.worker.Plugin
  */
 @Experimental
-public abstract class PluginBase implements ClientPlugin, WorkerPlugin {
+public abstract class PluginBase implements Plugin, io.temporal.worker.Plugin {
 
   private final String name;
 

@@ -18,10 +18,10 @@
  * limitations under the License.
  */
 
-package io.temporal.common.plugin;
+package io.temporal.client;
 
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
+import io.temporal.common.PluginBase;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs.ClientPluginCallback;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -65,11 +65,11 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see WorkerPlugin
+ * @see io.temporal.worker.Plugin
  * @see PluginBase
  */
 @Experimental
-public interface ClientPlugin extends ClientPluginCallback {
+public interface Plugin extends ClientPluginCallback {
 
   /**
    * Returns a unique name for this plugin. Used for logging and duplicate detection. Recommended

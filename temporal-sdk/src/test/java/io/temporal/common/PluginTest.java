@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.common.plugin;
+package io.temporal.common;
 
 import static org.junit.Assert.*;
 
@@ -58,8 +58,8 @@ public class PluginTest {
 
   @Test
   public void testClientPluginDefaultMethods() throws Exception {
-    ClientPlugin plugin =
-        new ClientPlugin() {
+    io.temporal.client.Plugin plugin =
+        new io.temporal.client.Plugin() {
           @Override
           public String getName() {
             return "test";
@@ -77,8 +77,8 @@ public class PluginTest {
 
   @Test
   public void testWorkerPluginDefaultMethods() throws Exception {
-    WorkerPlugin plugin =
-        new WorkerPlugin() {
+    io.temporal.worker.Plugin plugin =
+        new io.temporal.worker.Plugin() {
           @Override
           public String getName() {
             return "test";
@@ -115,8 +115,8 @@ public class PluginTest {
     // Simulate configuration phase (forward order)
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     for (Object plugin : plugins) {
-      if (plugin instanceof ClientPlugin) {
-        builder = ((ClientPlugin) plugin).configureClient(builder);
+      if (plugin instanceof io.temporal.client.Plugin) {
+        builder = ((io.temporal.client.Plugin) plugin).configureClient(builder);
       }
     }
 
@@ -143,9 +143,9 @@ public class PluginTest {
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof WorkerPlugin) {
+      if (plugin instanceof io.temporal.worker.Plugin) {
         final Runnable next = chain;
-        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
+        final io.temporal.worker.Plugin workerPlugin = (io.temporal.worker.Plugin) plugin;
         chain =
             () -> {
               order.add(workerPlugin.getName() + "-before");
@@ -175,8 +175,10 @@ public class PluginTest {
           // empty implementation
         };
 
-    assertTrue("PluginBase should implement ClientPlugin", plugin instanceof ClientPlugin);
-    assertTrue("PluginBase should implement WorkerPlugin", plugin instanceof WorkerPlugin);
+    assertTrue(
+        "PluginBase should implement client Plugin", plugin instanceof io.temporal.client.Plugin);
+    assertTrue(
+        "PluginBase should implement worker Plugin", plugin instanceof io.temporal.worker.Plugin);
   }
 
   private PluginBase createTrackingPlugin(String name, List<String> order) {

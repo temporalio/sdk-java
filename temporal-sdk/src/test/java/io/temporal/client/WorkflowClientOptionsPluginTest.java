@@ -18,11 +18,11 @@
  * limitations under the License.
  */
 
-package io.temporal.common.plugin;
+package io.temporal.client;
 
 import static org.junit.Assert.*;
 
-import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.PluginBase;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
@@ -45,8 +45,8 @@ public class WorkflowClientOptionsPluginTest {
 
     List<?> plugins = options.getPlugins();
     assertEquals(2, plugins.size());
-    assertEquals("plugin1", ((ClientPlugin) plugins.get(0)).getName());
-    assertEquals("plugin2", ((ClientPlugin) plugins.get(1)).getName());
+    assertEquals("plugin1", ((Plugin) plugins.get(0)).getName());
+    assertEquals("plugin2", ((Plugin) plugins.get(1)).getName());
   }
 
   @Test
@@ -59,8 +59,8 @@ public class WorkflowClientOptionsPluginTest {
 
     List<?> plugins = options.getPlugins();
     assertEquals(2, plugins.size());
-    assertEquals("plugin1", ((ClientPlugin) plugins.get(0)).getName());
-    assertEquals("plugin2", ((ClientPlugin) plugins.get(1)).getName());
+    assertEquals("plugin1", ((Plugin) plugins.get(0)).getName());
+    assertEquals("plugin2", ((Plugin) plugins.get(1)).getName());
   }
 
   @Test
@@ -99,7 +99,7 @@ public class WorkflowClientOptionsPluginTest {
     WorkflowClientOptions copy = original.toBuilder().build();
 
     assertEquals(1, copy.getPlugins().size());
-    assertEquals("plugin", ((ClientPlugin) copy.getPlugins().get(0)).getName());
+    assertEquals("plugin", ((Plugin) copy.getPlugins().get(0)).getName());
   }
 
   @Test
@@ -110,7 +110,7 @@ public class WorkflowClientOptionsPluginTest {
         WorkflowClientOptions.newBuilder().addPlugin(plugin).validateAndBuildWithDefaults();
 
     assertEquals(1, options.getPlugins().size());
-    assertEquals("plugin", ((ClientPlugin) options.getPlugins().get(0)).getName());
+    assertEquals("plugin", ((Plugin) options.getPlugins().get(0)).getName());
   }
 
   @Test

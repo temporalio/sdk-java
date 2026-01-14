@@ -142,7 +142,8 @@ public interface WorkflowServiceStubs
    * the creation time and happens on the first request.
    *
    * @param options stub options to use
-   * @param plugins list of plugins to apply (plugins implementing ClientPlugin are processed)
+   * @param plugins list of plugins to apply (plugins implementing io.temporal.client.Plugin are
+   *     processed)
    * @return the workflow service stubs
    */
   static WorkflowServiceStubs newServiceStubs(
@@ -185,7 +186,7 @@ public interface WorkflowServiceStubs
 
   /**
    * Callback interface for client plugins to participate in service stubs creation. This interface
-   * is implemented by {@code ClientPlugin} in the temporal-sdk module.
+   * is implemented by {@code io.temporal.client.Plugin} in the temporal-sdk module.
    */
   interface ClientPluginCallback {
     /**

@@ -8,7 +8,6 @@ import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.plugin.WorkerPlugin;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
@@ -173,8 +172,8 @@ public final class WorkerFactory {
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
       // activities, etc.)
       for (Object plugin : plugins) {
-        if (plugin instanceof WorkerPlugin) {
-          ((WorkerPlugin) plugin).initializeWorker(taskQueue, worker);
+        if (plugin instanceof Plugin) {
+          ((Plugin) plugin).initializeWorker(taskQueue, worker);
         }
       }
 
@@ -241,9 +240,9 @@ public final class WorkerFactory {
     List<Object> reversed = new ArrayList<>(plugins);
     Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof WorkerPlugin) {
+      if (plugin instanceof Plugin) {
         final Runnable next = startChain;
-        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
+        final Plugin workerPlugin = (Plugin) plugin;
         startChain =
             () -> {
               try {
@@ -345,9 +344,9 @@ public final class WorkerFactory {
     List<Object> reversed = new ArrayList<>(plugins);
     Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof WorkerPlugin) {
+      if (plugin instanceof Plugin) {
         final Runnable next = shutdownChain;
-        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
+        final Plugin workerPlugin = (Plugin) plugin;
         shutdownChain =
             () -> {
               try {
@@ -442,7 +441,7 @@ public final class WorkerFactory {
 
   /**
    * Extracts worker plugins from the client plugins list. Only plugins that implement {@link
-   * WorkerPlugin} are included.
+   * Plugin} are included.
    */
   private static List<Object> extractWorkerPlugins(List<?> clientPlugins) {
     if (clientPlugins == null || clientPlugins.isEmpty()) {
@@ -451,7 +450,7 @@ public final class WorkerFactory {
 
     List<Object> workerPlugins = new ArrayList<>();
     for (Object plugin : clientPlugins) {
-      if (plugin instanceof WorkerPlugin) {
+      if (plugin instanceof Plugin) {
         workerPlugins.add(plugin);
       }
     }
@@ -474,8 +473,8 @@ public final class WorkerFactory {
             : WorkerFactoryOptions.newBuilder(options);
 
     for (Object plugin : plugins) {
-      if (plugin instanceof WorkerPlugin) {
-        builder = ((WorkerPlugin) plugin).configureWorkerFactory(builder);
+      if (plugin instanceof Plugin) {
+        builder = ((Plugin) plugin).configureWorkerFactory(builder);
       }
     }
     return builder.build();
@@ -495,8 +494,8 @@ public final class WorkerFactory {
         options == null ? WorkerOptions.newBuilder() : WorkerOptions.newBuilder(options);
 
     for (Object plugin : plugins) {
-      if (plugin instanceof WorkerPlugin) {
-        builder = ((WorkerPlugin) plugin).configureWorker(taskQueue, builder);
+      if (plugin instanceof Plugin) {
+        builder = ((Plugin) plugin).configureWorker(taskQueue, builder);
       }
     }
     return builder.build();

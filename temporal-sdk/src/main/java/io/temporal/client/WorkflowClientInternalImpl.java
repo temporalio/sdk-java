@@ -15,7 +15,6 @@ import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
-import io.temporal.common.plugin.ClientPlugin;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
@@ -788,8 +787,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
     for (Object plugin : plugins) {
-      if (plugin instanceof ClientPlugin) {
-        builder = ((ClientPlugin) plugin).configureClient(builder);
+      if (plugin instanceof Plugin) {
+        builder = ((Plugin) plugin).configureClient(builder);
       }
     }
     return builder.build();
