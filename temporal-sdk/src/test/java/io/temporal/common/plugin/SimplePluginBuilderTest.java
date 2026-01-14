@@ -1,0 +1,204 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.temporal.common.plugin;
+
+import static org.junit.Assert.*;
+
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptorBase;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Test;
+
+public class SimplePluginBuilderTest {
+
+  @Test
+  public void testSimplePluginName() {
+    PluginBase plugin = SimplePluginBuilder.newBuilder("test-plugin").build();
+    assertEquals("test-plugin", plugin.getName());
+  }
+
+  @Test
+  public void testSimplePluginImplementsBothInterfaces() {
+    PluginBase plugin = SimplePluginBuilder.newBuilder("test").build();
+    assertTrue("Should implement ClientPlugin", plugin instanceof ClientPlugin);
+    assertTrue("Should implement WorkerPlugin", plugin instanceof WorkerPlugin);
+  }
+
+  @Test
+  public void testCustomizeServiceStubs() {
+    AtomicBoolean customized = new AtomicBoolean(false);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .customizeServiceStubs(
+                builder -> {
+                  customized.set(true);
+                })
+            .build();
+
+    WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
+    ((ClientPlugin) plugin).configureServiceStubs(builder);
+
+    assertTrue("Customizer should have been called", customized.get());
+  }
+
+  @Test
+  public void testCustomizeClient() {
+    AtomicBoolean customized = new AtomicBoolean(false);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .customizeClient(
+                builder -> {
+                  customized.set(true);
+                  builder.setIdentity("custom-identity");
+                })
+            .build();
+
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
+    ((ClientPlugin) plugin).configureClient(builder);
+
+    assertTrue("Customizer should have been called", customized.get());
+    assertEquals("custom-identity", builder.build().getIdentity());
+  }
+
+  @Test
+  public void testCustomizeWorkerFactory() {
+    AtomicBoolean customized = new AtomicBoolean(false);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .customizeWorkerFactory(
+                builder -> {
+                  customized.set(true);
+                  builder.setWorkflowCacheSize(100);
+                })
+            .build();
+
+    WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
+    ((WorkerPlugin) plugin).configureWorkerFactory(builder);
+
+    assertTrue("Customizer should have been called", customized.get());
+    assertEquals(100, builder.build().getWorkflowCacheSize());
+  }
+
+  @Test
+  public void testCustomizeWorker() {
+    AtomicBoolean customized = new AtomicBoolean(false);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .customizeWorker(
+                builder -> {
+                  customized.set(true);
+                  builder.setMaxConcurrentActivityExecutionSize(50);
+                })
+            .build();
+
+    WorkerOptions.Builder builder = WorkerOptions.newBuilder();
+    ((WorkerPlugin) plugin).configureWorker("test-queue", builder);
+
+    assertTrue("Customizer should have been called", customized.get());
+    assertEquals(50, builder.build().getMaxConcurrentActivityExecutionSize());
+  }
+
+  @Test
+  public void testMultipleCustomizers() {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .customizeClient(builder -> callCount.incrementAndGet())
+            .customizeClient(builder -> callCount.incrementAndGet())
+            .customizeClient(builder -> callCount.incrementAndGet())
+            .build();
+
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
+    ((ClientPlugin) plugin).configureClient(builder);
+
+    assertEquals("All customizers should be called", 3, callCount.get());
+  }
+
+  @Test
+  public void testAddWorkerInterceptors() {
+    WorkerInterceptor interceptor = new WorkerInterceptorBase() {};
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test").addWorkerInterceptors(interceptor).build();
+
+    WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
+    ((WorkerPlugin) plugin).configureWorkerFactory(builder);
+
+    WorkerInterceptor[] interceptors = builder.build().getWorkerInterceptors();
+    assertEquals(1, interceptors.length);
+    assertSame(interceptor, interceptors[0]);
+  }
+
+  @Test
+  public void testAddClientInterceptors() {
+    WorkflowClientInterceptor interceptor = new WorkflowClientInterceptorBase() {};
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test").addClientInterceptors(interceptor).build();
+
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
+    ((ClientPlugin) plugin).configureClient(builder);
+
+    WorkflowClientInterceptor[] interceptors = builder.build().getInterceptors();
+    assertEquals(1, interceptors.length);
+    assertSame(interceptor, interceptors[0]);
+  }
+
+  @Test
+  public void testInterceptorsAppendToExisting() {
+    WorkerInterceptor existingInterceptor = new WorkerInterceptorBase() {};
+    WorkerInterceptor newInterceptor = new WorkerInterceptorBase() {};
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test").addWorkerInterceptors(newInterceptor).build();
+
+    WorkerFactoryOptions.Builder builder =
+        WorkerFactoryOptions.newBuilder().setWorkerInterceptors(existingInterceptor);
+    ((WorkerPlugin) plugin).configureWorkerFactory(builder);
+
+    WorkerInterceptor[] interceptors = builder.build().getWorkerInterceptors();
+    assertEquals(2, interceptors.length);
+    assertSame(existingInterceptor, interceptors[0]);
+    assertSame(newInterceptor, interceptors[1]);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullName() {
+    SimplePluginBuilder.newBuilder(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullCustomizer() {
+    SimplePluginBuilder.newBuilder("test").customizeClient(null);
+  }
+}

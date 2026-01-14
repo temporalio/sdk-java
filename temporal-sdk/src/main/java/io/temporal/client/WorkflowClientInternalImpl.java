@@ -15,6 +15,7 @@ import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.common.plugin.ClientPlugin;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
@@ -65,6 +66,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
+    // Apply plugin configuration phase (forward order)
+    options = applyClientPluginConfiguration(options);
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
@@ -770,5 +773,25 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
     }
+  }
+
+  /**
+   * Applies client plugin configuration phase. Plugins are called in forward (registration) order
+   * to modify the client options.
+   */
+  private static WorkflowClientOptions applyClientPluginConfiguration(
+      WorkflowClientOptions options) {
+    List<?> plugins = options.getPlugins();
+    if (plugins == null || plugins.isEmpty()) {
+      return options;
+    }
+
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
+    for (Object plugin : plugins) {
+      if (plugin instanceof ClientPlugin) {
+        builder = ((ClientPlugin) plugin).configureClient(builder);
+      }
+    }
+    return builder.build();
   }
 }

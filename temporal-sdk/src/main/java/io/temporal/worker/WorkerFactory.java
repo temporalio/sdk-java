@@ -8,6 +8,7 @@ import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.plugin.WorkerPlugin;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
@@ -15,7 +16,10 @@ import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +50,9 @@ public final class WorkerFactory {
 
   private final @Nonnull WorkflowExecutorCache cache;
 
+  /** Plugins propagated from the client and applied to this factory. */
+  private final List<Object> plugins;
+
   private State state = State.Initial;
 
   private final String statusErrorMessage =
@@ -71,6 +78,12 @@ public final class WorkerFactory {
     this.workflowClient = Objects.requireNonNull(workflowClient);
     WorkflowClientOptions workflowClientOptions = workflowClient.getOptions();
     String namespace = workflowClientOptions.getNamespace();
+
+    // Extract worker plugins from client (auto-propagation)
+    this.plugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+
+    // Apply plugin configuration to factory options (forward order)
+    factoryOptions = applyPluginConfiguration(factoryOptions, this.plugins);
 
     this.factoryOptions =
         WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
@@ -136,6 +149,9 @@ public final class WorkerFactory {
     Preconditions.checkState(
         state == State.Initial,
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
+
+    // Apply plugin configuration to worker options (forward order)
+    options = applyWorkerPluginConfiguration(taskQueue, options, this.plugins);
 
     // Only one worker can exist for a task queue
     Worker existingWorker = workers.get(taskQueue);
@@ -211,6 +227,34 @@ public final class WorkerFactory {
                 .setNamespace(workflowClient.getOptions().getNamespace())
                 .build());
 
+    // Build plugin execution chain (reverse order for proper nesting)
+    Runnable startChain = this::doStart;
+    List<Object> reversed = new ArrayList<>(plugins);
+    Collections.reverse(reversed);
+    for (Object plugin : reversed) {
+      if (plugin instanceof WorkerPlugin) {
+        final Runnable next = startChain;
+        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
+        startChain =
+            () -> {
+              try {
+                workerPlugin.runWorkerFactory(this, next);
+              } catch (RuntimeException e) {
+                throw e;
+              } catch (Exception e) {
+                throw new RuntimeException(
+                    "Plugin " + workerPlugin.getName() + " failed during startup", e);
+              }
+            };
+      }
+    }
+
+    // Execute the chain
+    startChain.run();
+  }
+
+  /** Internal method that actually starts the workers. Called from the plugin chain. */
+  private void doStart() {
     for (Worker worker : workers.values()) {
       worker.start();
     }
@@ -286,6 +330,21 @@ public final class WorkerFactory {
 
   private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
+
+    // Notify plugins of shutdown (forward order)
+    for (Object plugin : plugins) {
+      if (plugin instanceof WorkerPlugin) {
+        try {
+          ((WorkerPlugin) plugin).onWorkerFactoryShutdown(this);
+        } catch (Exception e) {
+          log.warn(
+              "Plugin {} failed during shutdown notification",
+              ((WorkerPlugin) plugin).getName(),
+              e);
+        }
+      }
+    }
+
     ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
     CompletableFuture.allOf(
@@ -357,6 +416,68 @@ public final class WorkerFactory {
   @Override
   public String toString() {
     return String.format("WorkerFactory{identity=%s}", workflowClient.getOptions().getIdentity());
+  }
+
+  /**
+   * Extracts worker plugins from the client plugins list. Only plugins that implement {@link
+   * WorkerPlugin} are included.
+   */
+  private static List<Object> extractWorkerPlugins(List<?> clientPlugins) {
+    if (clientPlugins == null || clientPlugins.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<Object> workerPlugins = new ArrayList<>();
+    for (Object plugin : clientPlugins) {
+      if (plugin instanceof WorkerPlugin) {
+        workerPlugins.add(plugin);
+      }
+    }
+    return Collections.unmodifiableList(workerPlugins);
+  }
+
+  /**
+   * Applies plugin configuration to worker factory options. Plugins are called in forward
+   * (registration) order.
+   */
+  private static WorkerFactoryOptions applyPluginConfiguration(
+      WorkerFactoryOptions options, List<Object> plugins) {
+    if (plugins == null || plugins.isEmpty()) {
+      return options;
+    }
+
+    WorkerFactoryOptions.Builder builder =
+        options == null
+            ? WorkerFactoryOptions.newBuilder()
+            : WorkerFactoryOptions.newBuilder(options);
+
+    for (Object plugin : plugins) {
+      if (plugin instanceof WorkerPlugin) {
+        builder = ((WorkerPlugin) plugin).configureWorkerFactory(builder);
+      }
+    }
+    return builder.build();
+  }
+
+  /**
+   * Applies plugin configuration to worker options. Plugins are called in forward (registration)
+   * order.
+   */
+  private static WorkerOptions applyWorkerPluginConfiguration(
+      String taskQueue, WorkerOptions options, List<Object> plugins) {
+    if (plugins == null || plugins.isEmpty()) {
+      return options;
+    }
+
+    WorkerOptions.Builder builder =
+        options == null ? WorkerOptions.newBuilder() : WorkerOptions.newBuilder(options);
+
+    for (Object plugin : plugins) {
+      if (plugin instanceof WorkerPlugin) {
+        builder = ((WorkerPlugin) plugin).configureWorker(taskQueue, builder);
+      }
+    }
+    return builder.build();
   }
 
   enum State {
