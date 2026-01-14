@@ -156,15 +156,28 @@ public interface WorkerPlugin {
   }
 
   /**
-   * Called when the worker factory is shutting down. Plugins are notified in forward (registration)
-   * order during shutdown.
+   * Allows the plugin to wrap worker factory shutdown. Called during shutdown phase in reverse
+   * order (first plugin wraps all others).
    *
-   * <p>This is called during both {@link WorkerFactory#shutdown()} and {@link
-   * WorkerFactory#shutdownNow()}.
+   * <p>This method is called when {@link WorkerFactory#shutdown()} or {@link
+   * WorkerFactory#shutdownNow()} is invoked. The plugin can perform actions before and after the
+   * actual shutdown occurs.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * @Override
+   * public void shutdownWorkerFactory(WorkerFactory factory, Runnable next) {
+   *     logger.info("Shutting down workers...");
+   *     next.run();
+   *     logger.info("Workers shut down");
+   * }
+   * }</pre>
    *
    * @param factory the worker factory being shut down
+   * @param next runnable that shuts down the next in chain (eventually shuts down actual workers)
    */
-  default void onWorkerFactoryShutdown(@Nonnull WorkerFactory factory) {
-    // Default: no-op
+  default void shutdownWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next) {
+    next.run();
   }
 }

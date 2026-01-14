@@ -170,7 +170,8 @@ public final class WorkerFactory {
               workflowClient.getOptions().getContextPropagators());
       workers.put(taskQueue, worker);
 
-      // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows, activities, etc.)
+      // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
+      // activities, etc.)
       for (Object plugin : plugins) {
         if (plugin instanceof WorkerPlugin) {
           ((WorkerPlugin) plugin).initializeWorker(taskQueue, worker);
@@ -339,20 +340,33 @@ public final class WorkerFactory {
   private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
 
-    // Notify plugins of shutdown (forward order)
-    for (Object plugin : plugins) {
+    // Build plugin shutdown chain (reverse order for proper nesting)
+    Runnable shutdownChain = () -> doShutdown(interruptUserTasks);
+    List<Object> reversed = new ArrayList<>(plugins);
+    Collections.reverse(reversed);
+    for (Object plugin : reversed) {
       if (plugin instanceof WorkerPlugin) {
-        try {
-          ((WorkerPlugin) plugin).onWorkerFactoryShutdown(this);
-        } catch (Exception e) {
-          log.warn(
-              "Plugin {} failed during shutdown notification",
-              ((WorkerPlugin) plugin).getName(),
-              e);
-        }
+        final Runnable next = shutdownChain;
+        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
+        shutdownChain =
+            () -> {
+              try {
+                workerPlugin.shutdownWorkerFactory(this, next);
+              } catch (Exception e) {
+                log.warn("Plugin {} failed during shutdown", workerPlugin.getName(), e);
+                // Still try to continue shutdown
+                next.run();
+              }
+            };
       }
     }
 
+    // Execute the chain
+    shutdownChain.run();
+  }
+
+  /** Internal method that actually shuts down workers. Called from the plugin chain. */
+  private void doShutdown(boolean interruptUserTasks) {
     ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
     CompletableFuture.allOf(
