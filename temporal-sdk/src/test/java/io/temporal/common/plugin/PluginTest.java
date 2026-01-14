@@ -93,10 +93,10 @@ public class PluginTest {
     WorkerOptions.Builder workerBuilder = WorkerOptions.newBuilder();
     assertSame(workerBuilder, plugin.configureWorker("test-queue", workerBuilder));
 
-    // Test runWorkerFactory calls next
+    // Test startWorkerFactory calls next
     final boolean[] called = {false};
-    plugin.runWorkerFactory(null, () -> called[0] = true);
-    assertTrue("runWorkerFactory should call next", called[0]);
+    plugin.startWorkerFactory(null, () -> called[0] = true);
+    assertTrue("startWorkerFactory should call next", called[0]);
 
     // Test default initializeWorker is a no-op (doesn't throw)
     plugin.initializeWorker("test-queue", null);
@@ -150,7 +150,7 @@ public class PluginTest {
             () -> {
               order.add(workerPlugin.getName() + "-before");
               try {
-                workerPlugin.runWorkerFactory(null, next);
+                workerPlugin.startWorkerFactory(null, next);
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
@@ -192,7 +192,7 @@ public class PluginTest {
   private PluginBase createExecutionTrackingPlugin(String name, List<String> order) {
     return new PluginBase(name) {
       @Override
-      public void runWorkerFactory(io.temporal.worker.WorkerFactory factory, Runnable next) {
+      public void startWorkerFactory(io.temporal.worker.WorkerFactory factory, Runnable next) {
         next.run();
       }
     };

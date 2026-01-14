@@ -247,7 +247,7 @@ public final class WorkerFactory {
         startChain =
             () -> {
               try {
-                workerPlugin.runWorkerFactory(this, next);
+                workerPlugin.startWorkerFactory(this, next);
               } catch (RuntimeException e) {
                 throw e;
               } catch (Exception e) {

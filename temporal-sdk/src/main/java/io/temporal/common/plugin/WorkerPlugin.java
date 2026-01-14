@@ -51,7 +51,7 @@ import javax.annotation.Nonnull;
  *     }
  *
  *     @Override
- *     public void runWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+ *     public void startWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
  *         registry.recordWorkerStart();
  *         try {
  *             next.run();
@@ -139,7 +139,7 @@ public interface WorkerPlugin {
    *
    * <pre>{@code
    * @Override
-   * public void runWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+   * public void startWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
    *     logger.info("Starting workers...");
    *     next.run();
    *     logger.info("Workers started");
@@ -150,7 +150,7 @@ public interface WorkerPlugin {
    * @param next runnable that starts the next in chain (eventually starts actual workers)
    * @throws Exception if startup fails
    */
-  default void runWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next)
+  default void startWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next)
       throws Exception {
     next.run();
   }
