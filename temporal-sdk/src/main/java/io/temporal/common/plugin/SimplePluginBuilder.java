@@ -26,12 +26,14 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
@@ -69,6 +71,7 @@ public final class SimplePluginBuilder {
   private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers = new ArrayList<>();
   private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers = new ArrayList<>();
   private final List<Consumer<WorkerOptions.Builder>> workerCustomizers = new ArrayList<>();
+  private final List<BiConsumer<String, Worker>> workerInitializers = new ArrayList<>();
   private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
   private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
   private final List<ContextPropagator> contextPropagators = new ArrayList<>();
@@ -140,6 +143,29 @@ public final class SimplePluginBuilder {
   }
 
   /**
+   * Adds an initializer that is called after a worker is created. This can be used to register
+   * workflows, activities, and Nexus services on the worker.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * SimplePluginBuilder.newBuilder("my-plugin")
+   *     .initializeWorker((taskQueue, worker) -> {
+   *         worker.registerWorkflowImplementationTypes(MyWorkflow.class);
+   *         worker.registerActivitiesImplementations(new MyActivityImpl());
+   *     })
+   *     .build();
+   * }</pre>
+   *
+   * @param initializer a consumer that receives the task queue name and worker
+   * @return this builder for chaining
+   */
+  public SimplePluginBuilder initializeWorker(@Nonnull BiConsumer<String, Worker> initializer) {
+    workerInitializers.add(Objects.requireNonNull(initializer));
+    return this;
+  }
+
+  /**
    * Adds worker interceptors. Interceptors are appended to any existing interceptors in the
    * configuration.
    *
@@ -188,6 +214,7 @@ public final class SimplePluginBuilder {
         new ArrayList<>(clientCustomizers),
         new ArrayList<>(factoryCustomizers),
         new ArrayList<>(workerCustomizers),
+        new ArrayList<>(workerInitializers),
         new ArrayList<>(workerInterceptors),
         new ArrayList<>(clientInterceptors),
         new ArrayList<>(contextPropagators));
@@ -199,6 +226,7 @@ public final class SimplePluginBuilder {
     private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers;
     private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers;
     private final List<Consumer<WorkerOptions.Builder>> workerCustomizers;
+    private final List<BiConsumer<String, Worker>> workerInitializers;
     private final List<WorkerInterceptor> workerInterceptors;
     private final List<WorkflowClientInterceptor> clientInterceptors;
     private final List<ContextPropagator> contextPropagators;
@@ -209,6 +237,7 @@ public final class SimplePluginBuilder {
         List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers,
         List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers,
         List<Consumer<WorkerOptions.Builder>> workerCustomizers,
+        List<BiConsumer<String, Worker>> workerInitializers,
         List<WorkerInterceptor> workerInterceptors,
         List<WorkflowClientInterceptor> clientInterceptors,
         List<ContextPropagator> contextPropagators) {
@@ -217,6 +246,7 @@ public final class SimplePluginBuilder {
       this.clientCustomizers = clientCustomizers;
       this.factoryCustomizers = factoryCustomizers;
       this.workerCustomizers = workerCustomizers;
+      this.workerInitializers = workerInitializers;
       this.workerInterceptors = workerInterceptors;
       this.clientInterceptors = clientInterceptors;
       this.contextPropagators = contextPropagators;
@@ -291,6 +321,13 @@ public final class SimplePluginBuilder {
         customizer.accept(builder);
       }
       return builder;
+    }
+
+    @Override
+    public void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
+      for (BiConsumer<String, Worker> initializer : workerInitializers) {
+        initializer.accept(taskQueue, worker);
+      }
     }
   }
 }

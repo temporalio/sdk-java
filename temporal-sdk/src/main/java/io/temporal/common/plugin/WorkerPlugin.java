@@ -21,6 +21,7 @@
 package io.temporal.common.plugin;
 
 import io.temporal.common.Experimental;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -101,6 +102,30 @@ public interface WorkerPlugin {
   default WorkerOptions.Builder configureWorker(
       @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
     return builder;
+  }
+
+  /**
+   * Called after a worker is created, allowing plugins to register workflows, activities, Nexus
+   * services, and other components on the worker.
+   *
+   * <p>This method is called in forward (registration) order immediately after the worker is
+   * created in {@link WorkerFactory#newWorker}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * @Override
+   * public void initializeWorker(String taskQueue, Worker worker) {
+   *     worker.registerWorkflowImplementationTypes(MyWorkflow.class);
+   *     worker.registerActivitiesImplementations(new MyActivityImpl());
+   * }
+   * }</pre>
+   *
+   * @param taskQueue the task queue name for the worker
+   * @param worker the newly created worker
+   */
+  default void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
+    // Default: no-op
   }
 
   /**

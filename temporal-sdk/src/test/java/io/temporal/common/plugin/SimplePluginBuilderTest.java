@@ -192,6 +192,48 @@ public class SimplePluginBuilderTest {
     assertSame(newInterceptor, interceptors[1]);
   }
 
+  @Test
+  public void testInitializeWorker() {
+    AtomicBoolean initialized = new AtomicBoolean(false);
+    String[] capturedTaskQueue = {null};
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .initializeWorker(
+                (taskQueue, worker) -> {
+                  initialized.set(true);
+                  capturedTaskQueue[0] = taskQueue;
+                })
+            .build();
+
+    // Call initializeWorker with null worker (we're just testing the callback is invoked)
+    ((WorkerPlugin) plugin).initializeWorker("my-task-queue", null);
+
+    assertTrue("Initializer should have been called", initialized.get());
+    assertEquals("my-task-queue", capturedTaskQueue[0]);
+  }
+
+  @Test
+  public void testMultipleWorkerInitializers() {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
+            .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
+            .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
+            .build();
+
+    ((WorkerPlugin) plugin).initializeWorker("test-queue", null);
+
+    assertEquals("All initializers should be called", 3, callCount.get());
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullInitializeWorker() {
+    SimplePluginBuilder.newBuilder("test").initializeWorker(null);
+  }
+
   @Test(expected = NullPointerException.class)
   public void testNullName() {
     SimplePluginBuilder.newBuilder(null);

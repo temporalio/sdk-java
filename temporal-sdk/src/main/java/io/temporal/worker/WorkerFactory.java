@@ -169,6 +169,14 @@ public final class WorkerFactory {
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators());
       workers.put(taskQueue, worker);
+
+      // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows, activities, etc.)
+      for (Object plugin : plugins) {
+        if (plugin instanceof WorkerPlugin) {
+          ((WorkerPlugin) plugin).initializeWorker(taskQueue, worker);
+        }
+      }
+
       return worker;
     } else {
       log.warn(

@@ -97,6 +97,9 @@ public class PluginTest {
     final boolean[] called = {false};
     plugin.runWorkerFactory(null, () -> called[0] = true);
     assertTrue("runWorkerFactory should call next", called[0]);
+
+    // Test default initializeWorker is a no-op (doesn't throw)
+    plugin.initializeWorker("test-queue", null);
   }
 
   @Test
