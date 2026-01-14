@@ -16,7 +16,9 @@ The plugin system provides a higher-level abstraction over the existing intercep
 
 **Decision:** `ClientPlugin` and `WorkerPlugin` each define their own `getName()` method independently, rather than sharing a base `Plugin` interface.
 
-**Rationale:** This matches the Python SDK's design. Python has separate `ClientPlugin` and `WorkerPlugin` with `name()` on each. We initially had a base `Plugin` interface but removed it to simplify.
+**Rationale:** This matches the Python SDK's design. Python has separate `ClientPlugin` and `WorkerPlugin` with `name()` on each. I initially had a base `Plugin` interface but removed it to simplify.
+
+**Alternative considered:** I could add a shared `Plugin` interface with just `getName()`. This would allow `List<Plugin>` instead of `List<?>` for storage. However, this adds an interface that serves no purpose other than type convenience, and Python doesn't have it.
 
 ### 2. `ClientPluginCallback` Interface (Module Boundary)
 
@@ -26,33 +28,20 @@ The plugin system provides a higher-level abstraction over the existing intercep
 - `temporal-serviceclient` contains `WorkflowServiceStubs`
 - `temporal-sdk` depends on `temporal-serviceclient` (not vice versa)
 - `WorkflowServiceStubs.newServiceStubs(options, plugins)` needs to call plugin methods
-- Since serviceclient cannot import from sdk, we define a minimal callback interface in serviceclient
+- Since serviceclient cannot import from sdk, I define a minimal callback interface in serviceclient
 
 This is the one structural difference from Python, which uses a single-package architecture where everything can import everything else.
 
 ### 3. `PluginBase` Convenience Class
 
-**Decision:** Provide an abstract `PluginBase` class that implements both `ClientPlugin` and `WorkerPlugin`.
+**Decision:** I provide an abstract `PluginBase` class that implements both `ClientPlugin` and `WorkerPlugin`.
 
-**Rationale:** Common Java pattern (like `AbstractList` for `List`). Reduces boilerplate for users writing custom plugins:
-```java
-// Without PluginBase
-public class MyPlugin implements ClientPlugin, WorkerPlugin {
-    private final String name = "my-plugin";
-    @Override public String getName() { return name; }
-    // ... actual logic
-}
+**Rationale:** This is a common Java pattern (like `AbstractList` for `List`).
 
-// With PluginBase
-public class MyPlugin extends PluginBase {
-    public MyPlugin() { super("my-plugin"); }
-    // ... actual logic (getName() inherited)
-}
-```
 
 ### 4. `SimplePluginBuilder` with Private `SimplePlugin`
 
-**Decision:** Provide a builder for creating plugins declaratively, with the implementation class kept private.
+**Decision:** I provide a builder for creating plugins declaratively, with the implementation class kept private.
 
 **Rationale:**
 - Builder pattern is more natural in Java than Python's constructor with many parameters
@@ -66,25 +55,18 @@ PluginBase myPlugin = SimplePluginBuilder.newBuilder("my-plugin")
     .build();
 ```
 
-### 5. `PluginDiscovery` - Optional ServiceLoader Discovery
+### 5. No ServiceLoader Discovery
 
-**Decision:** Include a `PluginDiscovery` class that uses Java's `ServiceLoader` for auto-discovery.
+**Decision:** I do not include ServiceLoader-based plugin discovery.
 
-**Status:** This is optional and currently **untested**. May be removed before merging.
-
-**Rationale for including:** ServiceLoader is a standard Java pattern used by JDBC, logging frameworks, etc.
-
-**Rationale for removing:**
+**Rationale:**
 - Python doesn't have this - just uses explicit `plugins=[]`
-- Adds complexity with questionable value
+- ServiceLoader requires classes with no-arg constructors, which doesn't integrate with `SimplePluginBuilder`
 - "Magic" discovery is harder to debug than explicit configuration
-- No test coverage
+- Explicit plugin configuration is clearer and sufficient
 
-### 6. Plugin Storage Type
+We could consider adding it in though if there is interest.
 
-**Decision:** `WorkflowClientOptions.getPlugins()` returns `List<?>` rather than a typed list.
-
-**Rationale:** Without a common base interface, we need to store plugins that could be `ClientPlugin`, `WorkerPlugin`, or both. Using `List<?>` (or `List<Object>` internally) allows this flexibility. Users cast to the appropriate interface when needed.
 
 ## Files Changed
 
@@ -93,7 +75,6 @@ PluginBase myPlugin = SimplePluginBuilder.newBuilder("my-plugin")
 - `WorkerPlugin.java` - Worker-side plugin interface
 - `PluginBase.java` - Convenience base class implementing both
 - `SimplePluginBuilder.java` - Builder for declarative plugin creation
-- `PluginDiscovery.java` - Optional ServiceLoader discovery (may remove)
 
 ### Modified Files
 - `WorkflowServiceStubs.java` - Added `newServiceStubs(options, plugins)` and `ClientPluginCallback` interface
@@ -105,32 +86,6 @@ PluginBase myPlugin = SimplePluginBuilder.newBuilder("my-plugin")
 - `PluginTest.java` - Core plugin interface tests
 - `SimplePluginBuilderTest.java` - Builder API tests
 - `WorkflowClientOptionsPluginTest.java` - Options integration tests
-
-## Plugin Lifecycle
-
-### Configuration Phase (forward order)
-```
-Plugin A.configureServiceStubs() → Plugin B → Plugin C
-Plugin A.configureClient() → Plugin B → Plugin C
-Plugin A.configureWorkerFactory() → Plugin B → Plugin C
-Plugin A.configureWorker() → Plugin B → Plugin C
-```
-
-### Execution Phase (reverse order for proper nesting)
-```
-Plugin A wraps (
-    Plugin B wraps (
-        Plugin C wraps (
-            actual operation
-        )
-    )
-)
-```
-
-### Shutdown Phase (forward order)
-```
-Plugin A.onWorkerFactoryShutdown() → Plugin B → Plugin C
-```
 
 ## Example Usage
 
@@ -180,6 +135,4 @@ WorkerFactory factory = WorkerFactory.newInstance(client);
 
 ## Open Questions
 
-1. **Remove `PluginDiscovery`?** - It's untested and adds complexity. Python's explicit approach works fine.
-
-2. **Mark as `@Experimental`?** - All public APIs are marked `@Experimental` to allow iteration.
+1. **Mark as `@Experimental`?** - I've marked all public APIs as `@Experimental` to allow iteration. Is this appropriate?
