@@ -106,7 +106,8 @@ public interface Plugin {
    * services, and other components on the worker.
    *
    * <p>This method is called in forward (registration) order immediately after the worker is
-   * created in {@link WorkerFactory#newWorker}.
+   * created in {@link WorkerFactory#newWorker}. This is the appropriate place for registrations
+   * because it is called before the worker starts polling.
    *
    * <p>Example:
    *
@@ -123,6 +124,68 @@ public interface Plugin {
    */
   default void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
     // Default: no-op
+  }
+
+  /**
+   * Allows the plugin to wrap individual worker startup. Called during execution phase in reverse
+   * order (first plugin wraps all others) when {@link WorkerFactory#start()} is invoked.
+   *
+   * <p>This method is called for each worker when the factory starts. Use this for per-worker
+   * resource initialization, logging, or metrics. Note that workflow/activity registration should
+   * be done in {@link #initializeWorker} instead, as this method is called after registrations are
+   * finalized.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * @Override
+   * public void startWorker(String taskQueue, Worker worker, Runnable next) throws Exception {
+   *     logger.info("Starting worker for task queue: {}", taskQueue);
+   *     perWorkerResources.put(taskQueue, new ResourcePool());
+   *     next.run();
+   * }
+   * }</pre>
+   *
+   * @param taskQueue the task queue name for the worker
+   * @param worker the worker being started
+   * @param next runnable that starts the next in chain (eventually starts the actual worker)
+   * @throws Exception if startup fails
+   */
+  default void startWorker(
+      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) throws Exception {
+    next.run();
+  }
+
+  /**
+   * Allows the plugin to wrap individual worker shutdown. Called during shutdown phase in reverse
+   * order (first plugin wraps all others) when {@link WorkerFactory#shutdown()} or {@link
+   * WorkerFactory#shutdownNow()} is invoked.
+   *
+   * <p>This method is called for each worker when the factory shuts down. Use this for per-worker
+   * resource cleanup that was initialized in {@link #startWorker} or {@link #initializeWorker}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * @Override
+   * public void shutdownWorker(String taskQueue, Worker worker, Runnable next) {
+   *     logger.info("Shutting down worker for task queue: {}", taskQueue);
+   *     next.run();
+   *     ResourcePool pool = perWorkerResources.remove(taskQueue);
+   *     if (pool != null) {
+   *         pool.close();
+   *     }
+   * }
+   * }</pre>
+   *
+   * @param taskQueue the task queue name for the worker
+   * @param worker the worker being shut down
+   * @param next runnable that shuts down the next in chain (eventually shuts down the actual
+   *     worker)
+   */
+  default void shutdownWorker(
+      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
+    next.run();
   }
 
   /**

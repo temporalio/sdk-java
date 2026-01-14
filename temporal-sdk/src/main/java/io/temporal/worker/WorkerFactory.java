@@ -263,8 +263,39 @@ public final class WorkerFactory {
 
   /** Internal method that actually starts the workers. Called from the plugin chain. */
   private void doStart() {
-    for (Worker worker : workers.values()) {
-      worker.start();
+    // Start each worker with plugin hooks
+    for (Map.Entry<String, Worker> entry : workers.entrySet()) {
+      String taskQueue = entry.getKey();
+      Worker worker = entry.getValue();
+
+      // Build plugin chain for this worker (reverse order for proper nesting)
+      Runnable startChain = worker::start;
+      List<Object> reversed = new ArrayList<>(plugins);
+      Collections.reverse(reversed);
+      for (Object plugin : reversed) {
+        if (plugin instanceof Plugin) {
+          final Runnable next = startChain;
+          final Plugin workerPlugin = (Plugin) plugin;
+          startChain =
+              () -> {
+                try {
+                  workerPlugin.startWorker(taskQueue, worker, next);
+                } catch (RuntimeException e) {
+                  throw e;
+                } catch (Exception e) {
+                  throw new RuntimeException(
+                      "Plugin "
+                          + workerPlugin.getName()
+                          + " failed during worker startup for task queue "
+                          + taskQueue,
+                      e);
+                }
+              };
+        }
+      }
+
+      // Execute the chain for this worker
+      startChain.run();
     }
 
     state = State.Started;
@@ -368,10 +399,51 @@ public final class WorkerFactory {
   private void doShutdown(boolean interruptUserTasks) {
     ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
-    CompletableFuture.allOf(
-            workers.values().stream()
-                .map(worker -> worker.shutdown(shutdownManager, interruptUserTasks))
-                .toArray(CompletableFuture[]::new))
+
+    // Shutdown each worker with plugin hooks
+    List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();
+    for (Map.Entry<String, Worker> entry : workers.entrySet()) {
+      String taskQueue = entry.getKey();
+      Worker worker = entry.getValue();
+
+      // Build plugin chain for this worker's shutdown (reverse order for proper nesting)
+      // We use a holder to capture the future from the terminal action
+      @SuppressWarnings("unchecked")
+      CompletableFuture<Void>[] futureHolder = new CompletableFuture[1];
+      Runnable shutdownChain =
+          () -> futureHolder[0] = worker.shutdown(shutdownManager, interruptUserTasks);
+
+      List<Object> reversed = new ArrayList<>(plugins);
+      Collections.reverse(reversed);
+      for (Object plugin : reversed) {
+        if (plugin instanceof Plugin) {
+          final Runnable next = shutdownChain;
+          final Plugin workerPlugin = (Plugin) plugin;
+          shutdownChain =
+              () -> {
+                try {
+                  workerPlugin.shutdownWorker(taskQueue, worker, next);
+                } catch (Exception e) {
+                  log.warn(
+                      "Plugin {} failed during worker shutdown for task queue {}",
+                      workerPlugin.getName(),
+                      taskQueue,
+                      e);
+                  // Still try to continue shutdown
+                  next.run();
+                }
+              };
+        }
+      }
+
+      // Execute the shutdown chain for this worker
+      shutdownChain.run();
+      if (futureHolder[0] != null) {
+        shutdownFutures.add(futureHolder[0]);
+      }
+    }
+
+    CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
         .thenApply(
             r -> {
               cache.invalidateAll();

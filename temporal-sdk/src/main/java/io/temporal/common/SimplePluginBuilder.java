@@ -71,6 +71,8 @@ public final class SimplePluginBuilder {
   private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers = new ArrayList<>();
   private final List<Consumer<WorkerOptions.Builder>> workerCustomizers = new ArrayList<>();
   private final List<BiConsumer<String, Worker>> workerInitializers = new ArrayList<>();
+  private final List<BiConsumer<String, Worker>> workerStartCallbacks = new ArrayList<>();
+  private final List<BiConsumer<String, Worker>> workerShutdownCallbacks = new ArrayList<>();
   private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
   private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
   private final List<ContextPropagator> contextPropagators = new ArrayList<>();
@@ -165,6 +167,59 @@ public final class SimplePluginBuilder {
   }
 
   /**
+   * Adds a callback that is invoked when a worker starts. This can be used to start per-worker
+   * resources or record metrics.
+   *
+   * <p>Note: For registering workflows and activities, use {@link #initializeWorker} instead, as
+   * registrations must happen before the worker starts polling.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * SimplePluginBuilder.newBuilder("my-plugin")
+   *     .onWorkerStart((taskQueue, worker) -> {
+   *         logger.info("Worker started for task queue: {}", taskQueue);
+   *         perWorkerResources.put(taskQueue, new ResourcePool());
+   *     })
+   *     .build();
+   * }</pre>
+   *
+   * @param callback a consumer that receives the task queue name and worker when the worker starts
+   * @return this builder for chaining
+   */
+  public SimplePluginBuilder onWorkerStart(@Nonnull BiConsumer<String, Worker> callback) {
+    workerStartCallbacks.add(Objects.requireNonNull(callback));
+    return this;
+  }
+
+  /**
+   * Adds a callback that is invoked when a worker shuts down. This can be used to clean up
+   * per-worker resources initialized in {@link #initializeWorker} or {@link #onWorkerStart}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * SimplePluginBuilder.newBuilder("my-plugin")
+   *     .onWorkerShutdown((taskQueue, worker) -> {
+   *         logger.info("Worker shutting down for task queue: {}", taskQueue);
+   *         ResourcePool pool = perWorkerResources.remove(taskQueue);
+   *         if (pool != null) {
+   *             pool.close();
+   *         }
+   *     })
+   *     .build();
+   * }</pre>
+   *
+   * @param callback a consumer that receives the task queue name and worker when the worker shuts
+   *     down
+   * @return this builder for chaining
+   */
+  public SimplePluginBuilder onWorkerShutdown(@Nonnull BiConsumer<String, Worker> callback) {
+    workerShutdownCallbacks.add(Objects.requireNonNull(callback));
+    return this;
+  }
+
+  /**
    * Adds worker interceptors. Interceptors are appended to any existing interceptors in the
    * configuration.
    *
@@ -214,6 +269,8 @@ public final class SimplePluginBuilder {
         new ArrayList<>(factoryCustomizers),
         new ArrayList<>(workerCustomizers),
         new ArrayList<>(workerInitializers),
+        new ArrayList<>(workerStartCallbacks),
+        new ArrayList<>(workerShutdownCallbacks),
         new ArrayList<>(workerInterceptors),
         new ArrayList<>(clientInterceptors),
         new ArrayList<>(contextPropagators));
@@ -226,6 +283,8 @@ public final class SimplePluginBuilder {
     private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers;
     private final List<Consumer<WorkerOptions.Builder>> workerCustomizers;
     private final List<BiConsumer<String, Worker>> workerInitializers;
+    private final List<BiConsumer<String, Worker>> workerStartCallbacks;
+    private final List<BiConsumer<String, Worker>> workerShutdownCallbacks;
     private final List<WorkerInterceptor> workerInterceptors;
     private final List<WorkflowClientInterceptor> clientInterceptors;
     private final List<ContextPropagator> contextPropagators;
@@ -237,6 +296,8 @@ public final class SimplePluginBuilder {
         List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers,
         List<Consumer<WorkerOptions.Builder>> workerCustomizers,
         List<BiConsumer<String, Worker>> workerInitializers,
+        List<BiConsumer<String, Worker>> workerStartCallbacks,
+        List<BiConsumer<String, Worker>> workerShutdownCallbacks,
         List<WorkerInterceptor> workerInterceptors,
         List<WorkflowClientInterceptor> clientInterceptors,
         List<ContextPropagator> contextPropagators) {
@@ -246,6 +307,8 @@ public final class SimplePluginBuilder {
       this.factoryCustomizers = factoryCustomizers;
       this.workerCustomizers = workerCustomizers;
       this.workerInitializers = workerInitializers;
+      this.workerStartCallbacks = workerStartCallbacks;
+      this.workerShutdownCallbacks = workerShutdownCallbacks;
       this.workerInterceptors = workerInterceptors;
       this.clientInterceptors = clientInterceptors;
       this.contextPropagators = contextPropagators;
@@ -327,6 +390,25 @@ public final class SimplePluginBuilder {
       for (BiConsumer<String, Worker> initializer : workerInitializers) {
         initializer.accept(taskQueue, worker);
       }
+    }
+
+    @Override
+    public void startWorker(
+        @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next)
+        throws Exception {
+      next.run();
+      for (BiConsumer<String, Worker> callback : workerStartCallbacks) {
+        callback.accept(taskQueue, worker);
+      }
+    }
+
+    @Override
+    public void shutdownWorker(
+        @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
+      for (BiConsumer<String, Worker> callback : workerShutdownCallbacks) {
+        callback.accept(taskQueue, worker);
+      }
+      next.run();
     }
   }
 }

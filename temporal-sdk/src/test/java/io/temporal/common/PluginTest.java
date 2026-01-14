@@ -98,6 +98,16 @@ public class PluginTest {
     plugin.startWorkerFactory(null, () -> called[0] = true);
     assertTrue("startWorkerFactory should call next", called[0]);
 
+    // Test startWorker calls next
+    called[0] = false;
+    plugin.startWorker("test-queue", null, () -> called[0] = true);
+    assertTrue("startWorker should call next", called[0]);
+
+    // Test shutdownWorker calls next
+    called[0] = false;
+    plugin.shutdownWorker("test-queue", null, () -> called[0] = true);
+    assertTrue("shutdownWorker should call next", called[0]);
+
     // Test default initializeWorker is a no-op (doesn't throw)
     plugin.initializeWorker("test-queue", null);
   }
@@ -170,6 +180,96 @@ public class PluginTest {
   }
 
   @Test
+  public void testStartWorkerReverseOrder() throws Exception {
+    List<String> order = new ArrayList<>();
+
+    PluginBase pluginA = createWorkerLifecycleTrackingPlugin("A", order);
+    PluginBase pluginB = createWorkerLifecycleTrackingPlugin("B", order);
+    PluginBase pluginC = createWorkerLifecycleTrackingPlugin("C", order);
+
+    List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
+
+    // Build chain in reverse (like WorkerFactory does)
+    Runnable chain = () -> order.add("worker-start");
+
+    List<Object> reversed = new ArrayList<>(plugins);
+    java.util.Collections.reverse(reversed);
+    for (Object plugin : reversed) {
+      if (plugin instanceof io.temporal.worker.Plugin) {
+        final Runnable next = chain;
+        final io.temporal.worker.Plugin workerPlugin = (io.temporal.worker.Plugin) plugin;
+        chain =
+            () -> {
+              order.add(workerPlugin.getName() + "-startWorker-before");
+              try {
+                workerPlugin.startWorker("test-queue", null, next);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+              order.add(workerPlugin.getName() + "-startWorker-after");
+            };
+      }
+    }
+
+    chain.run();
+
+    // First plugin should wrap all others
+    assertEquals(
+        Arrays.asList(
+            "A-startWorker-before",
+            "B-startWorker-before",
+            "C-startWorker-before",
+            "worker-start",
+            "C-startWorker-after",
+            "B-startWorker-after",
+            "A-startWorker-after"),
+        order);
+  }
+
+  @Test
+  public void testShutdownWorkerReverseOrder() {
+    List<String> order = new ArrayList<>();
+
+    PluginBase pluginA = createWorkerLifecycleTrackingPlugin("A", order);
+    PluginBase pluginB = createWorkerLifecycleTrackingPlugin("B", order);
+    PluginBase pluginC = createWorkerLifecycleTrackingPlugin("C", order);
+
+    List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
+
+    // Build chain in reverse (like WorkerFactory does)
+    Runnable chain = () -> order.add("worker-shutdown");
+
+    List<Object> reversed = new ArrayList<>(plugins);
+    java.util.Collections.reverse(reversed);
+    for (Object plugin : reversed) {
+      if (plugin instanceof io.temporal.worker.Plugin) {
+        final Runnable next = chain;
+        final io.temporal.worker.Plugin workerPlugin = (io.temporal.worker.Plugin) plugin;
+        chain =
+            () -> {
+              order.add(workerPlugin.getName() + "-shutdownWorker-before");
+              workerPlugin.shutdownWorker("test-queue", null, next);
+              order.add(workerPlugin.getName() + "-shutdownWorker-after");
+            };
+      }
+    }
+
+    chain.run();
+
+    // First plugin should wrap all others
+    assertEquals(
+        Arrays.asList(
+            "A-shutdownWorker-before",
+            "B-shutdownWorker-before",
+            "C-shutdownWorker-before",
+            "worker-shutdown",
+            "C-shutdownWorker-after",
+            "B-shutdownWorker-after",
+            "A-shutdownWorker-after"),
+        order);
+  }
+
+  @Test
   public void testPluginBaseImplementsBothInterfaces() {
     PluginBase plugin = new PluginBase("dual-plugin") {
           // empty implementation
@@ -195,6 +295,21 @@ public class PluginTest {
     return new PluginBase(name) {
       @Override
       public void startWorkerFactory(io.temporal.worker.WorkerFactory factory, Runnable next) {
+        next.run();
+      }
+    };
+  }
+
+  private PluginBase createWorkerLifecycleTrackingPlugin(String name, List<String> order) {
+    return new PluginBase(name) {
+      @Override
+      public void startWorker(String taskQueue, io.temporal.worker.Worker worker, Runnable next) {
+        next.run();
+      }
+
+      @Override
+      public void shutdownWorker(
+          String taskQueue, io.temporal.worker.Worker worker, Runnable next) {
         next.run();
       }
     };

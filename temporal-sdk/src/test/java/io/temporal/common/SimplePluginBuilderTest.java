@@ -236,6 +236,94 @@ public class SimplePluginBuilderTest {
     SimplePluginBuilder.newBuilder("test").initializeWorker(null);
   }
 
+  @Test
+  public void testOnWorkerStart() throws Exception {
+    AtomicBoolean started = new AtomicBoolean(false);
+    String[] capturedTaskQueue = {null};
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .onWorkerStart(
+                (taskQueue, worker) -> {
+                  started.set(true);
+                  capturedTaskQueue[0] = taskQueue;
+                })
+            .build();
+
+    AtomicBoolean nextCalled = new AtomicBoolean(false);
+    ((io.temporal.worker.Plugin) plugin)
+        .startWorker("my-task-queue", null, () -> nextCalled.set(true));
+
+    assertTrue("next should be called", nextCalled.get());
+    assertTrue("Callback should have been called", started.get());
+    assertEquals("my-task-queue", capturedTaskQueue[0]);
+  }
+
+  @Test
+  public void testOnWorkerShutdown() {
+    AtomicBoolean shutdown = new AtomicBoolean(false);
+    String[] capturedTaskQueue = {null};
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .onWorkerShutdown(
+                (taskQueue, worker) -> {
+                  shutdown.set(true);
+                  capturedTaskQueue[0] = taskQueue;
+                })
+            .build();
+
+    AtomicBoolean nextCalled = new AtomicBoolean(false);
+    ((io.temporal.worker.Plugin) plugin)
+        .shutdownWorker("my-task-queue", null, () -> nextCalled.set(true));
+
+    assertTrue("next should be called", nextCalled.get());
+    assertTrue("Callback should have been called", shutdown.get());
+    assertEquals("my-task-queue", capturedTaskQueue[0]);
+  }
+
+  @Test
+  public void testMultipleOnWorkerStartCallbacks() throws Exception {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
+            .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
+            .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
+            .build();
+
+    ((io.temporal.worker.Plugin) plugin).startWorker("test-queue", null, () -> {});
+
+    assertEquals("All callbacks should be called", 3, callCount.get());
+  }
+
+  @Test
+  public void testMultipleOnWorkerShutdownCallbacks() {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    PluginBase plugin =
+        SimplePluginBuilder.newBuilder("test")
+            .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
+            .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
+            .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
+            .build();
+
+    ((io.temporal.worker.Plugin) plugin).shutdownWorker("test-queue", null, () -> {});
+
+    assertEquals("All callbacks should be called", 3, callCount.get());
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullOnWorkerStart() {
+    SimplePluginBuilder.newBuilder("test").onWorkerStart(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullOnWorkerShutdown() {
+    SimplePluginBuilder.newBuilder("test").onWorkerShutdown(null);
+  }
+
   @Test(expected = NullPointerException.class)
   public void testNullName() {
     SimplePluginBuilder.newBuilder(null);
