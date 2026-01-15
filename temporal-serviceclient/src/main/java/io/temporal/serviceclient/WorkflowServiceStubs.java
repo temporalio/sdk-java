@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -160,7 +161,7 @@ public interface WorkflowServiceStubs
     WorkflowServiceStubsOptions finalOptions = builder.validateAndBuildWithDefaults();
 
     // Build connection chain (reverse order for proper nesting)
-    ClientPluginCallback.ServiceStubsSupplier connectionChain =
+    Supplier<WorkflowServiceStubs> connectionChain =
         () ->
             WorkflowThreadMarker.protectFromWorkflowThread(
                 new WorkflowServiceStubsImpl(null, finalOptions), WorkflowServiceStubs.class);
@@ -169,19 +170,13 @@ public interface WorkflowServiceStubs
     Collections.reverse(reversed);
     for (Object plugin : reversed) {
       if (plugin instanceof ClientPluginCallback) {
-        final ClientPluginCallback.ServiceStubsSupplier next = connectionChain;
+        final Supplier<WorkflowServiceStubs> next = connectionChain;
         final ClientPluginCallback callback = (ClientPluginCallback) plugin;
         connectionChain = () -> callback.connectServiceClient(finalOptions, next);
       }
     }
 
-    try {
-      return connectionChain.get();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to create service stubs with plugins", e);
-    }
+    return connectionChain.get();
   }
 
   /**
@@ -200,20 +195,12 @@ public interface WorkflowServiceStubs
      * Allows the plugin to wrap service client connection.
      *
      * @param options the final options being used for connection
-     * @param next supplier that creates the service stubs
-     * @return the service stubs
-     * @throws Exception if connection fails
+     * @param next supplier that creates the service stubs (calls next plugin or actual connection)
+     * @return the service stubs (possibly wrapped or decorated)
      */
     @Nonnull
     WorkflowServiceStubs connectServiceClient(
-        @Nonnull WorkflowServiceStubsOptions options, @Nonnull ServiceStubsSupplier next)
-        throws Exception;
-
-    /** Functional interface for the connection chain. */
-    @FunctionalInterface
-    interface ServiceStubsSupplier {
-      WorkflowServiceStubs get() throws Exception;
-    }
+        @Nonnull WorkflowServiceStubsOptions options, @Nonnull Supplier<WorkflowServiceStubs> next);
   }
 
   WorkflowServiceStubsOptions getOptions();

@@ -25,6 +25,7 @@ import io.temporal.common.SimplePlugin;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs.ClientPluginCallback;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 /**
@@ -55,7 +56,7 @@ import javax.annotation.Nonnull;
  *     @Override
  *     public WorkflowServiceStubs connectServiceClient(
  *             WorkflowServiceStubsOptions options,
- *             ServiceStubsSupplier next) throws Exception {
+ *             Supplier&lt;WorkflowServiceStubs&gt; next) {
  *         logger.info("Connecting to Temporal at {}", options.getTarget());
  *         WorkflowServiceStubs stubs = next.get();
  *         logger.info("Connected successfully");
@@ -106,7 +107,7 @@ public interface ClientPlugin extends ClientPluginCallback {
    * @Override
    * public WorkflowServiceStubs connectServiceClient(
    *         WorkflowServiceStubsOptions options,
-   *         ClientPluginCallback.ServiceStubsSupplier next) throws Exception {
+   *         Supplier<WorkflowServiceStubs> next) {
    *     logger.info("Connecting to Temporal...");
    *     WorkflowServiceStubs stubs = next.get();
    *     logger.info("Connected successfully");
@@ -117,12 +118,9 @@ public interface ClientPlugin extends ClientPluginCallback {
    * @param options the final options being used for connection
    * @param next supplier that creates the service stubs (calls next plugin or actual connection)
    * @return the service stubs (possibly wrapped or decorated)
-   * @throws Exception if connection fails
    */
   @Override
   @Nonnull
   WorkflowServiceStubs connectServiceClient(
-      @Nonnull WorkflowServiceStubsOptions options,
-      @Nonnull ClientPluginCallback.ServiceStubsSupplier next)
-      throws Exception;
+      @Nonnull WorkflowServiceStubsOptions options, @Nonnull Supplier<WorkflowServiceStubs> next);
 }

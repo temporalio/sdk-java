@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 /**
@@ -264,7 +265,7 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
 
   @Override
   public WorkflowServiceStubs connectServiceClient(
-      WorkflowServiceStubsOptions options, ServiceStubsSupplier next) throws Exception {
+      WorkflowServiceStubsOptions options, Supplier<WorkflowServiceStubs> next) {
     return next.get();
   }
 
