@@ -65,11 +65,11 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see io.temporal.worker.Plugin
+ * @see io.temporal.worker.WorkerPlugin
  * @see PluginBase
  */
 @Experimental
-public interface Plugin extends ClientPluginCallback {
+public interface ClientPlugin extends ClientPluginCallback {
 
   /**
    * Returns a unique name for this plugin. Used for logging and duplicate detection. Recommended

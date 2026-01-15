@@ -172,8 +172,8 @@ public final class WorkerFactory {
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
       // activities, etc.)
       for (Object plugin : plugins) {
-        if (plugin instanceof Plugin) {
-          ((Plugin) plugin).initializeWorker(taskQueue, worker);
+        if (plugin instanceof WorkerPlugin) {
+          ((WorkerPlugin) plugin).initializeWorker(taskQueue, worker);
         }
       }
 
@@ -240,9 +240,9 @@ public final class WorkerFactory {
     List<Object> reversed = new ArrayList<>(plugins);
     Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof Plugin) {
+      if (plugin instanceof WorkerPlugin) {
         final Runnable next = startChain;
-        final Plugin workerPlugin = (Plugin) plugin;
+        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
         startChain =
             () -> {
               try {
@@ -273,9 +273,9 @@ public final class WorkerFactory {
       List<Object> reversed = new ArrayList<>(plugins);
       Collections.reverse(reversed);
       for (Object plugin : reversed) {
-        if (plugin instanceof Plugin) {
+        if (plugin instanceof WorkerPlugin) {
           final Runnable next = startChain;
-          final Plugin workerPlugin = (Plugin) plugin;
+          final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
           startChain =
               () -> {
                 try {
@@ -375,9 +375,9 @@ public final class WorkerFactory {
     List<Object> reversed = new ArrayList<>(plugins);
     Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof Plugin) {
+      if (plugin instanceof WorkerPlugin) {
         final Runnable next = shutdownChain;
-        final Plugin workerPlugin = (Plugin) plugin;
+        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
         shutdownChain =
             () -> {
               try {
@@ -416,9 +416,9 @@ public final class WorkerFactory {
       List<Object> reversed = new ArrayList<>(plugins);
       Collections.reverse(reversed);
       for (Object plugin : reversed) {
-        if (plugin instanceof Plugin) {
+        if (plugin instanceof WorkerPlugin) {
           final Runnable next = shutdownChain;
-          final Plugin workerPlugin = (Plugin) plugin;
+          final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
           shutdownChain =
               () -> {
                 try {
@@ -522,7 +522,7 @@ public final class WorkerFactory {
 
     List<Object> workerPlugins = new ArrayList<>();
     for (Object plugin : clientPlugins) {
-      if (plugin instanceof Plugin) {
+      if (plugin instanceof WorkerPlugin) {
         workerPlugins.add(plugin);
       }
     }
@@ -545,8 +545,8 @@ public final class WorkerFactory {
             : WorkerFactoryOptions.newBuilder(options);
 
     for (Object plugin : plugins) {
-      if (plugin instanceof Plugin) {
-        builder = ((Plugin) plugin).configureWorkerFactory(builder);
+      if (plugin instanceof WorkerPlugin) {
+        builder = ((WorkerPlugin) plugin).configureWorkerFactory(builder);
       }
     }
     return builder.build();
@@ -566,8 +566,8 @@ public final class WorkerFactory {
         options == null ? WorkerOptions.newBuilder() : WorkerOptions.newBuilder(options);
 
     for (Object plugin : plugins) {
-      if (plugin instanceof Plugin) {
-        builder = ((Plugin) plugin).configureWorker(taskQueue, builder);
+      if (plugin instanceof WorkerPlugin) {
+        builder = ((WorkerPlugin) plugin).configureWorker(taskQueue, builder);
       }
     }
     return builder.build();

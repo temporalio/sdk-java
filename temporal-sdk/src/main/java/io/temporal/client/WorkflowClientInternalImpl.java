@@ -787,8 +787,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
     for (Object plugin : plugins) {
-      if (plugin instanceof Plugin) {
-        builder = ((Plugin) plugin).configureClient(builder);
+      if (plugin instanceof ClientPlugin) {
+        builder = ((ClientPlugin) plugin).configureClient(builder);
       }
     }
     return builder.build();

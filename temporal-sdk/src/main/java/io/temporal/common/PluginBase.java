@@ -20,13 +20,13 @@
 
 package io.temporal.common;
 
-import io.temporal.client.Plugin;
+import io.temporal.client.ClientPlugin;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Convenience base class for plugins that implement both {@link io.temporal.client.Plugin} and
- * {@link io.temporal.worker.Plugin}. All methods have default no-op implementations.
+ * Convenience base class for plugins that implement both {@link io.temporal.client.ClientPlugin}
+ * and {@link io.temporal.worker.WorkerPlugin}. All methods have default no-op implementations.
  *
  * <p>This is the recommended way to create plugins that need to customize both client and worker
  * behavior. Plugins that extend this class will automatically be propagated from the client to
@@ -59,11 +59,11 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see io.temporal.client.Plugin
- * @see io.temporal.worker.Plugin
+ * @see io.temporal.client.ClientPlugin
+ * @see io.temporal.worker.WorkerPlugin
  */
 @Experimental
-public abstract class PluginBase implements Plugin, io.temporal.worker.Plugin {
+public abstract class PluginBase implements ClientPlugin, io.temporal.worker.WorkerPlugin {
 
   private final String name;
 

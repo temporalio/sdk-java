@@ -140,14 +140,14 @@ public final class WorkflowClientOptions {
      * Sets the plugins to use with this client. Plugins can modify client and worker configuration,
      * intercept connection, and wrap execution lifecycle.
      *
-     * <p>Each plugin should implement {@link io.temporal.client.Plugin} and/or {@link
-     * io.temporal.worker.Plugin}. Plugins that implement both interfaces are automatically
+     * <p>Each plugin should implement {@link io.temporal.client.ClientPlugin} and/or {@link
+     * io.temporal.worker.WorkerPlugin}. Plugins that implement both interfaces are automatically
      * propagated to workers created from this client.
      *
      * @param plugins the list of plugins to use (each should implement Plugin)
      * @return this builder for chaining
-     * @see io.temporal.client.Plugin
-     * @see io.temporal.worker.Plugin
+     * @see io.temporal.client.ClientPlugin
+     * @see io.temporal.worker.WorkerPlugin
      */
     @Experimental
     public Builder setPlugins(List<?> plugins) {
@@ -159,14 +159,14 @@ public final class WorkflowClientOptions {
      * Adds a plugin to use with this client. Plugins can modify client and worker configuration,
      * intercept connection, and wrap execution lifecycle.
      *
-     * <p>The plugin should implement {@link io.temporal.client.Plugin} and/or {@link
-     * io.temporal.worker.Plugin}. Plugins that implement both interfaces are automatically
+     * <p>The plugin should implement {@link io.temporal.client.ClientPlugin} and/or {@link
+     * io.temporal.worker.WorkerPlugin}. Plugins that implement both interfaces are automatically
      * propagated to workers created from this client.
      *
      * @param plugin the plugin to add (should implement Plugin)
      * @return this builder for chaining
-     * @see io.temporal.client.Plugin
-     * @see io.temporal.worker.Plugin
+     * @see io.temporal.client.ClientPlugin
+     * @see io.temporal.worker.WorkerPlugin
      */
     @Experimental
     public Builder addPlugin(Object plugin) {
@@ -292,9 +292,9 @@ public final class WorkflowClientOptions {
   /**
    * Returns the list of plugins configured for this client.
    *
-   * <p>Each plugin implements {@link io.temporal.client.Plugin} and/or {@link
-   * io.temporal.worker.Plugin}. Plugins that implement both interfaces are automatically propagated
-   * to workers created from this client.
+   * <p>Each plugin implements {@link io.temporal.client.ClientPlugin} and/or {@link
+   * io.temporal.worker.WorkerPlugin}. Plugins that implement both interfaces are automatically
+   * propagated to workers created from this client.
    *
    * @return an unmodifiable list of plugins, never null
    */

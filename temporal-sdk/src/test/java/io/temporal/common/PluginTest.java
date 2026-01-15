@@ -58,8 +58,8 @@ public class PluginTest {
 
   @Test
   public void testClientPluginDefaultMethods() throws Exception {
-    io.temporal.client.Plugin plugin =
-        new io.temporal.client.Plugin() {
+    io.temporal.client.ClientPlugin plugin =
+        new io.temporal.client.ClientPlugin() {
           @Override
           public String getName() {
             return "test";
@@ -77,8 +77,8 @@ public class PluginTest {
 
   @Test
   public void testWorkerPluginDefaultMethods() throws Exception {
-    io.temporal.worker.Plugin plugin =
-        new io.temporal.worker.Plugin() {
+    io.temporal.worker.WorkerPlugin plugin =
+        new io.temporal.worker.WorkerPlugin() {
           @Override
           public String getName() {
             return "test";
@@ -125,8 +125,8 @@ public class PluginTest {
     // Simulate configuration phase (forward order)
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     for (Object plugin : plugins) {
-      if (plugin instanceof io.temporal.client.Plugin) {
-        builder = ((io.temporal.client.Plugin) plugin).configureClient(builder);
+      if (plugin instanceof io.temporal.client.ClientPlugin) {
+        builder = ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
       }
     }
 
@@ -153,9 +153,10 @@ public class PluginTest {
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof io.temporal.worker.Plugin) {
+      if (plugin instanceof io.temporal.worker.WorkerPlugin) {
         final Runnable next = chain;
-        final io.temporal.worker.Plugin workerPlugin = (io.temporal.worker.Plugin) plugin;
+        final io.temporal.worker.WorkerPlugin workerPlugin =
+            (io.temporal.worker.WorkerPlugin) plugin;
         chain =
             () -> {
               order.add(workerPlugin.getName() + "-before");
@@ -195,9 +196,10 @@ public class PluginTest {
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof io.temporal.worker.Plugin) {
+      if (plugin instanceof io.temporal.worker.WorkerPlugin) {
         final Runnable next = chain;
-        final io.temporal.worker.Plugin workerPlugin = (io.temporal.worker.Plugin) plugin;
+        final io.temporal.worker.WorkerPlugin workerPlugin =
+            (io.temporal.worker.WorkerPlugin) plugin;
         chain =
             () -> {
               order.add(workerPlugin.getName() + "-startWorker-before");
@@ -242,9 +244,10 @@ public class PluginTest {
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
-      if (plugin instanceof io.temporal.worker.Plugin) {
+      if (plugin instanceof io.temporal.worker.WorkerPlugin) {
         final Runnable next = chain;
-        final io.temporal.worker.Plugin workerPlugin = (io.temporal.worker.Plugin) plugin;
+        final io.temporal.worker.WorkerPlugin workerPlugin =
+            (io.temporal.worker.WorkerPlugin) plugin;
         chain =
             () -> {
               order.add(workerPlugin.getName() + "-shutdownWorker-before");
@@ -276,9 +279,11 @@ public class PluginTest {
         };
 
     assertTrue(
-        "PluginBase should implement client Plugin", plugin instanceof io.temporal.client.Plugin);
+        "PluginBase should implement client Plugin",
+        plugin instanceof io.temporal.client.ClientPlugin);
     assertTrue(
-        "PluginBase should implement worker Plugin", plugin instanceof io.temporal.worker.Plugin);
+        "PluginBase should implement worker Plugin",
+        plugin instanceof io.temporal.worker.WorkerPlugin);
   }
 
   private PluginBase createTrackingPlugin(String name, List<String> order) {

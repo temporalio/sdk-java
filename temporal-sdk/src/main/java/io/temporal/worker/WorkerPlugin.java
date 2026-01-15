@@ -27,8 +27,8 @@ import javax.annotation.Nonnull;
 /**
  * Plugin interface for customizing Temporal worker configuration and lifecycle.
  *
- * <p>Plugins that also implement {@link io.temporal.client.Plugin} are automatically propagated
- * from the client to workers created from that client.
+ * <p>Plugins that also implement {@link io.temporal.client.ClientPlugin} are automatically
+ * propagated from the client to workers created from that client.
  *
  * <p>Example implementation:
  *
@@ -59,11 +59,11 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see io.temporal.client.Plugin
+ * @see io.temporal.client.ClientPlugin
  * @see PluginBase
  */
 @Experimental
-public interface Plugin {
+public interface WorkerPlugin {
 
   /**
    * Returns a unique name for this plugin. Used for logging and duplicate detection. Recommended

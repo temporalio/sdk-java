@@ -46,9 +46,11 @@ public class SimplePluginBuilderTest {
   public void testSimplePluginImplementsBothInterfaces() {
     PluginBase plugin = SimplePluginBuilder.newBuilder("test").build();
     assertTrue(
-        "Should implement io.temporal.client.Plugin", plugin instanceof io.temporal.client.Plugin);
+        "Should implement io.temporal.client.ClientPlugin",
+        plugin instanceof io.temporal.client.ClientPlugin);
     assertTrue(
-        "Should implement io.temporal.worker.Plugin", plugin instanceof io.temporal.worker.Plugin);
+        "Should implement io.temporal.worker.WorkerPlugin",
+        plugin instanceof io.temporal.worker.WorkerPlugin);
   }
 
   @Test
@@ -64,7 +66,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
-    ((io.temporal.client.Plugin) plugin).configureServiceStubs(builder);
+    ((io.temporal.client.ClientPlugin) plugin).configureServiceStubs(builder);
 
     assertTrue("Customizer should have been called", customized.get());
   }
@@ -83,7 +85,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.Plugin) plugin).configureClient(builder);
+    ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
 
     assertTrue("Customizer should have been called", customized.get());
     assertEquals("custom-identity", builder.build().getIdentity());
@@ -103,7 +105,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
-    ((io.temporal.worker.Plugin) plugin).configureWorkerFactory(builder);
+    ((io.temporal.worker.WorkerPlugin) plugin).configureWorkerFactory(builder);
 
     assertTrue("Customizer should have been called", customized.get());
     assertEquals(100, builder.build().getWorkflowCacheSize());
@@ -123,7 +125,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkerOptions.Builder builder = WorkerOptions.newBuilder();
-    ((io.temporal.worker.Plugin) plugin).configureWorker("test-queue", builder);
+    ((io.temporal.worker.WorkerPlugin) plugin).configureWorker("test-queue", builder);
 
     assertTrue("Customizer should have been called", customized.get());
     assertEquals(50, builder.build().getMaxConcurrentActivityExecutionSize());
@@ -141,7 +143,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.Plugin) plugin).configureClient(builder);
+    ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
 
     assertEquals("All customizers should be called", 3, callCount.get());
   }
@@ -154,7 +156,7 @@ public class SimplePluginBuilderTest {
         SimplePluginBuilder.newBuilder("test").addWorkerInterceptors(interceptor).build();
 
     WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
-    ((io.temporal.worker.Plugin) plugin).configureWorkerFactory(builder);
+    ((io.temporal.worker.WorkerPlugin) plugin).configureWorkerFactory(builder);
 
     WorkerInterceptor[] interceptors = builder.build().getWorkerInterceptors();
     assertEquals(1, interceptors.length);
@@ -169,7 +171,7 @@ public class SimplePluginBuilderTest {
         SimplePluginBuilder.newBuilder("test").addClientInterceptors(interceptor).build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.Plugin) plugin).configureClient(builder);
+    ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
 
     WorkflowClientInterceptor[] interceptors = builder.build().getInterceptors();
     assertEquals(1, interceptors.length);
@@ -186,7 +188,7 @@ public class SimplePluginBuilderTest {
 
     WorkerFactoryOptions.Builder builder =
         WorkerFactoryOptions.newBuilder().setWorkerInterceptors(existingInterceptor);
-    ((io.temporal.worker.Plugin) plugin).configureWorkerFactory(builder);
+    ((io.temporal.worker.WorkerPlugin) plugin).configureWorkerFactory(builder);
 
     WorkerInterceptor[] interceptors = builder.build().getWorkerInterceptors();
     assertEquals(2, interceptors.length);
@@ -209,7 +211,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     // Call initializeWorker with null worker (we're just testing the callback is invoked)
-    ((io.temporal.worker.Plugin) plugin).initializeWorker("my-task-queue", null);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("my-task-queue", null);
 
     assertTrue("Initializer should have been called", initialized.get());
     assertEquals("my-task-queue", capturedTaskQueue[0]);
@@ -226,7 +228,7 @@ public class SimplePluginBuilderTest {
             .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.Plugin) plugin).initializeWorker("test-queue", null);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("test-queue", null);
 
     assertEquals("All initializers should be called", 3, callCount.get());
   }
@@ -251,7 +253,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     AtomicBoolean nextCalled = new AtomicBoolean(false);
-    ((io.temporal.worker.Plugin) plugin)
+    ((io.temporal.worker.WorkerPlugin) plugin)
         .startWorker("my-task-queue", null, () -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
@@ -274,7 +276,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     AtomicBoolean nextCalled = new AtomicBoolean(false);
-    ((io.temporal.worker.Plugin) plugin)
+    ((io.temporal.worker.WorkerPlugin) plugin)
         .shutdownWorker("my-task-queue", null, () -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
@@ -293,7 +295,7 @@ public class SimplePluginBuilderTest {
             .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.Plugin) plugin).startWorker("test-queue", null, () -> {});
+    ((io.temporal.worker.WorkerPlugin) plugin).startWorker("test-queue", null, () -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }
@@ -309,7 +311,7 @@ public class SimplePluginBuilderTest {
             .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.Plugin) plugin).shutdownWorker("test-queue", null, () -> {});
+    ((io.temporal.worker.WorkerPlugin) plugin).shutdownWorker("test-queue", null, () -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }

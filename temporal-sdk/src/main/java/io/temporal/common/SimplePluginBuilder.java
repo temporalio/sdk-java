@@ -41,7 +41,7 @@ import javax.annotation.Nonnull;
  *
  * <p>This builder provides a declarative way to create plugins for common use cases without
  * subclassing {@link PluginBase}. The resulting plugin implements both {@link
- * io.temporal.client.Plugin} and {@link io.temporal.worker.Plugin}.
+ * io.temporal.client.ClientPlugin} and {@link io.temporal.worker.WorkerPlugin}.
  *
  * <p>Example:
  *
@@ -58,8 +58,8 @@ import javax.annotation.Nonnull;
  * }</pre>
  *
  * @see PluginBase
- * @see io.temporal.client.Plugin
- * @see io.temporal.worker.Plugin
+ * @see io.temporal.client.ClientPlugin
+ * @see io.temporal.worker.WorkerPlugin
  */
 @Experimental
 public final class SimplePluginBuilder {
@@ -258,8 +258,8 @@ public final class SimplePluginBuilder {
   /**
    * Builds the plugin with the configured settings.
    *
-   * @return a new plugin instance that implements both {@link io.temporal.client.Plugin} and {@link
-   *     io.temporal.worker.Plugin}
+   * @return a new plugin instance that implements both {@link io.temporal.client.ClientPlugin} and
+   *     {@link io.temporal.worker.WorkerPlugin}
    */
   public PluginBase build() {
     return new SimplePlugin(
