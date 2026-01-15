@@ -54,21 +54,21 @@ public class PluginTest {
   public void testSimplePluginDefaultBehavior() throws Exception {
     SimplePlugin plugin = new SimplePlugin("test") {};
 
-    // Test configureServiceStubs returns same builder (no customizers)
+    // Test configureServiceStubs doesn't throw (no customizers)
     WorkflowServiceStubsOptions.Builder stubsBuilder = WorkflowServiceStubsOptions.newBuilder();
-    assertSame(stubsBuilder, plugin.configureServiceStubs(stubsBuilder));
+    plugin.configureServiceStubs(stubsBuilder);
 
-    // Test configureClient returns same builder (no customizers)
+    // Test configureClient doesn't throw (no customizers)
     WorkflowClientOptions.Builder clientBuilder = WorkflowClientOptions.newBuilder();
-    assertSame(clientBuilder, plugin.configureClient(clientBuilder));
+    plugin.configureClient(clientBuilder);
 
-    // Test configureWorkerFactory returns same builder (no customizers)
+    // Test configureWorkerFactory doesn't throw (no customizers)
     WorkerFactoryOptions.Builder factoryBuilder = WorkerFactoryOptions.newBuilder();
-    assertSame(factoryBuilder, plugin.configureWorkerFactory(factoryBuilder));
+    plugin.configureWorkerFactory(factoryBuilder);
 
-    // Test configureWorker returns same builder (no customizers)
+    // Test configureWorker doesn't throw (no customizers)
     WorkerOptions.Builder workerBuilder = WorkerOptions.newBuilder();
-    assertSame(workerBuilder, plugin.configureWorker("test-queue", workerBuilder));
+    plugin.configureWorker("test-queue", workerBuilder);
 
     // Test startWorkerFactory calls next
     final boolean[] called = {false};
@@ -108,7 +108,7 @@ public class PluginTest {
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     for (Object plugin : plugins) {
       if (plugin instanceof io.temporal.client.ClientPlugin) {
-        builder = ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
+        ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
       }
     }
 
@@ -269,9 +269,8 @@ public class PluginTest {
   private SimplePlugin createTrackingPlugin(String name, List<String> order) {
     return new SimplePlugin(name) {
       @Override
-      public WorkflowClientOptions.Builder configureClient(WorkflowClientOptions.Builder builder) {
+      public void configureClient(WorkflowClientOptions.Builder builder) {
         order.add(name + "-config");
-        return builder;
       }
     };
   }

@@ -42,9 +42,8 @@ import javax.annotation.Nonnull;
  *     }
  *
  *     @Override
- *     public WorkerFactoryOptions.Builder configureWorkerFactory(
- *             WorkerFactoryOptions.Builder builder) {
- *         return builder.setWorkerInterceptors(new MetricsWorkerInterceptor(registry));
+ *     public void configureWorkerFactory(WorkerFactoryOptions.Builder builder) {
+ *         builder.setWorkerInterceptors(new MetricsWorkerInterceptor(registry));
  *     }
  *
  *     @Override
@@ -79,11 +78,8 @@ public interface WorkerPlugin {
    * configuration phase in forward (registration) order.
    *
    * @param builder the options builder to modify
-   * @return the modified builder
    */
-  @Nonnull
-  WorkerFactoryOptions.Builder configureWorkerFactory(
-      @Nonnull WorkerFactoryOptions.Builder builder);
+  void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder);
 
   /**
    * Allows the plugin to modify worker options before a worker is created. Called during
@@ -91,11 +87,8 @@ public interface WorkerPlugin {
    *
    * @param taskQueue the task queue name for the worker being created
    * @param builder the options builder to modify
-   * @return the modified builder
    */
-  @Nonnull
-  WorkerOptions.Builder configureWorker(
-      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder);
+  void configureWorker(@Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder);
 
   /**
    * Called after a worker is created, allowing plugins to register workflows, activities, Nexus

@@ -154,7 +154,7 @@ public interface WorkflowServiceStubs
     WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder(options);
     for (Object plugin : plugins) {
       if (plugin instanceof ClientPluginCallback) {
-        builder = ((ClientPluginCallback) plugin).configureServiceStubs(builder);
+        ((ClientPluginCallback) plugin).configureServiceStubs(builder);
       }
     }
     WorkflowServiceStubsOptions finalOptions = builder.validateAndBuildWithDefaults();
@@ -193,11 +193,8 @@ public interface WorkflowServiceStubs
      * Allows the plugin to modify service stubs options before the service stubs are created.
      *
      * @param builder the options builder to modify
-     * @return the modified builder
      */
-    @Nonnull
-    WorkflowServiceStubsOptions.Builder configureServiceStubs(
-        @Nonnull WorkflowServiceStubsOptions.Builder builder);
+    void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder);
 
     /**
      * Allows the plugin to wrap service client connection.

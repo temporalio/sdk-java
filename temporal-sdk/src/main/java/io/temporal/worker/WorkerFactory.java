@@ -546,7 +546,7 @@ public final class WorkerFactory {
 
     for (Object plugin : plugins) {
       if (plugin instanceof WorkerPlugin) {
-        builder = ((WorkerPlugin) plugin).configureWorkerFactory(builder);
+        ((WorkerPlugin) plugin).configureWorkerFactory(builder);
       }
     }
     return builder.build();
@@ -567,7 +567,7 @@ public final class WorkerFactory {
 
     for (Object plugin : plugins) {
       if (plugin instanceof WorkerPlugin) {
-        builder = ((WorkerPlugin) plugin).configureWorker(taskQueue, builder);
+        ((WorkerPlugin) plugin).configureWorker(taskQueue, builder);
       }
     }
     return builder.build();

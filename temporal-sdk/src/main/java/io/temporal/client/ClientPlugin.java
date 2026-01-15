@@ -47,10 +47,9 @@ import javax.annotation.Nonnull;
  *     }
  *
  *     @Override
- *     public WorkflowClientOptions.Builder configureClient(
- *             WorkflowClientOptions.Builder builder) {
+ *     public void configureClient(WorkflowClientOptions.Builder builder) {
  *         // Add custom interceptor
- *         return builder.setInterceptors(new LoggingInterceptor());
+ *         builder.setInterceptors(new LoggingInterceptor());
  *     }
  *
  *     @Override
@@ -85,22 +84,17 @@ public interface ClientPlugin extends ClientPluginCallback {
    * during configuration phase in forward (registration) order.
    *
    * @param builder the options builder to modify
-   * @return the modified builder (may return same instance or new builder)
    */
   @Override
-  @Nonnull
-  WorkflowServiceStubsOptions.Builder configureServiceStubs(
-      @Nonnull WorkflowServiceStubsOptions.Builder builder);
+  void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder);
 
   /**
    * Allows the plugin to modify workflow client options before the client is created. Called during
    * configuration phase in forward (registration) order.
    *
    * @param builder the options builder to modify
-   * @return the modified builder
    */
-  @Nonnull
-  WorkflowClientOptions.Builder configureClient(@Nonnull WorkflowClientOptions.Builder builder);
+  void configureClient(@Nonnull WorkflowClientOptions.Builder builder);
 
   /**
    * Allows the plugin to wrap service client connection. Called during connection phase in reverse

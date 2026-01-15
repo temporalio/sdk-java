@@ -73,9 +73,8 @@ import javax.annotation.Nonnull;
  *     }
  *
  *     @Override
- *     public WorkflowClientOptions.Builder configureClient(
- *             WorkflowClientOptions.Builder builder) {
- *         return builder.setInterceptors(new TracingClientInterceptor(tracer));
+ *     public void configureClient(WorkflowClientOptions.Builder builder) {
+ *         builder.setInterceptors(new TracingClientInterceptor(tracer));
  *     }
  * }
  * }</pre>
@@ -182,19 +181,14 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
   }
 
   @Override
-  @Nonnull
-  public WorkflowServiceStubsOptions.Builder configureServiceStubs(
-      @Nonnull WorkflowServiceStubsOptions.Builder builder) {
+  public void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder) {
     for (Consumer<WorkflowServiceStubsOptions.Builder> customizer : stubsCustomizers) {
       customizer.accept(builder);
     }
-    return builder;
   }
 
   @Override
-  @Nonnull
-  public WorkflowClientOptions.Builder configureClient(
-      @Nonnull WorkflowClientOptions.Builder builder) {
+  public void configureClient(@Nonnull WorkflowClientOptions.Builder builder) {
     // Apply customizers
     for (Consumer<WorkflowClientOptions.Builder> customizer : clientCustomizers) {
       customizer.accept(builder);
@@ -217,14 +211,10 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
       combined.addAll(contextPropagators);
       builder.setContextPropagators(combined);
     }
-
-    return builder;
   }
 
   @Override
-  @Nonnull
-  public WorkerFactoryOptions.Builder configureWorkerFactory(
-      @Nonnull WorkerFactoryOptions.Builder builder) {
+  public void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder) {
     // Apply customizers
     for (Consumer<WorkerFactoryOptions.Builder> customizer : factoryCustomizers) {
       customizer.accept(builder);
@@ -238,18 +228,13 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
       combined.addAll(workerInterceptors);
       builder.setWorkerInterceptors(combined.toArray(new WorkerInterceptor[0]));
     }
-
-    return builder;
   }
 
   @Override
-  @Nonnull
-  public WorkerOptions.Builder configureWorker(
-      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
+  public void configureWorker(@Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
     for (Consumer<WorkerOptions.Builder> customizer : workerCustomizers) {
       customizer.accept(builder);
     }
-    return builder;
   }
 
   @Override
