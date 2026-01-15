@@ -89,10 +89,8 @@ public interface ClientPlugin extends ClientPluginCallback {
    */
   @Override
   @Nonnull
-  default WorkflowServiceStubsOptions.Builder configureServiceStubs(
-      @Nonnull WorkflowServiceStubsOptions.Builder builder) {
-    return builder;
-  }
+  WorkflowServiceStubsOptions.Builder configureServiceStubs(
+      @Nonnull WorkflowServiceStubsOptions.Builder builder);
 
   /**
    * Allows the plugin to modify workflow client options before the client is created. Called during
@@ -102,10 +100,7 @@ public interface ClientPlugin extends ClientPluginCallback {
    * @return the modified builder
    */
   @Nonnull
-  default WorkflowClientOptions.Builder configureClient(
-      @Nonnull WorkflowClientOptions.Builder builder) {
-    return builder;
-  }
+  WorkflowClientOptions.Builder configureClient(@Nonnull WorkflowClientOptions.Builder builder);
 
   /**
    * Allows the plugin to wrap service client connection. Called during connection phase in reverse
@@ -132,10 +127,8 @@ public interface ClientPlugin extends ClientPluginCallback {
    */
   @Override
   @Nonnull
-  default WorkflowServiceStubs connectServiceClient(
+  WorkflowServiceStubs connectServiceClient(
       @Nonnull WorkflowServiceStubsOptions options,
       @Nonnull ClientPluginCallback.ServiceStubsSupplier next)
-      throws Exception {
-    return next.get();
-  }
+      throws Exception;
 }

@@ -316,6 +316,69 @@ public class SimplePluginBuilderTest {
     assertEquals("All callbacks should be called", 3, callCount.get());
   }
 
+  @Test
+  public void testOnWorkerFactoryStart() throws Exception {
+    AtomicBoolean started = new AtomicBoolean(false);
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").onWorkerFactoryStart(factory -> started.set(true)).build();
+
+    AtomicBoolean nextCalled = new AtomicBoolean(false);
+    ((io.temporal.worker.WorkerPlugin) plugin).startWorkerFactory(null, () -> nextCalled.set(true));
+
+    assertTrue("next should be called", nextCalled.get());
+    assertTrue("Callback should have been called", started.get());
+  }
+
+  @Test
+  public void testOnWorkerFactoryShutdown() throws Exception {
+    AtomicBoolean shutdown = new AtomicBoolean(false);
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .onWorkerFactoryShutdown(factory -> shutdown.set(true))
+            .build();
+
+    AtomicBoolean nextCalled = new AtomicBoolean(false);
+    ((io.temporal.worker.WorkerPlugin) plugin)
+        .shutdownWorkerFactory(null, () -> nextCalled.set(true));
+
+    assertTrue("next should be called", nextCalled.get());
+    assertTrue("Callback should have been called", shutdown.get());
+  }
+
+  @Test
+  public void testMultipleOnWorkerFactoryStartCallbacks() throws Exception {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .onWorkerFactoryStart(factory -> callCount.incrementAndGet())
+            .onWorkerFactoryStart(factory -> callCount.incrementAndGet())
+            .onWorkerFactoryStart(factory -> callCount.incrementAndGet())
+            .build();
+
+    ((io.temporal.worker.WorkerPlugin) plugin).startWorkerFactory(null, () -> {});
+
+    assertEquals("All callbacks should be called", 3, callCount.get());
+  }
+
+  @Test
+  public void testMultipleOnWorkerFactoryShutdownCallbacks() throws Exception {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .onWorkerFactoryShutdown(factory -> callCount.incrementAndGet())
+            .onWorkerFactoryShutdown(factory -> callCount.incrementAndGet())
+            .onWorkerFactoryShutdown(factory -> callCount.incrementAndGet())
+            .build();
+
+    ((io.temporal.worker.WorkerPlugin) plugin).shutdownWorkerFactory(null, () -> {});
+
+    assertEquals("All callbacks should be called", 3, callCount.get());
+  }
+
   @Test(expected = NullPointerException.class)
   public void testNullOnWorkerStart() {
     SimplePlugin.newBuilder("test").onWorkerStart(null);
@@ -324,6 +387,16 @@ public class SimplePluginBuilderTest {
   @Test(expected = NullPointerException.class)
   public void testNullOnWorkerShutdown() {
     SimplePlugin.newBuilder("test").onWorkerShutdown(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullOnWorkerFactoryStart() {
+    SimplePlugin.newBuilder("test").onWorkerFactoryStart(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullOnWorkerFactoryShutdown() {
+    SimplePlugin.newBuilder("test").onWorkerFactoryShutdown(null);
   }
 
   @Test(expected = NullPointerException.class)

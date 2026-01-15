@@ -25,8 +25,10 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
@@ -108,6 +110,8 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
   private final List<BiConsumer<String, Worker>> workerInitializers;
   private final List<BiConsumer<String, Worker>> workerStartCallbacks;
   private final List<BiConsumer<String, Worker>> workerShutdownCallbacks;
+  private final List<Consumer<WorkerFactory>> workerFactoryStartCallbacks;
+  private final List<Consumer<WorkerFactory>> workerFactoryShutdownCallbacks;
   private final List<WorkerInterceptor> workerInterceptors;
   private final List<WorkflowClientInterceptor> clientInterceptors;
   private final List<ContextPropagator> contextPropagators;
@@ -129,6 +133,8 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
     this.workerInitializers = Collections.emptyList();
     this.workerStartCallbacks = Collections.emptyList();
     this.workerShutdownCallbacks = Collections.emptyList();
+    this.workerFactoryStartCallbacks = Collections.emptyList();
+    this.workerFactoryShutdownCallbacks = Collections.emptyList();
     this.workerInterceptors = Collections.emptyList();
     this.clientInterceptors = Collections.emptyList();
     this.contextPropagators = Collections.emptyList();
@@ -151,6 +157,8 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
     this.workerInitializers = new ArrayList<>(builder.workerInitializers);
     this.workerStartCallbacks = new ArrayList<>(builder.workerStartCallbacks);
     this.workerShutdownCallbacks = new ArrayList<>(builder.workerShutdownCallbacks);
+    this.workerFactoryStartCallbacks = new ArrayList<>(builder.workerFactoryStartCallbacks);
+    this.workerFactoryShutdownCallbacks = new ArrayList<>(builder.workerFactoryShutdownCallbacks);
     this.workerInterceptors = new ArrayList<>(builder.workerInterceptors);
     this.clientInterceptors = new ArrayList<>(builder.clientInterceptors);
     this.contextPropagators = new ArrayList<>(builder.contextPropagators);
@@ -270,6 +278,28 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
   }
 
   @Override
+  public WorkflowServiceStubs connectServiceClient(
+      WorkflowServiceStubsOptions options, ServiceStubsSupplier next) throws Exception {
+    return next.get();
+  }
+
+  @Override
+  public void startWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+    next.run();
+    for (Consumer<WorkerFactory> callback : workerFactoryStartCallbacks) {
+      callback.accept(factory);
+    }
+  }
+
+  @Override
+  public void shutdownWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+    for (Consumer<WorkerFactory> callback : workerFactoryShutdownCallbacks) {
+      callback.accept(factory);
+    }
+    next.run();
+  }
+
+  @Override
   public String toString() {
     return getClass().getSimpleName() + "{name='" + name + "'}";
   }
@@ -288,6 +318,8 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
     private final List<BiConsumer<String, Worker>> workerInitializers = new ArrayList<>();
     private final List<BiConsumer<String, Worker>> workerStartCallbacks = new ArrayList<>();
     private final List<BiConsumer<String, Worker>> workerShutdownCallbacks = new ArrayList<>();
+    private final List<Consumer<WorkerFactory>> workerFactoryStartCallbacks = new ArrayList<>();
+    private final List<Consumer<WorkerFactory>> workerFactoryShutdownCallbacks = new ArrayList<>();
     private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
     private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
     private final List<ContextPropagator> contextPropagators = new ArrayList<>();
@@ -420,6 +452,52 @@ public class SimplePlugin implements ClientPlugin, WorkerPlugin {
      */
     public Builder onWorkerShutdown(@Nonnull BiConsumer<String, Worker> callback) {
       workerShutdownCallbacks.add(Objects.requireNonNull(callback));
+      return this;
+    }
+
+    /**
+     * Adds a callback that is invoked when the worker factory starts. This can be used to
+     * initialize factory-level resources or record metrics.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .onWorkerFactoryStart(factory -> {
+     *         logger.info("Worker factory started");
+     *         globalResources.initialize();
+     *     })
+     *     .build();
+     * }</pre>
+     *
+     * @param callback a consumer that receives the worker factory when it starts
+     * @return this builder for chaining
+     */
+    public Builder onWorkerFactoryStart(@Nonnull Consumer<WorkerFactory> callback) {
+      workerFactoryStartCallbacks.add(Objects.requireNonNull(callback));
+      return this;
+    }
+
+    /**
+     * Adds a callback that is invoked when the worker factory shuts down. This can be used to clean
+     * up factory-level resources.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .onWorkerFactoryShutdown(factory -> {
+     *         logger.info("Worker factory shutting down");
+     *         globalResources.cleanup();
+     *     })
+     *     .build();
+     * }</pre>
+     *
+     * @param callback a consumer that receives the worker factory when it shuts down
+     * @return this builder for chaining
+     */
+    public Builder onWorkerFactoryShutdown(@Nonnull Consumer<WorkerFactory> callback) {
+      workerFactoryShutdownCallbacks.add(Objects.requireNonNull(callback));
       return this;
     }
 

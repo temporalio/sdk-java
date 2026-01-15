@@ -51,39 +51,22 @@ public class PluginTest {
   }
 
   @Test
-  public void testClientPluginDefaultMethods() throws Exception {
-    io.temporal.client.ClientPlugin plugin =
-        new io.temporal.client.ClientPlugin() {
-          @Override
-          public String getName() {
-            return "test";
-          }
-        };
+  public void testSimplePluginDefaultBehavior() throws Exception {
+    SimplePlugin plugin = new SimplePlugin("test") {};
 
-    // Test default configureServiceStubs returns same builder
+    // Test configureServiceStubs returns same builder (no customizers)
     WorkflowServiceStubsOptions.Builder stubsBuilder = WorkflowServiceStubsOptions.newBuilder();
     assertSame(stubsBuilder, plugin.configureServiceStubs(stubsBuilder));
 
-    // Test default configureClient returns same builder
+    // Test configureClient returns same builder (no customizers)
     WorkflowClientOptions.Builder clientBuilder = WorkflowClientOptions.newBuilder();
     assertSame(clientBuilder, plugin.configureClient(clientBuilder));
-  }
 
-  @Test
-  public void testWorkerPluginDefaultMethods() throws Exception {
-    io.temporal.worker.WorkerPlugin plugin =
-        new io.temporal.worker.WorkerPlugin() {
-          @Override
-          public String getName() {
-            return "test";
-          }
-        };
-
-    // Test default configureWorkerFactory returns same builder
+    // Test configureWorkerFactory returns same builder (no customizers)
     WorkerFactoryOptions.Builder factoryBuilder = WorkerFactoryOptions.newBuilder();
     assertSame(factoryBuilder, plugin.configureWorkerFactory(factoryBuilder));
 
-    // Test default configureWorker returns same builder
+    // Test configureWorker returns same builder (no customizers)
     WorkerOptions.Builder workerBuilder = WorkerOptions.newBuilder();
     assertSame(workerBuilder, plugin.configureWorker("test-queue", workerBuilder));
 
@@ -102,7 +85,12 @@ public class PluginTest {
     plugin.shutdownWorker("test-queue", null, () -> called[0] = true);
     assertTrue("shutdownWorker should call next", called[0]);
 
-    // Test default initializeWorker is a no-op (doesn't throw)
+    // Test shutdownWorkerFactory calls next
+    called[0] = false;
+    plugin.shutdownWorkerFactory(null, () -> called[0] = true);
+    assertTrue("shutdownWorkerFactory should call next", called[0]);
+
+    // Test initializeWorker is a no-op (doesn't throw)
     plugin.initializeWorker("test-queue", null);
   }
 

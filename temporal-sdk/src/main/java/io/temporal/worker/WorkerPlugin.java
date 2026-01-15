@@ -82,10 +82,8 @@ public interface WorkerPlugin {
    * @return the modified builder
    */
   @Nonnull
-  default WorkerFactoryOptions.Builder configureWorkerFactory(
-      @Nonnull WorkerFactoryOptions.Builder builder) {
-    return builder;
-  }
+  WorkerFactoryOptions.Builder configureWorkerFactory(
+      @Nonnull WorkerFactoryOptions.Builder builder);
 
   /**
    * Allows the plugin to modify worker options before a worker is created. Called during
@@ -96,10 +94,8 @@ public interface WorkerPlugin {
    * @return the modified builder
    */
   @Nonnull
-  default WorkerOptions.Builder configureWorker(
-      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
-    return builder;
-  }
+  WorkerOptions.Builder configureWorker(
+      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder);
 
   /**
    * Called after a worker is created, allowing plugins to register workflows, activities, Nexus
@@ -122,9 +118,7 @@ public interface WorkerPlugin {
    * @param taskQueue the task queue name for the worker
    * @param worker the newly created worker
    */
-  default void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
-    // Default: no-op
-  }
+  void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker);
 
   /**
    * Allows the plugin to wrap individual worker startup. Called during execution phase in reverse
@@ -151,10 +145,8 @@ public interface WorkerPlugin {
    * @param next runnable that starts the next in chain (eventually starts the actual worker)
    * @throws Exception if startup fails
    */
-  default void startWorker(
-      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) throws Exception {
-    next.run();
-  }
+  void startWorker(@Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next)
+      throws Exception;
 
   /**
    * Allows the plugin to wrap individual worker shutdown. Called during shutdown phase in reverse
@@ -183,10 +175,7 @@ public interface WorkerPlugin {
    * @param next runnable that shuts down the next in chain (eventually shuts down the actual
    *     worker)
    */
-  default void shutdownWorker(
-      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
-    next.run();
-  }
+  void shutdownWorker(@Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next);
 
   /**
    * Allows the plugin to wrap worker factory startup. Called during execution phase in reverse
@@ -210,10 +199,7 @@ public interface WorkerPlugin {
    * @param next runnable that starts the next in chain (eventually starts actual workers)
    * @throws Exception if startup fails
    */
-  default void startWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next)
-      throws Exception {
-    next.run();
-  }
+  void startWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next) throws Exception;
 
   /**
    * Allows the plugin to wrap worker factory shutdown. Called during shutdown phase in reverse
@@ -237,7 +223,6 @@ public interface WorkerPlugin {
    * @param factory the worker factory being shut down
    * @param next runnable that shuts down the next in chain (eventually shuts down actual workers)
    */
-  default void shutdownWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next) {
-    next.run();
-  }
+  void shutdownWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next)
+      throws Exception;
 }
