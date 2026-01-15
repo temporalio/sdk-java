@@ -512,11 +512,11 @@ public final class WorkerFactory {
   }
 
   /**
-   * Extracts worker plugins from the client plugins list. Only plugins that implement {@link
-   * Plugin} are included.
+   * Extracts worker plugins from the client plugins array. Only plugins that implement {@link
+   * WorkerPlugin} are included.
    */
-  private static List<Object> extractWorkerPlugins(List<?> clientPlugins) {
-    if (clientPlugins == null || clientPlugins.isEmpty()) {
+  private static List<Object> extractWorkerPlugins(Object[] clientPlugins) {
+    if (clientPlugins == null || clientPlugins.length == 0) {
       return Collections.emptyList();
     }
 

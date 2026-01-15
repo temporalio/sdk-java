@@ -23,8 +23,6 @@ package io.temporal.client;
 import static org.junit.Assert.*;
 
 import io.temporal.common.SimplePlugin;
-import java.util.Arrays;
-import java.util.List;
 import org.junit.Test;
 
 public class WorkflowClientOptionsPluginTest {
@@ -32,7 +30,7 @@ public class WorkflowClientOptionsPluginTest {
   @Test
   public void testDefaultPluginsEmpty() {
     WorkflowClientOptions options = WorkflowClientOptions.newBuilder().build();
-    assertTrue("Default plugins should be empty", options.getPlugins().isEmpty());
+    assertEquals("Default plugins should be empty", 0, options.getPlugins().length);
   }
 
   @Test
@@ -41,65 +39,24 @@ public class WorkflowClientOptionsPluginTest {
     SimplePlugin plugin2 = new TestPlugin("plugin2");
 
     WorkflowClientOptions options =
-        WorkflowClientOptions.newBuilder().setPlugins(Arrays.asList(plugin1, plugin2)).build();
+        WorkflowClientOptions.newBuilder().setPlugins(plugin1, plugin2).build();
 
-    List<?> plugins = options.getPlugins();
-    assertEquals(2, plugins.size());
-    assertEquals("plugin1", ((ClientPlugin) plugins.get(0)).getName());
-    assertEquals("plugin2", ((ClientPlugin) plugins.get(1)).getName());
-  }
-
-  @Test
-  public void testAddPlugin() {
-    SimplePlugin plugin1 = new TestPlugin("plugin1");
-    SimplePlugin plugin2 = new TestPlugin("plugin2");
-
-    WorkflowClientOptions options =
-        WorkflowClientOptions.newBuilder().addPlugin(plugin1).addPlugin(plugin2).build();
-
-    List<?> plugins = options.getPlugins();
-    assertEquals(2, plugins.size());
-    assertEquals("plugin1", ((ClientPlugin) plugins.get(0)).getName());
-    assertEquals("plugin2", ((ClientPlugin) plugins.get(1)).getName());
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testPluginsAreImmutable() {
-    SimplePlugin plugin = new TestPlugin("plugin");
-
-    WorkflowClientOptions options = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
-
-    List<Object> plugins = (List<Object>) options.getPlugins();
-    try {
-      plugins.add(new TestPlugin("another"));
-      fail("Should not be able to modify plugins list");
-    } catch (UnsupportedOperationException e) {
-      // expected
-    }
-  }
-
-  @Test
-  public void testSetPluginsNull() {
-    WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setPlugins(null).build();
-    assertTrue("Null plugins should result in empty list", options.getPlugins().isEmpty());
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testAddPluginNull() {
-    WorkflowClientOptions.newBuilder().addPlugin(null);
+    Object[] plugins = options.getPlugins();
+    assertEquals(2, plugins.length);
+    assertEquals("plugin1", ((ClientPlugin) plugins[0]).getName());
+    assertEquals("plugin2", ((ClientPlugin) plugins[1]).getName());
   }
 
   @Test
   public void testToBuilder() {
     SimplePlugin plugin = new TestPlugin("plugin");
 
-    WorkflowClientOptions original = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
+    WorkflowClientOptions original = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
 
     WorkflowClientOptions copy = original.toBuilder().build();
 
-    assertEquals(1, copy.getPlugins().size());
-    assertEquals("plugin", ((ClientPlugin) copy.getPlugins().get(0)).getName());
+    assertEquals(1, copy.getPlugins().length);
+    assertEquals("plugin", ((ClientPlugin) copy.getPlugins()[0]).getName());
   }
 
   @Test
@@ -107,19 +64,19 @@ public class WorkflowClientOptionsPluginTest {
     SimplePlugin plugin = new TestPlugin("plugin");
 
     WorkflowClientOptions options =
-        WorkflowClientOptions.newBuilder().addPlugin(plugin).validateAndBuildWithDefaults();
+        WorkflowClientOptions.newBuilder().setPlugins(plugin).validateAndBuildWithDefaults();
 
-    assertEquals(1, options.getPlugins().size());
-    assertEquals("plugin", ((ClientPlugin) options.getPlugins().get(0)).getName());
+    assertEquals(1, options.getPlugins().length);
+    assertEquals("plugin", ((ClientPlugin) options.getPlugins()[0]).getName());
   }
 
   @Test
   public void testEqualsWithPlugins() {
     SimplePlugin plugin = new TestPlugin("plugin");
 
-    WorkflowClientOptions options1 = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
+    WorkflowClientOptions options1 = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
 
-    WorkflowClientOptions options2 = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
+    WorkflowClientOptions options2 = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
 
     assertEquals(options1, options2);
     assertEquals(options1.hashCode(), options2.hashCode());
@@ -129,7 +86,7 @@ public class WorkflowClientOptionsPluginTest {
   public void testToStringWithPlugins() {
     SimplePlugin plugin = new TestPlugin("my-plugin");
 
-    WorkflowClientOptions options = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
+    WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
 
     String str = options.toString();
     assertTrue("toString should contain plugins", str.contains("plugins"));

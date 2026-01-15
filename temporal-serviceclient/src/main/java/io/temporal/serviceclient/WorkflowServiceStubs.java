@@ -6,9 +6,6 @@ import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -143,12 +140,12 @@ public interface WorkflowServiceStubs
    * the creation time and happens on the first request.
    *
    * @param options stub options to use
-   * @param plugins list of plugins to apply (plugins implementing io.temporal.client.ClientPlugin
+   * @param plugins array of plugins to apply (plugins implementing io.temporal.client.ClientPlugin
    *     are processed)
    * @return the workflow service stubs
    */
   static WorkflowServiceStubs newServiceStubs(
-      @Nonnull WorkflowServiceStubsOptions options, @Nonnull List<?> plugins) {
+      @Nonnull WorkflowServiceStubsOptions options, @Nonnull Object[] plugins) {
     enforceNonWorkflowThread();
 
     // Apply plugin configuration phase (forward order)
@@ -166,9 +163,8 @@ public interface WorkflowServiceStubs
             WorkflowThreadMarker.protectFromWorkflowThread(
                 new WorkflowServiceStubsImpl(null, finalOptions), WorkflowServiceStubs.class);
 
-    List<Object> reversed = new ArrayList<>(plugins);
-    Collections.reverse(reversed);
-    for (Object plugin : reversed) {
+    for (int i = plugins.length - 1; i >= 0; i--) {
+      Object plugin = plugins[i];
       if (plugin instanceof ClientPluginCallback) {
         final Supplier<WorkflowServiceStubs> next = connectionChain;
         final ClientPluginCallback callback = (ClientPluginCallback) plugin;

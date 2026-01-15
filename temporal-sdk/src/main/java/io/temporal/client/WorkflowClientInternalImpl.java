@@ -780,8 +780,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
    * to modify the client options.
    */
   private static void applyClientPluginConfiguration(
-      WorkflowClientOptions.Builder builder, List<?> plugins) {
-    if (plugins == null || plugins.isEmpty()) {
+      WorkflowClientOptions.Builder builder, Object[] plugins) {
+    if (plugins == null || plugins.length == 0) {
       return;
     }
     for (Object plugin : plugins) {
