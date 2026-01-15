@@ -65,9 +65,10 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
-    // Apply plugin configuration phase (forward order)
-    options = applyClientPluginConfiguration(options);
-    options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
+    // Apply plugin configuration phase (forward order), then validate
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
+    applyClientPluginConfiguration(builder, options.getPlugins());
+    options = builder.validateAndBuildWithDefaults();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.options = options;
@@ -778,19 +779,15 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
    * Applies client plugin configuration phase. Plugins are called in forward (registration) order
    * to modify the client options.
    */
-  private static WorkflowClientOptions applyClientPluginConfiguration(
-      WorkflowClientOptions options) {
-    List<?> plugins = options.getPlugins();
+  private static void applyClientPluginConfiguration(
+      WorkflowClientOptions.Builder builder, List<?> plugins) {
     if (plugins == null || plugins.isEmpty()) {
-      return options;
+      return;
     }
-
-    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
     for (Object plugin : plugins) {
       if (plugin instanceof ClientPlugin) {
         ((ClientPlugin) plugin).configureClient(builder);
       }
     }
-    return builder.build();
   }
 }
