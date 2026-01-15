@@ -48,7 +48,7 @@ public final class WorkflowClientOptions {
     private String binaryChecksum;
     private List<ContextPropagator> contextPropagators;
     private QueryRejectCondition queryRejectCondition;
-    private Object[] plugins;
+    private ClientPlugin[] plugins;
 
     private Builder() {}
 
@@ -136,20 +136,19 @@ public final class WorkflowClientOptions {
     }
 
     /**
-     * Sets the plugins to use with this client. Plugins can modify client and worker configuration,
-     * intercept connection, and wrap execution lifecycle.
+     * Sets the plugins to use with this client. Plugins can modify client configuration, intercept
+     * connection, and wrap execution lifecycle.
      *
-     * <p>Each plugin should implement {@link io.temporal.client.ClientPlugin} and/or {@link
-     * io.temporal.worker.WorkerPlugin}. Plugins that implement both interfaces are automatically
+     * <p>Plugins that also implement {@link io.temporal.worker.WorkerPlugin} are automatically
      * propagated to workers created from this client.
      *
-     * @param plugins the plugins to use (each should implement ClientPlugin and/or WorkerPlugin)
+     * @param plugins the client plugins to use
      * @return this builder for chaining
      * @see io.temporal.client.ClientPlugin
      * @see io.temporal.worker.WorkerPlugin
      */
     @Experimental
-    public Builder setPlugins(Object... plugins) {
+    public Builder setPlugins(ClientPlugin... plugins) {
       this.plugins = Objects.requireNonNull(plugins);
       return this;
     }
@@ -187,7 +186,7 @@ public final class WorkflowClientOptions {
 
   private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Collections.emptyList();
 
-  private static final Object[] EMPTY_PLUGINS = new Object[0];
+  private static final ClientPlugin[] EMPTY_PLUGINS = new ClientPlugin[0];
 
   private final String namespace;
 
@@ -203,7 +202,7 @@ public final class WorkflowClientOptions {
 
   private final QueryRejectCondition queryRejectCondition;
 
-  private final Object[] plugins;
+  private final ClientPlugin[] plugins;
 
   private WorkflowClientOptions(
       String namespace,
@@ -213,7 +212,7 @@ public final class WorkflowClientOptions {
       String binaryChecksum,
       List<ContextPropagator> contextPropagators,
       QueryRejectCondition queryRejectCondition,
-      Object[] plugins) {
+      ClientPlugin[] plugins) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
@@ -267,16 +266,15 @@ public final class WorkflowClientOptions {
   }
 
   /**
-   * Returns the plugins configured for this client.
+   * Returns the client plugins configured for this client.
    *
-   * <p>Each plugin implements {@link io.temporal.client.ClientPlugin} and/or {@link
-   * io.temporal.worker.WorkerPlugin}. Plugins that implement both interfaces are automatically
+   * <p>Plugins that also implement {@link io.temporal.worker.WorkerPlugin} are automatically
    * propagated to workers created from this client.
    *
-   * @return the array of plugins, never null
+   * @return the array of client plugins, never null
    */
   @Experimental
-  public Object[] getPlugins() {
+  public ClientPlugin[] getPlugins() {
     return plugins;
   }
 

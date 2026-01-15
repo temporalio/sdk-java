@@ -50,7 +50,7 @@ public final class WorkerFactory {
   private final @Nonnull WorkflowExecutorCache cache;
 
   /** Plugins propagated from the client and applied to this factory. */
-  private final List<Object> plugins;
+  private final List<WorkerPlugin> plugins;
 
   private State state = State.Initial;
 
@@ -171,10 +171,8 @@ public final class WorkerFactory {
 
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
       // activities, etc.)
-      for (Object plugin : plugins) {
-        if (plugin instanceof WorkerPlugin) {
-          ((WorkerPlugin) plugin).initializeWorker(taskQueue, worker);
-        }
+      for (WorkerPlugin plugin : plugins) {
+        plugin.initializeWorker(taskQueue, worker);
       }
 
       return worker;
@@ -237,24 +235,20 @@ public final class WorkerFactory {
 
     // Build plugin execution chain (reverse order for proper nesting)
     Runnable startChain = this::doStart;
-    List<Object> reversed = new ArrayList<>(plugins);
-    Collections.reverse(reversed);
-    for (Object plugin : reversed) {
-      if (plugin instanceof WorkerPlugin) {
-        final Runnable next = startChain;
-        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
-        startChain =
-            () -> {
-              try {
-                workerPlugin.startWorkerFactory(this, next);
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new RuntimeException(
-                    "Plugin " + workerPlugin.getName() + " failed during startup", e);
-              }
-            };
-      }
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      final Runnable next = startChain;
+      final WorkerPlugin workerPlugin = plugins.get(i);
+      startChain =
+          () -> {
+            try {
+              workerPlugin.startWorkerFactory(this, next);
+            } catch (RuntimeException e) {
+              throw e;
+            } catch (Exception e) {
+              throw new RuntimeException(
+                  "Plugin " + workerPlugin.getName() + " failed during startup", e);
+            }
+          };
     }
 
     // Execute the chain
@@ -270,28 +264,24 @@ public final class WorkerFactory {
 
       // Build plugin chain for this worker (reverse order for proper nesting)
       Runnable startChain = worker::start;
-      List<Object> reversed = new ArrayList<>(plugins);
-      Collections.reverse(reversed);
-      for (Object plugin : reversed) {
-        if (plugin instanceof WorkerPlugin) {
-          final Runnable next = startChain;
-          final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
-          startChain =
-              () -> {
-                try {
-                  workerPlugin.startWorker(taskQueue, worker, next);
-                } catch (RuntimeException e) {
-                  throw e;
-                } catch (Exception e) {
-                  throw new RuntimeException(
-                      "Plugin "
-                          + workerPlugin.getName()
-                          + " failed during worker startup for task queue "
-                          + taskQueue,
-                      e);
-                }
-              };
-        }
+      for (int i = plugins.size() - 1; i >= 0; i--) {
+        final Runnable next = startChain;
+        final WorkerPlugin workerPlugin = plugins.get(i);
+        startChain =
+            () -> {
+              try {
+                workerPlugin.startWorker(taskQueue, worker, next);
+              } catch (RuntimeException e) {
+                throw e;
+              } catch (Exception e) {
+                throw new RuntimeException(
+                    "Plugin "
+                        + workerPlugin.getName()
+                        + " failed during worker startup for task queue "
+                        + taskQueue,
+                    e);
+              }
+            };
       }
 
       // Execute the chain for this worker
@@ -372,23 +362,19 @@ public final class WorkerFactory {
 
     // Build plugin shutdown chain (reverse order for proper nesting)
     Runnable shutdownChain = () -> doShutdown(interruptUserTasks);
-    List<Object> reversed = new ArrayList<>(plugins);
-    Collections.reverse(reversed);
-    for (Object plugin : reversed) {
-      if (plugin instanceof WorkerPlugin) {
-        final Runnable next = shutdownChain;
-        final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
-        shutdownChain =
-            () -> {
-              try {
-                workerPlugin.shutdownWorkerFactory(this, next);
-              } catch (Exception e) {
-                log.warn("Plugin {} failed during shutdown", workerPlugin.getName(), e);
-                // Still try to continue shutdown
-                next.run();
-              }
-            };
-      }
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      final Runnable next = shutdownChain;
+      final WorkerPlugin workerPlugin = plugins.get(i);
+      shutdownChain =
+          () -> {
+            try {
+              workerPlugin.shutdownWorkerFactory(this, next);
+            } catch (Exception e) {
+              log.warn("Plugin {} failed during shutdown", workerPlugin.getName(), e);
+              // Still try to continue shutdown
+              next.run();
+            }
+          };
     }
 
     // Execute the chain
@@ -413,27 +399,23 @@ public final class WorkerFactory {
       Runnable shutdownChain =
           () -> futureHolder[0] = worker.shutdown(shutdownManager, interruptUserTasks);
 
-      List<Object> reversed = new ArrayList<>(plugins);
-      Collections.reverse(reversed);
-      for (Object plugin : reversed) {
-        if (plugin instanceof WorkerPlugin) {
-          final Runnable next = shutdownChain;
-          final WorkerPlugin workerPlugin = (WorkerPlugin) plugin;
-          shutdownChain =
-              () -> {
-                try {
-                  workerPlugin.shutdownWorker(taskQueue, worker, next);
-                } catch (Exception e) {
-                  log.warn(
-                      "Plugin {} failed during worker shutdown for task queue {}",
-                      workerPlugin.getName(),
-                      taskQueue,
-                      e);
-                  // Still try to continue shutdown
-                  next.run();
-                }
-              };
-        }
+      for (int i = plugins.size() - 1; i >= 0; i--) {
+        final Runnable next = shutdownChain;
+        final WorkerPlugin workerPlugin = plugins.get(i);
+        shutdownChain =
+            () -> {
+              try {
+                workerPlugin.shutdownWorker(taskQueue, worker, next);
+              } catch (Exception e) {
+                log.warn(
+                    "Plugin {} failed during worker shutdown for task queue {}",
+                    workerPlugin.getName(),
+                    taskQueue,
+                    e);
+                // Still try to continue shutdown
+                next.run();
+              }
+            };
       }
 
       // Execute the shutdown chain for this worker
@@ -512,18 +494,19 @@ public final class WorkerFactory {
   }
 
   /**
-   * Extracts worker plugins from the client plugins array. Only plugins that implement {@link
+   * Extracts worker plugins from the client plugins array. Only plugins that also implement {@link
    * WorkerPlugin} are included.
    */
-  private static List<Object> extractWorkerPlugins(Object[] clientPlugins) {
+  private static List<WorkerPlugin> extractWorkerPlugins(
+      io.temporal.client.ClientPlugin[] clientPlugins) {
     if (clientPlugins == null || clientPlugins.length == 0) {
       return Collections.emptyList();
     }
 
-    List<Object> workerPlugins = new ArrayList<>();
-    for (Object plugin : clientPlugins) {
+    List<WorkerPlugin> workerPlugins = new ArrayList<>();
+    for (io.temporal.client.ClientPlugin plugin : clientPlugins) {
       if (plugin instanceof WorkerPlugin) {
-        workerPlugins.add(plugin);
+        workerPlugins.add((WorkerPlugin) plugin);
       }
     }
     return Collections.unmodifiableList(workerPlugins);
@@ -534,7 +517,7 @@ public final class WorkerFactory {
    * (registration) order.
    */
   private static WorkerFactoryOptions applyPluginConfiguration(
-      WorkerFactoryOptions options, List<Object> plugins) {
+      WorkerFactoryOptions options, List<WorkerPlugin> plugins) {
     if (plugins == null || plugins.isEmpty()) {
       return options;
     }
@@ -544,10 +527,8 @@ public final class WorkerFactory {
             ? WorkerFactoryOptions.newBuilder()
             : WorkerFactoryOptions.newBuilder(options);
 
-    for (Object plugin : plugins) {
-      if (plugin instanceof WorkerPlugin) {
-        ((WorkerPlugin) plugin).configureWorkerFactory(builder);
-      }
+    for (WorkerPlugin plugin : plugins) {
+      plugin.configureWorkerFactory(builder);
     }
     return builder.build();
   }
@@ -557,7 +538,7 @@ public final class WorkerFactory {
    * order.
    */
   private static WorkerOptions applyWorkerPluginConfiguration(
-      String taskQueue, WorkerOptions options, List<Object> plugins) {
+      String taskQueue, WorkerOptions options, List<WorkerPlugin> plugins) {
     if (plugins == null || plugins.isEmpty()) {
       return options;
     }
@@ -565,10 +546,8 @@ public final class WorkerFactory {
     WorkerOptions.Builder builder =
         options == null ? WorkerOptions.newBuilder() : WorkerOptions.newBuilder(options);
 
-    for (Object plugin : plugins) {
-      if (plugin instanceof WorkerPlugin) {
-        ((WorkerPlugin) plugin).configureWorker(taskQueue, builder);
-      }
+    for (WorkerPlugin plugin : plugins) {
+      plugin.configureWorker(taskQueue, builder);
     }
     return builder.build();
   }

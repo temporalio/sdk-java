@@ -140,20 +140,17 @@ public interface WorkflowServiceStubs
    * the creation time and happens on the first request.
    *
    * @param options stub options to use
-   * @param plugins array of plugins to apply (plugins implementing io.temporal.client.ClientPlugin
-   *     are processed)
+   * @param plugins array of client plugins to apply
    * @return the workflow service stubs
    */
   static WorkflowServiceStubs newServiceStubs(
-      @Nonnull WorkflowServiceStubsOptions options, @Nonnull Object[] plugins) {
+      @Nonnull WorkflowServiceStubsOptions options, @Nonnull ClientPluginCallback[] plugins) {
     enforceNonWorkflowThread();
 
     // Apply plugin configuration phase (forward order)
     WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder(options);
-    for (Object plugin : plugins) {
-      if (plugin instanceof ClientPluginCallback) {
-        ((ClientPluginCallback) plugin).configureServiceStubs(builder);
-      }
+    for (ClientPluginCallback plugin : plugins) {
+      plugin.configureServiceStubs(builder);
     }
     WorkflowServiceStubsOptions finalOptions = builder.validateAndBuildWithDefaults();
 
@@ -164,12 +161,9 @@ public interface WorkflowServiceStubs
                 new WorkflowServiceStubsImpl(null, finalOptions), WorkflowServiceStubs.class);
 
     for (int i = plugins.length - 1; i >= 0; i--) {
-      Object plugin = plugins[i];
-      if (plugin instanceof ClientPluginCallback) {
-        final Supplier<WorkflowServiceStubs> next = connectionChain;
-        final ClientPluginCallback callback = (ClientPluginCallback) plugin;
-        connectionChain = () -> callback.connectServiceClient(finalOptions, next);
-      }
+      final Supplier<WorkflowServiceStubs> next = connectionChain;
+      final ClientPluginCallback callback = plugins[i];
+      connectionChain = () -> callback.connectServiceClient(finalOptions, next);
     }
 
     return connectionChain.get();

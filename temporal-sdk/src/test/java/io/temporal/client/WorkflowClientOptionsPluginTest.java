@@ -41,10 +41,10 @@ public class WorkflowClientOptionsPluginTest {
     WorkflowClientOptions options =
         WorkflowClientOptions.newBuilder().setPlugins(plugin1, plugin2).build();
 
-    Object[] plugins = options.getPlugins();
+    ClientPlugin[] plugins = options.getPlugins();
     assertEquals(2, plugins.length);
-    assertEquals("plugin1", ((ClientPlugin) plugins[0]).getName());
-    assertEquals("plugin2", ((ClientPlugin) plugins[1]).getName());
+    assertEquals("plugin1", plugins[0].getName());
+    assertEquals("plugin2", plugins[1].getName());
   }
 
   @Test
@@ -56,7 +56,7 @@ public class WorkflowClientOptionsPluginTest {
     WorkflowClientOptions copy = original.toBuilder().build();
 
     assertEquals(1, copy.getPlugins().length);
-    assertEquals("plugin", ((ClientPlugin) copy.getPlugins()[0]).getName());
+    assertEquals("plugin", copy.getPlugins()[0].getName());
   }
 
   @Test
@@ -67,7 +67,7 @@ public class WorkflowClientOptionsPluginTest {
         WorkflowClientOptions.newBuilder().setPlugins(plugin).validateAndBuildWithDefaults();
 
     assertEquals(1, options.getPlugins().length);
-    assertEquals("plugin", ((ClientPlugin) options.getPlugins()[0]).getName());
+    assertEquals("plugin", options.getPlugins()[0].getName());
   }
 
   @Test
