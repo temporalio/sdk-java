@@ -32,12 +32,39 @@ public class ClientConfig {
     return new ClientConfig.Builder().build();
   }
 
-  /** Get the default config file path: $HOME/.config/temporalio/temporal.toml */
+  /**
+   * Get the default config file path based on the operating system:
+   *
+   * <ul>
+   *   <li>macOS: $HOME/Library/Application Support/temporalio/temporal.toml
+   *   <li>Windows: %APPDATA%\temporalio\temporal.toml
+   *   <li>Linux/other: $HOME/.config/temporalio/temporal.toml
+   * </ul>
+   */
   private static String getDefaultConfigFilePath() {
     String userDir = System.getProperty("user.home");
     if (userDir == null || userDir.isEmpty()) {
       throw new RuntimeException("failed getting user home directory");
     }
+    return getDefaultConfigFilePath(userDir, System.getProperty("os.name"), System.getenv());
+  }
+
+  static String getDefaultConfigFilePath(
+      String userDir, String osName, Map<String, String> environment) {
+    if (osName != null) {
+      String osNameLower = osName.toLowerCase();
+      if (osNameLower.contains("mac")) {
+        return userDir + "/Library/Application Support/temporalio/temporal.toml";
+      }
+      if (osNameLower.contains("win")) {
+        String appData = environment != null ? environment.get("APPDATA") : null;
+        if (appData == null || appData.isEmpty()) {
+          throw new RuntimeException("%APPDATA% is not defined");
+        }
+        return appData + "\\temporalio\\temporal.toml";
+      }
+    }
+    // Default/fallback is Linux config file path.
     return userDir + "/.config/temporalio/temporal.toml";
   }
 

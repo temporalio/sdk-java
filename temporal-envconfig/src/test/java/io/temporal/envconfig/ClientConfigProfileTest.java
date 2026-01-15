@@ -303,6 +303,27 @@ public class ClientConfigProfileTest {
   }
 
   @Test
+  public void defaultConfigFilePath() {
+    // macOS: ~/Library/Application Support
+    Assert.assertEquals(
+        "/Users/test/Library/Application Support/temporalio/temporal.toml",
+        ClientConfig.getDefaultConfigFilePath("/Users/test", "Mac OS X", Collections.emptyMap()));
+
+    // Windows: %APPDATA%
+    Assert.assertEquals(
+        "C:\\Users\\test\\AppData\\Roaming\\temporalio\\temporal.toml",
+        ClientConfig.getDefaultConfigFilePath(
+            "C:\\Users\\test",
+            "Windows 10",
+            Collections.singletonMap("APPDATA", "C:\\Users\\test\\AppData\\Roaming")));
+
+    // Linux: ~/.config
+    Assert.assertEquals(
+        "/home/test/.config/temporalio/temporal.toml",
+        ClientConfig.getDefaultConfigFilePath("/home/test", "Linux", Collections.emptyMap()));
+  }
+
+  @Test
   public void parseToml() throws IOException {
     String toml =
         "[profile.foo]\n"
