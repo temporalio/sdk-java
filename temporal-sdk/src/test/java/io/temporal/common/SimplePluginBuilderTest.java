@@ -38,13 +38,13 @@ public class SimplePluginBuilderTest {
 
   @Test
   public void testSimplePluginName() {
-    PluginBase plugin = SimplePluginBuilder.newBuilder("test-plugin").build();
+    SimplePlugin plugin = SimplePlugin.newBuilder("test-plugin").build();
     assertEquals("test-plugin", plugin.getName());
   }
 
   @Test
   public void testSimplePluginImplementsBothInterfaces() {
-    PluginBase plugin = SimplePluginBuilder.newBuilder("test").build();
+    SimplePlugin plugin = SimplePlugin.newBuilder("test").build();
     assertTrue(
         "Should implement io.temporal.client.ClientPlugin",
         plugin instanceof io.temporal.client.ClientPlugin);
@@ -57,8 +57,8 @@ public class SimplePluginBuilderTest {
   public void testCustomizeServiceStubs() {
     AtomicBoolean customized = new AtomicBoolean(false);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .customizeServiceStubs(
                 builder -> {
                   customized.set(true);
@@ -75,8 +75,8 @@ public class SimplePluginBuilderTest {
   public void testCustomizeClient() {
     AtomicBoolean customized = new AtomicBoolean(false);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .customizeClient(
                 builder -> {
                   customized.set(true);
@@ -95,8 +95,8 @@ public class SimplePluginBuilderTest {
   public void testCustomizeWorkerFactory() {
     AtomicBoolean customized = new AtomicBoolean(false);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .customizeWorkerFactory(
                 builder -> {
                   customized.set(true);
@@ -115,8 +115,8 @@ public class SimplePluginBuilderTest {
   public void testCustomizeWorker() {
     AtomicBoolean customized = new AtomicBoolean(false);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .customizeWorker(
                 builder -> {
                   customized.set(true);
@@ -135,8 +135,8 @@ public class SimplePluginBuilderTest {
   public void testMultipleCustomizers() {
     AtomicInteger callCount = new AtomicInteger(0);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .customizeClient(builder -> callCount.incrementAndGet())
             .customizeClient(builder -> callCount.incrementAndGet())
             .customizeClient(builder -> callCount.incrementAndGet())
@@ -152,8 +152,8 @@ public class SimplePluginBuilderTest {
   public void testAddWorkerInterceptors() {
     WorkerInterceptor interceptor = new WorkerInterceptorBase() {};
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test").addWorkerInterceptors(interceptor).build();
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").addWorkerInterceptors(interceptor).build();
 
     WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
     ((io.temporal.worker.WorkerPlugin) plugin).configureWorkerFactory(builder);
@@ -167,8 +167,8 @@ public class SimplePluginBuilderTest {
   public void testAddClientInterceptors() {
     WorkflowClientInterceptor interceptor = new WorkflowClientInterceptorBase() {};
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test").addClientInterceptors(interceptor).build();
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").addClientInterceptors(interceptor).build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
@@ -183,8 +183,8 @@ public class SimplePluginBuilderTest {
     WorkerInterceptor existingInterceptor = new WorkerInterceptorBase() {};
     WorkerInterceptor newInterceptor = new WorkerInterceptorBase() {};
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test").addWorkerInterceptors(newInterceptor).build();
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").addWorkerInterceptors(newInterceptor).build();
 
     WorkerFactoryOptions.Builder builder =
         WorkerFactoryOptions.newBuilder().setWorkerInterceptors(existingInterceptor);
@@ -201,8 +201,8 @@ public class SimplePluginBuilderTest {
     AtomicBoolean initialized = new AtomicBoolean(false);
     String[] capturedTaskQueue = {null};
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .initializeWorker(
                 (taskQueue, worker) -> {
                   initialized.set(true);
@@ -221,8 +221,8 @@ public class SimplePluginBuilderTest {
   public void testMultipleWorkerInitializers() {
     AtomicInteger callCount = new AtomicInteger(0);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
             .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
             .initializeWorker((taskQueue, worker) -> callCount.incrementAndGet())
@@ -235,7 +235,7 @@ public class SimplePluginBuilderTest {
 
   @Test(expected = NullPointerException.class)
   public void testNullInitializeWorker() {
-    SimplePluginBuilder.newBuilder("test").initializeWorker(null);
+    SimplePlugin.newBuilder("test").initializeWorker(null);
   }
 
   @Test
@@ -243,8 +243,8 @@ public class SimplePluginBuilderTest {
     AtomicBoolean started = new AtomicBoolean(false);
     String[] capturedTaskQueue = {null};
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .onWorkerStart(
                 (taskQueue, worker) -> {
                   started.set(true);
@@ -266,8 +266,8 @@ public class SimplePluginBuilderTest {
     AtomicBoolean shutdown = new AtomicBoolean(false);
     String[] capturedTaskQueue = {null};
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .onWorkerShutdown(
                 (taskQueue, worker) -> {
                   shutdown.set(true);
@@ -288,8 +288,8 @@ public class SimplePluginBuilderTest {
   public void testMultipleOnWorkerStartCallbacks() throws Exception {
     AtomicInteger callCount = new AtomicInteger(0);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
             .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
             .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
@@ -304,8 +304,8 @@ public class SimplePluginBuilderTest {
   public void testMultipleOnWorkerShutdownCallbacks() {
     AtomicInteger callCount = new AtomicInteger(0);
 
-    PluginBase plugin =
-        SimplePluginBuilder.newBuilder("test")
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
             .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
             .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
             .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
@@ -318,21 +318,21 @@ public class SimplePluginBuilderTest {
 
   @Test(expected = NullPointerException.class)
   public void testNullOnWorkerStart() {
-    SimplePluginBuilder.newBuilder("test").onWorkerStart(null);
+    SimplePlugin.newBuilder("test").onWorkerStart(null);
   }
 
   @Test(expected = NullPointerException.class)
   public void testNullOnWorkerShutdown() {
-    SimplePluginBuilder.newBuilder("test").onWorkerShutdown(null);
+    SimplePlugin.newBuilder("test").onWorkerShutdown(null);
   }
 
   @Test(expected = NullPointerException.class)
   public void testNullName() {
-    SimplePluginBuilder.newBuilder(null);
+    SimplePlugin.newBuilder(null);
   }
 
   @Test(expected = NullPointerException.class)
   public void testNullCustomizer() {
-    SimplePluginBuilder.newBuilder("test").customizeClient(null);
+    SimplePlugin.newBuilder("test").customizeClient(null);
   }
 }

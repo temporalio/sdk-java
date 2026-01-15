@@ -21,7 +21,7 @@
 package io.temporal.worker;
 
 import io.temporal.common.Experimental;
-import io.temporal.common.PluginBase;
+import io.temporal.common.SimplePlugin;
 import javax.annotation.Nonnull;
 
 /**
@@ -33,7 +33,7 @@ import javax.annotation.Nonnull;
  * <p>Example implementation:
  *
  * <pre>{@code
- * public class MetricsPlugin extends PluginBase {
+ * public class MetricsPlugin extends SimplePlugin {
  *     private final MetricsRegistry registry;
  *
  *     public MetricsPlugin(MetricsRegistry registry) {
@@ -60,7 +60,7 @@ import javax.annotation.Nonnull;
  * }</pre>
  *
  * @see io.temporal.client.ClientPlugin
- * @see PluginBase
+ * @see SimplePlugin
  */
 @Experimental
 public interface WorkerPlugin {

@@ -22,7 +22,7 @@ package io.temporal.client;
 
 import static org.junit.Assert.*;
 
-import io.temporal.common.PluginBase;
+import io.temporal.common.SimplePlugin;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
@@ -37,8 +37,8 @@ public class WorkflowClientOptionsPluginTest {
 
   @Test
   public void testSetPlugins() {
-    PluginBase plugin1 = new TestPlugin("plugin1");
-    PluginBase plugin2 = new TestPlugin("plugin2");
+    SimplePlugin plugin1 = new TestPlugin("plugin1");
+    SimplePlugin plugin2 = new TestPlugin("plugin2");
 
     WorkflowClientOptions options =
         WorkflowClientOptions.newBuilder().setPlugins(Arrays.asList(plugin1, plugin2)).build();
@@ -51,8 +51,8 @@ public class WorkflowClientOptionsPluginTest {
 
   @Test
   public void testAddPlugin() {
-    PluginBase plugin1 = new TestPlugin("plugin1");
-    PluginBase plugin2 = new TestPlugin("plugin2");
+    SimplePlugin plugin1 = new TestPlugin("plugin1");
+    SimplePlugin plugin2 = new TestPlugin("plugin2");
 
     WorkflowClientOptions options =
         WorkflowClientOptions.newBuilder().addPlugin(plugin1).addPlugin(plugin2).build();
@@ -66,7 +66,7 @@ public class WorkflowClientOptionsPluginTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testPluginsAreImmutable() {
-    PluginBase plugin = new TestPlugin("plugin");
+    SimplePlugin plugin = new TestPlugin("plugin");
 
     WorkflowClientOptions options = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
 
@@ -92,7 +92,7 @@ public class WorkflowClientOptionsPluginTest {
 
   @Test
   public void testToBuilder() {
-    PluginBase plugin = new TestPlugin("plugin");
+    SimplePlugin plugin = new TestPlugin("plugin");
 
     WorkflowClientOptions original = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
 
@@ -104,7 +104,7 @@ public class WorkflowClientOptionsPluginTest {
 
   @Test
   public void testValidateAndBuildWithDefaults() {
-    PluginBase plugin = new TestPlugin("plugin");
+    SimplePlugin plugin = new TestPlugin("plugin");
 
     WorkflowClientOptions options =
         WorkflowClientOptions.newBuilder().addPlugin(plugin).validateAndBuildWithDefaults();
@@ -115,7 +115,7 @@ public class WorkflowClientOptionsPluginTest {
 
   @Test
   public void testEqualsWithPlugins() {
-    PluginBase plugin = new TestPlugin("plugin");
+    SimplePlugin plugin = new TestPlugin("plugin");
 
     WorkflowClientOptions options1 = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
 
@@ -127,7 +127,7 @@ public class WorkflowClientOptionsPluginTest {
 
   @Test
   public void testToStringWithPlugins() {
-    PluginBase plugin = new TestPlugin("my-plugin");
+    SimplePlugin plugin = new TestPlugin("my-plugin");
 
     WorkflowClientOptions options = WorkflowClientOptions.newBuilder().addPlugin(plugin).build();
 
@@ -135,7 +135,7 @@ public class WorkflowClientOptionsPluginTest {
     assertTrue("toString should contain plugins", str.contains("plugins"));
   }
 
-  private static class TestPlugin extends PluginBase {
+  private static class TestPlugin extends SimplePlugin {
     TestPlugin(String name) {
       super(name);
     }

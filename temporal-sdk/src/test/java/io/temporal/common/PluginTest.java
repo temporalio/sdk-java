@@ -34,26 +34,20 @@ import org.junit.Test;
 public class PluginTest {
 
   @Test
-  public void testPluginBaseName() {
-    PluginBase plugin = new PluginBase("test-plugin") {
-          // empty implementation
-        };
+  public void testSimplePluginName() {
+    SimplePlugin plugin = new SimplePlugin("test-plugin") {};
     assertEquals("test-plugin", plugin.getName());
   }
 
   @Test
-  public void testPluginBaseToString() {
-    PluginBase plugin = new PluginBase("my-plugin") {
-          // empty implementation
-        };
+  public void testSimplePluginToString() {
+    SimplePlugin plugin = new SimplePlugin("my-plugin") {};
     assertTrue(plugin.toString().contains("my-plugin"));
   }
 
   @Test(expected = NullPointerException.class)
-  public void testPluginBaseNullName() {
-    new PluginBase(null) {
-      // empty implementation
-    };
+  public void testSimplePluginNullName() {
+    new SimplePlugin((String) null) {};
   }
 
   @Test
@@ -116,9 +110,9 @@ public class PluginTest {
   public void testConfigurationPhaseOrder() {
     List<String> order = new ArrayList<>();
 
-    PluginBase pluginA = createTrackingPlugin("A", order);
-    PluginBase pluginB = createTrackingPlugin("B", order);
-    PluginBase pluginC = createTrackingPlugin("C", order);
+    SimplePlugin pluginA = createTrackingPlugin("A", order);
+    SimplePlugin pluginB = createTrackingPlugin("B", order);
+    SimplePlugin pluginC = createTrackingPlugin("C", order);
 
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
@@ -138,9 +132,9 @@ public class PluginTest {
   public void testExecutionPhaseReverseOrder() throws Exception {
     List<String> order = new ArrayList<>();
 
-    PluginBase pluginA = createExecutionTrackingPlugin("A", order);
-    PluginBase pluginB = createExecutionTrackingPlugin("B", order);
-    PluginBase pluginC = createExecutionTrackingPlugin("C", order);
+    SimplePlugin pluginA = createExecutionTrackingPlugin("A", order);
+    SimplePlugin pluginB = createExecutionTrackingPlugin("B", order);
+    SimplePlugin pluginC = createExecutionTrackingPlugin("C", order);
 
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
@@ -184,9 +178,9 @@ public class PluginTest {
   public void testStartWorkerReverseOrder() throws Exception {
     List<String> order = new ArrayList<>();
 
-    PluginBase pluginA = createWorkerLifecycleTrackingPlugin("A", order);
-    PluginBase pluginB = createWorkerLifecycleTrackingPlugin("B", order);
-    PluginBase pluginC = createWorkerLifecycleTrackingPlugin("C", order);
+    SimplePlugin pluginA = createWorkerLifecycleTrackingPlugin("A", order);
+    SimplePlugin pluginB = createWorkerLifecycleTrackingPlugin("B", order);
+    SimplePlugin pluginC = createWorkerLifecycleTrackingPlugin("C", order);
 
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
@@ -232,9 +226,9 @@ public class PluginTest {
   public void testShutdownWorkerReverseOrder() {
     List<String> order = new ArrayList<>();
 
-    PluginBase pluginA = createWorkerLifecycleTrackingPlugin("A", order);
-    PluginBase pluginB = createWorkerLifecycleTrackingPlugin("B", order);
-    PluginBase pluginC = createWorkerLifecycleTrackingPlugin("C", order);
+    SimplePlugin pluginA = createWorkerLifecycleTrackingPlugin("A", order);
+    SimplePlugin pluginB = createWorkerLifecycleTrackingPlugin("B", order);
+    SimplePlugin pluginC = createWorkerLifecycleTrackingPlugin("C", order);
 
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
@@ -273,21 +267,19 @@ public class PluginTest {
   }
 
   @Test
-  public void testPluginBaseImplementsBothInterfaces() {
-    PluginBase plugin = new PluginBase("dual-plugin") {
-          // empty implementation
-        };
+  public void testSimplePluginImplementsBothInterfaces() {
+    SimplePlugin plugin = new SimplePlugin("dual-plugin") {};
 
     assertTrue(
-        "PluginBase should implement client Plugin",
+        "SimplePlugin should implement ClientPlugin",
         plugin instanceof io.temporal.client.ClientPlugin);
     assertTrue(
-        "PluginBase should implement worker Plugin",
+        "SimplePlugin should implement WorkerPlugin",
         plugin instanceof io.temporal.worker.WorkerPlugin);
   }
 
-  private PluginBase createTrackingPlugin(String name, List<String> order) {
-    return new PluginBase(name) {
+  private SimplePlugin createTrackingPlugin(String name, List<String> order) {
+    return new SimplePlugin(name) {
       @Override
       public WorkflowClientOptions.Builder configureClient(WorkflowClientOptions.Builder builder) {
         order.add(name + "-config");
@@ -296,8 +288,8 @@ public class PluginTest {
     };
   }
 
-  private PluginBase createExecutionTrackingPlugin(String name, List<String> order) {
-    return new PluginBase(name) {
+  private SimplePlugin createExecutionTrackingPlugin(String name, List<String> order) {
+    return new SimplePlugin(name) {
       @Override
       public void startWorkerFactory(io.temporal.worker.WorkerFactory factory, Runnable next) {
         next.run();
@@ -305,8 +297,8 @@ public class PluginTest {
     };
   }
 
-  private PluginBase createWorkerLifecycleTrackingPlugin(String name, List<String> order) {
-    return new PluginBase(name) {
+  private SimplePlugin createWorkerLifecycleTrackingPlugin(String name, List<String> order) {
+    return new SimplePlugin(name) {
       @Override
       public void startWorker(String taskQueue, io.temporal.worker.Worker worker, Runnable next) {
         next.run();

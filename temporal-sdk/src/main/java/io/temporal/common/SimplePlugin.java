@@ -1,0 +1,471 @@
+/*
+ * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this material except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.temporal.common;
+
+import io.temporal.client.ClientPlugin;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkerPlugin;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+
+/**
+ * A plugin that implements both {@link ClientPlugin} and {@link WorkerPlugin}. This class can be
+ * used in two ways:
+ *
+ * <ol>
+ *   <li><b>Builder pattern:</b> Use {@link #newBuilder(String)} to declaratively configure a plugin
+ *       with callbacks
+ *   <li><b>Subclassing:</b> Extend this class and override specific methods for custom behavior
+ * </ol>
+ *
+ * <h3>Builder Pattern Example</h3>
+ *
+ * <pre>{@code
+ * SimplePlugin myPlugin = SimplePlugin.newBuilder("my-plugin")
+ *     .addWorkerInterceptors(new TracingInterceptor())
+ *     .addClientInterceptors(new LoggingInterceptor())
+ *     .customizeClient(b -> b.setIdentity("custom-identity"))
+ *     .build();
+ * }</pre>
+ *
+ * <h3>Subclassing Example</h3>
+ *
+ * <pre>{@code
+ * public class TracingPlugin extends SimplePlugin {
+ *     private final Tracer tracer;
+ *
+ *     public TracingPlugin(Tracer tracer) {
+ *         super("io.temporal.tracing");
+ *         this.tracer = tracer;
+ *     }
+ *
+ *     @Override
+ *     public WorkflowClientOptions.Builder configureClient(
+ *             WorkflowClientOptions.Builder builder) {
+ *         return builder.setInterceptors(new TracingClientInterceptor(tracer));
+ *     }
+ * }
+ * }</pre>
+ *
+ * <h3>Hybrid Example (Builder + Override)</h3>
+ *
+ * <pre>{@code
+ * public class HybridPlugin extends SimplePlugin {
+ *     public HybridPlugin() {
+ *         super(SimplePlugin.newBuilder("hybrid")
+ *             .addClientInterceptors(new LoggingInterceptor()));
+ *     }
+ *
+ *     @Override
+ *     public void initializeWorker(String taskQueue, Worker worker) {
+ *         worker.registerWorkflowImplementationTypes(MyWorkflow.class);
+ *     }
+ * }
+ * }</pre>
+ *
+ * @see ClientPlugin
+ * @see WorkerPlugin
+ */
+@Experimental
+public class SimplePlugin implements ClientPlugin, WorkerPlugin {
+
+  private final String name;
+  private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers;
+  private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers;
+  private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers;
+  private final List<Consumer<WorkerOptions.Builder>> workerCustomizers;
+  private final List<BiConsumer<String, Worker>> workerInitializers;
+  private final List<BiConsumer<String, Worker>> workerStartCallbacks;
+  private final List<BiConsumer<String, Worker>> workerShutdownCallbacks;
+  private final List<WorkerInterceptor> workerInterceptors;
+  private final List<WorkflowClientInterceptor> clientInterceptors;
+  private final List<ContextPropagator> contextPropagators;
+
+  /**
+   * Creates a new plugin with the specified name. Use this constructor when subclassing to override
+   * specific methods.
+   *
+   * @param name a unique name for this plugin, used for logging and duplicate detection.
+   *     Recommended format: "organization.plugin-name" (e.g., "io.temporal.tracing")
+   * @throws NullPointerException if name is null
+   */
+  protected SimplePlugin(@Nonnull String name) {
+    this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
+    this.stubsCustomizers = Collections.emptyList();
+    this.clientCustomizers = Collections.emptyList();
+    this.factoryCustomizers = Collections.emptyList();
+    this.workerCustomizers = Collections.emptyList();
+    this.workerInitializers = Collections.emptyList();
+    this.workerStartCallbacks = Collections.emptyList();
+    this.workerShutdownCallbacks = Collections.emptyList();
+    this.workerInterceptors = Collections.emptyList();
+    this.clientInterceptors = Collections.emptyList();
+    this.contextPropagators = Collections.emptyList();
+  }
+
+  /**
+   * Creates a new plugin from a builder. Use this constructor when subclassing to combine builder
+   * configuration with method overrides.
+   *
+   * @param builder the builder with configuration
+   * @throws NullPointerException if builder is null
+   */
+  protected SimplePlugin(@Nonnull Builder builder) {
+    Objects.requireNonNull(builder, "Builder cannot be null");
+    this.name = builder.name;
+    this.stubsCustomizers = new ArrayList<>(builder.stubsCustomizers);
+    this.clientCustomizers = new ArrayList<>(builder.clientCustomizers);
+    this.factoryCustomizers = new ArrayList<>(builder.factoryCustomizers);
+    this.workerCustomizers = new ArrayList<>(builder.workerCustomizers);
+    this.workerInitializers = new ArrayList<>(builder.workerInitializers);
+    this.workerStartCallbacks = new ArrayList<>(builder.workerStartCallbacks);
+    this.workerShutdownCallbacks = new ArrayList<>(builder.workerShutdownCallbacks);
+    this.workerInterceptors = new ArrayList<>(builder.workerInterceptors);
+    this.clientInterceptors = new ArrayList<>(builder.clientInterceptors);
+    this.contextPropagators = new ArrayList<>(builder.contextPropagators);
+  }
+
+  /**
+   * Creates a new builder with the specified plugin name.
+   *
+   * @param name a unique name for the plugin, used for logging and duplicate detection. Recommended
+   *     format: "organization.plugin-name" (e.g., "my-org.tracing")
+   * @return a new builder instance
+   */
+  public static Builder newBuilder(@Nonnull String name) {
+    return new Builder(name);
+  }
+
+  @Override
+  @Nonnull
+  public String getName() {
+    return name;
+  }
+
+  @Override
+  @Nonnull
+  public WorkflowServiceStubsOptions.Builder configureServiceStubs(
+      @Nonnull WorkflowServiceStubsOptions.Builder builder) {
+    for (Consumer<WorkflowServiceStubsOptions.Builder> customizer : stubsCustomizers) {
+      customizer.accept(builder);
+    }
+    return builder;
+  }
+
+  @Override
+  @Nonnull
+  public WorkflowClientOptions.Builder configureClient(
+      @Nonnull WorkflowClientOptions.Builder builder) {
+    // Apply customizers
+    for (Consumer<WorkflowClientOptions.Builder> customizer : clientCustomizers) {
+      customizer.accept(builder);
+    }
+
+    // Add client interceptors
+    if (!clientInterceptors.isEmpty()) {
+      WorkflowClientInterceptor[] existing = builder.build().getInterceptors();
+      List<WorkflowClientInterceptor> combined =
+          new ArrayList<>(existing != null ? Arrays.asList(existing) : new ArrayList<>());
+      combined.addAll(clientInterceptors);
+      builder.setInterceptors(combined.toArray(new WorkflowClientInterceptor[0]));
+    }
+
+    // Add context propagators
+    if (!contextPropagators.isEmpty()) {
+      List<ContextPropagator> existing = builder.build().getContextPropagators();
+      List<ContextPropagator> combined =
+          new ArrayList<>(existing != null ? existing : new ArrayList<>());
+      combined.addAll(contextPropagators);
+      builder.setContextPropagators(combined);
+    }
+
+    return builder;
+  }
+
+  @Override
+  @Nonnull
+  public WorkerFactoryOptions.Builder configureWorkerFactory(
+      @Nonnull WorkerFactoryOptions.Builder builder) {
+    // Apply customizers
+    for (Consumer<WorkerFactoryOptions.Builder> customizer : factoryCustomizers) {
+      customizer.accept(builder);
+    }
+
+    // Add worker interceptors
+    if (!workerInterceptors.isEmpty()) {
+      WorkerInterceptor[] existing = builder.build().getWorkerInterceptors();
+      List<WorkerInterceptor> combined =
+          new ArrayList<>(existing != null ? Arrays.asList(existing) : new ArrayList<>());
+      combined.addAll(workerInterceptors);
+      builder.setWorkerInterceptors(combined.toArray(new WorkerInterceptor[0]));
+    }
+
+    return builder;
+  }
+
+  @Override
+  @Nonnull
+  public WorkerOptions.Builder configureWorker(
+      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
+    for (Consumer<WorkerOptions.Builder> customizer : workerCustomizers) {
+      customizer.accept(builder);
+    }
+    return builder;
+  }
+
+  @Override
+  public void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
+    for (BiConsumer<String, Worker> initializer : workerInitializers) {
+      initializer.accept(taskQueue, worker);
+    }
+  }
+
+  @Override
+  public void startWorker(@Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next)
+      throws Exception {
+    next.run();
+    for (BiConsumer<String, Worker> callback : workerStartCallbacks) {
+      callback.accept(taskQueue, worker);
+    }
+  }
+
+  @Override
+  public void shutdownWorker(
+      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
+    for (BiConsumer<String, Worker> callback : workerShutdownCallbacks) {
+      callback.accept(taskQueue, worker);
+    }
+    next.run();
+  }
+
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + "{name='" + name + "'}";
+  }
+
+  /** Builder for creating {@link SimplePlugin} instances with declarative configuration. */
+  public static final class Builder {
+
+    private final String name;
+    private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers =
+        new ArrayList<>();
+    private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers =
+        new ArrayList<>();
+    private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers =
+        new ArrayList<>();
+    private final List<Consumer<WorkerOptions.Builder>> workerCustomizers = new ArrayList<>();
+    private final List<BiConsumer<String, Worker>> workerInitializers = new ArrayList<>();
+    private final List<BiConsumer<String, Worker>> workerStartCallbacks = new ArrayList<>();
+    private final List<BiConsumer<String, Worker>> workerShutdownCallbacks = new ArrayList<>();
+    private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
+    private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
+    private final List<ContextPropagator> contextPropagators = new ArrayList<>();
+
+    private Builder(@Nonnull String name) {
+      this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
+    }
+
+    /**
+     * Adds a customizer for {@link WorkflowServiceStubsOptions}. Multiple customizers are applied
+     * in the order they are added.
+     *
+     * @param customizer a consumer that modifies the options builder
+     * @return this builder for chaining
+     */
+    public Builder customizeServiceStubs(
+        @Nonnull Consumer<WorkflowServiceStubsOptions.Builder> customizer) {
+      stubsCustomizers.add(Objects.requireNonNull(customizer));
+      return this;
+    }
+
+    /**
+     * Adds a customizer for {@link WorkflowClientOptions}. Multiple customizers are applied in the
+     * order they are added.
+     *
+     * @param customizer a consumer that modifies the options builder
+     * @return this builder for chaining
+     */
+    public Builder customizeClient(@Nonnull Consumer<WorkflowClientOptions.Builder> customizer) {
+      clientCustomizers.add(Objects.requireNonNull(customizer));
+      return this;
+    }
+
+    /**
+     * Adds a customizer for {@link WorkerFactoryOptions}. Multiple customizers are applied in the
+     * order they are added.
+     *
+     * @param customizer a consumer that modifies the options builder
+     * @return this builder for chaining
+     */
+    public Builder customizeWorkerFactory(
+        @Nonnull Consumer<WorkerFactoryOptions.Builder> customizer) {
+      factoryCustomizers.add(Objects.requireNonNull(customizer));
+      return this;
+    }
+
+    /**
+     * Adds a customizer for {@link WorkerOptions}. Multiple customizers are applied in the order
+     * they are added. The customizer is applied to all workers created by the factory.
+     *
+     * @param customizer a consumer that modifies the options builder
+     * @return this builder for chaining
+     */
+    public Builder customizeWorker(@Nonnull Consumer<WorkerOptions.Builder> customizer) {
+      workerCustomizers.add(Objects.requireNonNull(customizer));
+      return this;
+    }
+
+    /**
+     * Adds an initializer that is called after a worker is created. This can be used to register
+     * workflows, activities, and Nexus services on the worker.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .initializeWorker((taskQueue, worker) -> {
+     *         worker.registerWorkflowImplementationTypes(MyWorkflow.class);
+     *         worker.registerActivitiesImplementations(new MyActivityImpl());
+     *     })
+     *     .build();
+     * }</pre>
+     *
+     * @param initializer a consumer that receives the task queue name and worker
+     * @return this builder for chaining
+     */
+    public Builder initializeWorker(@Nonnull BiConsumer<String, Worker> initializer) {
+      workerInitializers.add(Objects.requireNonNull(initializer));
+      return this;
+    }
+
+    /**
+     * Adds a callback that is invoked when a worker starts. This can be used to start per-worker
+     * resources or record metrics.
+     *
+     * <p>Note: For registering workflows and activities, use {@link #initializeWorker} instead, as
+     * registrations must happen before the worker starts polling.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .onWorkerStart((taskQueue, worker) -> {
+     *         logger.info("Worker started for task queue: {}", taskQueue);
+     *         perWorkerResources.put(taskQueue, new ResourcePool());
+     *     })
+     *     .build();
+     * }</pre>
+     *
+     * @param callback a consumer that receives the task queue name and worker when the worker
+     *     starts
+     * @return this builder for chaining
+     */
+    public Builder onWorkerStart(@Nonnull BiConsumer<String, Worker> callback) {
+      workerStartCallbacks.add(Objects.requireNonNull(callback));
+      return this;
+    }
+
+    /**
+     * Adds a callback that is invoked when a worker shuts down. This can be used to clean up
+     * per-worker resources initialized in {@link #initializeWorker} or {@link #onWorkerStart}.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .onWorkerShutdown((taskQueue, worker) -> {
+     *         logger.info("Worker shutting down for task queue: {}", taskQueue);
+     *         ResourcePool pool = perWorkerResources.remove(taskQueue);
+     *         if (pool != null) {
+     *             pool.close();
+     *         }
+     *     })
+     *     .build();
+     * }</pre>
+     *
+     * @param callback a consumer that receives the task queue name and worker when the worker shuts
+     *     down
+     * @return this builder for chaining
+     */
+    public Builder onWorkerShutdown(@Nonnull BiConsumer<String, Worker> callback) {
+      workerShutdownCallbacks.add(Objects.requireNonNull(callback));
+      return this;
+    }
+
+    /**
+     * Adds worker interceptors. Interceptors are appended to any existing interceptors in the
+     * configuration.
+     *
+     * @param interceptors the interceptors to add
+     * @return this builder for chaining
+     */
+    public Builder addWorkerInterceptors(WorkerInterceptor... interceptors) {
+      workerInterceptors.addAll(Arrays.asList(interceptors));
+      return this;
+    }
+
+    /**
+     * Adds client interceptors. Interceptors are appended to any existing interceptors in the
+     * configuration.
+     *
+     * @param interceptors the interceptors to add
+     * @return this builder for chaining
+     */
+    public Builder addClientInterceptors(WorkflowClientInterceptor... interceptors) {
+      clientInterceptors.addAll(Arrays.asList(interceptors));
+      return this;
+    }
+
+    /**
+     * Adds context propagators. Propagators are appended to any existing propagators in the
+     * configuration.
+     *
+     * @param propagators the propagators to add
+     * @return this builder for chaining
+     */
+    public Builder addContextPropagators(ContextPropagator... propagators) {
+      contextPropagators.addAll(Arrays.asList(propagators));
+      return this;
+    }
+
+    /**
+     * Builds the plugin with the configured settings.
+     *
+     * @return a new plugin instance
+     */
+    public SimplePlugin build() {
+      return new SimplePlugin(this);
+    }
+  }
+}

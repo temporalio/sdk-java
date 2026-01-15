@@ -21,7 +21,7 @@
 package io.temporal.client;
 
 import io.temporal.common.Experimental;
-import io.temporal.common.PluginBase;
+import io.temporal.common.SimplePlugin;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs.ClientPluginCallback;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -41,7 +41,7 @@ import javax.annotation.Nonnull;
  * <p>Example implementation:
  *
  * <pre>{@code
- * public class LoggingPlugin extends PluginBase {
+ * public class LoggingPlugin extends SimplePlugin {
  *     public LoggingPlugin() {
  *         super("my-org.logging");
  *     }
@@ -66,7 +66,7 @@ import javax.annotation.Nonnull;
  * }</pre>
  *
  * @see io.temporal.worker.WorkerPlugin
- * @see PluginBase
+ * @see SimplePlugin
  */
 @Experimental
 public interface ClientPlugin extends ClientPluginCallback {
