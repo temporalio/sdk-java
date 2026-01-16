@@ -305,6 +305,17 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.plugins);
     }
 
+    /**
+     * Validates options and builds with defaults applied.
+     *
+     * <p>Note: If plugins are configured via {@link #setPlugins(WorkflowServiceStubsPlugin...)},
+     * they will have an opportunity to modify options after this method is called, when the options
+     * are passed to {@link WorkflowServiceStubs#newServiceStubs(WorkflowServiceStubsOptions)}. This
+     * means validation performed here occurs before plugin modifications. In most cases, users
+     * should simply call {@link #build()} and let the service stubs creation handle validation.
+     *
+     * @return validated options with defaults applied
+     */
     public WorkflowServiceStubsOptions validateAndBuildWithDefaults() {
       ServiceStubsOptions serviceStubsOptions = super.validateAndBuildWithDefaults();
       RpcRetryOptions retryOptions =

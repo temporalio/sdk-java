@@ -168,6 +168,17 @@ public class WorkerFactoryOptions {
           false);
     }
 
+    /**
+     * Validates options and builds with defaults applied.
+     *
+     * <p>Note: If plugins are configured via {@link #setPlugins(WorkerPlugin...)}, they will have
+     * an opportunity to modify options after this method is called, when the options are passed to
+     * {@link WorkerFactory#newInstance}. This means validation performed here occurs before plugin
+     * modifications. In most cases, users should simply call {@link #build()} and let the factory
+     * creation handle validation.
+     *
+     * @return validated options with defaults applied
+     */
     public WorkerFactoryOptions validateAndBuildWithDefaults() {
       return new WorkerFactoryOptions(
           workflowCacheSize,

@@ -165,6 +165,17 @@ public final class WorkflowClientOptions {
           plugins == null ? EMPTY_PLUGINS : plugins);
     }
 
+    /**
+     * Validates options and builds with defaults applied.
+     *
+     * <p>Note: If plugins are configured via {@link #setPlugins(WorkflowClientPlugin...)}, they
+     * will have an opportunity to modify options after this method is called, when the options are
+     * passed to {@link WorkflowClient#newInstance}. This means validation performed here occurs
+     * before plugin modifications. In most cases, users should simply call {@link #build()} and let
+     * the client creation handle validation.
+     *
+     * @return validated options with defaults applied
+     */
     public WorkflowClientOptions validateAndBuildWithDefaults() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new WorkflowClientOptions(
