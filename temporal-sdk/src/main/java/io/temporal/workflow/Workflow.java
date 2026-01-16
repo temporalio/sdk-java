@@ -634,7 +634,7 @@ public final class Workflow {
    * Block current workflow thread until unblockCondition is evaluated to true or timeout passes.
    *
    * @param timeout time to unblock even if unblockCondition is not satisfied.
-   * @param reason reason for the await, used for debugging, stack traces, and timer summary
+   * @param timerSummary summary for the timer created by this await, used in workflow history
    * @param unblockCondition condition that should return true to indicate that thread should
    *     unblock. The condition is called on every state transition, so it should not contain any
    *     code that mutates any workflow state. It should also not contain any time based conditions.
@@ -644,10 +644,11 @@ public final class Workflow {
    * @see Async#await(Duration, String, java.util.function.Supplier) for a non-blocking version that
    *     returns a Promise
    */
-  public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+  public static boolean await(
+      Duration timeout, String timerSummary, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.awaitAsync(
             timeout,
-            reason,
+            timerSummary,
             () -> {
               CancellationScope.throwCanceled();
               return unblockCondition.get();

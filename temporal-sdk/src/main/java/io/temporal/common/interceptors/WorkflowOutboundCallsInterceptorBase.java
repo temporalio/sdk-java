@@ -76,14 +76,14 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
-    return next.awaitAsync(reason, unblockCondition);
+  public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
+    return next.awaitAsync(unblockCondition);
   }
 
   @Override
   public Promise<Boolean> awaitAsync(
-      Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
-    return next.awaitAsync(timeout, reason, unblockCondition);
+      Duration timeout, String timerSummary, Supplier<Boolean> unblockCondition) {
+    return next.awaitAsync(timeout, timerSummary, unblockCondition);
   }
 
   @Override

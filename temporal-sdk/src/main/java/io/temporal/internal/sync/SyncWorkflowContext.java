@@ -1332,7 +1332,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   @Override
-  public Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
+  public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
     CompletablePromise<Void> result = Workflow.newPromise();
 
     // Wrap condition to handle exceptions and promise completion.
@@ -1353,7 +1353,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     // Create a repeatable thread that evaluates the condition.
     // The thread runs in its own workflow thread context.
-    WorkflowThread conditionThread = runner.newRepeatableThread(wrappedCondition, false, reason);
+    WorkflowThread conditionThread =
+        runner.newRepeatableThread(wrappedCondition, false, "awaitAsync");
 
     // Handle cancellation from enclosing scope
     CancellationScope.current()
@@ -1372,11 +1373,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public Promise<Boolean> awaitAsync(
-      Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+      Duration timeout, String timerSummary, Supplier<Boolean> unblockCondition) {
     CompletablePromise<Boolean> result = Workflow.newPromise();
 
-    // Create timer options with reason as summary
-    TimerOptions timerOptions = TimerOptions.newBuilder().setSummary(reason).build();
+    // Create timer options with timerSummary
+    TimerOptions timerOptions = TimerOptions.newBuilder().setSummary(timerSummary).build();
 
     // Create timer in a detached scope so we can cancel it when condition is met
     CompletablePromise<Void> timerPromise = Workflow.newPromise();
@@ -1409,7 +1410,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     // Create a repeatable thread that evaluates the condition.
     // The thread runs in its own workflow thread context.
-    WorkflowThread conditionThread = runner.newRepeatableThread(wrappedCondition, false, reason);
+    WorkflowThread conditionThread =
+        runner.newRepeatableThread(wrappedCondition, false, "awaitAsync");
 
     // Handle cancellation from enclosing scope
     CancellationScope.current()

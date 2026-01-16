@@ -520,15 +520,15 @@ public final class WorkflowInternal {
             });
   }
 
-  public static Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
+  public static Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
     assertNotReadOnly("awaitAsync");
-    return getWorkflowOutboundInterceptor().awaitAsync(reason, unblockCondition);
+    return getWorkflowOutboundInterceptor().awaitAsync(unblockCondition);
   }
 
   public static Promise<Boolean> awaitAsync(
-      Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+      Duration timeout, String timerSummary, Supplier<Boolean> unblockCondition) {
     assertNotReadOnly("awaitAsync");
-    return getWorkflowOutboundInterceptor().awaitAsync(timeout, reason, unblockCondition);
+    return getWorkflowOutboundInterceptor().awaitAsync(timeout, timerSummary, unblockCondition);
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
