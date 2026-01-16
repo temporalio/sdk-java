@@ -61,6 +61,9 @@ class RepeatableWorkflowThread implements WorkflowThread {
   /** Counter for naming internal threads. */
   private int evaluationCount = 0;
 
+  /** Cached cancellation promise, following the pattern from CancellationScopeImpl. */
+  private io.temporal.workflow.CompletablePromise<String> cancellationPromise;
+
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowContext syncWorkflowContext;
   private final DeterministicRunnerImpl runner;
@@ -201,6 +204,9 @@ class RepeatableWorkflowThread implements WorkflowThread {
   public void cancel(String reason) {
     cancelRequested = true;
     cancellationReason = reason;
+    if (cancellationPromise != null && !cancellationPromise.isCompleted()) {
+      cancellationPromise.complete(reason);
+    }
     if (currentEvaluationThread != null) {
       currentEvaluationThread.cancel(reason);
     }
@@ -241,12 +247,13 @@ class RepeatableWorkflowThread implements WorkflowThread {
     if (currentEvaluationThread != null) {
       return currentEvaluationThread.getCancellationRequest();
     }
-    io.temporal.workflow.CompletablePromise<String> promise =
-        io.temporal.workflow.Workflow.newPromise();
-    if (cancelRequested) {
-      promise.complete(cancellationReason);
+    if (cancellationPromise == null) {
+      cancellationPromise = io.temporal.workflow.Workflow.newPromise();
+      if (isCancelled()) {
+        cancellationPromise.complete(getEffectiveCancellationReason());
+      }
     }
-    return promise;
+    return cancellationPromise;
   }
 
   @Override
