@@ -110,16 +110,12 @@ class RepeatableWorkflowThread implements WorkflowThread {
 
     Runnable evaluationRunnable =
         () -> {
-          // Check cancellation at start of evaluation
-          // Check both our flag and the parent scope (which gets cancelled by the runner)
           if (isCancelled()) {
             throw new io.temporal.failure.CanceledFailure(getEffectiveCancellationReason());
           }
 
-          // Evaluate the condition - this may yield if condition calls await, activity, etc.
           boolean result = condition.get();
 
-          // Check cancellation after evaluation (in case it was requested during)
           if (isCancelled()) {
             throw new io.temporal.failure.CanceledFailure(getEffectiveCancellationReason());
           }
@@ -145,49 +141,40 @@ class RepeatableWorkflowThread implements WorkflowThread {
 
   @Override
   public boolean runUntilBlocked(long deadlockDetectionTimeoutMs) {
-    // Already done - no more work
     if (isDone()) {
       return false;
     }
 
-    // If no current thread, or current thread completed, create a new one
     if (currentEvaluationThread == null || currentEvaluationThread.isDone()) {
       if (conditionSatisfied) {
-        return false; // Already done
+        return false;
       }
       currentEvaluationThread = createEvaluationThread();
     }
 
-    // Run the internal thread
     currentEvaluationThread.runUntilBlocked(deadlockDetectionTimeoutMs);
 
-    // Check for unhandled exception from the internal thread
     Throwable unhandledException = currentEvaluationThread.getUnhandledException();
     if (unhandledException != null) {
-      // Store exception for the runner to pick up via getUnhandledException()
       propagatedException = unhandledException;
-      // Return true to signal progress so the runner checks isDone() and finds the exception
       return true;
     }
 
-    // Return true ONLY when condition is satisfied.
-    // When condition returns false, we report no progress - this thread acts as "yielded",
-    // waiting for other threads to change state. This prevents the event loop from
-    // spinning indefinitely when conditions remain false.
+    // Return true ONLY when condition is satisfied. When condition returns false,
+    // report no progress so this thread acts as "yielded", allowing other threads
+    // to change state without spinning the event loop.
     return conditionSatisfied;
   }
 
   @Override
   public boolean isDone() {
-    // Done when condition is satisfied
     if (conditionSatisfied) {
       return true;
     }
-    // Done if there's an exception to propagate
     if (propagatedException != null) {
       return true;
     }
-    // Also done if cancelled (either directly or via parent scope) and current thread is done
+    // Cancelled and no running evaluation thread
     if (isCancelled() && (currentEvaluationThread == null || currentEvaluationThread.isDone())) {
       return true;
     }
@@ -196,11 +183,9 @@ class RepeatableWorkflowThread implements WorkflowThread {
 
   @Override
   public Throwable getUnhandledException() {
-    // Return the propagated exception if we have one
     if (propagatedException != null) {
       return propagatedException;
     }
-    // Otherwise check the current evaluation thread
     if (currentEvaluationThread != null) {
       return currentEvaluationThread.getUnhandledException();
     }
@@ -216,7 +201,6 @@ class RepeatableWorkflowThread implements WorkflowThread {
   public void cancel(String reason) {
     cancelRequested = true;
     cancellationReason = reason;
-    // Also cancel the current evaluation thread if it exists
     if (currentEvaluationThread != null) {
       currentEvaluationThread.cancel(reason);
     }
@@ -257,7 +241,6 @@ class RepeatableWorkflowThread implements WorkflowThread {
     if (currentEvaluationThread != null) {
       return currentEvaluationThread.getCancellationRequest();
     }
-    // Return a promise that completes if cancelled
     io.temporal.workflow.CompletablePromise<String> promise =
         io.temporal.workflow.Workflow.newPromise();
     if (cancelRequested) {

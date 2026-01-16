@@ -1335,8 +1335,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
     CompletablePromise<Void> result = Workflow.newPromise();
 
-    // Wrap condition to handle exceptions and promise completion.
-    // The condition must complete the promise before returning true.
     Supplier<Boolean> wrappedCondition =
         () -> {
           try {
@@ -1351,12 +1349,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           }
         };
 
-    // Create a repeatable thread that evaluates the condition.
-    // The thread runs in its own workflow thread context.
     WorkflowThread conditionThread =
         runner.newRepeatableThread(wrappedCondition, false, "awaitAsync");
 
-    // Handle cancellation from enclosing scope
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
@@ -1376,18 +1371,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       Duration timeout, String timerSummary, Supplier<Boolean> unblockCondition) {
     CompletablePromise<Boolean> result = Workflow.newPromise();
 
-    // Create timer options with timerSummary
     TimerOptions timerOptions = TimerOptions.newBuilder().setSummary(timerSummary).build();
 
-    // Create timer in a detached scope so we can cancel it when condition is met
+    // Detached scope allows cancelling the timer when condition is met
     CompletablePromise<Void> timerPromise = Workflow.newPromise();
     CancellationScope timerScope =
         Workflow.newDetachedCancellationScope(
             () -> timerPromise.completeFrom(newTimer(timeout, timerOptions)));
     timerScope.run();
 
-    // Wrap condition to check both timer and user condition.
-    // The repeatable thread evaluates this condition.
     Supplier<Boolean> wrappedCondition =
         () -> {
           try {
@@ -1408,12 +1400,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           }
         };
 
-    // Create a repeatable thread that evaluates the condition.
-    // The thread runs in its own workflow thread context.
     WorkflowThread conditionThread =
         runner.newRepeatableThread(wrappedCondition, false, "awaitAsync");
 
-    // Handle cancellation from enclosing scope
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
