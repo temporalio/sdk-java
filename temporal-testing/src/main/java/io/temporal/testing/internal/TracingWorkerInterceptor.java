@@ -234,28 +234,20 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
-    public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
+    public Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
       if (!WorkflowUnsafe.isReplaying()) {
-        trace.add("awaitAsync");
+        trace.add("awaitAsync " + reason);
       }
-      return next.awaitAsync(unblockCondition);
-    }
-
-    @Override
-    public Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition) {
-      if (!WorkflowUnsafe.isReplaying()) {
-        trace.add("awaitAsync " + timeout);
-      }
-      return next.awaitAsync(timeout, unblockCondition);
+      return next.awaitAsync(reason, unblockCondition);
     }
 
     @Override
     public Promise<Boolean> awaitAsync(
-        Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
+        Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
       if (!WorkflowUnsafe.isReplaying()) {
-        trace.add("awaitAsync " + timeout + " " + options);
+        trace.add("awaitAsync " + timeout + " " + reason);
       }
-      return next.awaitAsync(timeout, options, unblockCondition);
+      return next.awaitAsync(timeout, reason, unblockCondition);
     }
 
     @Override

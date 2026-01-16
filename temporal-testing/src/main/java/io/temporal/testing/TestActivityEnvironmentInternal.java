@@ -395,18 +395,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition) {
+    public Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public Promise<Boolean> awaitAsync(
-        Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
+        Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
       throw new UnsupportedOperationException("not implemented");
     }
 

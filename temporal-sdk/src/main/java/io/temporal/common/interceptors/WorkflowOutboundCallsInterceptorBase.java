@@ -2,7 +2,6 @@ package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.common.SearchAttributeUpdate;
-import io.temporal.workflow.AwaitOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.MutableSideEffectOptions;
 import io.temporal.workflow.Promise;
@@ -77,19 +76,14 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
-    return next.awaitAsync(unblockCondition);
-  }
-
-  @Override
-  public Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition) {
-    return next.awaitAsync(timeout, unblockCondition);
+  public Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
+    return next.awaitAsync(reason, unblockCondition);
   }
 
   @Override
   public Promise<Boolean> awaitAsync(
-      Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
-    return next.awaitAsync(timeout, options, unblockCondition);
+      Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+    return next.awaitAsync(timeout, reason, unblockCondition);
   }
 
   @Override

@@ -116,6 +116,24 @@ interface DeterministicRunner {
   WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name);
 
   /**
+   * Creates a new repeatable workflow thread that re-evaluates its condition on each
+   * runUntilBlocked() call. The thread completes when the condition returns true or when
+   * cancelled/destroyed.
+   *
+   * <p>This is used for async await where the condition can contain blocking operations like
+   * Workflow.await(), activity calls, etc. Unlike simple condition watchers, these conditions run
+   * in their own workflow thread context with full workflow capabilities.
+   *
+   * @param condition The condition to evaluate repeatedly. May contain blocking operations.
+   * @param detached Whether the thread is detached from parent cancellation scope
+   * @param name Optional name for the thread
+   * @return A new WorkflowThread that repeatedly evaluates the condition
+   */
+  @Nonnull
+  WorkflowThread newRepeatableThread(
+      Supplier<Boolean> condition, boolean detached, @Nullable String name);
+
+  /**
    * Retrieve data from runner locals. Returns 1. not found (an empty Optional) 2. found but null
    * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
    * value). The type nesting is because Java Optionals cannot understand "Some null" vs "None",

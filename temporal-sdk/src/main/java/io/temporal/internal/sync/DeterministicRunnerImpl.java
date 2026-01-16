@@ -527,6 +527,53 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   /**
+   * Creates a new repeatable workflow thread that re-evaluates its condition on each
+   * runUntilBlocked() call until the condition returns true.
+   *
+   * <p>IMPORTANT: The condition must be read-only (it observes state but must not modify it). This
+   * is because the condition may be evaluated multiple times per workflow task, and modifying state
+   * would cause non-determinism.
+   *
+   * <p>The thread reports progress only when the condition becomes true, ensuring the event loop
+   * doesn't spin indefinitely when conditions remain false.
+   *
+   * @param condition The read-only condition to evaluate repeatedly
+   * @param detached Whether the thread is detached from parent cancellation scope
+   * @param name Optional name for the thread
+   * @return A new WorkflowThread that repeatedly evaluates the condition
+   */
+  @Override
+  @Nonnull
+  public WorkflowThread newRepeatableThread(
+      Supplier<Boolean> condition, boolean detached, @Nullable String name) {
+    if (name == null) {
+      name =
+          "repeatable[" + workflowContext.getReplayContext().getWorkflowId() + "]-" + addedThreads;
+    }
+    if (rootWorkflowThread == null) {
+      throw new IllegalStateException(
+          "newRepeatableThread can be called only with existing root workflow thread");
+    }
+    checkWorkflowThreadOnly();
+    checkNotClosed();
+    WorkflowThread result =
+        new RepeatableWorkflowThread(
+            workflowThreadExecutor,
+            workflowContext,
+            this,
+            name,
+            WORKFLOW_THREAD_PRIORITY + (addedThreads++),
+            detached,
+            CancellationScopeImpl.current(),
+            condition,
+            cache,
+            getContextPropagators(),
+            getPropagatedContexts());
+    workflowThreadsToAdd.add(result);
+    return result;
+  }
+
+  /**
    * Executes before any other threads next time runUntilBlockedCalled. Must never be called from
    * any workflow threads.
    */

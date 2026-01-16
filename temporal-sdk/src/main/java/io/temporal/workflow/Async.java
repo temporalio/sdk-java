@@ -243,7 +243,23 @@ public final class Async {
    * @see Workflow#await(java.util.function.Supplier) for a blocking version
    */
   public static Promise<Void> await(java.util.function.Supplier<Boolean> unblockCondition) {
-    return WorkflowInternal.awaitAsync(unblockCondition);
+    return WorkflowInternal.awaitAsync("await", unblockCondition);
+  }
+
+  /**
+   * Asynchronously wait until unblockCondition evaluates to true.
+   *
+   * @param reason reason for the await, used for debugging and stack traces
+   * @param unblockCondition condition that should return true to indicate completion. The condition
+   *     is called on every state transition, so it should never call any blocking operations or
+   *     contain code that mutates workflow state.
+   * @return Promise that completes when the condition becomes true, or completes exceptionally with
+   *     CanceledFailure if the enclosing CancellationScope is canceled.
+   * @see Workflow#await(java.util.function.Supplier) for a blocking version
+   */
+  public static Promise<Void> await(
+      String reason, java.util.function.Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.awaitAsync(reason, unblockCondition);
   }
 
   /**
@@ -264,14 +280,14 @@ public final class Async {
    */
   public static Promise<Boolean> await(
       Duration timeout, java.util.function.Supplier<Boolean> unblockCondition) {
-    return WorkflowInternal.awaitAsync(timeout, unblockCondition);
+    return WorkflowInternal.awaitAsync(timeout, "await", unblockCondition);
   }
 
   /**
    * Asynchronously wait until unblockCondition evaluates to true or timeout expires.
    *
    * @param timeout maximum time to wait for the condition
-   * @param options options for the await operation, including timer summary
+   * @param reason reason for the await, used for debugging, stack traces, and timer summary
    * @param unblockCondition condition that should return true to indicate completion. The condition
    *     is called on every state transition, so it should never call any blocking operations or
    *     contain code that mutates workflow state.
@@ -282,13 +298,11 @@ public final class Async {
    *       <li>exceptionally with CanceledFailure if the enclosing CancellationScope is canceled
    *     </ul>
    *
-   * @see Workflow#await(Duration, AwaitOptions, java.util.function.Supplier) for a blocking version
+   * @see Workflow#await(Duration, java.util.function.Supplier) for a blocking version
    */
   public static Promise<Boolean> await(
-      Duration timeout,
-      AwaitOptions options,
-      java.util.function.Supplier<Boolean> unblockCondition) {
-    return WorkflowInternal.awaitAsync(timeout, options, unblockCondition);
+      Duration timeout, String reason, java.util.function.Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.awaitAsync(timeout, reason, unblockCondition);
   }
 
   /** Prohibits instantiation. */

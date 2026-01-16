@@ -383,10 +383,10 @@ public class AsyncAwaitTest {
     }
 
     private String testAwaitWithOptions() {
-      // Use Async.await with AwaitOptions to set a timer summary
-      AwaitOptions options = AwaitOptions.newBuilder().setTimerSummary(awaitTimerSummary).build();
+      // Use Async.await with reason parameter which is used as timer summary
       // Use a condition that will never be true, so it times out
-      Promise<Boolean> promise = Async.await(Duration.ofMillis(100), options, () -> false);
+      Promise<Boolean> promise =
+          Async.await(Duration.ofMillis(100), awaitTimerSummary, () -> false);
       boolean result = promise.get();
       return "await-with-options:" + result;
     }

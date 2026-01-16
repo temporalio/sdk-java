@@ -1,0 +1,476 @@
+package io.temporal.internal.sync;
+
+import com.google.common.base.Preconditions;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.NonIdempotentHandle;
+import io.temporal.internal.common.SdkFlag;
+import io.temporal.internal.context.ContextThreadLocal;
+import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.workflow.Functions;
+import io.temporal.workflow.Promise;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+/**
+ * Abstract base class for workflow thread implementations. This class extracts shared functionality
+ * from WorkflowThreadImpl to enable code reuse with other workflow thread implementations such as
+ * RepeatableWorkflowThread.
+ */
+abstract class WorkflowThreadBase implements WorkflowThread {
+
+  private static final Logger log = LoggerFactory.getLogger(WorkflowThreadBase.class);
+
+  /**
+   * Abstract base class for runnable wrappers that execute workflow thread logic. Uses the template
+   * method pattern where {@link #run()} provides the common execution flow and {@link
+   * #executeLogic()} is implemented by subclasses.
+   */
+  protected abstract class RunnableWrapperBase implements Runnable {
+
+    protected final WorkflowThreadContext threadContext;
+    // TODO: Move MDC injection logic into an interceptor as this context shouldn't be leaked
+    // to the WorkflowThreadBase
+    protected final ReplayWorkflowContext replayWorkflowContext;
+    protected String originalName;
+    protected String name;
+    protected final CancellationScopeImpl cancellationScope;
+    protected final List<ContextPropagator> contextPropagators;
+    protected final Map<String, Object> propagatedContexts;
+
+    protected RunnableWrapperBase(
+        WorkflowThreadContext threadContext,
+        ReplayWorkflowContext replayWorkflowContext,
+        String name,
+        boolean detached,
+        CancellationScopeImpl parent,
+        Runnable runnable,
+        List<ContextPropagator> contextPropagators,
+        Map<String, Object> propagatedContexts) {
+      this.threadContext = threadContext;
+      this.replayWorkflowContext = replayWorkflowContext;
+      this.name = name;
+      boolean deterministicCancellationScopeOrder =
+          replayWorkflowContext.checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+      this.cancellationScope =
+          new CancellationScopeImpl(
+              detached, deterministicCancellationScopeOrder, runnable, parent);
+      Preconditions.checkState(
+          context.getStatus() == Status.CREATED, "threadContext not in CREATED state");
+      this.contextPropagators = contextPropagators;
+      this.propagatedContexts = propagatedContexts;
+    }
+
+    /**
+     * Template method that provides the common execution flow for workflow threads. Subclasses
+     * implement {@link #executeLogic()} to define their specific behavior.
+     */
+    @Override
+    public final void run() {
+      Thread thread = Thread.currentThread();
+      originalName = thread.getName();
+      thread.setName(name);
+
+      threadContext.initializeCurrentThread(thread);
+      DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadBase.this);
+
+      MDC.put(LoggerTag.WORKFLOW_ID, replayWorkflowContext.getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, replayWorkflowContext.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, replayWorkflowContext.getRunId());
+      MDC.put(LoggerTag.TASK_QUEUE, replayWorkflowContext.getTaskQueue());
+      MDC.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
+
+      // Repopulate the context(s)
+      ContextThreadLocal.setContextPropagators(this.contextPropagators);
+      ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
+      try {
+        // initialYield blocks thread until the first runUntilBlocked is called.
+        // Otherwise, r starts executing without control of the sync.
+        threadContext.initialYield();
+        executeLogic();
+      } catch (DestroyWorkflowThreadError e) {
+        if (!threadContext.isDestroyRequested()) {
+          threadContext.setUnhandledException(e);
+        }
+      } catch (Error e) {
+        threadContext.setUnhandledException(e);
+      } catch (CanceledFailure e) {
+        if (!isCancelRequested()) {
+          threadContext.setUnhandledException(e);
+        }
+        if (log.isDebugEnabled()) {
+          log.debug(String.format("Workflow thread \"%s\" run canceled", name));
+        }
+      } catch (Throwable e) {
+        threadContext.setUnhandledException(e);
+      } finally {
+        DeterministicRunnerImpl.setCurrentThreadInternal(null);
+        threadContext.makeDone();
+        thread.setName(originalName);
+        MDC.clear();
+      }
+    }
+
+    /**
+     * Subclasses implement this method to define their specific execution logic. This is called
+     * after thread initialization and before cleanup.
+     */
+    protected abstract void executeLogic();
+
+    public String getName() {
+      return name;
+    }
+
+    StackTraceElement[] getStackTrace() {
+      @Nullable Thread thread = threadContext.getCurrentThread();
+      if (thread != null) {
+        return thread.getStackTrace();
+      }
+      return new StackTraceElement[0];
+    }
+
+    public void setName(String name) {
+      this.name = name;
+      @Nullable Thread thread = threadContext.getCurrentThread();
+      if (thread != null) {
+        thread.setName(name);
+      }
+    }
+  }
+
+  protected final WorkflowThreadExecutor workflowThreadExecutor;
+  protected final WorkflowThreadContext context;
+  protected final WorkflowExecutorCache cache;
+  protected final SyncWorkflowContext syncWorkflowContext;
+
+  protected final DeterministicRunnerImpl runner;
+  protected RunnableWrapperBase task;
+  protected final int priority;
+  protected Future<?> taskFuture;
+  protected final Map<WorkflowThreadLocalInternal<?>, Object> threadLocalMap = new HashMap<>();
+
+  protected WorkflowThreadBase(
+      WorkflowThreadExecutor workflowThreadExecutor,
+      SyncWorkflowContext syncWorkflowContext,
+      DeterministicRunnerImpl runner,
+      int priority,
+      WorkflowExecutorCache cache) {
+    this.workflowThreadExecutor = workflowThreadExecutor;
+    this.syncWorkflowContext = Preconditions.checkNotNull(syncWorkflowContext);
+    this.runner = runner;
+    this.context = new WorkflowThreadContext(runner.getLock());
+    this.cache = cache;
+    this.priority = priority;
+  }
+
+  /**
+   * Factory method for creating the task wrapper. Subclasses implement this to create their
+   * specific wrapper implementation.
+   *
+   * @param name Thread name
+   * @param detached Whether the thread is detached from parent cancellation scope
+   * @param parentCancellationScope Parent cancellation scope
+   * @param runnable The runnable to execute (may be null for some implementations)
+   * @param contextPropagators Context propagators
+   * @param propagatedContexts Propagated contexts
+   * @return A RunnableWrapperBase implementation
+   */
+  protected abstract RunnableWrapperBase createTaskWrapper(
+      @Nonnull String name,
+      boolean detached,
+      CancellationScopeImpl parentCancellationScope,
+      Runnable runnable,
+      List<ContextPropagator> contextPropagators,
+      Map<String, Object> propagatedContexts);
+
+  @Override
+  public void run() {
+    throw new UnsupportedOperationException("not used");
+  }
+
+  @Override
+  public boolean isDetached() {
+    return task.cancellationScope.isDetached();
+  }
+
+  @Override
+  public void cancel() {
+    task.cancellationScope.cancel();
+  }
+
+  @Override
+  public void cancel(String reason) {
+    task.cancellationScope.cancel(reason);
+  }
+
+  @Override
+  public String getCancellationReason() {
+    return task.cancellationScope.getCancellationReason();
+  }
+
+  @Override
+  public boolean isCancelRequested() {
+    return task.cancellationScope.isCancelRequested();
+  }
+
+  @Override
+  public Promise<String> getCancellationRequest() {
+    return task.cancellationScope.getCancellationRequest();
+  }
+
+  @Override
+  public void start() {
+    context.verifyAndStart();
+    while (true) {
+      try {
+        taskFuture = workflowThreadExecutor.submit(task);
+        return;
+      } catch (RejectedExecutionException e) {
+        if (cache != null) {
+          SyncWorkflowContext workflowContext = getWorkflowContext();
+          ReplayWorkflowContext replayContext = workflowContext.getReplayContext();
+          boolean evicted =
+              cache.evictAnyNotInProcessing(
+                  replayContext.getWorkflowExecution(), workflowContext.getMetricsScope());
+          if (!evicted) {
+            // Note here we need to throw error, not exception. Otherwise it will be
+            // translated to workflow execution exception and instead of failing the
+            // workflow task we will be failing the workflow.
+            throw new WorkflowRejectedExecutionError(e);
+          }
+        } else {
+          throw new WorkflowRejectedExecutionError(e);
+        }
+      }
+    }
+  }
+
+  @Override
+  public boolean isStarted() {
+    return context.getStatus() != Status.CREATED;
+  }
+
+  @Override
+  public WorkflowThreadContext getWorkflowThreadContext() {
+    return context;
+  }
+
+  @Override
+  public DeterministicRunnerImpl getRunner() {
+    return runner;
+  }
+
+  @Override
+  public SyncWorkflowContext getWorkflowContext() {
+    return syncWorkflowContext;
+  }
+
+  @Override
+  public void setName(String name) {
+    task.setName(name);
+  }
+
+  @Override
+  public String getName() {
+    return task.getName();
+  }
+
+  @Override
+  public long getId() {
+    return hashCode();
+  }
+
+  @Override
+  public int getPriority() {
+    return priority;
+  }
+
+  @Override
+  public boolean runUntilBlocked(long deadlockDetectionTimeoutMs) {
+    if (taskFuture == null) {
+      start();
+    }
+    return context.runUntilBlocked(deadlockDetectionTimeoutMs);
+  }
+
+  @Override
+  public NonIdempotentHandle lockDeadlockDetector() {
+    return context.lockDeadlockDetector();
+  }
+
+  @Override
+  public boolean isDone() {
+    return context.isDone();
+  }
+
+  @Override
+  public Throwable getUnhandledException() {
+    return context.getUnhandledException();
+  }
+
+  /**
+   * Evaluates function in the threadContext of the coroutine without unblocking it. Used to get
+   * current coroutine status, like stack trace.
+   *
+   * @param function Parameter is reason for current goroutine blockage.
+   */
+  public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
+    context.evaluateInCoroutineContext(function);
+  }
+
+  /**
+   * Interrupt coroutine by throwing DestroyWorkflowThreadError from an await method it is blocked
+   * on and return underlying Future to be waited on.
+   */
+  @Override
+  public Future<?> stopNow() {
+    // Cannot call destroy() on itself
+    @Nullable Thread thread = context.getCurrentThread();
+    if (Thread.currentThread().equals(thread)) {
+      throw new Error("Cannot call destroy on itself: " + thread.getName());
+    }
+    context.initiateDestroy();
+    if (taskFuture == null) {
+      return getCompletedFuture();
+    }
+    return taskFuture;
+  }
+
+  private Future<?> getCompletedFuture() {
+    CompletableFuture<String> f = new CompletableFuture<>();
+    f.complete("done");
+    return f;
+  }
+
+  @Override
+  public void addStackTrace(StringBuilder result) {
+    result.append(getName());
+    @Nullable Thread thread = context.getCurrentThread();
+    if (thread == null) {
+      result.append("(NEW)");
+      return;
+    }
+    result
+        .append(": (BLOCKED on ")
+        .append(getWorkflowThreadContext().getYieldReason())
+        .append(")\n");
+    // These numbers might change if implementation changes.
+    int omitTop = 5;
+    int omitBottom = 7;
+    // TODO it's not a good idea to rely on the name to understand the thread type. Instead of that
+    // we would better
+    // assign an explicit thread type enum to the threads. This will be especially important when we
+    // refactor
+    // root and workflow-method
+    // thread names into names that will include workflowId
+    if (DeterministicRunnerImpl.WORKFLOW_ROOT_THREAD_NAME.equals(getName())) {
+      // TODO revisit this number
+      omitBottom = 11;
+    } else if (getName().startsWith(WorkflowMethodThreadNameStrategy.WORKFLOW_MAIN_THREAD_PREFIX)) {
+      // TODO revisit this number
+      omitBottom = 11;
+    }
+    StackTraceElement[] stackTrace = thread.getStackTrace();
+    for (int i = omitTop; i < stackTrace.length - omitBottom; i++) {
+      StackTraceElement e = stackTrace[i];
+      if (i == omitTop && "await".equals(e.getMethodName())) continue;
+      result.append(e);
+      result.append("\n");
+    }
+  }
+
+  @Override
+  public void yield(String reason, Supplier<Boolean> unblockCondition) {
+    context.yield(reason, unblockCondition);
+  }
+
+  @Override
+  public void exitThread() {
+    runner.exit();
+    throw new DestroyWorkflowThreadError("exit");
+  }
+
+  @Override
+  public <T> void setThreadLocal(WorkflowThreadLocalInternal<T> key, T value) {
+    threadLocalMap.put(key, value);
+  }
+
+  /**
+   * Retrieve data from thread locals. Returns 1. not found (an empty Optional) 2. found but null
+   * (an Optional of an empty Optional) 3. found and non-null (an Optional of an Optional of a
+   * value). The type nesting is because Java Optionals cannot understand "Some null" vs "None",
+   * which is exactly what we need here.
+   *
+   * @param key
+   * @return one of three cases
+   * @param <T>
+   */
+  @SuppressWarnings("unchecked")
+  public <T> Optional<Optional<T>> getThreadLocal(WorkflowThreadLocalInternal<T> key) {
+    if (!threadLocalMap.containsKey(key)) {
+      return Optional.empty();
+    }
+    return Optional.of(Optional.ofNullable((T) threadLocalMap.get(key)));
+  }
+
+  /**
+   * @return stack trace of the coroutine thread
+   */
+  @Override
+  public String getStackTrace() {
+    StackTraceElement[] st = task.getStackTrace();
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    pw.append(task.getName());
+    pw.append("\n");
+    for (StackTraceElement se : st) {
+      pw.println("\tat " + se);
+    }
+    return sw.toString();
+  }
+
+  static class YieldWithTimeoutCondition implements Supplier<Boolean> {
+
+    private final Supplier<Boolean> unblockCondition;
+    private final long blockedUntil;
+    private boolean timedOut;
+
+    YieldWithTimeoutCondition(Supplier<Boolean> unblockCondition, long blockedUntil) {
+      this.unblockCondition = unblockCondition;
+      this.blockedUntil = blockedUntil;
+    }
+
+    boolean isTimedOut() {
+      return timedOut;
+    }
+
+    /**
+     * @return true if condition matched or timed out
+     */
+    @Override
+    public Boolean get() {
+      boolean result = unblockCondition.get();
+      if (result) {
+        return true;
+      }
+      long currentTimeMillis = WorkflowInternal.currentTimeMillis();
+      timedOut = currentTimeMillis >= blockedUntil;
+      return timedOut;
+    }
+  }
+}

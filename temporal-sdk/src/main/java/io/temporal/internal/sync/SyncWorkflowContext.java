@@ -1332,7 +1332,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   @Override
-  public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
+  public Promise<Void> awaitAsync(String reason, Supplier<Boolean> unblockCondition) {
     CompletablePromise<Void> result = Workflow.newPromise();
 
     // Wrap condition to handle exceptions and promise completion.
@@ -1351,7 +1351,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           }
         };
 
-    Runnable cancelWatcher = registerConditionWatcher(wrappedCondition);
+    // Create a repeatable thread that evaluates the condition.
+    // The thread runs in its own workflow thread context.
+    WorkflowThread conditionThread = runner.newRepeatableThread(wrappedCondition, false, reason);
 
     // Handle cancellation from enclosing scope
     CancellationScope.current()
@@ -1361,7 +1363,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               if (!result.isCompleted()) {
                 result.completeExceptionally(new CanceledFailure(r));
               }
-              cancelWatcher.run();
+              conditionThread.cancel(r);
               return r;
             });
 
@@ -1369,18 +1371,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   @Override
-  public Promise<Boolean> awaitAsync(Duration timeout, Supplier<Boolean> unblockCondition) {
-    return awaitAsync(timeout, AwaitOptions.getDefaultInstance(), unblockCondition);
-  }
-
-  @Override
   public Promise<Boolean> awaitAsync(
-      Duration timeout, AwaitOptions options, Supplier<Boolean> unblockCondition) {
+      Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
     CompletablePromise<Boolean> result = Workflow.newPromise();
 
-    // Create timer options with summary from AwaitOptions
-    TimerOptions timerOptions =
-        TimerOptions.newBuilder().setSummary(options.getTimerSummary()).build();
+    // Create timer options with reason as summary
+    TimerOptions timerOptions = TimerOptions.newBuilder().setSummary(reason).build();
 
     // Create timer in a detached scope so we can cancel it when condition is met
     CompletablePromise<Void> timerPromise = Workflow.newPromise();
@@ -1390,8 +1386,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     timerScope.run();
 
     // Wrap condition to check both timer and user condition.
-    // registerConditionWatcher evaluates this inline, so if condition is already true,
-    // it completes immediately without registering a watcher.
+    // The repeatable thread evaluates this condition.
     Supplier<Boolean> wrappedCondition =
         () -> {
           try {
@@ -1412,7 +1407,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           }
         };
 
-    Runnable cancelWatcher = registerConditionWatcher(wrappedCondition);
+    // Create a repeatable thread that evaluates the condition.
+    // The thread runs in its own workflow thread context.
+    WorkflowThread conditionThread = runner.newRepeatableThread(wrappedCondition, false, reason);
 
     // Handle cancellation from enclosing scope
     CancellationScope.current()
@@ -1423,7 +1420,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 result.completeExceptionally(new CanceledFailure(r));
               }
               timerScope.cancel();
-              cancelWatcher.run();
+              conditionThread.cancel(r);
               return r;
             });
 
