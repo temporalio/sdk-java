@@ -742,9 +742,10 @@ public class NexusWorkflowTest {
           "OPERATION_TIMEOUT should end with 'ms'", operationTimeoutHeader.endsWith("ms"));
       long operationTimeoutMs =
           Long.parseLong(operationTimeoutHeader.substring(0, operationTimeoutHeader.length() - 2));
-      // Should be <= schedule-to-start timeout (1 second = 1000ms)
+      // Should be <= schedule-to-close timeout (30 seconds = 30000ms)
+      // Note: schedule-to-start timeout is not reflected in the operation-timeout header
       Assert.assertTrue(
-          "OPERATION_TIMEOUT should be <= schedule-to-start timeout", operationTimeoutMs <= 1000);
+          "OPERATION_TIMEOUT should be <= schedule-to-close timeout", operationTimeoutMs <= 30000);
       Assert.assertTrue("OPERATION_TIMEOUT should be positive", operationTimeoutMs > 0);
 
       // Sleep longer than schedule-to-start timeout to trigger the timeout

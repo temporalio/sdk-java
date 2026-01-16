@@ -645,7 +645,8 @@ public class UpdateWithStartTest {
     }
   }
 
-  @SuppressWarnings("deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   @Test
   public void failServerSideWhenStartIsInvalid() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();

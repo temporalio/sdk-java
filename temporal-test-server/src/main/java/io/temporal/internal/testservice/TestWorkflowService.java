@@ -978,39 +978,27 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
         Timestamp scheduledTime = req.getScheduledTime();
         Timestamp currentTime = store.currentTime();
-        long elapsedSeconds = Timestamps.between(scheduledTime, currentTime).getSeconds();
-        long elapsedMillis = elapsedSeconds * 1000;
+        long elapsedMillis =
+            com.google.protobuf.util.Durations.toMillis(
+                Timestamps.between(scheduledTime, currentTime));
 
         // Calculate minimum of all applicable timeouts
         Long remainingMillis = null;
-
-        if (!isStarted && scheduledEvent.hasScheduleToStartTimeout()) {
-          long scheduleToStartMillis =
-              com.google.protobuf.util.Durations.toMillis(
-                  scheduledEvent.getScheduleToStartTimeout());
-          if (scheduleToStartMillis > 0) {
-            long remaining = scheduleToStartMillis - elapsedMillis;
-            remainingMillis =
-                (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
-          }
-        }
 
         if (scheduledEvent.hasStartToCloseTimeout()) {
           long startToCloseMillis =
               com.google.protobuf.util.Durations.toMillis(scheduledEvent.getStartToCloseTimeout());
           if (startToCloseMillis > 0) {
-            long remaining = startToCloseMillis - elapsedMillis;
-            remainingMillis =
-                (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
+            remainingMillis = startToCloseMillis;
           }
         }
-
         if (scheduledEvent.hasScheduleToCloseTimeout()) {
           long scheduleToCloseMillis =
               com.google.protobuf.util.Durations.toMillis(
                   scheduledEvent.getScheduleToCloseTimeout());
           if (scheduleToCloseMillis > 0) {
-            long remaining = scheduleToCloseMillis - elapsedMillis;
+            // Ensure the value is positive.
+            long remaining = Math.max(1, scheduleToCloseMillis - elapsedMillis);
             remainingMillis =
                 (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
           }
