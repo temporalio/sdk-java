@@ -105,7 +105,7 @@ import javax.annotation.Nonnull;
  * @see WorkerPlugin
  */
 @Experimental
-public class SimplePlugin
+public abstract class SimplePlugin
     implements WorkflowServiceStubsPlugin,
         WorkflowClientPlugin,
         ScheduleClientPlugin,
@@ -564,7 +564,14 @@ public class SimplePlugin
      * @return a new plugin instance
      */
     public SimplePlugin build() {
-      return new SimplePlugin(this);
+      return new SimplePluginImpl(this);
+    }
+  }
+
+  /** Private concrete implementation returned by the builder. */
+  private static final class SimplePluginImpl extends SimplePlugin {
+    SimplePluginImpl(Builder builder) {
+      super(builder);
     }
   }
 }
