@@ -76,5 +76,5 @@ public interface WorkflowClientPlugin {
    *
    * @param builder the options builder to modify
    */
-  void configureClient(@Nonnull WorkflowClientOptions.Builder builder);
+  void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder);
 }

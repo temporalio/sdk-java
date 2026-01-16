@@ -51,7 +51,7 @@ public class PluginPropagationTest {
                 })
             .customizeClient(
                 builder -> {
-                  callLog.add("configureClient");
+                  callLog.add("configureWorkflowClient");
                 })
             .customizeWorkerFactory(
                 builder -> {
@@ -82,8 +82,8 @@ public class PluginPropagationTest {
       assertTrue(
           "configureServiceStubs should be called", callLog.contains("configureServiceStubs"));
       assertTrue(
-          "configureClient should be called (propagated from service stubs)",
-          callLog.contains("configureClient"));
+          "configureWorkflowClient should be called (propagated from service stubs)",
+          callLog.contains("configureWorkflowClient"));
       assertTrue(
           "configureWorkerFactory should be called (propagated from client)",
           callLog.contains("configureWorkerFactory"));
@@ -96,7 +96,7 @@ public class PluginPropagationTest {
           "Configuration should happen in correct order",
           Arrays.asList(
               "configureServiceStubs",
-              "configureClient",
+              "configureWorkflowClient",
               "configureWorkerFactory",
               "configureWorker"),
           callLog);
@@ -118,7 +118,7 @@ public class PluginPropagationTest {
                 })
             .customizeClient(
                 builder -> {
-                  callLog.add("configureClient");
+                  callLog.add("configureWorkflowClient");
                 })
             .customizeWorkerFactory(
                 builder -> {
@@ -144,7 +144,8 @@ public class PluginPropagationTest {
           "configureServiceStubs should NOT be called", callLog.contains("configureServiceStubs"));
 
       // But client and worker factory should be called
-      assertTrue("configureClient should be called", callLog.contains("configureClient"));
+      assertTrue(
+          "configureWorkflowClient should be called", callLog.contains("configureWorkflowClient"));
       assertTrue(
           "configureWorkerFactory should be called", callLog.contains("configureWorkerFactory"));
     } finally {
@@ -159,13 +160,13 @@ public class PluginPropagationTest {
     // Plugin set on service stubs
     SimplePlugin stubsPlugin =
         SimplePlugin.newBuilder("stubs-plugin")
-            .customizeClient(builder -> callLog.add("stubs-plugin-configureClient"))
+            .customizeClient(builder -> callLog.add("stubs-plugin-configureWorkflowClient"))
             .build();
 
     // Different plugin set on client
     SimplePlugin clientPlugin =
         SimplePlugin.newBuilder("client-plugin")
-            .customizeClient(builder -> callLog.add("client-plugin-configureClient"))
+            .customizeClient(builder -> callLog.add("client-plugin-configureWorkflowClient"))
             .build();
 
     WorkflowServiceStubsOptions stubsOptions =
@@ -186,11 +187,12 @@ public class PluginPropagationTest {
 
     TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(testOptions);
     try {
-      // Both plugins should have their configureClient called
+      // Both plugins should have their configureWorkflowClient called
       // Propagated plugins come first, then explicit client plugins
       assertEquals(
           "Both plugins should be called in correct order",
-          Arrays.asList("stubs-plugin-configureClient", "client-plugin-configureClient"),
+          Arrays.asList(
+              "stubs-plugin-configureWorkflowClient", "client-plugin-configureWorkflowClient"),
           callLog);
     } finally {
       env.close();

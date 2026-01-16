@@ -794,7 +794,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
       return;
     }
     for (WorkflowClientPlugin plugin : plugins) {
-      plugin.configureClient(builder);
+      plugin.configureWorkflowClient(builder);
     }
   }
 

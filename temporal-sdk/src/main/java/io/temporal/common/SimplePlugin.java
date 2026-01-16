@@ -22,6 +22,8 @@ package io.temporal.common;
 
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
+import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -44,8 +46,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 /**
- * A plugin that implements {@link WorkflowServiceStubsPlugin}, {@link WorkflowClientPlugin}, and
- * {@link WorkerPlugin}. This class can be used in two ways:
+ * A plugin that implements {@link WorkflowServiceStubsPlugin}, {@link WorkflowClientPlugin}, {@link
+ * ScheduleClientPlugin}, and {@link WorkerPlugin}. This class can be used in two ways:
  *
  * <ol>
  *   <li><b>Builder pattern:</b> Use {@link #newBuilder(String)} to declaratively configure a plugin
@@ -75,7 +77,7 @@ import javax.annotation.Nonnull;
  *     }
  *
  *     @Override
- *     public void configureClient(WorkflowClientOptions.Builder builder) {
+ *     public void configureWorkflowClient(WorkflowClientOptions.Builder builder) {
  *         builder.setInterceptors(new TracingClientInterceptor(tracer));
  *     }
  * }
@@ -99,15 +101,20 @@ import javax.annotation.Nonnull;
  *
  * @see WorkflowServiceStubsPlugin
  * @see WorkflowClientPlugin
+ * @see ScheduleClientPlugin
  * @see WorkerPlugin
  */
 @Experimental
 public class SimplePlugin
-    implements WorkflowServiceStubsPlugin, WorkflowClientPlugin, WorkerPlugin {
+    implements WorkflowServiceStubsPlugin,
+        WorkflowClientPlugin,
+        ScheduleClientPlugin,
+        WorkerPlugin {
 
   private final String name;
   private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers;
   private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers;
+  private final List<Consumer<ScheduleClientOptions.Builder>> scheduleCustomizers;
   private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers;
   private final List<Consumer<WorkerOptions.Builder>> workerCustomizers;
   private final List<BiConsumer<String, Worker>> workerInitializers;
@@ -131,6 +138,7 @@ public class SimplePlugin
     this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
     this.stubsCustomizers = Collections.emptyList();
     this.clientCustomizers = Collections.emptyList();
+    this.scheduleCustomizers = Collections.emptyList();
     this.factoryCustomizers = Collections.emptyList();
     this.workerCustomizers = Collections.emptyList();
     this.workerInitializers = Collections.emptyList();
@@ -155,6 +163,7 @@ public class SimplePlugin
     this.name = builder.name;
     this.stubsCustomizers = new ArrayList<>(builder.stubsCustomizers);
     this.clientCustomizers = new ArrayList<>(builder.clientCustomizers);
+    this.scheduleCustomizers = new ArrayList<>(builder.scheduleCustomizers);
     this.factoryCustomizers = new ArrayList<>(builder.factoryCustomizers);
     this.workerCustomizers = new ArrayList<>(builder.workerCustomizers);
     this.workerInitializers = new ArrayList<>(builder.workerInitializers);
@@ -192,7 +201,7 @@ public class SimplePlugin
   }
 
   @Override
-  public void configureClient(@Nonnull WorkflowClientOptions.Builder builder) {
+  public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
     // Apply customizers
     for (Consumer<WorkflowClientOptions.Builder> customizer : clientCustomizers) {
       customizer.accept(builder);
@@ -214,6 +223,14 @@ public class SimplePlugin
           new ArrayList<>(existing != null ? existing : new ArrayList<>());
       combined.addAll(contextPropagators);
       builder.setContextPropagators(combined);
+    }
+  }
+
+  @Override
+  public void configureScheduleClient(@Nonnull ScheduleClientOptions.Builder builder) {
+    // Apply customizers
+    for (Consumer<ScheduleClientOptions.Builder> customizer : scheduleCustomizers) {
+      customizer.accept(builder);
     }
   }
 
@@ -301,6 +318,8 @@ public class SimplePlugin
         new ArrayList<>();
     private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers =
         new ArrayList<>();
+    private final List<Consumer<ScheduleClientOptions.Builder>> scheduleCustomizers =
+        new ArrayList<>();
     private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers =
         new ArrayList<>();
     private final List<Consumer<WorkerOptions.Builder>> workerCustomizers = new ArrayList<>();
@@ -339,6 +358,19 @@ public class SimplePlugin
      */
     public Builder customizeClient(@Nonnull Consumer<WorkflowClientOptions.Builder> customizer) {
       clientCustomizers.add(Objects.requireNonNull(customizer));
+      return this;
+    }
+
+    /**
+     * Adds a customizer for {@link ScheduleClientOptions}. Multiple customizers are applied in the
+     * order they are added.
+     *
+     * @param customizer a consumer that modifies the options builder
+     * @return this builder for chaining
+     */
+    public Builder customizeScheduleClient(
+        @Nonnull Consumer<ScheduleClientOptions.Builder> customizer) {
+      scheduleCustomizers.add(Objects.requireNonNull(customizer));
       return this;
     }
 

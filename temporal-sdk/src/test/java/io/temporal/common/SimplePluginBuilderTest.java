@@ -86,7 +86,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
 
     assertTrue("Customizer should have been called", customized.get());
     assertEquals("custom-identity", builder.build().getIdentity());
@@ -144,7 +144,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
 
     assertEquals("All customizers should be called", 3, callCount.get());
   }
@@ -172,7 +172,7 @@ public class SimplePluginBuilderTest {
         SimplePlugin.newBuilder("test").addClientInterceptors(interceptor).build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
 
     WorkflowClientInterceptor[] interceptors = builder.build().getInterceptors();
     assertEquals(1, interceptors.length);

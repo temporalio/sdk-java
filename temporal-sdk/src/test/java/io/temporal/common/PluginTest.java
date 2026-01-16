@@ -58,9 +58,9 @@ public class PluginTest {
     WorkflowServiceStubsOptions.Builder stubsBuilder = WorkflowServiceStubsOptions.newBuilder();
     plugin.configureServiceStubs(stubsBuilder);
 
-    // Test configureClient doesn't throw (no customizers)
+    // Test configureWorkflowClient doesn't throw (no customizers)
     WorkflowClientOptions.Builder clientBuilder = WorkflowClientOptions.newBuilder();
-    plugin.configureClient(clientBuilder);
+    plugin.configureWorkflowClient(clientBuilder);
 
     // Test configureWorkerFactory doesn't throw (no customizers)
     WorkerFactoryOptions.Builder factoryBuilder = WorkerFactoryOptions.newBuilder();
@@ -108,7 +108,7 @@ public class PluginTest {
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     for (Object plugin : plugins) {
       if (plugin instanceof io.temporal.client.WorkflowClientPlugin) {
-        ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
+        ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
       }
     }
 
@@ -272,7 +272,7 @@ public class PluginTest {
   private SimplePlugin createTrackingPlugin(String name, List<String> order) {
     return new SimplePlugin(name) {
       @Override
-      public void configureClient(WorkflowClientOptions.Builder builder) {
+      public void configureWorkflowClient(WorkflowClientOptions.Builder builder) {
         order.add(name + "-config");
       }
     };
