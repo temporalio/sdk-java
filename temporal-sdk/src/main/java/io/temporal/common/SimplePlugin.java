@@ -25,6 +25,7 @@ import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -125,6 +126,10 @@ public abstract class SimplePlugin
   private final List<WorkerInterceptor> workerInterceptors;
   private final List<WorkflowClientInterceptor> clientInterceptors;
   private final List<ContextPropagator> contextPropagators;
+  private final DataConverter dataConverter;
+  private final List<Class<?>> workflowImplementationTypes;
+  private final List<Object> activitiesImplementations;
+  private final List<Object> nexusServiceImplementations;
 
   /**
    * Creates a new plugin with the specified name. Use this constructor when subclassing to override
@@ -149,6 +154,10 @@ public abstract class SimplePlugin
     this.workerInterceptors = Collections.emptyList();
     this.clientInterceptors = Collections.emptyList();
     this.contextPropagators = Collections.emptyList();
+    this.dataConverter = null;
+    this.workflowImplementationTypes = Collections.emptyList();
+    this.activitiesImplementations = Collections.emptyList();
+    this.nexusServiceImplementations = Collections.emptyList();
   }
 
   /**
@@ -174,6 +183,10 @@ public abstract class SimplePlugin
     this.workerInterceptors = new ArrayList<>(builder.workerInterceptors);
     this.clientInterceptors = new ArrayList<>(builder.clientInterceptors);
     this.contextPropagators = new ArrayList<>(builder.contextPropagators);
+    this.dataConverter = builder.dataConverter;
+    this.workflowImplementationTypes = new ArrayList<>(builder.workflowImplementationTypes);
+    this.activitiesImplementations = new ArrayList<>(builder.activitiesImplementations);
+    this.nexusServiceImplementations = new ArrayList<>(builder.nexusServiceImplementations);
   }
 
   /**
@@ -205,6 +218,11 @@ public abstract class SimplePlugin
     // Apply customizers
     for (Consumer<WorkflowClientOptions.Builder> customizer : clientCustomizers) {
       customizer.accept(builder);
+    }
+
+    // Set data converter
+    if (dataConverter != null) {
+      builder.setDataConverter(dataConverter);
     }
 
     // Add client interceptors
@@ -260,6 +278,23 @@ public abstract class SimplePlugin
 
   @Override
   public void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
+    // Register workflow implementation types
+    if (!workflowImplementationTypes.isEmpty()) {
+      worker.registerWorkflowImplementationTypes(
+          workflowImplementationTypes.toArray(new Class<?>[0]));
+    }
+
+    // Register activities implementations
+    if (!activitiesImplementations.isEmpty()) {
+      worker.registerActivitiesImplementations(activitiesImplementations.toArray());
+    }
+
+    // Register nexus service implementations
+    for (Object nexusService : nexusServiceImplementations) {
+      worker.registerNexusServiceImplementation(nexusService);
+    }
+
+    // Apply custom initializers
     for (BiConsumer<String, Worker> initializer : workerInitializers) {
       initializer.accept(taskQueue, worker);
     }
@@ -331,6 +366,10 @@ public abstract class SimplePlugin
     private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
     private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
     private final List<ContextPropagator> contextPropagators = new ArrayList<>();
+    private DataConverter dataConverter;
+    private final List<Class<?>> workflowImplementationTypes = new ArrayList<>();
+    private final List<Object> activitiesImplementations = new ArrayList<>();
+    private final List<Object> nexusServiceImplementations = new ArrayList<>();
 
     private Builder(@Nonnull String name) {
       this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
@@ -555,6 +594,78 @@ public abstract class SimplePlugin
      */
     public Builder addContextPropagators(ContextPropagator... propagators) {
       contextPropagators.addAll(Arrays.asList(propagators));
+      return this;
+    }
+
+    /**
+     * Sets the data converter to use for serializing workflow and activity arguments and results.
+     * This overrides any data converter previously set on the client options.
+     *
+     * @param dataConverter the data converter to use
+     * @return this builder for chaining
+     */
+    public Builder setDataConverter(@Nonnull DataConverter dataConverter) {
+      this.dataConverter = Objects.requireNonNull(dataConverter);
+      return this;
+    }
+
+    /**
+     * Registers workflow implementation types. These workflows will be registered on all workers
+     * created by the factory.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .registerWorkflowImplementationTypes(MyWorkflowImpl.class, OtherWorkflowImpl.class)
+     *     .build();
+     * }</pre>
+     *
+     * @param workflowImplementationTypes workflow implementation classes to register
+     * @return this builder for chaining
+     */
+    public Builder registerWorkflowImplementationTypes(Class<?>... workflowImplementationTypes) {
+      this.workflowImplementationTypes.addAll(Arrays.asList(workflowImplementationTypes));
+      return this;
+    }
+
+    /**
+     * Registers activity implementations. These activities will be registered on all workers
+     * created by the factory.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .registerActivitiesImplementations(new MyActivityImpl(), new OtherActivityImpl())
+     *     .build();
+     * }</pre>
+     *
+     * @param activitiesImplementations activity implementation instances to register
+     * @return this builder for chaining
+     */
+    public Builder registerActivitiesImplementations(Object... activitiesImplementations) {
+      this.activitiesImplementations.addAll(Arrays.asList(activitiesImplementations));
+      return this;
+    }
+
+    /**
+     * Registers a Nexus service implementation. The service will be registered on all workers
+     * created by the factory.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .registerNexusServiceImplementation(new MyNexusServiceImpl())
+     *     .build();
+     * }</pre>
+     *
+     * @param nexusServiceImplementation the Nexus service implementation to register
+     * @return this builder for chaining
+     */
+    public Builder registerNexusServiceImplementation(@Nonnull Object nexusServiceImplementation) {
+      this.nexusServiceImplementations.add(Objects.requireNonNull(nexusServiceImplementation));
       return this;
     }
 

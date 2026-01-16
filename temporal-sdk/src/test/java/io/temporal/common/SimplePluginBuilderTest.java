@@ -21,13 +21,16 @@
 package io.temporal.common;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -408,5 +411,108 @@ public class SimplePluginBuilderTest {
   @Test(expected = NullPointerException.class)
   public void testNullCustomizer() {
     SimplePlugin.newBuilder("test").customizeClient(null);
+  }
+
+  @Test
+  public void testSetDataConverter() {
+    DataConverter customConverter = mock(DataConverter.class);
+
+    SimplePlugin plugin = SimplePlugin.newBuilder("test").setDataConverter(customConverter).build();
+
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
+
+    assertSame(customConverter, builder.build().getDataConverter());
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullDataConverter() {
+    SimplePlugin.newBuilder("test").setDataConverter(null);
+  }
+
+  @Test
+  public void testRegisterWorkflowImplementationTypes() {
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .registerWorkflowImplementationTypes(String.class, Integer.class)
+            .build();
+
+    Worker mockWorker = mock(Worker.class);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("test-queue", mockWorker);
+
+    verify(mockWorker).registerWorkflowImplementationTypes(String.class, Integer.class);
+  }
+
+  @Test
+  public void testRegisterActivitiesImplementations() {
+    Object activity1 = new Object();
+    Object activity2 = new Object();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .registerActivitiesImplementations(activity1, activity2)
+            .build();
+
+    Worker mockWorker = mock(Worker.class);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("test-queue", mockWorker);
+
+    verify(mockWorker).registerActivitiesImplementations(activity1, activity2);
+  }
+
+  @Test
+  public void testRegisterNexusServiceImplementation() {
+    Object nexusService = new Object();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").registerNexusServiceImplementation(nexusService).build();
+
+    Worker mockWorker = mock(Worker.class);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("test-queue", mockWorker);
+
+    verify(mockWorker).registerNexusServiceImplementation(nexusService);
+  }
+
+  @Test
+  public void testRegisterMultipleNexusServiceImplementations() {
+    Object nexusService1 = new Object();
+    Object nexusService2 = new Object();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .registerNexusServiceImplementation(nexusService1)
+            .registerNexusServiceImplementation(nexusService2)
+            .build();
+
+    Worker mockWorker = mock(Worker.class);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("test-queue", mockWorker);
+
+    verify(mockWorker).registerNexusServiceImplementation(nexusService1);
+    verify(mockWorker).registerNexusServiceImplementation(nexusService2);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testNullNexusServiceImplementation() {
+    SimplePlugin.newBuilder("test").registerNexusServiceImplementation(null);
+  }
+
+  @Test
+  public void testRegistrationsWithCustomInitializer() {
+    AtomicBoolean customInitializerCalled = new AtomicBoolean(false);
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .registerWorkflowImplementationTypes(String.class)
+            .registerActivitiesImplementations(new Object())
+            .initializeWorker((taskQueue, worker) -> customInitializerCalled.set(true))
+            .build();
+
+    Worker mockWorker = mock(Worker.class);
+    ((io.temporal.worker.WorkerPlugin) plugin).initializeWorker("test-queue", mockWorker);
+
+    // Verify registrations happen before custom initializer
+    verify(mockWorker).registerWorkflowImplementationTypes(String.class);
+    verify(mockWorker).registerActivitiesImplementations(any());
+    assertTrue(
+        "Custom initializer should be called after registrations", customInitializerCalled.get());
   }
 }
