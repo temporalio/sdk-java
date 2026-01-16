@@ -20,9 +20,6 @@
 
 package io.temporal.serviceclient;
 
-import java.util.function.Supplier;
-import javax.annotation.Nonnull;
-
 /**
  * Plugin interface for customizing Temporal workflow service stubs configuration and connection.
  *
@@ -32,32 +29,9 @@ import javax.annotation.Nonnull;
  *
  * <p>Plugins that implement both {@code WorkflowServiceStubsPlugin} and {@code
  * WorkflowClientPlugin} are automatically propagated from the service stubs to the workflow client.
+ *
+ * @see ServiceStubsPlugin
  */
-public interface WorkflowServiceStubsPlugin {
-  /**
-   * Returns a unique name for this plugin. Used for logging and duplicate detection. Recommended
-   * format: "organization.plugin-name" (e.g., "io.temporal.tracing")
-   *
-   * @return fully qualified plugin name
-   */
-  @Nonnull
-  String getName();
-
-  /**
-   * Allows the plugin to modify service stubs options before the service stubs are created.
-   *
-   * @param builder the options builder to modify
-   */
-  void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder);
-
-  /**
-   * Allows the plugin to wrap service client connection.
-   *
-   * @param options the final options being used for connection
-   * @param next supplier that creates the service stubs (calls next plugin or actual connection)
-   * @return the service stubs (possibly wrapped or decorated)
-   */
-  @Nonnull
-  WorkflowServiceStubs connectServiceClient(
-      @Nonnull WorkflowServiceStubsOptions options, @Nonnull Supplier<WorkflowServiceStubs> next);
-}
+public interface WorkflowServiceStubsPlugin
+    extends ServiceStubsPlugin<
+        WorkflowServiceStubsOptions, WorkflowServiceStubsOptions.Builder, WorkflowServiceStubs> {}
