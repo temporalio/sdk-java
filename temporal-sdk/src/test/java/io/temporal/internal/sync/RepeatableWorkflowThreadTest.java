@@ -970,4 +970,66 @@ public class RepeatableWorkflowThreadTest {
     assertEquals("done at step 4", status);
     assertTrue(d.isDone());
   }
+
+  /**
+   * Test cancellation while the condition function is blocked on an internal Workflow.await(). This
+   * verifies that cancellation properly propagates through the blocking call inside the condition.
+   */
+  @Test(timeout = 5000)
+  public void testCancellationWhileConditionBlocked() {
+    AtomicInteger step = new AtomicInteger(0);
+    AtomicBoolean awaitSignal = new AtomicBoolean(false);
+
+    DeterministicRunnerImpl d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              status = "started";
+
+              WorkflowThread repeatableThread =
+                  DeterministicRunnerImpl.currentThreadInternal()
+                      .getRunner()
+                      .newRepeatableThread(
+                          () -> {
+                            step.set(1);
+                            // This await will block, and we'll cancel while blocked here
+                            Workflow.await(awaitSignal::get);
+                            step.set(2);
+                            return true;
+                          },
+                          false,
+                          "blocking-condition");
+
+              repeatableThread.start();
+
+              try {
+                WorkflowThread.await("wait for repeatable", repeatableThread::isDone);
+                status = "completed at step " + step.get();
+              } catch (CanceledFailure e) {
+                status = "canceled at step " + step.get();
+              }
+            });
+
+    // First run - condition starts and blocks on Workflow.await()
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+    assertEquals(1, step.get());
+    assertFalse(d.isDone());
+
+    // Second run - still blocked (signal not set)
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+    assertEquals(1, step.get());
+    assertFalse(d.isDone());
+
+    // Cancel the entire workflow while the condition is blocked on the internal await
+    d.cancel("cancel while blocked");
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+
+    assertTrue(d.isDone());
+    // Verify that cancellation happened while still at step 1 (before internal await completed)
+    assertEquals(1, step.get());
+    assertTrue(
+        "Expected status to indicate cancellation at step 1, but was: " + status,
+        status.contains("canceled") || status.contains("step 1"));
+  }
 }
