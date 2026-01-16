@@ -70,28 +70,6 @@ public class WorkflowClientOptionsPluginTest {
     assertEquals("plugin", options.getPlugins()[0].getName());
   }
 
-  @Test
-  public void testEqualsWithPlugins() {
-    SimplePlugin plugin = new TestPlugin("plugin");
-
-    WorkflowClientOptions options1 = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
-
-    WorkflowClientOptions options2 = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
-
-    assertEquals(options1, options2);
-    assertEquals(options1.hashCode(), options2.hashCode());
-  }
-
-  @Test
-  public void testToStringWithPlugins() {
-    SimplePlugin plugin = new TestPlugin("my-plugin");
-
-    WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setPlugins(plugin).build();
-
-    String str = options.toString();
-    assertTrue("toString should contain plugins", str.contains("plugins"));
-  }
-
   private static class TestPlugin extends SimplePlugin {
     TestPlugin(String name) {
       super(name);

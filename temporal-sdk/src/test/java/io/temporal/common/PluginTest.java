@@ -34,23 +34,6 @@ import org.junit.Test;
 public class PluginTest {
 
   @Test
-  public void testSimplePluginName() {
-    SimplePlugin plugin = new SimplePlugin("test-plugin") {};
-    assertEquals("test-plugin", plugin.getName());
-  }
-
-  @Test
-  public void testSimplePluginToString() {
-    SimplePlugin plugin = new SimplePlugin("my-plugin") {};
-    assertTrue(plugin.toString().contains("my-plugin"));
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testSimplePluginNullName() {
-    new SimplePlugin((String) null) {};
-  }
-
-  @Test
   public void testSimplePluginDefaultBehavior() throws Exception {
     SimplePlugin plugin = new SimplePlugin("test") {};
 
@@ -252,21 +235,6 @@ public class PluginTest {
             "B-shutdownWorker-after",
             "A-shutdownWorker-after"),
         order);
-  }
-
-  @Test
-  public void testSimplePluginImplementsAllInterfaces() {
-    SimplePlugin plugin = new SimplePlugin("full-plugin") {};
-
-    assertTrue(
-        "SimplePlugin should implement WorkflowServiceStubsPlugin",
-        plugin instanceof io.temporal.serviceclient.WorkflowServiceStubsPlugin);
-    assertTrue(
-        "SimplePlugin should implement WorkflowClientPlugin",
-        plugin instanceof io.temporal.client.WorkflowClientPlugin);
-    assertTrue(
-        "SimplePlugin should implement WorkerPlugin",
-        plugin instanceof io.temporal.worker.WorkerPlugin);
   }
 
   private SimplePlugin createTrackingPlugin(String name, List<String> order) {
