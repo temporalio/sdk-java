@@ -107,8 +107,8 @@ public class PluginTest {
     // Simulate configuration phase (forward order)
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     for (Object plugin : plugins) {
-      if (plugin instanceof io.temporal.client.ClientPlugin) {
-        ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
+      if (plugin instanceof io.temporal.client.WorkflowClientPlugin) {
+        ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
       }
     }
 
@@ -255,12 +255,15 @@ public class PluginTest {
   }
 
   @Test
-  public void testSimplePluginImplementsBothInterfaces() {
-    SimplePlugin plugin = new SimplePlugin("dual-plugin") {};
+  public void testSimplePluginImplementsAllInterfaces() {
+    SimplePlugin plugin = new SimplePlugin("full-plugin") {};
 
     assertTrue(
-        "SimplePlugin should implement ClientPlugin",
-        plugin instanceof io.temporal.client.ClientPlugin);
+        "SimplePlugin should implement WorkflowServiceStubsPlugin",
+        plugin instanceof io.temporal.serviceclient.WorkflowServiceStubsPlugin);
+    assertTrue(
+        "SimplePlugin should implement WorkflowClientPlugin",
+        plugin instanceof io.temporal.client.WorkflowClientPlugin);
     assertTrue(
         "SimplePlugin should implement WorkerPlugin",
         plugin instanceof io.temporal.worker.WorkerPlugin);

@@ -43,14 +43,15 @@ public class SimplePluginBuilderTest {
   }
 
   @Test
-  public void testSimplePluginImplementsBothInterfaces() {
+  public void testSimplePluginImplementsAllInterfaces() {
     SimplePlugin plugin = SimplePlugin.newBuilder("test").build();
     assertTrue(
-        "Should implement io.temporal.client.ClientPlugin",
-        plugin instanceof io.temporal.client.ClientPlugin);
+        "Should implement WorkflowServiceStubsPlugin",
+        plugin instanceof io.temporal.serviceclient.WorkflowServiceStubsPlugin);
     assertTrue(
-        "Should implement io.temporal.worker.WorkerPlugin",
-        plugin instanceof io.temporal.worker.WorkerPlugin);
+        "Should implement WorkflowClientPlugin",
+        plugin instanceof io.temporal.client.WorkflowClientPlugin);
+    assertTrue("Should implement WorkerPlugin", plugin instanceof io.temporal.worker.WorkerPlugin);
   }
 
   @Test
@@ -66,7 +67,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
-    ((io.temporal.client.ClientPlugin) plugin).configureServiceStubs(builder);
+    ((io.temporal.serviceclient.WorkflowServiceStubsPlugin) plugin).configureServiceStubs(builder);
 
     assertTrue("Customizer should have been called", customized.get());
   }
@@ -85,7 +86,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
 
     assertTrue("Customizer should have been called", customized.get());
     assertEquals("custom-identity", builder.build().getIdentity());
@@ -143,7 +144,7 @@ public class SimplePluginBuilderTest {
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
 
     assertEquals("All customizers should be called", 3, callCount.get());
   }
@@ -171,7 +172,7 @@ public class SimplePluginBuilderTest {
         SimplePlugin.newBuilder("test").addClientInterceptors(interceptor).build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.ClientPlugin) plugin).configureClient(builder);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureClient(builder);
 
     WorkflowClientInterceptor[] interceptors = builder.build().getInterceptors();
     assertEquals(1, interceptors.length);

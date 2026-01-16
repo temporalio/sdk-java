@@ -16,6 +16,7 @@ import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -79,7 +80,13 @@ public final class WorkerFactory {
     String namespace = workflowClientOptions.getNamespace();
 
     // Extract worker plugins from client (auto-propagation)
-    this.plugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+    List<WorkerPlugin> propagatedPlugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+
+    // Get plugins explicitly set on factory options
+    WorkerPlugin[] explicitPlugins = factoryOptions != null ? factoryOptions.getPlugins() : null;
+
+    // Merge propagated plugins with explicit plugins (propagated first)
+    this.plugins = mergePlugins(propagatedPlugins, explicitPlugins);
 
     // Apply plugin configuration to factory options (forward order)
     factoryOptions = applyPluginConfiguration(factoryOptions, this.plugins);
@@ -494,17 +501,17 @@ public final class WorkerFactory {
   }
 
   /**
-   * Extracts worker plugins from the client plugins array. Only plugins that also implement {@link
-   * WorkerPlugin} are included.
+   * Extracts worker plugins from the workflow client plugins array. Only plugins that also
+   * implement {@link WorkerPlugin} are included.
    */
   private static List<WorkerPlugin> extractWorkerPlugins(
-      io.temporal.client.ClientPlugin[] clientPlugins) {
+      io.temporal.client.WorkflowClientPlugin[] clientPlugins) {
     if (clientPlugins == null || clientPlugins.length == 0) {
       return Collections.emptyList();
     }
 
     List<WorkerPlugin> workerPlugins = new ArrayList<>();
-    for (io.temporal.client.ClientPlugin plugin : clientPlugins) {
+    for (io.temporal.client.WorkflowClientPlugin plugin : clientPlugins) {
       if (plugin instanceof WorkerPlugin) {
         workerPlugins.add((WorkerPlugin) plugin);
       }
@@ -513,22 +520,46 @@ public final class WorkerFactory {
   }
 
   /**
+   * Merges propagated plugins with explicitly specified plugins. Propagated plugins come first
+   * (from client), followed by factory-specific plugins.
+   */
+  private static List<WorkerPlugin> mergePlugins(
+      List<WorkerPlugin> propagated, WorkerPlugin[] explicit) {
+    if ((propagated == null || propagated.isEmpty())
+        && (explicit == null || explicit.length == 0)) {
+      return Collections.emptyList();
+    }
+    if (propagated == null || propagated.isEmpty()) {
+      return Collections.unmodifiableList(Arrays.asList(explicit));
+    }
+    if (explicit == null || explicit.length == 0) {
+      return propagated;
+    }
+    List<WorkerPlugin> merged = new ArrayList<>(propagated.size() + explicit.length);
+    merged.addAll(propagated);
+    merged.addAll(Arrays.asList(explicit));
+    return Collections.unmodifiableList(merged);
+  }
+
+  /**
    * Applies plugin configuration to worker factory options. Plugins are called in forward
-   * (registration) order.
+   * (registration) order. The merged plugins are set on the builder so plugins can see the complete
+   * list if they inspect the builder.
    */
   private static WorkerFactoryOptions applyPluginConfiguration(
       WorkerFactoryOptions options, List<WorkerPlugin> plugins) {
-    if (plugins == null || plugins.isEmpty()) {
-      return options;
-    }
-
     WorkerFactoryOptions.Builder builder =
         options == null
             ? WorkerFactoryOptions.newBuilder()
             : WorkerFactoryOptions.newBuilder(options);
 
-    for (WorkerPlugin plugin : plugins) {
-      plugin.configureWorkerFactory(builder);
+    // Set the merged plugins on the builder so plugins see the complete list
+    builder.setPlugins(plugins.toArray(new WorkerPlugin[0]));
+
+    if (plugins != null) {
+      for (WorkerPlugin plugin : plugins) {
+        plugin.configureWorkerFactory(builder);
+      }
     }
     return builder.build();
   }

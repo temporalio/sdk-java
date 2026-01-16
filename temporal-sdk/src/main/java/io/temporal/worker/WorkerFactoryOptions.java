@@ -104,8 +104,8 @@ public class WorkerFactoryOptions {
     }
 
     /**
-     * Sets the worker plugins to use with workers created by this factory. Plugins can modify worker
-     * configuration and wrap worker lifecycle.
+     * Sets the worker plugins to use with workers created by this factory. Plugins can modify
+     * worker configuration and wrap worker lifecycle.
      *
      * <p>Note: Plugins that implement both {@link io.temporal.client.ClientPlugin} and {@link
      * WorkerPlugin} are automatically propagated from the client. Use this method for worker-only

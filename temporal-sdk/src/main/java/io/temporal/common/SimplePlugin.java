@@ -20,13 +20,14 @@
 
 package io.temporal.common;
 
-import io.temporal.client.ClientPlugin;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -43,8 +44,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 /**
- * A plugin that implements both {@link ClientPlugin} and {@link WorkerPlugin}. This class can be
- * used in two ways:
+ * A plugin that implements {@link WorkflowServiceStubsPlugin}, {@link WorkflowClientPlugin}, and
+ * {@link WorkerPlugin}. This class can be used in two ways:
  *
  * <ol>
  *   <li><b>Builder pattern:</b> Use {@link #newBuilder(String)} to declaratively configure a plugin
@@ -96,11 +97,13 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see ClientPlugin
+ * @see WorkflowServiceStubsPlugin
+ * @see WorkflowClientPlugin
  * @see WorkerPlugin
  */
 @Experimental
-public class SimplePlugin implements ClientPlugin, WorkerPlugin {
+public class SimplePlugin
+    implements WorkflowServiceStubsPlugin, WorkflowClientPlugin, WorkerPlugin {
 
   private final String name;
   private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers;

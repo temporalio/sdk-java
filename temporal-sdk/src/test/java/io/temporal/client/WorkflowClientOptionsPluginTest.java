@@ -41,7 +41,7 @@ public class WorkflowClientOptionsPluginTest {
     WorkflowClientOptions options =
         WorkflowClientOptions.newBuilder().setPlugins(plugin1, plugin2).build();
 
-    ClientPlugin[] plugins = options.getPlugins();
+    WorkflowClientPlugin[] plugins = options.getPlugins();
     assertEquals(2, plugins.length);
     assertEquals("plugin1", plugins[0].getName());
     assertEquals("plugin2", plugins[1].getName());

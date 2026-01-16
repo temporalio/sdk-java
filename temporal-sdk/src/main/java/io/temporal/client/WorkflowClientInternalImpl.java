@@ -24,6 +24,7 @@ import io.temporal.internal.client.external.ManualActivityCompletionClientFactor
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.*;
 import java.lang.annotation.Annotation;
@@ -65,9 +66,17 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
+    // Extract WorkflowClientPlugins from service stubs plugins (propagation)
+    WorkflowClientPlugin[] propagatedPlugins =
+        extractClientPlugins(workflowServiceStubs.getOptions().getPlugins());
+
+    // Merge propagated plugins with client-specified plugins
+    WorkflowClientPlugin[] mergedPlugins = mergePlugins(propagatedPlugins, options.getPlugins());
+
     // Apply plugin configuration phase (forward order), then validate
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
-    applyClientPluginConfiguration(builder, options.getPlugins());
+    builder.setPlugins(mergedPlugins);
+    applyClientPluginConfiguration(builder, mergedPlugins);
     options = builder.validateAndBuildWithDefaults();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
@@ -776,16 +785,53 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   /**
-   * Applies client plugin configuration phase. Plugins are called in forward (registration) order
-   * to modify the client options.
+   * Applies workflow client plugin configuration phase. Plugins are called in forward
+   * (registration) order to modify the client options.
    */
   private static void applyClientPluginConfiguration(
-      WorkflowClientOptions.Builder builder, ClientPlugin[] plugins) {
+      WorkflowClientOptions.Builder builder, WorkflowClientPlugin[] plugins) {
     if (plugins == null || plugins.length == 0) {
       return;
     }
-    for (ClientPlugin plugin : plugins) {
+    for (WorkflowClientPlugin plugin : plugins) {
       plugin.configureClient(builder);
     }
+  }
+
+  /**
+   * Extracts WorkflowClientPlugins from service stubs plugins. Only plugins that also implement
+   * {@link WorkflowClientPlugin} are included. This enables plugin propagation from service stubs
+   * to workflow client.
+   */
+  private static WorkflowClientPlugin[] extractClientPlugins(
+      WorkflowServiceStubsPlugin[] stubsPlugins) {
+    if (stubsPlugins == null || stubsPlugins.length == 0) {
+      return new WorkflowClientPlugin[0];
+    }
+    List<WorkflowClientPlugin> clientPlugins = new ArrayList<>();
+    for (WorkflowServiceStubsPlugin plugin : stubsPlugins) {
+      if (plugin instanceof WorkflowClientPlugin) {
+        clientPlugins.add((WorkflowClientPlugin) plugin);
+      }
+    }
+    return clientPlugins.toArray(new WorkflowClientPlugin[0]);
+  }
+
+  /**
+   * Merges propagated plugins with explicitly specified plugins. Propagated plugins come first
+   * (from service stubs), followed by client-specific plugins.
+   */
+  private static WorkflowClientPlugin[] mergePlugins(
+      WorkflowClientPlugin[] propagated, WorkflowClientPlugin[] explicit) {
+    if (propagated == null || propagated.length == 0) {
+      return explicit;
+    }
+    if (explicit == null || explicit.length == 0) {
+      return propagated;
+    }
+    WorkflowClientPlugin[] merged = new WorkflowClientPlugin[propagated.length + explicit.length];
+    System.arraycopy(propagated, 0, merged, 0, propagated.length);
+    System.arraycopy(explicit, 0, merged, propagated.length, explicit.length);
+    return merged;
   }
 }

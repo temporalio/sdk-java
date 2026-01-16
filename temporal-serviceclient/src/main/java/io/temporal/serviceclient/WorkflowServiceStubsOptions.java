@@ -37,6 +37,12 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
   /** Retry options for outgoing RPC calls */
   private final RpcRetryOptions rpcRetryOptions;
 
+  /** Plugins for customizing service stubs configuration and connection */
+  private final WorkflowServiceStubsPlugin[] plugins;
+
+  private static final WorkflowServiceStubsPlugin[] EMPTY_PLUGINS =
+      new WorkflowServiceStubsPlugin[0];
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -54,12 +60,14 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
       boolean disableHealthCheck,
       Duration rpcLongPollTimeout,
       Duration rpcQueryTimeout,
-      RpcRetryOptions rpcRetryOptions) {
+      RpcRetryOptions rpcRetryOptions,
+      WorkflowServiceStubsPlugin[] plugins) {
     super(serviceStubsOptions);
     this.disableHealthCheck = disableHealthCheck;
     this.rpcLongPollTimeout = rpcLongPollTimeout;
     this.rpcQueryTimeout = rpcQueryTimeout;
     this.rpcRetryOptions = rpcRetryOptions;
+    this.plugins = plugins;
   }
 
   /**
@@ -97,6 +105,15 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return rpcRetryOptions;
   }
 
+  /**
+   * Returns the service stubs plugins configured for this options.
+   *
+   * @return the array of service stubs plugins, never null
+   */
+  public WorkflowServiceStubsPlugin[] getPlugins() {
+    return plugins;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -105,12 +122,16 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return disableHealthCheck == that.disableHealthCheck
         && Objects.equals(rpcLongPollTimeout, that.rpcLongPollTimeout)
         && Objects.equals(rpcQueryTimeout, that.rpcQueryTimeout)
-        && Objects.equals(rpcRetryOptions, that.rpcRetryOptions);
+        && Objects.equals(rpcRetryOptions, that.rpcRetryOptions)
+        && Arrays.equals(plugins, that.plugins);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(disableHealthCheck, rpcLongPollTimeout, rpcQueryTimeout, rpcRetryOptions);
+    int result =
+        Objects.hash(disableHealthCheck, rpcLongPollTimeout, rpcQueryTimeout, rpcRetryOptions);
+    result = 31 * result + Arrays.hashCode(plugins);
+    return result;
   }
 
   @Override
@@ -124,6 +145,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         + rpcQueryTimeout
         + ", rpcRetryOptions="
         + rpcRetryOptions
+        + ", plugins="
+        + Arrays.toString(plugins)
         + '}';
   }
 
@@ -133,6 +156,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
+    private WorkflowServiceStubsPlugin[] plugins;
 
     private Builder() {}
 
@@ -143,6 +167,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         this.rpcLongPollTimeout = castedOptions.rpcLongPollTimeout;
         this.rpcQueryTimeout = castedOptions.rpcQueryTimeout;
         this.rpcRetryOptions = castedOptions.rpcRetryOptions;
+        this.plugins = castedOptions.plugins;
       }
     }
 
@@ -241,6 +266,20 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     }
 
     /**
+     * Sets the workflow service stubs plugins to use for customizing configuration and connection.
+     *
+     * <p>Plugins that implement both {@code WorkflowServiceStubsPlugin} and {@code
+     * WorkflowClientPlugin} will be automatically propagated to the workflow client.
+     *
+     * @param plugins the plugins to use
+     * @return this builder
+     */
+    public Builder setPlugins(WorkflowServiceStubsPlugin... plugins) {
+      this.plugins = Objects.requireNonNull(plugins);
+      return this;
+    }
+
+    /**
      * Sets the rpc timeout value for query calls. Default is 10 seconds.
      *
      * @param timeout timeout.
@@ -262,7 +301,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.disableHealthCheck,
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
-          this.rpcRetryOptions);
+          this.rpcRetryOptions,
+          this.plugins);
     }
 
     public WorkflowServiceStubsOptions validateAndBuildWithDefaults() {
@@ -274,7 +314,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.disableHealthCheck,
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
-          retryOptions);
+          retryOptions,
+          this.plugins == null ? EMPTY_PLUGINS : this.plugins);
     }
   }
 }
