@@ -823,10 +823,15 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
    */
   private static WorkflowClientPlugin[] mergePlugins(
       WorkflowClientPlugin[] propagated, WorkflowClientPlugin[] explicit) {
-    if (propagated == null || propagated.length == 0) {
+    boolean propagatedEmpty = propagated == null || propagated.length == 0;
+    boolean explicitEmpty = explicit == null || explicit.length == 0;
+    if (propagatedEmpty && explicitEmpty) {
+      return new WorkflowClientPlugin[0];
+    }
+    if (propagatedEmpty) {
       return explicit;
     }
-    if (explicit == null || explicit.length == 0) {
+    if (explicitEmpty) {
       return propagated;
     }
     WorkflowClientPlugin[] merged = new WorkflowClientPlugin[propagated.length + explicit.length];
