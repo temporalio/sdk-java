@@ -54,7 +54,6 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
@@ -104,9 +103,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
-
-  // Condition watchers for async await functionality
-  private final List<ConditionWatcher> conditionWatchers = new ArrayList<>();
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -1673,95 +1669,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     public Failure getFailure() {
       return failure;
-    }
-  }
-
-  /**
-   * Returns a callback to be used by DeterministicRunner before threads wake up. This callback
-   * evaluates condition watchers and completes promises as needed.
-   */
-  public Supplier<Boolean> getBeforeThreadsWakeUpCallback() {
-    return this::evaluateConditionWatchers;
-  }
-
-  /**
-   * Registers a condition watcher for async await functionality. The condition is evaluated
-   * immediately (inline) before registering. If already satisfied, returns immediately without
-   * registering a watcher. Otherwise, the condition is re-evaluated at the end of each event loop
-   * iteration until it returns true.
-   *
-   * <p>IMPORTANT: The condition must never throw exceptions. If it does, the workflow task will
-   * fail. Callers should handle exceptions within the condition supplier and complete their promise
-   * appropriately before returning true.
-   *
-   * @param condition Supplier that returns true when the wait is complete (caller handles promise
-   *     completion in the supplier body). Evaluated in read-only mode. Must not throw exceptions.
-   * @return A Runnable that cancels the watcher when invoked (no-op if condition was already
-   *     satisfied).
-   */
-  Runnable registerConditionWatcher(Supplier<Boolean> condition) {
-    // Evaluate condition inline - if already satisfied, no need to register
-    setReadOnly(true);
-    try {
-      if (condition.get()) {
-        return () -> {};
-      }
-    } finally {
-      setReadOnly(false);
-    }
-
-    ConditionWatcher watcher = new ConditionWatcher(condition);
-    conditionWatchers.add(watcher);
-    return () -> watcher.canceled = true;
-  }
-
-  /**
-   * Evaluates all condition watchers and removes those that return true. Watchers that are
-   * satisfied are removed from the list.
-   *
-   * <p>Note: If a condition throws an exception, it will propagate and fail the workflow task.
-   * Callers should handle exceptions within their condition supplier.
-   *
-   * @return true if any condition was satisfied (indicating progress was made)
-   */
-  private boolean evaluateConditionWatchers() {
-    boolean anyMatched = false;
-    Iterator<ConditionWatcher> it = conditionWatchers.iterator();
-    while (it.hasNext()) {
-      ConditionWatcher watcher = it.next();
-      if (watcher.canceled) {
-        it.remove();
-        continue;
-      }
-
-      // We must set read-only mode here because the condition is evaluated from the runner
-      // thread, not a workflow thread.
-      setReadOnly(true);
-      boolean satisfied;
-      try {
-        satisfied = watcher.condition.get();
-      } finally {
-        setReadOnly(false);
-      }
-
-      if (satisfied) {
-        it.remove();
-        anyMatched = true;
-      }
-    }
-    return anyMatched;
-  }
-
-  /**
-   * Holds a condition for async await functionality. The condition is evaluated at the end of each
-   * event loop iteration and must handle promise completion in its body before returning true.
-   */
-  private static class ConditionWatcher {
-    final Supplier<Boolean> condition;
-    boolean canceled;
-
-    ConditionWatcher(Supplier<Boolean> condition) {
-      this.condition = condition;
     }
   }
 }

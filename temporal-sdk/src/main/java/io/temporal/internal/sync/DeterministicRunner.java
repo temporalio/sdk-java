@@ -30,7 +30,7 @@ interface DeterministicRunner {
       SyncWorkflowContext workflowContext,
       Runnable root,
       WorkflowExecutorCache cache) {
-    return new DeterministicRunnerImpl(workflowThreadExecutor, workflowContext, root, cache, null);
+    return new DeterministicRunnerImpl(workflowThreadExecutor, workflowContext, root, cache);
   }
 
   /**
@@ -45,29 +45,7 @@ interface DeterministicRunner {
       WorkflowThreadExecutor workflowThreadExecutor,
       SyncWorkflowContext workflowContext,
       Runnable root) {
-    return new DeterministicRunnerImpl(workflowThreadExecutor, workflowContext, root, null, null);
-  }
-
-  /**
-   * Create new instance of DeterministicRunner with a callback invoked before threads wake up.
-   *
-   * @param workflowThreadExecutor executor for workflow thread Runnables
-   * @param workflowContext workflow context to use
-   * @param root function that root thread of the runner executes.
-   * @param cache WorkflowExecutorCache used cache inflight workflows
-   * @param beforeThreadsWakeUp callback invoked once per loop iteration before threads run. Returns
-   *     true if progress was made (e.g., a condition watcher fired), which causes the loop to
-   *     continue even if all threads are blocked. Returns false if no progress was made.
-   * @return instance of the DeterministicRunner.
-   */
-  static DeterministicRunner newRunner(
-      WorkflowThreadExecutor workflowThreadExecutor,
-      SyncWorkflowContext workflowContext,
-      Runnable root,
-      WorkflowExecutorCache cache,
-      @Nullable Supplier<Boolean> beforeThreadsWakeUp) {
-    return new DeterministicRunnerImpl(
-        workflowThreadExecutor, workflowContext, root, cache, beforeThreadsWakeUp);
+    return new DeterministicRunnerImpl(workflowThreadExecutor, workflowContext, root, null);
   }
 
   /**

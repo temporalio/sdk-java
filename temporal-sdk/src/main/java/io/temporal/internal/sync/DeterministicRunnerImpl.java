@@ -69,9 +69,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   // always accessed under the runner lock
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
 
-  // Callback invoked before threads wake up in each event loop iteration
-  @Nullable private final Supplier<Boolean> beforeThreadsWakeUp;
-
   // Access to workflowThreadsToAdd, callbackThreadsToAdd, addedThreads doesn't have to be
   // synchronized.
   // Inside DeterministicRunner the access to these variables is under the runner lock.
@@ -147,7 +144,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull SyncWorkflowContext workflowContext,
       Runnable root) {
-    this(workflowThreadExecutor, workflowContext, root, null, null);
+    this(workflowThreadExecutor, workflowContext, root, null);
   }
 
   DeterministicRunnerImpl(
@@ -155,22 +152,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       @Nonnull SyncWorkflowContext workflowContext,
       Runnable root,
       WorkflowExecutorCache cache) {
-    this(workflowThreadExecutor, workflowContext, root, cache, null);
-  }
-
-  DeterministicRunnerImpl(
-      WorkflowThreadExecutor workflowThreadExecutor,
-      @Nonnull SyncWorkflowContext workflowContext,
-      Runnable root,
-      WorkflowExecutorCache cache,
-      @Nullable Supplier<Boolean> beforeThreadsWakeUp) {
     this.workflowThreadExecutor = workflowThreadExecutor;
     this.workflowContext = Preconditions.checkNotNull(workflowContext, "workflowContext");
     // TODO this should be refactored, publishing of this in an constructor into external objects is
     // a bad practice
     this.workflowContext.setRunner(this);
     this.cache = cache;
-    this.beforeThreadsWakeUp = beforeThreadsWakeUp;
     boolean deterministicCancellationScopeOrder =
         workflowContext
             .getReplayContext()
@@ -222,14 +209,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
         toExecuteInWorkflowThread.clear();
 
-        // Invoke beforeThreadsWakeUp callback BEFORE running threads.
-        // This allows the callback to evaluate conditions and complete promises,
-        // ensuring threads see updated state when they wake up.
-        if (beforeThreadsWakeUp != null) {
-          progress = beforeThreadsWakeUp.get();
-        } else {
-          progress = false;
-        }
+        progress = false;
 
         Iterator<WorkflowThread> ci = threads.iterator();
         while (ci.hasNext()) {
