@@ -37,8 +37,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClientInternal {
+
+  private static final Logger log = LoggerFactory.getLogger(WorkflowClientInternalImpl.class);
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
@@ -833,6 +837,19 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     }
     if (explicitEmpty) {
       return propagated;
+    }
+    // Warn about duplicate plugin types
+    Set<Class<?>> propagatedTypes = new HashSet<>();
+    for (WorkflowClientPlugin p : propagated) {
+      propagatedTypes.add(p.getClass());
+    }
+    for (WorkflowClientPlugin p : explicit) {
+      if (propagatedTypes.contains(p.getClass())) {
+        log.warn(
+            "Plugin type {} is present in both propagated plugins (from service stubs) and "
+                + "explicit plugins. It may run twice which may not be the intended behavior.",
+            p.getClass().getName());
+      }
     }
     WorkflowClientPlugin[] merged = new WorkflowClientPlugin[propagated.length + explicit.length];
     System.arraycopy(propagated, 0, merged, 0, propagated.length);

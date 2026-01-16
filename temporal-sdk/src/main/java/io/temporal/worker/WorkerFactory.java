@@ -19,9 +19,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -534,6 +536,19 @@ public final class WorkerFactory {
     }
     if (explicit == null || explicit.length == 0) {
       return propagated;
+    }
+    // Warn about duplicate plugin types
+    Set<Class<?>> propagatedTypes = new HashSet<>();
+    for (WorkerPlugin p : propagated) {
+      propagatedTypes.add(p.getClass());
+    }
+    for (WorkerPlugin p : explicit) {
+      if (propagatedTypes.contains(p.getClass())) {
+        log.warn(
+            "Plugin type {} is present in both propagated plugins (from client) and "
+                + "explicit plugins. It may run twice which may not be the intended behavior.",
+            p.getClass().getName());
+      }
     }
     List<WorkerPlugin> merged = new ArrayList<>(propagated.size() + explicit.length);
     merged.addAll(propagated);

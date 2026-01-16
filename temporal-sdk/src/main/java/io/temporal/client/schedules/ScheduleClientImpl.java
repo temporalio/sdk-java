@@ -15,11 +15,17 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class ScheduleClientImpl implements ScheduleClient {
+
+  private static final Logger log = LoggerFactory.getLogger(ScheduleClientImpl.class);
   private final WorkflowServiceStubs workflowServiceStubs;
   private final ScheduleClientOptions options;
   private final GenericWorkflowClient genericClient;
@@ -90,6 +96,21 @@ final class ScheduleClientImpl implements ScheduleClient {
     if ((propagated == null || propagated.length == 0)
         && (explicit == null || explicit.length == 0)) {
       return new ScheduleClientPlugin[0];
+    }
+    // Warn about duplicate plugin types
+    if (propagated != null && propagated.length > 0 && explicit != null && explicit.length > 0) {
+      Set<Class<?>> propagatedTypes = new HashSet<>();
+      for (ScheduleClientPlugin p : propagated) {
+        propagatedTypes.add(p.getClass());
+      }
+      for (ScheduleClientPlugin p : explicit) {
+        if (propagatedTypes.contains(p.getClass())) {
+          log.warn(
+              "Plugin type {} is present in both propagated plugins (from service stubs) and "
+                  + "explicit plugins. It may run twice which may not be the intended behavior.",
+              p.getClass().getName());
+        }
+      }
     }
     List<ScheduleClientPlugin> merged = new ArrayList<>();
     if (propagated != null) {
