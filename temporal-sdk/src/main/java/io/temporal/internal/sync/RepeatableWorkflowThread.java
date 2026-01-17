@@ -1,10 +1,6 @@
 package io.temporal.internal.sync;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
@@ -13,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
