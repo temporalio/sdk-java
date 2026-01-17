@@ -1,11 +1,19 @@
 package io.temporal.internal.sync;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.workflow.CompletablePromise;
+import io.temporal.workflow.Promise;
+import io.temporal.workflow.Workflow;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -62,7 +70,7 @@ class RepeatableWorkflowThread implements WorkflowThread {
   private int evaluationCount = 0;
 
   /** Cached cancellation promise, following the pattern from CancellationScopeImpl. */
-  private io.temporal.workflow.CompletablePromise<String> cancellationPromise;
+  private CompletablePromise<String> cancellationPromise;
 
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowContext syncWorkflowContext;
@@ -243,12 +251,12 @@ class RepeatableWorkflowThread implements WorkflowThread {
   }
 
   @Override
-  public io.temporal.workflow.Promise<String> getCancellationRequest() {
+  public Promise<String> getCancellationRequest() {
     if (currentEvaluationThread != null) {
       return currentEvaluationThread.getCancellationRequest();
     }
     if (cancellationPromise == null) {
-      cancellationPromise = io.temporal.workflow.Workflow.newPromise();
+      cancellationPromise = Workflow.newPromise();
       if (isCancelled()) {
         cancellationPromise.complete(getEffectiveCancellationReason());
       }
