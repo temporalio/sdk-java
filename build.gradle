@@ -28,7 +28,7 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.58.1' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
+    grpcVersion = '1.75.0' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
     jacksonVersion = '2.15.4' // [2.9.0,)
     nexusVersion = '0.4.0-alpha'
     // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
