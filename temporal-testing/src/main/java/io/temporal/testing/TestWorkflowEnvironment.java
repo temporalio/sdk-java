@@ -101,6 +101,26 @@ public interface TestWorkflowEnvironment extends Closeable {
    */
   Worker newWorker(String taskQueue, WorkerOptions options);
 
+  /**
+   * Creates a new Worker instance specifically for replay operations. This method should be used
+   * when replaying workflow histories to ensure plugins receive the replay-specific configuration
+   * callbacks.
+   *
+   * <p>Unlike {@link #newWorker(String, WorkerOptions)}, this method:
+   *
+   * <ul>
+   *   <li>Calls {@link io.temporal.worker.WorkerPlugin#configureReplayWorker} instead of {@link
+   *       io.temporal.worker.WorkerPlugin#configureWorker}
+   *   <li>Calls {@link io.temporal.worker.WorkerPlugin#initializeReplayWorker} instead of {@link
+   *       io.temporal.worker.WorkerPlugin#initializeWorker}
+   * </ul>
+   *
+   * @param taskQueue task queue for the replay worker
+   * @param options Options for configuring the replay worker
+   * @return Worker configured for replay
+   */
+  Worker newReplayWorker(String taskQueue, WorkerOptions options);
+
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
   WorkflowClient getWorkflowClient();
 

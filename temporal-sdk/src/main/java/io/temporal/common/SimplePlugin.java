@@ -123,6 +123,9 @@ public abstract class SimplePlugin
   private final List<BiConsumer<String, Worker>> workerShutdownCallbacks;
   private final List<Consumer<WorkerFactory>> workerFactoryStartCallbacks;
   private final List<Consumer<WorkerFactory>> workerFactoryShutdownCallbacks;
+  private final List<Consumer<WorkerOptions.Builder>> replayWorkerCustomizers;
+  private final List<BiConsumer<String, Worker>> replayWorkerInitializers;
+  private final List<BiConsumer<Worker, WorkflowExecutionHistory>> replayExecutionCallbacks;
   private final List<WorkerInterceptor> workerInterceptors;
   private final List<WorkflowClientInterceptor> clientInterceptors;
   private final List<ContextPropagator> contextPropagators;
@@ -151,6 +154,9 @@ public abstract class SimplePlugin
     this.workerShutdownCallbacks = Collections.emptyList();
     this.workerFactoryStartCallbacks = Collections.emptyList();
     this.workerFactoryShutdownCallbacks = Collections.emptyList();
+    this.replayWorkerCustomizers = Collections.emptyList();
+    this.replayWorkerInitializers = Collections.emptyList();
+    this.replayExecutionCallbacks = Collections.emptyList();
     this.workerInterceptors = Collections.emptyList();
     this.clientInterceptors = Collections.emptyList();
     this.contextPropagators = Collections.emptyList();
@@ -180,6 +186,9 @@ public abstract class SimplePlugin
     this.workerShutdownCallbacks = new ArrayList<>(builder.workerShutdownCallbacks);
     this.workerFactoryStartCallbacks = new ArrayList<>(builder.workerFactoryStartCallbacks);
     this.workerFactoryShutdownCallbacks = new ArrayList<>(builder.workerFactoryShutdownCallbacks);
+    this.replayWorkerCustomizers = new ArrayList<>(builder.replayWorkerCustomizers);
+    this.replayWorkerInitializers = new ArrayList<>(builder.replayWorkerInitializers);
+    this.replayExecutionCallbacks = new ArrayList<>(builder.replayExecutionCallbacks);
     this.workerInterceptors = new ArrayList<>(builder.workerInterceptors);
     this.clientInterceptors = new ArrayList<>(builder.clientInterceptors);
     this.contextPropagators = new ArrayList<>(builder.contextPropagators);
@@ -341,6 +350,41 @@ public abstract class SimplePlugin
   }
 
   @Override
+  public void configureReplayWorker(
+      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
+    if (replayWorkerCustomizers.isEmpty()) {
+      // Default: delegate to configureWorker
+      WorkerPlugin.super.configureReplayWorker(taskQueue, builder);
+    } else {
+      for (Consumer<WorkerOptions.Builder> customizer : replayWorkerCustomizers) {
+        customizer.accept(builder);
+      }
+    }
+  }
+
+  @Override
+  public void initializeReplayWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
+    if (replayWorkerInitializers.isEmpty()) {
+      // Default: delegate to initializeWorker
+      WorkerPlugin.super.initializeReplayWorker(taskQueue, worker);
+    } else {
+      for (BiConsumer<String, Worker> initializer : replayWorkerInitializers) {
+        initializer.accept(taskQueue, worker);
+      }
+    }
+  }
+
+  @Override
+  public void replayWorkflowExecution(
+      @Nonnull Worker worker, @Nonnull WorkflowExecutionHistory history, @Nonnull Runnable next)
+      throws Exception {
+    next.run();
+    for (BiConsumer<Worker, WorkflowExecutionHistory> callback : replayExecutionCallbacks) {
+      callback.accept(worker, history);
+    }
+  }
+
+  @Override
   public String toString() {
     return getClass().getSimpleName() + "{name='" + name + "'}";
   }
@@ -363,6 +407,10 @@ public abstract class SimplePlugin
     private final List<BiConsumer<String, Worker>> workerShutdownCallbacks = new ArrayList<>();
     private final List<Consumer<WorkerFactory>> workerFactoryStartCallbacks = new ArrayList<>();
     private final List<Consumer<WorkerFactory>> workerFactoryShutdownCallbacks = new ArrayList<>();
+    private final List<Consumer<WorkerOptions.Builder>> replayWorkerCustomizers = new ArrayList<>();
+    private final List<BiConsumer<String, Worker>> replayWorkerInitializers = new ArrayList<>();
+    private final List<BiConsumer<Worker, WorkflowExecutionHistory>> replayExecutionCallbacks =
+        new ArrayList<>();
     private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
     private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
     private final List<ContextPropagator> contextPropagators = new ArrayList<>();
@@ -558,6 +606,59 @@ public abstract class SimplePlugin
      */
     public Builder onWorkerFactoryShutdown(@Nonnull Consumer<WorkerFactory> callback) {
       workerFactoryShutdownCallbacks.add(Objects.requireNonNull(callback));
+      return this;
+    }
+
+    // ==================== Replay Methods ====================
+
+    /**
+     * Adds a customizer for {@link WorkerOptions} that is applied only when creating replay
+     * workers. If no replay-specific customizers are set, the regular worker customizers are used.
+     *
+     * <p>Use this when replay workers need different configuration than normal workers.
+     *
+     * @param customizer a consumer that modifies the options builder
+     * @return this builder for chaining
+     */
+    public Builder customizeReplayWorker(@Nonnull Consumer<WorkerOptions.Builder> customizer) {
+      replayWorkerCustomizers.add(Objects.requireNonNull(customizer));
+      return this;
+    }
+
+    /**
+     * Adds an initializer that is called after a replay worker is created. If no replay-specific
+     * initializers are set, the regular worker initializers are used.
+     *
+     * <p>Use this when replay workers need different initialization than normal workers.
+     *
+     * @param initializer a consumer that receives the task queue name and worker
+     * @return this builder for chaining
+     */
+    public Builder initializeReplayWorker(@Nonnull BiConsumer<String, Worker> initializer) {
+      replayWorkerInitializers.add(Objects.requireNonNull(initializer));
+      return this;
+    }
+
+    /**
+     * Adds a callback that is invoked after a workflow execution is replayed. This can be used for
+     * logging, metrics, or other observability around replay operations.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .onReplayWorkflowExecution((worker, history) -> {
+     *         logger.info("Replayed workflow: {}", history.getWorkflowExecution().getWorkflowId());
+     *     })
+     *     .build();
+     * }</pre>
+     *
+     * @param callback a consumer that receives the worker and history after replay completes
+     * @return this builder for chaining
+     */
+    public Builder onReplayWorkflowExecution(
+        @Nonnull BiConsumer<Worker, WorkflowExecutionHistory> callback) {
+      replayExecutionCallbacks.add(Objects.requireNonNull(callback));
       return this;
     }
 

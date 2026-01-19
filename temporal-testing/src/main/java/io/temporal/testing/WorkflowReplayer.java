@@ -5,6 +5,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerOptions;
 import java.io.File;
 
 /** Replays a workflow given its history. Useful for backwards compatibility testing. */
@@ -114,7 +115,32 @@ public final class WorkflowReplayer {
       Class<?> workflowClass,
       Class<?>... moreWorkflowClasses)
       throws Exception {
-    TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
+    replayWorkflowExecution(
+        history, (TestEnvironmentOptions) null, workflowClass, moreWorkflowClasses);
+  }
+
+  /**
+   * Replays workflow from a {@link WorkflowExecutionHistory}. RunId <b>must</b> match the one used
+   * to generate the serialized history.
+   *
+   * @param history object that contains the workflow ids and the events.
+   * @param testEnvironmentOptions options for the test environment, including any plugins to apply.
+   *     If null, default options are used.
+   * @param workflowClass workflow implementation class to replay
+   * @param moreWorkflowClasses optional additional workflow implementation classes
+   * @throws Exception if replay failed for any reason.
+   */
+  @SuppressWarnings("deprecation")
+  public static void replayWorkflowExecution(
+      io.temporal.internal.common.WorkflowExecutionHistory history,
+      TestEnvironmentOptions testEnvironmentOptions,
+      Class<?> workflowClass,
+      Class<?>... moreWorkflowClasses)
+      throws Exception {
+    TestWorkflowEnvironment testEnv =
+        testEnvironmentOptions != null
+            ? TestWorkflowEnvironment.newInstance(testEnvironmentOptions)
+            : TestWorkflowEnvironment.newInstance();
     try {
       replayWorkflowExecution(history, testEnv, workflowClass, moreWorkflowClasses);
     } finally {
@@ -138,7 +164,9 @@ public final class WorkflowReplayer {
       Class<?> workflowClass,
       Class<?>... moreWorkflowClasses)
       throws Exception {
-    Worker worker = testWorkflowEnvironment.newWorker(getQueueName((history)));
+    Worker worker =
+        testWorkflowEnvironment.newReplayWorker(
+            getQueueName((history)), WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(
         ObjectArrays.concat(moreWorkflowClasses, workflowClass));
     replayWorkflowExecution(history, worker);
@@ -174,8 +202,36 @@ public final class WorkflowReplayer {
       boolean failFast,
       Class<?>... workflowClasses)
       throws Exception {
-    try (TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance()) {
-      Worker worker = testEnv.newWorker("replay-task-queue-name");
+    return replayWorkflowExecutions(
+        histories, failFast, (TestEnvironmentOptions) null, workflowClasses);
+  }
+
+  /**
+   * Replays workflows provided by an iterable.
+   *
+   * @param histories The histories to be replayed
+   * @param failFast If true, throws upon the first error encountered (if any) during replay. If
+   *     false, all histories will be replayed and the returned object contains information about
+   *     any failures.
+   * @param testEnvironmentOptions options for the test environment, including any plugins to apply.
+   *     If null, default options are used.
+   * @param workflowClasses workflow implementation classes to register
+   * @return If `failFast` is false, contains any replay failures encountered.
+   * @throws Exception If replay failed and `failFast` is true.
+   */
+  @SuppressWarnings("deprecation")
+  public static ReplayResults replayWorkflowExecutions(
+      Iterable<? extends io.temporal.internal.common.WorkflowExecutionHistory> histories,
+      boolean failFast,
+      TestEnvironmentOptions testEnvironmentOptions,
+      Class<?>... workflowClasses)
+      throws Exception {
+    try (TestWorkflowEnvironment testEnv =
+        testEnvironmentOptions != null
+            ? TestWorkflowEnvironment.newInstance(testEnvironmentOptions)
+            : TestWorkflowEnvironment.newInstance()) {
+      Worker worker =
+          testEnv.newReplayWorker("replay-task-queue-name", WorkerOptions.newBuilder().build());
       worker.registerWorkflowImplementationTypes(workflowClasses);
       return replayWorkflowExecutions(histories, failFast, worker);
     }

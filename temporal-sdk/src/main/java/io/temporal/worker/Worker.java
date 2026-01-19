@@ -42,6 +42,7 @@ public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
+  private final List<WorkerPlugin> plugins;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
@@ -67,9 +68,11 @@ public final class Worker {
       @Nonnull WorkflowExecutorCache cache,
       boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      @Nonnull List<WorkerPlugin> plugins) {
 
     Objects.requireNonNull(client, "client should not be null");
+    this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
@@ -469,12 +472,57 @@ public final class Worker {
   @SuppressWarnings("deprecation")
   public void replayWorkflowExecution(io.temporal.internal.common.WorkflowExecutionHistory history)
       throws Exception {
-    workflowWorker.queryWorkflowExecution(
-        history,
-        WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
-        String.class,
-        String.class,
-        new Object[] {});
+    // Convert to public history type for plugin API
+    WorkflowExecutionHistory publicHistory =
+        new WorkflowExecutionHistory(
+            history.getHistory(), history.getWorkflowExecution().getWorkflowId());
+
+    // Build plugin chain in reverse order (first plugin wraps all others)
+    // Wrap checked exception in RuntimeException for Runnable compatibility
+    Runnable chain =
+        () -> {
+          try {
+            workflowWorker.queryWorkflowExecution(
+                history,
+                WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+                String.class,
+                String.class,
+                new Object[] {});
+          } catch (Exception e) {
+            throw new ReplayException(e);
+          }
+        };
+
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      WorkerPlugin plugin = plugins.get(i);
+      Runnable next = chain;
+      chain =
+          () -> {
+            try {
+              plugin.replayWorkflowExecution(this, publicHistory, next);
+            } catch (Exception e) {
+              throw new ReplayException(e);
+            }
+          };
+    }
+
+    try {
+      chain.run();
+    } catch (ReplayException e) {
+      throw e.getCause();
+    }
+  }
+
+  /** Internal exception to wrap checked exceptions during replay. */
+  private static class ReplayException extends RuntimeException {
+    ReplayException(Exception cause) {
+      super(cause);
+    }
+
+    @Override
+    public synchronized Exception getCause() {
+      return (Exception) super.getCause();
+    }
   }
 
   /**

@@ -7,6 +7,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -175,7 +176,8 @@ public final class WorkerFactory {
               cache,
               true,
               workflowThreadExecutor,
-              workflowClient.getOptions().getContextPropagators());
+              workflowClient.getOptions().getContextPropagators(),
+              plugins);
       workers.put(taskQueue, worker);
 
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
@@ -189,6 +191,71 @@ public final class WorkerFactory {
       log.warn(
           "Only one worker can be registered for a task queue, "
               + "subsequent calls to WorkerFactory#newWorker with the same task queue are ignored and "
+              + "initially created worker is returned");
+      return existingWorker;
+    }
+  }
+
+  /**
+   * Creates a worker specifically for replay operations. This method should be used when replaying
+   * workflow histories to ensure plugins receive the replay-specific configuration callbacks.
+   *
+   * <p>Unlike {@link #newWorker(String, WorkerOptions)}, this method:
+   *
+   * <ul>
+   *   <li>Calls {@link WorkerPlugin#configureReplayWorker} instead of {@link
+   *       WorkerPlugin#configureWorker}
+   *   <li>Calls {@link WorkerPlugin#initializeReplayWorker} instead of {@link
+   *       WorkerPlugin#initializeWorker}
+   * </ul>
+   *
+   * <p>This allows plugins to apply different configuration for replay scenarios (e.g., disabling
+   * certain interceptors that shouldn't run during replay).
+   *
+   * @param taskQueue task queue name for the replay worker
+   * @param options Options for configuring the replay worker
+   * @return Worker configured for replay
+   */
+  @Experimental
+  public synchronized Worker newReplayWorker(String taskQueue, WorkerOptions options) {
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
+    Preconditions.checkState(
+        state == State.Initial,
+        String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
+
+    // Apply replay-specific plugin configuration to worker options (forward order)
+    options = applyReplayWorkerPluginConfiguration(taskQueue, options, this.plugins);
+
+    // Only one worker can exist for a task queue
+    Worker existingWorker = workers.get(taskQueue);
+    if (existingWorker == null) {
+      Worker worker =
+          new Worker(
+              workflowClient,
+              taskQueue,
+              factoryOptions,
+              options,
+              metricsScope,
+              runLocks,
+              cache,
+              true,
+              workflowThreadExecutor,
+              workflowClient.getOptions().getContextPropagators(),
+              plugins);
+      workers.put(taskQueue, worker);
+
+      // Go through the plugins to call plugin initializeReplayWorker hooks (e.g. register
+      // workflows)
+      for (WorkerPlugin plugin : plugins) {
+        plugin.initializeReplayWorker(taskQueue, worker);
+      }
+
+      return worker;
+    } else {
+      log.warn(
+          "Only one worker can be registered for a task queue, "
+              + "subsequent calls to WorkerFactory#newReplayWorker with the same task queue are ignored and "
               + "initially created worker is returned");
       return existingWorker;
     }
@@ -594,6 +661,25 @@ public final class WorkerFactory {
 
     for (WorkerPlugin plugin : plugins) {
       plugin.configureWorker(taskQueue, builder);
+    }
+    return builder.build();
+  }
+
+  /**
+   * Applies replay-specific plugin configuration to worker options. Plugins are called in forward
+   * (registration) order.
+   */
+  private static WorkerOptions applyReplayWorkerPluginConfiguration(
+      String taskQueue, WorkerOptions options, List<WorkerPlugin> plugins) {
+    if (plugins == null || plugins.isEmpty()) {
+      return options;
+    }
+
+    WorkerOptions.Builder builder =
+        options == null ? WorkerOptions.newBuilder() : WorkerOptions.newBuilder(options);
+
+    for (WorkerPlugin plugin : plugins) {
+      plugin.configureReplayWorker(taskQueue, builder);
     }
     return builder.build();
   }
