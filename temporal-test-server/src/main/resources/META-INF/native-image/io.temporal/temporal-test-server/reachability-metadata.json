@@ -1,0 +1,5593 @@
+{
+  "reflection": [
+    {
+      "type": "[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
+    },
+    {
+      "type": "[Lcom.fasterxml.jackson.databind.deser.KeyDeserializers;"
+    },
+    {
+      "type": "[Lcom.fasterxml.jackson.databind.deser.ValueInstantiators;"
+    },
+    {
+      "type": "[Lcom.fasterxml.jackson.databind.ser.Serializers;"
+    },
+    {
+      "type": "[Ljava.lang.Object;"
+    },
+    {
+      "type": "[Ljava.lang.String;"
+    },
+    {
+      "type": "[Ljava.lang.constant.ClassDesc;"
+    },
+    {
+      "type": "[Ljava.lang.constant.ConstantDesc;"
+    },
+    {
+      "type": "android.app.Application"
+    },
+    {
+      "type": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.DateConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.LevelConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.LineSeparatorConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.LoggerConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.MessageConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.pattern.ThreadConverter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.ConsoleAppender",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.OutputStreamAppender",
+      "methods": [
+        {
+          "name": "setEncoder",
+          "parameterTypes": [
+            "ch.qos.logback.core.encoder.Encoder"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.Encoder"
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+      "methods": [
+        {
+          "name": "setParent",
+          "parameterTypes": [
+            "ch.qos.logback.core.spi.ContextAware"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+      "methods": [
+        {
+          "name": "setPattern",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.spi.ContextAware"
+    },
+    {
+      "type": "com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.google.common.util.concurrent.AbstractFuture",
+      "fields": [
+        {
+          "name": "listeners"
+        },
+        {
+          "name": "value"
+        },
+        {
+          "name": "waiters"
+        }
+      ]
+    },
+    {
+      "type": "com.google.common.util.concurrent.AbstractFuture$Waiter",
+      "fields": [
+        {
+          "name": "next"
+        },
+        {
+          "name": "thread"
+        }
+      ]
+    },
+    {
+      "type": "com.google.protobuf.Duration",
+      "methods": [
+        {
+          "name": "getNanos",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSeconds",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.google.protobuf.Duration$Builder"
+    },
+    {
+      "type": "com.google.protobuf.ExtensionRegistry",
+      "methods": [
+        {
+          "name": "getEmptyRegistry",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.google.protobuf.Internal$EnumLite"
+    },
+    {
+      "type": "com.google.protobuf.ProtocolMessageEnum"
+    },
+    {
+      "type": "com.google.protobuf.Timestamp",
+      "methods": [
+        {
+          "name": "getNanos",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSeconds",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.google.protobuf.Timestamp$Builder",
+      "methods": [
+        {
+          "name": "clearNanos",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearSeconds",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNanos",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSeconds",
+          "parameterTypes": []
+        },
+        {
+          "name": "setNanos",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "setSeconds",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.tools.attach.VirtualMachine"
+    },
+    {
+      "type": "groovy.lang.Binding"
+    },
+    {
+      "type": "io.grpc.census.InternalCensusStatsAccessor"
+    },
+    {
+      "type": "io.grpc.census.InternalCensusTracingAccessor"
+    },
+    {
+      "type": "io.grpc.internal.DnsNameResolverProvider"
+    },
+    {
+      "type": "io.grpc.internal.PickFirstLoadBalancerProvider"
+    },
+    {
+      "type": "io.grpc.internal.SerializingExecutor",
+      "fields": [
+        {
+          "name": "runState"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.AbstractNettyHandler",
+      "methods": [
+        {
+          "name": "channelActive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.NettyServer$1"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.NettyServerHandler",
+      "methods": [
+        {
+          "name": "channelInactive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "close",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "write",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.ProtocolNegotiators$GrpcNegotiationHandler",
+      "methods": [
+        {
+          "name": "userEventTriggered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.ProtocolNegotiators$ProtocolNegotiationHandler",
+      "methods": [
+        {
+          "name": "userEventTriggered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.ProtocolNegotiators$WaitUntilActiveHandler",
+      "methods": [
+        {
+          "name": "channelActive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.UdsNameResolverProvider"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.grpc.netty.WriteBufferingAndExceptionHandler",
+      "methods": [
+        {
+          "name": "channelInactive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRead",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "close",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "connect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        },
+        {
+          "name": "flush",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "write",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.bootstrap.ServerBootstrap$1"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.bootstrap.ServerBootstrap$ServerBootstrapAcceptor",
+      "methods": [
+        {
+          "name": "channelRead",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.buffer.AbstractByteBufAllocator"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.buffer.AbstractReferenceCountedByteBuf",
+      "fields": [
+        {
+          "name": "refCnt"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.ChannelDuplexHandler",
+      "methods": [
+        {
+          "name": "bind",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "close",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "connect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "deregister",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "disconnect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "flush",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "read",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "write",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.ChannelInboundHandlerAdapter",
+      "methods": [
+        {
+          "name": "channelActive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelInactive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRead",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "channelReadComplete",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRegistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelUnregistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelWritabilityChanged",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        },
+        {
+          "name": "userEventTriggered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.ChannelInitializer",
+      "methods": [
+        {
+          "name": "channelRegistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.DefaultChannelPipeline$HeadContext",
+      "methods": [
+        {
+          "name": "bind",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "channelActive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelInactive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRead",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "channelReadComplete",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRegistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelUnregistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelWritabilityChanged",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "close",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "connect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "deregister",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "disconnect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        },
+        {
+          "name": "flush",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "read",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "userEventTriggered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "write",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.DefaultChannelPipeline$TailContext",
+      "methods": [
+        {
+          "name": "channelActive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelInactive",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRead",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "channelReadComplete",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelRegistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelUnregistered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelWritabilityChanged",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "exceptionCaught",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Throwable"
+          ]
+        },
+        {
+          "name": "userEventTriggered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.DefaultFileRegion"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.epoll.Epoll",
+      "methods": [
+        {
+          "name": "isAvailable",
+          "parameterTypes": []
+        },
+        {
+          "name": "unavailabilityCause",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.epoll.EpollServerSocketChannel",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.epoll.NativeDatagramPacketArray$NativeDatagramPacket"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.channel.unix.PeerCredentials"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.handler.codec.ByteToMessageDecoder",
+      "methods": [
+        {
+          "name": "channelRead",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "userEventTriggered",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2ConnectionHandler",
+      "methods": [
+        {
+          "name": "bind",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "channelReadComplete",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "channelWritabilityChanged",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "connect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "java.net.SocketAddress",
+            "java.net.SocketAddress",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "deregister",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "disconnect",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext",
+            "io.grpc.netty.shaded.io.netty.channel.ChannelPromise"
+          ]
+        },
+        {
+          "name": "flush",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        },
+        {
+          "name": "read",
+          "parameterTypes": [
+            "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.AbstractReferenceCounted",
+      "fields": [
+        {
+          "name": "refCnt"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.ReferenceCountUtil"
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.internal.shaded.org.jctools.queues.BaseMpscLinkedArrayQueueColdProducerFields",
+      "fields": [
+        {
+          "name": "producerLimit"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.internal.shaded.org.jctools.queues.BaseMpscLinkedArrayQueueConsumerFields",
+      "fields": [
+        {
+          "name": "consumerIndex"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.internal.shaded.org.jctools.queues.BaseMpscLinkedArrayQueueProducerFields",
+      "fields": [
+        {
+          "name": "producerIndex"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.internal.shaded.org.jctools.queues.MpscArrayQueueConsumerIndexField",
+      "fields": [
+        {
+          "name": "consumerIndex"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.internal.shaded.org.jctools.queues.MpscArrayQueueProducerIndexField",
+      "fields": [
+        {
+          "name": "producerIndex"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.netty.shaded.io.netty.util.internal.shaded.org.jctools.queues.MpscArrayQueueProducerLimitField",
+      "fields": [
+        {
+          "name": "producerLimit"
+        }
+      ]
+    },
+    {
+      "type": "io.grpc.override.ContextStorageOverride"
+    },
+    {
+      "type": "io.grpc.protobuf.services.internal.HealthCheckingRoundRobinLoadBalancerProvider"
+    },
+    {
+      "type": "io.grpc.util.OutlierDetectionLoadBalancerProvider"
+    },
+    {
+      "type": "io.grpc.util.SecretRoundRobinLoadBalancerProvider$Provider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.perfmark.impl.SecretPerfMarkImpl$PerfMarkImpl"
+    },
+    {
+      "type": "io.temporal.api.common.v1.ActivityType",
+      "methods": [
+        {
+          "name": "getName",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.ActivityType$Builder"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Callback"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Header",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.Link"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Link$WorkflowEvent"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Link$WorkflowEvent$Builder"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Link$WorkflowEvent$EventReference"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Link$WorkflowEvent$RequestIdReference"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Memo"
+    },
+    {
+      "type": "io.temporal.api.common.v1.MeteringMetadata",
+      "methods": [
+        {
+          "name": "getNonfirstLocalActivityExecutionAttempts",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.MeteringMetadata$Builder"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Payload",
+      "methods": [
+        {
+          "name": "getData",
+          "parameterTypes": []
+        },
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.Payload$Builder"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Payloads",
+      "methods": [
+        {
+          "name": "getPayloadsList",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.Payloads$Builder"
+    },
+    {
+      "type": "io.temporal.api.common.v1.Priority"
+    },
+    {
+      "type": "io.temporal.api.common.v1.RetryPolicy"
+    },
+    {
+      "type": "io.temporal.api.common.v1.SearchAttributes"
+    },
+    {
+      "type": "io.temporal.api.common.v1.WorkerVersionStamp"
+    },
+    {
+      "type": "io.temporal.api.common.v1.WorkflowExecution",
+      "methods": [
+        {
+          "name": "getRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowId",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.WorkflowExecution$Builder"
+    },
+    {
+      "type": "io.temporal.api.common.v1.WorkflowType",
+      "methods": [
+        {
+          "name": "getName",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.common.v1.WorkflowType$Builder"
+    },
+    {
+      "type": "io.temporal.api.deployment.v1.Deployment"
+    },
+    {
+      "type": "io.temporal.api.deployment.v1.WorkerDeploymentVersion"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.ApplicationErrorCategory"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.ContinueAsNewInitiator"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.EventType"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.RetryState"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.TaskQueueKind"
+    },
+    {
+      "type": "io.temporal.api.enums.v1.TimeoutType",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "io.temporal.api.enums.v1.VersioningBehavior"
+    },
+    {
+      "type": "io.temporal.api.errordetails.v1.MultiOperationExecutionFailure",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStatuses",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "getStatusesCount",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStatusesList",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$Builder",
+      "methods": [
+        {
+          "name": "addStatuses",
+          "parameterTypes": [
+            "io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$OperationStatus"
+          ]
+        },
+        {
+          "name": "clearStatuses",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStatuses",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "getStatusesBuilder",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "getStatusesCount",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStatusesList",
+          "parameterTypes": []
+        },
+        {
+          "name": "setStatuses",
+          "parameterTypes": [
+            "int",
+            "io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$OperationStatus"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.errordetails.v1.MultiOperationExecutionFailure$OperationStatus",
+      "methods": [
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ActivityFailureInfo",
+      "methods": [
+        {
+          "name": "getActivityId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getActivityType",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIdentity",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRetryStateValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduledEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStartedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasActivityType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ActivityFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ApplicationFailureInfo",
+      "methods": [
+        {
+          "name": "getCategoryValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNonRetryable",
+          "parameterTypes": []
+        },
+        {
+          "name": "getType",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasDetails",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasNextRetryDelay",
+          "parameterTypes": []
+        },
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ApplicationFailureInfo$Builder",
+      "methods": [
+        {
+          "name": "getNonRetryable",
+          "parameterTypes": []
+        },
+        {
+          "name": "getType",
+          "parameterTypes": []
+        },
+        {
+          "name": "setNonRetryable",
+          "parameterTypes": [
+            "boolean"
+          ]
+        },
+        {
+          "name": "setType",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.CanceledFailureInfo",
+      "methods": [
+        {
+          "name": "getDetails",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasDetails",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.CanceledFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo",
+      "methods": [
+        {
+          "name": "getInitiatedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNamespace",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRetryStateValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStartedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowExecution",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowType",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowExecution",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.Failure",
+      "methods": [
+        {
+          "name": "getActivityFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getApplicationFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCanceledFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCause",
+          "parameterTypes": []
+        },
+        {
+          "name": "getChildWorkflowExecutionFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFailureInfoCase",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMessage",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNexusHandlerFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNexusOperationExecutionFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSource",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStackTrace",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTerminatedFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTimeoutFailureInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasCause",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasEncodedAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.Failure$Builder",
+      "methods": [
+        {
+          "name": "getFailureInfoCase",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSource",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStackTrace",
+          "parameterTypes": []
+        },
+        {
+          "name": "setApplicationFailureInfo",
+          "parameterTypes": [
+            "io.temporal.api.failure.v1.ApplicationFailureInfo"
+          ]
+        },
+        {
+          "name": "setSource",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "setStackTrace",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.NexusHandlerFailureInfo",
+      "methods": [
+        {
+          "name": "getRetryBehaviorValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.NexusHandlerFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.NexusOperationFailureInfo",
+      "methods": [
+        {
+          "name": "getEndpoint",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOperation",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOperationId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOperationToken",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduledEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getService",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.NexusOperationFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ResetWorkflowFailureInfo"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ServerFailureInfo"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.TerminatedFailureInfo"
+    },
+    {
+      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo",
+      "methods": [
+        {
+          "name": "getLastHeartbeatDetails",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTimeoutTypeValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasLastHeartbeatDetails",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityPropertiesModifiedExternallyEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskCancelRequestedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskStartedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ChildWorkflowExecutionStartedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.ExternalWorkflowExecutionSignaledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.HistoryEvent",
+      "methods": [
+        {
+          "name": "getAttributesCase",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEventTime",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEventTypeValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getLinksList",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNexusOperationFailedEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNexusOperationScheduledEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTaskId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getVersion",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkerMayIgnore",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowExecutionCompletedEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowExecutionStartedEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowTaskCompletedEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowTaskScheduledEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowTaskStartedEventAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasEventTime",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasUserMetadata",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.HistoryEvent$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.MarkerRecordedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationCancelRequestCompletedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationCancelRequestFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationCancelRequestedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationCanceledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationCompletedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationFailedEventAttributes",
+      "methods": [
+        {
+          "name": "getFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduledEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasFailure",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationFailedEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationScheduledEventAttributes",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEndpoint",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEndpointId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOperation",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduleToCloseTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "getService",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowTaskCompletedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasScheduleToCloseTimeout",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationScheduledEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationStartedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.NexusOperationTimedOutEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.RequestCancelExternalWorkflowExecutionFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.SignalExternalWorkflowExecutionInitiatedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.TimerCanceledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.TimerFiredEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.TimerStartedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.UpsertWorkflowSearchAttributesEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionCancelRequestedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionCanceledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionCompletedEventAttributes",
+      "methods": [
+        {
+          "name": "getNewExecutionRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getResult",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowTaskCompletedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasResult",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionCompletedEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionOptionsUpdatedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes",
+      "methods": [
+        {
+          "name": "getAttempt",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCompletionCallbacksList",
+          "parameterTypes": []
+        },
+        {
+          "name": "getContinuedExecutionRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCronSchedule",
+          "parameterTypes": []
+        },
+        {
+          "name": "getEagerExecutionAccepted",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFirstExecutionRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFirstWorkflowTaskBackoff",
+          "parameterTypes": []
+        },
+        {
+          "name": "getHeader",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIdentity",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInheritedBuildId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInitiatorValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOriginalExecutionRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParentInitiatedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParentInitiatedEventVersion",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParentPinnedWorkerDeploymentVersion",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParentWorkflowNamespace",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParentWorkflowNamespaceId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTaskQueue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowExecutionTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowRunTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowTaskTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowType",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasContinuedFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasFirstWorkflowTaskBackoff",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasHeader",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasInheritedPinnedVersion",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasLastCompletionResult",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasMemo",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasParentWorkflowExecution",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasPrevAutoResetPoints",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasPriority",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasRetryPolicy",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasRootWorkflowExecution",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasSearchAttributes",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasSourceVersionStamp",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasTaskQueue",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasVersioningOverride",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowExecutionExpirationTime",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowExecutionTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowRunTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowTaskTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkflowType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionTerminatedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionTimedOutEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionUpdateAcceptedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionUpdateAdmittedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionUpdateCompletedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowExecutionUpdateRejectedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowPropertiesModifiedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowPropertiesModifiedExternallyEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskCompletedEventAttributes",
+      "methods": [
+        {
+          "name": "getBinaryChecksum",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIdentity",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMeteringMetadata",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduledEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSdkMetadata",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStartedEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getVersioningBehaviorValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkerDeploymentName",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkerDeploymentVersion",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasDeployment",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasDeploymentVersion",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasMeteringMetadata",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasSdkMetadata",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkerVersion",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskCompletedEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskScheduledEventAttributes",
+      "methods": [
+        {
+          "name": "getAttempt",
+          "parameterTypes": []
+        },
+        {
+          "name": "getStartToCloseTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTaskQueue",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasStartToCloseTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasTaskQueue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskScheduledEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskStartedEventAttributes",
+      "methods": [
+        {
+          "name": "getBuildIdRedirectCounter",
+          "parameterTypes": []
+        },
+        {
+          "name": "getHistorySizeBytes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIdentity",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRequestId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScheduledEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSuggestContinueAsNew",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasWorkerVersion",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskStartedEventAttributes$Builder"
+    },
+    {
+      "type": "io.temporal.api.history.v1.WorkflowTaskTimedOutEventAttributes"
+    },
+    {
+      "type": "io.temporal.api.sdk.v1.UserMetadata"
+    },
+    {
+      "type": "io.temporal.api.sdk.v1.WorkflowTaskCompletedMetadata",
+      "methods": [
+        {
+          "name": "getCoreUsedFlagsList",
+          "parameterTypes": []
+        },
+        {
+          "name": "getLangUsedFlagsList",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSdkName",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSdkVersion",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.sdk.v1.WorkflowTaskCompletedMetadata$Builder"
+    },
+    {
+      "type": "io.temporal.api.taskqueue.v1.TaskQueue",
+      "methods": [
+        {
+          "name": "getKindValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getName",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNormalName",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.taskqueue.v1.TaskQueue$Builder"
+    },
+    {
+      "type": "io.temporal.api.update.v1.Acceptance",
+      "methods": [
+        {
+          "name": "getAcceptedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestMessageId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestMessageIdBytes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestSequencingEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasAcceptedRequest",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Acceptance$Builder",
+      "methods": [
+        {
+          "name": "clearAcceptedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearAcceptedRequestMessageId",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearAcceptedRequestSequencingEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestMessageId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestMessageIdBytes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAcceptedRequestSequencingEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasAcceptedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "setAcceptedRequest",
+          "parameterTypes": [
+            "io.temporal.api.update.v1.Request"
+          ]
+        },
+        {
+          "name": "setAcceptedRequestMessageId",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "setAcceptedRequestMessageIdBytes",
+          "parameterTypes": [
+            "com.google.protobuf.ByteString"
+          ]
+        },
+        {
+          "name": "setAcceptedRequestSequencingEventId",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Input",
+      "methods": [
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Meta",
+      "methods": [
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Outcome",
+      "methods": [
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Rejection",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestMessageId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestMessageIdBytes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestSequencingEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasRejectedRequest",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Rejection$Builder",
+      "methods": [
+        {
+          "name": "clearFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearRejectedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearRejectedRequestMessageId",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearRejectedRequestSequencingEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFailureBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestMessageId",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestMessageIdBytes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRejectedRequestSequencingEventId",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasRejectedRequest",
+          "parameterTypes": []
+        },
+        {
+          "name": "setFailure",
+          "parameterTypes": [
+            "io.temporal.api.failure.v1.Failure"
+          ]
+        },
+        {
+          "name": "setRejectedRequest",
+          "parameterTypes": [
+            "io.temporal.api.update.v1.Request"
+          ]
+        },
+        {
+          "name": "setRejectedRequestMessageId",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "setRejectedRequestMessageIdBytes",
+          "parameterTypes": [
+            "com.google.protobuf.ByteString"
+          ]
+        },
+        {
+          "name": "setRejectedRequestSequencingEventId",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Request",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Request$Builder",
+      "methods": [
+        {
+          "name": "clearInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "getInputBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMetaBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasInput",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "setInput",
+          "parameterTypes": [
+            "io.temporal.api.update.v1.Input"
+          ]
+        },
+        {
+          "name": "setMeta",
+          "parameterTypes": [
+            "io.temporal.api.update.v1.Meta"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Response",
+      "methods": [
+        {
+          "name": "getDefaultInstance",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOutcome",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasOutcome",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.update.v1.Response$Builder",
+      "methods": [
+        {
+          "name": "clearMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "clearOutcome",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "getMetaBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOutcome",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOutcomeBuilder",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasMeta",
+          "parameterTypes": []
+        },
+        {
+          "name": "hasOutcome",
+          "parameterTypes": []
+        },
+        {
+          "name": "setMeta",
+          "parameterTypes": [
+            "io.temporal.api.update.v1.Meta"
+          ]
+        },
+        {
+          "name": "setOutcome",
+          "parameterTypes": [
+            "io.temporal.api.update.v1.Outcome"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.api.workflow.v1.ResetPoints"
+    },
+    {
+      "type": "io.temporal.api.workflow.v1.VersioningOverride"
+    },
+    {
+      "type": "io.temporal.client.WorkflowClient",
+      "methods": [
+        {
+          "name": "fetchHistory",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "fetchHistory",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getInternal",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOptions",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkflowServiceStubs",
+          "parameterTypes": []
+        },
+        {
+          "name": "newUntypedWorkflowStub",
+          "parameterTypes": [
+            "java.lang.String",
+            "io.temporal.client.WorkflowOptions"
+          ]
+        },
+        {
+          "name": "newWorkflowStub",
+          "parameterTypes": [
+            "java.lang.Class",
+            "io.temporal.client.WorkflowOptions"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": [
+            "io.temporal.internal.activity.ActivityInfoInternal",
+            "com.uber.m3.tally.Scope"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.internal.activity.ActivityTaskExecutors$DynamicActivityImplementation"
+    },
+    {
+      "type": "io.temporal.internal.activity.ActivityTaskExecutors$POJOActivityImplementation"
+    },
+    {
+      "type": "io.temporal.internal.sync.DynamicSyncWorkflowDefinition",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": [
+            "io.temporal.common.interceptors.Header",
+            "java.util.Optional"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": [
+            "io.temporal.common.interceptors.Header",
+            "java.util.Optional"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.internal.testservice.SelfAdvancingTimerImplTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setUp",
+          "parameterTypes": []
+        },
+        {
+          "name": "tearDown",
+          "parameterTypes": []
+        },
+        {
+          "name": "testOrdering",
+          "parameterTypes": []
+        },
+        {
+          "name": "testSchedule",
+          "parameterTypes": []
+        },
+        {
+          "name": "testSkip",
+          "parameterTypes": []
+        },
+        {
+          "name": "testSkipTo",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.internal.testservice.TestVisibilityStoreImplTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "testExistingTypeMetadataIsPreserved",
+          "parameterTypes": []
+        },
+        {
+          "name": "testTypeMetadataIsAddedToPayloads",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.serviceclient.ServiceStubs",
+      "methods": [
+        {
+          "name": "awaitTermination",
+          "parameterTypes": [
+            "long",
+            "java.util.concurrent.TimeUnit"
+          ]
+        },
+        {
+          "name": "blockingStub",
+          "parameterTypes": []
+        },
+        {
+          "name": "futureStub",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRawChannel",
+          "parameterTypes": []
+        },
+        {
+          "name": "getServerCapabilities",
+          "parameterTypes": []
+        },
+        {
+          "name": "shutdownNow",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.serviceclient.WorkflowServiceStubs",
+      "methods": [
+        {
+          "name": "getOptions",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testing.TestWorkflowRule$2",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "io.temporal.testing.internal.SDKTestWorkflowRule$1",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "io.temporal.testserver.functional.ChildLivesLongerThanParentTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "testAbandonChild",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.ChildLivesLongerThanParentTest$ChildWorkflowWithTimerImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.ChildLivesLongerThanParentTest$TestWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.ContinueAsNewTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "repeatedFailure",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.ContinueAsNewTest$TestWorkflow",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.DescribeNamespaceTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "noNamespaceSet",
+          "parameterTypes": []
+        },
+        {
+          "name": "testDescribeNamespace",
+          "parameterTypes": []
+        },
+        {
+          "name": "testDescribeNamespaceCapabilities",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.DescribeWorkflowExecutionTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "testCanceledWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "testChildWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "testFailedActivity",
+          "parameterTypes": []
+        },
+        {
+          "name": "testFailedWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "testSuccessfulActivity",
+          "parameterTypes": []
+        },
+        {
+          "name": "testTerminatedWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "testWorkflowDoesNotExist",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.DescribeWorkflowExecutionTest$TestDescribeActivity",
+      "methods": [
+        {
+          "name": "run",
+          "parameterTypes": [
+            "java.lang.String",
+            "boolean",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.DescribeWorkflowExecutionTest$TestDescribeActivityImpl"
+    },
+    {
+      "type": "io.temporal.testserver.functional.DescribeWorkflowExecutionTest$TestDescribeWorkflow",
+      "methods": [
+        {
+          "name": "run",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "boolean",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.DescribeWorkflowExecutionTest$TestDescribeWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.FirstExecutionRunIdSupportTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "requestCancelWorkflowExecutionUsesFirstExecutionRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "requestCancelWorkflowExecutionUsesFirstExecutionRunIdAfterContinueAsNew",
+          "parameterTypes": []
+        },
+        {
+          "name": "terminateWorkflowExecutionUsesFirstExecutionRunId",
+          "parameterTypes": []
+        },
+        {
+          "name": "terminateWorkflowExecutionUsesFirstExecutionRunIdAfterContinueAsNew",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.FirstExecutionRunIdSupportTest$ContinueAsNewWorkflow",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": [
+            "boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.FirstExecutionRunIdSupportTest$ContinueAsNewWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.FirstExecutionRunIdSupportTest$WaitingWorkflow",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.MultiOperationTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "failWhenMultiOperationListIsInvalid",
+          "parameterTypes": []
+        },
+        {
+          "name": "failWhenMultiOperationWorkflowIDsNotMatching",
+          "parameterTypes": []
+        },
+        {
+          "name": "failWhenStartOperationIsInvalid",
+          "parameterTypes": []
+        },
+        {
+          "name": "failWhenUpdateOperationIsInvalid",
+          "parameterTypes": []
+        },
+        {
+          "name": "receiveResponseAfterTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "startAndUpdate",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.MultiOperationTest$UpdateWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.NexusEndpointTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "checkExternal",
+          "parameterTypes": []
+        },
+        {
+          "name": "testCreate",
+          "parameterTypes": []
+        },
+        {
+          "name": "testDelete",
+          "parameterTypes": []
+        },
+        {
+          "name": "testGet",
+          "parameterTypes": []
+        },
+        {
+          "name": "testList",
+          "parameterTypes": []
+        },
+        {
+          "name": "testUpdate",
+          "parameterTypes": []
+        },
+        {
+          "name": "testValidateEndpointSpec",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.NexusWorkflowTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setup",
+          "parameterTypes": []
+        },
+        {
+          "name": "tearDown",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationAsyncCompletion",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationAsyncCompletionBeforeStart",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationAsyncHandlerCanceled",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationAsyncHandlerTerminated",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationAsyncHandlerTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationError",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationHandlerError",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationHandlerTemporalFailure",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationHandlerTemporalFailure",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "testNexusOperationInvalidRef",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationSyncCompletion",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationTimeout_AfterCancel",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationTimeout_AfterStart",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusOperationTimeout_BeforeStart",
+          "parameterTypes": []
+        },
+        {
+          "name": "testNexusTemporalFailureConversion",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.NexusWorkflowTest$EchoNexusHandlerWorkflowImpl"
+    },
+    {
+      "type": "io.temporal.testserver.functional.RepeatedWorkflowTaskFailuresTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "repeatedFailure",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.RepeatedWorkflowTaskFailuresTest$TestWorkflow",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.SignalLinksTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "testSignalWithLinks",
+          "parameterTypes": []
+        },
+        {
+          "name": "testSignalWithStartLinks",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.SignalLinksTest$TestWorkflow",
+      "methods": [
+        {
+          "name": "run",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.SignalLinksTest$TestWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowCachingTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setUp",
+          "parameterTypes": []
+        },
+        {
+          "name": "taskCompletionWithStickyExecutionAttributesWillScheduleWorkflowTasksOnStickyTaskQueue",
+          "parameterTypes": []
+        },
+        {
+          "name": "taskFailureWillRescheduleTheTaskOnTheGlobalList",
+          "parameterTypes": []
+        },
+        {
+          "name": "tearDown",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowIdConflictPolicyTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "conflictPolicyFail",
+          "parameterTypes": []
+        },
+        {
+          "name": "conflictPolicyUseExisting",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowIdConflictPolicyTest$SignalWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowIdReusePolicyTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "allowDuplicateAfterFailed",
+          "parameterTypes": []
+        },
+        {
+          "name": "alreadyRunningWorkflowBlocksSecondEvenWithAllowDuplicate",
+          "parameterTypes": []
+        },
+        {
+          "name": "deduplicateRequestWorkflowAlreadyCompleted",
+          "parameterTypes": []
+        },
+        {
+          "name": "deduplicateRequestWorkflowStillRunning",
+          "parameterTypes": []
+        },
+        {
+          "name": "invalidWorkflowIdReusePolicy",
+          "parameterTypes": []
+        },
+        {
+          "name": "rejectDuplicateStopsAnotherAfterFailed",
+          "parameterTypes": []
+        },
+        {
+          "name": "secondWorkflowTerminatesFirst",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowIdReusePolicyTest$FailingWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowIdReusePolicyTest$ForeverWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowUpdateTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "duplicateRejectedUpdate",
+          "parameterTypes": []
+        },
+        {
+          "name": "duplicateUpdate",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCompletedUpdateOfCompletedWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIncompleteUpdateOfCompletedWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "pollUpdateBadUpdate",
+          "parameterTypes": []
+        },
+        {
+          "name": "pollUpdateBadWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "update",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateAdmittedNotSupported",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateAndPollByWorkflowId",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateAndPollCompletedWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateBadWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateCompleteWorkflow",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateNotAcceptedTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateRejected",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateWaitCompletedTimeout",
+          "parameterTypes": []
+        },
+        {
+          "name": "updateWaitStage",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.WorkflowUpdateTest$UpdateWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.activity.ActivityHeartbeatTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "testActivityHeartbeatNoLastHeartbeatDetails",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.activity.ActivityHeartbeatTest$TestActivity"
+    },
+    {
+      "type": "io.temporal.testserver.functional.activity.ActivityHeartbeatTest$TestWorkflow",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.activity.ActivityWithAnOutdatedTaskTokenTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setUp",
+          "parameterTypes": []
+        },
+        {
+          "name": "testAnActivityWithOutdatedTaskTokenCantCompleteAnExecution",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.activity.ActivityWithAnOutdatedTaskTokenTest$TestActivity"
+    },
+    {
+      "type": "io.temporal.testserver.functional.activity.ActivityWithAnOutdatedTaskTokenTest$TestWorkflow",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestActivities$ActivityReturnsString",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$PrimitiveChildWorkflow",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$PrimitiveNexusHandlerWorkflow"
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$PrimitiveWorkflow",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$UpdateType",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$WorkflowReturnsString",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$WorkflowTakesBool",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": [
+            "boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$WorkflowWithSignal",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": []
+        },
+        {
+          "name": "signal",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.common.TestWorkflows$WorkflowWithUpdate",
+      "methods": [
+        {
+          "name": "execute",
+          "parameterTypes": []
+        },
+        {
+          "name": "signal",
+          "parameterTypes": []
+        },
+        {
+          "name": "update",
+          "parameterTypes": [
+            "io.temporal.testserver.functional.common.TestWorkflows$UpdateType"
+          ]
+        },
+        {
+          "name": "updateValidator",
+          "parameterTypes": [
+            "io.temporal.testserver.functional.common.TestWorkflows$UpdateType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.searchattributes.IncorrectStartWorkflowSearchAttributesTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "searchAttributeIsIncorrectValueType",
+          "parameterTypes": []
+        },
+        {
+          "name": "searchAttributeIsNotRegistered",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.searchattributes.IncorrectStartWorkflowSearchAttributesTest$DummyWorkflow"
+    },
+    {
+      "type": "io.temporal.testserver.functional.searchattributes.IncorrectUpsertSearchAttributesTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "searchAttributeIsIncorrectValueType",
+          "parameterTypes": []
+        },
+        {
+          "name": "searchAttributeIsNotRegistered",
+          "parameterTypes": []
+        },
+        {
+          "name": "setUp",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.searchattributes.IncorrectUpsertSearchAttributesTest$UpsertingWorkflow",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.timeskipping.SleepingActivity"
+    },
+    {
+      "type": "io.temporal.testserver.functional.timeskipping.TimeSkippingFromAnActivityTest",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "setUp",
+          "parameterTypes": []
+        },
+        {
+          "name": "tearDown",
+          "parameterTypes": []
+        },
+        {
+          "name": "testAbandonActivity",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "io.temporal.testserver.functional.timeskipping.TimeSkippingFromAnActivityTest$SleepingActivityImpl"
+    },
+    {
+      "type": "io.temporal.testserver.functional.timeskipping.TimeSkippingFromAnActivityTest$TestWorkflowImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.io.FileDescriptor"
+    },
+    {
+      "type": "java.io.FilePermission"
+    },
+    {
+      "type": "java.io.Serializable"
+    },
+    {
+      "type": "java.lang.AssertionError"
+    },
+    {
+      "type": "java.lang.Class",
+      "methods": [
+        {
+          "name": "getModule",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNestHost",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNestMembers",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRecordComponents",
+          "parameterTypes": []
+        },
+        {
+          "name": "isRecord",
+          "parameterTypes": []
+        },
+        {
+          "name": "isSealed",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.ClassLoader",
+      "methods": [
+        {
+          "name": "getDefinedPackage",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "registerAsParallelCapable",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Enum"
+    },
+    {
+      "type": "java.lang.Module",
+      "methods": [
+        {
+          "name": "canRead",
+          "parameterTypes": [
+            "java.lang.Module"
+          ]
+        },
+        {
+          "name": "isExported",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Object",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.ProcessHandle",
+      "methods": [
+        {
+          "name": "current",
+          "parameterTypes": []
+        },
+        {
+          "name": "pid",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Runtime",
+      "methods": [
+        {
+          "name": "version",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Runtime$Version",
+      "methods": [
+        {
+          "name": "feature",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.RuntimePermission"
+    },
+    {
+      "type": "java.lang.StackWalker"
+    },
+    {
+      "type": "java.lang.StackWalker$Option"
+    },
+    {
+      "type": "java.lang.StackWalker$StackFrame"
+    },
+    {
+      "type": "java.lang.System",
+      "methods": [
+        {
+          "name": "getSecurityManager",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Thread",
+      "fields": [
+        {
+          "name": "threadLocalRandomProbe"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Throwable",
+      "methods": [
+        {
+          "name": "getSuppressed",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.WeakPairMap"
+    },
+    {
+      "type": "java.lang.WeakPairMap$Pair"
+    },
+    {
+      "type": "java.lang.WeakPairMap$Pair$Weak"
+    },
+    {
+      "type": "java.lang.annotation.Retention"
+    },
+    {
+      "type": "java.lang.annotation.Target"
+    },
+    {
+      "type": "java.lang.constant.ClassDesc"
+    },
+    {
+      "type": "java.lang.constant.ConstantDesc"
+    },
+    {
+      "type": "java.lang.constant.DirectMethodHandleDesc"
+    },
+    {
+      "type": "java.lang.constant.DirectMethodHandleDesc$Kind"
+    },
+    {
+      "type": "java.lang.constant.DynamicConstantDesc"
+    },
+    {
+      "type": "java.lang.constant.MethodHandleDesc"
+    },
+    {
+      "type": "java.lang.constant.MethodTypeDesc"
+    },
+    {
+      "type": "java.lang.instrument.Instrumentation",
+      "methods": [
+        {
+          "name": "redefineModule",
+          "parameterTypes": [
+            "java.lang.Module",
+            "java.util.Set",
+            "java.util.Map",
+            "java.util.Map",
+            "java.util.Set",
+            "java.util.Map"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.invoke.MethodHandle"
+    },
+    {
+      "type": "java.lang.invoke.MethodHandles",
+      "methods": [
+        {
+          "name": "lookup",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.invoke.MethodHandles$Lookup",
+      "methods": [
+        {
+          "name": "findVirtual",
+          "parameterTypes": [
+            "java.lang.Class",
+            "java.lang.String",
+            "java.lang.invoke.MethodType"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.invoke.MethodType",
+      "methods": [
+        {
+          "name": "methodType",
+          "parameterTypes": [
+            "java.lang.Class",
+            "java.lang.Class[]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.management.ManagementFactory",
+      "methods": [
+        {
+          "name": "getRuntimeMXBean",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.management.RuntimeMXBean",
+      "methods": [
+        {
+          "name": "getInputArguments",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.reflect.AccessibleObject"
+    },
+    {
+      "type": "java.lang.reflect.AnnotatedArrayType"
+    },
+    {
+      "type": "java.lang.reflect.AnnotatedParameterizedType"
+    },
+    {
+      "type": "java.lang.reflect.AnnotatedType",
+      "methods": [
+        {
+          "name": "getType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.reflect.AnnotatedWildcardType"
+    },
+    {
+      "type": "java.lang.reflect.Executable",
+      "methods": [
+        {
+          "name": "getAnnotatedExceptionTypes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAnnotatedParameterTypes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getAnnotatedReceiverType",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParameterCount",
+          "parameterTypes": []
+        },
+        {
+          "name": "getParameters",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.reflect.Field"
+    },
+    {
+      "type": "java.lang.reflect.Method",
+      "methods": [
+        {
+          "name": "getAnnotatedReturnType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.reflect.Parameter",
+      "methods": [
+        {
+          "name": "getModifiers",
+          "parameterTypes": []
+        },
+        {
+          "name": "isNamePresent",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.net.NetPermission"
+    },
+    {
+      "type": "java.net.SocketPermission"
+    },
+    {
+      "type": "java.net.URLPermission",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.nio.Bits",
+      "fields": [
+        {
+          "name": "UNALIGNED"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.Buffer",
+      "fields": [
+        {
+          "name": "address"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.ByteBuffer",
+      "methods": [
+        {
+          "name": "alignedSlice",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectByteBuffer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.nio.channels.FileChannel"
+    },
+    {
+      "type": "java.nio.channels.spi.SelectorProvider",
+      "methods": [
+        {
+          "name": "openServerSocketChannel",
+          "parameterTypes": [
+            "java.net.ProtocolFamily"
+          ]
+        },
+        {
+          "name": "openSocketChannel",
+          "parameterTypes": [
+            "java.net.ProtocolFamily"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.security.AccessController",
+      "methods": [
+        {
+          "name": "doPrivileged",
+          "parameterTypes": [
+            "java.security.PrivilegedAction"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.security.AllPermission"
+    },
+    {
+      "type": "java.security.SecureRandomParameters"
+    },
+    {
+      "type": "java.security.SecurityPermission"
+    },
+    {
+      "type": "java.sql.Date"
+    },
+    {
+      "type": "java.time.Clock",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.time.Instant"
+    },
+    {
+      "type": "java.time.InstantSource",
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.util.HashSet"
+    },
+    {
+      "type": "java.util.LinkedHashSet"
+    },
+    {
+      "type": "java.util.PropertyPermission"
+    },
+    {
+      "type": "java.util.concurrent.ArrayBlockingQueue"
+    },
+    {
+      "type": "java.util.concurrent.ForkJoinTask",
+      "fields": [
+        {
+          "name": "aux"
+        },
+        {
+          "name": "status"
+        }
+      ]
+    },
+    {
+      "type": "java.util.concurrent.ScheduledThreadPoolExecutor",
+      "methods": [
+        {
+          "name": "setRemoveOnCancelPolicy",
+          "parameterTypes": [
+            "boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.util.concurrent.atomic.AtomicBoolean",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "java.util.concurrent.atomic.LongAdder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "add",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "sum",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.util.concurrent.atomic.Striped64",
+      "fields": [
+        {
+          "name": "base"
+        },
+        {
+          "name": "cellsBusy"
+        }
+      ]
+    },
+    {
+      "type": "java.util.concurrent.atomic.Striped64$Cell",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractOwnableSynchronizer"
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractQueuedSynchronizer"
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject"
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock"
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock$NonfairSync"
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock$Sync"
+    },
+    {
+      "type": "javax.management.ObjectName"
+    },
+    {
+      "type": "javax.smartcardio.CardPermission"
+    },
+    {
+      "type": "jdk.internal.misc.Unsafe",
+      "methods": [
+        {
+          "name": "getUnsafe",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "junitparams.JUnitParamsRunner",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "kotlin.jvm.JvmInline"
+    },
+    {
+      "type": "libcore.io.Memory"
+    },
+    {
+      "type": "net.bytebuddy.agent.Installer",
+      "methods": [
+        {
+          "name": "agentmain",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.instrument.Instrumentation"
+          ]
+        },
+        {
+          "name": "getInstrumentation",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$AllArguments",
+      "methods": [
+        {
+          "name": "includeSelf",
+          "parameterTypes": []
+        },
+        {
+          "name": "nullIfEmpty",
+          "parameterTypes": []
+        },
+        {
+          "name": "readOnly",
+          "parameterTypes": []
+        },
+        {
+          "name": "typing",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Argument",
+      "methods": [
+        {
+          "name": "optional",
+          "parameterTypes": []
+        },
+        {
+          "name": "readOnly",
+          "parameterTypes": []
+        },
+        {
+          "name": "typing",
+          "parameterTypes": []
+        },
+        {
+          "name": "value",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Enter",
+      "methods": [
+        {
+          "name": "readOnly",
+          "parameterTypes": []
+        },
+        {
+          "name": "typing",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Exit"
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$FieldGetterHandle"
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$FieldSetterHandle"
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Local"
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$OnMethodEnter",
+      "methods": [
+        {
+          "name": "inline",
+          "parameterTypes": []
+        },
+        {
+          "name": "prependLineNumber",
+          "parameterTypes": []
+        },
+        {
+          "name": "skipOn",
+          "parameterTypes": []
+        },
+        {
+          "name": "skipOnIndex",
+          "parameterTypes": []
+        },
+        {
+          "name": "suppress",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$OnMethodExit",
+      "methods": [
+        {
+          "name": "backupArguments",
+          "parameterTypes": []
+        },
+        {
+          "name": "inline",
+          "parameterTypes": []
+        },
+        {
+          "name": "onThrowable",
+          "parameterTypes": []
+        },
+        {
+          "name": "repeatOn",
+          "parameterTypes": []
+        },
+        {
+          "name": "repeatOnIndex",
+          "parameterTypes": []
+        },
+        {
+          "name": "suppress",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Origin"
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Return",
+      "methods": [
+        {
+          "name": "readOnly",
+          "parameterTypes": []
+        },
+        {
+          "name": "typing",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$SelfCallHandle"
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$This",
+      "methods": [
+        {
+          "name": "optional",
+          "parameterTypes": []
+        },
+        {
+          "name": "readOnly",
+          "parameterTypes": []
+        },
+        {
+          "name": "typing",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.asm.Advice$Thrown"
+    },
+    {
+      "type": "net.bytebuddy.description.method.MethodDescription$InDefinedShape$AbstractBase$Executable"
+    },
+    {
+      "type": "net.bytebuddy.description.method.ParameterDescription$ForLoadedParameter$Parameter"
+    },
+    {
+      "type": "net.bytebuddy.description.method.ParameterList$ForLoadedExecutable$Executable"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDefinition$Sort$AnnotatedType"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$ForLoadedType$Dispatcher"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedExecutableExceptionType$Dispatcher"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedExecutableParameterType$Dispatcher"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedField$Dispatcher"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedMethodReturnType$Dispatcher"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$ForComponentType$AnnotatedParameterizedType"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$ForTypeArgument$AnnotatedParameterizedType"
+    },
+    {
+      "type": "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$ForWildcardUpperBoundType$AnnotatedWildcardType"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.AllArguments",
+      "methods": [
+        {
+          "name": "includeSelf",
+          "parameterTypes": []
+        },
+        {
+          "name": "nullIfEmpty",
+          "parameterTypes": []
+        },
+        {
+          "name": "value",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.Argument",
+      "methods": [
+        {
+          "name": "bindingMechanic",
+          "parameterTypes": []
+        },
+        {
+          "name": "value",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.Argument$BindingMechanic"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.BindingPriority",
+      "methods": [
+        {
+          "name": "value",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.Default"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.DefaultCall"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.DefaultCallHandle"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.DefaultMethod"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.DefaultMethodHandle"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.FieldGetterHandle"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.FieldSetterHandle"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.FieldValue",
+      "methods": [
+        {
+          "name": "declaringType",
+          "parameterTypes": []
+        },
+        {
+          "name": "value",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.Origin",
+      "methods": [
+        {
+          "name": "cache",
+          "parameterTypes": []
+        },
+        {
+          "name": "privileged",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.StubValue"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.Super"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.SuperCall",
+      "methods": [
+        {
+          "name": "fallbackToDefault",
+          "parameterTypes": []
+        },
+        {
+          "name": "nullIfImpossible",
+          "parameterTypes": []
+        },
+        {
+          "name": "serializableProxy",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.SuperCallHandle"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.SuperMethod"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.SuperMethodHandle"
+    },
+    {
+      "type": "net.bytebuddy.implementation.bind.annotation.This",
+      "methods": [
+        {
+          "name": "optional",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.utility.Invoker"
+    },
+    {
+      "type": "net.bytebuddy.utility.Invoker$Dispatcher",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfClassDesc"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfDirectMethodHandleDesc"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfDirectMethodHandleDesc$ForKind"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfDynamicConstantDesc"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfMethodHandleDesc"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfMethodTypeDesc"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaModule$Module"
+    },
+    {
+      "type": "net.bytebuddy.utility.JavaModule$Resolver"
+    },
+    {
+      "type": "org.mockito.codegen.Clock$MockitoMock$p6i0i91op99200N",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.codegen.Clock$MockitoMock$p6i0i91op99200N$auxiliary$4cscpe1S"
+    },
+    {
+      "type": "org.mockito.codegen.Clock$MockitoMock$p6i0i91op99200N$auxiliary$7m9oaq0S"
+    },
+    {
+      "type": "org.mockito.configuration.MockitoConfiguration"
+    },
+    {
+      "type": "org.mockito.internal.PremainAttach",
+      "methods": [
+        {
+          "name": "getInstrumentation",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.configuration.DefaultDoNotMockEnforcer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.configuration.InjectingAnnotationEngine",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.configuration.plugins.DefaultPluginSwitch",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.InlineByteBuddyMockMaker",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockAccess"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodAdvice"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodAdvice$ForEquals"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodAdvice$ForHashCode"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodAdvice$ForReadObject"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodAdvice$ForStatic"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodAdvice$Identifier"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodInterceptor$DispatcherDefaultingToRealMethod"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodInterceptor$ForEquals"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodInterceptor$ForHashCode"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.MockMethodInterceptor$ForWriteReplace"
+    },
+    {
+      "type": "org.mockito.internal.creation.bytebuddy.inject.MockMethodDispatcher"
+    },
+    {
+      "type": "org.mockito.internal.creation.instance.DefaultInstantiatorProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.exceptions.stacktrace.DefaultStackTraceCleanerProvider",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.util.ConsoleMockitoLogger",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.mockito.internal.util.reflection.InstrumentationMemberAccessor$Dispatcher"
+    },
+    {
+      "type": "org.mockito.internal.util.reflection.ModuleMemberAccessor",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.robolectric.Robolectric"
+    },
+    {
+      "type": "sun.misc.Unsafe",
+      "allDeclaredFields": true,
+      "methods": [
+        {
+          "name": "arrayBaseOffset",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        },
+        {
+          "name": "arrayIndexScale",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        },
+        {
+          "name": "copyMemory",
+          "parameterTypes": [
+            "long",
+            "long",
+            "long"
+          ]
+        },
+        {
+          "name": "copyMemory",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "java.lang.Object",
+            "long",
+            "long"
+          ]
+        },
+        {
+          "name": "getAndAddLong",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "long"
+          ]
+        },
+        {
+          "name": "getAndSetObject",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "getByte",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "getByte",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "getDouble",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "getFloat",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "getInt",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "getInt",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "getLong",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "getLong",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "getObject",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long"
+          ]
+        },
+        {
+          "name": "invokeCleaner",
+          "parameterTypes": [
+            "java.nio.ByteBuffer"
+          ]
+        },
+        {
+          "name": "objectFieldOffset",
+          "parameterTypes": [
+            "java.lang.reflect.Field"
+          ]
+        },
+        {
+          "name": "putBoolean",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "boolean"
+          ]
+        },
+        {
+          "name": "putByte",
+          "parameterTypes": [
+            "long",
+            "byte"
+          ]
+        },
+        {
+          "name": "putByte",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "byte"
+          ]
+        },
+        {
+          "name": "putDouble",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "double"
+          ]
+        },
+        {
+          "name": "putFloat",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "float"
+          ]
+        },
+        {
+          "name": "putInt",
+          "parameterTypes": [
+            "long",
+            "int"
+          ]
+        },
+        {
+          "name": "putInt",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "int"
+          ]
+        },
+        {
+          "name": "putLong",
+          "parameterTypes": [
+            "long",
+            "long"
+          ]
+        },
+        {
+          "name": "putLong",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "long"
+          ]
+        },
+        {
+          "name": "putObject",
+          "parameterTypes": [
+            "java.lang.Object",
+            "long",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "storeFence",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.nio.ch.SelectorImpl",
+      "fields": [
+        {
+          "name": "publicSelectedKeys"
+        },
+        {
+          "name": "selectedKeys"
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.MD5",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.NativePRNG",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.security.SecureRandomParameters"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.client.WorkflowClient"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.serviceclient.OperatorServiceStubs"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.serviceclient.TestServiceStubs"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.serviceclient.WorkflowServiceStubs"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.DescribeWorkflowExecutionTest$TestDescribeActivity",
+          "io.temporal.internal.sync.AsyncInternal$AsyncMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.DescribeWorkflowExecutionTest$TestDescribeWorkflow",
+          "io.temporal.internal.sync.StubMarker",
+          "io.temporal.internal.sync.AsyncInternal$AsyncMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.FirstExecutionRunIdSupportTest$ContinueAsNewWorkflow",
+          "io.temporal.internal.sync.StubMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestActivities$ActivityReturnsString",
+          "io.temporal.internal.sync.AsyncInternal$AsyncMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestWorkflows$PrimitiveChildWorkflow",
+          "io.temporal.internal.sync.StubMarker",
+          "io.temporal.internal.sync.AsyncInternal$AsyncMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestWorkflows$PrimitiveWorkflow",
+          "io.temporal.internal.sync.StubMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestWorkflows$WorkflowReturnsString",
+          "io.temporal.internal.sync.StubMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestWorkflows$WorkflowTakesBool",
+          "io.temporal.internal.sync.StubMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestWorkflows$WorkflowWithSignal",
+          "io.temporal.internal.sync.StubMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.common.TestWorkflows$WorkflowWithUpdate",
+          "io.temporal.internal.sync.StubMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "io.temporal.testserver.functional.timeskipping.SleepingActivity",
+          "io.temporal.internal.sync.AsyncInternal$AsyncMarker"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.method.MethodDescription$InDefinedShape$AbstractBase$Executable"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.method.ParameterDescription$ForLoadedParameter$Parameter"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.method.ParameterList$ForLoadedExecutable$Executable"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDefinition$Sort$AnnotatedType"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$ForLoadedType$Dispatcher"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedExecutableExceptionType$Dispatcher"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedExecutableParameterType$Dispatcher"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedField$Dispatcher"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$Delegator$ForLoadedMethodReturnType$Dispatcher"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$ForComponentType$AnnotatedParameterizedType"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$ForTypeArgument$AnnotatedParameterizedType"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.description.type.TypeDescription$Generic$AnnotationReader$ForWildcardUpperBoundType$AnnotatedWildcardType"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfClassDesc"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfDirectMethodHandleDesc"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfDirectMethodHandleDesc$ForKind"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfDynamicConstantDesc"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfMethodHandleDesc"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaConstant$Simple$Dispatcher$OfMethodTypeDesc"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaModule$Module"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "net.bytebuddy.utility.JavaModule$Resolver"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/services/io.grpc.LoadBalancerProvider"
+    },
+    {
+      "glob": "META-INF/services/io.grpc.NameResolverProvider"
+    },
+    {
+      "glob": "META-INF/services/io.grpc.ServerProvider"
+    },
+    {
+      "glob": "META-INF/services/io.temporal.internal.async.spi.MethodReferenceDisassemblyService"
+    },
+    {
+      "glob": "META-INF/services/java.lang.System$LoggerFinder"
+    },
+    {
+      "glob": "META-INF/services/java.net.spi.InetAddressResolverProvider"
+    },
+    {
+      "glob": "META-INF/services/java.nio.channels.spi.SelectorProvider"
+    },
+    {
+      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
+    },
+    {
+      "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
+    },
+    {
+      "glob": "io/temporal/version.properties"
+    },
+    {
+      "glob": "logback-test.xml"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.AnnotationEngine"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.DoNotMockEnforcer"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.DoNotMockEnforcerWithType"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.InstantiatorProvider2"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.MemberAccessor"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.MockMaker"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.MockResolver"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.MockitoLogger"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.PluginSwitch"
+    },
+    {
+      "glob": "mockito-extensions/org.mockito.plugins.StackTraceCleanerProvider"
+    },
+    {
+      "glob": "org/mockito/internal/creation/bytebuddy/MockMethodAdvice$ForEquals.class"
+    },
+    {
+      "glob": "org/mockito/internal/creation/bytebuddy/MockMethodAdvice$ForHashCode.class"
+    },
+    {
+      "glob": "org/mockito/internal/creation/bytebuddy/MockMethodAdvice$ForStatic.class"
+    },
+    {
+      "glob": "org/mockito/internal/creation/bytebuddy/MockMethodAdvice.class"
+    },
+    {
+      "glob": "org/mockito/internal/creation/bytebuddy/inject/MockMethodDispatcher.raw"
+    },
+    {
+      "glob": "org/slf4j/impl/StaticLoggerBinder.class"
+    },
+    {
+      "module": "java.logging",
+      "glob": "sun/util/logging/resources/logging_en.properties"
+    },
+    {
+      "module": "java.logging",
+      "glob": "sun/util/logging/resources/logging_en_CA.properties"
+    },
+    {
+      "module": "java.xml",
+      "glob": "jdk/xml/internal/jdkcatalog/JDKCatalog.xml"
+    }
+  ],
+  "bundles": [],
+  "serialization": [
+    {
+      "type": "byte[]"
+    },
+    {
+      "type": "java.lang.AssertionError"
+    },
+    {
+      "type": "java.lang.Enum"
+    },
+    {
+      "type": "java.lang.Error"
+    },
+    {
+      "type": "java.lang.Object[]"
+    },
+    {
+      "type": "java.lang.StackTraceElement"
+    },
+    {
+      "type": "java.lang.StackTraceElement[]"
+    },
+    {
+      "type": "java.lang.String"
+    },
+    {
+      "type": "java.lang.Throwable"
+    },
+    {
+      "type": "java.util.ArrayList"
+    },
+    {
+      "type": "java.util.Collections$EmptyList"
+    },
+    {
+      "type": "java.util.HashSet"
+    },
+    {
+      "type": "java.util.LinkedHashSet"
+    },
+    {
+      "type": "java.util.concurrent.ArrayBlockingQueue"
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractOwnableSynchronizer"
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractQueuedSynchronizer"
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject"
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock"
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock$NonfairSync"
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock$Sync"
+    }
+  ],
+  "jni": [
+    {
+      "type": "io.temporal.testserver.TestServer",
+      "methods": [
+        {
+          "name": "main",
+          "parameterTypes": [
+            "java.lang.String[]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Boolean",
+      "methods": [
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.String",
+      "methods": [
+        {
+          "name": "lastIndexOf",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "substring",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.System",
+      "methods": [
+        {
+          "name": "getProperty",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "setProperty",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.instrument.InstrumentationImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "boolean",
+            "boolean",
+            "boolean"
+          ]
+        },
+        {
+          "name": "loadClassAndCallAgentmain",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "loadClassAndCallPremain",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "transform",
+          "parameterTypes": [
+            "java.lang.Module",
+            "java.lang.ClassLoader",
+            "java.lang.String",
+            "java.lang.Class",
+            "java.security.ProtectionDomain",
+            "byte[]",
+            "boolean"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.management.VMManagementImpl",
+      "fields": [
+        {
+          "name": "compTimeMonitoringSupport"
+        },
+        {
+          "name": "currentThreadCpuTimeSupport"
+        },
+        {
+          "name": "objectMonitorUsageSupport"
+        },
+        {
+          "name": "otherThreadCpuTimeSupport"
+        },
+        {
+          "name": "remoteDiagnosticCommandsSupport"
+        },
+        {
+          "name": "synchronizerUsageSupport"
+        },
+        {
+          "name": "threadAllocatedMemorySupport"
+        },
+        {
+          "name": "threadContentionMonitoringSupport"
+        }
+      ]
+    }
+  ]
+}

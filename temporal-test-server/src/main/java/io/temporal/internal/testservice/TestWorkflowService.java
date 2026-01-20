@@ -1660,6 +1660,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     if (ea.hasHeader()) {
       startRequestBuilder.setHeader(ea.getHeader());
     }
+    if (ea.hasSearchAttributes()) {
+      startRequestBuilder.setSearchAttributes(ea.getSearchAttributes());
+    }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
     Optional<Failure> lastFail =

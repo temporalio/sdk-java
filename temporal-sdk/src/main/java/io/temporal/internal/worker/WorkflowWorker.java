@@ -467,6 +467,11 @@ final class WorkflowWorker implements SuspendableWorker {
                       result.getRequestRetryOptions(),
                       workflowTypeScope);
                 }
+
+                // Apply post-completion metrics only if runnable present and the above succeeded
+                if (result.getApplyPostCompletionMetrics() != null) {
+                  result.getApplyPostCompletionMetrics().run();
+                }
               } catch (GrpcMessageTooLargeException e) {
                 // Only fail workflow task on the first attempt, subsequent failures of the same
                 // workflow task should timeout.
