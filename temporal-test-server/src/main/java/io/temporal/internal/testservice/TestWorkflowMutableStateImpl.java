@@ -488,14 +488,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
           if (unhandledCommand(request) || unhandledMessages(request)) {
             // Fail the workflow task if there are new events or messages and a command tries to
-            // complete the
-            // workflow
+            // complete the workflow. Record the failure in history, then throw an error to the
+            // caller (matching real server behavior).
             failWorkflowTaskWithAReason(
                 WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND,
                 null,
                 ctx,
                 request,
                 false);
+            ctx.setExceptionIfEmpty(
+                Status.INVALID_ARGUMENT.withDescription("UnhandledCommand").asRuntimeException());
             return;
           }
 
