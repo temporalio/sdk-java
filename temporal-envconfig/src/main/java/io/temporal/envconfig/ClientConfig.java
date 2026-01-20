@@ -5,11 +5,22 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.toml.TomlMapper;
 import io.temporal.common.Experimental;
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** ClientConfig represents a client config file. */
+/**
+ * ClientConfig represents a client config file.
+ *
+ * <p>The default config file path is OS-specific:
+ *
+ * <ul>
+ *   <li>macOS: $HOME/Library/Application Support/temporalio/temporal.toml
+ *   <li>Windows: %APPDATA%\temporalio\temporal.toml
+ *   <li>Linux/other: $HOME/.config/temporalio/temporal.toml
+ * </ul>
+ */
 @Experimental
 public class ClientConfig {
   /** Creates a new builder to build a {@link ClientConfig}. */
@@ -32,13 +43,31 @@ public class ClientConfig {
     return new ClientConfig.Builder().build();
   }
 
-  /** Get the default config file path: $HOME/.config/temporalio/temporal.toml */
   private static String getDefaultConfigFilePath() {
     String userDir = System.getProperty("user.home");
     if (userDir == null || userDir.isEmpty()) {
       throw new RuntimeException("failed getting user home directory");
     }
-    return userDir + "/.config/temporalio/temporal.toml";
+    return getDefaultConfigFilePath(userDir, System.getProperty("os.name"), System.getenv());
+  }
+
+  static String getDefaultConfigFilePath(
+      String userDir, String osName, Map<String, String> environment) {
+    if (osName != null) {
+      String osNameLower = osName.toLowerCase();
+      if (osNameLower.contains("mac")) {
+        return Paths.get(userDir, "Library", "Application Support", "temporalio", "temporal.toml")
+            .toString();
+      }
+      if (osNameLower.contains("win")) {
+        String appData = environment != null ? environment.get("APPDATA") : null;
+        if (appData == null || appData.isEmpty()) {
+          throw new RuntimeException("%APPDATA% is not defined");
+        }
+        return Paths.get(appData, "temporalio", "temporal.toml").toString();
+      }
+    }
+    return Paths.get(userDir, ".config", "temporalio", "temporal.toml").toString();
   }
 
   /**

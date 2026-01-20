@@ -107,7 +107,7 @@ if (project.hasProperty("nativeBuild")) {
             defaultMode = "standard"
             metadataCopy {
                 outputDirectories.add("src/main/resources/META-INF/native-image/io.temporal/temporal-test-server")
-                mergeWithExisting = false
+                mergeWithExisting = true
             }
 
         }

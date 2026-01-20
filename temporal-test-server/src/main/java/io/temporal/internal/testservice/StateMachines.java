@@ -1420,6 +1420,9 @@ class StateMachines {
     if (d.hasFailure()) {
       a.setFailure(d.getFailure());
     }
+    if (d.hasSearchAttributes()) {
+      a.setSearchAttributes(d.getSearchAttributes());
+    }
     a.setNewExecutionRunId(UUID.randomUUID().toString());
     HistoryEvent event =
         HistoryEvent.newBuilder()

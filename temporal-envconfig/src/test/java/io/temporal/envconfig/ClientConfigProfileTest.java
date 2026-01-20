@@ -7,6 +7,7 @@ import io.grpc.Metadata;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
@@ -300,6 +301,28 @@ public class ClientConfigProfileTest {
     // Default values should be null/empty since no file and no env vars
     Assert.assertNull(profile.getAddress());
     Assert.assertNull(profile.getNamespace());
+  }
+
+  @Test
+  public void defaultConfigFilePath() {
+    // macOS: ~/Library/Application Support
+    Assert.assertEquals(
+        Paths.get("/Users/test", "Library", "Application Support", "temporalio", "temporal.toml")
+            .toString(),
+        ClientConfig.getDefaultConfigFilePath("/Users/test", "Mac OS X", Collections.emptyMap()));
+
+    // Windows: %APPDATA%
+    Assert.assertEquals(
+        Paths.get("C:/Users/test/AppData/Roaming", "temporalio", "temporal.toml").toString(),
+        ClientConfig.getDefaultConfigFilePath(
+            "C:/Users/test",
+            "Windows 10",
+            Collections.singletonMap("APPDATA", "C:/Users/test/AppData/Roaming")));
+
+    // Linux: ~/.config
+    Assert.assertEquals(
+        Paths.get("/home/test", ".config", "temporalio", "temporal.toml").toString(),
+        ClientConfig.getDefaultConfigFilePath("/home/test", "Linux", Collections.emptyMap()));
   }
 
   @Test

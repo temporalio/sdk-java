@@ -1,5 +1,6 @@
 package io.temporal.internal.worker;
 
+import static io.temporal.testUtils.Eventually.assertEventually;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
@@ -146,8 +147,11 @@ public class WorkflowFailedMetricsTests {
     triggerNonDeterministicException = true;
     workflow.unblock();
     assertThrows(WorkflowFailedException.class, () -> workflow.workflow());
-    reporter.assertCounter(
-        MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflowWithSignal"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflowWithSignal"), 1));
   }
 
   @Test
@@ -161,7 +165,11 @@ public class WorkflowFailedMetricsTests {
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
     assertThrows(WorkflowFailedException.class, () -> workflow.workflow(true));
-    reporter.assertCounter(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1));
   }
 
   @Test
@@ -175,7 +183,11 @@ public class WorkflowFailedMetricsTests {
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
     assertThrows(WorkflowFailedException.class, () -> workflow.workflow(false));
-    reporter.assertCounter(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1));
   }
 
   @Test
@@ -201,8 +213,13 @@ public class WorkflowFailedMetricsTests {
     assertFalse("Failure should not be benign", isBenign);
     assertEquals("Non-benign failure", ((TemporalFailure) cause1).getOriginalMessage());
 
-    reporter.assertCounter(
-        MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("ApplicationFailureWorkflow"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER,
+                getWorkflowTags("ApplicationFailureWorkflow"),
+                1));
 
     ApplicationFailureWorkflow benignStub =
         client.newWorkflowStub(
@@ -229,7 +246,12 @@ public class WorkflowFailedMetricsTests {
     assertTrue("Failure should be benign", isBenign);
     assertEquals("Benign failure", ((TemporalFailure) cause2).getOriginalMessage());
 
-    reporter.assertCounter(
-        MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("ApplicationFailureWorkflow"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER,
+                getWorkflowTags("ApplicationFailureWorkflow"),
+                1));
   }
 }
