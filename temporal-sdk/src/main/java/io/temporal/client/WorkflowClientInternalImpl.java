@@ -838,17 +838,14 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     if (explicitEmpty) {
       return propagated;
     }
-    // Warn about duplicate plugin types
-    Set<Class<?>> propagatedTypes = new HashSet<>();
-    for (WorkflowClientPlugin p : propagated) {
-      propagatedTypes.add(p.getClass());
-    }
+    // Warn about duplicate plugin instances (same object in both lists)
+    Set<WorkflowClientPlugin> propagatedSet = new HashSet<>(Arrays.asList(propagated));
     for (WorkflowClientPlugin p : explicit) {
-      if (propagatedTypes.contains(p.getClass())) {
+      if (propagatedSet.contains(p)) {
         log.warn(
-            "Plugin type {} is present in both propagated plugins (from service stubs) and "
-                + "explicit plugins. It may run twice which may not be the intended behavior.",
-            p.getClass().getName());
+            "Plugin instance {} is present in both propagated plugins (from service stubs) and "
+                + "explicit plugins. It will run twice which may not be the intended behavior.",
+            p.getName());
       }
     }
     WorkflowClientPlugin[] merged = new WorkflowClientPlugin[propagated.length + explicit.length];

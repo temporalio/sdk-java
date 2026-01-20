@@ -604,17 +604,14 @@ public final class WorkerFactory {
     if (explicit == null || explicit.length == 0) {
       return propagated;
     }
-    // Warn about duplicate plugin types
-    Set<Class<?>> propagatedTypes = new HashSet<>();
-    for (WorkerPlugin p : propagated) {
-      propagatedTypes.add(p.getClass());
-    }
+    // Warn about duplicate plugin instances (same object in both lists)
+    Set<WorkerPlugin> propagatedSet = new HashSet<>(propagated);
     for (WorkerPlugin p : explicit) {
-      if (propagatedTypes.contains(p.getClass())) {
+      if (propagatedSet.contains(p)) {
         log.warn(
-            "Plugin type {} is present in both propagated plugins (from client) and "
-                + "explicit plugins. It may run twice which may not be the intended behavior.",
-            p.getClass().getName());
+            "Plugin instance {} is present in both propagated plugins (from client) and "
+                + "explicit plugins. It will run twice which may not be the intended behavior.",
+            p.getName());
       }
     }
     List<WorkerPlugin> merged = new ArrayList<>(propagated.size() + explicit.length);

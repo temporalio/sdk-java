@@ -97,18 +97,15 @@ final class ScheduleClientImpl implements ScheduleClient {
         && (explicit == null || explicit.length == 0)) {
       return new ScheduleClientPlugin[0];
     }
-    // Warn about duplicate plugin types
+    // Warn about duplicate plugin instances (same object in both lists)
     if (propagated != null && propagated.length > 0 && explicit != null && explicit.length > 0) {
-      Set<Class<?>> propagatedTypes = new HashSet<>();
-      for (ScheduleClientPlugin p : propagated) {
-        propagatedTypes.add(p.getClass());
-      }
+      Set<ScheduleClientPlugin> propagatedSet = new HashSet<>(Arrays.asList(propagated));
       for (ScheduleClientPlugin p : explicit) {
-        if (propagatedTypes.contains(p.getClass())) {
+        if (propagatedSet.contains(p)) {
           log.warn(
-              "Plugin type {} is present in both propagated plugins (from service stubs) and "
-                  + "explicit plugins. It may run twice which may not be the intended behavior.",
-              p.getClass().getName());
+              "Plugin instance {} is present in both propagated plugins (from service stubs) and "
+                  + "explicit plugins. It will run twice which may not be the intended behavior.",
+              p.getName());
         }
       }
     }
