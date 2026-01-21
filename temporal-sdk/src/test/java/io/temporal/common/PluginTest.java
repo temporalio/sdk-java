@@ -29,6 +29,8 @@ import io.temporal.worker.WorkerOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import org.junit.Test;
 
 public class PluginTest {
@@ -55,22 +57,22 @@ public class PluginTest {
 
     // Test startWorkerFactory calls next
     final boolean[] called = {false};
-    plugin.startWorkerFactory(null, () -> called[0] = true);
+    plugin.startWorkerFactory(null, (f) -> called[0] = true);
     assertTrue("startWorkerFactory should call next", called[0]);
 
     // Test startWorker calls next
     called[0] = false;
-    plugin.startWorker("test-queue", null, () -> called[0] = true);
+    plugin.startWorker("test-queue", null, (tq, w) -> called[0] = true);
     assertTrue("startWorker should call next", called[0]);
 
     // Test shutdownWorker calls next
     called[0] = false;
-    plugin.shutdownWorker("test-queue", null, () -> called[0] = true);
+    plugin.shutdownWorker("test-queue", null, (tq, w) -> called[0] = true);
     assertTrue("shutdownWorker should call next", called[0]);
 
     // Test shutdownWorkerFactory calls next
     called[0] = false;
-    plugin.shutdownWorkerFactory(null, () -> called[0] = true);
+    plugin.shutdownWorkerFactory(null, (f) -> called[0] = true);
     assertTrue("shutdownWorkerFactory should call next", called[0]);
 
     // Test initializeWorker is a no-op (doesn't throw)
@@ -110,33 +112,26 @@ public class PluginTest {
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
     // Build chain in reverse (like WorkerFactory does)
-    Runnable chain =
-        () -> {
-          order.add("terminal");
-        };
+    Consumer<io.temporal.worker.WorkerFactory> chain = (factory) -> order.add("terminal");
 
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
       if (plugin instanceof io.temporal.worker.WorkerPlugin) {
-        final Runnable next = chain;
+        final Consumer<io.temporal.worker.WorkerFactory> next = chain;
         final io.temporal.worker.WorkerPlugin workerPlugin =
             (io.temporal.worker.WorkerPlugin) plugin;
         chain =
-            () -> {
+            (factory) -> {
               order.add(workerPlugin.getName() + "-before");
-              try {
-                workerPlugin.startWorkerFactory(null, next);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
+              workerPlugin.startWorkerFactory(factory, next);
               order.add(workerPlugin.getName() + "-after");
             };
       }
     }
 
     // Execute the chain
-    chain.run();
+    chain.accept(null);
 
     // First plugin should wrap all others
     assertEquals(
@@ -156,29 +151,25 @@ public class PluginTest {
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
     // Build chain in reverse (like WorkerFactory does)
-    Runnable chain = () -> order.add("worker-start");
+    BiConsumer<String, io.temporal.worker.Worker> chain = (tq, w) -> order.add("worker-start");
 
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
       if (plugin instanceof io.temporal.worker.WorkerPlugin) {
-        final Runnable next = chain;
+        final BiConsumer<String, io.temporal.worker.Worker> next = chain;
         final io.temporal.worker.WorkerPlugin workerPlugin =
             (io.temporal.worker.WorkerPlugin) plugin;
         chain =
-            () -> {
+            (tq, w) -> {
               order.add(workerPlugin.getName() + "-startWorker-before");
-              try {
-                workerPlugin.startWorker("test-queue", null, next);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
+              workerPlugin.startWorker(tq, w, next);
               order.add(workerPlugin.getName() + "-startWorker-after");
             };
       }
     }
 
-    chain.run();
+    chain.accept("test-queue", null);
 
     // First plugin should wrap all others
     assertEquals(
@@ -204,25 +195,25 @@ public class PluginTest {
     List<Object> plugins = Arrays.asList(pluginA, pluginB, pluginC);
 
     // Build chain in reverse (like WorkerFactory does)
-    Runnable chain = () -> order.add("worker-shutdown");
+    BiConsumer<String, io.temporal.worker.Worker> chain = (tq, w) -> order.add("worker-shutdown");
 
     List<Object> reversed = new ArrayList<>(plugins);
     java.util.Collections.reverse(reversed);
     for (Object plugin : reversed) {
       if (plugin instanceof io.temporal.worker.WorkerPlugin) {
-        final Runnable next = chain;
+        final BiConsumer<String, io.temporal.worker.Worker> next = chain;
         final io.temporal.worker.WorkerPlugin workerPlugin =
             (io.temporal.worker.WorkerPlugin) plugin;
         chain =
-            () -> {
+            (tq, w) -> {
               order.add(workerPlugin.getName() + "-shutdownWorker-before");
-              workerPlugin.shutdownWorker("test-queue", null, next);
+              workerPlugin.shutdownWorker(tq, w, next);
               order.add(workerPlugin.getName() + "-shutdownWorker-after");
             };
       }
     }
 
-    chain.run();
+    chain.accept("test-queue", null);
 
     // First plugin should wrap all others
     assertEquals(
@@ -249,8 +240,10 @@ public class PluginTest {
   private SimplePlugin createExecutionTrackingPlugin(String name, List<String> order) {
     return new SimplePlugin(name) {
       @Override
-      public void startWorkerFactory(io.temporal.worker.WorkerFactory factory, Runnable next) {
-        next.run();
+      public void startWorkerFactory(
+          io.temporal.worker.WorkerFactory factory,
+          Consumer<io.temporal.worker.WorkerFactory> next) {
+        next.accept(factory);
       }
     };
   }
@@ -258,14 +251,19 @@ public class PluginTest {
   private SimplePlugin createWorkerLifecycleTrackingPlugin(String name, List<String> order) {
     return new SimplePlugin(name) {
       @Override
-      public void startWorker(String taskQueue, io.temporal.worker.Worker worker, Runnable next) {
-        next.run();
+      public void startWorker(
+          String taskQueue,
+          io.temporal.worker.Worker worker,
+          BiConsumer<String, io.temporal.worker.Worker> next) {
+        next.accept(taskQueue, worker);
       }
 
       @Override
       public void shutdownWorker(
-          String taskQueue, io.temporal.worker.Worker worker, Runnable next) {
-        next.run();
+          String taskQueue,
+          io.temporal.worker.Worker worker,
+          BiConsumer<String, io.temporal.worker.Worker> next) {
+        next.accept(taskQueue, worker);
       }
     };
   }

@@ -260,7 +260,7 @@ public class SimplePluginBuilderTest {
 
     AtomicBoolean nextCalled = new AtomicBoolean(false);
     ((io.temporal.worker.WorkerPlugin) plugin)
-        .startWorker("my-task-queue", null, () -> nextCalled.set(true));
+        .startWorker("my-task-queue", null, (tq, w) -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
     assertTrue("Callback should have been called", started.get());
@@ -283,7 +283,7 @@ public class SimplePluginBuilderTest {
 
     AtomicBoolean nextCalled = new AtomicBoolean(false);
     ((io.temporal.worker.WorkerPlugin) plugin)
-        .shutdownWorker("my-task-queue", null, () -> nextCalled.set(true));
+        .shutdownWorker("my-task-queue", null, (tq, w) -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
     assertTrue("Callback should have been called", shutdown.get());
@@ -301,7 +301,7 @@ public class SimplePluginBuilderTest {
             .onWorkerStart((taskQueue, worker) -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.WorkerPlugin) plugin).startWorker("test-queue", null, () -> {});
+    ((io.temporal.worker.WorkerPlugin) plugin).startWorker("test-queue", null, (tq, w) -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }
@@ -317,7 +317,7 @@ public class SimplePluginBuilderTest {
             .onWorkerShutdown((taskQueue, worker) -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.WorkerPlugin) plugin).shutdownWorker("test-queue", null, () -> {});
+    ((io.temporal.worker.WorkerPlugin) plugin).shutdownWorker("test-queue", null, (tq, w) -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }
@@ -330,7 +330,8 @@ public class SimplePluginBuilderTest {
         SimplePlugin.newBuilder("test").onWorkerFactoryStart(factory -> started.set(true)).build();
 
     AtomicBoolean nextCalled = new AtomicBoolean(false);
-    ((io.temporal.worker.WorkerPlugin) plugin).startWorkerFactory(null, () -> nextCalled.set(true));
+    ((io.temporal.worker.WorkerPlugin) plugin)
+        .startWorkerFactory(null, (f) -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
     assertTrue("Callback should have been called", started.get());
@@ -347,7 +348,7 @@ public class SimplePluginBuilderTest {
 
     AtomicBoolean nextCalled = new AtomicBoolean(false);
     ((io.temporal.worker.WorkerPlugin) plugin)
-        .shutdownWorkerFactory(null, () -> nextCalled.set(true));
+        .shutdownWorkerFactory(null, (f) -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
     assertTrue("Callback should have been called", shutdown.get());
@@ -364,7 +365,7 @@ public class SimplePluginBuilderTest {
             .onWorkerFactoryStart(factory -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.WorkerPlugin) plugin).startWorkerFactory(null, () -> {});
+    ((io.temporal.worker.WorkerPlugin) plugin).startWorkerFactory(null, (f) -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }
@@ -380,7 +381,7 @@ public class SimplePluginBuilderTest {
             .onWorkerFactoryShutdown(factory -> callCount.incrementAndGet())
             .build();
 
-    ((io.temporal.worker.WorkerPlugin) plugin).shutdownWorkerFactory(null, () -> {});
+    ((io.temporal.worker.WorkerPlugin) plugin).shutdownWorkerFactory(null, (f) -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }
@@ -541,13 +542,7 @@ public class SimplePluginBuilderTest {
     AtomicBoolean nextCalled = new AtomicBoolean(false);
 
     ((WorkerPlugin) plugin)
-        .replayWorkflowExecution(
-            mockWorker,
-            mockHistory,
-            () -> {
-              nextCalled.set(true);
-              return null;
-            });
+        .replayWorkflowExecution(mockWorker, mockHistory, (w, h) -> nextCalled.set(true));
 
     assertTrue("next should be called", nextCalled.get());
     assertTrue("Callback should have been called", callbackCalled.get());
@@ -569,7 +564,7 @@ public class SimplePluginBuilderTest {
     Worker mockWorker = mock(Worker.class);
     WorkflowExecutionHistory mockHistory = mock(WorkflowExecutionHistory.class);
 
-    ((WorkerPlugin) plugin).replayWorkflowExecution(mockWorker, mockHistory, () -> null);
+    ((WorkerPlugin) plugin).replayWorkflowExecution(mockWorker, mockHistory, (w, h) -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }

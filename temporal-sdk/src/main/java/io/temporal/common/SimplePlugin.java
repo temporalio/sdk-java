@@ -41,7 +41,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -306,8 +305,8 @@ public abstract class SimplePlugin
 
   @Override
   public void startWorker(
-      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
-    next.run();
+      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull BiConsumer<String, Worker> next) {
+    next.accept(taskQueue, worker);
     for (BiConsumer<String, Worker> callback : workerStartCallbacks) {
       callback.accept(taskQueue, worker);
     }
@@ -315,11 +314,11 @@ public abstract class SimplePlugin
 
   @Override
   public void shutdownWorker(
-      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
+      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull BiConsumer<String, Worker> next) {
     for (BiConsumer<String, Worker> callback : workerShutdownCallbacks) {
       callback.accept(taskQueue, worker);
     }
-    next.run();
+    next.accept(taskQueue, worker);
   }
 
   @Override
@@ -329,28 +328,28 @@ public abstract class SimplePlugin
   }
 
   @Override
-  public void startWorkerFactory(WorkerFactory factory, Runnable next) {
-    next.run();
+  public void startWorkerFactory(WorkerFactory factory, Consumer<WorkerFactory> next) {
+    next.accept(factory);
     for (Consumer<WorkerFactory> callback : workerFactoryStartCallbacks) {
       callback.accept(factory);
     }
   }
 
   @Override
-  public void shutdownWorkerFactory(WorkerFactory factory, Runnable next) {
+  public void shutdownWorkerFactory(WorkerFactory factory, Consumer<WorkerFactory> next) {
     for (Consumer<WorkerFactory> callback : workerFactoryShutdownCallbacks) {
       callback.accept(factory);
     }
-    next.run();
+    next.accept(factory);
   }
 
   @Override
   public void replayWorkflowExecution(
       @Nonnull Worker worker,
       @Nonnull WorkflowExecutionHistory history,
-      @Nonnull Callable<Void> next)
+      @Nonnull WorkerPlugin.ReplayCallback next)
       throws Exception {
-    next.call();
+    next.replay(worker, history);
     for (BiConsumer<Worker, WorkflowExecutionHistory> callback : replayExecutionCallbacks) {
       callback.accept(worker, history);
     }

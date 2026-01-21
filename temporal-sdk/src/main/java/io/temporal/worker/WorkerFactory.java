@@ -30,6 +30,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -251,15 +253,15 @@ public final class WorkerFactory {
                 .build());
 
     // Build plugin execution chain (reverse order for proper nesting)
-    Runnable startChain = this::doStart;
+    Consumer<WorkerFactory> startChain = WorkerFactory::doStart;
     for (int i = plugins.size() - 1; i >= 0; i--) {
-      final Runnable next = startChain;
+      final Consumer<WorkerFactory> next = startChain;
       final WorkerPlugin workerPlugin = plugins.get(i);
-      startChain = () -> workerPlugin.startWorkerFactory(this, next);
+      startChain = (factory) -> workerPlugin.startWorkerFactory(factory, next);
     }
 
     // Execute the chain
-    startChain.run();
+    startChain.accept(this);
   }
 
   /** Internal method that actually starts the workers. Called from the plugin chain. */
@@ -270,15 +272,15 @@ public final class WorkerFactory {
       Worker worker = entry.getValue();
 
       // Build plugin chain for this worker (reverse order for proper nesting)
-      Runnable startChain = worker::start;
+      BiConsumer<String, Worker> startChain = (tq, w) -> w.start();
       for (int i = plugins.size() - 1; i >= 0; i--) {
-        final Runnable next = startChain;
+        final BiConsumer<String, Worker> next = startChain;
         final WorkerPlugin workerPlugin = plugins.get(i);
-        startChain = () -> workerPlugin.startWorker(taskQueue, worker, next);
+        startChain = (tq, w) -> workerPlugin.startWorker(tq, w, next);
       }
 
       // Execute the chain for this worker
-      startChain.run();
+      startChain.accept(taskQueue, worker);
     }
 
     state = State.Started;
@@ -354,24 +356,24 @@ public final class WorkerFactory {
     state = State.Shutdown;
 
     // Build plugin shutdown chain (reverse order for proper nesting)
-    Runnable shutdownChain = () -> doShutdown(interruptUserTasks);
+    Consumer<WorkerFactory> shutdownChain = (factory) -> factory.doShutdown(interruptUserTasks);
     for (int i = plugins.size() - 1; i >= 0; i--) {
-      final Runnable next = shutdownChain;
+      final Consumer<WorkerFactory> next = shutdownChain;
       final WorkerPlugin workerPlugin = plugins.get(i);
       shutdownChain =
-          () -> {
+          (factory) -> {
             try {
-              workerPlugin.shutdownWorkerFactory(this, next);
+              workerPlugin.shutdownWorkerFactory(factory, next);
             } catch (RuntimeException e) {
               log.warn("Plugin {} failed during shutdown", workerPlugin.getName(), e);
               // Still try to continue shutdown
-              next.run();
+              next.accept(factory);
             }
           };
     }
 
     // Execute the chain
-    shutdownChain.run();
+    shutdownChain.accept(this);
   }
 
   /** Internal method that actually shuts down workers. Called from the plugin chain. */
@@ -389,30 +391,30 @@ public final class WorkerFactory {
       // We use a holder to capture the future from the terminal action
       @SuppressWarnings("unchecked")
       CompletableFuture<Void>[] futureHolder = new CompletableFuture[1];
-      Runnable shutdownChain =
-          () -> futureHolder[0] = worker.shutdown(shutdownManager, interruptUserTasks);
+      BiConsumer<String, Worker> shutdownChain =
+          (tq, w) -> futureHolder[0] = w.shutdown(shutdownManager, interruptUserTasks);
 
       for (int i = plugins.size() - 1; i >= 0; i--) {
-        final Runnable next = shutdownChain;
+        final BiConsumer<String, Worker> next = shutdownChain;
         final WorkerPlugin workerPlugin = plugins.get(i);
         shutdownChain =
-            () -> {
+            (tq, w) -> {
               try {
-                workerPlugin.shutdownWorker(taskQueue, worker, next);
+                workerPlugin.shutdownWorker(tq, w, next);
               } catch (RuntimeException e) {
                 log.warn(
                     "Plugin {} failed during worker shutdown for task queue {}",
                     workerPlugin.getName(),
-                    taskQueue,
+                    tq,
                     e);
                 // Still try to continue shutdown
-                next.run();
+                next.accept(tq, w);
               }
             };
       }
 
       // Execute the shutdown chain for this worker
-      shutdownChain.run();
+      shutdownChain.accept(taskQueue, worker);
       if (futureHolder[0] != null) {
         shutdownFutures.add(futureHolder[0]);
       }

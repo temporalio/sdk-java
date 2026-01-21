@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -479,28 +478,23 @@ public final class Worker {
             history.getHistory(), history.getWorkflowExecution().getWorkflowId());
 
     // Build plugin chain in reverse order (first plugin wraps all others)
-    Callable<Void> chain =
-        () -> {
+    WorkerPlugin.ReplayCallback chain =
+        (w, h) -> {
           workflowWorker.queryWorkflowExecution(
               history,
               WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
               String.class,
               String.class,
               new Object[] {});
-          return null;
         };
 
     for (int i = plugins.size() - 1; i >= 0; i--) {
       WorkerPlugin plugin = plugins.get(i);
-      Callable<Void> next = chain;
-      chain =
-          () -> {
-            plugin.replayWorkflowExecution(this, publicHistory, next);
-            return null;
-          };
+      WorkerPlugin.ReplayCallback next = chain;
+      chain = (w, h) -> plugin.replayWorkflowExecution(w, h, next);
     }
 
-    chain.call();
+    chain.replay(this, publicHistory);
   }
 
   /**
