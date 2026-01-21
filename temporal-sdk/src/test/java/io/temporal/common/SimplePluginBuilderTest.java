@@ -521,118 +521,6 @@ public class SimplePluginBuilderTest {
   // ==================== Replay Tests ====================
 
   @Test
-  public void testCustomizeReplayWorker() {
-    AtomicBoolean customized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeReplayWorker(
-                builder -> {
-                  customized.set(true);
-                  builder.setMaxConcurrentActivityExecutionSize(25);
-                })
-            .build();
-
-    WorkerOptions.Builder builder = WorkerOptions.newBuilder();
-    ((WorkerPlugin) plugin).configureReplayWorker("test-queue", builder);
-
-    assertTrue("Replay customizer should have been called", customized.get());
-    assertEquals(25, builder.build().getMaxConcurrentActivityExecutionSize());
-  }
-
-  @Test
-  public void testCustomizeReplayWorkerDelegatesToConfigureWorkerWhenEmpty() {
-    AtomicBoolean workerCustomized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeWorker(builder -> workerCustomized.set(true))
-            // No replay customizer set
-            .build();
-
-    WorkerOptions.Builder builder = WorkerOptions.newBuilder();
-    ((WorkerPlugin) plugin).configureReplayWorker("test-queue", builder);
-
-    assertTrue(
-        "Should delegate to configureWorker when no replay customizers", workerCustomized.get());
-  }
-
-  @Test
-  public void testCustomizeReplayWorkerDoesNotDelegateWhenSet() {
-    AtomicBoolean workerCustomized = new AtomicBoolean(false);
-    AtomicBoolean replayCustomized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeWorker(builder -> workerCustomized.set(true))
-            .customizeReplayWorker(builder -> replayCustomized.set(true))
-            .build();
-
-    WorkerOptions.Builder builder = WorkerOptions.newBuilder();
-    ((WorkerPlugin) plugin).configureReplayWorker("test-queue", builder);
-
-    assertFalse(
-        "Should NOT delegate to configureWorker when replay customizer is set",
-        workerCustomized.get());
-    assertTrue("Replay customizer should be called", replayCustomized.get());
-  }
-
-  @Test
-  public void testInitializeReplayWorker() {
-    AtomicBoolean initialized = new AtomicBoolean(false);
-    AtomicReference<String> capturedTaskQueue = new AtomicReference<>();
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .initializeReplayWorker(
-                (taskQueue, worker) -> {
-                  initialized.set(true);
-                  capturedTaskQueue.set(taskQueue);
-                })
-            .build();
-
-    ((WorkerPlugin) plugin).initializeReplayWorker("replay-queue", null);
-
-    assertTrue("Replay initializer should have been called", initialized.get());
-    assertEquals("replay-queue", capturedTaskQueue.get());
-  }
-
-  @Test
-  public void testInitializeReplayWorkerDelegatesToInitializeWorkerWhenEmpty() {
-    AtomicBoolean workerInitialized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .initializeWorker((taskQueue, worker) -> workerInitialized.set(true))
-            // No replay initializer set
-            .build();
-
-    ((WorkerPlugin) plugin).initializeReplayWorker("test-queue", null);
-
-    assertTrue(
-        "Should delegate to initializeWorker when no replay initializers", workerInitialized.get());
-  }
-
-  @Test
-  public void testInitializeReplayWorkerDoesNotDelegateWhenSet() {
-    AtomicBoolean workerInitialized = new AtomicBoolean(false);
-    AtomicBoolean replayInitialized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .initializeWorker((taskQueue, worker) -> workerInitialized.set(true))
-            .initializeReplayWorker((taskQueue, worker) -> replayInitialized.set(true))
-            .build();
-
-    ((WorkerPlugin) plugin).initializeReplayWorker("test-queue", null);
-
-    assertFalse(
-        "Should NOT delegate to initializeWorker when replay initializer is set",
-        workerInitialized.get());
-    assertTrue("Replay initializer should be called", replayInitialized.get());
-  }
-
-  @Test
   public void testOnReplayWorkflowExecution() throws Exception {
     AtomicBoolean callbackCalled = new AtomicBoolean(false);
     AtomicReference<Worker> capturedWorker = new AtomicReference<>();
@@ -678,16 +566,6 @@ public class SimplePluginBuilderTest {
     ((WorkerPlugin) plugin).replayWorkflowExecution(mockWorker, mockHistory, () -> {});
 
     assertEquals("All callbacks should be called", 3, callCount.get());
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testNullCustomizeReplayWorker() {
-    SimplePlugin.newBuilder("test").customizeReplayWorker(null);
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testNullInitializeReplayWorker() {
-    SimplePlugin.newBuilder("test").initializeReplayWorker(null);
   }
 
   @Test(expected = NullPointerException.class)

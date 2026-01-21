@@ -223,39 +223,6 @@ public interface WorkerPlugin {
   // ==================== Replay Methods ====================
 
   /**
-   * Allows the plugin to modify worker options when configuring a worker for replay. Called during
-   * replay configuration in forward (registration) order.
-   *
-   * <p>By default, this delegates to {@link #configureWorker}. Override this method if the plugin
-   * needs replay-specific configuration that differs from normal worker configuration.
-   *
-   * <p>This is useful when a plugin needs to apply the same settings to replay that it applies to
-   * normal workers (e.g., data converters, interceptors) to ensure replay behavior matches
-   * execution behavior.
-   *
-   * @param taskQueue the task queue name for the replay worker
-   * @param builder the options builder to modify
-   */
-  default void configureReplayWorker(
-      @Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
-    configureWorker(taskQueue, builder);
-  }
-
-  /**
-   * Called after a replay worker is created, allowing plugins to register workflows and other
-   * components needed for replay.
-   *
-   * <p>By default, this delegates to {@link #initializeWorker}. Override this method if the plugin
-   * needs replay-specific initialization that differs from normal worker initialization.
-   *
-   * @param taskQueue the task queue name for the replay worker
-   * @param worker the newly created replay worker
-   */
-  default void initializeReplayWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
-    initializeWorker(taskQueue, worker);
-  }
-
-  /**
    * Allows the plugin to wrap workflow execution replay. Called in reverse order (first plugin
    * wraps all others) when replaying a workflow history.
    *

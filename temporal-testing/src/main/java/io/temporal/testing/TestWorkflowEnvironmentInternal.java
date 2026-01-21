@@ -131,11 +131,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
-  public Worker newReplayWorker(String taskQueue, WorkerOptions options) {
-    return workerFactory.newReplayWorker(taskQueue, options);
-  }
-
-  @Override
   public WorkflowClient getWorkflowClient() {
     WorkflowClientOptions options;
     if (timeLockingInterceptor != null) {

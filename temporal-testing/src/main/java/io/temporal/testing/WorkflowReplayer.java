@@ -165,7 +165,7 @@ public final class WorkflowReplayer {
       Class<?>... moreWorkflowClasses)
       throws Exception {
     Worker worker =
-        testWorkflowEnvironment.newReplayWorker(
+        testWorkflowEnvironment.newWorker(
             getQueueName((history)), WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(
         ObjectArrays.concat(moreWorkflowClasses, workflowClass));
@@ -231,7 +231,7 @@ public final class WorkflowReplayer {
             ? TestWorkflowEnvironment.newInstance(testEnvironmentOptions)
             : TestWorkflowEnvironment.newInstance()) {
       Worker worker =
-          testEnv.newReplayWorker("replay-task-queue-name", WorkerOptions.newBuilder().build());
+          testEnv.newWorker("replay-task-queue-name", WorkerOptions.newBuilder().build());
       worker.registerWorkflowImplementationTypes(workflowClasses);
       return replayWorkflowExecutions(histories, failFast, worker);
     }
