@@ -151,6 +151,11 @@ public interface WorkerPlugin {
    * <p>This method is called for each worker when the factory shuts down. Use this for per-worker
    * resource cleanup that was initialized in {@link #startWorker} or {@link #initializeWorker}.
    *
+   * <p><b>Warning:</b> Exceptions thrown from this method will propagate up and may halt the
+   * shutdown process. Plugin authors should handle exceptions appropriately and ensure {@code next}
+   * is called exactly once. If cleanup code may throw, consider wrapping it in a try-catch to
+   * ensure graceful degradation.
+   *
    * <p>Example:
    *
    * <pre>{@code
@@ -203,6 +208,11 @@ public interface WorkerPlugin {
    * <p>This method is called when {@link WorkerFactory#shutdown()} or {@link
    * WorkerFactory#shutdownNow()} is invoked. The plugin can perform actions before and after the
    * actual shutdown occurs.
+   *
+   * <p><b>Warning:</b> Exceptions thrown from this method will propagate up and may halt the
+   * shutdown process. Plugin authors should handle exceptions appropriately and ensure {@code next}
+   * is called exactly once. If cleanup code may throw, consider wrapping it in a try-catch to
+   * ensure graceful degradation.
    *
    * <p>Example:
    *

@@ -360,16 +360,7 @@ public final class WorkerFactory {
     for (int i = plugins.size() - 1; i >= 0; i--) {
       final Consumer<WorkerFactory> next = shutdownChain;
       final WorkerPlugin workerPlugin = plugins.get(i);
-      shutdownChain =
-          (factory) -> {
-            try {
-              workerPlugin.shutdownWorkerFactory(factory, next);
-            } catch (RuntimeException e) {
-              log.warn("Plugin {} failed during shutdown", workerPlugin.getName(), e);
-              // Still try to continue shutdown
-              next.accept(factory);
-            }
-          };
+      shutdownChain = (factory) -> workerPlugin.shutdownWorkerFactory(factory, next);
     }
 
     // Execute the chain
@@ -397,20 +388,7 @@ public final class WorkerFactory {
       for (int i = plugins.size() - 1; i >= 0; i--) {
         final BiConsumer<String, Worker> next = shutdownChain;
         final WorkerPlugin workerPlugin = plugins.get(i);
-        shutdownChain =
-            (tq, w) -> {
-              try {
-                workerPlugin.shutdownWorker(tq, w, next);
-              } catch (RuntimeException e) {
-                log.warn(
-                    "Plugin {} failed during worker shutdown for task queue {}",
-                    workerPlugin.getName(),
-                    tq,
-                    e);
-                // Still try to continue shutdown
-                next.accept(tq, w);
-              }
-            };
+        shutdownChain = (tq, w) -> workerPlugin.shutdownWorker(tq, w, next);
       }
 
       // Execute the shutdown chain for this worker
