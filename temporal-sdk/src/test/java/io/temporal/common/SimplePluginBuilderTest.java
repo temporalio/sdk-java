@@ -541,7 +541,13 @@ public class SimplePluginBuilderTest {
     AtomicBoolean nextCalled = new AtomicBoolean(false);
 
     ((WorkerPlugin) plugin)
-        .replayWorkflowExecution(mockWorker, mockHistory, () -> nextCalled.set(true));
+        .replayWorkflowExecution(
+            mockWorker,
+            mockHistory,
+            () -> {
+              nextCalled.set(true);
+              return null;
+            });
 
     assertTrue("next should be called", nextCalled.get());
     assertTrue("Callback should have been called", callbackCalled.get());
@@ -563,7 +569,7 @@ public class SimplePluginBuilderTest {
     Worker mockWorker = mock(Worker.class);
     WorkflowExecutionHistory mockHistory = mock(WorkflowExecutionHistory.class);
 
-    ((WorkerPlugin) plugin).replayWorkflowExecution(mockWorker, mockHistory, () -> {});
+    ((WorkerPlugin) plugin).replayWorkflowExecution(mockWorker, mockHistory, () -> null);
 
     assertEquals("All callbacks should be called", 3, callCount.get());
   }

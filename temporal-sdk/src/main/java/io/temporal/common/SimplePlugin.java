@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -304,8 +305,8 @@ public abstract class SimplePlugin
   }
 
   @Override
-  public void startWorker(@Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next)
-      throws Exception {
+  public void startWorker(
+      @Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next) {
     next.run();
     for (BiConsumer<String, Worker> callback : workerStartCallbacks) {
       callback.accept(taskQueue, worker);
@@ -328,7 +329,7 @@ public abstract class SimplePlugin
   }
 
   @Override
-  public void startWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+  public void startWorkerFactory(WorkerFactory factory, Runnable next) {
     next.run();
     for (Consumer<WorkerFactory> callback : workerFactoryStartCallbacks) {
       callback.accept(factory);
@@ -336,7 +337,7 @@ public abstract class SimplePlugin
   }
 
   @Override
-  public void shutdownWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+  public void shutdownWorkerFactory(WorkerFactory factory, Runnable next) {
     for (Consumer<WorkerFactory> callback : workerFactoryShutdownCallbacks) {
       callback.accept(factory);
     }
@@ -345,9 +346,11 @@ public abstract class SimplePlugin
 
   @Override
   public void replayWorkflowExecution(
-      @Nonnull Worker worker, @Nonnull WorkflowExecutionHistory history, @Nonnull Runnable next)
+      @Nonnull Worker worker,
+      @Nonnull WorkflowExecutionHistory history,
+      @Nonnull Callable<Void> next)
       throws Exception {
-    next.run();
+    next.call();
     for (BiConsumer<Worker, WorkflowExecutionHistory> callback : replayExecutionCallbacks) {
       callback.accept(worker, history);
     }

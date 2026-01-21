@@ -23,6 +23,7 @@ package io.temporal.worker;
 import io.temporal.common.Experimental;
 import io.temporal.common.SimplePlugin;
 import io.temporal.common.WorkflowExecutionHistory;
+import java.util.concurrent.Callable;
 import javax.annotation.Nonnull;
 
 /**
@@ -48,7 +49,7 @@ import javax.annotation.Nonnull;
  *     }
  *
  *     @Override
- *     public void startWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+ *     public void startWorkerFactory(WorkerFactory factory, Runnable next) {
  *         registry.recordWorkerStart();
  *         try {
  *             next.run();
@@ -127,7 +128,7 @@ public interface WorkerPlugin {
    *
    * <pre>{@code
    * @Override
-   * public void startWorker(String taskQueue, Worker worker, Runnable next) throws Exception {
+   * public void startWorker(String taskQueue, Worker worker, Runnable next) {
    *     logger.info("Starting worker for task queue: {}", taskQueue);
    *     perWorkerResources.put(taskQueue, new ResourcePool());
    *     next.run();
@@ -137,10 +138,8 @@ public interface WorkerPlugin {
    * @param taskQueue the task queue name for the worker
    * @param worker the worker being started
    * @param next runnable that starts the next in chain (eventually starts the actual worker)
-   * @throws Exception if startup fails
    */
-  void startWorker(@Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next)
-      throws Exception;
+  void startWorker(@Nonnull String taskQueue, @Nonnull Worker worker, @Nonnull Runnable next);
 
   /**
    * Allows the plugin to wrap individual worker shutdown. Called during shutdown phase in reverse
@@ -182,7 +181,7 @@ public interface WorkerPlugin {
    *
    * <pre>{@code
    * @Override
-   * public void startWorkerFactory(WorkerFactory factory, Runnable next) throws Exception {
+   * public void startWorkerFactory(WorkerFactory factory, Runnable next) {
    *     logger.info("Starting workers...");
    *     next.run();
    *     logger.info("Workers started");
@@ -191,9 +190,8 @@ public interface WorkerPlugin {
    *
    * @param factory the worker factory being started
    * @param next runnable that starts the next in chain (eventually starts actual workers)
-   * @throws Exception if startup fails
    */
-  void startWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next) throws Exception;
+  void startWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next);
 
   /**
    * Allows the plugin to wrap worker factory shutdown. Called during shutdown phase in reverse
@@ -217,8 +215,7 @@ public interface WorkerPlugin {
    * @param factory the worker factory being shut down
    * @param next runnable that shuts down the next in chain (eventually shuts down actual workers)
    */
-  void shutdownWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next)
-      throws Exception;
+  void shutdownWorkerFactory(@Nonnull WorkerFactory factory, @Nonnull Runnable next);
 
   // ==================== Replay Methods ====================
 
@@ -234,11 +231,11 @@ public interface WorkerPlugin {
    * <pre>{@code
    * @Override
    * public void replayWorkflowExecution(
-   *     Worker worker, WorkflowExecutionHistory history, Runnable next) throws Exception {
+   *     Worker worker, WorkflowExecutionHistory history, Callable<Void> next) throws Exception {
    *     logger.info("Replaying workflow: {}", history.getWorkflowExecution().getWorkflowId());
    *     long start = System.currentTimeMillis();
    *     try {
-   *         next.run();
+   *         next.call();
    *         logger.info("Replay succeeded in {}ms", System.currentTimeMillis() - start);
    *     } catch (Exception e) {
    *         logger.error("Replay failed after {}ms", System.currentTimeMillis() - start, e);
@@ -249,10 +246,12 @@ public interface WorkerPlugin {
    *
    * @param worker the worker performing the replay
    * @param history the workflow execution history being replayed
-   * @param next runnable that performs the next in chain (eventually performs the actual replay)
+   * @param next callable that performs the next in chain (eventually performs the actual replay)
    * @throws Exception if replay fails
    */
   void replayWorkflowExecution(
-      @Nonnull Worker worker, @Nonnull WorkflowExecutionHistory history, @Nonnull Runnable next)
+      @Nonnull Worker worker,
+      @Nonnull WorkflowExecutionHistory history,
+      @Nonnull Callable<Void> next)
       throws Exception;
 }

@@ -255,17 +255,7 @@ public final class WorkerFactory {
     for (int i = plugins.size() - 1; i >= 0; i--) {
       final Runnable next = startChain;
       final WorkerPlugin workerPlugin = plugins.get(i);
-      startChain =
-          () -> {
-            try {
-              workerPlugin.startWorkerFactory(this, next);
-            } catch (RuntimeException e) {
-              throw e;
-            } catch (Exception e) {
-              throw new RuntimeException(
-                  "Plugin " + workerPlugin.getName() + " failed during startup", e);
-            }
-          };
+      startChain = () -> workerPlugin.startWorkerFactory(this, next);
     }
 
     // Execute the chain
@@ -284,21 +274,7 @@ public final class WorkerFactory {
       for (int i = plugins.size() - 1; i >= 0; i--) {
         final Runnable next = startChain;
         final WorkerPlugin workerPlugin = plugins.get(i);
-        startChain =
-            () -> {
-              try {
-                workerPlugin.startWorker(taskQueue, worker, next);
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new RuntimeException(
-                    "Plugin "
-                        + workerPlugin.getName()
-                        + " failed during worker startup for task queue "
-                        + taskQueue,
-                    e);
-              }
-            };
+        startChain = () -> workerPlugin.startWorker(taskQueue, worker, next);
       }
 
       // Execute the chain for this worker
@@ -386,7 +362,7 @@ public final class WorkerFactory {
           () -> {
             try {
               workerPlugin.shutdownWorkerFactory(this, next);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
               log.warn("Plugin {} failed during shutdown", workerPlugin.getName(), e);
               // Still try to continue shutdown
               next.run();
@@ -423,7 +399,7 @@ public final class WorkerFactory {
             () -> {
               try {
                 workerPlugin.shutdownWorker(taskQueue, worker, next);
-              } catch (Exception e) {
+              } catch (RuntimeException e) {
                 log.warn(
                     "Plugin {} failed during worker shutdown for task queue {}",
                     workerPlugin.getName(),

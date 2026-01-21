@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -478,51 +479,28 @@ public final class Worker {
             history.getHistory(), history.getWorkflowExecution().getWorkflowId());
 
     // Build plugin chain in reverse order (first plugin wraps all others)
-    // Wrap checked exception in RuntimeException for Runnable compatibility
-    Runnable chain =
+    Callable<Void> chain =
         () -> {
-          try {
-            workflowWorker.queryWorkflowExecution(
-                history,
-                WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
-                String.class,
-                String.class,
-                new Object[] {});
-          } catch (Exception e) {
-            throw new ReplayException(e);
-          }
+          workflowWorker.queryWorkflowExecution(
+              history,
+              WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+              String.class,
+              String.class,
+              new Object[] {});
+          return null;
         };
 
     for (int i = plugins.size() - 1; i >= 0; i--) {
       WorkerPlugin plugin = plugins.get(i);
-      Runnable next = chain;
+      Callable<Void> next = chain;
       chain =
           () -> {
-            try {
-              plugin.replayWorkflowExecution(this, publicHistory, next);
-            } catch (Exception e) {
-              throw new ReplayException(e);
-            }
+            plugin.replayWorkflowExecution(this, publicHistory, next);
+            return null;
           };
     }
 
-    try {
-      chain.run();
-    } catch (ReplayException e) {
-      throw e.getCause();
-    }
-  }
-
-  /** Internal exception to wrap checked exceptions during replay. */
-  private static class ReplayException extends RuntimeException {
-    ReplayException(Exception cause) {
-      super(cause);
-    }
-
-    @Override
-    public synchronized Exception getCause() {
-      return (Exception) super.getCause();
-    }
+    chain.call();
   }
 
   /**
