@@ -252,9 +252,7 @@ public interface WorkerPlugin {
    * @param next runnable that performs the next in chain (eventually performs the actual replay)
    * @throws Exception if replay fails
    */
-  default void replayWorkflowExecution(
+  void replayWorkflowExecution(
       @Nonnull Worker worker, @Nonnull WorkflowExecutionHistory history, @Nonnull Runnable next)
-      throws Exception {
-    next.run();
-  }
+      throws Exception;
 }
