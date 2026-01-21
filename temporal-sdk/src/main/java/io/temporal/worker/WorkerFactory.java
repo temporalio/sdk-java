@@ -90,11 +90,18 @@ public final class WorkerFactory {
     // Merge propagated plugins with explicit plugins (propagated first)
     this.plugins = mergePlugins(propagatedPlugins, explicitPlugins);
 
-    // Apply plugin configuration to factory options (forward order)
-    factoryOptions = applyPluginConfiguration(factoryOptions, this.plugins);
-
-    this.factoryOptions =
-        WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
+    // Apply plugin configuration to factory options (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
+    WorkerFactoryOptions.Builder factoryOptionsBuilder =
+        factoryOptions == null
+            ? WorkerFactoryOptions.newBuilder()
+            : WorkerFactoryOptions.newBuilder(factoryOptions);
+    for (WorkerPlugin plugin : this.plugins) {
+      plugin.configureWorkerFactory(factoryOptionsBuilder);
+    }
+    // Set merged plugins after configuration, then validate
+    factoryOptionsBuilder.setPlugins(this.plugins.toArray(new WorkerPlugin[0]));
+    this.factoryOptions = factoryOptionsBuilder.validateAndBuildWithDefaults();
 
     this.metricsScope =
         this.workflowClient
@@ -552,29 +559,6 @@ public final class WorkerFactory {
     merged.addAll(propagated);
     merged.addAll(Arrays.asList(explicit));
     return Collections.unmodifiableList(merged);
-  }
-
-  /**
-   * Applies plugin configuration to worker factory options. Plugins are called in forward
-   * (registration) order. The merged plugins are set on the builder so plugins can see the complete
-   * list if they inspect the builder.
-   */
-  private static WorkerFactoryOptions applyPluginConfiguration(
-      WorkerFactoryOptions options, List<WorkerPlugin> plugins) {
-    WorkerFactoryOptions.Builder builder =
-        options == null
-            ? WorkerFactoryOptions.newBuilder()
-            : WorkerFactoryOptions.newBuilder(options);
-
-    // Set the merged plugins on the builder so plugins see the complete list
-    builder.setPlugins(plugins.toArray(new WorkerPlugin[0]));
-
-    if (plugins != null) {
-      for (WorkerPlugin plugin : plugins) {
-        plugin.configureWorkerFactory(builder);
-      }
-    }
-    return builder.build();
   }
 
   /**

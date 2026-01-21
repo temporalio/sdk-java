@@ -57,10 +57,14 @@ final class ScheduleClientImpl implements ScheduleClient {
     // Merge propagated plugins with schedule client-specified plugins
     ScheduleClientPlugin[] mergedPlugins = mergePlugins(propagatedPlugins, options.getPlugins());
 
-    // Apply plugin configuration phase (forward order)
+    // Apply plugin configuration phase (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
     ScheduleClientOptions.Builder builder = ScheduleClientOptions.newBuilder(options);
+    for (ScheduleClientPlugin plugin : mergedPlugins) {
+      plugin.configureScheduleClient(builder);
+    }
+    // Set merged plugins after configuration, then build
     builder.setPlugins(mergedPlugins);
-    applyPluginConfiguration(builder, mergedPlugins);
     options = builder.build();
 
     workflowServiceStubs =
@@ -117,16 +121,6 @@ final class ScheduleClientImpl implements ScheduleClient {
       merged.addAll(Arrays.asList(explicit));
     }
     return merged.toArray(new ScheduleClientPlugin[0]);
-  }
-
-  private static void applyPluginConfiguration(
-      ScheduleClientOptions.Builder builder, ScheduleClientPlugin[] plugins) {
-    if (plugins == null) {
-      return;
-    }
-    for (ScheduleClientPlugin plugin : plugins) {
-      plugin.configureScheduleClient(builder);
-    }
   }
 
   private ScheduleClientCallsInterceptor initializeClientInvoker() {

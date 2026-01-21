@@ -77,10 +77,14 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     // Merge propagated plugins with client-specified plugins
     WorkflowClientPlugin[] mergedPlugins = mergePlugins(propagatedPlugins, options.getPlugins());
 
-    // Apply plugin configuration phase (forward order), then validate
+    // Apply plugin configuration phase (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
+    for (WorkflowClientPlugin plugin : mergedPlugins) {
+      plugin.configureWorkflowClient(builder);
+    }
+    // Set merged plugins after configuration, then validate
     builder.setPlugins(mergedPlugins);
-    applyClientPluginConfiguration(builder, mergedPlugins);
     options = builder.validateAndBuildWithDefaults();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
@@ -785,20 +789,6 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
       return WorkflowInvocationHandler.getAsyncInvocationResult(NexusStartWorkflowResponse.class);
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
-    }
-  }
-
-  /**
-   * Applies workflow client plugin configuration phase. Plugins are called in forward
-   * (registration) order to modify the client options.
-   */
-  private static void applyClientPluginConfiguration(
-      WorkflowClientOptions.Builder builder, WorkflowClientPlugin[] plugins) {
-    if (plugins == null || plugins.length == 0) {
-      return;
-    }
-    for (WorkflowClientPlugin plugin : plugins) {
-      plugin.configureWorkflowClient(builder);
     }
   }
 
