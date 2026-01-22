@@ -49,7 +49,7 @@ public class PluginPropagationTest {
                 builder -> {
                   callLog.add("configureServiceStubs");
                 })
-            .customizeClient(
+            .customizeWorkflowClient(
                 builder -> {
                   callLog.add("configureWorkflowClient");
                 })
@@ -116,7 +116,7 @@ public class PluginPropagationTest {
                 builder -> {
                   callLog.add("configureServiceStubs");
                 })
-            .customizeClient(
+            .customizeWorkflowClient(
                 builder -> {
                   callLog.add("configureWorkflowClient");
                 })
@@ -160,13 +160,14 @@ public class PluginPropagationTest {
     // Plugin set on service stubs
     SimplePlugin stubsPlugin =
         SimplePlugin.newBuilder("stubs-plugin")
-            .customizeClient(builder -> callLog.add("stubs-plugin-configureWorkflowClient"))
+            .customizeWorkflowClient(builder -> callLog.add("stubs-plugin-configureWorkflowClient"))
             .build();
 
     // Different plugin set on client
     SimplePlugin clientPlugin =
         SimplePlugin.newBuilder("client-plugin")
-            .customizeClient(builder -> callLog.add("client-plugin-configureWorkflowClient"))
+            .customizeWorkflowClient(
+                builder -> callLog.add("client-plugin-configureWorkflowClient"))
             .build();
 
     WorkflowServiceStubsOptions stubsOptions =

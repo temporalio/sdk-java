@@ -78,12 +78,12 @@ public class SimplePluginBuilderTest {
   }
 
   @Test
-  public void testCustomizeClient() {
+  public void testCustomizeWorkflowClient() {
     AtomicBoolean customized = new AtomicBoolean(false);
 
     SimplePlugin plugin =
         SimplePlugin.newBuilder("test")
-            .customizeClient(
+            .customizeWorkflowClient(
                 builder -> {
                   customized.set(true);
                   builder.setIdentity("custom-identity");
@@ -143,9 +143,9 @@ public class SimplePluginBuilderTest {
 
     SimplePlugin plugin =
         SimplePlugin.newBuilder("test")
-            .customizeClient(builder -> callCount.incrementAndGet())
-            .customizeClient(builder -> callCount.incrementAndGet())
-            .customizeClient(builder -> callCount.incrementAndGet())
+            .customizeWorkflowClient(builder -> callCount.incrementAndGet())
+            .customizeWorkflowClient(builder -> callCount.incrementAndGet())
+            .customizeWorkflowClient(builder -> callCount.incrementAndGet())
             .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
@@ -413,7 +413,7 @@ public class SimplePluginBuilderTest {
 
   @Test(expected = NullPointerException.class)
   public void testNullCustomizer() {
-    SimplePlugin.newBuilder("test").customizeClient(null);
+    SimplePlugin.newBuilder("test").customizeWorkflowClient(null);
   }
 
   @Test

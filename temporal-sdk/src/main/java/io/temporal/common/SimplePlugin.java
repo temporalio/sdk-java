@@ -62,7 +62,7 @@ import javax.annotation.Nonnull;
  * SimplePlugin myPlugin = SimplePlugin.newBuilder("my-plugin")
  *     .addWorkerInterceptors(new TracingInterceptor())
  *     .addClientInterceptors(new LoggingInterceptor())
- *     .customizeClient(b -> b.setIdentity("custom-identity"))
+ *     .customizeWorkflowClient(b -> b.setIdentity("custom-identity"))
  *     .build();
  * }</pre>
  *
@@ -114,7 +114,7 @@ public abstract class SimplePlugin
 
   private final String name;
   private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers;
-  private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers;
+  private final List<Consumer<WorkflowClientOptions.Builder>> workflowClientCustomizers;
   private final List<Consumer<ScheduleClientOptions.Builder>> scheduleCustomizers;
   private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers;
   private final List<Consumer<WorkerOptions.Builder>> workerCustomizers;
@@ -143,7 +143,7 @@ public abstract class SimplePlugin
   protected SimplePlugin(@Nonnull String name) {
     this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
     this.stubsCustomizers = Collections.emptyList();
-    this.clientCustomizers = Collections.emptyList();
+    this.workflowClientCustomizers = Collections.emptyList();
     this.scheduleCustomizers = Collections.emptyList();
     this.factoryCustomizers = Collections.emptyList();
     this.workerCustomizers = Collections.emptyList();
@@ -173,7 +173,7 @@ public abstract class SimplePlugin
     Objects.requireNonNull(builder, "Builder cannot be null");
     this.name = builder.name;
     this.stubsCustomizers = new ArrayList<>(builder.stubsCustomizers);
-    this.clientCustomizers = new ArrayList<>(builder.clientCustomizers);
+    this.workflowClientCustomizers = new ArrayList<>(builder.workflowClientCustomizers);
     this.scheduleCustomizers = new ArrayList<>(builder.scheduleCustomizers);
     this.factoryCustomizers = new ArrayList<>(builder.factoryCustomizers);
     this.workerCustomizers = new ArrayList<>(builder.workerCustomizers);
@@ -219,7 +219,7 @@ public abstract class SimplePlugin
   @Override
   public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
     // Apply customizers
-    for (Consumer<WorkflowClientOptions.Builder> customizer : clientCustomizers) {
+    for (Consumer<WorkflowClientOptions.Builder> customizer : workflowClientCustomizers) {
       customizer.accept(builder);
     }
 
@@ -366,7 +366,7 @@ public abstract class SimplePlugin
     private final String name;
     private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers =
         new ArrayList<>();
-    private final List<Consumer<WorkflowClientOptions.Builder>> clientCustomizers =
+    private final List<Consumer<WorkflowClientOptions.Builder>> workflowClientCustomizers =
         new ArrayList<>();
     private final List<Consumer<ScheduleClientOptions.Builder>> scheduleCustomizers =
         new ArrayList<>();
@@ -412,8 +412,9 @@ public abstract class SimplePlugin
      * @param customizer a consumer that modifies the options builder
      * @return this builder for chaining
      */
-    public Builder customizeClient(@Nonnull Consumer<WorkflowClientOptions.Builder> customizer) {
-      clientCustomizers.add(Objects.requireNonNull(customizer));
+    public Builder customizeWorkflowClient(
+        @Nonnull Consumer<WorkflowClientOptions.Builder> customizer) {
+      workflowClientCustomizers.add(Objects.requireNonNull(customizer));
       return this;
     }
 
