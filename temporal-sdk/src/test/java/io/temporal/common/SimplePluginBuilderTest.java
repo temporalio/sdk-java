@@ -29,10 +29,8 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,101 +55,6 @@ public class SimplePluginBuilderTest {
         "Should implement WorkflowClientPlugin",
         plugin instanceof io.temporal.client.WorkflowClientPlugin);
     assertTrue("Should implement WorkerPlugin", plugin instanceof io.temporal.worker.WorkerPlugin);
-  }
-
-  @Test
-  public void testCustomizeServiceStubs() {
-    AtomicBoolean customized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeServiceStubs(
-                builder -> {
-                  customized.set(true);
-                })
-            .build();
-
-    WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
-    ((io.temporal.serviceclient.WorkflowServiceStubsPlugin) plugin).configureServiceStubs(builder);
-
-    assertTrue("Customizer should have been called", customized.get());
-  }
-
-  @Test
-  public void testCustomizeWorkflowClient() {
-    AtomicBoolean customized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeWorkflowClient(
-                builder -> {
-                  customized.set(true);
-                  builder.setIdentity("custom-identity");
-                })
-            .build();
-
-    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
-
-    assertTrue("Customizer should have been called", customized.get());
-    assertEquals("custom-identity", builder.build().getIdentity());
-  }
-
-  @Test
-  public void testCustomizeWorkerFactory() {
-    AtomicBoolean customized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeWorkerFactory(
-                builder -> {
-                  customized.set(true);
-                  builder.setWorkflowCacheSize(100);
-                })
-            .build();
-
-    WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
-    ((io.temporal.worker.WorkerPlugin) plugin).configureWorkerFactory(builder);
-
-    assertTrue("Customizer should have been called", customized.get());
-    assertEquals(100, builder.build().getWorkflowCacheSize());
-  }
-
-  @Test
-  public void testCustomizeWorker() {
-    AtomicBoolean customized = new AtomicBoolean(false);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeWorker(
-                builder -> {
-                  customized.set(true);
-                  builder.setMaxConcurrentActivityExecutionSize(50);
-                })
-            .build();
-
-    WorkerOptions.Builder builder = WorkerOptions.newBuilder();
-    ((io.temporal.worker.WorkerPlugin) plugin).configureWorker("test-queue", builder);
-
-    assertTrue("Customizer should have been called", customized.get());
-    assertEquals(50, builder.build().getMaxConcurrentActivityExecutionSize());
-  }
-
-  @Test
-  public void testMultipleCustomizers() {
-    AtomicInteger callCount = new AtomicInteger(0);
-
-    SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeWorkflowClient(builder -> callCount.incrementAndGet())
-            .customizeWorkflowClient(builder -> callCount.incrementAndGet())
-            .customizeWorkflowClient(builder -> callCount.incrementAndGet())
-            .build();
-
-    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
-    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
-
-    assertEquals("All customizers should be called", 3, callCount.get());
   }
 
   @Test
@@ -411,16 +314,14 @@ public class SimplePluginBuilderTest {
     SimplePlugin.newBuilder(null);
   }
 
-  @Test(expected = NullPointerException.class)
-  public void testNullCustomizer() {
-    SimplePlugin.newBuilder("test").customizeWorkflowClient(null);
-  }
-
   @Test
-  public void testSetDataConverter() {
+  public void testCustomizeDataConverterReplacesExisting() {
     DataConverter customConverter = mock(DataConverter.class);
 
-    SimplePlugin plugin = SimplePlugin.newBuilder("test").setDataConverter(customConverter).build();
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .customizeDataConverter(existing -> customConverter)
+            .build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
@@ -428,9 +329,32 @@ public class SimplePluginBuilderTest {
     assertSame(customConverter, builder.build().getDataConverter());
   }
 
+  @Test
+  public void testCustomizeDataConverterReceivesExisting() {
+    DataConverter existingConverter = mock(DataConverter.class);
+    DataConverter newConverter = mock(DataConverter.class);
+    AtomicReference<DataConverter> capturedExisting = new AtomicReference<>();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .customizeDataConverter(
+                existing -> {
+                  capturedExisting.set(existing);
+                  return newConverter;
+                })
+            .build();
+
+    WorkflowClientOptions.Builder builder =
+        WorkflowClientOptions.newBuilder().setDataConverter(existingConverter);
+    ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
+
+    assertSame(existingConverter, capturedExisting.get());
+    assertSame(newConverter, builder.build().getDataConverter());
+  }
+
   @Test(expected = NullPointerException.class)
-  public void testNullDataConverter() {
-    SimplePlugin.newBuilder("test").setDataConverter(null);
+  public void testNullDataConverterCustomizer() {
+    SimplePlugin.newBuilder("test").customizeDataConverter(null);
   }
 
   @Test

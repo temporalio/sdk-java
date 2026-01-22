@@ -26,10 +26,13 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nonnull;
 import org.junit.Test;
 
 /**
@@ -38,30 +41,44 @@ import org.junit.Test;
  */
 public class PluginPropagationTest {
 
+  /** A plugin that tracks all configuration calls via subclassing. */
+  private static class TrackingPlugin extends SimplePlugin {
+    private final List<String> callLog;
+
+    TrackingPlugin(String name, List<String> callLog) {
+      super(name);
+      this.callLog = callLog;
+    }
+
+    @Override
+    public void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder) {
+      callLog.add("configureServiceStubs");
+    }
+
+    @Override
+    public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
+      super.configureWorkflowClient(builder);
+      callLog.add("configureWorkflowClient");
+    }
+
+    @Override
+    public void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder) {
+      super.configureWorkerFactory(builder);
+      callLog.add("configureWorkerFactory");
+    }
+
+    @Override
+    public void configureWorker(@Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
+      callLog.add("configureWorker");
+    }
+  }
+
   @Test
   public void testPluginPropagatesFromServiceStubsToWorkerFactory() {
     List<String> callLog = new ArrayList<>();
 
     // Create a plugin that tracks all configuration calls
-    SimplePlugin trackingPlugin =
-        SimplePlugin.newBuilder("tracking-plugin")
-            .customizeServiceStubs(
-                builder -> {
-                  callLog.add("configureServiceStubs");
-                })
-            .customizeWorkflowClient(
-                builder -> {
-                  callLog.add("configureWorkflowClient");
-                })
-            .customizeWorkerFactory(
-                builder -> {
-                  callLog.add("configureWorkerFactory");
-                })
-            .customizeWorker(
-                builder -> {
-                  callLog.add("configureWorker");
-                })
-            .build();
+    TrackingPlugin trackingPlugin = new TrackingPlugin("tracking-plugin", callLog);
 
     // Set the plugin ONLY on WorkflowServiceStubsOptions
     WorkflowServiceStubsOptions stubsOptions =
@@ -110,21 +127,7 @@ public class PluginPropagationTest {
     List<String> callLog = new ArrayList<>();
 
     // Create a plugin that tracks all configuration calls
-    SimplePlugin trackingPlugin =
-        SimplePlugin.newBuilder("tracking-plugin")
-            .customizeServiceStubs(
-                builder -> {
-                  callLog.add("configureServiceStubs");
-                })
-            .customizeWorkflowClient(
-                builder -> {
-                  callLog.add("configureWorkflowClient");
-                })
-            .customizeWorkerFactory(
-                builder -> {
-                  callLog.add("configureWorkerFactory");
-                })
-            .build();
+    TrackingPlugin trackingPlugin = new TrackingPlugin("tracking-plugin", callLog);
 
     // Set the plugin ONLY on WorkflowClientOptions (not service stubs)
     WorkflowClientOptions clientOptions =
@@ -153,22 +156,35 @@ public class PluginPropagationTest {
     }
   }
 
+  /** A plugin that only logs workflow client configuration. */
+  private static class ClientOnlyTrackingPlugin extends SimplePlugin {
+    private final List<String> callLog;
+    private final String logPrefix;
+
+    ClientOnlyTrackingPlugin(String name, List<String> callLog, String logPrefix) {
+      super(name);
+      this.callLog = callLog;
+      this.logPrefix = logPrefix;
+    }
+
+    @Override
+    public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
+      super.configureWorkflowClient(builder);
+      callLog.add(logPrefix + "-configureWorkflowClient");
+    }
+  }
+
   @Test
   public void testMergedPluginsFromBothLevels() {
     List<String> callLog = new ArrayList<>();
 
     // Plugin set on service stubs
-    SimplePlugin stubsPlugin =
-        SimplePlugin.newBuilder("stubs-plugin")
-            .customizeWorkflowClient(builder -> callLog.add("stubs-plugin-configureWorkflowClient"))
-            .build();
+    ClientOnlyTrackingPlugin stubsPlugin =
+        new ClientOnlyTrackingPlugin("stubs-plugin", callLog, "stubs-plugin");
 
     // Different plugin set on client
-    SimplePlugin clientPlugin =
-        SimplePlugin.newBuilder("client-plugin")
-            .customizeWorkflowClient(
-                builder -> callLog.add("client-plugin-configureWorkflowClient"))
-            .build();
+    ClientOnlyTrackingPlugin clientPlugin =
+        new ClientOnlyTrackingPlugin("client-plugin", callLog, "client-plugin");
 
     WorkflowServiceStubsOptions stubsOptions =
         WorkflowServiceStubsOptions.newBuilder()
@@ -200,17 +216,36 @@ public class PluginPropagationTest {
     }
   }
 
+  /** A plugin that only logs worker factory and worker configuration. */
+  private static class WorkerOnlyTrackingPlugin extends SimplePlugin {
+    private final List<String> callLog;
+    private final String logPrefix;
+
+    WorkerOnlyTrackingPlugin(String name, List<String> callLog, String logPrefix) {
+      super(name);
+      this.callLog = callLog;
+      this.logPrefix = logPrefix;
+    }
+
+    @Override
+    public void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder) {
+      super.configureWorkerFactory(builder);
+      callLog.add(logPrefix + "-configureWorkerFactory");
+    }
+
+    @Override
+    public void configureWorker(@Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
+      callLog.add(logPrefix + "-configureWorker");
+    }
+  }
+
   @Test
   public void testWorkerOnlyPluginOnFactoryOptions() {
     List<String> callLog = new ArrayList<>();
 
     // Create a plugin that only uses worker-level customization
-    // (Even though SimplePlugin implements all interfaces, we only set worker callbacks)
-    SimplePlugin workerOnlyPlugin =
-        SimplePlugin.newBuilder("worker-only-plugin")
-            .customizeWorkerFactory(builder -> callLog.add("worker-only-configureWorkerFactory"))
-            .customizeWorker(builder -> callLog.add("worker-only-configureWorker"))
-            .build();
+    WorkerOnlyTrackingPlugin workerOnlyPlugin =
+        new WorkerOnlyTrackingPlugin("worker-only-plugin", callLog, "worker-only");
 
     // Set the plugin on WorkerFactoryOptions (not on client)
     io.temporal.worker.WorkerFactoryOptions factoryOptions =
@@ -236,21 +271,35 @@ public class PluginPropagationTest {
     }
   }
 
+  /** A plugin that only logs worker factory configuration. */
+  private static class FactoryOnlyTrackingPlugin extends SimplePlugin {
+    private final List<String> callLog;
+    private final String logPrefix;
+
+    FactoryOnlyTrackingPlugin(String name, List<String> callLog, String logPrefix) {
+      super(name);
+      this.callLog = callLog;
+      this.logPrefix = logPrefix;
+    }
+
+    @Override
+    public void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder) {
+      super.configureWorkerFactory(builder);
+      callLog.add(logPrefix + "-configureWorkerFactory");
+    }
+  }
+
   @Test
   public void testMergedPluginsAtWorkerFactoryLevel() {
     List<String> callLog = new ArrayList<>();
 
     // Plugin propagated from client
-    SimplePlugin clientPlugin =
-        SimplePlugin.newBuilder("client-plugin")
-            .customizeWorkerFactory(builder -> callLog.add("client-plugin-configureWorkerFactory"))
-            .build();
+    FactoryOnlyTrackingPlugin clientPlugin =
+        new FactoryOnlyTrackingPlugin("client-plugin", callLog, "client-plugin");
 
     // Plugin set directly on factory options
-    SimplePlugin factoryPlugin =
-        SimplePlugin.newBuilder("factory-plugin")
-            .customizeWorkerFactory(builder -> callLog.add("factory-plugin-configureWorkerFactory"))
-            .build();
+    FactoryOnlyTrackingPlugin factoryPlugin =
+        new FactoryOnlyTrackingPlugin("factory-plugin", callLog, "factory-plugin");
 
     WorkflowClientOptions clientOptions =
         WorkflowClientOptions.newBuilder()

@@ -44,6 +44,7 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import javax.annotation.Nonnull;
 
 /**
@@ -62,7 +63,7 @@ import javax.annotation.Nonnull;
  * SimplePlugin myPlugin = SimplePlugin.newBuilder("my-plugin")
  *     .addWorkerInterceptors(new TracingInterceptor())
  *     .addClientInterceptors(new LoggingInterceptor())
- *     .customizeWorkflowClient(b -> b.setIdentity("custom-identity"))
+ *     .customizeDataConverter(existing -> new CodecDataConverter(existing, myCodec))
  *     .build();
  * }</pre>
  *
@@ -113,11 +114,6 @@ public abstract class SimplePlugin
         WorkerPlugin {
 
   private final String name;
-  private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers;
-  private final List<Consumer<WorkflowClientOptions.Builder>> workflowClientCustomizers;
-  private final List<Consumer<ScheduleClientOptions.Builder>> scheduleCustomizers;
-  private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers;
-  private final List<Consumer<WorkerOptions.Builder>> workerCustomizers;
   private final List<BiConsumer<String, Worker>> workerInitializers;
   private final List<BiConsumer<String, Worker>> workerStartCallbacks;
   private final List<BiConsumer<String, Worker>> workerShutdownCallbacks;
@@ -127,7 +123,7 @@ public abstract class SimplePlugin
   private final List<WorkerInterceptor> workerInterceptors;
   private final List<WorkflowClientInterceptor> clientInterceptors;
   private final List<ContextPropagator> contextPropagators;
-  private final DataConverter dataConverter;
+  private final UnaryOperator<DataConverter> dataConverterCustomizer;
   private final List<Class<?>> workflowImplementationTypes;
   private final List<Object> activitiesImplementations;
   private final List<Object> nexusServiceImplementations;
@@ -142,11 +138,6 @@ public abstract class SimplePlugin
    */
   protected SimplePlugin(@Nonnull String name) {
     this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
-    this.stubsCustomizers = Collections.emptyList();
-    this.workflowClientCustomizers = Collections.emptyList();
-    this.scheduleCustomizers = Collections.emptyList();
-    this.factoryCustomizers = Collections.emptyList();
-    this.workerCustomizers = Collections.emptyList();
     this.workerInitializers = Collections.emptyList();
     this.workerStartCallbacks = Collections.emptyList();
     this.workerShutdownCallbacks = Collections.emptyList();
@@ -156,7 +147,7 @@ public abstract class SimplePlugin
     this.workerInterceptors = Collections.emptyList();
     this.clientInterceptors = Collections.emptyList();
     this.contextPropagators = Collections.emptyList();
-    this.dataConverter = null;
+    this.dataConverterCustomizer = null;
     this.workflowImplementationTypes = Collections.emptyList();
     this.activitiesImplementations = Collections.emptyList();
     this.nexusServiceImplementations = Collections.emptyList();
@@ -172,11 +163,6 @@ public abstract class SimplePlugin
   protected SimplePlugin(@Nonnull Builder builder) {
     Objects.requireNonNull(builder, "Builder cannot be null");
     this.name = builder.name;
-    this.stubsCustomizers = new ArrayList<>(builder.stubsCustomizers);
-    this.workflowClientCustomizers = new ArrayList<>(builder.workflowClientCustomizers);
-    this.scheduleCustomizers = new ArrayList<>(builder.scheduleCustomizers);
-    this.factoryCustomizers = new ArrayList<>(builder.factoryCustomizers);
-    this.workerCustomizers = new ArrayList<>(builder.workerCustomizers);
     this.workerInitializers = new ArrayList<>(builder.workerInitializers);
     this.workerStartCallbacks = new ArrayList<>(builder.workerStartCallbacks);
     this.workerShutdownCallbacks = new ArrayList<>(builder.workerShutdownCallbacks);
@@ -186,7 +172,7 @@ public abstract class SimplePlugin
     this.workerInterceptors = new ArrayList<>(builder.workerInterceptors);
     this.clientInterceptors = new ArrayList<>(builder.clientInterceptors);
     this.contextPropagators = new ArrayList<>(builder.contextPropagators);
-    this.dataConverter = builder.dataConverter;
+    this.dataConverterCustomizer = builder.dataConverterCustomizer;
     this.workflowImplementationTypes = new ArrayList<>(builder.workflowImplementationTypes);
     this.activitiesImplementations = new ArrayList<>(builder.activitiesImplementations);
     this.nexusServiceImplementations = new ArrayList<>(builder.nexusServiceImplementations);
@@ -211,21 +197,15 @@ public abstract class SimplePlugin
 
   @Override
   public void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder) {
-    for (Consumer<WorkflowServiceStubsOptions.Builder> customizer : stubsCustomizers) {
-      customizer.accept(builder);
-    }
+    // Subclasses can override this method for custom configuration
   }
 
   @Override
   public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
-    // Apply customizers
-    for (Consumer<WorkflowClientOptions.Builder> customizer : workflowClientCustomizers) {
-      customizer.accept(builder);
-    }
-
-    // Set data converter
-    if (dataConverter != null) {
-      builder.setDataConverter(dataConverter);
+    // Apply data converter customizer
+    if (dataConverterCustomizer != null) {
+      DataConverter existing = builder.build().getDataConverter();
+      builder.setDataConverter(dataConverterCustomizer.apply(existing));
     }
 
     // Add client interceptors
@@ -249,19 +229,11 @@ public abstract class SimplePlugin
 
   @Override
   public void configureScheduleClient(@Nonnull ScheduleClientOptions.Builder builder) {
-    // Apply customizers
-    for (Consumer<ScheduleClientOptions.Builder> customizer : scheduleCustomizers) {
-      customizer.accept(builder);
-    }
+    // Subclasses can override this method for custom configuration
   }
 
   @Override
   public void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder) {
-    // Apply customizers
-    for (Consumer<WorkerFactoryOptions.Builder> customizer : factoryCustomizers) {
-      customizer.accept(builder);
-    }
-
     // Add worker interceptors
     if (!workerInterceptors.isEmpty()) {
       WorkerInterceptor[] existing = builder.build().getWorkerInterceptors();
@@ -274,9 +246,7 @@ public abstract class SimplePlugin
 
   @Override
   public void configureWorker(@Nonnull String taskQueue, @Nonnull WorkerOptions.Builder builder) {
-    for (Consumer<WorkerOptions.Builder> customizer : workerCustomizers) {
-      customizer.accept(builder);
-    }
+    // Subclasses can override this method for custom configuration
   }
 
   @Override
@@ -364,15 +334,6 @@ public abstract class SimplePlugin
   public static final class Builder {
 
     private final String name;
-    private final List<Consumer<WorkflowServiceStubsOptions.Builder>> stubsCustomizers =
-        new ArrayList<>();
-    private final List<Consumer<WorkflowClientOptions.Builder>> workflowClientCustomizers =
-        new ArrayList<>();
-    private final List<Consumer<ScheduleClientOptions.Builder>> scheduleCustomizers =
-        new ArrayList<>();
-    private final List<Consumer<WorkerFactoryOptions.Builder>> factoryCustomizers =
-        new ArrayList<>();
-    private final List<Consumer<WorkerOptions.Builder>> workerCustomizers = new ArrayList<>();
     private final List<BiConsumer<String, Worker>> workerInitializers = new ArrayList<>();
     private final List<BiConsumer<String, Worker>> workerStartCallbacks = new ArrayList<>();
     private final List<BiConsumer<String, Worker>> workerShutdownCallbacks = new ArrayList<>();
@@ -383,77 +344,13 @@ public abstract class SimplePlugin
     private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
     private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
     private final List<ContextPropagator> contextPropagators = new ArrayList<>();
-    private DataConverter dataConverter;
+    private UnaryOperator<DataConverter> dataConverterCustomizer;
     private final List<Class<?>> workflowImplementationTypes = new ArrayList<>();
     private final List<Object> activitiesImplementations = new ArrayList<>();
     private final List<Object> nexusServiceImplementations = new ArrayList<>();
 
     private Builder(@Nonnull String name) {
       this.name = Objects.requireNonNull(name, "Plugin name cannot be null");
-    }
-
-    /**
-     * Adds a customizer for {@link WorkflowServiceStubsOptions}. Multiple customizers are applied
-     * in the order they are added.
-     *
-     * @param customizer a consumer that modifies the options builder
-     * @return this builder for chaining
-     */
-    public Builder customizeServiceStubs(
-        @Nonnull Consumer<WorkflowServiceStubsOptions.Builder> customizer) {
-      stubsCustomizers.add(Objects.requireNonNull(customizer));
-      return this;
-    }
-
-    /**
-     * Adds a customizer for {@link WorkflowClientOptions}. Multiple customizers are applied in the
-     * order they are added.
-     *
-     * @param customizer a consumer that modifies the options builder
-     * @return this builder for chaining
-     */
-    public Builder customizeWorkflowClient(
-        @Nonnull Consumer<WorkflowClientOptions.Builder> customizer) {
-      workflowClientCustomizers.add(Objects.requireNonNull(customizer));
-      return this;
-    }
-
-    /**
-     * Adds a customizer for {@link ScheduleClientOptions}. Multiple customizers are applied in the
-     * order they are added.
-     *
-     * @param customizer a consumer that modifies the options builder
-     * @return this builder for chaining
-     */
-    public Builder customizeScheduleClient(
-        @Nonnull Consumer<ScheduleClientOptions.Builder> customizer) {
-      scheduleCustomizers.add(Objects.requireNonNull(customizer));
-      return this;
-    }
-
-    /**
-     * Adds a customizer for {@link WorkerFactoryOptions}. Multiple customizers are applied in the
-     * order they are added.
-     *
-     * @param customizer a consumer that modifies the options builder
-     * @return this builder for chaining
-     */
-    public Builder customizeWorkerFactory(
-        @Nonnull Consumer<WorkerFactoryOptions.Builder> customizer) {
-      factoryCustomizers.add(Objects.requireNonNull(customizer));
-      return this;
-    }
-
-    /**
-     * Adds a customizer for {@link WorkerOptions}. Multiple customizers are applied in the order
-     * they are added. The customizer is applied to all workers created by the factory.
-     *
-     * @param customizer a consumer that modifies the options builder
-     * @return this builder for chaining
-     */
-    public Builder customizeWorker(@Nonnull Consumer<WorkerOptions.Builder> customizer) {
-      workerCustomizers.add(Objects.requireNonNull(customizer));
-      return this;
     }
 
     /**
@@ -641,14 +538,35 @@ public abstract class SimplePlugin
     }
 
     /**
-     * Sets the data converter to use for serializing workflow and activity arguments and results.
-     * This overrides any data converter previously set on the client options.
+     * Sets a customizer for the data converter. The customizer receives the existing data converter
+     * and returns a new or modified data converter.
      *
-     * @param dataConverter the data converter to use
+     * <p>This is useful for wrapping the existing data converter with additional functionality,
+     * such as adding a codec for encryption or compression.
+     *
+     * <p>Example - wrapping with a codec:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .customizeDataConverter(existing ->
+     *         new CodecDataConverter(existing, Collections.singletonList(new MyCodec())))
+     *     .build();
+     * }</pre>
+     *
+     * <p>Example - replacing entirely:
+     *
+     * <pre>{@code
+     * SimplePlugin.newBuilder("my-plugin")
+     *     .customizeDataConverter(existing -> myCustomDataConverter)
+     *     .build();
+     * }</pre>
+     *
+     * @param customizer a function that receives the existing data converter and returns the data
+     *     converter to use
      * @return this builder for chaining
      */
-    public Builder setDataConverter(@Nonnull DataConverter dataConverter) {
-      this.dataConverter = Objects.requireNonNull(dataConverter);
+    public Builder customizeDataConverter(@Nonnull UnaryOperator<DataConverter> customizer) {
+      this.dataConverterCustomizer = Objects.requireNonNull(customizer);
       return this;
     }
 
