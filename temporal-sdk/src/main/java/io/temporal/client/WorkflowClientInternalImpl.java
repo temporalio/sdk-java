@@ -17,6 +17,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
@@ -75,7 +76,14 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         extractClientPlugins(workflowServiceStubs.getOptions().getPlugins());
 
     // Merge propagated plugins with client-specified plugins
-    WorkflowClientPlugin[] mergedPlugins = mergePlugins(propagatedPlugins, options.getPlugins());
+    WorkflowClientPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            options.getPlugins(),
+            WorkflowClientPlugin::getName,
+            log,
+            "service stubs",
+            WorkflowClientPlugin.class);
 
     // Apply plugin configuration phase (forward order) on user-provided options,
     // so plugins see unmodified state before defaults and plugin merging
@@ -809,38 +817,5 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
       }
     }
     return clientPlugins.toArray(new WorkflowClientPlugin[0]);
-  }
-
-  /**
-   * Merges propagated plugins with explicitly specified plugins. Propagated plugins come first
-   * (from service stubs), followed by client-specific plugins.
-   */
-  private static WorkflowClientPlugin[] mergePlugins(
-      WorkflowClientPlugin[] propagated, WorkflowClientPlugin[] explicit) {
-    boolean propagatedEmpty = propagated == null || propagated.length == 0;
-    boolean explicitEmpty = explicit == null || explicit.length == 0;
-    if (propagatedEmpty && explicitEmpty) {
-      return new WorkflowClientPlugin[0];
-    }
-    if (propagatedEmpty) {
-      return explicit;
-    }
-    if (explicitEmpty) {
-      return propagated;
-    }
-    // Warn about duplicate plugin instances (same object in both lists)
-    Set<WorkflowClientPlugin> propagatedSet = new HashSet<>(Arrays.asList(propagated));
-    for (WorkflowClientPlugin p : explicit) {
-      if (propagatedSet.contains(p)) {
-        log.warn(
-            "Plugin instance {} is present in both propagated plugins (from service stubs) and "
-                + "explicit plugins. It will run twice which may not be the intended behavior.",
-            p.getName());
-      }
-    }
-    WorkflowClientPlugin[] merged = new WorkflowClientPlugin[propagated.length + explicit.length];
-    System.arraycopy(propagated, 0, merged, 0, propagated.length);
-    System.arraycopy(explicit, 0, merged, propagated.length, explicit.length);
-    return merged;
   }
 }

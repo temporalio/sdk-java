@@ -12,6 +12,7 @@ import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
@@ -19,11 +20,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -84,13 +83,21 @@ public final class WorkerFactory {
     String namespace = workflowClientOptions.getNamespace();
 
     // Extract worker plugins from client (auto-propagation)
-    List<WorkerPlugin> propagatedPlugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+    WorkerPlugin[] propagatedPlugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
 
     // Get plugins explicitly set on factory options
     WorkerPlugin[] explicitPlugins = factoryOptions != null ? factoryOptions.getPlugins() : null;
 
     // Merge propagated plugins with explicit plugins (propagated first)
-    this.plugins = mergePlugins(propagatedPlugins, explicitPlugins);
+    WorkerPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            explicitPlugins,
+            WorkerPlugin::getName,
+            log,
+            "client",
+            WorkerPlugin.class);
+    this.plugins = Collections.unmodifiableList(Arrays.asList(mergedPlugins));
 
     // Apply plugin configuration to factory options (forward order) on user-provided options,
     // so plugins see unmodified state before defaults and plugin merging
@@ -470,51 +477,18 @@ public final class WorkerFactory {
    * Extracts worker plugins from the workflow client plugins array. Only plugins that also
    * implement {@link WorkerPlugin} are included.
    */
-  private static List<WorkerPlugin> extractWorkerPlugins(
+  private static WorkerPlugin[] extractWorkerPlugins(
       io.temporal.client.WorkflowClientPlugin[] clientPlugins) {
     if (clientPlugins == null || clientPlugins.length == 0) {
-      return Collections.emptyList();
+      return new WorkerPlugin[0];
     }
-
     List<WorkerPlugin> workerPlugins = new ArrayList<>();
     for (io.temporal.client.WorkflowClientPlugin plugin : clientPlugins) {
       if (plugin instanceof WorkerPlugin) {
         workerPlugins.add((WorkerPlugin) plugin);
       }
     }
-    return Collections.unmodifiableList(workerPlugins);
-  }
-
-  /**
-   * Merges propagated plugins with explicitly specified plugins. Propagated plugins come first
-   * (from client), followed by factory-specific plugins.
-   */
-  private static List<WorkerPlugin> mergePlugins(
-      List<WorkerPlugin> propagated, WorkerPlugin[] explicit) {
-    if ((propagated == null || propagated.isEmpty())
-        && (explicit == null || explicit.length == 0)) {
-      return Collections.emptyList();
-    }
-    if (propagated == null || propagated.isEmpty()) {
-      return Collections.unmodifiableList(Arrays.asList(explicit));
-    }
-    if (explicit == null || explicit.length == 0) {
-      return propagated;
-    }
-    // Warn about duplicate plugin instances (same object in both lists)
-    Set<WorkerPlugin> propagatedSet = new HashSet<>(propagated);
-    for (WorkerPlugin p : explicit) {
-      if (propagatedSet.contains(p)) {
-        log.warn(
-            "Plugin instance {} is present in both propagated plugins (from client) and "
-                + "explicit plugins. It will run twice which may not be the intended behavior.",
-            p.getName());
-      }
-    }
-    List<WorkerPlugin> merged = new ArrayList<>(propagated.size() + explicit.length);
-    merged.addAll(propagated);
-    merged.addAll(Arrays.asList(explicit));
-    return Collections.unmodifiableList(merged);
+    return workerPlugins.toArray(new WorkerPlugin[0]);
   }
 
   /**

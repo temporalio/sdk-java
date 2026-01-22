@@ -8,16 +8,14 @@ import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootScheduleClientInvoker;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -55,7 +53,14 @@ final class ScheduleClientImpl implements ScheduleClient {
         extractScheduleClientPlugins(workflowServiceStubs.getOptions().getPlugins());
 
     // Merge propagated plugins with schedule client-specified plugins
-    ScheduleClientPlugin[] mergedPlugins = mergePlugins(propagatedPlugins, options.getPlugins());
+    ScheduleClientPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            options.getPlugins(),
+            ScheduleClientPlugin::getName,
+            log,
+            "service stubs",
+            ScheduleClientPlugin.class);
 
     // Apply plugin configuration phase (forward order) on user-provided options,
     // so plugins see unmodified state before defaults and plugin merging
@@ -93,34 +98,6 @@ final class ScheduleClientImpl implements ScheduleClient {
       }
     }
     return schedulePlugins.toArray(new ScheduleClientPlugin[0]);
-  }
-
-  private static ScheduleClientPlugin[] mergePlugins(
-      ScheduleClientPlugin[] propagated, ScheduleClientPlugin[] explicit) {
-    if ((propagated == null || propagated.length == 0)
-        && (explicit == null || explicit.length == 0)) {
-      return new ScheduleClientPlugin[0];
-    }
-    // Warn about duplicate plugin instances (same object in both lists)
-    if (propagated != null && propagated.length > 0 && explicit != null && explicit.length > 0) {
-      Set<ScheduleClientPlugin> propagatedSet = new HashSet<>(Arrays.asList(propagated));
-      for (ScheduleClientPlugin p : explicit) {
-        if (propagatedSet.contains(p)) {
-          log.warn(
-              "Plugin instance {} is present in both propagated plugins (from service stubs) and "
-                  + "explicit plugins. It will run twice which may not be the intended behavior.",
-              p.getName());
-        }
-      }
-    }
-    List<ScheduleClientPlugin> merged = new ArrayList<>();
-    if (propagated != null) {
-      merged.addAll(Arrays.asList(propagated));
-    }
-    if (explicit != null) {
-      merged.addAll(Arrays.asList(explicit));
-    }
-    return merged.toArray(new ScheduleClientPlugin[0]);
   }
 
   private ScheduleClientCallsInterceptor initializeClientInvoker() {
