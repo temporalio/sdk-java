@@ -42,6 +42,7 @@ public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
+  private final List<WorkerPlugin> plugins;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
@@ -67,9 +68,11 @@ public final class Worker {
       @Nonnull WorkflowExecutorCache cache,
       boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      @Nonnull List<WorkerPlugin> plugins) {
 
     Objects.requireNonNull(client, "client should not be null");
+    this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
@@ -469,12 +472,49 @@ public final class Worker {
   @SuppressWarnings("deprecation")
   public void replayWorkflowExecution(io.temporal.internal.common.WorkflowExecutionHistory history)
       throws Exception {
-    workflowWorker.queryWorkflowExecution(
-        history,
-        WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
-        String.class,
-        String.class,
-        new Object[] {});
+    // Convert to public history type and delegate
+    WorkflowExecutionHistory publicHistory =
+        new WorkflowExecutionHistory(
+            history.getHistory(), history.getWorkflowExecution().getWorkflowId());
+    replayWorkflowExecution(publicHistory);
+  }
+
+  /**
+   * This is a utility method to replay a workflow execution using this particular instance of a
+   * worker. This method is useful for troubleshooting workflows by running them in a debugger. The
+   * workflow implementation type must be already registered with this worker for this method to
+   * work.
+   *
+   * <p>There is no need to call {@link #start()} to be able to call this method <br>
+   * The worker doesn't have to be registered on the same task queue as the execution in the
+   * history. <br>
+   * This method shouldn't be a part of normal production usage. It's intended for testing and
+   * debugging only.
+   *
+   * @param history workflow execution history to replay
+   * @throws Exception if replay failed for any reason
+   */
+  public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
+    // Build plugin chain in reverse order (first plugin wraps all others)
+    // Note: public WorkflowExecutionHistory extends internal WorkflowExecutionHistory,
+    // so we can pass it directly to workflowWorker.queryWorkflowExecution
+    WorkerPlugin.ReplayCallback chain =
+        (w, h) -> {
+          workflowWorker.queryWorkflowExecution(
+              h,
+              WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+              String.class,
+              String.class,
+              new Object[] {});
+        };
+
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      WorkerPlugin plugin = plugins.get(i);
+      WorkerPlugin.ReplayCallback next = chain;
+      chain = (w, h) -> plugin.replayWorkflowExecution(w, h, next);
+    }
+
+    chain.replay(this, history);
   }
 
   /**
