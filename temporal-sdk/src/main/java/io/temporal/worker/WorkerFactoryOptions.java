@@ -37,6 +37,7 @@ public class WorkerFactoryOptions {
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
     private WorkerInterceptor[] workerInterceptors;
+    private WorkerPlugin[] plugins;
     private boolean enableLoggingInReplay;
     private boolean usingVirtualWorkflowThreads;
     private ExecutorService overrideLocalActivityTaskExecutor;
@@ -52,6 +53,7 @@ public class WorkerFactoryOptions {
       this.workflowCacheSize = options.workflowCacheSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workerInterceptors = options.workerInterceptors;
+      this.plugins = options.plugins;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
       this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
       this.overrideLocalActivityTaskExecutor = options.overrideLocalActivityTaskExecutor;
@@ -101,6 +103,24 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    /**
+     * Sets the worker plugins to use with workers created by this factory. Plugins can modify
+     * worker configuration and wrap worker lifecycle.
+     *
+     * <p>Note: Plugins that implement both {@link io.temporal.client.ClientPlugin} and {@link
+     * WorkerPlugin} are automatically propagated from the client. Use this method for worker-only
+     * plugins that don't need client-side configuration.
+     *
+     * @param plugins the worker plugins to use
+     * @return this builder for chaining
+     * @see WorkerPlugin
+     */
+    @Experimental
+    public Builder setPlugins(WorkerPlugin... plugins) {
+      this.plugins = plugins;
+      return this;
+    }
+
     public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
       this.enableLoggingInReplay = enableLoggingInReplay;
       return this;
@@ -141,18 +161,31 @@ public class WorkerFactoryOptions {
           maxWorkflowThreadCount,
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors,
+          plugins,
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
           false);
     }
 
+    /**
+     * Validates options and builds with defaults applied.
+     *
+     * <p>Note: If plugins are configured via {@link #setPlugins(WorkerPlugin...)}, they will have
+     * an opportunity to modify options after this method is called, when the options are passed to
+     * {@link WorkerFactory#newInstance}. This means validation performed here occurs before plugin
+     * modifications. In most cases, users should simply call {@link #build()} and let the factory
+     * creation handle validation.
+     *
+     * @return validated options with defaults applied
+     */
     public WorkerFactoryOptions validateAndBuildWithDefaults() {
       return new WorkerFactoryOptions(
           workflowCacheSize,
           maxWorkflowThreadCount,
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors == null ? new WorkerInterceptor[0] : workerInterceptors,
+          plugins == null ? new WorkerPlugin[0] : plugins,
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
@@ -164,6 +197,7 @@ public class WorkerFactoryOptions {
   private final int maxWorkflowThreadCount;
   private final @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
   private final WorkerInterceptor[] workerInterceptors;
+  private final WorkerPlugin[] plugins;
   private final boolean enableLoggingInReplay;
   private final boolean usingVirtualWorkflowThreads;
   private final ExecutorService overrideLocalActivityTaskExecutor;
@@ -173,6 +207,7 @@ public class WorkerFactoryOptions {
       int maxWorkflowThreadCount,
       @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout,
       WorkerInterceptor[] workerInterceptors,
+      WorkerPlugin[] plugins,
       boolean enableLoggingInReplay,
       boolean usingVirtualWorkflowThreads,
       ExecutorService overrideLocalActivityTaskExecutor,
@@ -195,12 +230,16 @@ public class WorkerFactoryOptions {
       if (workerInterceptors == null) {
         workerInterceptors = new WorkerInterceptor[0];
       }
+      if (plugins == null) {
+        plugins = new WorkerPlugin[0];
+      }
     }
     this.workflowCacheSize = workflowCacheSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
     this.workflowHostLocalTaskQueueScheduleToStartTimeout =
         workflowHostLocalTaskQueueScheduleToStartTimeout;
     this.workerInterceptors = workerInterceptors;
+    this.plugins = plugins;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
     this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
@@ -221,6 +260,16 @@ public class WorkerFactoryOptions {
 
   public WorkerInterceptor[] getWorkerInterceptors() {
     return workerInterceptors;
+  }
+
+  /**
+   * Returns the worker plugins configured for this factory.
+   *
+   * @return the array of worker plugins, never null
+   */
+  @Experimental
+  public WorkerPlugin[] getPlugins() {
+    return plugins;
   }
 
   public boolean isEnableLoggingInReplay() {
