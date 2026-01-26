@@ -456,6 +456,7 @@ public class SDKTestWorkflowRule implements TestRule {
         .registerWorkflowImplementationFactory(factoryImpl, factoryFunc);
   }
 
+  @SuppressWarnings("deprecation")
   public void regenerateHistoryForReplay(String workflowId, String fileName) {
     if (REGENERATE_JSON_FILES) {
       String json = getExecutionHistory(workflowId).toJson(true);
