@@ -319,9 +319,7 @@ public class SimplePluginBuilderTest {
     DataConverter customConverter = mock(DataConverter.class);
 
     SimplePlugin plugin =
-        SimplePlugin.newBuilder("test")
-            .customizeDataConverter(existing -> customConverter)
-            .build();
+        SimplePlugin.newBuilder("test").customizeDataConverter(existing -> customConverter).build();
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     ((io.temporal.client.WorkflowClientPlugin) plugin).configureWorkflowClient(builder);
