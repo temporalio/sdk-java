@@ -4,8 +4,10 @@ import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -33,8 +35,9 @@ public class ClientTemplate {
       @Nullable WorkflowServiceStubs workflowServiceStubs,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
-      @Nullable
-          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
+      @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins) {
     this.optionsTemplate =
         new WorkflowClientOptionsTemplate(
             namespace,
@@ -43,7 +46,9 @@ public class ClientTemplate {
             scheduleClientInterceptors,
             tracer,
             clientCustomizers,
-            scheduleCustomizers);
+            scheduleCustomizers,
+            workflowClientPlugins,
+            scheduleClientPlugins);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }

@@ -3,6 +3,7 @@ package io.temporal.spring.boot.autoconfigure.template;
 import com.uber.m3.tally.Scope;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
 import java.util.List;
@@ -18,6 +19,7 @@ public class ServiceStubsTemplate {
 
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
       workflowServiceStubsCustomizers;
+  private final @Nullable List<WorkflowServiceStubsPlugin> plugins;
 
   private WorkflowServiceStubs workflowServiceStubs;
 
@@ -27,11 +29,13 @@ public class ServiceStubsTemplate {
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
-              workflowServiceStubsCustomizers) {
+              workflowServiceStubsCustomizers,
+      @Nullable List<WorkflowServiceStubsPlugin> plugins) {
     this.connectionProperties = connectionProperties;
     this.metricsScope = metricsScope;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
     this.workflowServiceStubsCustomizers = workflowServiceStubsCustomizers;
+    this.plugins = plugins;
   }
 
   public WorkflowServiceStubs getWorkflowServiceStubs() {
@@ -54,7 +58,10 @@ public class ServiceStubsTemplate {
           workflowServiceStubs =
               WorkflowServiceStubs.newServiceStubs(
                   new ServiceStubOptionsTemplate(
-                          connectionProperties, metricsScope, workflowServiceStubsCustomizers)
+                          connectionProperties,
+                          metricsScope,
+                          workflowServiceStubsCustomizers,
+                          plugins)
                       .createServiceStubOptions());
       }
     }

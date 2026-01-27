@@ -4,6 +4,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ServiceStubsTemplate;
@@ -42,7 +43,8 @@ public class ServiceStubsAutoConfiguration {
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
-              workflowServiceStubsCustomizerMap) {
+              workflowServiceStubsCustomizerMap,
+      @Autowired(required = false) @Nullable List<WorkflowServiceStubsPlugin> plugins) {
     List<TemporalOptionsCustomizer<Builder>> workflowServiceStubsCustomizer =
         AutoConfigurationUtils.chooseTemporalCustomizerBeans(
             beanFactory, workflowServiceStubsCustomizerMap, Builder.class, properties);
@@ -50,7 +52,8 @@ public class ServiceStubsAutoConfiguration {
         properties.getConnection(),
         metricsScope,
         testWorkflowEnvironment,
-        workflowServiceStubsCustomizer);
+        workflowServiceStubsCustomizer,
+        plugins);
   }
 
   @Bean(name = "temporalWorkflowServiceStubs")

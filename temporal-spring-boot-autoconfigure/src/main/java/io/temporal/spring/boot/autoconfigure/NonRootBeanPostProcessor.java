@@ -5,11 +5,14 @@ import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
@@ -25,6 +28,7 @@ import io.temporal.worker.WorkerFactoryOptions.Builder;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -51,7 +55,10 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   private @Nullable Tracer tracer;
   private @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
   private @Nullable Scope metricsScope;
-  private @Nullable List<WorkerPlugin> plugins;
+  private @Nullable List<WorkflowServiceStubsPlugin> serviceStubsPlugins;
+  private @Nullable List<WorkflowClientPlugin> workflowClientPlugins;
+  private @Nullable List<ScheduleClientPlugin> scheduleClientPlugins;
+  private @Nullable List<WorkerPlugin> workerPlugins;
 
   public NonRootBeanPostProcessor(@Nonnull TemporalProperties temporalProperties) {
     this.temporalProperties = temporalProperties;
@@ -80,7 +87,19 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
               findBean(
                   "temporalTestWorkflowEnvironmentAdapter", TestWorkflowEnvironmentAdapter.class);
         }
-        plugins = findAllBeans(WorkerPlugin.class);
+        // Collect all plugin types
+        serviceStubsPlugins = findAllBeans(WorkflowServiceStubsPlugin.class);
+        // Filter plugins so each is only registered at its highest applicable level
+        workflowClientPlugins =
+            filterPlugins(
+                findAllBeans(WorkflowClientPlugin.class), WorkflowServiceStubsPlugin.class);
+        scheduleClientPlugins =
+            filterPlugins(
+                findAllBeans(ScheduleClientPlugin.class), WorkflowServiceStubsPlugin.class);
+        workerPlugins =
+            filterPlugins(
+                filterPlugins(findAllBeans(WorkerPlugin.class), WorkflowServiceStubsPlugin.class),
+                WorkflowClientPlugin.class);
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
     }
@@ -127,7 +146,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             connectionProperties,
             metricsScope,
             testWorkflowEnvironment,
-            workflowServiceStubsCustomizers);
+            workflowServiceStubsCustomizers,
+            serviceStubsPlugins);
     WorkflowServiceStubs workflowServiceStubs = serviceStubsTemplate.getWorkflowServiceStubs();
 
     NonRootNamespaceTemplate namespaceTemplate =
@@ -146,7 +166,9 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             workflowClientCustomizers,
             scheduleClientCustomizers,
             workflowImplementationCustomizers,
-            plugins);
+            workflowClientPlugins,
+            scheduleClientPlugins,
+            workerPlugins);
 
     ClientTemplate clientTemplate = namespaceTemplate.getClientTemplate();
     WorkflowClient workflowClient = clientTemplate.getWorkflowClient();
@@ -206,11 +228,29 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private <T> @Nullable List<T> findAllBeans(Class<T> clazz) {
     try {
-      return new java.util.ArrayList<>(beanFactory.getBeansOfType(clazz).values());
+      return new ArrayList<>(beanFactory.getBeansOfType(clazz).values());
     } catch (BeansException ignore) {
       // Ignore if no beans are found
     }
     return null;
+  }
+
+  /**
+   * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
+   * higher level via propagation.
+   */
+  private static <T> @Nullable List<T> filterPlugins(
+      @Nullable List<T> plugins, Class<?> excludeType) {
+    if (plugins == null || plugins.isEmpty()) {
+      return plugins;
+    }
+    List<T> filtered = new ArrayList<>();
+    for (T plugin : plugins) {
+      if (!excludeType.isInstance(plugin)) {
+        filtered.add(plugin);
+      }
+    }
+    return filtered.isEmpty() ? null : filtered;
   }
 
   private <T> List<TemporalOptionsCustomizer<T>> findBeanByNameSpaceForTemporalCustomizer(

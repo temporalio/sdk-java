@@ -3,13 +3,16 @@ package io.temporal.spring.boot.autoconfigure;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
@@ -22,6 +25,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +93,9 @@ public class RootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
               workflowImplementationCustomizerMap,
-      @Autowired(required = false) @Nullable List<WorkerPlugin> plugins) {
+      @Autowired(required = false) @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Autowired(required = false) @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Autowired(required = false) @Nullable List<WorkerPlugin> workerPlugins) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
     List<WorkflowClientInterceptor> chosenClientInterceptors =
@@ -123,6 +129,22 @@ public class RootNamespaceAutoConfiguration {
                 WorkflowImplementationOptions.Builder.class,
                 properties);
 
+    // Filter plugins so each is only registered at its highest applicable level.
+    // WorkflowServiceStubsPlugin is handled at ServiceStubsAutoConfiguration level and propagates
+    // down.
+    // WorkflowClientPlugin (not WorkflowServiceStubsPlugin) is handled here and propagates to
+    // workers.
+    // ScheduleClientPlugin (not WorkflowServiceStubsPlugin) is handled here.
+    // WorkerPlugin (not WorkflowServiceStubsPlugin, not WorkflowClientPlugin) is handled here.
+    List<WorkflowClientPlugin> filteredClientPlugins =
+        filterPlugins(workflowClientPlugins, WorkflowServiceStubsPlugin.class);
+    List<ScheduleClientPlugin> filteredSchedulePlugins =
+        filterPlugins(scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
+    List<WorkerPlugin> filteredWorkerPlugins =
+        filterPlugins(
+            filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
+            WorkflowClientPlugin.class);
+
     return new NamespaceTemplate(
         properties,
         workflowServiceStubs,
@@ -137,7 +159,27 @@ public class RootNamespaceAutoConfiguration {
         clientCustomizer,
         scheduleCustomizer,
         workflowImplementationCustomizer,
-        plugins);
+        filteredClientPlugins,
+        filteredSchedulePlugins,
+        filteredWorkerPlugins);
+  }
+
+  /**
+   * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
+   * higher level via propagation.
+   */
+  private static <T> @Nullable List<T> filterPlugins(
+      @Nullable List<T> plugins, Class<?> excludeType) {
+    if (plugins == null || plugins.isEmpty()) {
+      return plugins;
+    }
+    List<T> filtered = new ArrayList<>();
+    for (T plugin : plugins) {
+      if (!excludeType.isInstance(plugin)) {
+        filtered.add(plugin);
+      }
+    }
+    return filtered.isEmpty() ? null : filtered;
   }
 
   /** Client */

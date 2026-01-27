@@ -2,7 +2,9 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -37,7 +39,9 @@ public class NamespaceTemplate {
       scheduleCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
       workflowImplementationCustomizers;
-  private final @Nullable List<WorkerPlugin> plugins;
+  private final @Nullable List<WorkflowClientPlugin> workflowClientPlugins;
+  private final @Nullable List<ScheduleClientPlugin> scheduleClientPlugins;
+  private final @Nullable List<WorkerPlugin> workerPlugins;
 
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
@@ -59,7 +63,9 @@ public class NamespaceTemplate {
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
               workflowImplementationCustomizers,
-      @Nullable List<WorkerPlugin> plugins) {
+      @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Nullable List<WorkerPlugin> workerPlugins) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;
@@ -74,7 +80,9 @@ public class NamespaceTemplate {
     this.clientCustomizers = clientCustomizers;
     this.scheduleCustomizers = scheduleCustomizers;
     this.workflowImplementationCustomizers = workflowImplementationCustomizers;
-    this.plugins = plugins;
+    this.workflowClientPlugins = workflowClientPlugins;
+    this.scheduleClientPlugins = scheduleClientPlugins;
+    this.workerPlugins = workerPlugins;
   }
 
   public ClientTemplate getClientTemplate() {
@@ -89,7 +97,9 @@ public class NamespaceTemplate {
               workflowServiceStubs,
               testWorkflowEnvironment,
               clientCustomizers,
-              scheduleCustomizers);
+              scheduleCustomizers,
+              workflowClientPlugins,
+              scheduleClientPlugins);
     }
     return clientTemplate;
   }
@@ -106,7 +116,7 @@ public class NamespaceTemplate {
               workerFactoryCustomizers,
               workerCustomizers,
               workflowImplementationCustomizers,
-              plugins);
+              workerPlugins);
     }
     return this.workersTemplate;
   }

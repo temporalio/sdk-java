@@ -2,7 +2,9 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -42,7 +44,9 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
               workflowImplementationCustomizers,
-      @Nullable List<WorkerPlugin> plugins) {
+      @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Nullable List<WorkerPlugin> workerPlugins) {
     super(
         namespaceProperties,
         workflowServiceStubs,
@@ -57,7 +61,9 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
         clientCustomizers,
         scheduleCustomizers,
         workflowImplementationCustomizers,
-        plugins);
+        workflowClientPlugins,
+        scheduleClientPlugins,
+        workerPlugins);
     this.beanFactory = beanFactory;
   }
 

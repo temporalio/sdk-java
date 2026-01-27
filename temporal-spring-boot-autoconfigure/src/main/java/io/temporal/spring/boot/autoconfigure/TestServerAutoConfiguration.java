@@ -3,11 +3,14 @@ package io.temporal.spring.boot.autoconfigure;
 import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
@@ -17,6 +20,7 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerPlugin;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -81,7 +85,9 @@ public class TestServerAutoConfiguration {
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
               scheduleCustomizerMap,
-      @Autowired(required = false) @Nullable List<WorkerPlugin> plugins) {
+      @Autowired(required = false) @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Autowired(required = false) @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Autowired(required = false) @Nullable List<WorkerPlugin> workerPlugins) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
     List<WorkflowClientInterceptor> chosenClientInterceptors =
@@ -106,6 +112,18 @@ public class TestServerAutoConfiguration {
         AutoConfigurationUtils.chooseTemporalCustomizerBeans(
             beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
 
+    // Filter plugins so each is only registered at its highest applicable level.
+    // Note: TestWorkflowEnvironment doesn't support WorkflowServiceStubsPlugin directly since it
+    // creates its own test server. We filter those out and handle the rest.
+    List<WorkflowClientPlugin> filteredClientPlugins =
+        filterPlugins(workflowClientPlugins, WorkflowServiceStubsPlugin.class);
+    List<ScheduleClientPlugin> filteredSchedulePlugins =
+        filterPlugins(scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
+    List<WorkerPlugin> filteredWorkerPlugins =
+        filterPlugins(
+            filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
+            WorkflowClientPlugin.class);
+
     TestEnvironmentOptions.Builder options =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(
@@ -116,7 +134,9 @@ public class TestServerAutoConfiguration {
                         chosenScheduleClientInterceptors,
                         otTracer,
                         clientCustomizer,
-                        scheduleCustomizer)
+                        scheduleCustomizer,
+                        filteredClientPlugins,
+                        filteredSchedulePlugins)
                     .createWorkflowClientOptions());
 
     if (metricsScope != null) {
@@ -125,7 +145,11 @@ public class TestServerAutoConfiguration {
 
     options.setWorkerFactoryOptions(
         new WorkerFactoryOptionsTemplate(
-                properties, chosenWorkerInterceptors, otTracer, workerFactoryCustomizer, plugins)
+                properties,
+                chosenWorkerInterceptors,
+                otTracer,
+                workerFactoryCustomizer,
+                filteredWorkerPlugins)
             .createWorkerFactoryOptions());
 
     if (testEnvOptionsCustomizers != null) {
@@ -136,5 +160,23 @@ public class TestServerAutoConfiguration {
     }
 
     return TestWorkflowEnvironment.newInstance(options.build());
+  }
+
+  /**
+   * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
+   * higher level via propagation.
+   */
+  private static <T> @Nullable List<T> filterPlugins(
+      @Nullable List<T> plugins, Class<?> excludeType) {
+    if (plugins == null || plugins.isEmpty()) {
+      return plugins;
+    }
+    List<T> filtered = new ArrayList<>();
+    for (T plugin : plugins) {
+      if (!excludeType.isInstance(plugin)) {
+        filtered.add(plugin);
+      }
+    }
+    return filtered.isEmpty() ? null : filtered;
   }
 }
