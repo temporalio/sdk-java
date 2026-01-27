@@ -67,6 +67,48 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
     this.beanFactory = beanFactory;
   }
 
+  /**
+   * @deprecated Use constructor with plugins parameters
+   */
+  @Deprecated
+  public NonRootNamespaceTemplate(
+      @Nonnull BeanFactory beanFactory,
+      @Nonnull NonRootNamespaceProperties namespaceProperties,
+      @Nonnull WorkflowServiceStubs workflowServiceStubs,
+      @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Nullable List<WorkerInterceptor> workerInterceptors,
+      @Nullable Tracer tracer,
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizers) {
+    this(
+        beanFactory,
+        namespaceProperties,
+        workflowServiceStubs,
+        dataConverter,
+        workflowClientInterceptors,
+        scheduleClientInterceptors,
+        workerInterceptors,
+        tracer,
+        testWorkflowEnvironment,
+        workerFactoryCustomizers,
+        workerCustomizers,
+        clientCustomizers,
+        scheduleCustomizers,
+        workflowImplementationCustomizers,
+        null,
+        null,
+        null);
+  }
+
   @Override
   public WorkersTemplate getWorkersTemplate() {
     WorkersTemplate workersTemplate = super.getWorkersTemplate();

@@ -85,6 +85,46 @@ public class NamespaceTemplate {
     this.workerPlugins = workerPlugins;
   }
 
+  /**
+   * @deprecated Use constructor with plugins parameters
+   */
+  @Deprecated
+  public NamespaceTemplate(
+      @Nonnull NamespaceProperties namespaceProperties,
+      @Nonnull WorkflowServiceStubs workflowServiceStubs,
+      @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Nullable List<WorkerInterceptor> workerInterceptors,
+      @Nullable Tracer tracer,
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizers) {
+    this(
+        namespaceProperties,
+        workflowServiceStubs,
+        dataConverter,
+        workflowClientInterceptors,
+        scheduleClientInterceptors,
+        workerInterceptors,
+        tracer,
+        testWorkflowEnvironment,
+        workerFactoryCustomizers,
+        workerCustomizers,
+        clientCustomizers,
+        scheduleCustomizers,
+        workflowImplementationCustomizers,
+        null,
+        null,
+        null);
+  }
+
   public ClientTemplate getClientTemplate() {
     if (clientTemplate == null) {
       this.clientTemplate =

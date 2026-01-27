@@ -38,6 +38,25 @@ public class ServiceStubsTemplate {
     this.plugins = plugins;
   }
 
+  /**
+   * @deprecated Use constructor with plugins parameter
+   */
+  @Deprecated
+  public ServiceStubsTemplate(
+      @Nonnull ConnectionProperties connectionProperties,
+      @Nullable Scope metricsScope,
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
+              workflowServiceStubsCustomizers) {
+    this(
+        connectionProperties,
+        metricsScope,
+        testWorkflowEnvironment,
+        workflowServiceStubsCustomizers,
+        null);
+  }
+
   public WorkflowServiceStubs getWorkflowServiceStubs() {
     if (workflowServiceStubs == null) {
       this.workflowServiceStubs = createServiceStubs();

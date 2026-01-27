@@ -96,6 +96,34 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     this.plugins = plugins;
   }
 
+  /**
+   * @deprecated Use constructor with plugins parameter
+   */
+  @Deprecated
+  public WorkersTemplate(
+      @Nonnull NamespaceProperties namespaceProperties,
+      @Nullable ClientTemplate clientTemplate,
+      @Nullable List<WorkerInterceptor> workerInterceptors,
+      @Nullable Tracer tracer,
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
+              workflowImplementationCustomizers) {
+    this(
+        namespaceProperties,
+        clientTemplate,
+        workerInterceptors,
+        tracer,
+        testWorkflowEnvironment,
+        workerFactoryCustomizers,
+        workerCustomizers,
+        workflowImplementationCustomizers,
+        null);
+  }
+
   public NamespaceProperties getNamespaceProperties() {
     return namespaceProperties;
   }

@@ -53,6 +53,35 @@ public class ClientTemplate {
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
 
+  /**
+   * @deprecated Use constructor with plugins parameters
+   */
+  @Deprecated
+  public ClientTemplate(
+      @Nonnull String namespace,
+      @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Nullable Tracer tracer,
+      @Nullable WorkflowServiceStubs workflowServiceStubs,
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
+    this(
+        namespace,
+        dataConverter,
+        workflowClientInterceptors,
+        scheduleClientInterceptors,
+        tracer,
+        workflowServiceStubs,
+        testWorkflowEnvironment,
+        clientCustomizers,
+        scheduleCustomizers,
+        null,
+        null);
+  }
+
   public WorkflowClient getWorkflowClient() {
     if (workflowClient == null) {
       this.workflowClient = createWorkflowClient();
