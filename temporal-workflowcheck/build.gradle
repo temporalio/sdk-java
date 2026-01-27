@@ -1,6 +1,7 @@
 plugins {
     id 'application'
     id 'com.gradleup.shadow' version '8.3.3'
+    id 'java'
 }
 
 description = 'Temporal Java WorkflowCheck Static Analyzer'
@@ -21,8 +22,18 @@ application {
 // Need all-in-one JAR
 shadowJar {
     relocate 'org.objectweb.asm', 'io.temporal.workflowcheck.shaded.org.objectweb.asm'
+    archiveClassifier = ''
 }
 build.dependsOn shadowJar
+
+// Configure publishing to publish the shadow jar instead of regular jar
+publishing {
+    publications {
+        shadow(MavenPublication) { publication ->
+            project.shadow.component(publication)
+        }
+    }
+}
 
 // Access Java test source as resource
 tasks.register('copyJavaSourcesToResources') {
