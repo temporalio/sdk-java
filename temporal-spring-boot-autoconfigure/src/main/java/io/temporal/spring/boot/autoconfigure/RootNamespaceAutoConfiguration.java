@@ -128,6 +128,13 @@ public class RootNamespaceAutoConfiguration {
                 WorkflowImplementationOptions.Builder.class,
                 properties);
 
+    // Sort plugins by @Order/@Priority for consistent ordering
+    List<WorkflowClientPlugin> sortedClientPlugins =
+        AutoConfigurationUtils.sortPlugins(workflowClientPlugins);
+    List<ScheduleClientPlugin> sortedSchedulePlugins =
+        AutoConfigurationUtils.sortPlugins(scheduleClientPlugins);
+    List<WorkerPlugin> sortedWorkerPlugins = AutoConfigurationUtils.sortPlugins(workerPlugins);
+
     // Filter plugins so each is only registered at its highest applicable level.
     // WorkflowServiceStubsPlugin is handled at ServiceStubsAutoConfiguration level and propagates
     // down.
@@ -136,14 +143,14 @@ public class RootNamespaceAutoConfiguration {
     // ScheduleClientPlugin (not WorkflowServiceStubsPlugin) is handled here.
     // WorkerPlugin (not WorkflowServiceStubsPlugin, not WorkflowClientPlugin) is handled here.
     List<WorkflowClientPlugin> filteredClientPlugins =
-        AutoConfigurationUtils.filterPlugins(
-            workflowClientPlugins, WorkflowServiceStubsPlugin.class);
+        AutoConfigurationUtils.filterPlugins(sortedClientPlugins, WorkflowServiceStubsPlugin.class);
     List<ScheduleClientPlugin> filteredSchedulePlugins =
         AutoConfigurationUtils.filterPlugins(
-            scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
+            sortedSchedulePlugins, WorkflowServiceStubsPlugin.class);
     List<WorkerPlugin> filteredWorkerPlugins =
         AutoConfigurationUtils.filterPlugins(
-            AutoConfigurationUtils.filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
+            AutoConfigurationUtils.filterPlugins(
+                sortedWorkerPlugins, WorkflowServiceStubsPlugin.class),
             WorkflowClientPlugin.class);
 
     return new NamespaceTemplate(

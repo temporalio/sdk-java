@@ -229,9 +229,10 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
 
   private <T> @Nullable List<T> findAllBeans(Class<T> clazz) {
     try {
-      return new ArrayList<>(beanFactory.getBeansOfType(clazz).values());
-    } catch (BeansException ignore) {
-      // Ignore if no beans are found
+      List<T> beans = new ArrayList<>(beanFactory.getBeansOfType(clazz).values());
+      return AutoConfigurationUtils.sortPlugins(beans);
+    } catch (NoSuchBeanDefinitionException ignore) {
+      // No beans of this type defined - this is expected for optional plugins
     }
     return null;
   }

@@ -172,10 +172,21 @@ class AutoConfigurationUtils {
   /**
    * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
    * higher level via propagation.
+   *
+   * <p>The plugin hierarchy is: WorkflowServiceStubsPlugin -> WorkflowClientPlugin -> WorkerPlugin.
+   * A plugin implementing a higher-level interface will be registered at that level and propagate
+   * down automatically, so it should not also be registered at lower levels.
+   *
+   * @param plugins the list of plugins to filter (may be null)
+   * @param excludeType the plugin interface to exclude
+   * @return the filtered list, or null if input was null or all plugins were filtered out
    */
   static <T> @Nullable List<T> filterPlugins(@Nullable List<T> plugins, Class<?> excludeType) {
-    if (plugins == null || plugins.isEmpty()) {
-      return plugins;
+    if (plugins == null) {
+      return null;
+    }
+    if (plugins.isEmpty()) {
+      return null;
     }
     List<T> filtered = new ArrayList<>();
     for (T plugin : plugins) {
@@ -184,5 +195,20 @@ class AutoConfigurationUtils {
       }
     }
     return filtered.isEmpty() ? null : filtered;
+  }
+
+  /**
+   * Sort plugins by @Order and @Priority annotations for consistent ordering.
+   *
+   * @param plugins the list of plugins to sort (may be null)
+   * @return the sorted list, or null if input was null
+   */
+  static <T> @Nullable List<T> sortPlugins(@Nullable List<T> plugins) {
+    if (plugins == null || plugins.isEmpty()) {
+      return plugins;
+    }
+    List<T> sorted = new ArrayList<>(plugins);
+    AnnotationAwareOrderComparator.sort(sorted);
+    return sorted;
   }
 }

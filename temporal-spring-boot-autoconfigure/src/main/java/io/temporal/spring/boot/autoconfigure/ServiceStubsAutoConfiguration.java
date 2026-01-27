@@ -48,12 +48,14 @@ public class ServiceStubsAutoConfiguration {
     List<TemporalOptionsCustomizer<Builder>> workflowServiceStubsCustomizer =
         AutoConfigurationUtils.chooseTemporalCustomizerBeans(
             beanFactory, workflowServiceStubsCustomizerMap, Builder.class, properties);
+    // Sort plugins by @Order/@Priority for consistent ordering
+    List<WorkflowServiceStubsPlugin> sortedPlugins = AutoConfigurationUtils.sortPlugins(plugins);
     return new ServiceStubsTemplate(
         properties.getConnection(),
         metricsScope,
         testWorkflowEnvironment,
         workflowServiceStubsCustomizer,
-        plugins);
+        sortedPlugins);
   }
 
   @Bean(name = "temporalWorkflowServiceStubs")

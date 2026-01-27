@@ -111,18 +111,33 @@ public class TestServerAutoConfiguration {
         AutoConfigurationUtils.chooseTemporalCustomizerBeans(
             beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
 
+    // Sort plugins by @Order/@Priority for consistent ordering
+    List<WorkflowClientPlugin> sortedClientPlugins =
+        AutoConfigurationUtils.sortPlugins(workflowClientPlugins);
+    List<ScheduleClientPlugin> sortedSchedulePlugins =
+        AutoConfigurationUtils.sortPlugins(scheduleClientPlugins);
+    List<WorkerPlugin> sortedWorkerPlugins = AutoConfigurationUtils.sortPlugins(workerPlugins);
+
     // Filter plugins so each is only registered at its highest applicable level.
-    // Note: TestWorkflowEnvironment doesn't support WorkflowServiceStubsPlugin directly since it
-    // creates its own test server. We filter those out and handle the rest.
+    // Note: TestWorkflowEnvironment creates its own internal test server and does not accept
+    // WorkflowServiceStubsPlugin directly. Any beans implementing WorkflowServiceStubsPlugin
+    // will be ignored in test mode - only their lower-level plugin functionality (if any) is used.
+    if (sortedClientPlugins != null
+        && sortedClientPlugins.stream().anyMatch(WorkflowServiceStubsPlugin.class::isInstance)) {
+      log.warn(
+          "WorkflowServiceStubsPlugin beans are present but will be ignored in test mode. "
+              + "TestWorkflowEnvironment creates its own test server and does not support "
+              + "WorkflowServiceStubsPlugin. Only WorkflowClientPlugin functionality will be used.");
+    }
     List<WorkflowClientPlugin> filteredClientPlugins =
-        AutoConfigurationUtils.filterPlugins(
-            workflowClientPlugins, WorkflowServiceStubsPlugin.class);
+        AutoConfigurationUtils.filterPlugins(sortedClientPlugins, WorkflowServiceStubsPlugin.class);
     List<ScheduleClientPlugin> filteredSchedulePlugins =
         AutoConfigurationUtils.filterPlugins(
-            scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
+            sortedSchedulePlugins, WorkflowServiceStubsPlugin.class);
     List<WorkerPlugin> filteredWorkerPlugins =
         AutoConfigurationUtils.filterPlugins(
-            AutoConfigurationUtils.filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
+            AutoConfigurationUtils.filterPlugins(
+                sortedWorkerPlugins, WorkflowServiceStubsPlugin.class),
             WorkflowClientPlugin.class);
 
     TestEnvironmentOptions.Builder options =
