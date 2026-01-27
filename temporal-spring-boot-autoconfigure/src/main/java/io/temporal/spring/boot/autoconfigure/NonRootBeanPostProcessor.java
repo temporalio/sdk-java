@@ -91,14 +91,15 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         serviceStubsPlugins = findAllBeans(WorkflowServiceStubsPlugin.class);
         // Filter plugins so each is only registered at its highest applicable level
         workflowClientPlugins =
-            filterPlugins(
+            AutoConfigurationUtils.filterPlugins(
                 findAllBeans(WorkflowClientPlugin.class), WorkflowServiceStubsPlugin.class);
         scheduleClientPlugins =
-            filterPlugins(
+            AutoConfigurationUtils.filterPlugins(
                 findAllBeans(ScheduleClientPlugin.class), WorkflowServiceStubsPlugin.class);
         workerPlugins =
-            filterPlugins(
-                filterPlugins(findAllBeans(WorkerPlugin.class), WorkflowServiceStubsPlugin.class),
+            AutoConfigurationUtils.filterPlugins(
+                AutoConfigurationUtils.filterPlugins(
+                    findAllBeans(WorkerPlugin.class), WorkflowServiceStubsPlugin.class),
                 WorkflowClientPlugin.class);
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
@@ -233,24 +234,6 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
       // Ignore if no beans are found
     }
     return null;
-  }
-
-  /**
-   * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
-   * higher level via propagation.
-   */
-  private static <T> @Nullable List<T> filterPlugins(
-      @Nullable List<T> plugins, Class<?> excludeType) {
-    if (plugins == null || plugins.isEmpty()) {
-      return plugins;
-    }
-    List<T> filtered = new ArrayList<>();
-    for (T plugin : plugins) {
-      if (!excludeType.isInstance(plugin)) {
-        filtered.add(plugin);
-      }
-    }
-    return filtered.isEmpty() ? null : filtered;
   }
 
   private <T> List<TemporalOptionsCustomizer<T>> findBeanByNameSpaceForTemporalCustomizer(

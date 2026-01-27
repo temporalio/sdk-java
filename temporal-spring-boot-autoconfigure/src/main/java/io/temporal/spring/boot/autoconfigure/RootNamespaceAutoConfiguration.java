@@ -25,7 +25,6 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -137,12 +136,14 @@ public class RootNamespaceAutoConfiguration {
     // ScheduleClientPlugin (not WorkflowServiceStubsPlugin) is handled here.
     // WorkerPlugin (not WorkflowServiceStubsPlugin, not WorkflowClientPlugin) is handled here.
     List<WorkflowClientPlugin> filteredClientPlugins =
-        filterPlugins(workflowClientPlugins, WorkflowServiceStubsPlugin.class);
+        AutoConfigurationUtils.filterPlugins(
+            workflowClientPlugins, WorkflowServiceStubsPlugin.class);
     List<ScheduleClientPlugin> filteredSchedulePlugins =
-        filterPlugins(scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
+        AutoConfigurationUtils.filterPlugins(
+            scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
     List<WorkerPlugin> filteredWorkerPlugins =
-        filterPlugins(
-            filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
+        AutoConfigurationUtils.filterPlugins(
+            AutoConfigurationUtils.filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
             WorkflowClientPlugin.class);
 
     return new NamespaceTemplate(
@@ -162,24 +163,6 @@ public class RootNamespaceAutoConfiguration {
         filteredClientPlugins,
         filteredSchedulePlugins,
         filteredWorkerPlugins);
-  }
-
-  /**
-   * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
-   * higher level via propagation.
-   */
-  private static <T> @Nullable List<T> filterPlugins(
-      @Nullable List<T> plugins, Class<?> excludeType) {
-    if (plugins == null || plugins.isEmpty()) {
-      return plugins;
-    }
-    List<T> filtered = new ArrayList<>();
-    for (T plugin : plugins) {
-      if (!excludeType.isInstance(plugin)) {
-        filtered.add(plugin);
-      }
-    }
-    return filtered.isEmpty() ? null : filtered;
   }
 
   /** Client */

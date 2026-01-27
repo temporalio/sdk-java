@@ -20,7 +20,6 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerPlugin;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -116,12 +115,14 @@ public class TestServerAutoConfiguration {
     // Note: TestWorkflowEnvironment doesn't support WorkflowServiceStubsPlugin directly since it
     // creates its own test server. We filter those out and handle the rest.
     List<WorkflowClientPlugin> filteredClientPlugins =
-        filterPlugins(workflowClientPlugins, WorkflowServiceStubsPlugin.class);
+        AutoConfigurationUtils.filterPlugins(
+            workflowClientPlugins, WorkflowServiceStubsPlugin.class);
     List<ScheduleClientPlugin> filteredSchedulePlugins =
-        filterPlugins(scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
+        AutoConfigurationUtils.filterPlugins(
+            scheduleClientPlugins, WorkflowServiceStubsPlugin.class);
     List<WorkerPlugin> filteredWorkerPlugins =
-        filterPlugins(
-            filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
+        AutoConfigurationUtils.filterPlugins(
+            AutoConfigurationUtils.filterPlugins(workerPlugins, WorkflowServiceStubsPlugin.class),
             WorkflowClientPlugin.class);
 
     TestEnvironmentOptions.Builder options =
@@ -160,23 +161,5 @@ public class TestServerAutoConfiguration {
     }
 
     return TestWorkflowEnvironment.newInstance(options.build());
-  }
-
-  /**
-   * Filter out plugins that implement a higher-level plugin interface, as those are handled at that
-   * higher level via propagation.
-   */
-  private static <T> @Nullable List<T> filterPlugins(
-      @Nullable List<T> plugins, Class<?> excludeType) {
-    if (plugins == null || plugins.isEmpty()) {
-      return plugins;
-    }
-    List<T> filtered = new ArrayList<>();
-    for (T plugin : plugins) {
-      if (!excludeType.isInstance(plugin)) {
-        filtered.add(plugin);
-      }
-    }
-    return filtered.isEmpty() ? null : filtered;
   }
 }
