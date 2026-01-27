@@ -20,6 +20,7 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collection;
 import java.util.List;
@@ -87,7 +88,8 @@ public class RootNamespaceAutoConfiguration {
               scheduleCustomizerMap,
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
-              workflowImplementationCustomizerMap) {
+              workflowImplementationCustomizerMap,
+      @Autowired(required = false) @Nullable List<WorkerPlugin> plugins) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
     List<WorkflowClientInterceptor> chosenClientInterceptors =
@@ -134,7 +136,8 @@ public class RootNamespaceAutoConfiguration {
         workerCustomizer,
         clientCustomizer,
         scheduleCustomizer,
-        workflowImplementationCustomizer);
+        workflowImplementationCustomizer,
+        plugins);
   }
 
   /** Client */

@@ -16,6 +16,7 @@ import io.temporal.spring.boot.autoconfigure.template.WorkflowClientOptionsTempl
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerPlugin;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -79,7 +80,8 @@ public class TestServerAutoConfiguration {
           Map<String, TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizerMap,
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
-              scheduleCustomizerMap) {
+              scheduleCustomizerMap,
+      @Autowired(required = false) @Nullable List<WorkerPlugin> plugins) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
     List<WorkflowClientInterceptor> chosenClientInterceptors =
@@ -123,7 +125,7 @@ public class TestServerAutoConfiguration {
 
     options.setWorkerFactoryOptions(
         new WorkerFactoryOptionsTemplate(
-                properties, chosenWorkerInterceptors, otTracer, workerFactoryCustomizer)
+                properties, chosenWorkerInterceptors, otTracer, workerFactoryCustomizer, plugins)
             .createWorkerFactoryOptions());
 
     if (testEnvOptionsCustomizers != null) {

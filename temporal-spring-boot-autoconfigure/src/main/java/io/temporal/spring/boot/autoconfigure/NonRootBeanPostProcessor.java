@@ -23,6 +23,7 @@ import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions.Builder;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +51,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   private @Nullable Tracer tracer;
   private @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
   private @Nullable Scope metricsScope;
+  private @Nullable List<WorkerPlugin> plugins;
 
   public NonRootBeanPostProcessor(@Nonnull TemporalProperties temporalProperties) {
     this.temporalProperties = temporalProperties;
@@ -78,6 +80,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
               findBean(
                   "temporalTestWorkflowEnvironmentAdapter", TestWorkflowEnvironmentAdapter.class);
         }
+        plugins = findAllBeans(WorkerPlugin.class);
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
     }
@@ -142,7 +145,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             workerCustomizers,
             workflowClientCustomizers,
             scheduleClientCustomizers,
-            workflowImplementationCustomizers);
+            workflowImplementationCustomizers,
+            plugins);
 
     ClientTemplate clientTemplate = namespaceTemplate.getClientTemplate();
     WorkflowClient workflowClient = clientTemplate.getWorkflowClient();
@@ -196,6 +200,15 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
       return beanFactory.getBean(beanName, clazz);
     } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException ignore) {
       // Ignore if the bean is not found or not of the required type
+    }
+    return null;
+  }
+
+  private <T> @Nullable List<T> findAllBeans(Class<T> clazz) {
+    try {
+      return new java.util.ArrayList<>(beanFactory.getBeansOfType(clazz).values());
+    } catch (BeansException ignore) {
+      // Ignore if no beans are found
     }
     return null;
   }

@@ -12,6 +12,7 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -40,7 +41,8 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
       @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
-              workflowImplementationCustomizers) {
+              workflowImplementationCustomizers,
+      @Nullable List<WorkerPlugin> plugins) {
     super(
         namespaceProperties,
         workflowServiceStubs,
@@ -54,7 +56,8 @@ public class NonRootNamespaceTemplate extends NamespaceTemplate {
         workerCustomizers,
         clientCustomizers,
         scheduleCustomizers,
-        workflowImplementationCustomizers);
+        workflowImplementationCustomizers,
+        plugins);
     this.beanFactory = beanFactory;
   }
 

@@ -62,6 +62,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private final @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
       workflowImplementationCustomizers;
+  private final @Nullable List<WorkerPlugin> plugins;
 
   private ConfigurableListableBeanFactory beanFactory;
   private Environment environment;
@@ -81,7 +82,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       @Nullable List<TemporalOptionsCustomizer<WorkerOptions.Builder>> workerCustomizers,
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
-              workflowImplementationCustomizers) {
+              workflowImplementationCustomizers,
+      @Nullable List<WorkerPlugin> plugins) {
     this.namespaceProperties = namespaceProperties;
     this.workerInterceptors = workerInterceptors;
     this.tracer = tracer;
@@ -91,6 +93,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     this.workerFactoryCustomizers = workerFactoryCustomizers;
     this.workerCustomizers = workerCustomizers;
     this.workflowImplementationCustomizers = workflowImplementationCustomizers;
+    this.plugins = plugins;
   }
 
   public NamespaceProperties getNamespaceProperties() {
@@ -126,7 +129,11 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
     } else {
       WorkerFactoryOptions workerFactoryOptions =
           new WorkerFactoryOptionsTemplate(
-                  namespaceProperties, workerInterceptors, tracer, workerFactoryCustomizers)
+                  namespaceProperties,
+                  workerInterceptors,
+                  tracer,
+                  workerFactoryCustomizers,
+                  plugins)
               .createWorkerFactoryOptions();
       return WorkerFactory.newInstance(workflowClient, workerFactoryOptions);
     }

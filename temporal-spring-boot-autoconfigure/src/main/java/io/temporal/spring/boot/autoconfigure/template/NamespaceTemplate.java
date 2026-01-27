@@ -12,6 +12,7 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -36,6 +37,7 @@ public class NamespaceTemplate {
       scheduleCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
       workflowImplementationCustomizers;
+  private final @Nullable List<WorkerPlugin> plugins;
 
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
@@ -56,7 +58,8 @@ public class NamespaceTemplate {
       @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
-              workflowImplementationCustomizers) {
+              workflowImplementationCustomizers,
+      @Nullable List<WorkerPlugin> plugins) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;
@@ -71,6 +74,7 @@ public class NamespaceTemplate {
     this.clientCustomizers = clientCustomizers;
     this.scheduleCustomizers = scheduleCustomizers;
     this.workflowImplementationCustomizers = workflowImplementationCustomizers;
+    this.plugins = plugins;
   }
 
   public ClientTemplate getClientTemplate() {
@@ -101,7 +105,8 @@ public class NamespaceTemplate {
               testWorkflowEnvironment,
               workerFactoryCustomizers,
               workerCustomizers,
-              workflowImplementationCustomizers);
+              workflowImplementationCustomizers,
+              plugins);
     }
     return this.workersTemplate;
   }
