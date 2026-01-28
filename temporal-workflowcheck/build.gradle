@@ -35,6 +35,11 @@ publishing {
     }
 }
 
+// Fix dependency issue with shadow publication metadata generation
+tasks.named('generateMetadataFileForShadowPublication').configure {
+    dependsOn 'jar'
+}
+
 // Access Java test source as resource
 tasks.register('copyJavaSourcesToResources') {
     doLast {
