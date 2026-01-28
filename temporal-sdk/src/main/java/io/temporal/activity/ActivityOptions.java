@@ -6,6 +6,7 @@ import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Options used to configure how an activity is invoked. */
@@ -282,7 +283,9 @@ public final class ActivityOptions {
       if (this.contextPropagators == null) {
         this.contextPropagators = override.contextPropagators;
       } else if (override.contextPropagators != null) {
-        this.contextPropagators.addAll(override.contextPropagators);
+        List<ContextPropagator> merged = new ArrayList<>(this.contextPropagators);
+        merged.addAll(override.contextPropagators);
+        this.contextPropagators = merged;
       }
       if (override.versioningIntent != VersioningIntent.VERSIONING_INTENT_UNSPECIFIED) {
         this.versioningIntent = override.versioningIntent;
