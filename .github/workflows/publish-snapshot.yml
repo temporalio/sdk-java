@@ -22,24 +22,27 @@ on:
     tags-ignore:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   publish-snapshot:
     if: github.repository == 'temporalio/sdk-java' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '11'
           distribution: 'temurin'
           
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       # Prefer env variables here rather than inline ${{ secrets.FOO }} to
       # decrease the likelihood that secrets end up printed to stdout.

@@ -1,24 +1,6 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.replay;
+
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.*;
@@ -40,12 +22,15 @@ import java.time.Duration;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TODO callbacks usage is non consistent. It accepts Optional and Exception which can be null.
  * Switch both to nullable.
  */
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
+  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowContextImpl.class);
   private final BasicWorkflowContext basicWorkflowContext;
   private final WorkflowStateMachines workflowStateMachines;
   private final WorkflowMutableState mutableState;
@@ -106,6 +91,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public WorkflowExecution getParentWorkflowExecution() {
     return basicWorkflowContext.getParentWorkflowExecution();
+  }
+
+  @Override
+  public WorkflowExecution getRootWorkflowExecution() {
+    return basicWorkflowContext.getRootWorkflowExecution();
   }
 
   @Override
@@ -222,11 +212,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Functions.Proc1<Exception> startNexusOperation(
-      ScheduleNexusOperationCommandAttributes attributes,
+      StartNexusOperationParameters parameters,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
     Functions.Proc cancellationHandler =
-        workflowStateMachines.startNexusOperation(attributes, startedCallback, completionCallback);
+        workflowStateMachines.startNexusOperation(parameters, startedCallback, completionCallback);
     return (exception) -> cancellationHandler.apply();
   }
 
@@ -241,13 +231,17 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void requestCancelExternalWorkflowExecution(
-      WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback) {
-    RequestCancelExternalWorkflowExecutionCommandAttributes attributes =
+      WorkflowExecution execution,
+      @Nullable String reason,
+      Functions.Proc2<Void, RuntimeException> callback) {
+    RequestCancelExternalWorkflowExecutionCommandAttributes.Builder attributes =
         RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowId(execution.getWorkflowId())
-            .setRunId(execution.getRunId())
-            .build();
-    workflowStateMachines.requestCancelExternalWorkflowExecution(attributes, callback);
+            .setRunId(execution.getRunId());
+    if (reason != null) {
+      attributes.setReason(reason);
+    }
+    workflowStateMachines.requestCancelExternalWorkflowExecution(attributes.build(), callback);
   }
 
   @Override
@@ -261,6 +255,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public boolean checkSdkFlag(SdkFlag flag) {
+    return workflowStateMachines.checkSdkFlag(flag);
+  }
+
+  @Override
   public Optional<String> getCurrentBuildId() {
     String curTaskBID = workflowStateMachines.getCurrentTaskBuildId();
     // The current task started id == 0 check is to avoid setting the build id to this worker's ID
@@ -271,6 +270,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       curTaskBID = workerOptions.getBuildId();
     }
     return Optional.ofNullable(curTaskBID);
+  }
+
+  @Override
+  public Priority getPriority() {
+    return basicWorkflowContext.getPriority();
   }
 
   @Override
@@ -311,20 +315,23 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void sideEffect(
-      Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
-    workflowStateMachines.sideEffect(func, callback);
+      Func<Optional<Payloads>> func,
+      UserMetadata metadata,
+      Functions.Proc1<Optional<Payloads>> callback) {
+    workflowStateMachines.sideEffect(func, metadata, callback);
   }
 
   @Override
   public void mutableSideEffect(
       String id,
+      UserMetadata metadata,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
-    workflowStateMachines.mutableSideEffect(id, func, callback);
+    workflowStateMachines.mutableSideEffect(id, metadata, func, callback);
   }
 
   @Override
-  public boolean getVersion(
+  public Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
@@ -339,6 +346,18 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+    /*
+     * Temporal Change Version is a reserved field and should ideally not be set by the user.
+     * It is set by the SDK when getVersion is called. We know that users have been setting
+     * this field in the past, and we want to avoid breaking their workflows.
+     * */
+    if (searchAttributes.containsIndexedFields(TEMPORAL_CHANGE_VERSION.getName())) {
+      // When we enabled upserting of the search attribute by default, we should consider raising a
+      // warning here.
+      log.debug(
+          "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on your `WorkflowImplementationOptions`",
+          TEMPORAL_CHANGE_VERSION.getName());
+    }
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
     mutableState.upsertSearchAttributes(searchAttributes);
   }

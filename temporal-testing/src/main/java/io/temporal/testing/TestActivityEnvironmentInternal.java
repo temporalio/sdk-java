@@ -1,26 +1,5 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.testing;
 
-import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
@@ -39,6 +18,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -57,11 +37,8 @@ import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.workflow.Functions;
+import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.TimerOptions;
-import io.temporal.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
@@ -123,7 +100,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
-            workflowServiceStubs,
+            WorkflowClient.newInstance(
+                this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions()),
             testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
@@ -432,8 +410,25 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public <R> R sideEffect(
+        Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public <R> R mutableSideEffect(
         String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public <R> R mutableSideEffect(
+        String id,
+        Class<R> resultClass,
+        Type resultType,
+        BiPredicate<R, R> updated,
+        Func<R> func,
+        MutableSideEffectOptions options) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -509,40 +504,38 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Type resultType) {
       DataConverter dataConverter =
           testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
-      RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
-      if (taskCompleted != null) {
+      if (response.getTaskCompleted() != null) {
+        RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
         Optional<Payloads> result =
             taskCompleted.hasResult() ? Optional.of(taskCompleted.getResult()) : Optional.empty();
         return dataConverter.fromPayloads(0, result, resultClass, resultType);
-      } else {
+      } else if (response.getTaskFailed() != null) {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
-        if (taskFailed != null) {
-          Exception cause = dataConverter.failureToException(taskFailed.getFailure());
-          throw new ActivityFailure(
-              taskFailed.getFailure().getMessage(),
-              0,
-              0,
-              task.getActivityType().getName(),
-              task.getActivityId(),
-              RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
-              "TestActivityEnvironment",
-              cause);
-        } else {
-          RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
-          if (taskCanceled != null) {
-            throw new CanceledFailure(
-                "canceled",
-                new EncodedValues(
-                    taskCanceled.hasDetails()
-                        ? Optional.of(taskCanceled.getDetails())
-                        : Optional.empty(),
-                    dataConverter),
-                null);
-          }
-        }
+        Exception cause = dataConverter.failureToException(taskFailed.getFailure());
+        throw new ActivityFailure(
+            taskFailed.getFailure().getMessage(),
+            0,
+            0,
+            task.getActivityType().getName(),
+            task.getActivityId(),
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            "TestActivityEnvironment",
+            cause);
+      } else if (response.getTaskCanceled() != null) {
+        RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
+        throw new CanceledFailure(
+            "canceled",
+            new EncodedValues(
+                taskCanceled.hasDetails()
+                    ? Optional.of(taskCanceled.getDetails())
+                    : Optional.empty(),
+                dataConverter),
+            null);
+      } else {
+        throw new ActivityRequestedAsyncCompletion(
+            task.getActivityId(), response.isManualCompletion());
       }
-      return Defaults.defaultValue(resultClass);
     }
 
     @Override

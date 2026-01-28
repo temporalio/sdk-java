@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.updateTest;
 
 import static io.temporal.client.WorkflowUpdateStage.ACCEPTED;
@@ -104,7 +84,8 @@ public class UpdateTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
   }
@@ -153,7 +134,8 @@ public class UpdateTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
   }
@@ -256,8 +238,7 @@ public class UpdateTest {
             .getResultAsync()
             .get());
 
-    assertEquals(
-        null,
+    assertNull(
         WorkflowClient.startUpdate(
                 workflow::complete,
                 UpdateOptions.<Void>newBuilder().setWaitForStage(COMPLETED).build())
@@ -288,6 +269,7 @@ public class UpdateTest {
     assertEquals("Execute-Hello Update", workflow.update(0, "Hello Update"));
 
     // Reset the workflow
+    @SuppressWarnings("deprecation")
     ResetWorkflowExecutionResponse resetResponse =
         workflowClient
             .getWorkflowServiceStubs()
@@ -307,7 +289,11 @@ public class UpdateTest {
     // Create a new workflow stub with the new run ID
     workflow =
         workflowClient.newWorkflowStub(
-            WorkflowWithUpdate.class, workflowId, Optional.of(resetResponse.getRunId()));
+            WorkflowWithUpdate.class,
+            WorkflowTargetOptions.newBuilder()
+                .setWorkflowId(workflowId)
+                .setRunId(resetResponse.getRunId())
+                .build());
     assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
     // Complete would throw an exception if the update was not applied to the reset workflow.
     workflow.complete();

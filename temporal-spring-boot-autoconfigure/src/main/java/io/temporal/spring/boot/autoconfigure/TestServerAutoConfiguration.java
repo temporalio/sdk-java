@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.spring.boot.autoconfigure;
 
 import com.uber.m3.tally.Scope;
@@ -25,7 +5,9 @@ import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
@@ -35,11 +17,13 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -57,7 +41,14 @@ import org.springframework.context.annotation.Configuration;
     havingValue = "true")
 @AutoConfigureAfter({OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 public class TestServerAutoConfiguration {
+
   private static final Logger log = LoggerFactory.getLogger(TestServerAutoConfiguration.class);
+
+  private final ConfigurableListableBeanFactory beanFactory;
+
+  public TestServerAutoConfiguration(ConfigurableListableBeanFactory beanFactory) {
+    this.beanFactory = beanFactory;
+  }
 
   @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
   public TestWorkflowEnvironmentAdapter testTestWorkflowEnvironmentAdapter(
@@ -70,28 +61,48 @@ public class TestServerAutoConfiguration {
   public TestWorkflowEnvironment testWorkflowEnvironment(
       TemporalProperties properties,
       @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable Scope metricsScope,
-      @Autowired List<DataConverter> dataConverters,
+      @Autowired(required = false) Map<String, DataConverter> dataConverters,
       @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer,
+          List<WorkflowClientInterceptor> workflowClientInterceptors,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+          List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Autowired(required = false) @Nullable List<WorkerInterceptor> workerInterceptors,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
+          List<TemporalOptionsCustomizer<TestEnvironmentOptions.Builder>> testEnvOptionsCustomizers,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer,
+          Map<String, TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>>
+              workerFactoryCustomizerMap,
       @Autowired(required = false) @Nullable
-          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
-              workflowServiceStubsCustomizer) {
+          Map<String, TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizerMap,
+      @Autowired(required = false) @Nullable
+          Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
+              scheduleCustomizerMap) {
     DataConverter chosenDataConverter =
-        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
+        AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
+    List<WorkflowClientInterceptor> chosenClientInterceptors =
+        AutoConfigurationUtils.chooseWorkflowClientInterceptors(
+            workflowClientInterceptors, properties);
+    List<ScheduleClientInterceptor> chosenScheduleClientInterceptors =
+        AutoConfigurationUtils.chooseScheduleClientInterceptors(
+            scheduleClientInterceptors, properties);
+    List<WorkerInterceptor> chosenWorkerInterceptors =
+        AutoConfigurationUtils.chooseWorkerInterceptors(workerInterceptors, properties);
 
-    if (workflowServiceStubsCustomizer != null) {
-      log.info(
-          "`TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>` bean is ignored for test environment");
-    }
+    List<TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>> workerFactoryCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory,
+            workerFactoryCustomizerMap,
+            WorkerFactoryOptions.Builder.class,
+            properties);
+    List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, clientCustomizerMap, WorkflowClientOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
 
     TestEnvironmentOptions.Builder options =
         TestEnvironmentOptions.newBuilder()
@@ -99,6 +110,8 @@ public class TestServerAutoConfiguration {
                 new WorkflowClientOptionsTemplate(
                         properties.getNamespace(),
                         chosenDataConverter,
+                        chosenClientInterceptors,
+                        chosenScheduleClientInterceptors,
                         otTracer,
                         clientCustomizer,
                         scheduleCustomizer)
@@ -109,11 +122,15 @@ public class TestServerAutoConfiguration {
     }
 
     options.setWorkerFactoryOptions(
-        new WorkerFactoryOptionsTemplate(properties, otTracer, workerFactoryCustomizer)
+        new WorkerFactoryOptionsTemplate(
+                properties, chosenWorkerInterceptors, otTracer, workerFactoryCustomizer)
             .createWorkerFactoryOptions());
 
-    if (testEnvOptionsCustomizer != null) {
-      options = testEnvOptionsCustomizer.customize(options);
+    if (testEnvOptionsCustomizers != null) {
+      for (TemporalOptionsCustomizer<TestEnvironmentOptions.Builder> testEnvOptionsCustomizer :
+          testEnvOptionsCustomizers) {
+        options = testEnvOptionsCustomizer.customize(options);
+      }
     }
 
     return TestWorkflowEnvironment.newInstance(options.build());

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
@@ -35,15 +15,20 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.tuning.*;
+import io.temporal.worker.PollerTypeMetricsTag;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseReason;
+import io.temporal.worker.tuning.SlotSupplierFuture;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
+final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTask> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowPollTask.class);
 
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
@@ -53,15 +38,17 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub serviceStub;
   private final PollWorkflowTaskQueueRequest pollRequest;
   private final PollWorkflowTaskQueueRequest stickyPollRequest;
+  private final AtomicInteger normalPollGauge = new AtomicInteger();
+  private final AtomicInteger stickyPollGauge = new AtomicInteger();
 
+  @SuppressWarnings("deprecation")
   public WorkflowPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
-      @Nullable String buildId,
-      boolean useBuildIdForVersioning,
+      @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
       @Nonnull Scope workerMetricsScope,
@@ -84,14 +71,18 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
             .setNamespace(Objects.requireNonNull(namespace))
             .setIdentity(Objects.requireNonNull(identity));
 
-    if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+    if (versioningOptions.getWorkerDeploymentOptions() != null) {
+      pollRequestBuilder.setDeploymentOptions(
+          WorkerVersioningProtoUtils.deploymentOptionsToProto(
+              versioningOptions.getWorkerDeploymentOptions()));
+    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequestBuilder.setWorkerVersionCapabilities(
           WorkerVersionCapabilities.newBuilder()
-              .setBuildId(buildId)
-              .setUseVersioning(useBuildIdForVersioning)
+              .setBuildId(versioningOptions.getBuildId())
+              .setUseVersioning(versioningOptions.isUsingVersioning())
               .build());
     } else {
-      pollRequestBuilder.setBinaryChecksum(buildId);
+      pollRequestBuilder.setBinaryChecksum(versioningOptions.getBuildId());
     }
 
     this.pollRequest =
@@ -118,23 +109,25 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowTask poll() {
-    boolean isSuccessful = false;
     SlotPermit permit;
+    SlotSupplierFuture future;
+    boolean isSuccessful = false;
     try {
-      permit =
+      future =
           slotSupplier.reserveSlot(
               new SlotReservationData(
                   pollRequest.getTaskQueue().getName(),
                   pollRequest.getIdentity(),
                   pollRequest.getWorkerVersionCapabilities().getBuildId()));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return null;
     } catch (Exception e) {
-      log.warn("Error while trying to reserve a slot for workflow task", e.getCause());
+      log.warn("Error while trying to reserve a slot for a workflow", e.getCause());
       return null;
     }
+
+    permit = MultiThreadedPoller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
 
     TaskQueueKind taskQueueKind = stickyQueueBalancer.makePoll();
     boolean isSticky = TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind);
@@ -142,6 +135,16 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     Scope scope = isSticky ? stickyMetricsScope : metricsScope;
 
     log.trace("poll request begin: {}", request);
+    if (isSticky) {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_STICKY_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(stickyPollGauge.incrementAndGet());
+    } else {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(normalPollGauge.incrementAndGet());
+    }
+
     try {
       PollWorkflowTaskQueueResponse response = doPoll(request, scope);
       if (response == null) {
@@ -152,6 +155,17 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
       slotSupplier.markSlotUsed(new WorkflowSlotInfo(response, pollRequest), permit);
       return new WorkflowTask(response, (rr) -> slotSupplier.releaseSlot(rr, permit));
     } finally {
+
+      if (isSticky) {
+        MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_STICKY_TASK)
+            .gauge(MetricsType.NUM_POLLERS)
+            .update(stickyPollGauge.decrementAndGet());
+      } else {
+        MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_TASK)
+            .gauge(MetricsType.NUM_POLLERS)
+            .update(normalPollGauge.decrementAndGet());
+      }
+
       if (!isSuccessful) {
         slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
         stickyQueueBalancer.finishPoll(taskQueueKind, 0);

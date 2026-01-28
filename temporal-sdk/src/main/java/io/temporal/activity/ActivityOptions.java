@@ -1,34 +1,12 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.activity;
 
 import com.google.common.base.Objects;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.Experimental;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
-import io.temporal.common.VersioningIntent;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Options used to configure how an activity is invoked. */
@@ -64,8 +42,12 @@ public final class ActivityOptions {
     private List<ContextPropagator> contextPropagators;
     private ActivityCancellationType cancellationType;
     private boolean disableEagerExecution;
+
+    @SuppressWarnings("deprecation")
     private VersioningIntent versioningIntent;
+
     private String summary;
+    private Priority priority;
 
     private Builder() {}
 
@@ -84,6 +66,7 @@ public final class ActivityOptions {
       this.disableEagerExecution = options.disableEagerExecution;
       this.versioningIntent = options.versioningIntent;
       this.summary = options.summary;
+      this.priority = options.priority;
     }
 
     /**
@@ -195,13 +178,13 @@ public final class ActivityOptions {
      * could make sense. <br>
      * This is also why there is no equivalent method on {@link LocalActivityOptions}.
      *
-     * @see <a href="https://github.com/temporalio/sdk-java/issues/490">Rejected feature reqest for
-     *     LocalActivityOption#contextPropagators</a>
      * @param contextPropagators specifies the list of context propagators to use during propagation
      *     from a workflow to the activity with these {@link ActivityOptions}. This list overrides
      *     the list specified on {@link
      *     io.temporal.client.WorkflowClientOptions#getContextPropagators()}, {@code null} means no
      *     overriding
+     * @see <a href="https://github.com/temporalio/sdk-java/issues/490">Rejected feature reqest for
+     *     LocalActivityOption#contextPropagators</a>
      */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
@@ -240,7 +223,10 @@ public final class ActivityOptions {
     /**
      * Specifies whether this activity should run on a worker with a compatible Build Id or not. See
      * the variants of {@link VersioningIntent}.
+     *
+     * @deprecated Use Worker Deployments
      */
+    @Deprecated
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {
       this.versioningIntent = versioningIntent;
       return this;
@@ -258,6 +244,19 @@ public final class ActivityOptions {
       return this;
     }
 
+    /**
+     * Optional priority settings that control relative ordering of task processing when tasks are
+     * backed up in a queue.
+     *
+     * <p>Defaults to inheriting priority from the workflow that scheduled the activity.
+     */
+    @Experimental
+    public Builder setPriority(Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
+    @SuppressWarnings("deprecation")
     public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
@@ -284,12 +283,15 @@ public final class ActivityOptions {
       if (this.contextPropagators == null) {
         this.contextPropagators = override.contextPropagators;
       } else if (override.contextPropagators != null) {
-        this.contextPropagators.addAll(override.contextPropagators);
+        List<ContextPropagator> merged = new ArrayList<>(this.contextPropagators);
+        merged.addAll(override.contextPropagators);
+        this.contextPropagators = merged;
       }
       if (override.versioningIntent != VersioningIntent.VERSIONING_INTENT_UNSPECIFIED) {
         this.versioningIntent = override.versioningIntent;
       }
       this.summary = (override.summary == null) ? this.summary : override.summary;
+      this.priority = (override.priority == null) ? this.priority : override.priority;
       return this;
     }
 
@@ -313,9 +315,11 @@ public final class ActivityOptions {
           cancellationType,
           disableEagerExecution,
           versioningIntent,
-          summary);
+          summary,
+          priority);
     }
 
+    @SuppressWarnings("deprecation")
     public ActivityOptions validateAndBuildWithDefaults() {
       return new ActivityOptions(
           heartbeatTimeout,
@@ -330,7 +334,8 @@ public final class ActivityOptions {
           versioningIntent == null
               ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
               : versioningIntent,
-          summary);
+          summary,
+          priority);
     }
   }
 
@@ -343,8 +348,12 @@ public final class ActivityOptions {
   private final List<ContextPropagator> contextPropagators;
   private final ActivityCancellationType cancellationType;
   private final boolean disableEagerExecution;
+
+  @SuppressWarnings("deprecation")
   private final VersioningIntent versioningIntent;
+
   private final String summary;
+  private final Priority priority;
 
   private ActivityOptions(
       Duration heartbeatTimeout,
@@ -356,8 +365,9 @@ public final class ActivityOptions {
       List<ContextPropagator> contextPropagators,
       ActivityCancellationType cancellationType,
       boolean disableEagerExecution,
-      VersioningIntent versioningIntent,
-      String summary) {
+      @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
+      String summary,
+      Priority priority) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
@@ -369,6 +379,7 @@ public final class ActivityOptions {
     this.disableEagerExecution = disableEagerExecution;
     this.versioningIntent = versioningIntent;
     this.summary = summary;
+    this.priority = priority;
   }
 
   /**
@@ -433,7 +444,10 @@ public final class ActivityOptions {
 
   /**
    * @see ActivityOptions.Builder#setVersioningIntent(VersioningIntent)
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
+  @Deprecated
   public VersioningIntent getVersioningIntent() {
     return versioningIntent;
   }
@@ -441,6 +455,11 @@ public final class ActivityOptions {
   @Experimental
   public String getSummary() {
     return summary;
+  }
+
+  @Experimental
+  public Priority getPriority() {
+    return priority;
   }
 
   public Builder toBuilder() {
@@ -462,7 +481,8 @@ public final class ActivityOptions {
         && Objects.equal(contextPropagators, that.contextPropagators)
         && disableEagerExecution == that.disableEagerExecution
         && versioningIntent == that.versioningIntent
-        && Objects.equal(summary, that.summary);
+        && Objects.equal(summary, that.summary)
+        && Objects.equal(priority, that.priority);
   }
 
   @Override
@@ -478,7 +498,8 @@ public final class ActivityOptions {
         cancellationType,
         disableEagerExecution,
         versioningIntent,
-        summary);
+        summary,
+        priority);
   }
 
   @Override
@@ -507,6 +528,8 @@ public final class ActivityOptions {
         + versioningIntent
         + ", summary="
         + summary
+        + ", priority="
+        + priority
         + '}';
   }
 }

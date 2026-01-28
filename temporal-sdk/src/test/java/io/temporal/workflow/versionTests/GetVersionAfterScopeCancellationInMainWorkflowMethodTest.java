@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.versionTests;
 
 import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED;
@@ -35,11 +15,18 @@ import org.junit.Test;
 
 /** This test reproduces a clash in cancellation scopes with getVersion described here: */
 @Issue("https://github.com/temporalio/sdk-java/issues/648")
-public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest {
+public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(WorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), WorkflowImpl.class)
+          .build();
+
+  public GetVersionAfterScopeCancellationInMainWorkflowMethodTest(
+      boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   public static final class WorkflowImpl implements TestWorkflows.NoArgsWorkflow {
 

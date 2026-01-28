@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.common.converter;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -28,7 +8,6 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
-import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -66,6 +45,12 @@ class PayloadAndFailureDataConverter implements DataConverter {
 
   @Override
   public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
+    // Raw values payload should be passed through without conversion
+    if (value instanceof RawValue) {
+      RawValue rv = (RawValue) value;
+      return Optional.of(rv.getPayload());
+    }
+
     for (PayloadConverter converter : converters) {
       Optional<Payload> result =
           (serializationContext != null ? converter.withContext(serializationContext) : converter)
@@ -78,9 +63,14 @@ class PayloadAndFailureDataConverter implements DataConverter {
         "No PayloadConverter is registered with this DataConverter that accepts value:" + value);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
       throws DataConverterException {
+    if (valueClass == RawValue.class) {
+      return (T) new RawValue(payload);
+    }
+
     try {
       String encoding =
           payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toString(UTF_8);
@@ -135,7 +125,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
 
   @Override
   @Nonnull
-  public TemporalFailure failureToException(@Nonnull Failure failure) {
+  public RuntimeException failureToException(@Nonnull Failure failure) {
     Preconditions.checkNotNull(failure, "failure");
     return (serializationContext != null
             ? failureConverter.withContext(serializationContext)

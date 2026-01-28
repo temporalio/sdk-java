@@ -1,26 +1,10 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
+import static io.temporal.testUtils.Eventually.assertEventually;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -30,7 +14,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.failure.ApplicationErrorCategory;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
@@ -61,7 +47,10 @@ public class WorkflowFailedMetricsTests {
                       NonDeterministicException.class, IllegalArgumentException.class)
                   .build())
           .setMetricsScope(metricsScope)
-          .setWorkflowTypes(NonDeterministicWorkflowImpl.class, WorkflowExceptionImpl.class)
+          .setWorkflowTypes(
+              NonDeterministicWorkflowImpl.class,
+              WorkflowExceptionImpl.class,
+              ApplicationFailureWorkflowImpl.class)
           .build();
 
   @Before
@@ -82,6 +71,12 @@ public class WorkflowFailedMetricsTests {
   public interface TestWorkflow {
     @WorkflowMethod
     String workflow(boolean runtimeException);
+  }
+
+  @WorkflowInterface
+  public interface ApplicationFailureWorkflow {
+    @WorkflowMethod
+    void execute(boolean isBenign);
   }
 
   public static class NonDeterministicWorkflowImpl implements TestWorkflowWithSignal {
@@ -106,6 +101,21 @@ public class WorkflowFailedMetricsTests {
         throw new IllegalArgumentException("test exception");
       } else {
         throw ApplicationFailure.newFailure("test failure", "test reason");
+      }
+    }
+  }
+
+  public static class ApplicationFailureWorkflowImpl implements ApplicationFailureWorkflow {
+    @Override
+    public void execute(boolean isBenign) {
+      if (!isBenign) {
+        throw ApplicationFailure.newFailure("Non-benign failure", "NonBenignType");
+      } else {
+        throw ApplicationFailure.newBuilder()
+            .setMessage("Benign failure")
+            .setType("BenignType")
+            .setCategory(ApplicationErrorCategory.BENIGN)
+            .build();
       }
     }
   }
@@ -137,8 +147,11 @@ public class WorkflowFailedMetricsTests {
     triggerNonDeterministicException = true;
     workflow.unblock();
     assertThrows(WorkflowFailedException.class, () -> workflow.workflow());
-    reporter.assertCounter(
-        MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflowWithSignal"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflowWithSignal"), 1));
   }
 
   @Test
@@ -152,7 +165,11 @@ public class WorkflowFailedMetricsTests {
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
     assertThrows(WorkflowFailedException.class, () -> workflow.workflow(true));
-    reporter.assertCounter(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1));
   }
 
   @Test
@@ -166,6 +183,75 @@ public class WorkflowFailedMetricsTests {
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
     assertThrows(WorkflowFailedException.class, () -> workflow.workflow(false));
-    reporter.assertCounter(MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1);
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("TestWorkflow"), 1));
+  }
+
+  @Test
+  public void workflowFailureMetricBenignApplicationError() {
+    reporter.assertNoMetric(
+        MetricsType.WORKFLOW_FAILED_COUNTER, getWorkflowTags("ApplicationFailureWorkflow"));
+
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ApplicationFailureWorkflow nonBenignStub =
+        client.newWorkflowStub(
+            ApplicationFailureWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .validateBuildWithDefaults());
+
+    WorkflowFailedException e1 =
+        assertThrows(WorkflowFailedException.class, () -> nonBenignStub.execute(false));
+
+    Throwable cause1 = e1.getCause();
+    assertTrue("Cause should be ApplicationFailure", cause1 instanceof ApplicationFailure);
+    boolean isBenign =
+        ((ApplicationFailure) cause1).getCategory() == ApplicationErrorCategory.BENIGN;
+    assertFalse("Failure should not be benign", isBenign);
+    assertEquals("Non-benign failure", ((TemporalFailure) cause1).getOriginalMessage());
+
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER,
+                getWorkflowTags("ApplicationFailureWorkflow"),
+                1));
+
+    ApplicationFailureWorkflow benignStub =
+        client.newWorkflowStub(
+            ApplicationFailureWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .validateBuildWithDefaults());
+
+    WorkflowFailedException e2 =
+        assertThrows(
+            WorkflowFailedException.class,
+            () ->
+                client
+                    .newWorkflowStub(
+                        ApplicationFailureWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                            .setTaskQueue(testWorkflowRule.getTaskQueue())
+                            .validateBuildWithDefaults())
+                    .execute(true));
+
+    Throwable cause2 = e2.getCause();
+    assertTrue("Cause should be ApplicationFailure", cause2 instanceof ApplicationFailure);
+    isBenign = ((ApplicationFailure) cause2).getCategory() == ApplicationErrorCategory.BENIGN;
+    assertTrue("Failure should be benign", isBenign);
+    assertEquals("Benign failure", ((TemporalFailure) cause2).getOriginalMessage());
+
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            reporter.assertCounter(
+                MetricsType.WORKFLOW_FAILED_COUNTER,
+                getWorkflowTags("ApplicationFailureWorkflow"),
+                1));
   }
 }

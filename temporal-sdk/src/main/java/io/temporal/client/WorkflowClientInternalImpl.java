@@ -1,30 +1,9 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.client;
 
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterators;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -37,16 +16,16 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
-import io.temporal.internal.client.NexusStartWorkflowRequest;
-import io.temporal.internal.client.RootWorkflowClientInvoker;
-import io.temporal.internal.client.WorkerFactoryRegistry;
-import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.client.*;
+import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.*;
 import java.lang.annotation.Annotation;
@@ -59,8 +38,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClientInternal {
+
+  private static final Logger log = LoggerFactory.getLogger(WorkflowClientInternalImpl.class);
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
@@ -88,7 +71,31 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
-    options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
+    // Extract WorkflowClientPlugins from service stubs plugins (propagation)
+    WorkflowClientPlugin[] propagatedPlugins =
+        extractClientPlugins(workflowServiceStubs.getOptions().getPlugins());
+
+    // Merge propagated plugins with client-specified plugins
+    WorkflowClientPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            options.getPlugins(),
+            WorkflowClientPlugin::getName,
+            log,
+            "service stubs",
+            WorkflowClientPlugin.class);
+
+    // Apply plugin configuration phase (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
+    for (WorkflowClientPlugin plugin : mergedPlugins) {
+      plugin.configureWorkflowClient(builder);
+    }
+    // Set merged plugins after configuration, then validate
+    builder.setPlugins(mergedPlugins);
+    options = builder.validateAndBuildWithDefaults();
+    workflowServiceStubs =
+        new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
     this.metricsScope =
@@ -170,24 +177,51 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return newWorkflowStub(workflowInterface, workflowId, Optional.empty());
   }
 
+  public <T> T newWorkflowStub(
+      Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions) {
+    return newWorkflowStub(workflowInterface, workflowTargetOptions, false);
+  }
+
   @Override
+  @SuppressWarnings("deprecation")
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
+    return newWorkflowStub(
+        workflowInterface,
+        WorkflowTargetOptions.newBuilder()
+            .setWorkflowId(workflowId)
+            .setRunId(runId.orElse(null))
+            .build(),
+        true);
+  }
+
+  public <T> T newWorkflowStub(
+      Class<T> workflowInterface,
+      WorkflowTargetOptions workflowTargetOptions,
+      boolean legacyTargeting) {
     checkAnnotation(
         workflowInterface,
         WorkflowMethod.class,
         QueryMethod.class,
         SignalMethod.class,
         UpdateMethod.class);
-    if (Strings.isNullOrEmpty(workflowId)) {
+    if (Strings.isNullOrEmpty(workflowTargetOptions.getWorkflowId())) {
       throw new IllegalArgumentException("workflowId is null or empty");
     }
-    WorkflowExecution execution =
-        WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.orElse("")).build();
+    WorkflowExecution.Builder execution =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowTargetOptions.getWorkflowId());
+    if (!Strings.isNullOrEmpty(workflowTargetOptions.getRunId())) {
+      execution.setRunId(workflowTargetOptions.getRunId());
+    }
 
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, this.getOptions(), workflowClientCallsInvoker, execution);
+            workflowInterface,
+            this.getOptions(),
+            workflowClientCallsInvoker,
+            execution.build(),
+            legacyTargeting,
+            workflowTargetOptions.getFirstExecutionRunId());
     @SuppressWarnings("unchecked")
     T result =
         (T)
@@ -215,6 +249,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType) {
     WorkflowExecution execution =
@@ -226,10 +261,46 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
+    return newUntypedWorkflowStub(
+        workflowType,
+        true,
+        WorkflowTargetOptions.newBuilder()
+            .setWorkflowId(execution.getWorkflowId())
+            .setRunId(execution.getRunId())
+            .build());
+  }
+
+  @Override
+  public WorkflowStub newUntypedWorkflowStub(WorkflowTargetOptions workflowTargetOptions) {
+    return newUntypedWorkflowStub(Optional.empty(), false, workflowTargetOptions);
+  }
+
+  @Override
+  public WorkflowStub newUntypedWorkflowStub(
+      WorkflowTargetOptions workflowTargetOptions, Optional<String> workflowType) {
+    return newUntypedWorkflowStub(workflowType, false, workflowTargetOptions);
+  }
+
+  @SuppressWarnings("deprecation")
+  WorkflowStub newUntypedWorkflowStub(
+      Optional<String> workflowType,
+      boolean legacyTargeting,
+      WorkflowTargetOptions workflowTargetOptions) {
+    WorkflowExecution.Builder execution =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowTargetOptions.getWorkflowId());
+    if (!Strings.isNullOrEmpty(workflowTargetOptions.getRunId())) {
+      execution.setRunId(workflowTargetOptions.getRunId());
+    }
     WorkflowStub result =
-        new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, execution);
+        new WorkflowStubImpl(
+            options,
+            workflowClientCallsInvoker,
+            workflowType,
+            execution.build(),
+            legacyTargeting,
+            workflowTargetOptions.getFirstExecutionRunId());
     for (WorkflowClientInterceptor i : interceptors) {
-      result = i.newUntypedWorkflowStub(execution, workflowType, result);
+      result = i.newUntypedWorkflowStub(execution.build(), workflowType, result);
     }
     return result;
   }
@@ -262,24 +333,19 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return listExecutions(query, null);
   }
 
+  @Override
+  public WorkflowExecutionCount countWorkflows(@Nullable String query) {
+    WorkflowClientCallsInterceptor.CountWorkflowsInput input =
+        new WorkflowClientCallsInterceptor.CountWorkflowsInput(query);
+    return workflowClientCallsInvoker.countWorkflows(input).getCount();
+  }
+
   Stream<WorkflowExecutionMetadata> listExecutions(
       @Nullable String query, @Nullable Integer pageSize) {
-    ListWorkflowExecutionIterator iterator =
-        new ListWorkflowExecutionIterator(query, options.getNamespace(), pageSize, genericClient);
-    iterator.init();
-    Iterator<WorkflowExecutionMetadata> wrappedIterator =
-        Iterators.transform(
-            iterator, info -> new WorkflowExecutionMetadata(info, options.getDataConverter()));
-
-    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
-    // impossible
-    //  TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list
-    // API
-    // guarantees absence of duplicates
-    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
-
-    return StreamSupport.stream(
-        Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false);
+    return workflowClientCallsInvoker
+        .listWorkflowExecutions(
+            new WorkflowClientCallsInterceptor.ListWorkflowExecutionsInput(query, pageSize))
+        .getStream();
   }
 
   @Override
@@ -722,14 +788,34 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   }
 
   @Override
-  public WorkflowExecution startNexus(NexusStartWorkflowRequest request, Functions.Proc workflow) {
+  public NexusStartWorkflowResponse startNexus(
+      NexusStartWorkflowRequest request, Functions.Proc workflow) {
     enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.START_NEXUS, request);
     try {
       workflow.apply();
-      return WorkflowInvocationHandler.getAsyncInvocationResult(WorkflowExecution.class);
+      return WorkflowInvocationHandler.getAsyncInvocationResult(NexusStartWorkflowResponse.class);
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
     }
+  }
+
+  /**
+   * Extracts WorkflowClientPlugins from service stubs plugins. Only plugins that also implement
+   * {@link WorkflowClientPlugin} are included. This enables plugin propagation from service stubs
+   * to workflow client.
+   */
+  private static WorkflowClientPlugin[] extractClientPlugins(
+      WorkflowServiceStubsPlugin[] stubsPlugins) {
+    if (stubsPlugins == null || stubsPlugins.length == 0) {
+      return new WorkflowClientPlugin[0];
+    }
+    List<WorkflowClientPlugin> clientPlugins = new ArrayList<>();
+    for (WorkflowServiceStubsPlugin plugin : stubsPlugins) {
+      if (plugin instanceof WorkflowClientPlugin) {
+        clientPlugins.add((WorkflowClientPlugin) plugin);
+      }
+    }
+    return clientPlugins.toArray(new WorkflowClientPlugin[0]);
   }
 }

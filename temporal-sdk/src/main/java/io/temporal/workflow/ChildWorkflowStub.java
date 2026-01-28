@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -55,6 +35,9 @@ public interface ChildWorkflowStub {
     return (ChildWorkflowStub) supplier.__getUntypedStub();
   }
 
+  /**
+   * @return workflow type name.
+   */
   String getWorkflowType();
 
   /**
@@ -64,15 +47,62 @@ public interface ChildWorkflowStub {
    */
   Promise<WorkflowExecution> getExecution();
 
+  /**
+   * @return child workflow options used to create this stub.
+   */
   ChildWorkflowOptions getOptions();
 
+  /**
+   * Synchronously starts a child workflow execution and waits for its result.
+   *
+   * @param resultClass the expected return class of the workflow.
+   * @param args workflow arguments.
+   * @param <R> return type.
+   * @return workflow result.
+   */
   <R> R execute(Class<R> resultClass, Object... args);
 
+  /**
+   * Synchronously starts a child workflow execution and waits for its result.
+   *
+   * @param resultClass the expected return class of the workflow.
+   * @param resultType the expected return class of the workflow. Differs from resultClass for
+   *     generic types.
+   * @param args workflow arguments.
+   * @param <R> return type.
+   * @return workflow result.
+   */
   <R> R execute(Class<R> resultClass, Type resultType, Object... args);
 
+  /**
+   * Executes a child workflow asynchronously.
+   *
+   * @param resultClass the expected return type of the workflow.
+   * @param args arguments of the activity.
+   * @param <R> return type.
+   * @return Promise to the activity result.
+   */
   <R> Promise<R> executeAsync(Class<R> resultClass, Object... args);
 
+  /**
+   * Executes a child workflow asynchronously.
+   *
+   * @param resultClass the expected return type of the workflow.
+   * @param resultType the expected return class of the workflow. Differs from resultClass for
+   *     generic types.
+   * @param args arguments of the activity.
+   * @param <R> return type.
+   * @return Promise to the activity result.
+   */
   <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args);
 
+  /**
+   * Synchronously signals a workflow by invoking its signal handler. Usually a signal handler is a
+   * method annotated with {@link io.temporal.workflow.SignalMethod}.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param args signal method arguments.
+   * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
+   */
   void signal(String signalName, Object... args);
 }

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.nexus;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
@@ -31,7 +11,6 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.nexus.Nexus;
-import io.temporal.nexus.WorkflowClientOperationHandlers;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -117,7 +96,7 @@ public class SyncClientOperationTest {
     Map<String, String> execFailedTags =
         ImmutableMap.<String, String>builder()
             .putAll(operationTags)
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
             .buildKeepingLast();
     reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
   }
@@ -158,13 +137,14 @@ public class SyncClientOperationTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       // Implemented inline
-      return WorkflowClientOperationHandlers.sync(
-          (ctx, details, client, id) -> {
+      return OperationHandler.sync(
+          (ctx, details, id) -> {
             if (id.isEmpty()) {
               throw ApplicationFailure.newNonRetryableFailure("Invalid ID", "TestError");
             }
             Nexus.getOperationContext().getMetricsScope().counter("operation").inc(1);
-            return client
+            return Nexus.getOperationContext()
+                .getWorkflowClient()
                 .newWorkflowStub(TestUpdatedWorkflow.class, id)
                 .update("Update from operation");
           });

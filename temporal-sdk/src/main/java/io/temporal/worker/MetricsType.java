@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import io.temporal.common.Experimental;
@@ -140,10 +120,11 @@ public final class MetricsType {
   public static final String WORKER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "worker_start";
   public static final String POLLER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "poller_start";
   // gauge
+  public static final String NUM_POLLERS = TEMPORAL_METRICS_PREFIX + "num_pollers";
+
   public static final String WORKER_TASK_SLOTS_AVAILABLE =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_available";
 
-  @Experimental
   public static final String WORKER_TASK_SLOTS_USED =
       TEMPORAL_METRICS_PREFIX + "worker_task_slots_used";
 
@@ -210,8 +191,12 @@ public final class MetricsType {
   // Resource tuner
   //
   // Tagged with namespace & task_queue
-  public static final String RESOURCE_MEM_USAGE = "resource_slots_mem_usage";
-  public static final String RESOURCE_CPU_USAGE = "resource_slots_cpu_usage";
-  public static final String RESOURCE_MEM_PID = "resource_slots_mem_pid_output";
-  public static final String RESOURCE_CPU_PID = "resource_slots_cpu_pid_output";
+  public static final String RESOURCE_MEM_USAGE =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_mem_usage";
+  public static final String RESOURCE_CPU_USAGE =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_cpu_usage";
+  public static final String RESOURCE_MEM_PID =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_mem_pid_output";
+  public static final String RESOURCE_CPU_PID =
+      TEMPORAL_METRICS_PREFIX + "resource_slots_cpu_pid_output";
 }

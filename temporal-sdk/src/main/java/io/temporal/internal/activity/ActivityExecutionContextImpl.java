@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
@@ -25,10 +5,10 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -47,6 +27,8 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final Lock lock = new ReentrantLock();
+  private final WorkflowClient client;
+  private final Object activity;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private final HeartbeatContext heartbeatContext;
@@ -58,8 +40,9 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
-      WorkflowServiceStubs service,
+      WorkflowClient client,
       String namespace,
+      Object activity,
       ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
@@ -69,13 +52,15 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval) {
+    this.client = client;
+    this.activity = activity;
     this.metricsScope = metricsScope;
     this.info = info;
     this.completionHandle = completionHandle;
     this.manualCompletionClientFactory = manualCompletionClientFactory;
     this.heartbeatContext =
         new HeartbeatContextImpl(
-            service,
+            client.getWorkflowServiceStubs(),
             namespace,
             info,
             dataConverter,
@@ -102,6 +87,17 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
     return heartbeatContext.getHeartbeatDetails(detailsClass, detailsGenericType);
+  }
+
+  @Override
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass) {
+    return getLastHeartbeatDetails(detailsClass, detailsClass);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
+    return heartbeatContext.getLastHeartbeatDetails(detailsClass, detailsGenericType);
   }
 
   @Override
@@ -168,6 +164,21 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
 
   @Override
   public Object getLastHeartbeatValue() {
-    return heartbeatContext.getLastHeartbeatDetails();
+    return heartbeatContext.getLatestHeartbeatDetails();
+  }
+
+  @Override
+  public void cancelOutstandingHeartbeat() {
+    heartbeatContext.cancelOutstandingHeartbeat();
+  }
+
+  @Override
+  public WorkflowClient getWorkflowClient() {
+    return client;
+  }
+
+  @Override
+  public Object getInstance() {
+    return activity;
   }
 }

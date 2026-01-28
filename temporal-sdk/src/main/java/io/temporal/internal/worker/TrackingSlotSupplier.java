@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
@@ -26,8 +6,10 @@ import io.temporal.worker.tuning.*;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wraps a slot supplier and supplements it with additional tracking information that is useful to
@@ -37,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <SI> The slot info type
  */
 public class TrackingSlotSupplier<SI extends SlotInfo> {
+  private static final Logger log = LoggerFactory.getLogger(TrackingSlotSupplier.class);
   private final SlotSupplier<SI> inner;
   private final AtomicInteger issuedSlots = new AtomicInteger();
   private final Map<SlotPermit, SI> usedSlots = new ConcurrentHashMap<>();
@@ -48,14 +31,20 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
     publishSlotsMetric();
   }
 
-  public SlotPermit reserveSlot(SlotReservationData dat) throws InterruptedException {
-    SlotPermit p = inner.reserveSlot(createCtx(dat));
-    issuedSlots.incrementAndGet();
-    return p;
+  public SlotSupplierFuture reserveSlot(SlotReservationData data) {
+    final SlotSupplierFuture future;
+    try {
+      future = inner.reserveSlot(createCtx(data));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    future.thenRun(issuedSlots::incrementAndGet);
+    return future;
   }
 
-  public Optional<SlotPermit> tryReserveSlot(SlotReservationData dat) {
-    Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(dat));
+  public Optional<SlotPermit> tryReserveSlot(SlotReservationData data) {
+    Optional<SlotPermit> p = inner.tryReserveSlot(createCtx(data));
     if (p.isPresent()) {
       issuedSlots.incrementAndGet();
     }

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
@@ -30,6 +10,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
@@ -38,6 +19,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
@@ -100,6 +82,16 @@ final class WorkflowClientRequestFactory {
       options.getLinks().forEach(request::addLinks);
     }
 
+    if (options.getOnConflictOptions() != null) {
+      OnConflictOptions.Builder onConflictOptions =
+          OnConflictOptions.newBuilder()
+              .setAttachRequestId(options.getOnConflictOptions().isAttachRequestId())
+              .setAttachLinks(options.getOnConflictOptions().isAttachLinks())
+              .setAttachCompletionCallbacks(
+                  options.getOnConflictOptions().isAttachCompletionCallbacks());
+      request.setOnConflictOptions(onConflictOptions);
+    }
+
     String taskQueue = options.getTaskQueue();
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
@@ -124,6 +116,14 @@ final class WorkflowClientRequestFactory {
 
     if (userMetadata != null) {
       request.setUserMetadata(userMetadata);
+    }
+
+    if (options.getPriority() != null) {
+      request.setPriority(ProtoConverters.toProto(options.getPriority()));
+    }
+
+    if (options.getVersioningOverride() != null) {
+      request.setVersioningOverride(ProtoConverters.toProto(options.getVersioningOverride()));
     }
 
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {
@@ -204,6 +204,10 @@ final class WorkflowClientRequestFactory {
 
     if (startParameters.hasUserMetadata()) {
       request.setUserMetadata(startParameters.getUserMetadata());
+    }
+
+    if (startParameters.hasVersioningOverride()) {
+      request.setVersioningOverride(startParameters.getVersioningOverride());
     }
 
     return request;

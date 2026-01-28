@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.*;
@@ -68,7 +48,7 @@ public class UpdateProtocolStateMachineTest {
             UpdateProtocolStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           VersionStateMachine.class,
           UpdateProtocolStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
@@ -271,7 +251,8 @@ public class UpdateProtocolStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) -> {
                   message.getCallbacks().accept();
-                  stateMachines.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c);
+                  stateMachines.mutableSideEffect(
+                      "id1", null, (p) -> converter.toPayloads("result1"), c);
                 })
             .add(
                 (r) -> {
@@ -547,7 +528,7 @@ public class UpdateProtocolStateMachineTest {
       assertNotNull(rejection);
       assertEquals(request, rejection.getRejectedRequest());
       // Simulate the server request to reset the workflow event ID
-      stateMachines.resetStartedEvenId(3);
+      stateMachines.resetStartedEventId(3);
       // Create a new history after the reset event ID
       /*
           1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
@@ -693,7 +674,8 @@ public class UpdateProtocolStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) -> {
                   message.getCallbacks().accept();
-                  stateMachines.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c);
+                  stateMachines.mutableSideEffect(
+                      "id1", null, (p) -> converter.toPayloads("result1"), c);
                 })
             .add(
                 (r) -> {
@@ -836,13 +818,13 @@ public class UpdateProtocolStateMachineTest {
             .add(
                 (r) -> {
                   assertEquals(
-                      message.getMessage().getBody().getTypeUrl(),
-                      "type.googleapis.com/temporal.api.update.v1.Request");
+                      "type.googleapis.com/temporal.api.update.v1.Request",
+                      message.getMessage().getBody().getTypeUrl());
                   Request update = null;
                   try {
                     update = message.getMessage().getBody().unpack(Request.class);
                   } catch (InvalidProtocolBufferException e) {
-                    assertTrue(false);
+                    fail();
                   }
                   assertEquals("updateName", update.getInput().getName());
                   message.getCallbacks().accept();
@@ -926,7 +908,7 @@ public class UpdateProtocolStateMachineTest {
             "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
         builder.<Optional<Payloads>>add1(
             (r, c) -> {
-              stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
+              stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), null, c);
             });
       }
 
@@ -941,7 +923,7 @@ public class UpdateProtocolStateMachineTest {
                 (r) -> {
                   message.getCallbacks().complete(converter.toPayloads("update result"), null);
                 });
-        if (message.getMessage().getProtocolInstanceId() == "message_update") {
+        if (message.getMessage().getProtocolInstanceId().equals("message_update")) {
           builder.add((r) -> stateMachines.completeWorkflow(Optional.empty()));
         }
       }

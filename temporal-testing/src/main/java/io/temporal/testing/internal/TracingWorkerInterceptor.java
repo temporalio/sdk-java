@@ -1,30 +1,10 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.testing.internal;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.tally.Scope;
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationContext;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
@@ -154,8 +134,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
   }
 
-  private static class TracingWorkflowOutboundCallsInterceptor
-      implements WorkflowOutboundCallsInterceptor {
+  static class TracingWorkflowOutboundCallsInterceptor implements WorkflowOutboundCallsInterceptor {
 
     private final FilteredTrace trace;
     private final WorkflowOutboundCallsInterceptor next;
@@ -279,6 +258,15 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public <R> R sideEffect(
+        Class<R> resultClass, Type resultType, Functions.Func<R> func, SideEffectOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("sideEffect");
+      }
+      return next.sideEffect(resultClass, resultType, func, options);
+    }
+
+    @Override
     public <R> R mutableSideEffect(
         String id,
         Class<R> resultClass,
@@ -289,6 +277,20 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         trace.add("mutableSideEffect");
       }
       return next.mutableSideEffect(id, resultClass, resultType, updated, func);
+    }
+
+    @Override
+    public <R> R mutableSideEffect(
+        String id,
+        Class<R> resultClass,
+        Type resultType,
+        BiPredicate<R, R> updated,
+        Functions.Func<R> func,
+        MutableSideEffectOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("mutableSideEffect");
+      }
+      return next.mutableSideEffect(id, resultClass, resultType, updated, func, options);
     }
 
     @Override
@@ -495,7 +497,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public StartOperationOutput startOperation(StartOperationInput input)
-        throws OperationUnsuccessfulException {
+        throws OperationException {
       trace.add(
           "startNexusOperation "
               + input.getOperationContext().getService()

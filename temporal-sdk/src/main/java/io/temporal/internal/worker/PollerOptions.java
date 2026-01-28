@@ -1,28 +1,10 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.worker.tuning.PollerBehavior;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,10 +41,11 @@ public final class PollerOptions {
     private Duration backoffCongestionInitialInterval = Duration.ofMillis(1000);
     private Duration backoffMaximumInterval = Duration.ofMinutes(1);
     private double backoffMaximumJitterCoefficient = 0.1;
-    private int pollThreadCount = 1;
+    private PollerBehavior pollerBehavior;
     private String pollThreadNamePrefix;
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
     private boolean usingVirtualThreads;
+    private ExecutorService pollerTaskExecutorOverride;
 
     private Builder() {}
 
@@ -77,10 +60,11 @@ public final class PollerOptions {
       this.backoffCongestionInitialInterval = options.getBackoffCongestionInitialInterval();
       this.backoffMaximumInterval = options.getBackoffMaximumInterval();
       this.backoffMaximumJitterCoefficient = options.getBackoffMaximumJitterCoefficient();
-      this.pollThreadCount = options.getPollThreadCount();
+      this.pollerBehavior = options.getPollerBehavior();
       this.pollThreadNamePrefix = options.getPollThreadNamePrefix();
       this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
+      this.pollerTaskExecutorOverride = options.getPollerTaskExecutorOverride();
     }
 
     /** Defines interval for measuring poll rate. Larger the interval more spiky can be the load. */
@@ -137,9 +121,9 @@ public final class PollerOptions {
       return this;
     }
 
-    /** Number of parallel polling threads. */
-    public Builder setPollThreadCount(int pollThreadCount) {
-      this.pollThreadCount = pollThreadCount;
+    /** Set poller behavior. */
+    public Builder setPollerBehavior(PollerBehavior pollerBehavior) {
+      this.pollerBehavior = pollerBehavior;
       return this;
     }
 
@@ -159,6 +143,12 @@ public final class PollerOptions {
     /** Use virtual threads polling threads. */
     public Builder setUsingVirtualThreads(boolean usingVirtualThreads) {
       this.usingVirtualThreads = usingVirtualThreads;
+      return this;
+    }
+
+    /** Override the task executor ExecutorService */
+    public Builder setPollerTaskExecutorOverride(ExecutorService overrideTaskExecutor) {
+      this.pollerTaskExecutorOverride = overrideTaskExecutor;
       return this;
     }
 
@@ -186,10 +176,11 @@ public final class PollerOptions {
           backoffCongestionInitialInterval,
           backoffMaximumInterval,
           backoffMaximumJitterCoefficient,
-          pollThreadCount,
+          pollerBehavior,
           uncaughtExceptionHandler,
           pollThreadNamePrefix,
-          usingVirtualThreads);
+          usingVirtualThreads,
+          pollerTaskExecutorOverride);
     }
   }
 
@@ -202,10 +193,11 @@ public final class PollerOptions {
   private final Duration backoffInitialInterval;
   private final Duration backoffCongestionInitialInterval;
   private final Duration backoffMaximumInterval;
-  private final int pollThreadCount;
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
   private final String pollThreadNamePrefix;
   private final boolean usingVirtualThreads;
+  private final ExecutorService pollerTaskExecutorOverride;
+  private final PollerBehavior pollerBehavior;
 
   private PollerOptions(
       int maximumPollRateIntervalMilliseconds,
@@ -215,10 +207,11 @@ public final class PollerOptions {
       Duration backoffCongestionInitialInterval,
       Duration backoffMaximumInterval,
       double backoffMaximumJitterCoefficient,
-      int pollThreadCount,
+      PollerBehavior pollerBehavior,
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix,
-      boolean usingVirtualThreads) {
+      boolean usingVirtualThreads,
+      ExecutorService pollerTaskExecutorOverride) {
     this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
     this.maximumPollRatePerSecond = maximumPollRatePerSecond;
     this.backoffCoefficient = backoffCoefficient;
@@ -226,10 +219,11 @@ public final class PollerOptions {
     this.backoffCongestionInitialInterval = backoffCongestionInitialInterval;
     this.backoffMaximumInterval = backoffMaximumInterval;
     this.backoffMaximumJitterCoefficient = backoffMaximumJitterCoefficient;
-    this.pollThreadCount = pollThreadCount;
+    this.pollerBehavior = pollerBehavior;
     this.uncaughtExceptionHandler = uncaughtExceptionHandler;
     this.pollThreadNamePrefix = pollThreadNamePrefix;
     this.usingVirtualThreads = usingVirtualThreads;
+    this.pollerTaskExecutorOverride = pollerTaskExecutorOverride;
   }
 
   public int getMaximumPollRateIntervalMilliseconds() {
@@ -260,8 +254,8 @@ public final class PollerOptions {
     return backoffMaximumJitterCoefficient;
   }
 
-  public int getPollThreadCount() {
-    return pollThreadCount;
+  public PollerBehavior getPollerBehavior() {
+    return pollerBehavior;
   }
 
   public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {
@@ -274,6 +268,10 @@ public final class PollerOptions {
 
   public boolean isUsingVirtualThreads() {
     return usingVirtualThreads;
+  }
+
+  public ExecutorService getPollerTaskExecutorOverride() {
+    return pollerTaskExecutorOverride;
   }
 
   @Override
@@ -293,8 +291,8 @@ public final class PollerOptions {
         + backoffMaximumInterval
         + ", backoffMaximumJitterCoefficient="
         + backoffMaximumJitterCoefficient
-        + ", pollThreadCount="
-        + pollThreadCount
+        + ", pollerBehavior="
+        + pollerBehavior
         + ", pollThreadNamePrefix='"
         + pollThreadNamePrefix
         + ", usingVirtualThreads='"

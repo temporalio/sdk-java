@@ -1,30 +1,10 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.serviceclient;
 
 import static io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions.*;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
@@ -57,7 +37,7 @@ public final class RpcRetryOptions {
 
   public static class DoNotRetryItem {
     private final Status.Code code;
-    private final Class<? extends GeneratedMessageV3> detailsClass;
+    private final Class<? extends Message> detailsClass;
 
     /**
      * @param code errors with this code will be considered non retryable. {@link
@@ -68,7 +48,7 @@ public final class RpcRetryOptions {
      *     retryable.
      */
     public DoNotRetryItem(
-        @Nonnull Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
+        @Nonnull Status.Code code, @Nullable Class<? extends Message> detailsClass) {
       this.code = Preconditions.checkNotNull(code, "code");
       this.detailsClass = detailsClass;
     }
@@ -77,7 +57,7 @@ public final class RpcRetryOptions {
       return code;
     }
 
-    public Class<? extends GeneratedMessageV3> getDetailsClass() {
+    public Class<? extends Message> getDetailsClass() {
       return detailsClass;
     }
   }
@@ -127,7 +107,7 @@ public final class RpcRetryOptions {
      */
     public Builder setInitialInterval(Duration initialInterval) {
       if (isInvalidDuration(initialInterval)) {
-        throw new IllegalArgumentException("invalid interval: " + initialInterval);
+        throw new IllegalArgumentException("invalid initialInterval: " + initialInterval);
       }
       this.initialInterval = initialInterval;
       return this;
@@ -142,7 +122,8 @@ public final class RpcRetryOptions {
      */
     public Builder setCongestionInitialInterval(Duration congestionInitialInterval) {
       if (isInvalidDuration(congestionInitialInterval)) {
-        throw new IllegalArgumentException("invalid interval: " + congestionInitialInterval);
+        throw new IllegalArgumentException(
+            "invalid congestionInitialInterval: " + congestionInitialInterval);
       }
       this.congestionInitialInterval = congestionInitialInterval;
       return this;
@@ -159,7 +140,7 @@ public final class RpcRetryOptions {
      */
     public Builder setExpiration(Duration expiration) {
       if (isInvalidDuration(expiration)) {
-        throw new IllegalArgumentException("invalid interval: " + expiration);
+        throw new IllegalArgumentException("invalid expiration : " + expiration);
       }
       this.expiration = expiration;
       return this;
@@ -175,7 +156,7 @@ public final class RpcRetryOptions {
     public Builder setBackoffCoefficient(double backoffCoefficient) {
       if (isInvalidBackoffCoefficient(backoffCoefficient)) {
         throw new IllegalArgumentException(
-            "coefficient must be >= 1.0 and finite: " + backoffCoefficient);
+            "backoffCoefficient must be >= 1.0 and finite: " + backoffCoefficient);
       }
       this.backoffCoefficient = backoffCoefficient;
       return this;
@@ -209,7 +190,7 @@ public final class RpcRetryOptions {
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
       if (isInvalidDuration(maximumInterval)) {
-        throw new IllegalArgumentException("invalid interval: " + maximumInterval);
+        throw new IllegalArgumentException("invalid maximumInterval: " + maximumInterval);
       }
       this.maximumInterval = maximumInterval;
       return this;
@@ -224,7 +205,7 @@ public final class RpcRetryOptions {
     public Builder setMaximumJitterCoefficient(double maximumJitterCoefficient) {
       if (isInvalidJitterCoefficient(maximumJitterCoefficient)) {
         throw new IllegalArgumentException(
-            "coefficient must be >= 0 and < 1.0: " + maximumJitterCoefficient);
+            "maximumJitterCoefficient must be >= 0 and < 1.0: " + maximumJitterCoefficient);
       }
       this.maximumJitterCoefficient = maximumJitterCoefficient;
       return this;
@@ -252,7 +233,7 @@ public final class RpcRetryOptions {
      *     with the {@code code} code are non retryable.
      */
     public Builder addDoNotRetry(
-        Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
+        Status.Code code, @Nullable Class<? extends Message> detailsClass) {
       doNotRetry.add(new DoNotRetryItem(code, detailsClass));
       return this;
     }
@@ -488,7 +469,7 @@ public final class RpcRetryOptions {
               + initialInterval);
     }
     if (backoffCoefficient != 0d && backoffCoefficient < 1.0) {
-      throw new IllegalArgumentException("coefficient less than 1");
+      throw new IllegalArgumentException("backoffCoefficient less than 1");
     }
     if (!Double.isFinite(maximumJitterCoefficient)
         || maximumJitterCoefficient < 0

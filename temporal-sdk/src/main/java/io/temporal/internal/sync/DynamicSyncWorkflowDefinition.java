@@ -1,26 +1,7 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
@@ -30,11 +11,14 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
+import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   private final Functions.Func1<EncodedValues, ? extends DynamicWorkflow> factory;
+  private RootWorkflowInboundCallsInterceptor rootWorkflowInvoker;
   private final WorkerInterceptor[] workerInterceptors;
   // don't pass it down to other classes, it's a "cached" instance for internal usage only
   private final DataConverter dataConverterWithWorkflowContext;
@@ -52,7 +36,10 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   @Override
   public void initialize(Optional<Payloads> input) {
     SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
-    workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext, input);
+    RootWorkflowInboundCallsInterceptor rootWorkflowInvoker =
+        new RootWorkflowInboundCallsInterceptor(workflowContext, input);
+    this.rootWorkflowInvoker = rootWorkflowInvoker;
+    workflowInvoker = rootWorkflowInvoker;
     for (WorkerInterceptor workerInterceptor : workerInterceptors) {
       workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
     }
@@ -69,6 +56,21 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     return dataConverterWithWorkflowContext.toPayloads(result.getResult());
   }
 
+  @Nullable
+  @Override
+  public Object getInstance() {
+    Objects.requireNonNull(rootWorkflowInvoker, "getInstance called before initialize.");
+    return rootWorkflowInvoker.getInstance();
+  }
+
+  @Override
+  public VersioningBehavior getVersioningBehavior() {
+    if (rootWorkflowInvoker == null || rootWorkflowInvoker.workflow == null) {
+      return VersioningBehavior.UNSPECIFIED;
+    }
+    return rootWorkflowInvoker.workflow.getVersioningBehavior();
+  }
+
   class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {
     private DynamicWorkflow workflow;
     private Optional<Payloads> input;
@@ -77,6 +79,10 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
         SyncWorkflowContext workflowContext, Optional<Payloads> input) {
       super(workflowContext);
       this.input = input;
+    }
+
+    public DynamicWorkflow getInstance() {
+      return workflow;
     }
 
     @Override

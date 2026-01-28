@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.common;
 
 import com.google.gson.Gson;
@@ -55,7 +35,7 @@ public class WorkflowExecutionHistory {
   private final String workflowId;
 
   public WorkflowExecutionHistory(History history) {
-    this(history, DEFAULT_WORKFLOW_ID);
+    this(history, extractWorkflowId(history));
   }
 
   public WorkflowExecutionHistory(History history, String workflowId) {
@@ -64,14 +44,22 @@ public class WorkflowExecutionHistory {
     this.workflowId = workflowId;
   }
 
+  public static String extractWorkflowId(History history) {
+    HistoryEvent startedEvent = history.getEvents(0);
+    String id = startedEvent.getWorkflowExecutionStartedEventAttributes().getWorkflowId();
+    return id.isEmpty() ? DEFAULT_WORKFLOW_ID : id;
+  }
+
   public static WorkflowExecutionHistory fromJson(String serialized) {
-    return new WorkflowExecutionHistory(
-        io.temporal.common.WorkflowExecutionHistory.fromJson(serialized).getHistory());
+    io.temporal.common.WorkflowExecutionHistory parsed =
+        io.temporal.common.WorkflowExecutionHistory.fromJson(serialized);
+    History history = parsed.getHistory();
+    return new WorkflowExecutionHistory(history, extractWorkflowId(history));
   }
 
   private static void checkHistory(History history) {
     List<HistoryEvent> events = history.getEventsList();
-    if (events == null || events.size() == 0) {
+    if (events.size() == 0) {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);

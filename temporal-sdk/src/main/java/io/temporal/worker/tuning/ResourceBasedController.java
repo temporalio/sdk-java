@@ -1,28 +1,7 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker.tuning;
 
 import com.uber.m3.tally.Gauge;
 import com.uber.m3.tally.Scope;
-import io.temporal.common.Experimental;
 import io.temporal.worker.MetricsType;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
@@ -32,7 +11,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * Is used by {@link ResourceBasedSlotSupplier} and {@link ResourceBasedTuner} to make decisions
  * about whether slots should be handed out based on system resource usage.
  */
-@Experimental
 public class ResourceBasedController {
   public final ResourceBasedControllerOptions options;
 
@@ -63,7 +41,7 @@ public class ResourceBasedController {
     this.systemInfoSupplier = systemInfoSupplier;
     this.memoryController =
         new PIDController(
-            options.getTargetCPUUsage(),
+            options.getTargetMemoryUsage(),
             options.getMemoryPGain(),
             options.getMemoryIGain(),
             options.getMemoryDGain());
@@ -90,8 +68,8 @@ public class ResourceBasedController {
 
       Metrics metrics = this.metrics.get();
       if (metrics != null) {
-        metrics.memUsage.update(memoryUsage);
-        metrics.cpuUsage.update(cpuUsage);
+        metrics.memUsage.update(memoryUsage * 100);
+        metrics.cpuUsage.update(cpuUsage * 100);
         metrics.memPidOut.update(memoryOutput);
         metrics.cpuPidOut.update(cpuOutput);
       }

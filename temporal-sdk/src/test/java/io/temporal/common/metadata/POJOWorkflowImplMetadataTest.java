@@ -1,30 +1,12 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.common.metadata;
 
 import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableSet;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.converter.EncodedValuesTest;
 import io.temporal.workflow.WorkflowInit;
+import io.temporal.workflow.WorkflowVersioningBehavior;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -112,8 +94,8 @@ public class POJOWorkflowImplMetadataTest {
         metadata ->
             assertNotEquals(
                 "O is not a workflow interface and shouldn't be returned",
-                metadata.getInterfaceClass(),
-                POJOWorkflowInterfaceMetadataTest.O.class));
+                POJOWorkflowInterfaceMetadataTest.O.class,
+                metadata.getInterfaceClass()));
   }
 
   @Test
@@ -266,6 +248,29 @@ public class POJOWorkflowImplMetadataTest {
         POJOWorkflowImplMetadata.newInstanceForWorkflowFactory(
             WorkflowWithConstructorParameters.class);
     Assert.assertEquals(1, meta.getWorkflowMethods().size());
+  }
+
+  @Test
+  public void testWorkflowWithMultipleWfMethodsAndVersioningBehavior() {
+    POJOWorkflowImplMetadata meta =
+        POJOWorkflowImplMetadata.newInstance(
+            WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors.class);
+    Assert.assertEquals(2, meta.getWorkflowMethods().size());
+
+    List<POJOWorkflowMethodMetadata> methods = meta.getWorkflowMethods();
+    for (POJOWorkflowMethodMetadata method : methods) {
+      if (method.getName().equals("I")) {
+        Assert.assertEquals(
+            VersioningBehavior.AUTO_UPGRADE,
+            POJOWorkflowImplMetadata.getVersioningBehaviorForMethod(
+                WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors.class, method));
+      } else {
+        Assert.assertEquals(
+            VersioningBehavior.PINNED,
+            POJOWorkflowImplMetadata.getVersioningBehaviorForMethod(
+                WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors.class, method));
+      }
+    }
   }
 
   public static class GImpl implements POJOWorkflowInterfaceMetadataTest.G {
@@ -441,5 +446,16 @@ public class POJOWorkflowImplMetadataTest {
 
     @Override
     public void f(Map<String, EncodedValuesTest.Pair> input) {}
+  }
+
+  public static class WorkflowWithMultipleWorkflowMethodsAndVersionBehaviors
+      implements POJOWorkflowInterfaceMetadataTest.F, POJOWorkflowInterfaceMetadataTest.I {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public void f() {}
+
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
+    public void i() {}
   }
 }

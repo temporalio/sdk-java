@@ -15,7 +15,7 @@ Temporal:
 
 - [Temporal docs](https://docs.temporal.io/)
 - [Install Temporal Server](https://docs.temporal.io/docs/server/quick-install)
-- [Temporal CLI](https://docs.temporal.io/docs/devtools/tctl/)
+- [Temporal CLI](https://docs.temporal.io/cli/)
 
 ## Supported Java runtimes
 
@@ -38,15 +38,19 @@ or to *build.gradle*:
 
     compile group: 'io.temporal', name: 'temporal-sdk', version: 'N.N.N'
 
+## Protobuf 3.x vs 4.x
+
+The Temporal Java SDK currently supports `protobuf-java` 3.x and 4.x. To support these, the Temporal Java SDK allows any protobuf library >= 3.25.
+Temporal strongly recommends using the latest `protobuf-java` 4.x library unless you absolutely cannot. 
+If you cannot use protobuf-java 3.25 >=, you can try `temporal-shaded` which includes a shaded version of the `protobuf-java` library.
+
 ## Contributing
 
 We'd love your help in improving the Temporal Java SDK. Please review our [contribution guidelines](CONTRIBUTING.md).
 
 ## Snapshot release
 
-We also publish snapshot releases during SDK development often under the version `1.x.0-SNAPSHOT`. This allows users to test out new SDK features before an official SDK release.
-
-[Snapshot releases](https://oss.sonatype.org/content/repositories/snapshots/io/temporal/temporal-sdk/) Find the latest snapsphot release.
+We also publish snapshot releases during SDK development often under the version `1.x.0-SNAPSHOT` where `x` is the next minor release. This allows users to test out new SDK features before an official SDK release.
 
 To add Sonatype snapshot repository to your *pom.xml*:
 
@@ -54,7 +58,7 @@ To add Sonatype snapshot repository to your *pom.xml*:
         <repository>
             <id>oss-sonatype</id>
             <name>oss-sonatype</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
@@ -65,7 +69,7 @@ Or to *build.gradle*:
 
     repositories {
         maven {
-            url "https://oss.sonatype.org/content/repositories/snapshots/"
+            url "https://central.sonatype.com/repository/maven-snapshots/"
         }
       ...
     }
@@ -75,7 +79,7 @@ does not apply
 
 ## License
 
-Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
+Copyright (C) 2025 Temporal Technologies, Inc. All Rights Reserved.
 
 Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 

@@ -1,34 +1,12 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker.tuning;
 
 import com.sun.management.OperatingSystemMXBean;
-import io.temporal.common.Experimental;
 import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** {@link SystemResourceInfo} implementation that uses JVM-specific APIs to get resource usage. */
-@Experimental
 public class JVMSystemResourceInfo implements SystemResourceInfo {
   // As of relatively recent Java versions (including backports), this class will properly deal with
   // containerized environments as well as running on bare metal.

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
@@ -51,9 +31,8 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerMetricsTag;
+import io.temporal.worker.*;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.TestActivity3;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
@@ -91,6 +70,12 @@ public class MetricsTest {
           .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
           .build();
 
+  private static final Map<String, String> TAGS_STICKY_TASK_QUEUE =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(MetricsTag.defaultTags(NAMESPACE))
+          .put(MetricsTag.TASK_QUEUE, TASK_QUEUE + ":sticky")
+          .build();
+
   private static final Map<String, String> TAGS_LOCAL_ACTIVITY_WORKER =
       new ImmutableMap.Builder<String, String>()
           .putAll(TAGS_TASK_QUEUE)
@@ -107,6 +92,32 @@ public class MetricsTest {
       new ImmutableMap.Builder<String, String>()
           .putAll(TAGS_TASK_QUEUE)
           .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.WORKFLOW_WORKER.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_STICKY_WORKFLOW_WORKER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_STICKY_TASK_QUEUE)
+          .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.WORKFLOW_WORKER.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_WORKFLOW_NORMAL_POLLER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_WORKFLOW_WORKER)
+          .put(MetricsTag.POLLER_TYPE, PollerTypeMetricsTag.PollerType.WORKFLOW_TASK.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_WORKFLOW_STICKY_POLLER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_WORKFLOW_WORKER)
+          .put(
+              MetricsTag.POLLER_TYPE,
+              PollerTypeMetricsTag.PollerType.WORKFLOW_STICKY_TASK.getValue())
+          .build();
+
+  private static final Map<String, String> TAGS_ACTIVITY_POLLER =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_ACTIVITY_WORKER)
+          .put(MetricsTag.POLLER_TYPE, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK.getValue())
           .build();
 
   @Rule
@@ -168,9 +179,64 @@ public class MetricsTest {
     reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
     reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
     reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
+    reporter.assertCounter(
+        "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
+    reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
+    // We ran some workflow and activity tasks, so we should have some timers here.
+    reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
+    reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
+    reporter.assertTimer(
+        "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
 
     reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 2);
+    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 3);
     reporter.assertCounter("temporal_poller_start", TAGS_ACTIVITY_WORKER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
+  }
+
+  @Test
+  public void testWorkerMetricsAutoPoller() throws InterruptedException {
+    setUp(WorkerFactoryOptions.getDefaultInstance());
+
+    WorkerOptions workerOptions =
+        WorkerOptions.newBuilder()
+            .setWorkflowTaskPollersBehavior(new PollerBehaviorAutoscaling(5, 5, 5))
+            .setActivityTaskPollersBehavior(new PollerBehaviorAutoscaling(5, 5, 5))
+            .build();
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE, workerOptions);
+    worker.registerWorkflowImplementationTypes(
+        TestCustomMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
+    worker.registerActivitiesImplementations(new TestActivityImpl());
+    testEnvironment.start();
+
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+            .setTaskQueue(TASK_QUEUE)
+            .build();
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
+    workflow.execute();
+
+    Thread.sleep(REPORTING_FLUSH_TIME);
+
+    reporter.assertCounter("temporal_worker_start", TAGS_WORKFLOW_WORKER, 1);
+    reporter.assertCounter("temporal_worker_start", TAGS_ACTIVITY_WORKER, 1);
+    reporter.assertCounter("temporal_worker_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
+    reporter.assertCounter(
+        "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
+    reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
+    // We ran some workflow and activity tasks, so we should have some timers here.
+    reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
+    reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
+    reporter.assertTimer(
+        "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
+
+    // reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 5);
+    reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
   }
 
   @Test

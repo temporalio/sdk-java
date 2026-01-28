@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
@@ -31,24 +11,31 @@ import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class WorkflowTaskDispatchHandle implements Closeable {
   private final AtomicBoolean completed = new AtomicBoolean();
   private final Function<WorkflowTask, Boolean> dispatchCallback;
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
   private final SlotPermit permit;
+  private final WorkerDeploymentOptions deploymentOptions;
 
   /**
    * @param dispatchCallback callback into a {@code WorkflowWorker} to dispatch a workflow task.
    * @param slotSupplier slot supplier that was used to reserve a slot for this workflow task
+   * @param permit the slot permit reserved for this workflow task
+   * @param deploymentOptions deployment options of the worker that reserved the slot, or null if
+   *     not configured
    */
   public WorkflowTaskDispatchHandle(
       DispatchCallback dispatchCallback,
       TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
-      SlotPermit permit) {
+      SlotPermit permit,
+      @Nullable WorkerDeploymentOptions deploymentOptions) {
     this.dispatchCallback = dispatchCallback;
     this.slotSupplier = slotSupplier;
     this.permit = permit;
+    this.deploymentOptions = deploymentOptions;
   }
 
   /**
@@ -65,6 +52,14 @@ public class WorkflowTaskDispatchHandle implements Closeable {
     } else {
       return false;
     }
+  }
+
+  /**
+   * @return deployment options of the worker that reserved the slot, or null if not configured
+   */
+  @Nullable
+  public WorkerDeploymentOptions getDeploymentOptions() {
+    return deploymentOptions;
   }
 
   @Override

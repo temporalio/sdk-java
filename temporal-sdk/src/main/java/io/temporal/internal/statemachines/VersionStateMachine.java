@@ -1,31 +1,14 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.statemachines;
 
+import static io.temporal.internal.statemachines.StateMachineCommandUtils.createFakeMarkerCommand;
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -45,6 +28,16 @@ final class VersionStateMachine {
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
   @Nullable private Integer version;
+
+  /** This flag is used to determine if the search attribute for the version change was written. */
+  @Nullable private Boolean writeVersionChangeSA = false;
+
+  /**
+   * This flag is used to determine if the search attribute for the version change has been written
+   * by this state machine. This is used to prevent writing the search attribute multiple times if
+   * getVersion is called repeatedly.
+   */
+  private boolean hasWrittenVersionChangeSA = false;
 
   /**
    * This variable is used for replay only. When we replay, we look one workflow task ahead and
@@ -140,14 +133,18 @@ final class VersionStateMachine {
 
     private final int minSupported;
     private final int maxSupported;
-
+    private final Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback;
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
     InvocationStateMachine(
-        int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
+        int minSupported,
+        int maxSupported,
+        Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
+        Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
+      this.upsertSearchAttributeCallback = upsertSearchAttributeCallback;
       this.resultCallback = Objects.requireNonNull(callback);
     }
 
@@ -200,7 +197,7 @@ final class VersionStateMachine {
     }
 
     void createFakeCommand() {
-      addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
+      addCommand(createFakeMarkerCommand(VersionMarkerUtils.MARKER_NAME));
     }
 
     private void validateVersionAndThrow(boolean preloaded) {
@@ -239,9 +236,16 @@ final class VersionStateMachine {
         return State.SKIPPED;
       } else {
         version = maxSupported;
+        SearchAttributes sa = upsertSearchAttributeCallback.apply(version);
+        writeVersionChangeSA = sa != null;
         RecordMarkerCommandAttributes markerAttributes =
-            VersionMarkerUtils.createMarkerAttributes(changeId, version);
-        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
+            VersionMarkerUtils.createMarkerAttributes(changeId, version, writeVersionChangeSA);
+        Command markerCommand = StateMachineCommandUtils.createRecordMarker(markerAttributes, null);
+        addCommand(markerCommand);
+        if (writeVersionChangeSA) {
+          hasWrittenVersionChangeSA = true;
+          UpsertSearchAttributesStateMachine.newInstance(sa, commandSink, stateMachineSink);
+        }
         return State.MARKER_COMMAND_CREATED;
       }
     }
@@ -274,6 +278,13 @@ final class VersionStateMachine {
     State createMarkerReplaying() {
       createFakeCommand();
       if (preloadedVersion != null) {
+        if (writeVersionChangeSA && !hasWrittenVersionChangeSA) {
+          hasWrittenVersionChangeSA = true;
+          if (writeVersionChangeSA) {
+            UpsertSearchAttributesStateMachine.newInstance(
+                SearchAttributes.newBuilder().build(), commandSink, stateMachineSink);
+          }
+        }
         return State.MARKER_COMMAND_CREATED_REPLAYING;
       } else {
         return State.SKIPPED_REPLAYING;
@@ -330,7 +341,7 @@ final class VersionStateMachine {
     version = getVersionFromEvent(event);
   }
 
-  private void preloadVersionFromEvent(HistoryEvent event) {
+  private Integer preloadVersionFromEvent(HistoryEvent event) {
     if (version != null) {
       throw new NonDeterministicException(
           "Version is already set to " + version + ". " + RETROACTIVE_ADDITION_ERROR_STRING);
@@ -343,6 +354,7 @@ final class VersionStateMachine {
         preloadedVersion);
 
     preloadedVersion = getVersionFromEvent(event);
+    return preloadedVersion;
   }
 
   void flushPreloadedVersionAndUpdateFromEvent(HistoryEvent event) {
@@ -378,9 +390,14 @@ final class VersionStateMachine {
    * @param callback used to return version
    * @return True if the identifier is not present in history
    */
-  public boolean getVersion(
-      int minSupported, int maxSupported, Functions.Proc2<Integer, RuntimeException> callback) {
-    InvocationStateMachine ism = new InvocationStateMachine(minSupported, maxSupported, callback);
+  public Integer getVersion(
+      int minSupported,
+      int maxSupported,
+      Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
+      Functions.Proc2<Integer, RuntimeException> callback) {
+    InvocationStateMachine ism =
+        new InvocationStateMachine(
+            minSupported, maxSupported, upsertSearchAttributeCallback, callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
     //  If the state is SKIPPED_REPLAYING that means we:
@@ -389,15 +406,19 @@ final class VersionStateMachine {
     // This means either this version marker did not exist in the original execution or
     // the version marker did exist, but was in an earlier WFT. If the version marker was in a
     // previous WFT then the version field should have a value.
-    return !(ism.getState() == VersionStateMachine.State.SKIPPED_REPLAYING && version == null);
+    return version == null ? preloadedVersion : version;
+  }
+
+  public boolean isWriteVersionChangeSA() {
+    return writeVersionChangeSA;
   }
 
   public void handleNonMatchingEvent(HistoryEvent event) {
     flushPreloadedVersionAndUpdateFromEvent(event);
   }
 
-  public void handleMarkersPreload(HistoryEvent event) {
-    preloadVersionFromEvent(event);
+  public Integer handleMarkersPreload(HistoryEvent event) {
+    return preloadVersionFromEvent(event);
   }
 
   private int getVersionFromEvent(HistoryEvent event) {
@@ -417,6 +438,13 @@ final class VersionStateMachine {
     Integer version = VersionMarkerUtils.getVersion(event.getMarkerRecordedEventAttributes());
     Preconditions.checkArgument(version != null, "Marker details missing required version key");
 
+    writeVersionChangeSA =
+        VersionMarkerUtils.getUpsertVersionSA(event.getMarkerRecordedEventAttributes());
+    // Old SDKs didn't write the version change search attribute. So, if it is not present then
+    // default to false.
+    if (writeVersionChangeSA == null) {
+      writeVersionChangeSA = false;
+    }
     return version;
   }
 }

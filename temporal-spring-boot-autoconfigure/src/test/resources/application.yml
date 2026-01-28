@@ -20,9 +20,6 @@
 
 spring.temporal:
   connection:
-    mtls:
-      key-file: /path/to/key.key
-      cert-chain-file: /path/to/cert.pem
     target: local
   test-server:
     enabled: true
@@ -66,6 +63,36 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-with-profile
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.byworkername
+
+---
+spring:
+  config:
+    activate:
+      on-profile: auto-discovery-and-explicit-with-duplicate
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        workflow-classes:
+          - io.temporal.spring.boot.autoconfigure.byworkername.TestWorkflowImpl
+        activity-beans:
+          - TestActivityImpl
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.byworkername
+
+---
+spring:
+  config:
+    activate:
       on-profile: explicit-config
   temporal:
     workers:
@@ -88,9 +115,14 @@ spring:
           max-concurrent-nexus-task-executors: 1
           max-concurrent-activity-executors: 1
           max-concurrent-local-activity-executors: 1
-          max-concurrent-workflow-task-pollers: 1
-          max-concurrent-activity-task-pollers: 1
           max-concurrent-nexus-task-pollers: 1
+          workflow-task-pollers-configuration:
+            poller-behavior-autoscaling:
+              min-concurrent-task-pollers: 1
+              max-concurrent-task-pollers: 10
+          activity-task-pollers-configuration:
+            poller-behavior-autoscaling:
+              enabled: true
         rate-limits:
           max-worker-activities-per-second: 1.0
           max-task-queue-activities-per-second: 1.0
@@ -126,3 +158,92 @@ spring:
       target: 127.0.0.1:7233
     test-server:
       enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: api-key-auth
+  temporal:
+    connection:
+      apiKey: my-api-key
+      target: 127.0.0.1:7233
+    test-server:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning
+  temporal:
+    namespace: UnitTest
+    connection:
+      target: 127.0.0.1:7233
+    test-server:
+      enabled: false
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          default-versioning-behavior: PINNED
+          deployment-name: "dname"
+          build-id: "bid"
+          use-versioning: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning-missing-annotation
+  temporal:
+    namespace: UnitTest
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          # missing default is the key thing here
+          deployment-version: "dname.bid"
+          use-versioning: true
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning-need-both-deployname-buildid
+  temporal:
+    namespace: UnitTest
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          use-versioning: true
+          default-versioning-behavior: PINNED
+          deployment-name: "dname"
+---
+spring:
+  config:
+    activate:
+      on-profile: worker-versioning-cant-use-old-version-and-new
+  temporal:
+    namespace: UnitTest
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.workerversioning
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+        deployment-properties:
+          use-versioning: true
+          default-versioning-behavior: PINNED
+          deployment-name: "dname"
+          build-id: "bid"
+          deployment-version: "dname.bid"

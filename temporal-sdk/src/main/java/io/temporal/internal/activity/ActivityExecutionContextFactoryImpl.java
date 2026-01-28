@@ -1,35 +1,15 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class ActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
-  private final WorkflowServiceStubs service;
+  private final WorkflowClient client;
   private final String identity;
   private final String namespace;
   private final Duration maxHeartbeatThrottleInterval;
@@ -39,14 +19,14 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
 
   public ActivityExecutionContextFactoryImpl(
-      WorkflowServiceStubs service,
+      WorkflowClient client,
       String identity,
       String namespace,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
-    this.service = Objects.requireNonNull(service);
+    this.client = Objects.requireNonNull(client);
     this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);
     this.maxHeartbeatThrottleInterval = Objects.requireNonNull(maxHeartbeatThrottleInterval);
@@ -56,15 +36,16 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
     this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
     this.manualCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            service, namespace, identity, dataConverter);
+            client.getWorkflowServiceStubs(), namespace, identity, dataConverter);
   }
 
   @Override
   public InternalActivityExecutionContext createContext(
-      ActivityInfoInternal info, Scope metricsScope) {
+      ActivityInfoInternal info, Object activity, Scope metricsScope) {
     return new ActivityExecutionContextImpl(
-        service,
+        client,
         namespace,
+        activity,
         info,
         dataConverter,
         heartbeatExecutor,

@@ -1,43 +1,25 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.worker.tuning.LocalActivitySlotInfo;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.Functions.Func1;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
@@ -75,7 +57,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private boolean runningLocalActivityWorker;
 
   public SyncWorkflowWorker(
-      @Nonnull WorkflowServiceStubs service,
+      @Nonnull WorkflowClient client,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull SingleWorkerOptions singleWorkerOptions,
@@ -101,7 +83,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             namespace);
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
-        new LocalActivityExecutionContextFactoryImpl();
+        new LocalActivityExecutionContextFactoryImpl(client);
     laTaskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
@@ -126,12 +108,12 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             stickyTaskQueue,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
-            service,
+            client.getWorkflowServiceStubs(),
             laWorker.getLocalActivityScheduler());
 
     workflowWorker =
         new WorkflowWorker(
-            service,
+            client.getWorkflowServiceStubs(),
             namespace,
             taskQueue,
             stickyTaskQueueName,
@@ -152,7 +134,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             null,
             Duration.ZERO,
-            service,
+            client.getWorkflowServiceStubs(),
             laWorker.getLocalActivityScheduler());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);
@@ -165,6 +147,11 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   public <R> void registerWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Func<R> factory) {
+    this.factory.addWorkflowImplementationFactory(options, clazz, unused -> factory.apply());
+  }
+
+  public <R> void registerWorkflowImplementationFactory(
+      WorkflowImplementationOptions options, Class<R> clazz, Func1<EncodedValues, R> factory) {
     this.factory.addWorkflowImplementationFactory(options, clazz, factory);
   }
 

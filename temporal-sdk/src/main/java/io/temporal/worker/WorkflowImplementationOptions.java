@@ -1,28 +1,10 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.common.Experimental;
 import io.temporal.workflow.NexusServiceOptions;
+import io.temporal.workflow.Workflow;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -60,6 +42,7 @@ public final class WorkflowImplementationOptions {
     private LocalActivityOptions defaultLocalActivityOptions;
     private Map<String, NexusServiceOptions> nexusServiceOptions;
     private NexusServiceOptions defaultNexusServiceOptions;
+    private boolean enableUpsertVersionSearchAttributes;
 
     private Builder() {}
 
@@ -74,6 +57,7 @@ public final class WorkflowImplementationOptions {
       this.defaultLocalActivityOptions = options.getDefaultLocalActivityOptions();
       this.nexusServiceOptions = options.getNexusServiceOptions();
       this.defaultNexusServiceOptions = options.getDefaultNexusServiceOptions();
+      this.enableUpsertVersionSearchAttributes = options.isEnableUpsertVersionSearchAttributes();
     }
 
     /**
@@ -174,6 +158,26 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
+    /**
+     * Enable upserting version search attributes on {@link Workflow#getVersion}. This will cause
+     * the SDK to automatically add the <b>TemporalChangeVersion</b> search attributes to the
+     * workflow when getVersion is called. This search attribute is a keyword list of all the
+     * getVersion calls made in the workflow. The format of each entry is "<Change ID>-<Version>".
+     * This allows for easy discovery of what versions are being used in your namespace.
+     *
+     * <p>Note: This change is backwards compatible, so it is safe to enable or disable this options
+     * with running workflows. However, if this options is enabled, it is not safe to rollback to a
+     * previous version of the SDK that does not support this option.
+     *
+     * <p>The default value is false. This may change in future releases.
+     */
+    @Experimental
+    public Builder setEnableUpsertVersionSearchAttributes(
+        boolean enableUpsertVersionSearchAttributes) {
+      this.enableUpsertVersionSearchAttributes = enableUpsertVersionSearchAttributes;
+      return this;
+    }
+
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
           failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
@@ -182,7 +186,8 @@ public final class WorkflowImplementationOptions {
           localActivityOptions == null ? null : localActivityOptions,
           defaultLocalActivityOptions,
           nexusServiceOptions == null ? null : nexusServiceOptions,
-          defaultNexusServiceOptions);
+          defaultNexusServiceOptions,
+          enableUpsertVersionSearchAttributes);
     }
   }
 
@@ -193,6 +198,7 @@ public final class WorkflowImplementationOptions {
   private final LocalActivityOptions defaultLocalActivityOptions;
   private final @Nullable Map<String, NexusServiceOptions> nexusServiceOptions;
   private final NexusServiceOptions defaultNexusServiceOptions;
+  private final boolean enableUpsertVersionSearchAttributes;
 
   public WorkflowImplementationOptions(
       Class<? extends Throwable>[] failWorkflowExceptionTypes,
@@ -201,7 +207,8 @@ public final class WorkflowImplementationOptions {
       @Nullable Map<String, LocalActivityOptions> localActivityOptions,
       LocalActivityOptions defaultLocalActivityOptions,
       @Nullable Map<String, NexusServiceOptions> nexusServiceOptions,
-      NexusServiceOptions defaultNexusServiceOptions) {
+      NexusServiceOptions defaultNexusServiceOptions,
+      boolean enableUpsertVersionSearchAttributes) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
     this.defaultActivityOptions = defaultActivityOptions;
@@ -209,6 +216,7 @@ public final class WorkflowImplementationOptions {
     this.defaultLocalActivityOptions = defaultLocalActivityOptions;
     this.nexusServiceOptions = nexusServiceOptions;
     this.defaultNexusServiceOptions = defaultNexusServiceOptions;
+    this.enableUpsertVersionSearchAttributes = enableUpsertVersionSearchAttributes;
   }
 
   public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
@@ -245,6 +253,11 @@ public final class WorkflowImplementationOptions {
     return defaultNexusServiceOptions;
   }
 
+  @Experimental
+  public boolean isEnableUpsertVersionSearchAttributes() {
+    return enableUpsertVersionSearchAttributes;
+  }
+
   @Override
   public String toString() {
     return "WorkflowImplementationOptions{"
@@ -262,6 +275,8 @@ public final class WorkflowImplementationOptions {
         + nexusServiceOptions
         + ", defaultNexusServiceOptions="
         + defaultNexusServiceOptions
+        + ", enableUpsertVersionSearchAttributes="
+        + enableUpsertVersionSearchAttributes
         + '}';
   }
 
@@ -276,7 +291,9 @@ public final class WorkflowImplementationOptions {
         && Objects.equals(localActivityOptions, that.localActivityOptions)
         && Objects.equals(defaultLocalActivityOptions, that.defaultLocalActivityOptions)
         && Objects.equals(nexusServiceOptions, that.nexusServiceOptions)
-        && Objects.equals(defaultNexusServiceOptions, that.defaultNexusServiceOptions);
+        && Objects.equals(defaultNexusServiceOptions, that.defaultNexusServiceOptions)
+        && Objects.equals(
+            enableUpsertVersionSearchAttributes, that.enableUpsertVersionSearchAttributes);
   }
 
   @Override
@@ -288,7 +305,8 @@ public final class WorkflowImplementationOptions {
             localActivityOptions,
             defaultLocalActivityOptions,
             nexusServiceOptions,
-            defaultNexusServiceOptions);
+            defaultNexusServiceOptions,
+            enableUpsertVersionSearchAttributes);
     result = 31 * result + Arrays.hashCode(failWorkflowExceptionTypes);
     return result;
   }

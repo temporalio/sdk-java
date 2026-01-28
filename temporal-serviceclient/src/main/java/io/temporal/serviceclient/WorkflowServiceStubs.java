@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.serviceclient;
 
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
@@ -26,6 +6,7 @@ import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import java.time.Duration;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /** Initializes and holds gRPC blocking and future stubs. */
@@ -52,6 +33,17 @@ public interface WorkflowServiceStubs
    * WorkflowServiceStubs#connect(Duration)} after creation or use {@link
    * #newConnectedServiceStubs(WorkflowServiceStubsOptions, Duration)} instead of this method.
    *
+   * <p>If the options contain plugins (via {@link
+   * WorkflowServiceStubsOptions.Builder#setPlugins(WorkflowServiceStubsPlugin...)}), this method
+   * applies them in two phases:
+   *
+   * <ol>
+   *   <li><b>Configuration phase:</b> Each plugin's {@code configureServiceStubs} method is called
+   *       in forward (registration) order to modify the options builder
+   *   <li><b>Connection phase:</b> Each plugin's {@code connectServiceClient} method is called in
+   *       reverse order to wrap the connection (first plugin wraps all others)
+   * </ol>
+   *
    * <p>Migration Note: This method doesn't respect {@link
    * WorkflowServiceStubsOptions.Builder#setDisableHealthCheck(boolean)}, {@link
    * WorkflowServiceStubsOptions.Builder#setHealthCheckAttemptTimeout(Duration)} (boolean)} and
@@ -63,8 +55,34 @@ public interface WorkflowServiceStubs
    */
   static WorkflowServiceStubs newServiceStubs(WorkflowServiceStubsOptions options) {
     enforceNonWorkflowThread();
-    return WorkflowThreadMarker.protectFromWorkflowThread(
-        new WorkflowServiceStubsImpl(null, options), WorkflowServiceStubs.class);
+
+    WorkflowServiceStubsPlugin[] plugins = options.getPlugins();
+    if (plugins == null || plugins.length == 0) {
+      // No plugins - create stubs directly
+      return WorkflowThreadMarker.protectFromWorkflowThread(
+          new WorkflowServiceStubsImpl(null, options), WorkflowServiceStubs.class);
+    }
+
+    // Apply plugin configuration phase (forward order)
+    WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder(options);
+    for (WorkflowServiceStubsPlugin plugin : plugins) {
+      plugin.configureServiceStubs(builder);
+    }
+    WorkflowServiceStubsOptions finalOptions = builder.validateAndBuildWithDefaults();
+
+    // Build connection chain (reverse order for proper nesting)
+    Supplier<WorkflowServiceStubs> connectionChain =
+        () ->
+            WorkflowThreadMarker.protectFromWorkflowThread(
+                new WorkflowServiceStubsImpl(null, finalOptions), WorkflowServiceStubs.class);
+
+    for (int i = plugins.length - 1; i >= 0; i--) {
+      final Supplier<WorkflowServiceStubs> next = connectionChain;
+      final WorkflowServiceStubsPlugin plugin = plugins[i];
+      connectionChain = () -> plugin.connectServiceClient(finalOptions, next);
+    }
+
+    return connectionChain.get();
   }
 
   /**

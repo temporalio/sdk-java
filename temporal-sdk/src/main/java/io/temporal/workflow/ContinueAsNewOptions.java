@@ -1,28 +1,6 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
-import io.temporal.common.RetryOptions;
-import io.temporal.common.SearchAttributes;
-import io.temporal.common.VersioningIntent;
+import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
 import java.util.List;
@@ -30,7 +8,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * This class contain overrides for continueAsNew call. Every field can be null and it means that
+ * This class contain overrides for continueAsNew call. Every field can be null, and it means that
  * the value of the option should be taken from the originating workflow run.
  */
 public final class ContinueAsNewOptions {
@@ -63,6 +41,8 @@ public final class ContinueAsNewOptions {
     private Map<String, Object> searchAttributes;
     private SearchAttributes typedSearchAttributes;
     private List<ContextPropagator> contextPropagators;
+
+    @SuppressWarnings("deprecation")
     private VersioningIntent versioningIntent;
 
     private Builder() {}
@@ -141,7 +121,11 @@ public final class ContinueAsNewOptions {
     /**
      * Specifies whether this continued workflow should run on a worker with a compatible Build Id
      * or not. See the variants of {@link VersioningIntent}.
+     *
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
+    @Deprecated
     public Builder setVersioningIntent(VersioningIntent versioningIntent) {
       this.versioningIntent = versioningIntent;
       return this;
@@ -169,6 +153,8 @@ public final class ContinueAsNewOptions {
   private final @Nullable Map<String, Object> searchAttributes;
   private final @Nullable SearchAttributes typedSearchAttributes;
   private final @Nullable List<ContextPropagator> contextPropagators;
+
+  @SuppressWarnings("deprecation")
   private final @Nullable VersioningIntent versioningIntent;
 
   public ContinueAsNewOptions(
@@ -180,7 +166,7 @@ public final class ContinueAsNewOptions {
       @Nullable Map<String, Object> searchAttributes,
       @Nullable SearchAttributes typedSearchAttributes,
       @Nullable List<ContextPropagator> contextPropagators,
-      @Nullable VersioningIntent versioningIntent) {
+      @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
@@ -229,6 +215,11 @@ public final class ContinueAsNewOptions {
     return contextPropagators;
   }
 
+  /**
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
+   */
+  @Deprecated
   public @Nullable VersioningIntent getVersioningIntent() {
     return versioningIntent;
   }

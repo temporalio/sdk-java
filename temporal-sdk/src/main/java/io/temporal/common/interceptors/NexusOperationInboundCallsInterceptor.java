@@ -1,26 +1,6 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.common.interceptors;
 
-import io.nexusrpc.OperationUnsuccessfulException;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.common.Experimental;
 
@@ -28,7 +8,8 @@ import io.temporal.common.Experimental;
  * Intercepts inbound calls to a Nexus operation on the worker side.
  *
  * <p>An instance should be created in {@link
- * WorkerInterceptor#interceptNexusOperation(NexusOperationInboundCallsInterceptor)}.
+ * WorkerInterceptor#interceptNexusOperation(OperationContext,
+ * NexusOperationInboundCallsInterceptor)}.
  *
  * <p>Prefer extending {@link NexusOperationInboundCallsInterceptorBase} and overriding only the
  * methods you need instead of implementing this interface directly. {@link
@@ -102,10 +83,9 @@ public interface NexusOperationInboundCallsInterceptor {
    *
    * @param input input to the operation start.
    * @return result of the operation start.
-   * @throws OperationUnsuccessfulException if the operation start failed.
+   * @throws io.nexusrpc.OperationException if the operation start failed.
    */
-  StartOperationOutput startOperation(StartOperationInput input)
-      throws OperationUnsuccessfulException;
+  StartOperationOutput startOperation(StartOperationInput input) throws OperationException;
 
   /**
    * Intercepts a call to cancel a Nexus operation.

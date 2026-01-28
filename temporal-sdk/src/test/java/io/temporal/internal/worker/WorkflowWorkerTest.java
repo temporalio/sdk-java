@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -45,6 +25,7 @@ import io.temporal.testUtils.Eventually;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.tuning.FixedSizeSlotSupplier;
+import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
@@ -92,7 +73,10 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(3).build())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(3))
+                        .build())
                 .setMetricsScope(metricsScope)
                 .build(),
             runLockManager,
@@ -163,8 +147,9 @@ public class WorkflowWorkerTest {
                       false,
                       (id) -> {
                         // verify the lock is still being held
-                        assertEquals(runLockManager.totalLocks(), 1);
-                      });
+                        assertEquals(1, runLockManager.totalLocks());
+                      },
+                      null);
                 });
 
     // Mock the server responding to a workflow task complete with another workflow task
@@ -174,7 +159,7 @@ public class WorkflowWorkerTest {
             (Answer<RespondWorkflowTaskCompletedResponse>)
                 invocation -> {
                   // verify the lock is still being held
-                  assertEquals(runLockManager.totalLocks(), 1);
+                  assertEquals(1, runLockManager.totalLocks());
                   return RespondWorkflowTaskCompletedResponse.newBuilder()
                       .setWorkflowTask(pollResponse)
                       .build();
@@ -183,7 +168,7 @@ public class WorkflowWorkerTest {
             (Answer<RespondWorkflowTaskCompletedResponse>)
                 invocation -> {
                   // verify the lock is still being held
-                  assertEquals(runLockManager.totalLocks(), 1);
+                  assertEquals(1, runLockManager.totalLocks());
                   respondTaskLatch.countDown();
                   return RespondWorkflowTaskCompletedResponse.newBuilder().build();
                 });
@@ -202,7 +187,7 @@ public class WorkflowWorkerTest {
           // Since all polls have the same runID only one should get through, the other two should
           // be
           // blocked
-          assertEquals(runLockManager.totalLocks(), 1);
+          assertEquals(1, runLockManager.totalLocks());
           reporter.assertGauge(
               MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
               ImmutableMap.of("worker_type", "WorkflowWorker"),
@@ -215,7 +200,7 @@ public class WorkflowWorkerTest {
         Duration.ofSeconds(10),
         () -> {
           // No task should have the lock anymore
-          assertEquals(runLockManager.totalLocks(), 0);
+          assertEquals(0, runLockManager.totalLocks());
           reporter.assertGauge(
               MetricsType.WORKER_TASK_SLOTS_AVAILABLE,
               ImmutableMap.of("worker_type", "WorkflowWorker"),
@@ -257,7 +242,10 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                        .build())
                 .setMetricsScope(metricsScope)
                 .build(),
             runLockManager,
@@ -314,6 +302,7 @@ public class WorkflowWorkerTest {
                       null,
                       null,
                       false,
+                      null,
                       null);
                 });
 
@@ -375,7 +364,8 @@ public class WorkflowWorkerTest {
                 (id) -> {
                   resetEventIdQueue.add(id);
                   result.getResetEventIdHandle().apply(id);
-                });
+                },
+                null);
           }
 
           @Override
@@ -394,7 +384,10 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                        .build())
                 .setMetricsScope(metricScope)
                 .build(),
             runLockManager,

@@ -1,26 +1,6 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /**
  * Workflow encapsulates the orchestration of activities and child workflows. It can also answer to
- * synchronous queries and receive external events (also known as signals).
+ * synchronous queries and receive other external requests (signals and updates).
  *
  * <h2>Workflow Interface</h2>
  *
@@ -65,15 +45,15 @@
  * started, a new instance of the workflow implementation object is created. Then, one of the
  * methods (depending on which workflow type has been started) annotated with {@literal @}{@link
  * io.temporal.workflow.WorkflowMethod} is invoked. As soon as this method returns the workflow,
- * execution is closed. While workflow execution is open, it can receive calls to signal and query
- * methods. No additional calls to workflow methods are allowed. The workflow object is stateful, so
- * query and signal methods can communicate with the other parts of the workflow through workflow
- * object fields.
+ * execution is closed. While the workflow execution is open, it can receive calls to signal,
+ * update, and query methods. No additional calls to workflow methods are allowed. The workflow
+ * object is stateful, so query, signal, and update methods can communicate with the other parts of
+ * the workflow through workflow object fields.
  *
  * <h3>Calling Activities</h3>
  *
  * {@link io.temporal.workflow.Workflow#newActivityStub(Class)} returns a client-side stub that
- * implements an activity interface. It takes activity type and activity options as arguments.
+ * implements an activity interface. It takes an activity type and activity options as arguments.
  * Activity options are needed only if some of the required timeouts are not specified through the
  * {@literal @}{@link io.temporal.activity.ActivityMethod} annotation.
  *

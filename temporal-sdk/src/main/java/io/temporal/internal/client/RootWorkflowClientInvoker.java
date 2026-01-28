@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.client;
 
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.START_WORKFLOW;
@@ -25,6 +5,7 @@ import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.R
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -42,6 +23,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.worker.WorkerVersioningProtoUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -50,6 +33,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +72,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
       startRequest.setRequestEagerExecution(requestEagerExecution);
+      if (requestEagerExecution && eagerDispatchHandle.getDeploymentOptions() != null) {
+        startRequest.setEagerWorkerDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(
+                eagerDispatchHandle.getDeploymentOptions()));
+      }
       StartWorkflowExecutionResponse response = genericClient.start(startRequest.build());
       WorkflowExecution execution =
           WorkflowExecution.newBuilder()
@@ -112,6 +101,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               "[BUG] Eager Workflow Task was received from the Server, but failed to be dispatched on the local worker",
               e);
         }
+      }
+      if (CurrentNexusOperationContext.isNexusContext()) {
+        CurrentNexusOperationContext.get().setStartWorkflowResponseLink(response.getLink());
       }
       return new WorkflowStartOutput(execution);
     }
@@ -650,6 +642,12 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setWorkflowExecution(input.getWorkflowExecution())
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity());
+    if (input.getReason() != null) {
+      request.setReason(input.getReason());
+    }
+    if (input.getFirstExecutionRunId() != null) {
+      request.setFirstExecutionRunId(input.getFirstExecutionRunId());
+    }
     genericClient.requestCancel(request.build());
     return new CancelOutput();
   }
@@ -663,6 +661,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setWorkflowExecution(input.getWorkflowExecution());
     if (input.getReason() != null) {
       request.setReason(input.getReason());
+    }
+    if (input.getFirstExecutionRunId() != null) {
+      request.setFirstExecutionRunId(input.getFirstExecutionRunId());
     }
     DataConverter dataConverterWithWorkflowContext =
         clientOptions
@@ -694,6 +695,40 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     return new DescribeWorkflowOutput(
         new WorkflowExecutionDescription(response, dataConverterWithWorkflowContext));
+  }
+
+  @Override
+  public CountWorkflowOutput countWorkflows(CountWorkflowsInput input) {
+    CountWorkflowExecutionsRequest.Builder req =
+        CountWorkflowExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
+    if (input.getQuery() != null) {
+      req.setQuery(input.getQuery());
+    }
+    CountWorkflowExecutionsResponse resp = genericClient.countWorkflowExecutions(req.build());
+    return new CountWorkflowOutput(new WorkflowExecutionCount(resp));
+  }
+
+  @Override
+  public ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input) {
+    ListWorkflowExecutionIterator iterator =
+        new ListWorkflowExecutionIterator(
+            input.getQuery(), clientOptions.getNamespace(), input.getPageSize(), genericClient);
+    iterator.init();
+    Iterator<WorkflowExecutionMetadata> wrappedIterator =
+        Iterators.transform(
+            iterator,
+            info -> new WorkflowExecutionMetadata(info, clientOptions.getDataConverter()));
+
+    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
+    // impossible
+    //  TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list
+    // API
+    // guarantees absence of duplicates
+    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
+
+    return new ListWorkflowExecutionsOutput(
+        StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false));
   }
 
   private static <R> R convertResultPayloads(

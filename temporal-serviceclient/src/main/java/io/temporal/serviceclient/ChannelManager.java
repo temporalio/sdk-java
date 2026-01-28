@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.serviceclient;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -78,8 +58,6 @@ final class ChannelManager {
   /** refers to the name of the gRPC header that contains the cloud service version */
   private static final Metadata.Key<String> CLOUD_VERSION_HEADER_KEY =
       Metadata.Key.of("temporal-cloud-api-version", Metadata.ASCII_STRING_MARSHALLER);
-
-  private static final String CLIENT_NAME_HEADER_VALUE = "temporal-java";
 
   private final ServiceStubsOptions options;
 
@@ -167,9 +145,13 @@ final class ChannelManager {
   private Channel applyHeadStandardInterceptors(Channel channel) {
     Metadata headers = new Metadata();
     headers.merge(options.getHeaders());
-    headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
+    // Don't set the client header if it wasn't parsed properly when building. The server will
+    // fail RPCs if it's not semver.
+    if (Version.LIBRARY_VERSION.contains(".")) {
+      headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
+    }
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
-    headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);
+    headers.put(CLIENT_NAME_HEADER_KEY, Version.SDK_NAME);
     if (options instanceof CloudServiceStubsOptions) {
       String version = ((CloudServiceStubsOptions) options).getVersion();
       if (version != null) {

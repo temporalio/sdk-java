@@ -1,41 +1,23 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
 import static org.junit.Assert.*;
 
 import io.grpc.*;
+import io.temporal.api.deployment.v1.WorkerDeploymentOptions;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.WorkerVersioningMode;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.VersioningBehavior;
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testUtils.CountingSlotSupplier;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.*;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
@@ -87,6 +69,14 @@ public class EagerWorkflowTaskDispatchTest {
 
   private WorkerFactory setupWorkerFactory(
       String workerIdentity, boolean registerWorkflows, boolean start) {
+    return setupWorkerFactory(workerIdentity, registerWorkflows, start, null);
+  }
+
+  private WorkerFactory setupWorkerFactory(
+      String workerIdentity,
+      boolean registerWorkflows,
+      boolean start,
+      io.temporal.worker.WorkerDeploymentOptions deploymentOptions) {
     WorkflowClient workflowClient =
         WorkflowClient.newInstance(
             testWorkflowRule.getWorkflowServiceStubs(),
@@ -106,6 +96,7 @@ public class EagerWorkflowTaskDispatchTest {
                         activityTaskSlotSupplier,
                         localActivitySlotSupplier,
                         nexusSlotSupplier))
+                .setDeploymentOptions(deploymentOptions)
                 .build());
     if (registerWorkflows) {
       worker.registerWorkflowImplementationTypes(EagerWorkflowTaskWorkflowImpl.class);
@@ -285,6 +276,96 @@ public class EagerWorkflowTaskDispatchTest {
         START_CALL_INTERCEPTOR.wasLastStartEager());
   }
 
+  @Test
+  public void testDeploymentOptionsArePropagatedForVersionedWorker() {
+    io.temporal.worker.WorkerDeploymentOptions deploymentOptions =
+        io.temporal.worker.WorkerDeploymentOptions.newBuilder()
+            .setUseVersioning(true)
+            .setVersion(new WorkerDeploymentVersion("my-deployment", "build-id-123"))
+            .setDefaultVersioningBehavior(VersioningBehavior.PINNED)
+            .build();
+
+    WorkerFactory workerFactory = setupWorkerFactory("worker1", true, true, deploymentOptions);
+
+    TestWorkflows.NoArgsWorkflow workflowStub =
+        workerFactory
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflows.NoArgsWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
+    workflowStub.execute();
+
+    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager());
+
+    WorkerDeploymentOptions capturedOptions = START_CALL_INTERCEPTOR.getLastDeploymentOptions();
+    assertNotNull(
+        "Deployment options should be present in StartWorkflowExecutionRequest", capturedOptions);
+    assertEquals("my-deployment", capturedOptions.getDeploymentName());
+    assertEquals("build-id-123", capturedOptions.getBuildId());
+    assertEquals(
+        WorkerVersioningMode.WORKER_VERSIONING_MODE_VERSIONED,
+        capturedOptions.getWorkerVersioningMode());
+  }
+
+  @Test
+  public void testDeploymentOptionsArePropagatedForUnversionedWorker() {
+    io.temporal.worker.WorkerDeploymentOptions deploymentOptions =
+        io.temporal.worker.WorkerDeploymentOptions.newBuilder()
+            .setUseVersioning(false)
+            .setVersion(new WorkerDeploymentVersion("my-deployment", "build-id-456"))
+            .build();
+
+    WorkerFactory workerFactory = setupWorkerFactory("worker1", true, true, deploymentOptions);
+
+    TestWorkflows.NoArgsWorkflow workflowStub =
+        workerFactory
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflows.NoArgsWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
+    workflowStub.execute();
+
+    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager());
+
+    WorkerDeploymentOptions capturedOptions = START_CALL_INTERCEPTOR.getLastDeploymentOptions();
+    assertNotNull(
+        "Deployment options should be present in StartWorkflowExecutionRequest", capturedOptions);
+    assertEquals("my-deployment", capturedOptions.getDeploymentName());
+    assertEquals("build-id-456", capturedOptions.getBuildId());
+    assertEquals(
+        WorkerVersioningMode.WORKER_VERSIONING_MODE_UNVERSIONED,
+        capturedOptions.getWorkerVersioningMode());
+  }
+
+  @Test
+  public void testNoDeploymentOptionsWhenWorkerHasNone() {
+    WorkerFactory workerFactory = setupWorkerFactory("worker1", true, true, null);
+
+    TestWorkflows.NoArgsWorkflow workflowStub =
+        workerFactory
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflows.NoArgsWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setDisableEagerExecution(false)
+                    .build());
+    workflowStub.execute();
+
+    assertTrue(START_CALL_INTERCEPTOR.wasLastStartEager());
+
+    WorkerDeploymentOptions capturedOptions = START_CALL_INTERCEPTOR.getLastDeploymentOptions();
+    assertNull(
+        "Deployment options should not be present when worker has no deployment options configured",
+        capturedOptions);
+  }
+
   public static class EagerWorkflowTaskWorkflowImpl implements TestWorkflows.NoArgsWorkflow {
     @Override
     public void execute() {}
@@ -293,6 +374,7 @@ public class EagerWorkflowTaskDispatchTest {
   private static class StartCallInterceptor implements ClientInterceptor {
 
     private Boolean wasLastStartEager;
+    private WorkerDeploymentOptions lastDeploymentOptions;
 
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
@@ -307,8 +389,13 @@ public class EagerWorkflowTaskDispatchTest {
       return wasLastStartEager;
     }
 
+    public WorkerDeploymentOptions getLastDeploymentOptions() {
+      return lastDeploymentOptions;
+    }
+
     public void clear() {
       wasLastStartEager = null;
+      lastDeploymentOptions = null;
     }
 
     private final class EagerStartSniffingCall<ReqT, RespT>
@@ -322,6 +409,11 @@ public class EagerWorkflowTaskDispatchTest {
       public void sendMessage(ReqT message) {
         StartWorkflowExecutionRequest request = (StartWorkflowExecutionRequest) message;
         wasLastStartEager = request.getRequestEagerExecution();
+        if (request.hasEagerWorkerDeploymentOptions()) {
+          lastDeploymentOptions = request.getEagerWorkerDeploymentOptions();
+        } else {
+          lastDeploymentOptions = null;
+        }
         super.sendMessage(message);
       }
     }

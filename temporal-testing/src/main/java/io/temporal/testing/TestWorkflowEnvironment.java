@@ -1,30 +1,9 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
-import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.OperatorServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -156,8 +135,8 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @param type Search Attribute type to be used for an elastic search index
    * @return {@code true} if the search attribute was registered, false if it was registered already
    * @see <a
-   *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
-   *     a Custom Search Attribute Using tctl</a>
+   *     href="https://docs.temporal.io/self-hosted-guide/visibility#create-custom-search-attributes">
+   *     How to create custom Search Attributes</a>
    */
   boolean registerSearchAttribute(String name, IndexedValueType type);
 
@@ -168,7 +147,6 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @param taskQueue Task Queue to be used for the endpoint
    * @return Endpoint object
    */
-  @Experimental
   Endpoint createNexusEndpoint(String name, String taskQueue);
 
   /**
@@ -176,7 +154,6 @@ public interface TestWorkflowEnvironment extends Closeable {
    *
    * @param endpoint current endpoint to be deleted
    */
-  @Experimental
   void deleteNexusEndpoint(Endpoint endpoint);
 
   /**

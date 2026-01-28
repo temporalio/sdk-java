@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.NoopScope;
@@ -27,6 +7,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
 import java.util.List;
 
@@ -58,6 +39,7 @@ public final class SingleWorkerOptions {
     private Duration defaultHeartbeatThrottleInterval;
     private Duration drainStickyTaskQueueTimeout;
     private boolean usingVirtualThreads;
+    private WorkerDeploymentOptions deploymentOptions;
 
     private Builder() {}
 
@@ -81,6 +63,7 @@ public final class SingleWorkerOptions {
       this.useBuildIdForVersioning = options.isUsingBuildIdForVersioning();
       this.drainStickyTaskQueueTimeout = options.getDrainStickyTaskQueueTimeout();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
+      this.deploymentOptions = options.getDeploymentOptions();
     }
 
     public Builder setIdentity(String identity) {
@@ -167,6 +150,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setDeploymentOptions(WorkerDeploymentOptions deploymentOptions) {
+      this.deploymentOptions = deploymentOptions;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -204,7 +192,8 @@ public final class SingleWorkerOptions {
           this.maxHeartbeatThrottleInterval,
           this.defaultHeartbeatThrottleInterval,
           drainStickyTaskQueueTimeout,
-          usingVirtualThreads);
+          usingVirtualThreads,
+          this.deploymentOptions);
     }
   }
 
@@ -224,6 +213,7 @@ public final class SingleWorkerOptions {
   private final Duration defaultHeartbeatThrottleInterval;
   private final Duration drainStickyTaskQueueTimeout;
   private final boolean usingVirtualThreads;
+  private final WorkerDeploymentOptions deploymentOptions;
 
   private SingleWorkerOptions(
       String identity,
@@ -241,7 +231,8 @@ public final class SingleWorkerOptions {
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       Duration drainStickyTaskQueueTimeout,
-      boolean usingVirtualThreads) {
+      boolean usingVirtualThreads,
+      WorkerDeploymentOptions deploymentOptions) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -258,6 +249,7 @@ public final class SingleWorkerOptions {
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.drainStickyTaskQueueTimeout = drainStickyTaskQueueTimeout;
     this.usingVirtualThreads = usingVirtualThreads;
+    this.deploymentOptions = deploymentOptions;
   }
 
   public String getIdentity() {
@@ -333,5 +325,14 @@ public final class SingleWorkerOptions {
         .setBuildId(this.getBuildId())
         .setUseVersioning(this.isUsingBuildIdForVersioning())
         .build();
+  }
+
+  public WorkerDeploymentOptions getDeploymentOptions() {
+    return deploymentOptions;
+  }
+
+  public WorkerVersioningOptions getWorkerVersioningOptions() {
+    return new WorkerVersioningOptions(
+        this.getBuildId(), this.isUsingBuildIdForVersioning(), this.getDeploymentOptions());
   }
 }

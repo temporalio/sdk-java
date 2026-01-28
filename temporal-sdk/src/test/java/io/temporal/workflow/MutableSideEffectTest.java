@@ -1,34 +1,21 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class MutableSideEffectTest {
+  static final String mutableSideEffectSummary = "mutable-side-effect-summary";
 
   private static final Map<String, Queue<Long>> mutableSideEffectValue =
       Collections.synchronizedMap(new HashMap<>());
@@ -55,6 +42,15 @@ public class MutableSideEffectTest {
     mutableSideEffectValue.put(testWorkflowRule.getTaskQueue(), values);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("1234, 1234, 1234, 3456, 3456, 4234, 4234, 4234", result);
+
+    WorkflowExecution exec = WorkflowStub.fromTyped(workflowStub).getExecution();
+    WorkflowExecutionHistory workflowExecutionHistory =
+        testWorkflowRule.getWorkflowClient().fetchHistory(exec.getWorkflowId());
+    List<HistoryEvent> sideEffectMarkerEvents =
+        workflowExecutionHistory.getEvents().stream()
+            .filter(HistoryEvent::hasMarkerRecordedEventAttributes)
+            .collect(Collectors.toList());
+    HistoryUtils.assertEventMetadata(sideEffectMarkerEvents.get(0), mutableSideEffectSummary, null);
   }
 
   public static class TestMutableSideEffectWorkflowImpl implements TestWorkflow1 {
@@ -69,7 +65,10 @@ public class MutableSideEffectTest {
                   "id1",
                   Long.class,
                   (o, n) -> n > o,
-                  () -> mutableSideEffectValue.get(taskQueue).poll());
+                  () -> mutableSideEffectValue.get(taskQueue).poll(),
+                  MutableSideEffectOptions.newBuilder()
+                      .setSummary(mutableSideEffectSummary)
+                      .build());
           if (result.length() > 0) {
             result.append(", ");
           }

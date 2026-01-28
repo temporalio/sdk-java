@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -26,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
@@ -33,6 +14,7 @@ import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.junit.Before;
@@ -88,7 +70,8 @@ public class CodecDataConverterTest {
       throw ApplicationFailure.newFailureWithCause("Message", "Type", causeException);
     } catch (ApplicationFailure originalException) {
       Failure failure = dataConverter.exceptionToFailure(originalException);
-      TemporalFailure decodedException = dataConverter.failureToException(failure);
+      TemporalFailure decodedException =
+          (TemporalFailure) dataConverter.failureToException(failure);
 
       assertEquals("Message", decodedException.getOriginalMessage());
       assertEquals(
@@ -126,11 +109,21 @@ public class CodecDataConverterTest {
     assertArrayEquals(new int[] {1, 2, 3}, decodedDetailsPayloads.get(2, int[].class, int[].class));
   }
 
+  @Test
+  public void testRawValuePassThrough() {
+    Payload p = Payload.newBuilder().setData(ByteString.copyFromUtf8("test")).build();
+    Optional<Payloads> data = dataConverter.toPayloads(new RawValue(p));
+    // Assert that the payload is still encoded
+    assertTrue(isEncoded(data.get().getPayloads(0)));
+    RawValue converted = dataConverter.fromPayloads(0, data, RawValue.class, RawValue.class);
+    assertEquals(p, converted.getPayload());
+  }
+
   static boolean isEncoded(Payload payload) {
     return payload.getData().startsWith(PrefixPayloadCodec.PREFIX);
   }
 
-  private static final class PrefixPayloadCodec implements PayloadCodec {
+  public static final class PrefixPayloadCodec implements PayloadCodec {
     public static final ByteString PREFIX = ByteString.copyFromUtf8("ENCODED: ");
 
     @Override

@@ -1,24 +1,6 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.sync;
+
+import static io.temporal.internal.common.InternalUtils.TEMPORAL_RESERVED_PREFIX;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
@@ -41,9 +23,31 @@ class QueryDispatcher {
 
   private DynamicQueryHandler dynamicQueryHandler;
   private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
+  private static final ThreadLocal<SyncWorkflowContext> queryHandlerWorkflowContext =
+      new ThreadLocal<>();
 
   public QueryDispatcher(DataConverter dataConverterWithWorkflowContext) {
     this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
+  }
+
+  /**
+   * @return True if the current thread is executing a query handler.
+   */
+  public static boolean isQueryHandler() {
+    SyncWorkflowContext value = queryHandlerWorkflowContext.get();
+    return value != null;
+  }
+
+  /**
+   * @return The current workflow context if the current thread is executing a query handler.
+   * @throws IllegalStateException if not in a query handler.
+   */
+  public static SyncWorkflowContext getWorkflowContext() {
+    SyncWorkflowContext value = queryHandlerWorkflowContext.get();
+    if (value == null) {
+      throw new IllegalStateException("Not in a query handler");
+    }
+    return value;
   }
 
   public void setInboundCallsInterceptor(WorkflowInboundCallsInterceptor inboundCallsInterceptor) {
@@ -69,9 +73,17 @@ class QueryDispatcher {
     return new WorkflowInboundCallsInterceptor.QueryOutput(result);
   }
 
-  public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
+  public Optional<Payloads> handleQuery(
+      SyncWorkflowContext replayContext,
+      String queryName,
+      Header header,
+      Optional<Payloads> input) {
     WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
     Object[] args;
+    if (queryName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
+      throw new IllegalArgumentException(
+          "Unknown query type: " + queryName + ", knownTypes=" + queryCallbacks.keySet());
+    }
     if (handler == null) {
       if (dynamicQueryHandler == null) {
         throw new IllegalArgumentException(
@@ -83,11 +95,18 @@ class QueryDispatcher {
           dataConverterWithWorkflowContext.fromPayloads(
               input, handler.getArgTypes(), handler.getGenericArgTypes());
     }
-    Object result =
-        inboundCallsInterceptor
-            .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, header, args))
-            .getResult();
-    return dataConverterWithWorkflowContext.toPayloads(result);
+    try {
+      replayContext.setReadOnly(true);
+      queryHandlerWorkflowContext.set(replayContext);
+      Object result =
+          inboundCallsInterceptor
+              .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, header, args))
+              .getResult();
+      return dataConverterWithWorkflowContext.toPayloads(result);
+    } finally {
+      replayContext.setReadOnly(false);
+      queryHandlerWorkflowContext.set(null);
+    }
   }
 
   public void registerQueryHandlers(WorkflowOutboundCallsInterceptor.RegisterQueryInput request) {

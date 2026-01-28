@@ -1,28 +1,7 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -30,10 +9,7 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.SdkFlag;
-import io.temporal.internal.statemachines.ExecuteActivityParameters;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
-import io.temporal.internal.statemachines.LocalActivityCallback;
-import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -77,6 +53,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
   WorkflowExecution getWorkflowExecution();
 
   WorkflowExecution getParentWorkflowExecution();
+
+  WorkflowExecution getRootWorkflowExecution();
 
   WorkflowType getWorkflowType();
 
@@ -163,7 +141,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
       ExecuteLocalActivityParameters parameters, LocalActivityCallback callback);
 
   /**
-   * Start child workflow.
+   * Start a child workflow.
    *
    * @param parameters encapsulates all the information required to schedule a child workflow for
    *     execution
@@ -177,8 +155,18 @@ public interface ReplayWorkflowContext extends ReplayAware {
       Functions.Proc2<WorkflowExecution, Exception> startCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback);
 
+  /**
+   * Start a Nexus operation.
+   *
+   * @param parameters encapsulates all the information required to schedule a Nexus operation
+   * @param startedCallback callback that is called when the operation is start if async, or
+   *     completes if it is sync.
+   * @param completionCallback callback that is called upon child workflow completion or failure
+   * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
+   *     to cancel activity task.
+   */
   Functions.Proc1<Exception> startNexusOperation(
-      ScheduleNexusOperationCommandAttributes attributes,
+      StartNexusOperationParameters parameters,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback);
 
@@ -197,10 +185,13 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * Request cancellation of a workflow execution by WorkflowId and optionally RunId.
    *
    * @param execution contains WorkflowId and optional RunId of the workflow to send request to.
+   * @param reason optional reason for cancellation.
    * @param callback callback notified about the operation result
    */
   void requestCancelExternalWorkflowExecution(
-      WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback);
+      WorkflowExecution execution,
+      @Nullable String reason,
+      Functions.Proc2<Void, RuntimeException> callback);
 
   /**
    * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the workflow task
@@ -233,9 +224,13 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * executing operations that rely on non-global dependencies and can fail.
    *
    * @param func function that is called once to return a value.
+   * @param userMetadata user metadata to be associated with the side effect.
    * @param callback function that accepts the result of the side effect.
    */
-  void sideEffect(Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback);
+  void sideEffect(
+      Func<Optional<Payloads>> func,
+      UserMetadata userMetadata,
+      Functions.Proc1<Optional<Payloads>> callback);
 
   /**
    * {@code mutableSideEffect} is similar to {@code sideEffect} in allowing calls of
@@ -256,6 +251,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *
    * @param id id of the side effect call. It links multiple calls together. Calls with different
    *     ids are completely independent.
+   * @param userMetadata user metadata to attach to the marker event.
    * @param func function that gets as input a result of a previous {@code mutableSideEffect} call.
    *     The function executes its business logic (like checking config value) and if value didn't
    *     change returns {@link Optional#empty()}. If value has changed and needs to be recorded in
@@ -265,6 +261,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   void mutableSideEffect(
       String id,
+      UserMetadata userMetadata,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback);
 
@@ -284,7 +281,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param callback used to return version
    * @return True if the identifier is not present in history
    */
-  boolean getVersion(
+  Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
@@ -418,6 +415,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
   boolean tryUseSdkFlag(SdkFlag flag);
 
   /**
+   * @return true if this flag is currently set.
+   */
+  boolean checkSdkFlag(SdkFlag flag);
+
+  /**
    * @return The Build ID of the worker which executed the current Workflow Task. May be empty the
    *     task was completed by a worker without a Build ID. If this worker is the one executing this
    *     task for the first time and has a Build ID set, then its ID will be used. This value may
@@ -425,4 +427,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     branching.
    */
   Optional<String> getCurrentBuildId();
+
+  /**
+   * @return the priority of the workflow task
+   */
+  Priority getPriority();
 }

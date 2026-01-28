@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.statemachines;
 
 import io.temporal.api.command.v1.Command;
@@ -29,8 +9,10 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 /**
  * NexusOperationStateMachine manages a nexus operation.
@@ -46,6 +28,7 @@ final class NexusOperationStateMachine
   private static final String NEXUS_OPERATION_CANCELED_MESSAGE = "Nexus operation canceled";
 
   private ScheduleNexusOperationCommandAttributes scheduleAttributes;
+  private UserMetadata metadata;
   private final Functions.Proc2<Optional<String>, Failure> startedCallback;
   private boolean async = false;
 
@@ -53,6 +36,10 @@ final class NexusOperationStateMachine
   private final String endpoint;
   private final String service;
   private final String operation;
+
+  public boolean isAsync() {
+    return async;
+  }
 
   public boolean isCancellable() {
     return State.SCHEDULE_COMMAND_CREATED == getState();
@@ -162,67 +149,60 @@ final class NexusOperationStateMachine
 
   private void cancelNexusOperationCommand() {
     cancelCommand();
-    Failure canceledFailure =
+    Failure cause =
         Failure.newBuilder()
             .setSource(JAVA_SDK)
             .setMessage("operation canceled before it was started")
             .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
             .build();
-    NexusOperationFailureInfo nexusFailureInfo =
-        NexusOperationFailureInfo.newBuilder()
-            .setEndpoint(endpoint)
-            .setService(service)
-            .setOperation(operation)
-            .setScheduledEventId(getInitialCommandEventId())
-            .build();
-    Failure failure =
-        Failure.newBuilder()
-            .setNexusOperationExecutionFailureInfo(nexusFailureInfo)
-            .setCause(canceledFailure)
-            .setMessage(NEXUS_OPERATION_CANCELED_MESSAGE)
-            .build();
+    Failure failure = createCancelNexusOperationFailure(cause);
     startedCallback.apply(Optional.empty(), failure);
     completionCallback.apply(Optional.empty(), failure);
   }
 
+  @SuppressWarnings("deprecation") // Continue to check operation id for history compatibility
   private void notifyStarted() {
-    if (!async) {
-      if (currentEvent.getEventType() != EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED) {
-        startedCallback.apply(Optional.empty(), null);
-      } else {
-        async = true;
-        startedCallback.apply(
-            Optional.of(currentEvent.getNexusOperationStartedEventAttributes().getOperationId()),
-            null);
-      }
-    }
+    async = true;
+    String operationToken =
+        currentEvent.getNexusOperationStartedEventAttributes().getOperationToken();
+    String operationId = currentEvent.getNexusOperationStartedEventAttributes().getOperationId();
+    startedCallback.apply(
+        Optional.of(operationToken.isEmpty() ? operationId : operationToken), null);
   }
 
   private void notifyCompleted() {
-    notifyStarted();
     NexusOperationCompletedEventAttributes attributes =
         currentEvent.getNexusOperationCompletedEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), null);
+    }
     completionCallback.apply(Optional.of(attributes.getResult()), null);
   }
 
   private void notifyFailed() {
-    notifyStarted();
     NexusOperationFailedEventAttributes attributes =
         currentEvent.getNexusOperationFailedEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), attributes.getFailure());
+    }
     completionCallback.apply(Optional.empty(), attributes.getFailure());
   }
 
   private void notifyCanceled() {
-    notifyStarted();
     NexusOperationCanceledEventAttributes attributes =
         currentEvent.getNexusOperationCanceledEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), attributes.getFailure());
+    }
     completionCallback.apply(Optional.empty(), attributes.getFailure());
   }
 
   private void notifyTimedOut() {
-    notifyStarted();
     NexusOperationTimedOutEventAttributes attributes =
         currentEvent.getNexusOperationTimedOutEventAttributes();
+    if (!async) {
+      startedCallback.apply(Optional.empty(), attributes.getFailure());
+    }
     completionCallback.apply(Optional.empty(), attributes.getFailure());
   }
 
@@ -235,22 +215,25 @@ final class NexusOperationStateMachine
    */
   public static NexusOperationStateMachine newInstance(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     return new NexusOperationStateMachine(
-        attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
+        attributes, metadata, startedCallback, completionCallback, commandSink, stateMachineSink);
   }
 
   private NexusOperationStateMachine(
       ScheduleNexusOperationCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.scheduleAttributes = attributes;
+    this.metadata = metadata;
     this.operation = attributes.getOperation();
     this.service = attributes.getService();
     this.endpoint = attributes.getEndpoint();
@@ -260,11 +243,39 @@ final class NexusOperationStateMachine
   }
 
   public void createScheduleNexusTaskCommand() {
-    addCommand(
+    Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
-            .setScheduleNexusOperationCommandAttributes(scheduleAttributes)
-            .build());
-    scheduleAttributes = null; // avoiding retaining large input for the duration of the operation
+            .setScheduleNexusOperationCommandAttributes(scheduleAttributes);
+    if (metadata != null) {
+      command.setUserMetadata(metadata);
+    }
+    addCommand(command.build());
+    // avoiding retaining large input for the duration of the operation
+    scheduleAttributes = null;
+    metadata = null;
+  }
+
+  public Failure createCancelNexusOperationFailure(Failure cause) {
+    if (cause == null) {
+      cause =
+          Failure.newBuilder()
+              .setSource(JAVA_SDK)
+              .setMessage("operation canceled")
+              .setCanceledFailureInfo(CanceledFailureInfo.getDefaultInstance())
+              .build();
+    }
+    NexusOperationFailureInfo nexusFailureInfo =
+        NexusOperationFailureInfo.newBuilder()
+            .setEndpoint(endpoint)
+            .setService(service)
+            .setOperation(operation)
+            .setScheduledEventId(getInitialCommandEventId())
+            .build();
+    return Failure.newBuilder()
+        .setNexusOperationExecutionFailureInfo(nexusFailureInfo)
+        .setCause(cause)
+        .setMessage(NEXUS_OPERATION_CANCELED_MESSAGE)
+        .build();
   }
 }

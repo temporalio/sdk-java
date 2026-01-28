@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.spring.boot.autoconfigure.properties;
 
 import io.temporal.serviceclient.SimpleSslContextBuilder;
@@ -36,6 +16,8 @@ public class ConnectionProperties {
 
   private final @Nullable MTLSProperties mtls;
 
+  private final @Nullable String apiKey;
+
   /**
    * @param target {@link WorkflowServiceStubsOptions.Builder#setTarget(String)} also support
    *     "local" alias for local temporal setup
@@ -44,10 +26,14 @@ public class ConnectionProperties {
    */
   @ConstructorBinding
   public ConnectionProperties(
-      @Nonnull String target, @Nullable Boolean enableHttps, @Nullable MTLSProperties mtls) {
+      @Nonnull String target,
+      @Nullable Boolean enableHttps,
+      @Nullable MTLSProperties mtls,
+      @Nullable String apiKey) {
     this.target = target;
-    this.enableHttps = Boolean.TRUE.equals(enableHttps);
+    this.enableHttps = enableHttps;
     this.mtls = mtls;
+    this.apiKey = apiKey;
   }
 
   @Nonnull
@@ -63,6 +49,11 @@ public class ConnectionProperties {
   @Nullable
   public MTLSProperties getMTLS() {
     return mtls;
+  }
+
+  @Nullable
+  public String getApiKey() {
+    return apiKey;
   }
 
   public static class MTLSProperties {

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.spring.boot;
 
 import io.temporal.client.WorkflowClientOptions;
@@ -32,7 +12,9 @@ import javax.annotation.Nonnull;
  * Beans of this class can be added to Spring context to get a fine control over *Options objects
  * that are created by Temporal Spring Boot Autoconfigure module.
  *
- * <p>Only one bean of each generic type can be added to Spring context.
+ * <p>Multiple beans of each generic type can be added to Spring context. They will be ordered,
+ * taking into account {@link org.springframework.core.Ordered Ordered} and {@link
+ * org.springframework.core.annotation.Order @Order} values of the target
  *
  * @param <T> Temporal Options Builder to customize. Respected types: {@link
  *     WorkflowServiceStubsOptions.Builder}, {@link WorkflowClientOptions.Builder}, {@link

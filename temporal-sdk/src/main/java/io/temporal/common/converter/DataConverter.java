@@ -1,34 +1,14 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.common.converter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
 import com.google.common.base.Preconditions;
+import com.google.common.reflect.TypeToken;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.Experimental;
 import io.temporal.failure.DefaultFailureConverter;
-import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
@@ -67,6 +47,10 @@ import javax.annotation.Nonnull;
  *
  * A {@link DataConverter} created on previous step may be bundled with {@link PayloadCodec}s using
  * {@link CodecDataConverter} or used directly if no custom {@link PayloadCodec}s are needed.
+ *
+ * <p>{@link DataConverter} is expected to pass the {@link RawValue} payload through without
+ * conversion. Though it should still apply the {@link PayloadCodec} to the {@link RawValue}
+ * payloads.
  */
 public interface DataConverter {
 
@@ -149,7 +133,7 @@ public interface DataConverter {
     if (!content.isPresent()) {
       // Return defaults for all the parameters
       for (int i = 0; i < parameterTypes.length; i++) {
-        result[i] = Defaults.defaultValue((Class<?>) genericParameterTypes[i]);
+        result[i] = Defaults.defaultValue(TypeToken.of(genericParameterTypes[i]).getRawType());
       }
       return result;
     }
@@ -159,7 +143,7 @@ public interface DataConverter {
       Class<?> pt = parameterTypes[i];
       Type gt = genericParameterTypes[i];
       if (i >= count) {
-        result[i] = Defaults.defaultValue((Class<?>) gt);
+        result[i] = Defaults.defaultValue(TypeToken.of(gt).getRawType());
       } else {
         result[i] = this.fromPayload(payloads.getPayloads(i), pt, gt);
       }
@@ -176,7 +160,7 @@ public interface DataConverter {
    * @throws NullPointerException if failure is null
    */
   @Nonnull
-  default TemporalFailure failureToException(@Nonnull Failure failure) {
+  default RuntimeException failureToException(@Nonnull Failure failure) {
     Preconditions.checkNotNull(failure, "failure");
     return new DefaultFailureConverter().failureToException(failure, this);
   }

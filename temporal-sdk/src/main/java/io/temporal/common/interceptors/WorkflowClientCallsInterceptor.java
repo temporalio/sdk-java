@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.common.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -30,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -94,6 +75,42 @@ public interface WorkflowClientCallsInterceptor {
   TerminateOutput terminate(TerminateInput input);
 
   DescribeWorkflowOutput describe(DescribeWorkflowInput input);
+
+  ListWorkflowExecutionsOutput listWorkflowExecutions(ListWorkflowExecutionsInput input);
+
+  final class ListWorkflowExecutionsInput {
+    private final String query;
+    private final Integer pageSize;
+
+    public ListWorkflowExecutionsInput(@Nullable String query, @Nullable Integer pageSize) {
+      this.query = query;
+      this.pageSize = pageSize;
+    }
+
+    @Nullable
+    public String getQuery() {
+      return query;
+    }
+
+    @Nullable
+    public Integer getPageSize() {
+      return pageSize;
+    }
+  }
+
+  final class ListWorkflowExecutionsOutput {
+    private final Stream<WorkflowExecutionMetadata> stream;
+
+    public ListWorkflowExecutionsOutput(Stream<WorkflowExecutionMetadata> stream) {
+      this.stream = stream;
+    }
+
+    public Stream<WorkflowExecutionMetadata> getStream() {
+      return stream;
+    }
+  }
+
+  CountWorkflowOutput countWorkflows(CountWorkflowsInput input);
 
   final class WorkflowStartInput {
     private final String workflowId;
@@ -416,13 +433,43 @@ public interface WorkflowClientCallsInterceptor {
 
   final class CancelInput {
     private final WorkflowExecution workflowExecution;
+    private final @Nullable String firstExecutionRunId;
+    private final @Nullable String reason;
 
+    /**
+     * @deprecated Use {@link #CancelInput(WorkflowExecution, String)} to provide a cancellation
+     *     reason instead.
+     */
+    @Deprecated
     public CancelInput(WorkflowExecution workflowExecution) {
+      this(workflowExecution, null);
+    }
+
+    public CancelInput(WorkflowExecution workflowExecution, @Nullable String reason) {
+      this(workflowExecution, null, reason);
+    }
+
+    public CancelInput(
+        WorkflowExecution workflowExecution,
+        @Nullable String firstExecutionRunId,
+        @Nullable String reason) {
       this.workflowExecution = workflowExecution;
+      this.firstExecutionRunId = firstExecutionRunId;
+      this.reason = reason;
     }
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
+    }
+
+    @Nullable
+    public String getFirstExecutionRunId() {
+      return firstExecutionRunId;
     }
   }
 
@@ -573,18 +620,33 @@ public interface WorkflowClientCallsInterceptor {
 
   final class TerminateInput {
     private final WorkflowExecution workflowExecution;
+    private final @Nullable String firstExecutionRunId;
     private final @Nullable String reason;
     private final Object[] details;
 
     public TerminateInput(
         WorkflowExecution workflowExecution, @Nullable String reason, Object[] details) {
+      this(workflowExecution, null, reason, details);
+    }
+
+    public TerminateInput(
+        WorkflowExecution workflowExecution,
+        @Nullable String firstExecutionRunId,
+        @Nullable String reason,
+        Object[] details) {
       this.workflowExecution = workflowExecution;
+      this.firstExecutionRunId = firstExecutionRunId;
       this.reason = reason;
       this.details = details;
     }
 
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
+    }
+
+    @Nullable
+    public String getFirstExecutionRunId() {
+      return firstExecutionRunId;
     }
 
     @Nullable
@@ -620,6 +682,31 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowExecutionDescription getDescription() {
       return description;
+    }
+  }
+
+  final class CountWorkflowsInput {
+    private final String query;
+
+    public CountWorkflowsInput(@Nullable String query) {
+      this.query = query;
+    }
+
+    @Nullable
+    public String getQuery() {
+      return query;
+    }
+  }
+
+  final class CountWorkflowOutput {
+    private final WorkflowExecutionCount count;
+
+    public CountWorkflowOutput(WorkflowExecutionCount count) {
+      this.count = count;
+    }
+
+    public WorkflowExecutionCount getCount() {
+      return count;
     }
   }
 }

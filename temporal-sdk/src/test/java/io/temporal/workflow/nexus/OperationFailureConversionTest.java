@@ -1,31 +1,12 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.nexus;
 
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowFailedException;
+import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -58,20 +39,10 @@ public class OperationFailureConversionTest {
             () -> workflowStub.execute("ApplicationFailureNonRetryable"));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-  }
-
-  @Test
-  public void nexusOperationWorkflowExecutionAlreadyStartedFailureConversion() {
-    TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
-    WorkflowFailedException exception =
-        Assert.assertThrows(
-            WorkflowFailedException.class,
-            () -> workflowStub.execute("WorkflowExecutionAlreadyStarted"));
-    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
-    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
+    Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
+    HandlerException handlerException = (HandlerException) nexusFailure.getCause();
+    Assert.assertTrue(handlerException.getMessage().contains("failed to call operation"));
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerException.getErrorType());
   }
 
   @Test
@@ -83,10 +54,28 @@ public class OperationFailureConversionTest {
             WorkflowFailedException.class, () -> workflowStub.execute("ApplicationFailure"));
     Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
     NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
-    Assert.assertTrue(nexusFailure.getCause() instanceof ApplicationFailure);
-    ApplicationFailure applicationFailure = (ApplicationFailure) nexusFailure.getCause();
-    Assert.assertTrue(
-        applicationFailure.getOriginalMessage().contains("exceeded invocation count"));
+    Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
+    HandlerException handlerFailure = (HandlerException) nexusFailure.getCause();
+    Assert.assertTrue(handlerFailure.getMessage().contains("exceeded invocation count"));
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
+  }
+
+  @Test
+  public void nexusOperationWorkflowNotFoundFailureConversion() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    WorkflowFailedException exception =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("WorkflowNotFound"));
+    Assert.assertTrue(exception.getCause() instanceof NexusOperationFailure);
+    NexusOperationFailure nexusFailure = (NexusOperationFailure) exception.getCause();
+    Assert.assertTrue(nexusFailure.getCause() instanceof HandlerException);
+    HandlerException handlerFailure = (HandlerException) nexusFailure.getCause();
+    Assert.assertEquals(HandlerException.ErrorType.NOT_FOUND, handlerFailure.getErrorType());
+    Assert.assertTrue(handlerFailure.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) handlerFailure.getCause();
+    Assert.assertEquals(
+        "io.temporal.client.WorkflowNotFoundException", applicationFailure.getType());
   }
 
   public static class TestNexus implements TestWorkflow1 {
@@ -127,11 +116,9 @@ public class OperationFailureConversionTest {
             } else if (name.equals("ApplicationFailureNonRetryable")) {
               throw ApplicationFailure.newNonRetryableFailure(
                   "failed to call operation", "TestFailure");
-            } else if (name.equals("WorkflowExecutionAlreadyStarted")) {
-              throw new WorkflowExecutionAlreadyStarted(
-                  WorkflowExecution.newBuilder().setWorkflowId("id").setRunId("runId").build(),
-                  "TestWorkflow",
-                  new RuntimeException("already started"));
+            } else if (name.equals("WorkflowNotFound")) {
+              throw new WorkflowNotFoundException(
+                  WorkflowExecution.getDefaultInstance(), "TestWorkflowType", null);
             }
             Assert.fail();
             return "fail";

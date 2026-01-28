@@ -1,29 +1,8 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.replay;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Timestamps;
-import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -40,7 +19,6 @@ import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.sync.SignalHandlerInfo;
 import io.temporal.internal.sync.UpdateHandlerInfo;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.HandlerUnfinishedPolicy;
 import java.util.List;
@@ -82,8 +60,6 @@ final class ReplayWorkflowExecutor {
 
   private final ReplayWorkflowContextImpl context;
 
-  private final Scope metricsScope;
-
   public ReplayWorkflowExecutor(
       ReplayWorkflow workflow,
       WorkflowStateMachines workflowStateMachines,
@@ -91,7 +67,6 @@ final class ReplayWorkflowExecutor {
     this.workflow = workflow;
     this.workflowStateMachines = workflowStateMachines;
     this.context = context;
-    this.metricsScope = context.getMetricsScope();
   }
 
   public void eventLoop() {
@@ -150,10 +125,8 @@ final class ReplayWorkflowExecutor {
 
     if (context.isCancelRequested()) {
       workflowStateMachines.cancelWorkflow();
-      metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
-      metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
     } else {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();
@@ -169,15 +142,9 @@ final class ReplayWorkflowExecutor {
         //  This way attributes will need to be carried over in the mutable state and the flow
         //  generally will be aligned with the flow of other commands.
         workflowStateMachines.continueAsNewWorkflow(attributes);
-
-        // TODO Issue #1590
-        metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
         workflowStateMachines.completeWorkflow(workflowOutput);
-
-        // TODO Issue #1590
-        metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
       }
     }
 
@@ -185,7 +152,7 @@ final class ReplayWorkflowExecutor {
         ProtobufTimeUtils.toM3Duration(
             Timestamps.fromMillis(System.currentTimeMillis()),
             Timestamps.fromMillis(context.getRunStartedTimestampMillis()));
-    metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
+    workflowStateMachines.setPostCompletionEndToEndLatency(d);
   }
 
   public void handleWorkflowExecutionCancelRequested(HistoryEvent event) {
@@ -217,7 +184,7 @@ final class ReplayWorkflowExecutor {
       Message protocolMessage = updateMessage.getMessage();
       Request update = protocolMessage.getBody().unpack(Request.class);
       Input input = update.getInput();
-      Optional<Payloads> args = Optional.ofNullable(input.getArgs());
+      Optional<Payloads> args = Optional.of(input.getArgs());
       this.workflow.handleUpdate(
           input.getName(),
           update.getMeta().getUpdateId(),

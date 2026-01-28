@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
@@ -31,31 +11,34 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
+final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTask> {
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   private final WorkflowServiceStubs service;
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
   private final Scope metricsScope;
   private final PollActivityTaskQueueRequest pollRequest;
+  private final AtomicInteger pollGauge = new AtomicInteger();
 
+  @SuppressWarnings("deprecation")
   public ActivityPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
-      @Nullable String buildId,
-      boolean useBuildIdForVersioning,
+      @Nonnull WorkerVersioningOptions versioningOptions,
       double activitiesPerSecond,
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
@@ -76,39 +59,48 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               .build());
     }
 
-    if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+    if (versioningOptions.getWorkerDeploymentOptions() != null) {
+      pollRequest.setDeploymentOptions(
+          WorkerVersioningProtoUtils.deploymentOptionsToProto(
+              versioningOptions.getWorkerDeploymentOptions()));
+    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
       pollRequest.setWorkerVersionCapabilities(
           WorkerVersionCapabilities.newBuilder()
-              .setBuildId(buildId)
-              .setUseVersioning(useBuildIdForVersioning)
+              .setBuildId(versioningOptions.getBuildId())
+              .setUseVersioning(versioningOptions.isUsingVersioning())
               .build());
     }
+
     this.pollRequest = pollRequest.build();
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public ActivityTask poll() {
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
     PollActivityTaskQueueResponse response;
     SlotPermit permit;
+    SlotSupplierFuture future;
     boolean isSuccessful = false;
-
     try {
-      permit =
+      future =
           slotSupplier.reserveSlot(
               new SlotReservationData(
                   pollRequest.getTaskQueue().getName(),
                   pollRequest.getIdentity(),
                   pollRequest.getWorkerVersionCapabilities().getBuildId()));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return null;
     } catch (Exception e) {
       log.warn("Error while trying to reserve a slot for an activity", e.getCause());
       return null;
     }
+    permit = MultiThreadedPoller.getSlotPermitAndHandleInterrupts(future, slotSupplier);
+    if (permit == null) return null;
+
+    MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
+        .gauge(MetricsType.NUM_POLLERS)
+        .update(pollGauge.incrementAndGet());
 
     try {
       response =
@@ -132,6 +124,10 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
           permit,
           () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
     } finally {
+      MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
+          .gauge(MetricsType.NUM_POLLERS)
+          .update(pollGauge.decrementAndGet());
+
       if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
     }
   }

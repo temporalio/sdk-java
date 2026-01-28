@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
@@ -44,6 +24,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -177,6 +158,14 @@ public class ScheduleProtoUtil {
               startWorkflowAction.getHeader(),
               extractContextsAndConvertToBytes(wfOptions.getContextPropagators()));
       workflowRequest.setHeader(grpcHeader);
+
+      if (wfOptions.getPriority() != null) {
+        workflowRequest.setPriority(ProtoConverters.toProto(wfOptions.getPriority()));
+      }
+      if (wfOptions.getVersioningOverride() != null) {
+        workflowRequest.setVersioningOverride(
+            ProtoConverters.toProto(wfOptions.getVersioningOverride()));
+      }
 
       return ScheduleAction.newBuilder().setStartWorkflow(workflowRequest.build()).build();
     }
@@ -341,8 +330,7 @@ public class ScheduleProtoUtil {
     Objects.requireNonNull(scheduleSpec);
     io.temporal.client.schedules.ScheduleSpec.Builder specBuilder =
         io.temporal.client.schedules.ScheduleSpec.newBuilder()
-            .setTimeZoneName(
-                scheduleSpec.getTimezoneName() == null ? "" : scheduleSpec.getTimezoneName());
+            .setTimeZoneName(scheduleSpec.getTimezoneName());
 
     if (scheduleSpec.hasJitter()) {
       specBuilder.setJitter(ProtobufTimeUtils.toJavaDuration(scheduleSpec.getJitter()));
@@ -450,7 +438,7 @@ public class ScheduleProtoUtil {
       wfOptionsBuilder.setWorkflowTaskTimeout(
           ProtobufTimeUtils.toJavaDuration(startWfAction.getWorkflowTaskTimeout()));
 
-      if (startWfAction.getRetryPolicy() != null) {
+      if (startWfAction.hasRetryPolicy()) {
         wfOptionsBuilder.setRetryOptions(
             RetryOptionsUtils.toRetryOptions(startWfAction.getRetryPolicy()));
       }
@@ -479,6 +467,10 @@ public class ScheduleProtoUtil {
         wfOptionsBuilder.setStaticDetails(
             dataConverterWithWorkflowContext.fromPayload(
                 startWfAction.getUserMetadata().getDetails(), String.class, String.class));
+      }
+
+      if (startWfAction.hasPriority()) {
+        wfOptionsBuilder.setPriority(ProtoConverters.fromProto(startWfAction.getPriority()));
       }
 
       builder.setOptions(wfOptionsBuilder.build());

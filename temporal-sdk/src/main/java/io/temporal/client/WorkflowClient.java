@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
@@ -178,8 +158,22 @@ public interface WorkflowClient {
    * @param workflowId Workflow id.
    * @param runId Run id of the workflow execution.
    * @return Stub that implements workflowInterface and can be used to signal, update, or query it.
+   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead.
+   * @apiNote This method is deprecated because the returned stub does not properly account for the
+   *     runId.
    */
+  @Deprecated
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
+
+  /**
+   * Creates workflow client stub for a known execution. Use it to send signals or queries to a
+   * running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowInterface interface that given workflow implements.
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @return Stub that implements workflowInterface and can be used to signal or query it.
+   */
+  <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions);
 
   /**
    * Creates workflow untyped client stub that can be used to start a single workflow execution. Use
@@ -211,7 +205,11 @@ public interface WorkflowClient {
    *     workflowId is assumed.
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead.
+   * @apiNote This method is deprecated because the returned stub does not properly account for the
+   *     runId.
    */
+  @Deprecated
   WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType);
 
@@ -222,8 +220,31 @@ public interface WorkflowClient {
    * @param execution workflow id and optional run id for execution
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead.
+   * @apiNote This method is deprecated because the returned stub does not properly account for the
+   *     runId.
    */
   WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  WorkflowStub newUntypedWorkflowStub(WorkflowTargetOptions workflowTargetOptions);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  WorkflowStub newUntypedWorkflowStub(
+      WorkflowTargetOptions workflowTargetOptions, Optional<String> workflowType);
 
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities
@@ -259,6 +280,15 @@ public interface WorkflowClient {
    * @return sequential stream that performs remote pagination under the hood
    */
   Stream<WorkflowExecutionMetadata> listExecutions(@Nullable String query);
+
+  /**
+   * Count workflow executions using the Visibility API.
+   *
+   * @param query Temporal Visibility query, for syntax see <a
+   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
+   * @return count result object
+   */
+  WorkflowExecutionCount countWorkflows(@Nullable String query);
 
   /**
    * Streams history events for a workflow execution for the provided {@code workflowId}.
@@ -859,7 +889,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -877,7 +906,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc1<A1> updateMethod,
       A1 arg1,
@@ -898,7 +926,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc2<A1, A2> updateMethod,
       A1 arg1,
@@ -921,7 +948,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc3<A1, A2, A3> updateMethod,
       A1 arg1,
@@ -946,7 +972,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3, A4> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc4<A1, A2, A3, A4> updateMethod,
       A1 arg1,
@@ -973,7 +998,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc5<A1, A2, A3, A4, A5> updateMethod,
       A1 arg1,
@@ -1002,7 +1026,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5, A6> WorkflowUpdateHandle<R> startUpdateWithStart(
       Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
       A1 arg1,
@@ -1026,7 +1049,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -1045,7 +1067,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Func1<A1, R> updateMethod,
       A1 arg1,
@@ -1066,7 +1087,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
@@ -1089,7 +1109,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func3<A1, A2, A3, R> updateMethod,
       A1 arg1,
@@ -1114,7 +1133,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, A4, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
@@ -1141,7 +1159,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
       A1 arg1,
@@ -1170,7 +1187,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, A6, R> WorkflowUpdateHandle<R> startUpdateWithStart(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
       A1 arg1,
@@ -1194,7 +1210,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   static <R> R executeUpdateWithStart(
       Functions.Proc updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -1212,7 +1227,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1> R executeUpdateWithStart(
       Proc1<A1> updateMethod,
       A1 arg1,
@@ -1233,7 +1247,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2> R executeUpdateWithStart(
       Proc2<A1, A2> updateMethod,
       A1 arg1,
@@ -1256,7 +1269,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3> R executeUpdateWithStart(
       Proc3<A1, A2, A3> updateMethod,
       A1 arg1,
@@ -1281,7 +1293,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3, A4> R executeUpdateWithStart(
       Proc4<A1, A2, A3, A4> updateMethod,
       A1 arg1,
@@ -1308,7 +1319,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5> R executeUpdateWithStart(
       Proc5<A1, A2, A3, A4, A5> updateMethod,
       A1 arg1,
@@ -1337,7 +1347,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R, A1, A2, A3, A4, A5, A6> R executeUpdateWithStart(
       Proc6<A1, A2, A3, A4, A5, A6> updateMethod,
       A1 arg1,
@@ -1360,7 +1369,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <R> R executeUpdateWithStart(
       Func<R> updateMethod,
       @Nonnull UpdateOptions<R> options,
@@ -1378,7 +1386,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, R> R executeUpdateWithStart(
       Func1<A1, R> updateMethod,
       A1 arg1,
@@ -1398,7 +1405,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, R> R executeUpdateWithStart(
       Functions.Func2<A1, A2, R> updateMethod,
       A1 arg1,
@@ -1420,7 +1426,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, R> R executeUpdateWithStart(
       Functions.Func3<A1, A2, A3, R> updateMethod,
       A1 arg1,
@@ -1444,7 +1449,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, A4, R> R executeUpdateWithStart(
       Functions.Func4<A1, A2, A3, A4, R> updateMethod,
       A1 arg1,
@@ -1470,7 +1474,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, R> R executeUpdateWithStart(
       Functions.Func5<A1, A2, A3, A4, A5, R> updateMethod,
       A1 arg1,
@@ -1498,7 +1501,6 @@ public interface WorkflowClient {
    * @param startOperation start workflow operation
    * @return update result
    */
-  @Experimental
   static <A1, A2, A3, A4, A5, A6, R> R executeUpdateWithStart(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> updateMethod,
       A1 arg1,

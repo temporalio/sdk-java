@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
@@ -436,13 +416,13 @@ public class StickyWorkerTest {
     assertEquals(1, cache.size());
 
     // Assert
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    assertEquals(GreetingSignalWorkflow.Status.WAITING_FOR_NAME, workflow.getProgress());
 
     workflow.waitForName("World");
     String greeting = workflow.getGreeting();
 
     assertEquals("Hello World!", greeting);
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
+    assertEquals(GreetingSignalWorkflow.Status.GREETING_GENERATED, workflow.getProgress());
 
     wrapper.close();
   }
@@ -482,7 +462,7 @@ public class StickyWorkerTest {
     assertEquals(0, cache.size());
 
     // Assert
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    assertEquals(GreetingSignalWorkflow.Status.WAITING_FOR_NAME, workflow.getProgress());
     SDKTestWorkflowRule.assertNoHistoryEvent(
         wrapper.testEnv.getWorkflowClient().fetchHistory(execution.getWorkflowId()).getHistory(),
         EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
@@ -525,7 +505,7 @@ public class StickyWorkerTest {
     assertEquals(0, cache.size());
 
     // Assert
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    assertEquals(GreetingSignalWorkflow.Status.WAITING_FOR_NAME, workflow.getProgress());
 
     // Signal and get result to make sure the workflow successfully completed
     workflow.waitForName("World");
@@ -533,7 +513,7 @@ public class StickyWorkerTest {
     assertEquals("Hello World!", greeting);
 
     // Query after completion
-    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
+    assertEquals(GreetingSignalWorkflow.Status.GREETING_GENERATED, workflow.getProgress());
     SDKTestWorkflowRule.assertNoHistoryEvent(
         wrapper.testEnv.getWorkflowClient().fetchHistory(execution.getWorkflowId()).getHistory(),
         EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.versionTests;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -44,14 +24,14 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionOutOfOrderFailTest {
+public class GetVersionOutOfOrderFailTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           // Make the workflow fail on any exception to catch NonDeterministicException
           .setWorkflowTypes(
-              WorkflowImplementationOptions.newBuilder()
+              WorkflowImplementationOptions.newBuilder(getDefaultWorkflowImplementationOptions())
                   .setFailWorkflowExceptionTypes(Throwable.class)
                   .build(),
               TestGetVersionWorkflowImpl.class)
@@ -62,6 +42,10 @@ public class GetVersionOutOfOrderFailTest {
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
+
+  public GetVersionOutOfOrderFailTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testGetVersionOutOfOrderFail() {
@@ -75,10 +59,13 @@ public class GetVersionOutOfOrderFailTest {
     assertEquals(
         NonDeterministicException.class.getName(),
         ((ApplicationFailure) e.getCause().getCause().getCause()).getType());
+    assertEquals(
+        "[TMPRL1100] getVersion call before the existing version marker event. The most probable cause is retroactive addition of a getVersion call with an existing 'changeId'",
+        ((ApplicationFailure) e.getCause().getCause().getCause()).getOriginalMessage());
   }
 
   @Test
-  public void testGetVersionOutOfOrderFailReplay() throws Exception {
+  public void testGetVersionOutOfOrderFailReplay() {
     assertThrows(
         RuntimeException.class,
         () ->
@@ -100,7 +87,7 @@ public class GetVersionOutOfOrderFailTest {
       // Create a timer to generate a command
       Promise timer = Workflow.newTimer(Duration.ofSeconds(5));
       int version = Workflow.getVersion("changeId", Workflow.DEFAULT_VERSION, 1);
-      assertEquals(version, 1);
+      assertEquals(1, version);
 
       timer.get();
 

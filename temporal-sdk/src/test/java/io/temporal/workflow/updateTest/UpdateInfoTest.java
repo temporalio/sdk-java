@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.updateTest;
 
 import static org.junit.Assert.*;
@@ -60,11 +40,11 @@ public class UpdateInfoTest {
             .setUpdateName("update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED);
 
-    WorkflowUpdateHandle handle1 =
+    WorkflowUpdateHandle<String> handle1 =
         stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 1").build(), 0, "");
     assertEquals("update:update id 1", handle1.getResultAsync().get());
 
-    WorkflowUpdateHandle handle2 =
+    WorkflowUpdateHandle<String> handle2 =
         stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 2").build(), 0, "");
     assertEquals("update:update id 2", handle2.getResultAsync().get());
 
@@ -77,7 +57,8 @@ public class UpdateInfoTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals(" update id 1 update id 2", result);
   }

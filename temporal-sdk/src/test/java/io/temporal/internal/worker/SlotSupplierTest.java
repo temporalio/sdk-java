@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.worker;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -37,7 +17,6 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +39,7 @@ public class SlotSupplierTest {
   }
 
   @Test
-  public void supplierIsCalledAppropriately() throws InterruptedException, TimeoutException {
+  public void supplierIsCalledAppropriately() {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -71,13 +50,17 @@ public class SlotSupplierTest {
 
     SlotSupplier<WorkflowSlotInfo> mockSupplier = mock(SlotSupplier.class);
     AtomicInteger usedSlotsWhenCalled = new AtomicInteger(-1);
-    when(mockSupplier.reserveSlot(
-            argThat(
-                src -> {
-                  usedSlotsWhenCalled.set(src.getUsedSlots().size());
-                  return true;
-                })))
-        .thenReturn(new SlotPermit());
+    try {
+      when(mockSupplier.reserveSlot(
+              argThat(
+                  src -> {
+                    usedSlotsWhenCalled.set(src.getUsedSlots().size());
+                    return true;
+                  })))
+          .thenReturn(SlotSupplierFuture.completedFuture(new SlotPermit()));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
 
     StickyQueueBalancer stickyQueueBalancer = new StickyQueueBalancer(5, true);
     Scope metricsScope =
@@ -94,8 +77,7 @@ public class SlotSupplierTest {
             TASK_QUEUE,
             "stickytaskqueue",
             "",
-            "",
-            false,
+            new WorkerVersioningOptions("", false, null),
             trackingSS,
             stickyQueueBalancer,
             metricsScope,
@@ -119,7 +101,11 @@ public class SlotSupplierTest {
 
     if (throwOnPoll) {
       assertThrows(RuntimeException.class, poller::poll);
-      verify(mockSupplier, times(1)).reserveSlot(any());
+      try {
+        verify(mockSupplier, times(1)).reserveSlot(any());
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       verify(mockSupplier, times(1)).releaseSlot(any());
       assertEquals(0, trackingSS.getUsedSlots().size());
     } else {
@@ -128,8 +114,12 @@ public class SlotSupplierTest {
       // We can't test this in the verifier, since it will get an up-to-date reference to the map
       // where the slot *is* used.
       assertEquals(0, usedSlotsWhenCalled.get());
-      verify(mockSupplier, times(1))
-          .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
+      try {
+        verify(mockSupplier, times(1))
+            .reserveSlot(argThat(arg -> Objects.equals(arg.getTaskQueue(), TASK_QUEUE)));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       verify(mockSupplier, times(0)).releaseSlot(any());
       assertEquals(1, trackingSS.getUsedSlots().size());
     }

@@ -1,4 +1,6 @@
 name: Continuous Integration
+permissions:
+  contents: read
 on:
   pull_request:
   push:
@@ -12,35 +14,35 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         submodules: recursive
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
-        java-version: "21"
+        java-version: "23"
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
     
     - name: Run unit tests
       env:
         USER: unittest
         USE_DOCKER_SERVICE: false
-      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+      run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Run independent resource tuner test
       env:
         USER: unittest
         USE_DOCKER_SERVICE: false
-      run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+      run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
     - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
+      uses: mikepenz/action-junit-report@v6
       if: success() || failure() # always run even if the previous step fails
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
@@ -51,45 +53,81 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         submodules: recursive
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: |
-          21
+          23
           11
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
 
     - name: Start containerized server and dependencies
+      env:
+        TEMPORAL_CLI_VERSION: 1.4.1-cloud-v1-29-0-139-2.0
       run: |
-        docker compose \
-          -f ./docker/github/docker-compose.yaml \
-          up -d temporal
-    
+        wget -O temporal_cli.tar.gz https://github.com/temporalio/cli/releases/download/v${TEMPORAL_CLI_VERSION}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz
+        tar -xzf temporal_cli.tar.gz
+        chmod +x temporal
+        ./temporal server start-dev \
+            --headless \
+            --port 7233 \
+            --http-port 7243 \
+            --namespace UnitTest \
+            --db-filename temporal.sqlite \
+            --sqlite-pragma journal_mode=WAL \
+            --sqlite-pragma synchronous=OFF \
+            --search-attribute CustomKeywordField=Keyword \
+            --search-attribute CustomStringField=Text \
+            --search-attribute CustomTextField=Text \
+            --search-attribute CustomIntField=Int \
+            --search-attribute CustomDatetimeField=Datetime \
+            --search-attribute CustomDoubleField=Double \
+            --search-attribute CustomBoolField=Bool \
+            --dynamic-config-value system.forceSearchAttributesCacheRefreshOnRead=true \
+            --dynamic-config-value system.enableActivityEagerExecution=true \
+            --dynamic-config-value system.enableEagerWorkflowStart=true \
+            --dynamic-config-value system.enableExecuteMultiOperation=true \
+            --dynamic-config-value frontend.enableUpdateWorkflowExecutionAsyncAccepted=true \
+            --dynamic-config-value history.MaxBufferedQueryCount=100000 \
+            --dynamic-config-value frontend.workerVersioningDataAPIs=true \
+            --dynamic-config-value worker.buildIdScavengerEnabled=true \
+            --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
+            --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
+            --dynamic-config-value matching.useNewMatcher=true \
+            --dynamic-config-value system.refreshNexusEndpointsMinWait=1000 \
+            --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
+            --dynamic-config-value component.nexusoperations.recordCancelRequestCompletionEvents=true \
+            --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
+            --dynamic-config-value frontend.activityAPIsEnabled=true \
+            --dynamic-config-value system.enableDeploymentVersions=true \
+            --dynamic-config-value history.enableRequestIdRefLinks=true &
+        sleep 10s
+
     - name: Run unit tests
       env:
         USER: unittest
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
-      run: ./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
+      run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Run virtual thread tests
       env:
         USER: unittest
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
-      run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava
+      run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
+      uses: mikepenz/action-junit-report@v6
       if: success() || failure() # always run even if the previous step fails
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
@@ -100,20 +138,20 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         submodules: recursive
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: "11"
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
     
     - name: Run cloud test
       # Only supported in non-fork runs, since secrets are not available in forks. We intentionally
@@ -128,31 +166,37 @@ jobs:
       run: ./gradlew --no-daemon :temporal-sdk:test --tests '*CloudOperationsClientTest'
 
     - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
+      uses: mikepenz/action-junit-report@v6
       if: success() || failure() # always run even if the previous step fails
       with:
         report_paths: '**/build/test-results/test/TEST-*.xml'
 
-  copyright:
-    name:  Copyright and code format
+  code_format:
+    name: Code format
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         submodules: recursive
         ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Set up Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: "11"
         distribution: "temurin"
 
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v5
     
     - name: Run copyright and code format checks
-      run: ./gradlew --no-daemon checkLicenseMain checkLicenses spotlessCheck
+      run: ./gradlew --no-daemon spotlessCheck
+  
+  build_native_images:
+    name: Build native test server
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}

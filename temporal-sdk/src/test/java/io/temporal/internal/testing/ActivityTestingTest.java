@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.testing;
 
 import static org.junit.Assert.assertEquals;
@@ -31,6 +11,7 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.ActivityRequestedAsyncCompletion;
 import io.temporal.testing.TestActivityEnvironment;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,10 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 public class ActivityTestingTest {
@@ -102,13 +80,28 @@ public class ActivityTestingTest {
     } catch (ActivityFailure e) {
       assertTrue(e.getMessage().contains("Activity1"));
       assertTrue(e.getCause() instanceof ApplicationFailure);
-      assertTrue(((ApplicationFailure) e.getCause()).getType().equals(IOException.class.getName()));
+      assertEquals(IOException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
 
       assertEquals(
           "message='simulated', type='java.io.IOException', nonRetryable=false",
           e.getCause().getMessage());
       e.printStackTrace();
     }
+  }
+
+  private static class AsyncActivityImpl implements TestActivity {
+    @Override
+    public String activity1(String input) {
+      Activity.getExecutionContext().doNotCompleteOnReturn();
+      return "";
+    }
+  }
+
+  @Test
+  public void testAsyncActivity() {
+    testEnvironment.registerActivitiesImplementations(new AsyncActivityImpl());
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
+    Assert.assertThrows(ActivityRequestedAsyncCompletion.class, () -> activity.activity1("input1"));
   }
 
   private static class HeartbeatActivityImpl implements TestActivity {

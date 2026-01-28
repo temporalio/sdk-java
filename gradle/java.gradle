@@ -6,8 +6,8 @@ subprojects {
 
     java {
         // graal only supports java 8, 11, 16, 17, 21, 23
-        sourceCompatibility = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
-        targetCompatibility = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
+        sourceCompatibility = project.hasProperty("edgeDepsTest") || project.hasProperty("nativeBuild") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
+        targetCompatibility = project.hasProperty("edgeDepsTest") || project.hasProperty("nativeBuild") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
         withJavadocJar()
         withSourcesJar()
     }
@@ -15,7 +15,7 @@ subprojects {
     compileJava {
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror' << '-parameters'
-        if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest")) {
+        if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest") && !project.hasProperty("nativeBuild")) {
             // https://stackoverflow.com/a/43103115/525203
             options.compilerArgs.addAll(['--release', '8'])
         }
@@ -24,7 +24,7 @@ subprojects {
     compileTestJava {
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror' << '-parameters'
-        if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest")) {
+        if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest") && !project.hasProperty("nativeBuild")) {
             // https://stackoverflow.com/a/43103115/525203
             options.compilerArgs.addAll(['--release', '8'])
         }
@@ -77,6 +77,18 @@ subprojects {
                 println failedTest
             }
             println ""
+        }
+    }
+    afterEvaluate { subproject ->
+        jar {
+            manifest {
+                attributes(
+                        "Implementation-Title": subproject.description,
+                        "Implementation-Version": subproject.version,
+                        "Implementation-Vendor": "Temporal Technologies Inc.",
+                        'Build-Time': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                )
+            }
         }
     }
 }

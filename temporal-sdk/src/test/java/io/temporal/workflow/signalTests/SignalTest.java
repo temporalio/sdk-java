@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.signalTests;
 
 import static org.junit.Assert.assertEquals;
@@ -79,7 +59,8 @@ public class SignalTest {
     // Test client created using WorkflowExecution
     QueryableWorkflow client2 =
         workflowClient.newWorkflowStub(
-            QueryableWorkflow.class, execution.getWorkflowId(), Optional.of(execution.getRunId()));
+            QueryableWorkflow.class,
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
     assertEquals("Hello ", client2.getState());
 
     testWorkflowRule.sleep(Duration.ofMillis(500));
@@ -88,7 +69,10 @@ public class SignalTest {
     assertEquals("World!", client2.getState());
     assertEquals(
         "Hello World!",
-        workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
+        workflowClient
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
+            .getResult(String.class));
     client2.execute();
   }
 
@@ -122,7 +106,10 @@ public class SignalTest {
     assertEquals("World!", client2.getState());
     assertEquals(
         "Hello World!",
-        workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
+        workflowClient
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
+            .getResult(String.class));
 
     // Check if that it starts closed workflow (AllowDuplicate is default IdReusePolicy)
     QueryableWorkflow client3 = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
@@ -180,7 +167,9 @@ public class SignalTest {
     assertEquals(
         "Hello World!",
         workflowClient
-            .newUntypedWorkflowStub(execution, Optional.of(workflowType))
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build(),
+                Optional.of(workflowType))
             .getResult(String.class));
     assertEquals("Hello World!", workflowStub.getResult(String.class));
     assertEquals("World!", workflowStub.query("getState", String.class));
@@ -193,7 +182,9 @@ public class SignalTest {
                 .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =
-        client.newUntypedWorkflowStub(execution, Optional.of(workflowType));
+        client.newUntypedWorkflowStub(
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build(),
+            Optional.of(workflowType));
     try {
       workflowStubNotOptionRejectCondition.query("getState", String.class);
       fail("unreachable");

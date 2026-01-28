@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -31,13 +11,14 @@ import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
@@ -61,6 +42,7 @@ public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
+  private final List<WorkerPlugin> plugins;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
@@ -86,15 +68,16 @@ public final class Worker {
       @Nonnull WorkflowExecutorCache cache,
       boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      @Nonnull List<WorkerPlugin> plugins) {
 
     Objects.requireNonNull(client, "client should not be null");
+    this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
-    WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
     Map<String, String> tags =
@@ -114,7 +97,7 @@ public final class Worker {
 
       activityWorker =
           new SyncActivityWorker(
-              service,
+              client,
               namespace,
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
@@ -161,9 +144,10 @@ public final class Worker {
             ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentLocalActivityExecutionSize())
             : this.options.getWorkerTuner().getLocalActivitySlotSupplier();
     attachMetricsToResourceController(taggedScope, localActivitySlotSupplier);
+
     workflowWorker =
         new SyncWorkflowWorker(
-            service,
+            client,
             namespace,
             taskQueue,
             singleWorkerOptions,
@@ -326,6 +310,14 @@ public final class Worker {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
   }
 
+  @VisibleForTesting
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Functions.Func1<EncodedValues, R> factory,
+      WorkflowImplementationOptions options) {
+    workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
+  }
+
   /**
    * Configures a factory to use when an instance of a workflow implementation is created.
    *
@@ -480,12 +472,49 @@ public final class Worker {
   @SuppressWarnings("deprecation")
   public void replayWorkflowExecution(io.temporal.internal.common.WorkflowExecutionHistory history)
       throws Exception {
-    workflowWorker.queryWorkflowExecution(
-        history,
-        WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
-        String.class,
-        String.class,
-        new Object[] {});
+    // Convert to public history type and delegate
+    WorkflowExecutionHistory publicHistory =
+        new WorkflowExecutionHistory(
+            history.getHistory(), history.getWorkflowExecution().getWorkflowId());
+    replayWorkflowExecution(publicHistory);
+  }
+
+  /**
+   * This is a utility method to replay a workflow execution using this particular instance of a
+   * worker. This method is useful for troubleshooting workflows by running them in a debugger. The
+   * workflow implementation type must be already registered with this worker for this method to
+   * work.
+   *
+   * <p>There is no need to call {@link #start()} to be able to call this method <br>
+   * The worker doesn't have to be registered on the same task queue as the execution in the
+   * history. <br>
+   * This method shouldn't be a part of normal production usage. It's intended for testing and
+   * debugging only.
+   *
+   * @param history workflow execution history to replay
+   * @throws Exception if replay failed for any reason
+   */
+  public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
+    // Build plugin chain in reverse order (first plugin wraps all others)
+    // Note: public WorkflowExecutionHistory extends internal WorkflowExecutionHistory,
+    // so we can pass it directly to workflowWorker.queryWorkflowExecution
+    WorkerPlugin.ReplayCallback chain =
+        (w, h) -> {
+          workflowWorker.queryWorkflowExecution(
+              h,
+              WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+              String.class,
+              String.class,
+              new Object[] {});
+        };
+
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      WorkerPlugin plugin = plugins.get(i);
+      WorkerPlugin.ReplayCallback next = chain;
+      chain = (w, h) -> plugin.replayWorkflowExecution(w, h, next);
+    }
+
+    chain.replay(this, history);
   }
 
   /**
@@ -528,6 +557,13 @@ public final class Worker {
         && (activityWorker == null || activityWorker.isSuspended());
   }
 
+  /**
+   * @return The options used to create this worker.
+   */
+  public WorkerOptions getWorkerOptions() {
+    return options;
+  }
+
   @Nullable
   public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
     return workflowWorker.reserveWorkflowExecutor();
@@ -563,7 +599,11 @@ public final class Worker {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
-                .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
+                .setPollerBehavior(
+                    options.getActivityTaskPollersBehavior() != null
+                        ? options.getActivityTaskPollersBehavior()
+                        : new PollerBehaviorSimpleMaximum(
+                            options.getMaxConcurrentActivityTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
                 .build())
         .setMetricsScope(metricsScope)
@@ -579,7 +619,11 @@ public final class Worker {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setPollThreadCount(options.getMaxConcurrentNexusTaskPollers())
+                .setPollerBehavior(
+                    options.getNexusTaskPollersBehavior() != null
+                        ? options.getNexusTaskPollersBehavior()
+                        : new PollerBehaviorSimpleMaximum(
+                            options.getMaxConcurrentNexusTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
                 .build())
         .setMetricsScope(metricsScope)
@@ -612,10 +656,23 @@ public final class Worker {
       maxConcurrentWorkflowTaskPollers = 2;
     }
 
+    PollerBehavior pollerBehavior = options.getWorkflowTaskPollersBehavior();
+    if (pollerBehavior instanceof PollerBehaviorSimpleMaximum) {
+      if (((PollerBehaviorSimpleMaximum) pollerBehavior).getMaxConcurrentTaskPollers() == 1) {
+        log.warn(
+            "WorkerOptions.Builder#setWorkflowTaskPollersBehavior was set to {}. This is an illegal value. The number of Workflow Task Pollers is forced to 2. See documentation on WorkerOptions.Builder#setWorkflowTaskPollersBehavior",
+            pollerBehavior);
+        pollerBehavior = new PollerBehaviorSimpleMaximum(2);
+      }
+    }
+
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setPollThreadCount(maxConcurrentWorkflowTaskPollers)
+                .setPollerBehavior(
+                    pollerBehavior != null
+                        ? pollerBehavior
+                        : new PollerBehaviorSimpleMaximum(maxConcurrentWorkflowTaskPollers))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnWorkflowWorker())
                 .build())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
@@ -633,7 +690,12 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                .setPollerTaskExecutorOverride(
+                    factoryOptions.getOverrideLocalActivityTaskExecutor())
+                .build())
         .setMetricsScope(metricsScope)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnLocalActivityWorker())
         .build();
@@ -666,7 +728,8 @@ public final class Worker {
         .setContextPropagators(contextPropagators)
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
-        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
+        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
+        .setDeploymentOptions(options.getDeploymentOptions());
   }
 
   /**

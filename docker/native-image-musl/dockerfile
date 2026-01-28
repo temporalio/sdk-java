@@ -1,0 +1,18 @@
+# This Dockerfile builds a GraalVM Native Image Test Server with musl support.
+FROM ubuntu:24.04
+ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java23
+COPY --from=ghcr.io/graalvm/native-image-community:23 $JAVA_HOME $JAVA_HOME
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+RUN apt-get -y update --allow-releaseinfo-change && apt-get install -y -V git build-essential curl binutils
+COPY install-musl.sh /opt/install-musl.sh
+RUN chmod +x /opt/install-musl.sh
+WORKDIR /opt
+# We need to build musl and zlibc with musl to for a static build
+# See https://www.graalvm.org/21.3/reference-manual/native-image/StaticImages/index.html
+RUN ./install-musl.sh
+ENV MUSL_HOME=/opt/musl-toolchain
+ENV PATH="$MUSL_HOME/bin:$PATH"
+# Verify installation
+RUN x86_64-linux-musl-gcc --version
+# Avoid errors like: "fatal: detected dubious ownership in repository"
+RUN git config --global --add safe.directory '*'

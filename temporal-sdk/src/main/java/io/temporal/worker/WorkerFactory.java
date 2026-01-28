@@ -1,43 +1,36 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
-import io.temporal.internal.worker.*;
+import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -59,6 +52,9 @@ public final class WorkerFactory {
   private final WorkerFactoryOptions factoryOptions;
 
   private final @Nonnull WorkflowExecutorCache cache;
+
+  /** Plugins propagated from the client and applied to this factory. */
+  private final List<WorkerPlugin> plugins;
 
   private State state = State.Initial;
 
@@ -86,8 +82,35 @@ public final class WorkerFactory {
     WorkflowClientOptions workflowClientOptions = workflowClient.getOptions();
     String namespace = workflowClientOptions.getNamespace();
 
-    this.factoryOptions =
-        WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
+    // Extract worker plugins from client (auto-propagation)
+    WorkerPlugin[] propagatedPlugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+
+    // Get plugins explicitly set on factory options
+    WorkerPlugin[] explicitPlugins = factoryOptions != null ? factoryOptions.getPlugins() : null;
+
+    // Merge propagated plugins with explicit plugins (propagated first)
+    WorkerPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            explicitPlugins,
+            WorkerPlugin::getName,
+            log,
+            "client",
+            WorkerPlugin.class);
+    this.plugins = Collections.unmodifiableList(Arrays.asList(mergedPlugins));
+
+    // Apply plugin configuration to factory options (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
+    WorkerFactoryOptions.Builder factoryOptionsBuilder =
+        factoryOptions == null
+            ? WorkerFactoryOptions.newBuilder()
+            : WorkerFactoryOptions.newBuilder(factoryOptions);
+    for (WorkerPlugin plugin : this.plugins) {
+      plugin.configureWorkerFactory(factoryOptionsBuilder);
+    }
+    // Set merged plugins after configuration, then validate
+    factoryOptionsBuilder.setPlugins(this.plugins.toArray(new WorkerPlugin[0]));
+    this.factoryOptions = factoryOptionsBuilder.validateAndBuildWithDefaults();
 
     this.metricsScope =
         this.workflowClient
@@ -151,6 +174,9 @@ public final class WorkerFactory {
         state == State.Initial,
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
 
+    // Apply plugin configuration to worker options (forward order)
+    options = applyWorkerPluginConfiguration(taskQueue, options, this.plugins);
+
     // Only one worker can exist for a task queue
     Worker existingWorker = workers.get(taskQueue);
     if (existingWorker == null) {
@@ -165,8 +191,16 @@ public final class WorkerFactory {
               cache,
               true,
               workflowThreadExecutor,
-              workflowClient.getOptions().getContextPropagators());
+              workflowClient.getOptions().getContextPropagators(),
+              plugins);
       workers.put(taskQueue, worker);
+
+      // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
+      // activities, etc.)
+      for (WorkerPlugin plugin : plugins) {
+        plugin.initializeWorker(taskQueue, worker);
+      }
+
       return worker;
     } else {
       log.warn(
@@ -209,17 +243,51 @@ public final class WorkerFactory {
             statusErrorMessage,
             "start WorkerFactory",
             state.name(),
-            String.format("%s, %s", State.Initial.name(), State.Initial.name())));
+            String.format("%s, %s", State.Initial.name(), State.Started.name())));
+
     if (state == State.Started) {
       return;
     }
 
     // Workers check and require that Temporal Server is available during start to fail-fast in case
     // of configuration issues.
-    workflowClient.getWorkflowServiceStubs().connect(null);
+    workflowClient
+        .getWorkflowServiceStubs()
+        .blockingStub()
+        .describeNamespace(
+            DescribeNamespaceRequest.newBuilder()
+                .setNamespace(workflowClient.getOptions().getNamespace())
+                .build());
 
-    for (Worker worker : workers.values()) {
-      worker.start();
+    // Build plugin execution chain (reverse order for proper nesting)
+    Consumer<WorkerFactory> startChain = WorkerFactory::doStart;
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      final Consumer<WorkerFactory> next = startChain;
+      final WorkerPlugin workerPlugin = plugins.get(i);
+      startChain = (factory) -> workerPlugin.startWorkerFactory(factory, next);
+    }
+
+    // Execute the chain
+    startChain.accept(this);
+  }
+
+  /** Internal method that actually starts the workers. Called from the plugin chain. */
+  private void doStart() {
+    // Start each worker with plugin hooks
+    for (Map.Entry<String, Worker> entry : workers.entrySet()) {
+      String taskQueue = entry.getKey();
+      Worker worker = entry.getValue();
+
+      // Build plugin chain for this worker (reverse order for proper nesting)
+      BiConsumer<String, Worker> startChain = (tq, w) -> w.start();
+      for (int i = plugins.size() - 1; i >= 0; i--) {
+        final BiConsumer<String, Worker> next = startChain;
+        final WorkerPlugin workerPlugin = plugins.get(i);
+        startChain = (tq, w) -> workerPlugin.startWorker(tq, w, next);
+      }
+
+      // Execute the chain for this worker
+      startChain.accept(taskQueue, worker);
     }
 
     state = State.Started;
@@ -293,12 +361,51 @@ public final class WorkerFactory {
 
   private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
+
+    // Build plugin shutdown chain (reverse order for proper nesting)
+    Consumer<WorkerFactory> shutdownChain = (factory) -> factory.doShutdown(interruptUserTasks);
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      final Consumer<WorkerFactory> next = shutdownChain;
+      final WorkerPlugin workerPlugin = plugins.get(i);
+      shutdownChain = (factory) -> workerPlugin.shutdownWorkerFactory(factory, next);
+    }
+
+    // Execute the chain
+    shutdownChain.accept(this);
+  }
+
+  /** Internal method that actually shuts down workers. Called from the plugin chain. */
+  private void doShutdown(boolean interruptUserTasks) {
     ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
-    CompletableFuture.allOf(
-            workers.values().stream()
-                .map(worker -> worker.shutdown(shutdownManager, interruptUserTasks))
-                .toArray(CompletableFuture[]::new))
+
+    // Shutdown each worker with plugin hooks
+    List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();
+    for (Map.Entry<String, Worker> entry : workers.entrySet()) {
+      String taskQueue = entry.getKey();
+      Worker worker = entry.getValue();
+
+      // Build plugin chain for this worker's shutdown (reverse order for proper nesting)
+      // We use a holder to capture the future from the terminal action
+      @SuppressWarnings("unchecked")
+      CompletableFuture<Void>[] futureHolder = new CompletableFuture[1];
+      BiConsumer<String, Worker> shutdownChain =
+          (tq, w) -> futureHolder[0] = w.shutdown(shutdownManager, interruptUserTasks);
+
+      for (int i = plugins.size() - 1; i >= 0; i--) {
+        final BiConsumer<String, Worker> next = shutdownChain;
+        final WorkerPlugin workerPlugin = plugins.get(i);
+        shutdownChain = (tq, w) -> workerPlugin.shutdownWorker(tq, w, next);
+      }
+
+      // Execute the shutdown chain for this worker
+      shutdownChain.accept(taskQueue, worker);
+      if (futureHolder[0] != null) {
+        shutdownFutures.add(futureHolder[0]);
+      }
+    }
+
+    CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
         .thenApply(
             r -> {
               cache.invalidateAll();
@@ -364,6 +471,43 @@ public final class WorkerFactory {
   @Override
   public String toString() {
     return String.format("WorkerFactory{identity=%s}", workflowClient.getOptions().getIdentity());
+  }
+
+  /**
+   * Extracts worker plugins from the workflow client plugins array. Only plugins that also
+   * implement {@link WorkerPlugin} are included.
+   */
+  private static WorkerPlugin[] extractWorkerPlugins(
+      io.temporal.client.WorkflowClientPlugin[] clientPlugins) {
+    if (clientPlugins == null || clientPlugins.length == 0) {
+      return new WorkerPlugin[0];
+    }
+    List<WorkerPlugin> workerPlugins = new ArrayList<>();
+    for (io.temporal.client.WorkflowClientPlugin plugin : clientPlugins) {
+      if (plugin instanceof WorkerPlugin) {
+        workerPlugins.add((WorkerPlugin) plugin);
+      }
+    }
+    return workerPlugins.toArray(new WorkerPlugin[0]);
+  }
+
+  /**
+   * Applies plugin configuration to worker options. Plugins are called in forward (registration)
+   * order.
+   */
+  private static WorkerOptions applyWorkerPluginConfiguration(
+      String taskQueue, WorkerOptions options, List<WorkerPlugin> plugins) {
+    if (plugins == null || plugins.isEmpty()) {
+      return options;
+    }
+
+    WorkerOptions.Builder builder =
+        options == null ? WorkerOptions.newBuilder() : WorkerOptions.newBuilder(options);
+
+    for (WorkerPlugin plugin : plugins) {
+      plugin.configureWorker(taskQueue, builder);
+    }
+    return builder.build();
   }
 
   enum State {

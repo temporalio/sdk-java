@@ -24,6 +24,10 @@ on:
         description: "Publish Java Artifacts"
         required: true
         default: "true"
+
+permissions:
+  contents: read
+
 env:
   INPUT_REF: ${{ github.event.inputs.ref }}
   INPUT_TAG: ${{ github.event.inputs.tag }}
@@ -32,6 +36,8 @@ jobs:
   create_draft_release:
     name: Create Github draft release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Audit gh version
         run: gh --version
@@ -48,7 +54,7 @@ jobs:
 
       - name: Checkout repo
         if: steps.check_release.outputs.already_exists == 'false'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.INPUT_REF }}
 
@@ -72,7 +78,7 @@ jobs:
     needs: create_draft_release
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.INPUT_REF }}
 
@@ -86,13 +92,13 @@ jobs:
         run: git tag "$INPUT_TAG"
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "11"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Set up signing key
         run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
@@ -118,84 +124,31 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
 
       - name: Publish
-        run: ./gradlew publishToSonatype
+        run: ./gradlew publishToSonatype closeSonatypeStagingRepository
 
   build_native_images:
     name: Build native test server
     needs: create_draft_release
     if: github.event.inputs.do_build_native_images == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            os_family: linux
-            arch: amd64
-          - runner: macos-13
-            os_family: macOS
-            arch: amd64
-          - runner: windows-2019
-            os_family: windows
-            arch: amd64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          ref: ${{ env.INPUT_REF }}
-
-      # See comment on temporary tag above. tldr: this is a local tag; never
-      # gets pushed
-      - name: Temporary tag
-        run: git tag "$INPUT_TAG"
-      
-      - name: Set up Java
-        if: matrix.os_family != 'Linux'
-        uses: actions/setup-java@v4
-        with:
-          java-version: "11"
-          distribution: "temurin"
-
-      - name: Set up Gradle
-        if: matrix.os_family != 'Linux'
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build native test server (non-Docker)
-        if: matrix.os_family != 'Linux'
-        run: |
-          ./gradlew :temporal-test-server:build
-
-      - name: Build native test server (Docker)
-        if: matrix.os_family == 'Linux'
-        run: |
-          docker run \
-            --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            $(docker build -q ./docker/native-image) \
-            sh -c "./gradlew :temporal-test-server:build"
-      # path ends in a wildcard because on windows the file ends in '.exe'
-      # path excludes *.txt because native-image also writes a build manifest txt file
-      - name: Upload executable to workflow
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os_family }}_${{ matrix.arch }}
-          path: |
-            temporal-test-server/build/graal/temporal-test-server*
-            !temporal-test-server/build/graal/*.txt
-          if-no-files-found: error
-          retention-days: 1
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      upload_artifact: true
+      ref: ${{ github.event.inputs.ref }}
 
   attach_to_release:
     name: Attach native executables to release
     needs: [build_native_images, create_draft_release]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
     steps:
       - name: Audit gh version
         run: gh --version
 
       # when no artifact is specified, all artifacts are downloaded and expanded into CWD
       - name: Fetch executables
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
 
       # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
       # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and
@@ -212,7 +165,7 @@ jobs:
         run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
 
       - name: Upload release archives
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-archives
           path: |

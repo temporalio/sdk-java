@@ -1,33 +1,13 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.testservice;
 
-import io.grpc.BindableService;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
+import com.google.protobuf.MessageLite;
+import io.grpc.*;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -65,7 +45,8 @@ public class InProcessGRPCServer {
     String serverName = InProcessServerBuilder.generateName();
     try {
       InProcessServerBuilder inProcessServerBuilder = InProcessServerBuilder.forName(serverName);
-      GRPCServerHelper.registerServicesAndHealthChecks(services, inProcessServerBuilder);
+      GRPCServerHelper.registerServicesAndHealthChecks(
+          services, inProcessServerBuilder, Collections.singletonList(new MessageSizeChecker()));
       server = inProcessServerBuilder.build().start();
     } catch (IOException unexpected) {
       throw new RuntimeException(unexpected);
@@ -120,5 +101,68 @@ public class InProcessGRPCServer {
   @Nullable
   public ManagedChannel getChannel() {
     return channel;
+  }
+
+  /**
+   * This interceptor is needed for testing RESOURCE_EXHAUSTED error handling because in-process
+   * gRPC server doesn't check and cannot be configured to check message size.
+   */
+  public static class MessageSizeChecker implements ServerInterceptor {
+    private final int maxMessageSize;
+
+    public MessageSizeChecker() {
+      this(4 * 1024 * 1024); // matching gRPC's default 4MB
+    }
+
+    public MessageSizeChecker(int maxMessageSize) {
+      this.maxMessageSize = maxMessageSize;
+    }
+
+    @Override
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+        ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+      call.request(1);
+      return new Listener<>(call, headers, next);
+    }
+
+    private class Listener<ReqT, RespT> extends ForwardingServerCallListener<ReqT> {
+      private final ServerCall<ReqT, RespT> call;
+      private final Metadata headers;
+      private final ServerCallHandler<ReqT, RespT> next;
+      private ServerCall.Listener<ReqT> delegate;
+      private boolean delegateSet;
+
+      public Listener(
+          ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        this.call = call;
+        this.headers = headers;
+        this.next = next;
+        delegate = new ServerCall.Listener<ReqT>() {};
+        delegateSet = false;
+      }
+
+      @Override
+      protected ServerCall.Listener<ReqT> delegate() {
+        return delegate;
+      }
+
+      @Override
+      public void onMessage(ReqT message) {
+        int size = ((MessageLite) message).getSerializedSize();
+        if (size > maxMessageSize) {
+          call.close(
+              Status.RESOURCE_EXHAUSTED.withDescription(
+                  String.format(
+                      "grpc: received message larger than max (%d vs. %d)", size, maxMessageSize)),
+              new Metadata());
+        } else {
+          if (!delegateSet) {
+            delegateSet = true;
+            delegate = next.startCall(call, headers);
+          }
+          super.onMessage(message);
+        }
+      }
+    }
   }
 }

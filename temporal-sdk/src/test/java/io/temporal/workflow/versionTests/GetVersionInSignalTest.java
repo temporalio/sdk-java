@@ -1,26 +1,8 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.versionTests;
 
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
@@ -32,11 +14,17 @@ import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionInSignalTest {
+public class GetVersionInSignalTest extends BaseVersionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestGetVersionInSignal.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(getDefaultWorkflowImplementationOptions(), TestGetVersionInSignal.class)
+          .build();
+
+  public GetVersionInSignalTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
 
   @Test
   public void testGetVersionInSignal() {
@@ -49,6 +37,14 @@ public class GetVersionInSignalTest {
     workflow.signal("done");
     String result = workflowStub.getResult(String.class);
     assertEquals("[done]", result);
+    List<String> versions =
+        workflowStub.describe().getTypedSearchAttributes().get(TEMPORAL_CHANGE_VERSION);
+    if (upsertVersioningSA) {
+      assertEquals(1, versions.size());
+      assertEquals("some-id-2", versions.get(0));
+    } else {
+      assertNull(versions);
+    }
   }
 
   /** The following test covers the scenario where getVersion call is performed inside a signal */

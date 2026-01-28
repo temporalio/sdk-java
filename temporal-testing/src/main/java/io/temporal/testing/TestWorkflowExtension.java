@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.testing;
 
 import static io.temporal.testing.internal.TestServiceUtils.applyNexusServiceOptions;
@@ -28,7 +8,6 @@ import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -407,7 +386,6 @@ public class TestWorkflowExtension
      *
      * @see Worker#registerNexusServiceImplementation(Object...)
      */
-    @Experimental
     public Builder setNexusServiceImplementation(Object... nexusServiceImplementations) {
       this.nexusServiceImplementations = nexusServiceImplementations;
       return this;
@@ -482,7 +460,6 @@ public class TestWorkflowExtension
      * When set to true the {@link TestWorkflowEnvironment} will not automatically create a Nexus
      * Endpoint. This is useful when you want to manually create a Nexus Endpoint for your test.
      */
-    @Experimental
     public Builder setDoNotSetupNexusEndpoint(boolean doNotSetupNexusEndpoint) {
       this.doNotSetupNexusEndpoint = doNotSetupNexusEndpoint;
       return this;
@@ -526,8 +503,8 @@ public class TestWorkflowExtension
      * @param type search attribute type
      * @return {@code this}
      * @see <a
-     *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
-     *     a Custom Search Attribute Using tctl</a>
+     *     href="https://docs.temporal.io/self-hosted-guide/visibility#create-custom-search-attributes">
+     *     How to create custom Search Attributes</a>
      */
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       this.searchAttributes.put(name, type);

@@ -1,27 +1,8 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
@@ -52,32 +33,55 @@ public interface ActivityExecutionContext {
   <V> void heartbeat(V details) throws ActivityCompletionException;
 
   /**
-   * Extracts Heartbeat details from the last failed attempt. This is used in combination with retry
-   * options. An Activity Execution could be scheduled with optional {@link
-   * io.temporal.common.RetryOptions} via {@link io.temporal.activity.ActivityOptions}. If an
-   * Activity Execution failed then the server would attempt to dispatch another Activity Task to
-   * retry the execution according to the retry options. If there were Heartbeat details reported by
-   * the last Activity Execution that failed, they would be delivered along with the Activity Task
-   * for the next retry attempt and can be extracted by the Activity implementation.
+   * Extracts Heartbeat details from the last heartbeat of this Activity Execution attempt. If there
+   * were no heartbeats in this attempt, details from the last failed attempt are returned instead.
+   * This is used in combination with retry options. An Activity Execution could be scheduled with
+   * optional {@link io.temporal.common.RetryOptions} via {@link
+   * io.temporal.activity.ActivityOptions}. If an Activity Execution failed then the server would
+   * attempt to dispatch another Activity Task to retry the execution according to the retry
+   * options. If there were Heartbeat details reported by the last Activity Execution that failed,
+   * they would be delivered along with the Activity Task for the next retry attempt and can be
+   * extracted by the Activity implementation.
    *
    * @param detailsClass Class of the Heartbeat details
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass);
 
   /**
-   * Extracts Heartbeat details from the last failed attempt. This is used in combination with retry
-   * options. An Activity Execution could be scheduled with optional {@link
-   * io.temporal.common.RetryOptions} via {@link io.temporal.activity.ActivityOptions}. If an
-   * Activity Execution failed then the server would attempt to dispatch another Activity Task to
-   * retry the execution according to the retry options. If there were Heartbeat details reported by
-   * the last Activity Execution that failed, the details would be delivered along with the Activity
-   * Task for the next retry attempt. The Activity implementation can extract the details via {@link
-   * #getHeartbeatDetails(Class)}() and resume progress.
+   * Extracts Heartbeat details from the last heartbeat of this Activity Execution attempt. If there
+   * were no heartbeats in this attempt, details from the last failed attempt are returned instead.
+   * It is useful in combination with retry options. An Activity Execution could be scheduled with
+   * optional {@link io.temporal.common.RetryOptions} via {@link
+   * io.temporal.activity.ActivityOptions}. If an Activity Execution failed then the server would
+   * attempt to dispatch another Activity Task to retry the execution according to the retry
+   * options. If there were Heartbeat details reported by the last Activity Execution that failed,
+   * the details would be delivered along with the Activity Task for the next retry attempt. The
+   * Activity implementation can extract the details via {@link #getHeartbeatDetails(Class)}() and
+   * resume progress.
    *
    * @param detailsClass Class of the Heartbeat details
    * @param detailsGenericType Type of the Heartbeat details
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
+
+  /**
+   * Returns details from the last failed attempt of this Activity Execution. Unlike {@link
+   * #getHeartbeatDetails(Class)}, the returned details are not updated on every heartbeat call
+   * within the current attempt.
+   *
+   * @param detailsClass Class of the Heartbeat details
+   */
+  <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass);
+
+  /**
+   * Returns details from the last failed attempt of this Activity Execution. Unlike {@link
+   * #getHeartbeatDetails(Class, Type)}, the returned details are not updated on every heartbeat
+   * call within the current attempt.
+   *
+   * @param detailsClass Class of the Heartbeat details
+   * @param detailsGenericType Type of the Heartbeat details
+   */
+  <V> Optional<V> getLastHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
 
   /**
    * Gets a correlation token that can be used to complete the Activity Execution asynchronously
@@ -140,4 +144,13 @@ public interface ActivityExecutionContext {
    * WorkflowServiceStubsOptions.Builder#setMetricsScope(Scope)} when a worker starts up.
    */
   Scope getMetricsScope();
+
+  /**
+   * Get a {@link WorkflowClient} that can be used to start interact with the Temporal service from
+   * an activity.
+   */
+  WorkflowClient getWorkflowClient();
+
+  /** Get the currently running activity instance. */
+  Object getInstance();
 }

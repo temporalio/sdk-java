@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.statemachines;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -28,6 +8,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.workflow.Functions;
@@ -44,6 +25,7 @@ final class MutableSideEffectStateMachine {
   static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
 
   private final String id;
+  private UserMetadata metadata;
   private final Functions.Func<Boolean> replaying;
   private final Functions.Proc1<CancellableCommand> commandSink;
 
@@ -194,7 +176,8 @@ final class MutableSideEffectStateMachine {
                 .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
                 .putAllDetails(details)
                 .build();
-        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
+        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes, metadata));
+        metadata = null; // only used once
         currentSkipCount = 0;
         return State.MARKER_COMMAND_CREATED;
       }
@@ -264,18 +247,22 @@ final class MutableSideEffectStateMachine {
   /** Creates new MutableSideEffectStateMachine */
   public static MutableSideEffectStateMachine newInstance(
       String id,
+      UserMetadata metadata,
       Functions.Func<Boolean> replaying,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    return new MutableSideEffectStateMachine(id, replaying, commandSink, stateMachineSink);
+    return new MutableSideEffectStateMachine(
+        id, metadata, replaying, commandSink, stateMachineSink);
   }
 
   private MutableSideEffectStateMachine(
       String id,
+      UserMetadata metadata,
       Functions.Func<Boolean> replaying,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     this.id = Objects.requireNonNull(id);
+    this.metadata = metadata;
     this.replaying = Objects.requireNonNull(replaying);
     this.commandSink = Objects.requireNonNull(commandSink);
   }

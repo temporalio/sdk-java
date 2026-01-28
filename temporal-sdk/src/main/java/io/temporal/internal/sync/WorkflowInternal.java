@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
@@ -44,6 +24,7 @@ import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.NonIdempotentHandle;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
@@ -437,11 +418,18 @@ public final class WorkflowInternal {
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
     if (workflowStub instanceof StubMarker) {
-      Object stub = ((StubMarker) workflowStub).__getUntypedStub();
-      return ((ChildWorkflowStub) stub).getExecution();
+      Object untyped = ((StubMarker) workflowStub).__getUntypedStub();
+      if (untyped instanceof ChildWorkflowStub) {
+        return ((ChildWorkflowStub) untyped).getExecution();
+      }
+
+      if (untyped instanceof ExternalWorkflowStub) {
+        return newPromise(((ExternalWorkflowStub) untyped).getExecution());
+      }
     }
     throw new IllegalArgumentException(
-        "Not a workflow stub created through Workflow.newChildWorkflowStub: " + workflowStub);
+        "Not a workflow stub created through Workflow.newChildWorkflowStub or Workflow.newExternalWorkflowStub: "
+            + workflowStub);
   }
 
   public static ChildWorkflowStub newUntypedChildWorkflowStub(
@@ -537,11 +525,29 @@ public final class WorkflowInternal {
     return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func);
   }
 
+  public static <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    assertNotReadOnly("side effect");
+    return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func, options);
+  }
+
   public static <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     assertNotReadOnly("mutable side effect");
     return getWorkflowOutboundInterceptor()
         .mutableSideEffect(id, resultClass, resultType, updated, func);
+  }
+
+  public static <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    assertNotReadOnly("mutable side effect");
+    return getWorkflowOutboundInterceptor()
+        .mutableSideEffect(id, resultClass, resultType, updated, func, options);
   }
 
   public static int getVersion(String changeId, int minSupported, int maxSupported) {
@@ -566,12 +572,20 @@ public final class WorkflowInternal {
   }
 
   public static CancellationScope newCancellationScope(boolean detached, Runnable runnable) {
-    return new CancellationScopeImpl(detached, runnable);
+    boolean deterministicCancellationScopeOrder =
+        getRootWorkflowContext()
+            .getReplayContext()
+            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+    return new CancellationScopeImpl(detached, deterministicCancellationScopeOrder, runnable);
   }
 
   public static CancellationScope newCancellationScope(
       boolean detached, Functions.Proc1<CancellationScope> proc) {
-    return new CancellationScopeImpl(detached, proc);
+    boolean deterministicCancellationScopeOrder =
+        getRootWorkflowContext()
+            .getReplayContext()
+            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+    return new CancellationScopeImpl(detached, deterministicCancellationScopeOrder, proc);
   }
 
   public static CancellationScopeImpl currentCancellationScope() {
@@ -631,9 +645,13 @@ public final class WorkflowInternal {
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    return cancelWorkflow(execution, null);
+  }
+
+  public static Promise<Void> cancelWorkflow(WorkflowExecution execution, @Nullable String reason) {
     assertNotReadOnly("cancel workflow");
     return getWorkflowOutboundInterceptor()
-        .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
+        .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution, reason))
         .getResult();
   }
 
@@ -837,11 +855,23 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().getCurrentDetails();
   }
 
+  @Nullable
+  public static Object getInstance() {
+    return getRootWorkflowContext().getInstance();
+  }
+
   static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
     return getRootWorkflowContext().getWorkflowOutboundInterceptor();
   }
 
   static SyncWorkflowContext getRootWorkflowContext() {
+    // If we are in a query handler, we need to get the workflow context from the
+    // QueryDispatcher, otherwise we get it from the current thread's internal context.
+    // This is necessary because query handlers run in a different context than the main workflow
+    // threads.
+    if (QueryDispatcher.isQueryHandler()) {
+      return QueryDispatcher.getWorkflowContext();
+    }
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 

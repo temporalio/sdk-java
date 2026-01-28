@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.testserver.functional;
 
 import com.google.common.collect.ImmutableMap;
@@ -154,13 +134,16 @@ public class DescribeWorkflowExecutionTest {
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
             .assertNoParent()
+            .assertNoExecutionDuration()
+            .assertRoot(execution)
+            .assertFirstRunId(execution.getRunId())
             .assertPendingActivityCount(1)
             .assertPendingChildrenCount(0);
 
     PendingActivityInfo actual = asserter.getActual().getPendingActivities(0);
 
     // No fancy asserter type for PendingActivityInfo... we just build the expected proto
-    PendingActivityInfo expected =
+    PendingActivityInfo.Builder expected =
         PendingActivityInfo.newBuilder()
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
@@ -177,10 +160,13 @@ public class DescribeWorkflowExecutionTest {
             // going to run against the real server.
             .setScheduledTime(actual.getScheduledTime())
             .setLastStartedTime(actual.getLastStartedTime())
-            .setExpirationTime(actual.getExpirationTime())
-            .build();
+            .setExpirationTime(actual.getExpirationTime());
 
-    Assert.assertEquals("PendingActivityInfo should match before", expected, actual);
+    if (actual.hasActivityOptions()) {
+      // If the activity options are present, we can assert them
+      expected.setActivityOptions(actual.getActivityOptions());
+    }
+    Assert.assertEquals("PendingActivityInfo should match before", expected.build(), actual);
 
     // Make the activity heartbeat - this should show in the next describe call
     ThreadUtils.waitForWorkflow(token + "-heartbeat");
@@ -198,11 +184,11 @@ public class DescribeWorkflowExecutionTest {
 
     // Now, our PendingActivityInfo has heartbeat data, but is otherwise unchanged
     expected =
-        expected.toBuilder()
+        expected
             .setHeartbeatDetails(DescribeWorkflowAsserter.stringsToPayloads("heartbeatDetails"))
-            .setLastHeartbeatTime(actual.getLastHeartbeatTime())
-            .build();
-    Assert.assertEquals("PendingActivityInfo should match after heartbeat", expected, actual);
+            .setLastHeartbeatTime(actual.getLastHeartbeatTime());
+    Assert.assertEquals(
+        "PendingActivityInfo should match after heartbeat", expected.build(), actual);
 
     // Let the activity finish, which will let the workflow finish.
     ThreadUtils.waitForWorkflow(token + "-finish");
@@ -258,7 +244,7 @@ public class DescribeWorkflowExecutionTest {
         "Activity was asked to fail on attempt 1",
         actual.getLastFailure().getMessage());
 
-    PendingActivityInfo expected =
+    PendingActivityInfo.Builder expected =
         PendingActivityInfo.newBuilder()
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
@@ -275,10 +261,13 @@ public class DescribeWorkflowExecutionTest {
             // it.
             .setLastWorkerIdentity(actual.getLastWorkerIdentity())
             // We don't deeply assert the failure structure since we asserted the message above
-            .setLastFailure(actual.getLastFailure())
-            .build();
+            .setLastFailure(actual.getLastFailure());
+    if (actual.hasActivityOptions()) {
+      // If the activity options are present, we can assert them
+      expected.setActivityOptions(actual.getActivityOptions());
+    }
 
-    Assert.assertEquals("PendingActivityInfo should match", expected, actual);
+    Assert.assertEquals("PendingActivityInfo should match", expected.build(), actual);
 
     // Now let the workflow succeed
     ThreadUtils.waitForWorkflow(token + "-finish");
@@ -287,6 +276,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
+        .assertHasExecutionDuration()
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
   }
@@ -327,7 +317,7 @@ public class DescribeWorkflowExecutionTest {
 
     PendingActivityInfo actual = asserter.getActual().getPendingActivities(0);
 
-    PendingActivityInfo expected =
+    PendingActivityInfo.Builder expected =
         PendingActivityInfo.newBuilder()
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
@@ -341,10 +331,13 @@ public class DescribeWorkflowExecutionTest {
             .setExpirationTime(actual.getExpirationTime())
             // this ends up being a dummy value, but if it weren't, we still wouldn't expect to know
             // it.
-            .setLastWorkerIdentity(actual.getLastWorkerIdentity())
-            .build();
+            .setLastWorkerIdentity(actual.getLastWorkerIdentity());
+    if (actual.hasActivityOptions()) {
+      // If the activity options are present, we can assert them
+      expected.setActivityOptions(actual.getActivityOptions());
+    }
 
-    Assert.assertEquals("PendingActivityInfo should match", expected, actual);
+    Assert.assertEquals("PendingActivityInfo should match", expected.build(), actual);
   }
 
   @Test
@@ -435,6 +428,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(expectedChildOptions)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
         .assertParent(parentExecution)
+        .assertRoot(parentExecution)
         .assertPendingActivityCount(1)
         .assertPendingChildrenCount(0);
 
@@ -446,6 +440,7 @@ public class DescribeWorkflowExecutionTest {
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
+        .assertRoot(parentExecution)
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
 

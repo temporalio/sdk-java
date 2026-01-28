@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.testservice;
 
 import io.grpc.Status;
@@ -30,17 +10,17 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
-final class ExecutionId {
+public final class ExecutionId {
 
   private final String namespace;
   private final WorkflowExecution execution;
 
-  ExecutionId(String namespace, WorkflowExecution execution) {
+  public ExecutionId(String namespace, WorkflowExecution execution) {
     this.namespace = Objects.requireNonNull(namespace);
     this.execution = Objects.requireNonNull(execution);
   }
 
-  ExecutionId(String namespace, String workflowId, String runId) {
+  public ExecutionId(String namespace, String workflowId, String runId) {
     this(
         namespace,
         WorkflowExecution.newBuilder()

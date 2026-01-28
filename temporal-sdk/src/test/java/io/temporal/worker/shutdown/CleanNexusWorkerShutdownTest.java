@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker.shutdown;
 
 import static org.junit.Assert.assertEquals;
@@ -34,34 +14,57 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.PollerBehavior;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
+import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class CleanNexusWorkerShutdownTest {
 
   private static final String COMPLETED = "Completed";
   private static final String INTERRUPTED = "Interrupted";
-  private static final CountDownLatch shutdownLatch = new CountDownLatch(1);
-  private static final CountDownLatch shutdownNowLatch = new CountDownLatch(1);
-  private static final TestNexusServiceImpl nexusServiceImpl =
+  private CountDownLatch shutdownLatch = new CountDownLatch(1);
+  private final CountDownLatch shutdownNowLatch = new CountDownLatch(1);
+  private final TestNexusServiceImpl nexusServiceImpl =
       new TestNexusServiceImpl(shutdownLatch, shutdownNowLatch);
 
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflowImpl.class)
-          .setNexusServiceImplementation(nexusServiceImpl)
-          .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
-          .build();
+  @Parameterized.Parameters
+  public static Collection<PollerBehavior> data() {
+    return Arrays.asList(
+        new PollerBehavior[] {
+          new PollerBehaviorSimpleMaximum(10), new PollerBehaviorAutoscaling(),
+        });
+  }
+
+  @Rule public SDKTestWorkflowRule testWorkflowRule;
+
+  public CleanNexusWorkerShutdownTest(PollerBehavior pollerBehaviorAutoscaling) {
+    this.testWorkflowRule =
+        SDKTestWorkflowRule.newBuilder()
+            .setWorkflowTypes(TestWorkflowImpl.class)
+            .setWorkerOptions(
+                WorkerOptions.newBuilder()
+                    .setLocalActivityWorkerOnly(true)
+                    .setNexusTaskPollersBehavior(pollerBehaviorAutoscaling)
+                    .build())
+            .setNexusServiceImplementation(nexusServiceImpl)
+            .build();
+  }
 
   @Test(timeout = 20000)
   public void testShutdown() throws InterruptedException {

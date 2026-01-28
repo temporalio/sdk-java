@@ -1,29 +1,8 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.sync;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -33,10 +12,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.statemachines.ExecuteActivityParameters;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
-import io.temporal.internal.statemachines.LocalActivityCallback;
-import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.*;
@@ -49,6 +25,7 @@ public class DummySyncWorkflowContext {
         new SyncWorkflowContext(
             "dummy",
             WorkflowExecution.newBuilder().setWorkflowId("dummy").setRunId("dummy").build(),
+            null,
             new SignalDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             new QueryDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             new UpdateDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
@@ -79,6 +56,11 @@ public class DummySyncWorkflowContext {
 
     @Override
     public WorkflowExecution getParentWorkflowExecution() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public WorkflowExecution getRootWorkflowExecution() {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -211,7 +193,7 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Functions.Proc1<Exception> startNexusOperation(
-        ScheduleNexusOperationCommandAttributes attributes,
+        StartNexusOperationParameters parameters,
         Functions.Proc2<Optional<String>, Failure> startedCallback,
         Functions.Proc2<Optional<Payload>, Failure> completionCallback) {
       throw new UnsupportedOperationException("not implemented");
@@ -226,7 +208,9 @@ public class DummySyncWorkflowContext {
 
     @Override
     public void requestCancelExternalWorkflowExecution(
-        WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback) {
+        WorkflowExecution execution,
+        @Nullable String reason,
+        Functions.Proc2<Void, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -269,13 +253,16 @@ public class DummySyncWorkflowContext {
 
     @Override
     public void sideEffect(
-        Functions.Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
+        Functions.Func<Optional<Payloads>> func,
+        UserMetadata userMetadata,
+        Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply());
     }
 
     @Override
     public void mutableSideEffect(
         String id,
+        UserMetadata userMetadata,
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
         Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply(Optional.empty()));
@@ -287,7 +274,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public boolean getVersion(
+    public Integer getVersion(
         String changeId,
         int minSupported,
         int maxSupported,
@@ -331,8 +318,18 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public boolean checkSdkFlag(SdkFlag flag) {
+      return false;
+    }
+
+    @Override
     public Optional<String> getCurrentBuildId() {
       return Optional.empty();
+    }
+
+    @Override
+    public Priority getPriority() {
+      return null;
     }
 
     @Override

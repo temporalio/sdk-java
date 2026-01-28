@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.authorization;
 
 import static org.junit.Assert.*;
@@ -33,6 +13,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.After;
@@ -43,6 +24,8 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
 public class AuthorizationTokenTest {
+  private static Metadata.Key<String> TEMPORAL_NAMESPACE_HEADER_KEY =
+      Metadata.Key.of("temporal-namespace", Metadata.ASCII_STRING_MARSHALLER);
   private static final String TASK_QUEUE = "test-workflow";
   private static final String AUTH_TOKEN = "Bearer <token>";
 
@@ -89,7 +72,8 @@ public class AuthorizationTokenTest {
                           new GrpcRequest(
                               method.getBareMethodName(),
                               headers.get(
-                                  AuthorizationGrpcMetadataProvider.AUTHORIZATION_HEADER_KEY)));
+                                  AuthorizationGrpcMetadataProvider.AUTHORIZATION_HEADER_KEY),
+                              headers.get(TEMPORAL_NAMESPACE_HEADER_KEY)));
                       super.start(responseListener, headers);
                     }
                   }
@@ -121,9 +105,18 @@ public class AuthorizationTokenTest {
     assertEquals("TestWorkflow1-input1", result);
 
     assertFalse(loggedRequests.isEmpty());
+    // These methods are not namespace specific
+    List<String> methodsToSkip =
+        Arrays.asList("GetSystemInfo", "Check", "UnlockTimeSkipping", "LockTimeSkipping");
     for (GrpcRequest grpcRequest : loggedRequests) {
       assertEquals(
           "All requests should have an auth token", AUTH_TOKEN, grpcRequest.authTokenValue);
+      if (!methodsToSkip.contains(grpcRequest.methodName)) {
+        assertEquals(
+            "All requests should have a namespace " + grpcRequest.methodName,
+            testEnvironment.getNamespace(),
+            grpcRequest.namespace);
+      }
     }
   }
 
@@ -139,10 +132,12 @@ public class AuthorizationTokenTest {
   private static class GrpcRequest {
     final String methodName;
     final String authTokenValue;
+    final String namespace;
 
-    GrpcRequest(String methodName, String authTokenValue) {
+    GrpcRequest(String methodName, String authTokenValue, String namespace) {
       this.methodName = methodName;
       this.authTokenValue = authTokenValue;
+      this.namespace = namespace;
     }
   }
 }

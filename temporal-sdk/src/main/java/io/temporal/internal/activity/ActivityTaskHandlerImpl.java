@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.activity;
 
 import com.google.common.base.Joiner;
@@ -36,6 +16,7 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.internal.activity.ActivityTaskExecutors.ActivityTaskExecutor;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.env.ReflectionUtils;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -209,11 +190,13 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     Scope ms =
         metricsScope.tagged(
             ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
-    if (isLocalActivity) {
-      ms.counter(MetricsType.LOCAL_ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
-      ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
-    } else {
-      ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+    if (!FailureUtils.isBenignApplicationFailure(exception)) {
+      if (isLocalActivity) {
+        ms.counter(MetricsType.LOCAL_ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+        ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
+      } else {
+        ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+      }
     }
     Failure failure = dataConverter.exceptionToFailure(exception);
     RespondActivityTaskFailedRequest.Builder result =

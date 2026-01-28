@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
@@ -112,16 +92,16 @@ public class WorkflowLocalsTest {
       assertNull(workflowThreadLocal.get());
       assertNull(workflowThreadLocal.get());
       workflowThreadLocal.set(55);
-      assertEquals((long) workflowThreadLocal.get(), 55);
-      assertEquals(threadLocalCalls.get(), 1);
+      assertEquals(55, (long) workflowThreadLocal.get());
+      assertEquals(1, threadLocalCalls.get());
 
       assertNull(workflowLocal.get());
       workflowLocal.set(null);
       assertNull(workflowLocal.get());
       assertNull(workflowLocal.get());
       workflowLocal.set(58);
-      assertEquals((long) workflowLocal.get(), 58);
-      assertEquals(localCalls.get(), 1);
+      assertEquals(58, (long) workflowLocal.get());
+      assertEquals(1, localCalls.get());
       return "ok";
     }
   }

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.spring.boot.autoconfigure.template;
 
 import com.google.common.base.Preconditions;
@@ -32,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.BeanCreationException;
@@ -41,14 +22,14 @@ import org.springframework.util.ResourceUtils;
 public class ServiceStubOptionsTemplate {
   private final @Nonnull ConnectionProperties connectionProperties;
   private final @Nullable Scope metricsScope;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
       workflowServiceStubsCustomizer;
 
   public ServiceStubOptionsTemplate(
       @Nonnull ConnectionProperties connectionProperties,
       @Nullable Scope metricsScope,
       @Nullable
-          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+          List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
               workflowServiceStubsCustomizer) {
     this.connectionProperties = connectionProperties;
     this.metricsScope = metricsScope;
@@ -64,6 +45,14 @@ public class ServiceStubOptionsTemplate {
 
     stubsOptionsBuilder.setEnableHttps(Boolean.TRUE.equals(connectionProperties.isEnableHttps()));
 
+    if (connectionProperties.getApiKey() != null && !connectionProperties.getApiKey().isEmpty()) {
+      stubsOptionsBuilder.addApiKey(connectionProperties::getApiKey);
+      // Unless HTTPS is explicitly disabled, enable it by default for API keys
+      if (connectionProperties.isEnableHttps() == null) {
+        stubsOptionsBuilder.setEnableHttps(true);
+      }
+    }
+
     configureMTLS(connectionProperties.getMTLS(), stubsOptionsBuilder);
 
     if (metricsScope != null) {
@@ -71,9 +60,11 @@ public class ServiceStubOptionsTemplate {
     }
 
     if (workflowServiceStubsCustomizer != null) {
-      stubsOptionsBuilder = workflowServiceStubsCustomizer.customize(stubsOptionsBuilder);
+      for (TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+          workflowServiceStubsCustomizer : workflowServiceStubsCustomizer) {
+        stubsOptionsBuilder = workflowServiceStubsCustomizer.customize(stubsOptionsBuilder);
+      }
     }
-
     return stubsOptionsBuilder.build();
   }
 

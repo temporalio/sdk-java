@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.testing.internal;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
@@ -38,6 +18,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.SearchAttributeKey;
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
@@ -55,11 +36,8 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
+import java.util.concurrent.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Test;
@@ -274,6 +252,10 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
+  public String getDeploymentName() {
+    return "deployment-" + testWorkflowRule.getUniquePostfix();
+  }
+
   public Endpoint getNexusEndpoint() {
     return testWorkflowRule.getNexusEndpoint();
   }
@@ -282,12 +264,37 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getWorker();
   }
 
+  /** Start a new worker, re-using existing options and modifying them with the provided modifier */
+  public Worker newWorker(Functions.Proc1<WorkerOptions.Builder> optionsModifier) {
+    WorkerOptions.Builder optionsBuilder =
+        WorkerOptions.newBuilder(testWorkflowRule.getWorkerOptions());
+    optionsModifier.apply(optionsBuilder);
+    WorkerOptions workerOptions = optionsBuilder.build();
+    WorkerFactory wf = WorkerFactory.newInstance(getWorkflowClient(), getWorkerFactoryOptions());
+    return wf.newWorker(getTaskQueue(), workerOptions);
+  }
+
+  /** Start a new worker, changing only the build ID */
+  public Worker newWorkerWithBuildID(String buildId) {
+    return newWorker(
+        (opts) ->
+            opts.setDeploymentOptions(
+                WorkerDeploymentOptions.newBuilder()
+                    .setVersion(new WorkerDeploymentVersion(getDeploymentName(), buildId))
+                    .setUseVersioning(true)
+                    .build()));
+  }
+
   public WorkerFactoryOptions getWorkerFactoryOptions() {
     return testWorkflowRule.getWorkerFactoryOptions();
   }
 
   public WorkflowExecutionHistory getExecutionHistory(String workflowId) {
     return testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
+  }
+
+  public WorkflowExecutionHistory getExecutionHistory(String workflowId, String runId) {
+    return testWorkflowRule.getWorkflowClient().fetchHistory(workflowId, runId);
   }
 
   /** Returns list of all events of the given EventType found in the history. */
@@ -315,7 +322,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
   /** Asserts that an event of the given EventType is found in the history. */
   public void assertHistoryEvent(String workflowId, EventType eventType) {
-    History history = getExecutionHistory(workflowId).getHistory();
+    assertHistoryEvent(workflowId, null, eventType);
+  }
+
+  public void assertHistoryEvent(String workflowId, String runId, EventType eventType) {
+    History history = getExecutionHistory(workflowId, runId).getHistory();
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         return;
@@ -326,7 +337,12 @@ public class SDKTestWorkflowRule implements TestRule {
 
   /** Asserts that an event of the given EventType is not found in the history. */
   public void assertNoHistoryEvent(String workflowId, EventType eventType) {
-    History history = getExecutionHistory(workflowId).getHistory();
+    assertNoHistoryEvent(workflowId, null, eventType);
+  }
+
+  /** Asserts that an event of the given EventType is not found in the history. */
+  public void assertNoHistoryEvent(String workflowId, String runId, EventType eventType) {
+    History history = getExecutionHistory(workflowId, runId).getHistory();
     assertNoHistoryEvent(history, eventType);
   }
 
@@ -385,6 +401,16 @@ public class SDKTestWorkflowRule implements TestRule {
         .newWorkflowStub(workflow, SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
+  public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow, String workflowIdPrefix) {
+    String workflowId = workflowIdPrefix + "-" + UUID.randomUUID();
+    return getWorkflowClient()
+        .newWorkflowStub(
+            workflow,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()).toBuilder()
+                .setWorkflowId(workflowId)
+                .build());
+  }
+
   public <T> T newWorkflowStub200sTimeoutOptions(Class<T> workflow) {
     return getWorkflowClient()
         .newWorkflowStub(
@@ -430,6 +456,7 @@ public class SDKTestWorkflowRule implements TestRule {
         .registerWorkflowImplementationFactory(factoryImpl, factoryFunc);
   }
 
+  @SuppressWarnings("deprecation")
   public void regenerateHistoryForReplay(String workflowId, String fileName) {
     if (REGENERATE_JSON_FILES) {
       String json = getExecutionHistory(workflowId).toJson(true);

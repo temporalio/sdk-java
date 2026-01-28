@@ -1,32 +1,16 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.opentracing.OpenTracingClientInterceptor;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,22 +18,30 @@ import javax.annotation.Nullable;
 public class WorkflowClientOptionsTemplate {
   private final @Nonnull String namespace;
   private final @Nullable DataConverter dataConverter;
+  private final @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors;
+  private final @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors;
   private final @Nullable Tracer tracer;
-  private final @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer;
-  private final @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder>
-      scheduleCustomizer;
+  private final @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>>
+      clientCustomizers;
+  private final @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
+      scheduleCustomizers;
 
   public WorkflowClientOptionsTemplate(
       @Nonnull String namespace,
       @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
       @Nullable Tracer tracer,
-      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer,
-      @Nullable TemporalOptionsCustomizer<ScheduleClientOptions.Builder> scheduleCustomizer) {
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable
+          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
+    this.workflowClientInterceptors = workflowClientInterceptors;
+    this.scheduleClientInterceptors = scheduleClientInterceptors;
     this.tracer = tracer;
-    this.clientCustomizer = clientCustomizer;
-    this.scheduleCustomizer = scheduleCustomizer;
+    this.clientCustomizers = clientCustomizers;
+    this.scheduleCustomizers = scheduleCustomizers;
   }
 
   public WorkflowClientOptions createWorkflowClientOptions() {
@@ -57,17 +49,25 @@ public class WorkflowClientOptionsTemplate {
     options.setNamespace(namespace);
     Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
 
+    List<WorkflowClientInterceptor> interceptors = new ArrayList<>();
     if (tracer != null) {
       OpenTracingClientInterceptor openTracingClientInterceptor =
           new OpenTracingClientInterceptor(
               OpenTracingOptions.newBuilder().setTracer(tracer).build());
-      options.setInterceptors(openTracingClientInterceptor);
+      interceptors.add(openTracingClientInterceptor);
+    }
+    if (workflowClientInterceptors != null) {
+      interceptors.addAll(workflowClientInterceptors);
     }
 
-    if (clientCustomizer != null) {
-      options = clientCustomizer.customize(options);
-    }
+    options.setInterceptors(interceptors.toArray(new WorkflowClientInterceptor[0]));
 
+    if (clientCustomizers != null) {
+      for (TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer :
+          clientCustomizers) {
+        options = customizer.customize(options);
+      }
+    }
     return options.build();
   }
 
@@ -75,9 +75,15 @@ public class WorkflowClientOptionsTemplate {
     ScheduleClientOptions.Builder options = ScheduleClientOptions.newBuilder();
     options.setNamespace(namespace);
     Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
+    if (scheduleClientInterceptors != null && !scheduleClientInterceptors.isEmpty()) {
+      options.setInterceptors(scheduleClientInterceptors);
+    }
 
-    if (scheduleCustomizer != null) {
-      options = scheduleCustomizer.customize(options);
+    if (scheduleCustomizers != null) {
+      for (TemporalOptionsCustomizer<ScheduleClientOptions.Builder> customizer :
+          scheduleCustomizers) {
+        options = customizer.customize(options);
+      }
     }
 
     return options.build();

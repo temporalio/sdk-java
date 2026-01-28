@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
@@ -42,6 +22,7 @@ import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.Config;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
@@ -113,7 +94,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.workflow = workflow;
 
     this.workflowStateMachines =
-        new WorkflowStateMachines(new StatesMachinesCallbackImpl(), capabilities);
+        new WorkflowStateMachines(
+            new StatesMachinesCallbackImpl(),
+            capabilities,
+            workflow.getWorkflowContext() == null
+                ? WorkflowImplementationOptions.newBuilder().build()
+                : workflow.getWorkflowContext().getWorkflowImplementationOptions());
     String fullReplayDirectQueryType =
         workflowTask.hasQuery() ? workflowTask.getQuery().getQueryType() : null;
     this.context =
@@ -146,7 +132,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           Deadline.after(
               (long)
                   (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
-                      * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT),
+                      * Config.WORKFLOW_TASK_HEARTBEAT_COEFFICIENT),
               TimeUnit.NANOSECONDS);
 
       if (workflowTask.getPreviousStartedEventId()
@@ -180,15 +166,41 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         throw context.getWorkflowTaskFailure();
       }
       Map<String, WorkflowQueryResult> queryResults = executeQueries(workflowTask.getQueriesMap());
-      return WorkflowTaskResult.newBuilder()
-          .setCommands(commands)
-          .setMessages(messages)
-          .setQueryResults(queryResults)
-          .setFinalCommand(context.isWorkflowMethodCompleted())
-          .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
-          .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
-          .setSdkFlags(newSdkFlags)
-          .build();
+      WorkflowTaskResult.Builder result =
+          WorkflowTaskResult.newBuilder()
+              .setCommands(commands)
+              .setMessages(messages)
+              .setQueryResults(queryResults)
+              .setFinalCommand(context.isWorkflowMethodCompleted())
+              .setForceWorkflowTask(
+                  localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
+              .setNonfirstLocalActivityAttempts(localActivityMeteringHelper.getNonfirstAttempts())
+              .setSdkFlags(newSdkFlags);
+      if (workflowStateMachines.sdkNameToWrite() != null) {
+        result.setWriteSdkName(workflowStateMachines.sdkNameToWrite());
+      }
+      if (workflowStateMachines.sdkVersionToWrite() != null) {
+        result.setWriteSdkVersion(workflowStateMachines.sdkVersionToWrite());
+      }
+      if (workflow.getWorkflowContext() != null) {
+        result.setVersioningBehavior(workflow.getWorkflowContext().getVersioningBehavior());
+      }
+      // Setup post-completion metrics to be applied after task response accepted
+      String postCompleteCounter = workflowStateMachines.getPostCompletionMetricCounter();
+      com.uber.m3.util.Duration postCompleteLatency =
+          workflowStateMachines.getPostCompletionEndToEndLatency();
+      if (postCompleteCounter != null || postCompleteLatency != null) {
+        result.setApplyPostCompletionMetrics(
+            () -> {
+              if (postCompleteCounter != null) {
+                metricsScope.counter(postCompleteCounter).inc(1);
+              }
+              if (postCompleteLatency != null) {
+                metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(postCompleteLatency);
+              }
+            });
+      }
+      return result.build();
     } finally {
       lock.unlock();
     }
@@ -218,8 +230,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public void resetStartedEvenId(Long eventId) {
-    workflowStateMachines.resetStartedEvenId(eventId);
+  public void resetStartedEventId(Long eventId) {
+    workflowStateMachines.resetStartedEventId(eventId);
   }
 
   private void handleWorkflowTaskImpl(
@@ -255,12 +267,15 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
               implementationOptions.getFailWorkflowExceptionTypes();
           for (Class<? extends Throwable> failType : failTypes) {
             if (failType.isAssignableFrom(e.getClass())) {
-              metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
+              if (!FailureUtils.isBenignApplicationFailure(e)) {
+                metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
+              }
               throw new WorkflowExecutionException(
                   workflow.getWorkflowContext().mapWorkflowExceptionToFailure(e));
             }
           }
-          if (e instanceof WorkflowExecutionException) {
+          if (e instanceof WorkflowExecutionException
+              && !FailureUtils.isBenignApplicationFailure(e)) {
             metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
           }
           throw wrap(e);

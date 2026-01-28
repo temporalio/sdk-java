@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
@@ -139,7 +119,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 workflowTask.getWorkflowType().getName(),
                 workflowTask,
                 wftResult,
-                workflowRunTaskHandler::resetStartedEvenId);
+                workflowRunTaskHandler::resetStartedEventId);
       }
 
       if (useCache) {
@@ -230,7 +210,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                     .setNonfirstLocalActivityExecutionAttempts(
                         result.getNonfirstLocalActivityAttempts())
                     .build())
-            .setReturnNewWorkflowTask(result.isForceWorkflowTask());
+            .setReturnNewWorkflowTask(result.isForceWorkflowTask())
+            .setVersioningBehavior(
+                WorkerVersioningProtoUtils.behaviorToProto(result.getVersioningBehavior()))
+            .setCapabilities(
+                RespondWorkflowTaskCompletedRequest.Capabilities.newBuilder()
+                    .setDiscardSpeculativeWorkflowTaskWithEvents(true)
+                    .build());
 
     if (stickyTaskQueue != null
         && (stickyTaskQueueScheduleToStartTimeout == null
@@ -243,12 +229,21 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       completedRequest.setStickyAttributes(attributes);
     }
-    if (!result.getSdkFlags().isEmpty()) {
-      completedRequest =
-          completedRequest.setSdkMetadata(
-              WorkflowTaskCompletedMetadata.newBuilder()
-                  .addAllLangUsedFlags(result.getSdkFlags())
-                  .build());
+    List<Integer> sdkFlags = result.getSdkFlags();
+    String writeSdkName = result.getWriteSdkName();
+    String writeSdkVersion = result.getWriteSdkVersion();
+    if (!sdkFlags.isEmpty() || writeSdkName != null || writeSdkVersion != null) {
+      WorkflowTaskCompletedMetadata.Builder md = WorkflowTaskCompletedMetadata.newBuilder();
+      if (!sdkFlags.isEmpty()) {
+        md.addAllLangUsedFlags(sdkFlags);
+      }
+      if (writeSdkName != null) {
+        md.setSdkName(writeSdkName);
+      }
+      if (writeSdkVersion != null) {
+        md.setSdkVersion(writeSdkVersion);
+      }
+      completedRequest.setSdkMetadata(md.build());
     }
     return new Result(
         workflowType,
@@ -257,7 +252,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         null,
         null,
         result.isFinalCommand(),
-        eventIdSetHandle);
+        eventIdSetHandle,
+        result.getApplyPostCompletionMetrics());
   }
 
   private Result failureToWFTResult(
@@ -265,12 +261,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
     if (e instanceof WorkflowExecutionException) {
+      @SuppressWarnings("deprecation")
       RespondWorkflowTaskCompletedRequest response =
           RespondWorkflowTaskCompletedRequest.newBuilder()
               .setTaskToken(workflowTask.getTaskToken())
               .setIdentity(options.getIdentity())
               .setNamespace(namespace)
-              // TODO: Set stamp or not based on capabilities
               .setBinaryChecksum(options.getBuildId())
               .addCommands(
                   Command.newBuilder()
@@ -280,7 +276,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                               .setFailure(((WorkflowExecutionException) e).getFailure()))
                       .build())
               .build();
-      return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false, null);
+      return new WorkflowTaskHandler.Result(
+          workflowType, response, null, null, null, false, null, null);
     }
 
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
@@ -315,9 +312,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     if (e instanceof NonDeterministicException) {
       failedRequest.setCause(
           WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR);
+    } else {
+      // Default task failure cause to "workflow worker unhandled failure"
+      failedRequest.setCause(
+          WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE);
     }
     return new WorkflowTaskHandler.Result(
-        workflowType, null, failedRequest.build(), null, null, false, null);
+        workflowType, null, failedRequest.build(), null, null, false, null, null);
   }
 
   private Result createDirectQueryResult(
@@ -347,6 +348,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         queryCompletedRequest.build(),
         null,
         false,
+        null,
         null);
   }
 

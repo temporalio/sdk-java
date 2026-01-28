@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.activity;
 
 import static io.temporal.internal.activity.ActivityTaskHandlerImpl.mapToActivityFailure;
@@ -36,6 +16,7 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityOutput;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -76,7 +57,7 @@ final class ActivityTaskExecutors {
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       InternalActivityExecutionContext context =
-          executionContextFactory.createContext(info, metricsScope);
+          executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
       ActivitySerializationContext serializationContext =
           new ActivitySerializationContext(
@@ -122,6 +103,14 @@ final class ActivityTaskExecutors {
               info.getActivityId(),
               info.getActivityType(),
               info.getAttempt());
+        } else if (FailureUtils.isBenignApplicationFailure(ex)) {
+          log.debug(
+              "{} failure. ActivityId={}, activityType={}, attempt={}",
+              local ? "Local activity" : "Activity",
+              info.getActivityId(),
+              info.getActivityType(),
+              info.getAttempt(),
+              ex);
         } else {
           log.warn(
               "{} failure. ActivityId={}, activityType={}, attempt={}",
@@ -139,10 +128,18 @@ final class ActivityTaskExecutors {
             metricsScope,
             local,
             dataConverterWithActivityContext);
+      } finally {
+        if (!context.isDoNotCompleteOnReturn()) {
+          // if the activity is not completed, we need to cancel the heartbeat
+          // to avoid sending it after the activity is completed
+          context.cancelOutstandingHeartbeat();
+        }
       }
     }
 
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();
+
+    abstract Object getActivity();
 
     abstract Object[] provideArgs(
         Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
@@ -204,6 +201,11 @@ final class ActivityTaskExecutors {
     }
 
     @Override
+    Object getActivity() {
+      return activity;
+    }
+
+    @Override
     Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
       return dataConverterWithActivityContext.fromPayloads(
           input, method.getParameterTypes(), method.getGenericParameterTypes());
@@ -239,6 +241,11 @@ final class ActivityTaskExecutors {
     ActivityInboundCallsInterceptor createRootInboundInterceptor() {
       return new RootActivityInboundCallsInterceptor.DynamicActivityInboundCallsInterceptor(
           activity);
+    }
+
+    @Override
+    Object getActivity() {
+      return activity;
     }
 
     @Override

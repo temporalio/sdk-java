@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow;
 
 import com.uber.m3.tally.Scope;
@@ -29,6 +9,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -219,10 +200,11 @@ public final class Workflow {
   /**
    * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class,
    * ChildWorkflowOptions)} or {@link #newExternalWorkflowStub(Class, String)}. Wrapped in a Promise
-   * as child workflow start is asynchronous.
+   * as child workflow start is asynchronous. For an external workflow the returned promise is
+   * already completed.
    */
-  public static Promise<WorkflowExecution> getWorkflowExecution(Object childWorkflowStub) {
-    return WorkflowInternal.getWorkflowExecution(childWorkflowStub);
+  public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+    return WorkflowInternal.getWorkflowExecution(workflowStub);
   }
 
   /**
@@ -840,6 +822,118 @@ public final class Workflow {
   }
 
   /**
+   * Executes the provided function once, records its result into the workflow history. The recorded
+   * result on history will be returned without executing the provided function during replay. This
+   * guarantees the deterministic requirement for workflow as the exact same result will be returned
+   * in replay. Common use case is to run some short non-deterministic code in workflow, like
+   * getting random number. The only way to fail SideEffect is to panic which causes workflow task
+   * failure. The workflow task after timeout is rescheduled and re-executed giving SideEffect
+   * another chance to succeed.
+   *
+   * <p>Caution: do not use sideEffect function to modify any workflow state. Only use the
+   * SideEffect's return value. For example this code is BROKEN:
+   *
+   * <pre><code>
+   *  // Bad example:
+   *  AtomicInteger random = new AtomicInteger();
+   *  Workflow.sideEffect(() -&gt; {
+   *         random.set(random.nextInt(100));
+   *         return null;
+   *  });
+   *  // random will always be 0 in replay, thus this code is non-deterministic
+   *  if random.get() &lt; 50 {
+   *         ....
+   *  } else {
+   *         ....
+   *  }
+   * </code></pre>
+   *
+   * On replay the provided function is not executed, the random will always be 0, and the workflow
+   * could take a different path breaking the determinism.
+   *
+   * <p>Here is the correct way to use sideEffect:
+   *
+   * <pre><code>
+   *  // Good example:
+   *  int random = Workflow.sideEffect(Integer.class, () -&gt; random.nextInt(100));
+   *  if random &lt; 50 {
+   *         ....
+   *  } else {
+   *         ....
+   *  }
+   * </code></pre>
+   *
+   * If function throws any exception it is not delivered to the workflow code. It is wrapped in
+   * {@link Error} causing failure of the current workflow task.
+   *
+   * @param resultClass class of the side effect
+   * @param func function that returns side effect value
+   * @param options side effect options
+   * @return value of the side effect
+   * @see #mutableSideEffect(String, Class, BiPredicate, Functions.Func)
+   */
+  public static <R> R sideEffect(Class<R> resultClass, Func<R> func, SideEffectOptions options) {
+    return WorkflowInternal.sideEffect(resultClass, resultClass, func, options);
+  }
+
+  /**
+   * Executes the provided function once, records its result into the workflow history. The recorded
+   * result on history will be returned without executing the provided function during replay. This
+   * guarantees the deterministic requirement for workflow as the exact same result will be returned
+   * in replay. Common use case is to run some short non-deterministic code in workflow, like
+   * getting random number. The only way to fail SideEffect is to panic which causes workflow task
+   * failure. The workflow task after timeout is rescheduled and re-executed giving SideEffect
+   * another chance to succeed.
+   *
+   * <p>Caution: do not use sideEffect function to modify any workflow state. Only use the
+   * SideEffect's return value. For example this code is BROKEN:
+   *
+   * <pre><code>
+   *  // Bad example:
+   *  AtomicInteger random = new AtomicInteger();
+   *  Workflow.sideEffect(() -&gt; {
+   *         random.set(random.nextInt(100));
+   *         return null;
+   *  });
+   *  // random will always be 0 in replay, thus this code is non-deterministic
+   *  if random.get() &lt; 50 {
+   *         ....
+   *  } else {
+   *         ....
+   *  }
+   * </code></pre>
+   *
+   * On replay the provided function is not executed, the random will always be 0, and the workflow
+   * could take a different path breaking the determinism.
+   *
+   * <p>Here is the correct way to use sideEffect:
+   *
+   * <pre><code>
+   *  // Good example:
+   *  int random = Workflow.sideEffect(Integer.class, () -&gt; random.nextInt(100));
+   *  if random &lt; 50 {
+   *         ....
+   *  } else {
+   *         ....
+   *  }
+   * </code></pre>
+   *
+   * If function throws any exception it is not delivered to the workflow code. It is wrapped in
+   * {@link Error} causing failure of the current workflow task.
+   *
+   * @param resultClass class of the side effect
+   * @param resultType type of the side effect. Differs from resultClass for generic types.
+   * @param func function that returns side effect value
+   * @param options side effect options
+   * @return value of the side effect
+   * @see #mutableSideEffect(String, Class, BiPredicate, Functions.Func)
+   */
+  public static <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    return WorkflowInternal.sideEffect(resultClass, resultType, func, options);
+  }
+
+  /**
    * {@code mutableSideEffect} is similar to {@link #sideEffect(Class, Functions.Func)} in allowing
    * calls of non-deterministic functions from workflow code.
    *
@@ -906,6 +1000,86 @@ public final class Workflow {
   public static <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     return WorkflowInternal.mutableSideEffect(id, resultClass, resultType, updated, func);
+  }
+
+  /**
+   * {@code mutableSideEffect} is similar to {@link #sideEffect(Class, Functions.Func)} in allowing
+   * calls of non-deterministic functions from workflow code.
+   *
+   * <p>The difference between {@code mutableSideEffect} and {@link #sideEffect(Class,
+   * Functions.Func)} is that every new {@code sideEffect} call in non-replay mode results in a new
+   * marker event recorded into the history. However, {@code mutableSideEffect} only records a new
+   * marker if a value has changed. During the replay, {@code mutableSideEffect} will not execute
+   * the function again, but it will return the exact same value as it was returning during the
+   * non-replay run.
+   *
+   * <p>One good use case of {@code mutableSideEffect} is to access a dynamically changing config
+   * without breaking determinism. Even if called very frequently the config value is recorded only
+   * when it changes not causing any performance degradation due to a large history size.
+   *
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow state. Only
+   * use the mutableSideEffect's return value.
+   *
+   * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
+   * {@link Error} causing failure of the current workflow task.
+   *
+   * @param id unique identifier of this side effect
+   * @param updated used to decide if a new value should be recorded. A func result is recorded only
+   *     if call to updated with stored and a new value as arguments returns true. It is not called
+   *     for the first value.
+   * @param resultClass class of the side effect
+   * @param func function that produces a value. This function can contain non-deterministic code.
+   * @param options options for mutable side effect
+   * @see #sideEffect(Class, Functions.Func)
+   */
+  public static <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    return WorkflowInternal.mutableSideEffect(id, resultClass, resultClass, updated, func, options);
+  }
+
+  /**
+   * {@code mutableSideEffect} is similar to {@link #sideEffect(Class, Functions.Func)} in allowing
+   * calls of non-deterministic functions from workflow code.
+   *
+   * <p>The difference between {@code mutableSideEffect} and {@link #sideEffect(Class,
+   * Functions.Func)} is that every new {@code sideEffect} call in non-replay mode results in a new
+   * marker event recorded into the history. However, {@code mutableSideEffect} only records a new
+   * marker if a value has changed. During the replay, {@code mutableSideEffect} will not execute
+   * the function again, but it will return the exact same value as it was returning during the
+   * non-replay run.
+   *
+   * <p>One good use case of {@code mutableSideEffect} is to access a dynamically changing config
+   * without breaking determinism. Even if called very frequently the config value is recorded only
+   * when it changes not causing any performance degradation due to a large history size.
+   *
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow state. Only
+   * use the mutableSideEffect's return value.
+   *
+   * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
+   * {@link Error} causing failure of the current workflow task.
+   *
+   * @param id unique identifier of this side effect
+   * @param updated used to decide if a new value should be recorded. A func result is recorded only
+   *     if call to updated with stored and a new value as arguments returns true. It is not called
+   *     for the first value.
+   * @param resultClass class of the side effect
+   * @param resultType type of the side effect. Differs from resultClass for generic types.
+   * @param func function that produces a value. This function can contain non-deterministic code.
+   * @param options options for mutable side effect
+   * @see #sideEffect(Class, Functions.Func)
+   */
+  public static <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    return WorkflowInternal.mutableSideEffect(id, resultClass, resultType, updated, func, options);
   }
 
   /**
@@ -982,7 +1156,7 @@ public final class Workflow {
    * for example change activity3 to activity4, you just need to update the maxVersion from 2 to 3.
    *
    * <p>Note that, you only need to preserve the first call to GetVersion() for each changeId. All
-   * subsequent call to GetVersion() with same changeId are safe to remove. However, if you really
+   * subsequent calls to GetVersion() with same changeId are safe to remove. However, if you really
    * want to get rid of the first GetVersion() call as well, you can do so, but you need to make
    * sure: 1) all older version executions are completed; 2) you can no longer use “fooChange” as
    * changeId. If you ever need to make changes to that same part, you would need to use a different
@@ -1309,7 +1483,6 @@ public final class Workflow {
    *
    * @param service interface that given service implements.
    */
-  @Experimental
   public static <T> T newNexusServiceStub(Class<T> service) {
     return WorkflowInternal.newNexusServiceStub(service, null);
   }
@@ -1321,7 +1494,6 @@ public final class Workflow {
    * @param service interface that given service implements.
    * @param options options passed to the Nexus service.
    */
-  @Experimental
   public static <T> T newNexusServiceStub(Class<T> service, NexusServiceOptions options) {
     return WorkflowInternal.newNexusServiceStub(service, options);
   }
@@ -1332,7 +1504,6 @@ public final class Workflow {
    * @param service name of the service the operation is part of.
    * @param options options passed to the Nexus service.
    */
-  @Experimental
   public static NexusServiceStub newUntypedNexusServiceStub(
       String service, NexusServiceOptions options) {
     return WorkflowInternal.newUntypedNexusServiceStub(service, options);
@@ -1346,7 +1517,6 @@ public final class Workflow {
    * @param arg operation argument
    * @return OperationHandle a handle to the operation.
    */
-  @Experimental
   public static <T, R> NexusOperationHandle<R> startNexusOperation(
       Functions.Func1<T, R> operation, T arg) {
     return WorkflowInternal.startNexusOperation(operation, arg);
@@ -1359,7 +1529,6 @@ public final class Workflow {
    *     #newNexusServiceStub(Class)}.
    * @return OperationHandle a handle to the operation.
    */
-  @Experimental
   public static <R> NexusOperationHandle<R> startNexusOperation(Functions.Func<R> operation) {
     return WorkflowInternal.startNexusOperation(operation);
   }
@@ -1383,6 +1552,20 @@ public final class Workflow {
   @Nullable
   public static String getCurrentDetails() {
     return WorkflowInternal.getCurrentDetails();
+  }
+
+  /**
+   * Get the currently running workflow instance.
+   *
+   * @apiNote The instance is only available after it has been initialized. This function will
+   *     return null if called before the workflow has been initialized. For example, this could
+   *     happen if the function is called from a {@link WorkflowInit} constructor or {@link
+   *     io.temporal.common.interceptors.WorkflowInboundCallsInterceptor#init(WorkflowOutboundCallsInterceptor)}.
+   */
+  @Experimental
+  @Nullable
+  public static Object getInstance() {
+    return WorkflowInternal.getInstance();
   }
 
   /** Prohibit instantiation. */

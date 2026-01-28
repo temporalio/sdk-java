@@ -8,28 +8,13 @@ before we can merge in any of your changes
 
 ## Development Environment
 
-* Java 11+
+* Java 21+
 * Docker to run Temporal Server
 
 ## Build
 
 ```
 ./gradlew clean build
-```
-
-## Licence headers
-
-This project is Open Source Software, and requires a header at the beginning of
-all source files. To verify that all files contain the header execute:
-
-```lang=bash
-./gradlew licenseCheck
-```
-
-To generate licence headers execute
-
-```lang=bash
-./gradlew licenseFormat
 ```
 
 ## Code Formatting
@@ -42,6 +27,17 @@ Code is formatted using `spotless` plugin with `google-java-format` tool.
 Overcommit adds some requirements to your commit messages. We follow the
 [Chris Beams](http://chris.beams.io/posts/git-commit/) guide to writing git
 commit messages. Read it, follow it, learn it, love it.
+
+## Running features tests in CI
+
+For each PR we run the java tests from the [features repo](https://github.com/temporalio/features/). This requires
+your branch to have tags. Without tags, the features tests in CI will fail with a message like 
+```
+> Configure project :sdk-java
+fatal: No names found, cannot describe anything.
+```
+This can be done resolved by running `git fetch --tags` on your branch. Note, make sure your fork has tags copied from
+the main repo. 
 
 ## Test and Build
 

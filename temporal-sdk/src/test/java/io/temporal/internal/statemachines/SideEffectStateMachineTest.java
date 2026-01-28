@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.MARKER_DATA_KEY;
@@ -68,7 +48,7 @@ public class SideEffectStateMachineTest {
             SideEffectStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           SideEffectStateMachine.class,
           SideEffectStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
@@ -89,7 +69,8 @@ public class SideEffectStateMachineTest {
         builder
             .<Optional<Payloads>>add1(
                 (v, c) ->
-                    stateMachines.sideEffect(() -> converter.toPayloads("m1Arg1", "m1Arg2"), c))
+                    stateMachines.sideEffect(
+                        () -> converter.toPayloads("m1Arg1", "m1Arg2"), null, c))
             .<Optional<Payloads>>add1((r, c) -> result = r);
       }
 
@@ -100,7 +81,7 @@ public class SideEffectStateMachineTest {
         builder
             .<Optional<Payloads>>add1(
                 (r, c) -> {
-                  stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
+                  stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), null, c);
                 })
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }

@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.worker;
 
 import static java.lang.Double.compare;
@@ -93,6 +73,10 @@ public final class WorkerOptions {
     private boolean usingVirtualThreadsOnLocalActivityWorker;
     private boolean usingVirtualThreadsOnNexusWorker;
     private String identity;
+    private WorkerDeploymentOptions deploymentOptions;
+    private PollerBehavior workflowTaskPollersBehavior;
+    private PollerBehavior activityTaskPollersBehavior;
+    private PollerBehavior nexusTaskPollersBehavior;
 
     private Builder() {}
 
@@ -124,6 +108,10 @@ public final class WorkerOptions {
       this.usingVirtualThreadsOnWorkflowWorker = o.usingVirtualThreadsOnWorkflowWorker;
       this.usingVirtualThreadsOnLocalActivityWorker = o.usingVirtualThreadsOnLocalActivityWorker;
       this.usingVirtualThreadsOnNexusWorker = o.usingVirtualThreadsOnNexusWorker;
+      this.deploymentOptions = o.deploymentOptions;
+      this.workflowTaskPollersBehavior = o.workflowTaskPollersBehavior;
+      this.activityTaskPollersBehavior = o.activityTaskPollersBehavior;
+      this.nexusTaskPollersBehavior = o.nexusTaskPollersBehavior;
     }
 
     /**
@@ -385,11 +373,12 @@ public final class WorkerOptions {
 
     /**
      * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
-     * will only receive tasks which it is compatible with. For more information see: TODO: Doc link
+     * will only receive tasks which it is compatible with.
      *
      * <p>Defaults to false
      */
     @Experimental
+    @Deprecated
     public Builder setUseBuildIdForVersioning(boolean useBuildIdForVersioning) {
       this.useBuildIdForVersioning = useBuildIdForVersioning;
       return this;
@@ -397,12 +386,12 @@ public final class WorkerOptions {
 
     /**
      * Set a unique identifier for this worker. The identifier should be stable with respect to the
-     * code the worker uses for workflows, activities, and interceptors. For more information see:
-     * TODO: Doc link
+     * code the worker uses for workflows, activities, and interceptors.
      *
      * <p>A Build Id must be set if {@link #setUseBuildIdForVersioning(boolean)} is set true.
      */
     @Experimental
+    @Deprecated
     public Builder setBuildId(String buildId) {
       this.buildId = buildId;
       return this;
@@ -428,7 +417,6 @@ public final class WorkerOptions {
      * Set a {@link WorkerTuner} to determine how slots will be allocated for different types of
      * tasks.
      */
-    @Experimental
     public Builder setWorkerTuner(WorkerTuner workerTuner) {
       this.workerTuner = workerTuner;
       return this;
@@ -494,6 +482,43 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Set deployment options for the worker. Exclusive with {@link #setUseBuildIdForVersioning} and
+     * {@link #setBuildId(String)}.
+     */
+    @Experimental
+    public Builder setDeploymentOptions(WorkerDeploymentOptions deploymentOptions) {
+      this.deploymentOptions = deploymentOptions;
+      return this;
+    }
+
+    /**
+     * Set the poller behavior for workflow task pollers.
+     *
+     * <p>Note: If the poller behavior is set to {@link PollerBehaviorSimpleMaximum}, the maximum
+     * number of concurrent workflow task pollers must be at least 2 to account for the sticky and
+     * non-sticky task poller. If it is set to 1 it will be automatically adjusted to 2.
+     *
+     * <p>If the sticky queue is enabled, the poller behavior will be used for the sticky queue as
+     * well.
+     */
+    public Builder setWorkflowTaskPollersBehavior(PollerBehavior pollerBehavior) {
+      this.workflowTaskPollersBehavior = pollerBehavior;
+      return this;
+    }
+
+    /** Set the poller behavior for activity task pollers. */
+    public Builder setActivityTaskPollersBehavior(PollerBehavior pollerBehavior) {
+      this.activityTaskPollersBehavior = pollerBehavior;
+      return this;
+    }
+
+    /** Set the poller behavior for nexus task pollers. */
+    public Builder setNexusTaskPollersBehavior(PollerBehavior pollerBehavior) {
+      this.nexusTaskPollersBehavior = pollerBehavior;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -519,7 +544,11 @@ public final class WorkerOptions {
           usingVirtualThreadsOnWorkflowWorker,
           usingVirtualThreadsOnActivityWorker,
           usingVirtualThreadsOnLocalActivityWorker,
-          usingVirtualThreadsOnNexusWorker);
+          usingVirtualThreadsOnNexusWorker,
+          deploymentOptions,
+          workflowTaskPollersBehavior,
+          activityTaskPollersBehavior,
+          nexusTaskPollersBehavior);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -564,12 +593,36 @@ public final class WorkerOptions {
         Preconditions.checkState(
             buildId != null && !buildId.isEmpty(),
             "buildId must be set non-empty if useBuildIdForVersioning is set true");
+        Preconditions.checkState(
+            deploymentOptions == null,
+            "deploymentOptions must not be set if useBuildIdForVersioning is set true");
+      }
+      if (buildId != null) {
+        Preconditions.checkState(
+            deploymentOptions == null,
+            "deploymentOptions must not be set if buildId is set, prefer using deploymentOptions");
       }
       Preconditions.checkState(
           stickyTaskQueueDrainTimeout == null || !stickyTaskQueueDrainTimeout.isNegative(),
           "negative stickyTaskQueueDrainTimeout");
       Preconditions.checkState(
           maxConcurrentNexusTaskPollers >= 0, "negative maxConcurrentNexusTaskPollers");
+
+      if (workflowTaskPollersBehavior != null) {
+        Preconditions.checkState(
+            maxConcurrentWorkflowTaskPollers == 0,
+            "workflowTaskPollersBehavior and maxConcurrentWorkflowTaskPollers are mutually exclusive");
+      }
+      if (activityTaskPollersBehavior != null) {
+        Preconditions.checkState(
+            maxConcurrentActivityTaskPollers == 0,
+            "activityTaskPollersBehavior and maxConcurrentActivityTaskPollers are mutually exclusive");
+      }
+      if (nexusTaskPollersBehavior != null) {
+        Preconditions.checkState(
+            maxConcurrentNexusTaskPollers == 0,
+            "nexusTaskPollersBehavior and maxConcurrentNexusTaskPollers are mutually exclusive");
+      }
 
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -619,7 +672,11 @@ public final class WorkerOptions {
           usingVirtualThreadsOnWorkflowWorker,
           usingVirtualThreadsOnActivityWorker,
           usingVirtualThreadsOnLocalActivityWorker,
-          usingVirtualThreadsOnNexusWorker);
+          usingVirtualThreadsOnNexusWorker,
+          deploymentOptions,
+          workflowTaskPollersBehavior,
+          activityTaskPollersBehavior,
+          nexusTaskPollersBehavior);
     }
   }
 
@@ -647,6 +704,10 @@ public final class WorkerOptions {
   private final boolean usingVirtualThreadsOnActivityWorker;
   private final boolean usingVirtualThreadsOnLocalActivityWorker;
   private final boolean usingVirtualThreadsOnNexusWorker;
+  private final WorkerDeploymentOptions deploymentOptions;
+  private final PollerBehavior workflowTaskPollersBehavior;
+  private final PollerBehavior activityTaskPollersBehavior;
+  private final PollerBehavior nexusTaskPollersBehavior;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -672,7 +733,11 @@ public final class WorkerOptions {
       boolean useThreadsEnabledOnWorkflowWorker,
       boolean useThreadsEnabledOnActivityWorker,
       boolean virtualThreadsEnabledOnLocalActivityWorker,
-      boolean virtualThreadsEnabledOnNexusWorker) {
+      boolean virtualThreadsEnabledOnNexusWorker,
+      WorkerDeploymentOptions deploymentOptions,
+      PollerBehavior workflowTaskPollersBehavior,
+      PollerBehavior activityTaskPollersBehavior,
+      PollerBehavior nexusTaskPollersBehavior) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -697,6 +762,10 @@ public final class WorkerOptions {
     this.usingVirtualThreadsOnActivityWorker = useThreadsEnabledOnActivityWorker;
     this.usingVirtualThreadsOnLocalActivityWorker = virtualThreadsEnabledOnLocalActivityWorker;
     this.usingVirtualThreadsOnNexusWorker = virtualThreadsEnabledOnNexusWorker;
+    this.deploymentOptions = deploymentOptions;
+    this.workflowTaskPollersBehavior = workflowTaskPollersBehavior;
+    this.activityTaskPollersBehavior = activityTaskPollersBehavior;
+    this.nexusTaskPollersBehavior = nexusTaskPollersBehavior;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -797,20 +866,41 @@ public final class WorkerOptions {
     return identity;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnWorkflowWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnActivityWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnLocalActivityWorker() {
     return usingVirtualThreadsOnLocalActivityWorker;
   }
 
+  @Experimental
   public boolean isUsingVirtualThreadsOnNexusWorker() {
     return usingVirtualThreadsOnNexusWorker;
+  }
+
+  @Experimental
+  public WorkerDeploymentOptions getDeploymentOptions() {
+    return deploymentOptions;
+  }
+
+  public PollerBehavior getWorkflowTaskPollersBehavior() {
+    return workflowTaskPollersBehavior;
+  }
+
+  public PollerBehavior getActivityTaskPollersBehavior() {
+    return activityTaskPollersBehavior;
+  }
+
+  public PollerBehavior getNexusTaskPollersBehavior() {
+    return nexusTaskPollersBehavior;
   }
 
   @Override
@@ -841,7 +931,11 @@ public final class WorkerOptions {
         && usingVirtualThreadsOnWorkflowWorker == that.usingVirtualThreadsOnWorkflowWorker
         && usingVirtualThreadsOnActivityWorker == that.usingVirtualThreadsOnActivityWorker
         && usingVirtualThreadsOnLocalActivityWorker == that.usingVirtualThreadsOnLocalActivityWorker
-        && usingVirtualThreadsOnNexusWorker == that.usingVirtualThreadsOnNexusWorker;
+        && usingVirtualThreadsOnNexusWorker == that.usingVirtualThreadsOnNexusWorker
+        && Objects.equals(deploymentOptions, that.deploymentOptions)
+        && Objects.equals(workflowTaskPollersBehavior, that.workflowTaskPollersBehavior)
+        && Objects.equals(activityTaskPollersBehavior, that.activityTaskPollersBehavior)
+        && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior);
   }
 
   @Override
@@ -870,7 +964,11 @@ public final class WorkerOptions {
         usingVirtualThreadsOnWorkflowWorker,
         usingVirtualThreadsOnActivityWorker,
         usingVirtualThreadsOnLocalActivityWorker,
-        usingVirtualThreadsOnNexusWorker);
+        usingVirtualThreadsOnNexusWorker,
+        deploymentOptions,
+        workflowTaskPollersBehavior,
+        activityTaskPollersBehavior,
+        nexusTaskPollersBehavior);
   }
 
   @Override
@@ -925,6 +1023,14 @@ public final class WorkerOptions {
         + usingVirtualThreadsOnLocalActivityWorker
         + ", usingVirtualThreadsOnNexusWorker="
         + usingVirtualThreadsOnNexusWorker
+        + ", deploymentOptions="
+        + deploymentOptions
+        + ", workflowTaskPollersBehavior="
+        + workflowTaskPollersBehavior
+        + ", activityTaskPollersBehavior="
+        + activityTaskPollersBehavior
+        + ", nexusTaskPollersBehavior="
+        + nexusTaskPollersBehavior
         + '}';
   }
 }

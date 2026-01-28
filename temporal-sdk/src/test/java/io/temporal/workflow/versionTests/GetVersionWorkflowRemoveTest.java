@@ -1,29 +1,10 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.workflow.versionTests;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static io.temporal.internal.history.VersionMarkerUtils.TEMPORAL_CHANGE_VERSION;
+import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -33,17 +14,19 @@ import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class GetVersionWorkflowRemoveTest {
+public class GetVersionWorkflowRemoveTest extends BaseVersionTest {
 
   private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestGetVersionWorkflowRemove.class)
+          .setWorkflowTypes(
+              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowRemove.class)
           .setActivityImplementations(new TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
@@ -52,13 +35,30 @@ public class GetVersionWorkflowRemoveTest {
                   .build())
           .build();
 
+  public GetVersionWorkflowRemoveTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
+    super(setVersioningFlag, upsertVersioningSA);
+  }
+
   @Test
   public void testGetVersionWorkflowRemove() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
-    assertEquals("foo10", workflowStub.execute(testWorkflowRule.getTaskQueue()));
+    assertEquals("bar10", workflowStub.execute(testWorkflowRule.getTaskQueue()));
     assertTrue(hasReplayed);
+    List<String> versions =
+        WorkflowStub.fromTyped(workflowStub)
+            .describe()
+            .getTypedSearchAttributes()
+            .get(TEMPORAL_CHANGE_VERSION);
+    if (upsertVersioningSA) {
+      // Test that even though getVersion is removed, the versioning SA still contains the version.
+      assertEquals(2, versions.size());
+      assertEquals("changeFoo-1", versions.get(0));
+      assertEquals("changeBar-2", versions.get(1));
+    } else {
+      assertNull(versions);
+    }
   }
 
   public static class TestGetVersionWorkflowRemove implements TestWorkflow1 {
@@ -81,7 +81,14 @@ public class GetVersionWorkflowRemoveTest {
         // No getVersionCall
         hasReplayed = true;
       }
-      result = activities.activity2("foo", 10);
+      activities.activity2("foo", 10);
+      Workflow.sleep(1000); // forces new workflow task
+
+      int changeBar = Workflow.getVersion("changeBar", Workflow.DEFAULT_VERSION, 2);
+      if (changeBar != 2) {
+        throw new IllegalStateException("Unexpected version: " + 1);
+      }
+      result = activities.activity2("bar", 10);
       Workflow.sleep(1000); // forces new workflow task
       return result;
     }

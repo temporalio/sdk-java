@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.retryer;
 
 import static org.junit.Assert.*;
@@ -408,5 +388,48 @@ public class GrpcAsyncRetryerTest {
     assertTrue(
         "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
         elapsedTime >= 2000);
+  }
+
+  @Test
+  public void testMessageLargerThanMaxFailureAsync() throws InterruptedException {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .validateBuildWithDefaults();
+
+    for (String description :
+        new String[] {
+          "grpc: received message larger than max (2000 vs. 1000)",
+          "grpc: message after decompression larger than max (2000 vs. 1000)",
+          "grpc: received message after decompression larger than max (2000 vs. 1000)",
+        }) {
+      final AtomicInteger attempts = new AtomicInteger();
+      ExecutionException e =
+          assertThrows(
+              ExecutionException.class,
+              () ->
+                  new GrpcAsyncRetryer<>(
+                          scheduledExecutor,
+                          () -> {
+                            if (attempts.incrementAndGet() > 1)
+                              fail(
+                                  "We should not retry on RESOURCE_EXHAUSTED with description: "
+                                      + description);
+                            CompletableFuture<Void> result = new CompletableFuture<>();
+                            result.completeExceptionally(
+                                new StatusRuntimeException(
+                                    Status.RESOURCE_EXHAUSTED.withDescription(description)));
+                            return result;
+                          },
+                          new GrpcRetryer.GrpcRetryerOptions(options, null),
+                          GetSystemInfoResponse.Capabilities.getDefaultInstance())
+                      .retry()
+                      .get());
+      assertTrue(e.getCause() instanceof GrpcMessageTooLargeException);
+      assertEquals(Status.Code.RESOURCE_EXHAUSTED + ": " + description, e.getCause().getMessage());
+      assertTrue(e.getCause().getCause() instanceof StatusRuntimeException);
+    }
   }
 }

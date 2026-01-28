@@ -1,29 +1,8 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
-import io.temporal.common.Experimental;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
@@ -40,7 +19,7 @@ import javax.annotation.Nullable;
  * WorkflowStub is a client side stub to a single workflow instance. It can be used to start,
  * signal, query, update, wait for completion and cancel a workflow execution. Created through
  * {@link WorkflowClient#newUntypedWorkflowStub(String, WorkflowOptions)} or {@link
- * WorkflowClient#newUntypedWorkflowStub(WorkflowExecution, Optional)}.
+ * WorkflowClient#newUntypedWorkflowStub(WorkflowTargetOptions, Optional)}.
  */
 public interface WorkflowStub {
 
@@ -164,7 +143,6 @@ public interface WorkflowStub {
    * @param <R> type of the update workflow result
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
-  @Experimental
   <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
@@ -179,14 +157,28 @@ public interface WorkflowStub {
    * @param <R> type of the update workflow result
    * @return update result
    */
-  @Experimental
   <R> R executeUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
+  /**
+   * Sends a signal to a workflow, starting the workflow if it is not already running.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param signalArgs signal method arguments
+   * @param startArgs workflow start arguments
+   * @return workflow execution
+   */
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
+  /**
+   * @return workflow type name if it was provided when the stub was created.
+   */
   Optional<String> getWorkflowType();
 
+  /**
+   * @return current workflow execution. Returns null if the workflow has not been started yet.
+   */
+  @Nullable
   WorkflowExecution getExecution();
 
   /**
@@ -390,6 +382,21 @@ public interface WorkflowStub {
   void cancel();
 
   /**
+   * Request cancellation of a workflow execution with a reason.
+   *
+   * <p>Cancellation cancels {@link io.temporal.workflow.CancellationScope} that wraps the main
+   * workflow method. Note that workflow can take long time to get canceled or even completely
+   * ignore the cancellation request.
+   *
+   * @param reason optional reason for the cancellation request
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or is already
+   *     completed
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues
+   */
+  void cancel(@Nullable String reason);
+
+  /**
    * Terminates a workflow execution.
    *
    * <p>Termination is a hard stop of a workflow execution which doesn't give workflow code any
@@ -414,6 +421,9 @@ public interface WorkflowStub {
    */
   WorkflowExecutionDescription describe();
 
+  /**
+   * @return workflow options if they were provided when the stub was created.
+   */
   Optional<WorkflowOptions> getOptions();
 
   /**

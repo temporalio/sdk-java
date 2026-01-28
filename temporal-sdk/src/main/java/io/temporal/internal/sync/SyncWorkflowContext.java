@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.sync;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
@@ -53,18 +33,14 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeUpdate;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.*;
-import io.temporal.internal.common.ActivityOptionUtils;
-import io.temporal.internal.common.HeaderUtils;
-import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.SdkFlag;
-import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.common.*;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
@@ -101,6 +77,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private final String namespace;
   private final WorkflowExecution workflowExecution;
+  private final SyncWorkflowDefinition workflowDefinition;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final DataConverter dataConverter;
   // to be used in this class, should not be passed down. Pass the original #dataConverter instead
@@ -125,15 +102,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
-  // Map of all running update handlers. Key is the update Id of the update request.
-  private Map<String, UpdateHandlerInfo> runningUpdateHandlers = new HashMap<>();
-  // Map of all running signal handlers. Key is the event Id of the signal event.
-  private Map<Long, SignalHandlerInfo> runningSignalHandlers = new HashMap<>();
   @Nullable private String currentDetails;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
       @Nonnull WorkflowExecution workflowExecution,
+      @Nullable SyncWorkflowDefinition workflowDefinition,
       SignalDispatcher signalDispatcher,
       QueryDispatcher queryDispatcher,
       UpdateDispatcher updateDispatcher,
@@ -142,6 +116,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       List<ContextPropagator> contextPropagators) {
     this.namespace = namespace;
     this.workflowExecution = workflowExecution;
+    this.workflowDefinition = workflowDefinition;
     this.dataConverter = dataConverter;
     this.dataConverterWithCurrentWorkflowContext =
         dataConverter.withContext(
@@ -370,7 +345,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public Optional<Payloads> handleQuery(String queryName, Header header, Optional<Payloads> input) {
-    return queryDispatcher.handleQuery(queryName, header, input);
+    return queryDispatcher.handleQuery(this, queryName, header, input);
   }
 
   public boolean isEveryHandlerFinished() {
@@ -382,8 +357,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     WorkflowMetadata.Builder workflowMetadata = WorkflowMetadata.newBuilder();
     WorkflowDefinition.Builder workflowDefinition = WorkflowDefinition.newBuilder();
     // Set the workflow type
-    if (replayContext.getWorkflowType() != null
-        && replayContext.getWorkflowType().getName() != null) {
+    if (replayContext.getWorkflowType() != null) {
       workflowDefinition.setType(replayContext.getWorkflowType().getName());
     }
     // Set built in queries
@@ -580,6 +554,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return callback.result;
   }
 
+  @SuppressWarnings("deprecation")
   private ExecuteActivityParameters constructExecuteActivityParameters(
       String name, ActivityOptions options, Header header, Optional<Payloads> input) {
     String taskQueue = options.getTaskQueue();
@@ -628,6 +603,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     @Nullable
     UserMetadata userMetadata =
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+
+    if (options.getPriority() != null) {
+      attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
+    }
 
     return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
   }
@@ -821,9 +800,18 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     attributes.setScheduleToCloseTimeout(
         ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToCloseTimeout()));
 
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(
+            input.getOptions().getSummary(), null, dataConverterWithCurrentWorkflowContext);
+
+    StartNexusOperationParameters parameters =
+        new StartNexusOperationParameters(
+            attributes, input.getOptions().getCancellationType(), userMetadata);
+
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.startNexusOperation(
-            attributes.build(),
+            parameters,
             (operationExec, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
@@ -946,6 +934,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               .determineUseCompatibleFlag(
                   replayContext.getTaskQueue().equals(options.getTaskQueue())));
     }
+    if (options.getPriority() != null) {
+      attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
+    }
     return new StartChildWorkflowExecutionParameters(
         attributes, options.getCancellationType(), metadata);
   }
@@ -1036,6 +1027,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
+    return sideEffect(resultClass, resultType, func, SideEffectOptions.newBuilder().build());
+  }
+
+  @Override
+  public <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
     try {
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
@@ -1048,6 +1048,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               readOnly = false;
             }
           },
+          userMetadata,
           (p) ->
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
@@ -1063,8 +1064,23 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    return mutableSideEffect(
+        id, resultClass, resultType, updated, func, MutableSideEffectOptions.newBuilder().build());
+  }
+
+  @Override
+  public <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
     try {
-      return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
+      return mutableSideEffectImpl(id, userMetadata, resultClass, resultType, updated, func);
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
       // behavior. So fail the workflow task by throwing an Error.
@@ -1073,11 +1089,17 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private <R> R mutableSideEffectImpl(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      String id,
+      UserMetadata metadata,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     replayContext.mutableSideEffect(
         id,
+        metadata,
         (storedBinary) -> {
           Optional<R> stored =
               storedBinary.map(
@@ -1117,7 +1139,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
     CompletablePromise<Integer> result = Workflow.newPromise();
-    boolean markerExists =
+    Integer versionToUse =
         replayContext.getVersion(
             changeId,
             minSupported,
@@ -1138,12 +1160,34 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
      * because it can lead to non-deterministic scheduling.
      * */
     if (replayContext.isReplaying()
-        && !markerExists
+        && versionToUse == null
         && replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION)
         && minSupported == DEFAULT_VERSION) {
       return DEFAULT_VERSION;
     }
 
+    /*
+     * Previously the SDK would yield on the getVersion call to the scheduler. This is not ideal because it can lead to non-deterministic
+     * scheduling if the getVersion call was removed.
+     * */
+    if (replayContext.checkSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
+      // This can happen if we are replaying a workflow and encounter a getVersion call that did not
+      // exist on the original execution and the range does not include the default version.
+      if (versionToUse == null) {
+        versionToUse = DEFAULT_VERSION;
+      }
+      if (versionToUse < minSupported || versionToUse > maxSupported) {
+        throw new UnsupportedVersion(
+            new UnsupportedVersion.UnsupportedVersionException(
+                String.format(
+                    "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
+                    versionToUse, changeId, minSupported, maxSupported)));
+      }
+      return versionToUse;
+    }
+    // Legacy behavior if SKIP_YIELD_ON_VERSION is not set. This means this thread will yield on the
+    // getVersion call.
+    // while it waits for the result.
     try {
       return result.get();
     } catch (UnsupportedVersion.UnsupportedVersionException ex) {
@@ -1321,6 +1365,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           && options.getTypedSearchAttributes().size() > 0) {
         attributes.setSearchAttributes(
             SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
+      } else if (options.getTypedSearchAttributes() == null && searchAttributes == null) {
+        // Carry over existing search attributes if none are specified.
+        SearchAttributes existing = replayContext.getSearchAttributes();
+        if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
+          attributes.setSearchAttributes(existing);
+        }
       }
       Map<String, Object> memo = options.getMemo();
       if (memo != null) {
@@ -1335,9 +1385,19 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
-    } else if (replayContext.getRetryOptions() != null) {
-      // Have to copy retry options as server doesn't copy them.
+    }
+
+    if (options == null && replayContext.getRetryOptions() != null) {
+      // Have to copy certain options as server doesn't copy them.
       attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
+    }
+
+    if (options == null && replayContext.getSearchAttributes() != null) {
+      // Carry over existing search attributes if none are specified.
+      SearchAttributes existing = replayContext.getSearchAttributes();
+      if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
+        attributes.setSearchAttributes(existing);
+      }
     }
 
     List<ContextPropagator> propagators =
@@ -1361,6 +1421,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Void> result = Workflow.newPromise();
     replayContext.requestCancelExternalWorkflowExecution(
         input.getExecution(),
+        input.getReason(),
         (r, exception) -> {
           if (exception == null) {
             result.complete(null);
@@ -1484,12 +1545,22 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return contextData;
   }
 
+  @Override
+  public VersioningBehavior getVersioningBehavior() {
+    return workflowDefinition.getVersioningBehavior();
+  }
+
   public void setCurrentUpdateInfo(UpdateInfo updateInfo) {
     currentUpdateInfo.set(updateInfo);
   }
 
   public void setCurrentDetails(String details) {
     currentDetails = details;
+  }
+
+  @Nullable
+  public Object getInstance() {
+    return workflowDefinition.getInstance();
   }
 
   @Nullable

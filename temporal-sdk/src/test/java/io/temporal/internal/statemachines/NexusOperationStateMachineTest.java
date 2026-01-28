@@ -1,23 +1,3 @@
-/*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this material except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.TestHistoryBuilder.assertCommand;
@@ -35,6 +15,7 @@ import io.temporal.api.history.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.workflow.Functions;
+import io.temporal.workflow.NexusOperationCancellationType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -71,7 +52,7 @@ public class NexusOperationStateMachineTest {
             NexusOperationStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
                 stateMachineList);
     if (!missed.isEmpty()) {
-      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+      CommandsGeneratePlantUMLStateDiagramsTest.writeToFile(
           "test",
           NexusOperationStateMachine.class,
           NexusOperationStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
@@ -88,11 +69,14 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
             .add(
                 (pair) ->
                     stateMachines.completeWorkflow(
@@ -163,11 +147,14 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
     }
@@ -234,11 +221,14 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
     }
@@ -305,11 +295,14 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         builder
             .<Optional<Payload>, Failure>add2(
-                (v, c) -> stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
     }
@@ -377,13 +370,16 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         builder
             .<Optional<Payload>, Failure>add2(
                 (v, c) ->
                     cancellationHandler =
-                        stateMachines.startNexusOperation(attributes.build(), (o, f) -> {}, c))
+                        stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
         // Immediate cancellation
         builder.add((v) -> cancellationHandler.apply());
@@ -414,13 +410,15 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
-                (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                (v, c) -> stateMachines.startNexusOperation(startParams, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -463,7 +461,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
@@ -508,13 +506,15 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
-                (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                (v, c) -> stateMachines.startNexusOperation(startParams, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -553,7 +553,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
@@ -598,13 +598,15 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
-                (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                (v, c) -> stateMachines.startNexusOperation(startParams, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -643,7 +645,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(
@@ -688,13 +690,15 @@ public class NexusOperationStateMachineTest {
 
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
-        ScheduleNexusOperationCommandAttributes.Builder attributes =
-            newScheduleNexusOperationCommandAttributesBuilder();
+        StartNexusOperationParameters startParams =
+            new StartNexusOperationParameters(
+                newScheduleNexusOperationCommandAttributesBuilder(),
+                NexusOperationCancellationType.WAIT_COMPLETED,
+                null);
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
-                (v, c) ->
-                    stateMachines.startNexusOperation(attributes.build(), c, delayedCallback::run))
+                (v, c) -> stateMachines.startNexusOperation(startParams, c, delayedCallback::run))
             .<Optional<Payload>, Failure>add2(
                 (pair, c) -> {
                   Assert.assertEquals(OPERATION_ID, pair.getT1().get());
@@ -733,7 +737,7 @@ public class NexusOperationStateMachineTest {
           NexusOperationStartedEventAttributes.newBuilder()
               .setScheduledEventId(scheduledEventId)
               .setRequestId("requestId")
-              .setOperationId(OPERATION_ID)
+              .setOperationToken(OPERATION_ID)
               .build());
       h.addWorkflowTask();
       h.add(

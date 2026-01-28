@@ -1,14 +1,7 @@
-buildscript {
-    ext {
-        // 0.11.0 and later are build on JDK 11 bytecode version
-        graalVersion = "${JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11) ? '0.12.0' : '0.10.0'}"
-    }
-}
-
 plugins {
     id 'application'
-    id 'com.palantir.graal' version "${graalVersion}"
-    id 'com.google.protobuf' version '0.9.2'
+    id 'org.graalvm.buildtools.native' version '0.10.6' apply false
+    id 'com.google.protobuf' version '0.9.5'
 }
 
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
@@ -62,7 +55,7 @@ protobuf {
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
     // with the oldest supported versions of protoc and grpc artifacts.
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.10.1' + (System.getProperty("os.arch") == 'aarch64' && System.getProperty("os.name") == 'Mac OS X' ? ':osx-x86_64' : '')
+        artifact = 'com.google.protobuf:protoc:3.25.5' + (System.getProperty("os.arch") == 'aarch64' && System.getProperty("os.name") == 'Mac OS X' ? ':osx-x86_64' : '')
     }
     plugins {
         grpc {
@@ -99,28 +92,49 @@ idea {
 }
 
 
-graal {
-  outputName "temporal-test-server"
-  mainClass application.getMainClass().get()
-  javaVersion '17'
-  graalVersion '22.3.1'
-
-  // Don't fallback to running a JVM
-  option "--no-fallback"
-
-  // Signal handling so that ^C actually stops the process
-  option "--install-exit-handlers"
-
-  // If we're on linux, static link everything but libc. Otherwise link
-  // everything dynamically (note the '-' rather than '+' in fromt of
-  // StaticExecutable)
-  option isLinux()
-    ? "-H:+StaticExecutableWithDynamicLibC"
-    : "-H:-StaticExecutable"
-}
-
 def isLinux() {
-  return System.properties['os.name'].toLowerCase().contains('linux')
+    return System.properties['os.name'].toLowerCase().contains('linux')
 }
 
-tasks.build.dependsOn('nativeImage')
+// The graalvm plugin requires we build with Java 11
+if (project.hasProperty("nativeBuild")) {
+    apply plugin: 'org.graalvm.buildtools.native'
+
+    graalvmNative {
+        toolchainDetection = true
+        agent {
+            enabled = true
+            defaultMode = "standard"
+            metadataCopy {
+                outputDirectories.add("src/main/resources/META-INF/native-image/io.temporal/temporal-test-server")
+                mergeWithExisting = true
+            }
+
+        }
+        binaries {
+            main {
+                mainClass = application.getMainClass().get()
+                sharedLibrary = false
+                // Signal handling so that ^C actually stops the process
+                buildArgs.add("--install-exit-handlers")
+                // If we're on linux, static link everything but libc. Otherwise link
+                // everything dynamically (note the '-' rather than '+' in front of
+                // StaticExecutable)
+                if (isLinux() && !project.hasProperty("nativeBuildMusl")) {
+                    buildArgs.add("--static-nolibc")
+                } else if (isLinux() && project.hasProperty("nativeBuildMusl")) {
+                    buildArgs.add("--static")
+                    buildArgs.add("--libc=musl")
+                }
+                buildArgs.add("-H:+UnlockExperimentalVMOptions")
+                buildArgs.add("-Os")
+                buildArgs.add("-march=compatibility")
+
+                runtimeArgs.add("7233")
+            }
+        }
+        binaries.all {
+            verbose = true
+        }
+    }
+}
