@@ -46,14 +46,18 @@ tasks.named('generateMetadataFileForShadowPublication').configure {
     dependsOn 'jar'
 }
 
-// Treat test Java sources as resources so .java and adjacent files are on the test classpath
-sourceSets {
-    test {
-        resources {
-            srcDir 'src/test/java'
+// Access Java test source as resource
+tasks.register('copyJavaSourcesToResources') {
+    doLast {
+        copy {
+            from('src/test/java') {
+                include '**/*.*'
+            }
+            into 'build/resources/test'
         }
     }
 }
+processTestResources.dependsOn copyJavaSourcesToResources
 
 spotless {
     java {
