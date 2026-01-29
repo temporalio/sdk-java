@@ -26,11 +26,17 @@ shadowJar {
 }
 build.dependsOn shadowJar
 
-// Configure publishing to publish the shadow jar instead of regular jar
+// Configure publishing to publish both regular library jar and shadow executable jar
 publishing {
     publications {
+        // Regular library jar for programmatic usage and compile-time annotations
+        maven(MavenPublication) {
+            from components.java
+        }
+        // Fat executable jar with shaded dependencies
         shadow(MavenPublication) { publication ->
             project.shadow.component(publication)
+            artifactId = "${project.name}-all"
         }
     }
 }
