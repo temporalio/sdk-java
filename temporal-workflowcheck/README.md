@@ -303,23 +303,6 @@ A goal of the workflowcheck project is to have as few dependencies as possible.
 The code is optimized for performance, so direct field access instead of encapsulation, looping instead of streaming,
 mutable objects instead of records, etc may be present. But the user-facing API does follow proper practices.
 
-### TODO
+### Open Issues
 
-Currently, this project is missing many features:
-
-* Accept environment variables to point to config files
-* Accept environment variables to provide specific config properties
-* Accept Java system properties to point to config files
-* Accept Java system properties to provide specific config properties
-* Check lambda contents but avoid SideEffect
-* Module support
-* Prevent field mutation in queries and update validators
-* Config prebuilding where you can give a set of packages and it will generate a `.properties` set of invalid methods
-  and save from having to reread the class files of that package at runtime
-  * Also consider shipping with prebuilt config for Java standard library through Java 21
-* Support SARIF output for better integration with tooling like GitHub actions
-* Change output to work with IntelliJ's console linking better (see
-  [this SO answer](https://stackoverflow.com/questions/7930844/is-it-possible-to-have-clickable-class-names-in-console-output-in-intellij))
-* Support an HTML-formatted result with collapsible hierarchy
-* For very deep trees, support `[...]` by default to replace all but the two beginning and two end entries (with CLI
-  option to show more)
+https://github.com/temporalio/sdk-java/issues?q=is%3Aissue%20state%3Aopen%20workflowcheck
