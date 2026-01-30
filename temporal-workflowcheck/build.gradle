@@ -59,6 +59,15 @@ tasks.register('copyJavaSourcesToResources') {
 }
 processTestResources.dependsOn copyJavaSourcesToResources
 
+// Treat test Java sources as resources so .java and adjacent files are on the test classpath
+sourceSets {
+    test {
+        resources {
+            srcDir 'src/test/java'
+        }
+    }
+}
+
 spotless {
     java {
         toggleOffOn()

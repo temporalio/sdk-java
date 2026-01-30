@@ -87,7 +87,7 @@ public interface Suppression {
       // spotless:on
 
       // spotless:off
-      // LOG: WARNING - WorkflowCheck.suppressWarnings call not using string literal at io/temporal/workflowcheck/testdata/Suppression$SuppressionImpl.suppression (Suppression.java:112)
+      // LOG: WARNING - WorkflowCheck.suppressWarnings call not using string literal at io/temporal/workflowcheck/testdata/Suppression$SuppressionImpl.suppression (Suppression.java:92)
       String warningVar = "not-literal";
       WorkflowCheck.suppressWarnings(warningVar);
       // spotless:on
