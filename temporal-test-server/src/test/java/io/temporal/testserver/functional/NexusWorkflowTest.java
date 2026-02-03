@@ -1232,6 +1232,7 @@ public class NexusWorkflowTest {
         });
   }
 
+  @SuppressWarnings("deprecation") // Uses deprecated HandlerError/setError() to test old format
   private CompletableFuture<RespondNexusTaskFailedResponse> failNexusTask(
       ByteString taskToken, HandlerError err) {
     return CompletableFuture.supplyAsync(
