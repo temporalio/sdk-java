@@ -7,7 +7,7 @@ plugins {
 description = 'Temporal Java WorkflowCheck Static Analyzer'
 
 dependencies {
-    implementation 'org.ow2.asm:asm:9.6'
+    implementation 'org.ow2.asm:asm:9.7'
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
     testImplementation project(":temporal-sdk")
     testImplementation "junit:junit:${junitVersion}"
@@ -46,14 +46,16 @@ tasks.named('generateMetadataFileForShadowPublication').configure {
     dependsOn 'jar'
 }
 
-// Treat test Java sources as resources so .java and adjacent files are on the test classpath
-sourceSets {
-    test {
-        resources {
-            srcDir 'src/test/java'
-        }
+// Copy Java test source files to resources so they can be loaded at runtime
+tasks.register('copyJavaSourcesToResources', Copy) {
+    from('src/test/java') {
+        include '**/*.java'
+        include '**/*.properties'
     }
+    into 'build/resources/test'
 }
+processTestResources.dependsOn copyJavaSourcesToResources
+
 
 spotless {
     java {
