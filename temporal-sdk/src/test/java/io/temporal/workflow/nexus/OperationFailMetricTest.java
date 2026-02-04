@@ -14,6 +14,7 @@ import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.Eventually;
@@ -31,7 +32,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class OperationFailMetricTest {
-  private static Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
+  private static final boolean ENABLE_NEW_ASSERTS = false;
+  private static final Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
 
   private final TestStatsReporter reporter = new TestStatsReporter();
 
@@ -102,6 +104,42 @@ public class OperationFailMetricTest {
   }
 
   @Test
+  public void cancelOperationMetrics() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+
+    WorkflowFailedException workflowException =
+        Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("cancel"));
+    assertNoRetries("cancel");
+    CanceledFailure canceledFailure =
+        assertNexusOperationFailure(CanceledFailure.class, workflowException);
+    Assert.assertEquals("intentional cancel", canceledFailure.getOriginalMessage());
+    // TODO assert stack trace
+    if (ENABLE_NEW_ASSERTS) {
+      Assert.assertNotNull(canceledFailure.getCause());
+      Assert.assertTrue(canceledFailure.getCause() instanceof ApplicationFailure);
+      ApplicationFailure applicationFailure = (ApplicationFailure) canceledFailure.getCause();
+      Assert.assertEquals("intentional cancel", applicationFailure.getOriginalMessage());
+    }
+
+    Map<String, String> execFailedTags =
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, "operation_canceled")
+            .buildKeepingLast();
+    Eventually.assertEventually(
+        Duration.ofSeconds(3),
+        () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
+        });
+  }
+
+  @Test
   public void failOperationApplicationErrorMetrics() {
     TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
@@ -111,6 +149,83 @@ public class OperationFailMetricTest {
     assertNoRetries("fail-app");
     ApplicationFailure applicationFailure =
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
+    Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
+    Assert.assertEquals("TestFailure", applicationFailure.getType());
+    Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
+
+    Map<String, String> execFailedTags =
+        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
+    Eventually.assertEventually(
+        Duration.ofSeconds(3),
+        () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
+        });
+  }
+
+  @Test
+  public void cancelOperationApplicationErrorMetrics() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+
+    WorkflowFailedException workflowException =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("cancel-app"));
+    assertNoRetries("cancel-app");
+    CanceledFailure canceledFailure =
+        assertNexusOperationFailure(CanceledFailure.class, workflowException);
+    // Assert.assertEquals("intentional cancel", canceledFailure.getOriginalMessage());
+    Assert.assertEquals(
+        "message='intentional cancel', type='TestFailure', nonRetryable=false",
+        canceledFailure.getOriginalMessage());
+    // TODO assert stack trace
+    // Old assertions
+    // Assert.assertEquals("foo", canceledFailure.getDetails());
+    // New assertions
+    Assert.assertEquals(0, canceledFailure.getDetails().getSize());
+    Assert.assertNotNull(canceledFailure.getCause());
+    Assert.assertTrue(canceledFailure.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) canceledFailure.getCause();
+    Assert.assertEquals("TestFailure", applicationFailure.getType());
+    Assert.assertEquals("intentional cancel", applicationFailure.getOriginalMessage());
+    Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
+
+    Map<String, String> execFailedTags =
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, "operation_canceled")
+            .buildKeepingLast();
+    Eventually.assertEventually(
+        Duration.ofSeconds(3),
+        () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
+        });
+  }
+
+  @Test
+  public void failOperationMessageApplicationErrorMetrics() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+
+    WorkflowFailedException workflowException =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("fail-msg-app"));
+    assertNoRetries("fail-msg-app");
+    ApplicationFailure applicationFailure =
+        assertNexusOperationFailure(ApplicationFailure.class, workflowException);
+    Assert.assertEquals("failure message", applicationFailure.getOriginalMessage());
+    Assert.assertEquals("OperationError", applicationFailure.getType());
+    applicationFailure = (ApplicationFailure) applicationFailure.getCause();
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
     Assert.assertEquals("TestFailure", applicationFailure.getType());
     Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
@@ -173,6 +288,45 @@ public class OperationFailMetricTest {
     HandlerException handlerException =
         assertNexusOperationFailure(HandlerException.class, workflowException);
     Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
+    Assert.assertTrue(handlerException.getCause() instanceof ApplicationFailure);
+    ApplicationFailure applicationFailure = (ApplicationFailure) handlerException.getCause();
+    Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
+    Assert.assertEquals("TestFailure", applicationFailure.getType());
+    Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
+
+    Map<String, String> execFailedTags =
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .buildKeepingLast();
+    Eventually.assertEventually(
+        Duration.ofSeconds(3),
+        () -> {
+          reporter.assertTimer(
+              MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY, getBaseTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_EXEC_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertTimer(
+              MetricsType.NEXUS_TASK_E2E_LATENCY, getOperationTags().buildKeepingLast());
+          reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
+        });
+  }
+
+  @Test
+  public void failHandlerMessageAppBadRequestMetrics() {
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    WorkflowFailedException workflowException =
+        Assert.assertThrows(
+            WorkflowFailedException.class, () -> workflowStub.execute("handlererror-msg-app"));
+    assertNoRetries("handlererror-msg-app");
+    HandlerException handlerException =
+        assertNexusOperationFailure(HandlerException.class, workflowException);
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
+    if (ENABLE_NEW_ASSERTS) {
+      Assert.assertEquals("handler failure message", handlerException.getMessage());
+    } else {
+      Assert.assertEquals("intentional failure", handlerException.getMessage());
+    }
     Assert.assertTrue(handlerException.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) handlerException.getCause();
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
@@ -405,11 +559,29 @@ public class OperationFailMetricTest {
               case "fail-app":
                 throw OperationException.failure(
                     ApplicationFailure.newFailure("intentional failure", "TestFailure", "foo"));
+              case "fail-msg-app":
+                throw OperationException.failure(
+                    "failure message",
+                    ApplicationFailure.newFailure("intentional failure", "TestFailure", "foo"));
+              case "cancel":
+                throw OperationException.canceled(new RuntimeException("intentional cancel"));
+              case "cancel-app":
+                throw OperationException.canceled(
+                    ApplicationFailure.newFailure("intentional cancel", "TestFailure", "foo"));
+              case "cancel-msg-app":
+                throw OperationException.canceled(
+                    "failure message",
+                    ApplicationFailure.newFailure("intentional cancel", "TestFailure", "foo"));
               case "handlererror":
                 throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, "handlererror");
               case "handlererror-app":
                 throw new HandlerException(
                     HandlerException.ErrorType.BAD_REQUEST,
+                    ApplicationFailure.newFailure("intentional failure", "TestFailure", "foo"));
+              case "handlererror-msg-app":
+                throw new HandlerException(
+                    HandlerException.ErrorType.BAD_REQUEST,
+                    "handler failure message",
                     ApplicationFailure.newFailure("intentional failure", "TestFailure", "foo"));
               case "handlererror-nonretryable":
                 throw new HandlerException(
