@@ -345,8 +345,12 @@ public interface WorkflowClient {
    * @param operation The operation to perform. See {@link BuildIdOperation} for more.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
+   * 
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
   @Experimental
+  @Deprecated
   void updateWorkerBuildIdCompatability(
       @Nonnull String taskQueue, @Nonnull BuildIdOperation operation);
 
@@ -357,8 +361,12 @@ public interface WorkflowClient {
    * @return The version set(s) for the task queue.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
+   * 
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
   @Experimental
+  @Deprecated
   WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue);
 
   /**
@@ -373,8 +381,12 @@ public interface WorkflowClient {
    * @return The reachability information.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
+   * 
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
   @Experimental
+  @Deprecated
   WorkerTaskReachability getWorkerTaskReachability(
       @Nonnull Iterable<String> buildIds,
       @Nonnull Iterable<String> taskQueues,

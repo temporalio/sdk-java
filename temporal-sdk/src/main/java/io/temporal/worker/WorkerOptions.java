@@ -376,6 +376,9 @@ public final class WorkerOptions {
      * will only receive tasks which it is compatible with.
      *
      * <p>Defaults to false
+     * 
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
     @Experimental
     @Deprecated
@@ -389,6 +392,9 @@ public final class WorkerOptions {
      * code the worker uses for workflows, activities, and interceptors.
      *
      * <p>A Build Id must be set if {@link #setUseBuildIdForVersioning(boolean)} is set true.
+     * 
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
     @Experimental
     @Deprecated
