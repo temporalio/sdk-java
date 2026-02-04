@@ -310,6 +310,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation")
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
       Duration backoffStartInterval,
@@ -475,6 +476,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
+  @SuppressWarnings("deprecation")
   private void validateWorkflowIdReusePolicy(
       WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
     if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
@@ -1028,6 +1030,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public void respondNexusTaskFailed(
       RespondNexusTaskFailedRequest request,

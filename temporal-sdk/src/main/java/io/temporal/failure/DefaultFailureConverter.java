@@ -192,7 +192,13 @@ public final class DefaultFailureConverter implements FailureConverter {
               retryBehavior = HandlerException.RetryBehavior.NON_RETRYABLE;
               break;
           }
-          return new HandlerException(info.getType(), cause, retryBehavior);
+          if (failure
+              .getMessage()
+              .startsWith(String.format("handler error (%s)", info.getType()))) {
+            return new HandlerException(info.getType(), cause, retryBehavior);
+          } else {
+            return new HandlerException(info.getType(), failure.getMessage(), cause, retryBehavior);
+          }
         }
       case FAILUREINFO_NOT_SET:
       default:

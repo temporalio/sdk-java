@@ -4,7 +4,10 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.nexusrpc.Link;
+import io.nexusrpc.handler.HandlerException;
+import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.nexus.v1.Failure;
+import io.temporal.api.nexus.v1.HandlerError;
 import io.temporal.common.converter.DataConverter;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -47,11 +50,11 @@ public class NexusUtil {
         .build();
   }
 
-  public static Failure exceptionToNexusFailure(Throwable exception, DataConverter dataConverter) {
-    io.temporal.api.failure.v1.Failure failure = dataConverter.exceptionToFailure(exception);
+  public static Failure temporalFailureToNexusFailure(
+      io.temporal.api.failure.v1.Failure temporalFailure) {
     String details;
     try {
-      details = JSON_PRINTER.print(failure.toBuilder().setMessage("").build());
+      details = JSON_PRINTER.print(temporalFailure.toBuilder().setMessage("").build());
     } catch (InvalidProtocolBufferException e) {
       return Failure.newBuilder()
           .setMessage("Failed to serialize failure details")
@@ -59,10 +62,40 @@ public class NexusUtil {
           .build();
     }
     return Failure.newBuilder()
-        .setMessage(failure.getMessage())
+        .setMessage(temporalFailure.getMessage())
         .setDetails(ByteString.copyFromUtf8(details))
         .putAllMetadata(NEXUS_FAILURE_METADATA)
         .build();
+  }
+
+  public static Failure exceptionToNexusFailure(Throwable exception, DataConverter dataConverter) {
+    io.temporal.api.failure.v1.Failure failure = dataConverter.exceptionToFailure(exception);
+    return temporalFailureToNexusFailure(failure);
+  }
+
+  public static HandlerError handlerErrorToNexusError(
+      HandlerException e, DataConverter dataConverter) {
+    HandlerError.Builder handlerError =
+        HandlerError.newBuilder()
+            .setErrorType(e.getErrorType().toString())
+            .setRetryBehavior(mapRetryBehavior(e.getRetryBehavior()));
+    // TODO: check if this works on old server
+    if (e.getCause() != null) {
+      handlerError.setFailure(exceptionToNexusFailure(e.getCause(), dataConverter));
+    }
+    return handlerError.build();
+  }
+
+  private static NexusHandlerErrorRetryBehavior mapRetryBehavior(
+      HandlerException.RetryBehavior retryBehavior) {
+    switch (retryBehavior) {
+      case RETRYABLE:
+        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE;
+      case NON_RETRYABLE:
+        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE;
+      default:
+        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_UNSPECIFIED;
+    }
   }
 
   private NexusUtil() {}
