@@ -486,7 +486,6 @@ public final class WorkerOptions {
      * Set deployment options for the worker. Exclusive with {@link #setUseBuildIdForVersioning} and
      * {@link #setBuildId(String)}.
      */
-    @Experimental
     public Builder setDeploymentOptions(WorkerDeploymentOptions deploymentOptions) {
       this.deploymentOptions = deploymentOptions;
       return this;

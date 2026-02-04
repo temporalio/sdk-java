@@ -5,7 +5,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Represents the version of a specific worker deployment. */
-@Experimental
 public class WorkerDeploymentVersion {
   private final String deploymentName;
   private final String buildId;

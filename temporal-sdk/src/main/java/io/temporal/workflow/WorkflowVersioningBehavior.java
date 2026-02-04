@@ -13,7 +13,6 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-@Experimental
 public @interface WorkflowVersioningBehavior {
   /**
    * The behavior to apply to this workflow. See {@link VersioningBehavior} for more information.
