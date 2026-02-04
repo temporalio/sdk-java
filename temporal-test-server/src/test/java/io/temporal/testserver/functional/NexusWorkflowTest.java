@@ -25,6 +25,7 @@ import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.testservice.NexusTaskToken;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -745,7 +746,7 @@ public class NexusWorkflowTest {
       Assert.assertTrue("OPERATION_TIMEOUT should be positive", operationTimeoutMs > 0);
 
       // Sleep longer than schedule-to-start timeout to trigger the timeout
-      Thread.sleep(2000);
+      testWorkflowRule.sleep(Duration.ofSeconds(2));
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     }
@@ -763,7 +764,7 @@ public class NexusWorkflowTest {
     assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
     Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
     io.temporal.api.failure.v1.Failure cause = failure.getCause();
-    Assert.assertEquals("operation timed out before starting", cause.getMessage());
+    Assert.assertEquals("operation timed out", cause.getMessage());
     Assert.assertTrue(cause.hasTimeoutFailureInfo());
     Assert.assertEquals(
         TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START, cause.getTimeoutFailureInfo().getTimeoutType());
@@ -833,7 +834,7 @@ public class NexusWorkflowTest {
       assertOperationFailureInfo(operationId, failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
-      Assert.assertEquals("operation timed out after starting", cause.getMessage());
+      Assert.assertEquals("operation timed out", cause.getMessage());
       Assert.assertTrue(cause.hasTimeoutFailureInfo());
       Assert.assertEquals(
           TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, cause.getTimeoutFailureInfo().getTimeoutType());

@@ -807,20 +807,6 @@ class StateMachines {
           "Timeout type not supported for Nexus operations: " + timeoutType);
     }
 
-    String timeoutMessage;
-    switch (timeoutType) {
-      case TIMEOUT_TYPE_SCHEDULE_TO_START:
-        timeoutMessage = "operation timed out before starting";
-        break;
-      case TIMEOUT_TYPE_START_TO_CLOSE:
-        timeoutMessage = "operation timed out after starting";
-        break;
-      case TIMEOUT_TYPE_SCHEDULE_TO_CLOSE:
-      default:
-        timeoutMessage = "operation timed out";
-        break;
-    }
-
     Failure failure =
         Failure.newBuilder()
             .setMessage("nexus operation completed unsuccessfully")
@@ -833,7 +819,7 @@ class StateMachines {
                     .setScheduledEventId(data.scheduledEventId))
             .setCause(
                 Failure.newBuilder()
-                    .setMessage(timeoutMessage)
+                    .setMessage("operation timed out")
                     .setTimeoutFailureInfo(
                         TimeoutFailureInfo.newBuilder().setTimeoutType(timeoutType)))
             .build();
