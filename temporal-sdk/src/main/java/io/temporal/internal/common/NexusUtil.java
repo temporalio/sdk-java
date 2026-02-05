@@ -82,11 +82,11 @@ public class NexusUtil {
     if (failureInfo.getMetadata().containsKey("type")
         && failureInfo.getMetadata().get("type").equals(TEMPORAL_FAILURE_TYPE_STRING)) {
       // Details contains a JSON-serialized Temporal failure
-        try {
-            JsonFormat.parser().ignoringUnknownFields().merge(failureInfo.getDetailsJson(), apiFailure);
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-        }
+      try {
+        JsonFormat.parser().ignoringUnknownFields().merge(failureInfo.getDetailsJson(), apiFailure);
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
     } else {
       // Create an ApplicationFailure with the Nexus failure data
       io.temporal.api.common.v1.Payloads payloads = nexusFailureMetadataToPayloads(failureInfo);
@@ -102,9 +102,9 @@ public class NexusUtil {
 
     // Ensure these always get written
     apiFailure.setMessage(failureInfo.getMessage());
-    //    if (!failureInfo.getStackTrace().isEmpty()) {
-    //      apiFailure.setStackTrace(failureInfo.getStackTrace());
-    //    }
+    if (!failureInfo.getStackTrace().isEmpty()) {
+      apiFailure.setStackTrace(failureInfo.getStackTrace());
+    }
 
     return apiFailure.build();
   }
