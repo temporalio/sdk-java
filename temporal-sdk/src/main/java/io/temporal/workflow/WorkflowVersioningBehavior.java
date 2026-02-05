@@ -1,6 +1,5 @@
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import io.temporal.common.VersioningBehavior;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

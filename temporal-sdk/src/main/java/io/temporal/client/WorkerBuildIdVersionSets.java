@@ -7,11 +7,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Represents the sets of compatible Build Ids associated with a particular task queue. 
- * 
+/**
+ * Represents the sets of compatible Build Ids associated with a particular task queue.
+ *
  * @deprecated Worker Versioning is now deprecated please migrate to the <a
  *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
-*/
+ */
 @Experimental
 @Deprecated
 public class WorkerBuildIdVersionSets {
