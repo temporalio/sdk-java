@@ -15,6 +15,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.FailureConverter;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -197,7 +198,12 @@ public final class DefaultFailureConverter implements FailureConverter {
               .startsWith(String.format("handler error (%s)", info.getType()))) {
             return new HandlerException(info.getType(), cause, retryBehavior);
           } else {
-            return new HandlerException(info.getType(), failure.getMessage(), cause, retryBehavior);
+            return new HandlerException(
+                info.getType(),
+                failure.getMessage(),
+                cause,
+                retryBehavior,
+                NexusUtil.temporalFailureToNexusFailureInfo(failure));
           }
         }
       case FAILUREINFO_NOT_SET:
@@ -330,6 +336,9 @@ public final class DefaultFailureConverter implements FailureConverter {
       failure.setNexusOperationExecutionFailureInfo(op);
     } else if (throwable instanceof HandlerException) {
       HandlerException he = (HandlerException) throwable;
+      if (he.getOriginalFailure() != null) {
+        return NexusUtil.nexusFailureToAPIFailure(he.getOriginalFailure(), true);
+      }
       NexusHandlerErrorRetryBehavior retryBehavior =
           NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_UNSPECIFIED;
       switch (he.getRetryBehavior()) {
