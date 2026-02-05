@@ -652,17 +652,30 @@ class StateMachines {
       NexusOperationData data,
       ScheduleNexusOperationCommandAttributes attr,
       long workflowTaskCompletedId) {
-    Duration expirationInterval = attr.getScheduleToCloseTimeout();
+    // Cap scheduleToCloseTimeout to workflow run timeout.
+    com.google.protobuf.Duration workflowRunTimeoutProto =
+        ctx.getWorkflowMutableState().getStartRequest().getWorkflowRunTimeout();
+    java.time.Duration workflowRunTimeout =
+        ProtobufTimeUtils.toJavaDuration(workflowRunTimeoutProto);
+    java.time.Duration scheduleToCloseTimeout =
+        ProtobufTimeUtils.toJavaDuration(attr.getScheduleToCloseTimeout());
+
+    com.google.protobuf.Duration cappedScheduleToCloseTimeout = attr.getScheduleToCloseTimeout();
+    if (!workflowRunTimeout.isZero()
+        && (scheduleToCloseTimeout.isZero()
+            || scheduleToCloseTimeout.compareTo(workflowRunTimeout) > 0)) {
+      cappedScheduleToCloseTimeout = workflowRunTimeoutProto;
+      scheduleToCloseTimeout = workflowRunTimeout;
+    }
+
+    Duration expirationInterval = cappedScheduleToCloseTimeout;
     Timestamp expirationTime =
-        (attr.hasScheduleToCloseTimeout()
-                && Durations.toMillis(attr.getScheduleToCloseTimeout()) > 0)
+        !scheduleToCloseTimeout.isZero()
             ? Timestamps.add(ctx.currentTime(), expirationInterval)
             : Timestamp.getDefaultInstance();
     TestServiceRetryState retryState = new TestServiceRetryState(data.retryPolicy, expirationTime);
 
     // Trim secondary timeouts to the primary timeout (scheduleToClose).
-    java.time.Duration scheduleToCloseTimeout =
-        ProtobufTimeUtils.toJavaDuration(attr.getScheduleToCloseTimeout());
     java.time.Duration scheduleToStartTimeout =
         ProtobufTimeUtils.toJavaDuration(attr.getScheduleToStartTimeout());
     java.time.Duration startToCloseTimeout =
@@ -674,13 +687,13 @@ class StateMachines {
     if (!scheduleToCloseTimeout.isZero()
         && !scheduleToStartTimeout.isZero()
         && scheduleToStartTimeout.compareTo(scheduleToCloseTimeout) > 0) {
-      cappedScheduleToStartTimeout = attr.getScheduleToCloseTimeout();
+      cappedScheduleToStartTimeout = cappedScheduleToCloseTimeout;
     }
 
     if (!scheduleToCloseTimeout.isZero()
         && !startToCloseTimeout.isZero()
         && startToCloseTimeout.compareTo(scheduleToCloseTimeout) > 0) {
-      cappedStartToCloseTimeout = attr.getScheduleToCloseTimeout();
+      cappedStartToCloseTimeout = cappedScheduleToCloseTimeout;
     }
 
     NexusOperationScheduledEventAttributes.Builder a =
@@ -690,7 +703,7 @@ class StateMachines {
             .setService(attr.getService())
             .setOperation(attr.getOperation())
             .setInput(attr.getInput())
-            .setScheduleToCloseTimeout(attr.getScheduleToCloseTimeout())
+            .setScheduleToCloseTimeout(cappedScheduleToCloseTimeout)
             .setScheduleToStartTimeout(cappedScheduleToStartTimeout)
             .setStartToCloseTimeout(cappedStartToCloseTimeout)
             .putAllNexusHeader(attr.getNexusHeaderMap())
