@@ -5,7 +5,6 @@ import static org.junit.Assume.assumeTrue;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.BuildIdOperation;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.Signal;
@@ -45,7 +44,7 @@ public class BuildIdVersioningTest {
 
     // Add 1.0 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
-        taskQueue, BuildIdOperation.newIdInNewDefaultSet("1.0"));
+        taskQueue, io.temporal.client.BuildIdOperation.newIdInNewDefaultSet("1.0"));
 
     // Now start the worker (to avoid poll timeout while queue is unversioned)
     testWorkflowRule.getTestEnvironment().start();
@@ -65,7 +64,7 @@ public class BuildIdVersioningTest {
 
     // Add 2.0 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
-        taskQueue, BuildIdOperation.newIdInNewDefaultSet("2.0"));
+        taskQueue, io.temporal.client.BuildIdOperation.newIdInNewDefaultSet("2.0"));
 
     // Continue driving original workflow
     wf1.mySignal("activity");
@@ -121,7 +120,7 @@ public class BuildIdVersioningTest {
 
     // Add 1.0 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
-        taskQueue, BuildIdOperation.newIdInNewDefaultSet("1.0"));
+        taskQueue, io.temporal.client.BuildIdOperation.newIdInNewDefaultSet("1.0"));
 
     // Now start the worker (to avoid poll timeout while queue is unversioned)
     testWorkflowRule.getTestEnvironment().start();
@@ -154,7 +153,7 @@ public class BuildIdVersioningTest {
 
     // Add 1.1 to the queue
     workflowClient.updateWorkerBuildIdCompatability(
-        taskQueue, BuildIdOperation.newCompatibleVersion("1.1", "1.0"));
+        taskQueue, io.temporal.client.BuildIdOperation.newCompatibleVersion("1.1", "1.0"));
 
     WorkerFactory w11F =
         WorkerFactory.newInstance(workflowClient, testWorkflowRule.getWorkerFactoryOptions());
