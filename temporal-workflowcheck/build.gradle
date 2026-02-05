@@ -1,0 +1,64 @@
+plugins {
+    id 'application'
+    id 'com.gradleup.shadow' version '8.3.3'
+    id 'java'
+}
+
+description = 'Temporal Java WorkflowCheck Static Analyzer'
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.7'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    testImplementation project(":temporal-sdk")
+    testImplementation "junit:junit:${junitVersion}"
+    // Only for testing external-JAR-based bad calls
+    testImplementation "com.google.guava:guava:$guavaVersion"
+}
+
+application {
+    mainClass = 'io.temporal.workflowcheck.Main'
+}
+
+// Need all-in-one JAR
+shadowJar {
+    relocate 'org.objectweb.asm', 'io.temporal.workflowcheck.shaded.org.objectweb.asm'
+    archiveClassifier = ''
+}
+build.dependsOn shadowJar
+
+// Configure publishing to publish both regular library jar and shadow executable jar
+publishing {
+    publications {
+        // Regular library jar for programmatic usage and compile-time annotations
+        maven(MavenPublication) {
+            from components.java
+        }
+        // Fat executable jar with shaded dependencies
+        shadow(MavenPublication) { publication ->
+            project.shadow.component(publication)
+            artifactId = "${project.name}-all"
+        }
+    }
+}
+
+// Fix dependency issue with shadow publication metadata generation
+tasks.named('generateMetadataFileForShadowPublication').configure {
+    dependsOn 'jar'
+}
+
+// Copy Java test source files to resources so they can be loaded at runtime
+tasks.register('copyJavaSourcesToResources', Copy) {
+    from('src/test/java') {
+        include '**/*.java'
+        include '**/*.properties'
+    }
+    into 'build/resources/test'
+}
+processTestResources.dependsOn copyJavaSourcesToResources
+
+
+spotless {
+    java {
+        toggleOffOn()
+    }
+}
