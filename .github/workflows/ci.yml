@@ -95,6 +95,7 @@ jobs:
             --dynamic-config-value system.enableActivityEagerExecution=true \
             --dynamic-config-value frontend.workerVersioningDataAPIs=true \
             --dynamic-config-value component.nexusoperations.recordCancelRequestCompletionEvents=true \
+            --dynamic-config-value component.callbacks.allowedAddresses='[{"Pattern":"*","AllowInsecure":true}]' \
             --dynamic-config-value history.enableRequestIdRefLinks=true &
         sleep 10s
 
