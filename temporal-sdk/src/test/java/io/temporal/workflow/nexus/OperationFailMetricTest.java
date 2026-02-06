@@ -32,7 +32,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class OperationFailMetricTest {
-  private static final boolean ENABLE_NEW_ASSERTS = false;
   private static final Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
 
   private final TestStatsReporter reporter = new TestStatsReporter();
@@ -42,12 +41,16 @@ public class OperationFailMetricTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setUseExternalService(ENABLE_NEW_ASSERTS)
           .setMetricsScope(
               new RootScopeBuilder()
                   .reporter(reporter)
                   .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
           .build();
+
+  // Check if we're forcing old format via system property
+  private static boolean isUsingNewFormat() {
+    return !("true".equalsIgnoreCase(System.getProperty("temporal.nexus.forceOldFailureFormat")));
+  }
 
   private ImmutableMap.Builder<String, String> getBaseTags() {
     return ImmutableMap.<String, String>builder()
@@ -116,7 +119,7 @@ public class OperationFailMetricTest {
         assertNexusOperationFailure(CanceledFailure.class, workflowException);
     Assert.assertEquals("intentional cancel", canceledFailure.getOriginalMessage());
     // TODO assert stack trace
-    if (ENABLE_NEW_ASSERTS) {
+    if (isUsingNewFormat()) {
       Assert.assertNotNull(canceledFailure.getCause());
       Assert.assertTrue(canceledFailure.getCause() instanceof ApplicationFailure);
       ApplicationFailure applicationFailure = (ApplicationFailure) canceledFailure.getCause();
@@ -150,7 +153,7 @@ public class OperationFailMetricTest {
     assertNoRetries("fail-app");
     ApplicationFailure applicationFailure =
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
-    if (ENABLE_NEW_ASSERTS) {
+    if (isUsingNewFormat()) {
       Assert.assertEquals(
           "message='intentional failure', type='TestFailure', nonRetryable=false",
           applicationFailure.getOriginalMessage());
@@ -189,7 +192,7 @@ public class OperationFailMetricTest {
     CanceledFailure canceledFailure =
         assertNexusOperationFailure(CanceledFailure.class, workflowException);
     //
-    if (ENABLE_NEW_ASSERTS) {
+    if (isUsingNewFormat()) {
       Assert.assertEquals(
           "message='intentional cancel', type='TestFailure', nonRetryable=false",
           canceledFailure.getOriginalMessage());
@@ -233,7 +236,7 @@ public class OperationFailMetricTest {
     assertNoRetries("fail-msg-app");
     ApplicationFailure applicationFailure =
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
-    if (ENABLE_NEW_ASSERTS) {
+    if (isUsingNewFormat()) {
       Assert.assertEquals("failure message", applicationFailure.getOriginalMessage());
       Assert.assertEquals("OperationError", applicationFailure.getType());
       applicationFailure = (ApplicationFailure) applicationFailure.getCause();
@@ -300,7 +303,7 @@ public class OperationFailMetricTest {
     HandlerException handlerException =
         assertNexusOperationFailure(HandlerException.class, workflowException);
     Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
-    if (ENABLE_NEW_ASSERTS) {
+    if (isUsingNewFormat()) {
       Assert.assertEquals("handler failure message", handlerException.getMessage());
       Assert.assertNull(handlerException.getCause());
     }
@@ -367,7 +370,7 @@ public class OperationFailMetricTest {
     HandlerException handlerException =
         assertNexusOperationFailure(HandlerException.class, workflowException);
     Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerException.getErrorType());
-    if (ENABLE_NEW_ASSERTS) {
+    if (isUsingNewFormat()) {
       Assert.assertEquals("handler failure message", handlerException.getMessage());
     } else {
       Assert.assertEquals("intentional failure", handlerException.getMessage());

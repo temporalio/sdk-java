@@ -67,11 +67,15 @@ public class NexusUtil {
           .setDetails(ByteString.copyFromUtf8(e.getMessage()))
           .build();
     }
-    return Failure.newBuilder()
-        .setMessage(temporalFailure.getMessage())
-        .setDetails(ByteString.copyFromUtf8(details))
-        .putAllMetadata(NEXUS_FAILURE_METADATA)
-        .build();
+    Failure.Builder failureBuilder =
+        Failure.newBuilder()
+            .setMessage(temporalFailure.getMessage())
+            .setDetails(ByteString.copyFromUtf8(details))
+            .putAllMetadata(NEXUS_FAILURE_METADATA);
+    if (!temporalFailure.getStackTrace().isEmpty()) {
+      failureBuilder.setStackTrace(temporalFailure.getStackTrace());
+    }
+    return failureBuilder.build();
   }
 
   public static io.temporal.api.failure.v1.Failure nexusFailureToAPIFailure(
@@ -102,9 +106,6 @@ public class NexusUtil {
 
     // Ensure these always get written
     apiFailure.setMessage(failureInfo.getMessage());
-    if (!failureInfo.getStackTrace().isEmpty()) {
-      apiFailure.setStackTrace(failureInfo.getStackTrace());
-    }
 
     return apiFailure.build();
   }
@@ -165,6 +166,9 @@ public class NexusUtil {
     // TODO: check if this works on old server
     if (e.getCause() != null) {
       handlerError.setFailure(exceptionToNexusFailure(e.getCause(), dataConverter));
+    } else if (e.getMessage() != null && !e.getMessage().isEmpty()) {
+      // Include message even when there's no cause
+      handlerError.setFailure(Failure.newBuilder().setMessage(e.getMessage()).build());
     }
     return handlerError.build();
   }
