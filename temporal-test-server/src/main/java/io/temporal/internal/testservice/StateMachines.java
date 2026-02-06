@@ -703,6 +703,9 @@ class StateMachines {
             .setRequest(
                 io.temporal.api.nexus.v1.Request.newBuilder()
                     .setScheduledTime(ctx.currentTime())
+                    .setCapabilities(
+                        io.temporal.api.nexus.v1.Request.Capabilities.newBuilder()
+                            .setTemporalFailureResponses(true))
                     .putAllHeader(attr.getNexusHeaderMap())
                     .putHeader(
                         io.nexusrpc.Header.OPERATION_TIMEOUT.toLowerCase(),

@@ -341,6 +341,13 @@ final class NexusWorker implements SuspendableWorker {
         // Check if the server supports using the Failure directly in responses
         boolean supportTemporalFailure =
             task.getResponse().getRequest().getCapabilities().getTemporalFailureResponses();
+
+        // Allow tests to force old format for backward compatibility testing
+        String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
+        if ("true".equalsIgnoreCase(forceOldFormat)) {
+          supportTemporalFailure = false;
+        }
+
         sendReply(taskToken, supportTemporalFailure, result, metricsScope);
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
