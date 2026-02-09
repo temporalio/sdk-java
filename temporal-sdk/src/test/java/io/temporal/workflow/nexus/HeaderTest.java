@@ -25,6 +25,9 @@ public class HeaderTest {
   public void testOperationHeaders() {
     TestWorkflow workflowStub = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow.class);
     Map<String, String> headers = workflowStub.execute(testWorkflowRule.getTaskQueue());
+    // Operation-timeout is set because the schedule-to-close timeout is capped by workflow run
+    // timeout, which is set by
+    // default for tests.
     Assert.assertTrue(headers.containsKey("operation-timeout"));
     Assert.assertTrue(headers.containsKey("request-timeout"));
   }
