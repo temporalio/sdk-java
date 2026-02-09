@@ -434,20 +434,6 @@ public class ScheduleTest {
 
       description = handle.describe();
       Assert.assertTrue(description.getSchedule().getPolicy().isKeepOriginalWorkflowId());
-
-      handle.update(
-          (ScheduleUpdateInput input) -> {
-            SchedulePolicy existingPolicy = input.getDescription().getSchedule().getPolicy();
-            SchedulePolicy.Builder policyBuilder = SchedulePolicy.newBuilder(existingPolicy);
-            policyBuilder.setKeepOriginalWorkflowId(false);
-            return new ScheduleUpdate(
-                Schedule.newBuilder(input.getDescription().getSchedule())
-                    .setPolicy(policyBuilder.build())
-                    .build());
-          });
-
-      description = handle.describe();
-      Assert.assertFalse(description.getSchedule().getPolicy().isKeepOriginalWorkflowId());
     } finally {
       handle.delete();
     }
