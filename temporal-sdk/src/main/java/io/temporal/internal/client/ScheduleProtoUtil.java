@@ -178,6 +178,7 @@ public class ScheduleProtoUtil {
       builder.setCatchupWindow(ProtobufTimeUtils.toProtoDuration(policy.getCatchupWindow()));
     }
     builder.setPauseOnFailure(policy.isPauseOnFailure());
+    builder.setKeepOriginalWorkflowId(policy.isKeepOriginalWorkflowId());
     builder.setOverlapPolicy(policy.getOverlap());
     return builder.build();
   }
@@ -487,6 +488,7 @@ public class ScheduleProtoUtil {
     SchedulePolicy.Builder policyBuilder =
         SchedulePolicy.newBuilder()
             .setPauseOnFailure(policy.getPauseOnFailure())
+            .setKeepOriginalWorkflowId(policy.getKeepOriginalWorkflowId())
             .setOverlap(policy.getOverlapPolicy());
     if (policy.hasCatchupWindow()) {
       policyBuilder.setCatchupWindow(ProtobufTimeUtils.toJavaDuration(policy.getCatchupWindow()));

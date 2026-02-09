@@ -18,6 +18,7 @@ public final class SchedulePolicy {
     private ScheduleOverlapPolicy overlap;
     private Duration catchupWindow;
     private boolean pauseOnFailure;
+    private boolean keepOriginalWorkflowId;
 
     private Builder() {}
 
@@ -28,6 +29,7 @@ public final class SchedulePolicy {
       this.overlap = options.overlap;
       this.catchupWindow = options.catchupWindow;
       this.pauseOnFailure = options.pauseOnFailure;
+      this.keepOriginalWorkflowId = options.keepOriginalWorkflowId;
     }
 
     /** Set the policy for what happens when an action is started while another is still running. */
@@ -51,23 +53,38 @@ public final class SchedulePolicy {
       return this;
     }
 
+    /**
+     * If true and the action starts a workflow, a timestamp will not be appended to the configured
+     * workflow id.
+     */
+    public Builder setKeepOriginalWorkflowId(boolean keepOriginalWorkflowId) {
+      this.keepOriginalWorkflowId = keepOriginalWorkflowId;
+      return this;
+    }
+
     public SchedulePolicy build() {
       return new SchedulePolicy(
           overlap == null ? ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP : overlap,
           catchupWindow,
-          pauseOnFailure);
+          pauseOnFailure,
+          keepOriginalWorkflowId);
     }
   }
 
   private final ScheduleOverlapPolicy overlap;
   private final Duration catchupWindow;
   private final boolean pauseOnFailure;
+  private final boolean keepOriginalWorkflowId;
 
   private SchedulePolicy(
-      ScheduleOverlapPolicy overlap, Duration catchupWindow, boolean pauseOnFailure) {
+      ScheduleOverlapPolicy overlap,
+      Duration catchupWindow,
+      boolean pauseOnFailure,
+      boolean keepOriginalWorkflowId) {
     this.overlap = overlap;
     this.catchupWindow = catchupWindow;
     this.pauseOnFailure = pauseOnFailure;
+    this.keepOriginalWorkflowId = keepOriginalWorkflowId;
   }
 
   /**
@@ -98,19 +115,30 @@ public final class SchedulePolicy {
     return pauseOnFailure;
   }
 
+  /**
+   * Gets whether the scheduled workflow should keep the original workflow id without timestamp
+   * suffixing.
+   *
+   * @return if the original workflow id should be kept as-is
+   */
+  public boolean isKeepOriginalWorkflowId() {
+    return keepOriginalWorkflowId;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     SchedulePolicy that = (SchedulePolicy) o;
     return pauseOnFailure == that.pauseOnFailure
+        && keepOriginalWorkflowId == that.keepOriginalWorkflowId
         && overlap == that.overlap
         && Objects.equals(catchupWindow, that.catchupWindow);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(overlap, catchupWindow, pauseOnFailure);
+    return Objects.hash(overlap, catchupWindow, pauseOnFailure, keepOriginalWorkflowId);
   }
 
   @Override
@@ -122,6 +150,8 @@ public final class SchedulePolicy {
         + catchupWindow
         + ", pauseOnFailure="
         + pauseOnFailure
+        + ", keepOriginalWorkflowId="
+        + keepOriginalWorkflowId
         + '}';
   }
 }

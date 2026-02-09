@@ -342,6 +342,7 @@ public class ScheduleTest {
                     .setOverlap(ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE)
                     .setPauseOnFailure(true)
                     .setCatchupWindow(Duration.ofMinutes(5))
+                    .setKeepOriginalWorkflowId(true)
                     .build())
             .build();
     ScheduleHandle handle = client.createSchedule(scheduleId, schedule, options);
