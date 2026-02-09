@@ -393,6 +393,67 @@ public class ScheduleTest {
   }
 
   @Test
+  public void keepOriginalWorkflowIdPolicyOnCreate() {
+    ScheduleClient client = createScheduleClient();
+    String scheduleId = UUID.randomUUID().toString();
+    Schedule schedule =
+        createTestSchedule()
+            .setPolicy(SchedulePolicy.newBuilder().setKeepOriginalWorkflowId(true).build())
+            .build();
+    ScheduleHandle handle =
+        client.createSchedule(scheduleId, schedule, ScheduleOptions.newBuilder().build());
+    try {
+      ScheduleDescription description = handle.describe();
+      Assert.assertTrue(description.getSchedule().getPolicy().isKeepOriginalWorkflowId());
+    } finally {
+      handle.delete();
+    }
+  }
+
+  @Test
+  public void keepOriginalWorkflowIdPolicyCanBeUpdated() {
+    ScheduleClient client = createScheduleClient();
+    String scheduleId = UUID.randomUUID().toString();
+    Schedule schedule = createTestSchedule().setPolicy(SchedulePolicy.newBuilder().build()).build();
+    ScheduleHandle handle =
+        client.createSchedule(scheduleId, schedule, ScheduleOptions.newBuilder().build());
+    try {
+      ScheduleDescription description = handle.describe();
+      Assert.assertFalse(description.getSchedule().getPolicy().isKeepOriginalWorkflowId());
+
+      handle.update(
+          (ScheduleUpdateInput input) -> {
+            SchedulePolicy existingPolicy = input.getDescription().getSchedule().getPolicy();
+            SchedulePolicy.Builder policyBuilder = SchedulePolicy.newBuilder(existingPolicy);
+            policyBuilder.setKeepOriginalWorkflowId(true);
+            return new ScheduleUpdate(
+                Schedule.newBuilder(input.getDescription().getSchedule())
+                    .setPolicy(policyBuilder.build())
+                    .build());
+          });
+
+      description = handle.describe();
+      Assert.assertTrue(description.getSchedule().getPolicy().isKeepOriginalWorkflowId());
+
+      handle.update(
+          (ScheduleUpdateInput input) -> {
+            SchedulePolicy existingPolicy = input.getDescription().getSchedule().getPolicy();
+            SchedulePolicy.Builder policyBuilder = SchedulePolicy.newBuilder(existingPolicy);
+            policyBuilder.setKeepOriginalWorkflowId(false);
+            return new ScheduleUpdate(
+                Schedule.newBuilder(input.getDescription().getSchedule())
+                    .setPolicy(policyBuilder.build())
+                    .build());
+          });
+
+      description = handle.describe();
+      Assert.assertFalse(description.getSchedule().getPolicy().isKeepOriginalWorkflowId());
+    } finally {
+      handle.delete();
+    }
+  }
+
+  @Test
   public void updateSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
