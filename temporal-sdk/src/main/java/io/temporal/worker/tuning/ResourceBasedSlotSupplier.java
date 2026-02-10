@@ -207,17 +207,7 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
               if (permit.isPresent()) {
                 resultFuture.complete(permit.get());
               } else {
-                // Calculate delay respecting ramp throttle on each retry
-                Duration mustWaitFor;
-                try {
-                  mustWaitFor = options.getRampThrottle().minus(timeSinceLastSlotIssued());
-                } catch (ArithmeticException e) {
-                  mustWaitFor = Duration.ZERO;
-                }
-
-                // Use at least 10ms to avoid tight spinning, but respect ramp throttle if longer
-                long delayMs = Math.max(10, mustWaitFor.toMillis());
-                taskRef.set(scheduler.schedule(this, delayMs, TimeUnit.MILLISECONDS));
+                taskRef.set(scheduler.schedule(this, 10, TimeUnit.MILLISECONDS));
               }
             } catch (Exception e) {
               resultFuture.completeExceptionally(e);
