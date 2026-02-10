@@ -24,7 +24,11 @@ shadowJar {
     relocate 'org.objectweb.asm', 'io.temporal.workflowcheck.shaded.org.objectweb.asm'
     archiveClassifier = ''
 }
+shadowJar.dependsOn(jar)
 build.dependsOn shadowJar
+distTar.dependsOn shadowJar
+distZip.dependsOn shadowJar
+startScripts.dependsOn shadowJar
 
 // Configure publishing to publish both regular library jar and shadow executable jar
 publishing {
