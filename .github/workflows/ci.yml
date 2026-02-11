@@ -106,6 +106,12 @@ jobs:
         USE_DOCKER_SERVICE: true
       run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava
 
+    - name: Run Jackson 3 converter tests
+      env:
+        USER: unittest
+        USE_DOCKER_SERVICE: false
+      run: ./gradlew --no-daemon :temporal-sdk:jackson3Tests -x spotlessCheck -x spotlessApply -x spotlessJava
+
     - name: Run virtual thread tests
       env:
         USER: unittest
