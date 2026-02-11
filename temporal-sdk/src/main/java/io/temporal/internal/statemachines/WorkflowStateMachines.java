@@ -52,7 +52,10 @@ public final class WorkflowStateMachines {
   /** Initial set of SDK flags that will be set on all new workflow executions. */
   @VisibleForTesting
   public static List<SdkFlag> initialFlags =
-      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+      Collections.unmodifiableList(
+          Arrays.asList(
+              SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION,
+              SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER));
 
   /**
    * Keep track of the change versions that have been seen by the SDK. This is used to generate the
