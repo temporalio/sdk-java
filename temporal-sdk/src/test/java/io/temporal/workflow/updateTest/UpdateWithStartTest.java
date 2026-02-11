@@ -646,6 +646,7 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   public void failServerSideWhenStartIsInvalid() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
