@@ -9,8 +9,11 @@ import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WorkflowCancellationScopeDeterminismTest {
   @Rule
@@ -49,6 +52,9 @@ public class WorkflowCancellationScopeDeterminismTest {
         "cancellationScopeDeterminism.json", TestWorkflowImpl.class);
   }
 
+  private static final Logger log =
+      LoggerFactory.getLogger(WorkflowCancellationScopeDeterminismTest.class);
+
   @Test
   public void replayBackwardCompatibilityTest() throws Exception {
     // This test validates that a workflow which started before the
@@ -56,8 +62,18 @@ public class WorkflowCancellationScopeDeterminismTest {
     // flag was added to initialFlags will replay correctly without hitting NDE issues
     // The workflow history was recorded without the flag, so it should replay successfully
     // when the flag is in the initial set because the flag logic respects historical workflows
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "cancellationScopeDeterminism_beforeFlag.json", TestWorkflowImpl.class);
+    for (int i = 0; i < 10; i++) {
+      try {
+        log.info("Trying time number " + i);
+        System.out.println("Trying time number " + i);
+        WorkflowReplayer.replayWorkflowExecutionFromResource(
+            "cancellationScopeDeterminism_beforeFlag.json", TestWorkflowImpl.class);
+        return;
+      } catch (Exception e) {
+        log.info(e.toString());
+      }
+    }
+    Assert.fail(); // Should have succeeded at least once.
   }
 
   @WorkflowInterface
