@@ -19,3 +19,17 @@ subprojects {
 
     classes.dependsOn 'spotlessApply'
 }
+
+// Format shared Spring Boot source files that live outside any Gradle subproject.
+// Spotless requires targets to be within the project dir, so this must run at the root level.
+if (file('temporal-spring-boot-shared/src').exists()) {
+    apply plugin: 'com.diffplug.spotless'
+    spotless {
+        java {
+            target fileTree('temporal-spring-boot-shared/src') { include '*/java/**/*.java' }
+            targetExclude '**/generated/*'
+            targetExclude '**/.idea/**'
+            googleJavaFormat('1.24.0')
+        }
+    }
+}

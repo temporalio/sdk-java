@@ -1,4 +1,4 @@
-description = '''Spring Boot AutoConfigure for Temporal Java SDK'''
+description = '''Spring Boot 4 AutoConfigure for Temporal Java SDK'''
 
 ext {
     otelVersion = '1.25.0'
@@ -22,7 +22,7 @@ sourceSets {
 }
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:$springBoot4Version"))
     api(platform("io.opentelemetry:opentelemetry-bom:$otelVersion"))
 
     compileOnly project(':temporal-sdk')
@@ -42,20 +42,40 @@ dependencies {
     // this dependency is not mandatory for the module to work, but it provides a better IDE experience developing the module
     // it's needed to auto-generate configuration metadata. See for more details:
     // https://docs.spring.io/spring-boot/docs/2.4.0/reference/html/appendix-configuration-metadata.html#configuration-metadata-annotation-processor
-    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:$springBootVersion"
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:$springBoot4Version"
 
     testImplementation project(':temporal-testing')
 
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
 
-    testImplementation('org.slf4j:slf4j-api') {
-        version {
-            strictly "${slf4jVersion}"
-        }
-    }
+    // Spring Boot 4 brings JUnit Platform 1.12+ which requires a matching launcher version.
+    // Gradle 8.x ships an older launcher, so we must align explicitly.
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// Spring Boot 4 requires Java 17+. Under edgeDepsTest, java.gradle sets VERSION_21
+// and other modules target 21, so we must match to avoid Gradle JVM version attribute conflicts.
+ext {
+    sb4JavaVersion = project.hasProperty("edgeDepsTest") || project.hasProperty("nativeBuild") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_17
+    sb4Release = project.hasProperty("edgeDepsTest") || project.hasProperty("nativeBuild") ? '21' : '17'
+}
+
+java {
+    sourceCompatibility = sb4JavaVersion
+    targetCompatibility = sb4JavaVersion
+}
+
+// Override the --release 8 flag set by gradle/java.gradle
+compileJava {
+    options.compilerArgs.removeAll(['--release', '8'])
+    options.compilerArgs.addAll(['--release', sb4Release])
+}
+
+compileTestJava {
+    options.compilerArgs.removeAll(['--release', '8'])
+    options.compilerArgs.addAll(['--release', sb4Release])
 }
 
 tasks.test {
