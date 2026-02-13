@@ -1,0 +1,36 @@
+description = '''Spring Boot 4 Starter for Temporal Java SDK'''
+
+dependencies {
+    // This platform is the same defined in temporal-spring-boot-autoconfigure-4 and it doesn't need to be here
+    // for gradle, but it is needed for maven and maven pom. Looks like Maven doesn't transitively propagate BOMs.
+    // https://github.com/temporalio/sdk-java/issues/1479
+    api(platform("org.springframework.boot:spring-boot-dependencies:$springBoot4Version"))
+    implementation "org.springframework.boot:spring-boot-starter"
+
+    api project(':temporal-spring-boot-autoconfigure-4')
+    api project(':temporal-sdk')
+    api project(':temporal-testing')
+}
+
+// Spring Boot 4 requires Java 17+. Under edgeDepsTest, java.gradle sets VERSION_21
+// and other modules target 21, so we must match to avoid Gradle JVM version attribute conflicts.
+ext {
+    sb4JavaVersion = project.hasProperty("edgeDepsTest") || project.hasProperty("nativeBuild") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_17
+    sb4Release = project.hasProperty("edgeDepsTest") || project.hasProperty("nativeBuild") ? '21' : '17'
+}
+
+java {
+    sourceCompatibility = sb4JavaVersion
+    targetCompatibility = sb4JavaVersion
+}
+
+// Override the --release 8 flag set by gradle/java.gradle
+compileJava {
+    options.compilerArgs.removeAll(['--release', '8'])
+    options.compilerArgs.addAll(['--release', sb4Release])
+}
+
+compileTestJava {
+    options.compilerArgs.removeAll(['--release', '8'])
+    options.compilerArgs.addAll(['--release', sb4Release])
+}

@@ -104,7 +104,13 @@ jobs:
         USER: unittest
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
-      run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava
+      run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -x :temporal-spring-boot-autoconfigure-4:test -x :temporal-spring-boot-starter-4:test
+
+    - name: Run Jackson 3 converter tests
+      env:
+        USER: unittest
+        USE_DOCKER_SERVICE: false
+      run: ./gradlew --no-daemon :temporal-sdk:jackson3Tests -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Run virtual thread tests
       env:

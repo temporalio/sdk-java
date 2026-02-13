@@ -14,6 +14,8 @@ dependencies {
         api project(':temporal-shaded')
         api project(':temporal-spring-boot-autoconfigure')
         api project(':temporal-spring-boot-starter')
+        api project(':temporal-spring-boot-autoconfigure-4')
+        api project(':temporal-spring-boot-starter-4')
         api project(':temporal-test-server')
         api project(':temporal-testing')
         api project(':temporal-envconfig')
