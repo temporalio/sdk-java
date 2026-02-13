@@ -11,8 +11,6 @@ import org.junit.Test;
 public class WorkflowRunTokenTest {
   private static final ObjectWriter ow =
       new ObjectMapper().registerModule(new Jdk8Module()).writer();
-  private static final ObjectReader or =
-      new ObjectMapper().registerModule(new Jdk8Module()).reader();
   private static final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
 
   @Test
