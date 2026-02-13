@@ -3,11 +3,14 @@ package io.temporal.spring.boot.autoconfigure;
 import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
@@ -16,6 +19,7 @@ import io.temporal.spring.boot.autoconfigure.template.WorkflowClientOptionsTempl
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerPlugin;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -79,7 +83,10 @@ public class TestServerAutoConfiguration {
           Map<String, TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizerMap,
       @Autowired(required = false) @Nullable
           Map<String, TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
-              scheduleCustomizerMap) {
+              scheduleCustomizerMap,
+      @Autowired(required = false) @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Autowired(required = false) @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Autowired(required = false) @Nullable List<WorkerPlugin> workerPlugins) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
     List<WorkflowClientInterceptor> chosenClientInterceptors =
@@ -104,6 +111,35 @@ public class TestServerAutoConfiguration {
         AutoConfigurationUtils.chooseTemporalCustomizerBeans(
             beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
 
+    // Sort plugins by @Order/@Priority for consistent ordering
+    List<WorkflowClientPlugin> sortedClientPlugins =
+        AutoConfigurationUtils.sortPlugins(workflowClientPlugins);
+    List<ScheduleClientPlugin> sortedSchedulePlugins =
+        AutoConfigurationUtils.sortPlugins(scheduleClientPlugins);
+    List<WorkerPlugin> sortedWorkerPlugins = AutoConfigurationUtils.sortPlugins(workerPlugins);
+
+    // Filter plugins so each is only registered at its highest applicable level.
+    // Note: TestWorkflowEnvironment creates its own internal test server and does not accept
+    // WorkflowServiceStubsPlugin directly. Any beans implementing WorkflowServiceStubsPlugin
+    // will be ignored in test mode - only their lower-level plugin functionality (if any) is used.
+    if (sortedClientPlugins != null
+        && sortedClientPlugins.stream().anyMatch(WorkflowServiceStubsPlugin.class::isInstance)) {
+      log.warn(
+          "WorkflowServiceStubsPlugin beans are present but will be ignored in test mode. "
+              + "TestWorkflowEnvironment creates its own test server and does not support "
+              + "WorkflowServiceStubsPlugin. Only WorkflowClientPlugin functionality will be used.");
+    }
+    List<WorkflowClientPlugin> filteredClientPlugins =
+        AutoConfigurationUtils.filterPlugins(sortedClientPlugins, WorkflowServiceStubsPlugin.class);
+    List<ScheduleClientPlugin> filteredSchedulePlugins =
+        AutoConfigurationUtils.filterPlugins(
+            sortedSchedulePlugins, WorkflowServiceStubsPlugin.class);
+    List<WorkerPlugin> filteredWorkerPlugins =
+        AutoConfigurationUtils.filterPlugins(
+            AutoConfigurationUtils.filterPlugins(
+                sortedWorkerPlugins, WorkflowServiceStubsPlugin.class),
+            WorkflowClientPlugin.class);
+
     TestEnvironmentOptions.Builder options =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(
@@ -114,7 +150,9 @@ public class TestServerAutoConfiguration {
                         chosenScheduleClientInterceptors,
                         otTracer,
                         clientCustomizer,
-                        scheduleCustomizer)
+                        scheduleCustomizer,
+                        filteredClientPlugins,
+                        filteredSchedulePlugins)
                     .createWorkflowClientOptions());
 
     if (metricsScope != null) {
@@ -123,7 +161,11 @@ public class TestServerAutoConfiguration {
 
     options.setWorkerFactoryOptions(
         new WorkerFactoryOptionsTemplate(
-                properties, chosenWorkerInterceptors, otTracer, workerFactoryCustomizer)
+                properties,
+                chosenWorkerInterceptors,
+                otTracer,
+                workerFactoryCustomizer,
+                filteredWorkerPlugins)
             .createWorkerFactoryOptions());
 
     if (testEnvOptionsCustomizers != null) {
