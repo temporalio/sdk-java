@@ -2,9 +2,11 @@ package io.temporal.workflow.cancellationTests;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -74,6 +76,49 @@ public class WorkflowCancellationScopeDeterminismTest {
       }
     }
     Assert.fail(); // Should have succeeded at least once.
+  }
+
+  @Test
+  public void testDeterministicCancellationScopeOrderFlagIsSetWithTimer() throws Exception {
+    TestWorkflow testWorkflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
+
+    WorkflowClient.start(testWorkflow::start);
+
+    WorkflowStub stub = WorkflowStub.fromTyped(testWorkflow);
+    stub.cancel();
+    try {
+      stub.getResult(Void.class);
+    } catch (Exception e) {
+      // ignore; just blocking to make sure workflow is actually finished
+    }
+
+    // Get workflow execution history
+    WorkflowExecutionHistory history =
+        testWorkflowRule
+            .getWorkflowClient()
+            .fetchHistory(stub.getExecution().getWorkflowId(), stub.getExecution().getRunId());
+
+    // Find workflow task completed events and verify the SDK flag is set
+    boolean foundFlag = false;
+    for (HistoryEvent event : history.getEvents()) {
+      if (event.getEventType()
+          == io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
+        if (event.getWorkflowTaskCompletedEventAttributes().hasSdkMetadata()) {
+          java.util.List<Integer> langUsedFlags =
+              event
+                  .getWorkflowTaskCompletedEventAttributes()
+                  .getSdkMetadata()
+                  .getLangUsedFlagsList();
+          if (langUsedFlags.contains(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER.getValue())) {
+            foundFlag = true;
+            break;
+          }
+        }
+      }
+    }
+
+    Assert.assertTrue(
+        "DETERMINISTIC_CANCELLATION_SCOPE_ORDER flag should be present in SDK metadata", foundFlag);
   }
 
   @WorkflowInterface
