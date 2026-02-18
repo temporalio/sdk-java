@@ -1288,12 +1288,32 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       // server drops failures after the second attempt and let the workflow task timeout
       return;
     }
+    boolean isGrpcMessageTooLarge =
+        request.getCause()
+            == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE;
+    if (isGrpcMessageTooLarge) {
+      // The real server records a FORCE_CLOSE_COMMAND cause and terminates the workflow
+      request =
+          request.toBuilder()
+              .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_FORCE_CLOSE_COMMAND)
+              .build();
+    }
     workflowTaskStateMachine.action(Action.FAIL, ctx, request, 0);
     for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
       ctx.add(deferredCtx);
     }
     workflowTaskStateMachine.getData().bufferedEvents.clear();
-    scheduleWorkflowTask(ctx);
+    if (isGrpcMessageTooLarge) {
+      workflow.action(
+          Action.TERMINATE,
+          ctx,
+          TerminateWorkflowExecutionRequest.newBuilder().setReason("GrpcMessageTooLarge").build(),
+          0);
+      workflowTaskStateMachine.getData().workflowCompleted = true;
+      processWorkflowCompletionCallbacks(ctx);
+    } else {
+      scheduleWorkflowTask(ctx);
+    }
     ctx.unlockTimer("failWorkflowTask"); // Unlock timer associated with the workflow task
   }
 

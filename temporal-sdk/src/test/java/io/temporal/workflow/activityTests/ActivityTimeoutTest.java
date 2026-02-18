@@ -15,7 +15,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerOptions;
@@ -294,12 +293,7 @@ public class ActivityTimeoutTest {
 
     MatcherAssert.assertThat(
         activityFailure.getMessage(), CoreMatchers.containsString("Activity task timed out"));
-    if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
-      // https://github.com/temporalio/temporal/issues/3667
-      assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
-    } else {
-      assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
-    }
+    assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
 
     assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
     assertEquals(
@@ -567,12 +561,7 @@ public class ActivityTimeoutTest {
     assertTrue(e.getCause() instanceof ActivityFailure);
     ActivityFailure activityFailure = (ActivityFailure) e.getCause();
 
-    if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
-      // https://github.com/temporalio/temporal/issues/3667
-      assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
-    } else {
-      assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
-    }
+    assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
 
     MatcherAssert.assertThat(
         activityFailure.getMessage(), CoreMatchers.containsString("Activity task timed out"));
@@ -618,12 +607,7 @@ public class ActivityTimeoutTest {
     assertTrue(e.getCause() instanceof ActivityFailure);
     ActivityFailure activityFailure = (ActivityFailure) e.getCause();
 
-    if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
-      // https://github.com/temporalio/temporal/issues/3667
-      assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
-    } else {
-      assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
-    }
+    assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
 
     MatcherAssert.assertThat(
         activityFailure.getMessage(), CoreMatchers.containsString("Activity task timed out"));
