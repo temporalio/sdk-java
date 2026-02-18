@@ -41,6 +41,9 @@ public class WorkflowIdConflictPolicyTest {
 
   @Test
   public void conflictPolicyUseExisting() {
+    org.junit.Assume.assumeTrue(
+        "Skipping for real server: callback URL validation rejects test URLs",
+        !testWorkflowRule.isUseExternalService());
     String workflowId = "conflict-policy-use-existing";
     String requestId = randomUUID().toString();
 
