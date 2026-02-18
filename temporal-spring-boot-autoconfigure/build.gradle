@@ -46,6 +46,10 @@ dependencies {
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    // For auto-configuration ordering tests (metrics)
+    testImplementation "org.springframework.boot:spring-boot-starter-actuator"
+    // For auto-configuration ordering tests (OpenTelemetry)
+    testImplementation "io.opentelemetry:opentelemetry-sdk"
 
     if (project.hasProperty("springBoot4Test")) {
         // Override the SB 2.7 BOM for test classpath so tests run against SB 4.
@@ -55,6 +59,10 @@ dependencies {
         // SB4 requires SLF4J 2.x + Logback 1.5+; let the SB4 BOM provide them
         // instead of using the root project's pinned versions.
         testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+        // SB4 modularized auto-configs into separate modules that
+        // spring-boot-starter-actuator no longer transitively includes.
+        testImplementation "org.springframework.boot:spring-boot-micrometer-metrics"
+        testImplementation "org.springframework.boot:spring-boot-opentelemetry"
     } else {
         testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
         testImplementation('org.slf4j:slf4j-api') {
