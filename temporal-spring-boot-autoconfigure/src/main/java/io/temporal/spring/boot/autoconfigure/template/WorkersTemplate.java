@@ -393,11 +393,8 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 AopUtils.getTargetClass(bean),
                 taskQueue);
             worker.registerNexusServiceImplementation(bean);
-            addRegisteredNexusServiceImpl(
-                worker,
-                beanName,
-                bean.getClass().getName(),
-                ServiceImplInstance.fromInstance(AopUtils.getTargetClass(bean)).getDefinition());
+            ServiceDefinition definition = ServiceImplInstance.fromInstance(bean).getDefinition();
+            addRegisteredNexusServiceImpl(worker, beanName, bean.getClass().getName(), definition);
           });
     }
   }
