@@ -1171,6 +1171,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private static Failure handlerErrorToFailure(HandlerError err) {
     return Failure.newBuilder()
+        .setMessage(err.getFailure().getMessage())
         .setNexusHandlerFailureInfo(
             NexusHandlerFailureInfo.newBuilder()
                 .setType(err.getErrorType())
@@ -1195,6 +1196,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }
+    } else {
+      Payloads payloads = nexusFailureMetadataToPayloads(failure);
+      ApplicationFailureInfo.Builder applicationFailureInfo = ApplicationFailureInfo.newBuilder();
+      applicationFailureInfo.setType("NexusFailure");
+      applicationFailureInfo.setDetails(payloads);
+      applicationFailureInfo.setNonRetryable(!retryable);
+      apiFailure.setApplicationFailureInfo(applicationFailureInfo.build());
     }
     apiFailure.setMessage(failure.getMessage());
     return apiFailure.build();

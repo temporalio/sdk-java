@@ -630,9 +630,6 @@ public class NexusWorkflowTest {
 
   @Test(timeout = 30000)
   public void testNexusOperationTimeout_AfterCancel() {
-    assumeTrue(
-        "Skipping for real server: timeout behavior after cancel differs",
-        !testWorkflowRule.isUseExternalService());
     String operationId = UUID.randomUUID().toString();
     CompletableFuture<?> nexusPoller =
         pollNexusTask().thenCompose(task -> completeNexusTask(task, operationId));
@@ -715,9 +712,6 @@ public class NexusWorkflowTest {
 
   @Test
   public void testNexusOperationScheduleToStartTimeout() {
-    assumeTrue(
-        "Skipping for real server: schedule-to-start timeout requires time skipping",
-        !testWorkflowRule.isUseExternalService());
     WorkflowStub stub = newWorkflowStub("TestNexusOperationScheduleToStartTimeoutWorkflow");
     WorkflowExecution execution = stub.start();
 
@@ -891,6 +885,8 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("deliberate test failure", cause.getMessage());
+      Assert.assertTrue(cause.hasApplicationFailureInfo());
+      Assert.assertEquals("NexusFailure", cause.getApplicationFailureInfo().getType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -951,9 +947,9 @@ public class NexusWorkflowTest {
       assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
+      Assert.assertTrue(cause.getMessage().endsWith("deliberate terminal error"));
       Assert.assertTrue(cause.hasNexusHandlerFailureInfo());
       Assert.assertEquals("BAD_REQUEST", cause.getNexusHandlerFailureInfo().getType());
-      Assert.assertEquals("deliberate terminal error", cause.getCause().getMessage());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -1020,9 +1016,9 @@ public class NexusWorkflowTest {
       assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
+      Assert.assertTrue(cause.getMessage().endsWith("deliberate terminal error"));
       Assert.assertTrue(cause.hasNexusHandlerFailureInfo());
       Assert.assertEquals("BAD_REQUEST", cause.getNexusHandlerFailureInfo().getType());
-      Assert.assertEquals("deliberate terminal error", cause.getCause().getMessage());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
