@@ -37,7 +37,7 @@ public class LocalActivityAndQueryTest {
           .setActivityImplementations(activitiesImpl)
           .build();
 
-  @Test
+  @Test(timeout = 20_000)
   public void testLocalActivityAndQuery() throws ExecutionException, InterruptedException {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
