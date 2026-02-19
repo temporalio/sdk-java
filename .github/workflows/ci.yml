@@ -94,13 +94,6 @@ jobs:
             --search-attribute CustomBoolField=Bool \
             --dynamic-config-value system.enableActivityEagerExecution=true \
             --dynamic-config-value frontend.workerVersioningDataAPIs=true \
-            --dynamic-config-value history.MaxBufferedQueryCount=100000 \
-            --dynamic-config-value frontend.workerVersioningDataAPIs=true \
-            --dynamic-config-value worker.buildIdScavengerEnabled=true \
-            --dynamic-config-value frontend.workerVersioningRuleAPIs=true \
-            --dynamic-config-value worker.removableBuildIdDurationSinceDefault=true \
-            --dynamic-config-value matching.useNewMatcher=true \
-            --dynamic-config-value frontend.workerVersioningWorkflowAPIs=true \
             --dynamic-config-value history.enableRequestIdRefLinks=true &
         sleep 10s
 
