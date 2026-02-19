@@ -310,6 +310,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
       Duration backoffStartInterval,
@@ -475,6 +477,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   private void validateWorkflowIdReusePolicy(
       WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
     if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
