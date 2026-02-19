@@ -116,7 +116,7 @@ public class SyncClientOperationTest {
     public String execute(boolean fail) {
       NexusOperationOptions options =
           NexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(3))
               .build();
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder().setOperationOptions(options).build();

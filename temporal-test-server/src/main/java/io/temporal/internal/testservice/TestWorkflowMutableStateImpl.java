@@ -852,6 +852,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   operation.getData().getAttempt()),
           "NexusOperation ScheduleToCloseTimeout");
     }
+    if (attr.hasScheduleToStartTimeout()
+        && Durations.toMillis(attr.getScheduleToStartTimeout()) > 0) {
+      // ScheduleToStartTimeout is the time from schedule to start (or completion if synchronous)
+      ctx.addTimer(
+          ProtobufTimeUtils.toJavaDuration(attr.getScheduleToStartTimeout()),
+          () ->
+              timeoutNexusOperation(
+                  scheduleEventId,
+                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START,
+                  operation.getData().getAttempt()),
+          "NexusOperation ScheduleToStartTimeout");
+    }
     ctx.lockTimer("processScheduleNexusOperation");
   }
 
@@ -1276,12 +1288,32 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       // server drops failures after the second attempt and let the workflow task timeout
       return;
     }
+    boolean isGrpcMessageTooLarge =
+        request.getCause()
+            == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE;
+    if (isGrpcMessageTooLarge) {
+      // The real server records a FORCE_CLOSE_COMMAND cause and terminates the workflow
+      request =
+          request.toBuilder()
+              .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_FORCE_CLOSE_COMMAND)
+              .build();
+    }
     workflowTaskStateMachine.action(Action.FAIL, ctx, request, 0);
     for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
       ctx.add(deferredCtx);
     }
     workflowTaskStateMachine.getData().bufferedEvents.clear();
-    scheduleWorkflowTask(ctx);
+    if (isGrpcMessageTooLarge) {
+      workflow.action(
+          Action.TERMINATE,
+          ctx,
+          TerminateWorkflowExecutionRequest.newBuilder().setReason("GrpcMessageTooLarge").build(),
+          0);
+      workflowTaskStateMachine.getData().workflowCompleted = true;
+      processWorkflowCompletionCallbacks(ctx);
+    } else {
+      scheduleWorkflowTask(ctx);
+    }
     ctx.unlockTimer("failWorkflowTask"); // Unlock timer associated with the workflow task
   }
 
@@ -2309,6 +2341,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
           operation.action(StateMachines.Action.START, ctx, resp, 0);
           operation.getData().identity = clientIdentity;
+
+          // Add start-to-close timeout timer if configured
+          NexusOperationScheduledEventAttributes scheduledEvent =
+              operation.getData().scheduledEvent;
+          if (scheduledEvent.hasStartToCloseTimeout()
+              && Durations.toMillis(scheduledEvent.getStartToCloseTimeout()) > 0) {
+            // StartToCloseTimeout measures from when the operation started to when it completes
+            ctx.addTimer(
+                ProtobufTimeUtils.toJavaDuration(scheduledEvent.getStartToCloseTimeout()),
+                () ->
+                    timeoutNexusOperation(
+                        scheduledEventId,
+                        TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
+                        operation.getData().getAttempt()),
+                "NexusOperation StartToCloseTimeout");
+          }
+
           scheduleWorkflowTask(ctx);
         });
   }
@@ -3689,6 +3738,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       return false;
     }
     return true;
+  }
+
+  @Override
+  public NexusOperationScheduledEventAttributes getNexusOperationScheduledEventAttributes(
+      long scheduledEventId) {
+    StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
+    return operation.getData().scheduledEvent;
+  }
+
+  @Override
+  public boolean isNexusOperationStarted(long scheduledEventId) {
+    StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
+    // Operation is considered started if it has an operation token
+    return !operation.getData().operationToken.isEmpty();
   }
 
   private boolean isTerminalState(State workflowState) {
