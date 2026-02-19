@@ -93,7 +93,7 @@ public class NexusTaskHandlerImplTest {
 
     NexusTaskHandler.Result result =
         nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
-    Assert.assertNull(result.getHandlerError());
+    Assert.assertNull(result.getHandlerException());
     Assert.assertNotNull(result.getResponse());
     Assert.assertEquals(
         "Hello, world!",
@@ -153,7 +153,7 @@ public class NexusTaskHandlerImplTest {
 
     NexusTaskHandler.Result result =
         nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
-    Assert.assertNull(result.getHandlerError());
+    Assert.assertNull(result.getHandlerException());
     Assert.assertNotNull(result.getResponse());
     Assert.assertEquals(
         "test id", result.getResponse().getStartOperation().getAsyncSuccess().getOperationToken());
