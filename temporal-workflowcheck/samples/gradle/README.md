@@ -1,9 +1,6 @@
 # Temporal Workflow Check for Java - Gradle Sample
 
-This sample shows how to incorporate `workflowcheck` into a Gradle build. Currently there are no published releases, so
-this example includes the primary build in the [settings.gradle](settings.gradle) file. But users may just want to
-reference a published JAR when it is available.
-
+This sample shows how to incorporate `workflowcheck` into a Gradle build.
 To run:
 
     gradlew check

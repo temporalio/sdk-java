@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation 'io.temporal:temporal-sdk:1.22.3'
+    buildOnly 'io.temporal:temporal-workflowcheck:+:all'
 }
 
 // *** workflowcheck config ***
@@ -22,8 +23,7 @@ configurations {
 
 // Set the dependency
 dependencies {
-    // May want to add :all to the end of the dependency to get the shaded form
-    workflowcheckDependency 'io.temporal:temporal-workflowcheck:+'
+    workflowcheckDependency 'io.temporal:temporal-workflowcheck:+:all'
 }
 
 // Create the workflowcheck task
