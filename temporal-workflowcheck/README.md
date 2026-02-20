@@ -28,20 +28,20 @@ This software is beta quality. We are gathering feedback before considering it s
 The all-in-one JAR is best for running manually. Either download the latest version `-all.jar` from
 https://repo1.maven.org/maven2/io/temporal/temporal-workflowcheck or build via `gradlew :temporal-workflowcheck:build` then obtain `-all.jar` in `temporal-workflowcheck/build/libs`.
 
-As a dependency:
 
+Add `temporal-workflowcheck` as a dependency to your `pom.xml`:
 ```xml
 <dependency>
   <groupId>io.temporal</groupId>
   <artifactId>temporal-workflowcheck</artifactId>
+  <version>N.N.N</version>
   <classifier>all</classifier>
 </dependency>
 ```
 
-or
-
+or to build.gradle:
 ```
-io.temporal:temporal-workflowcheck:<version>:all
+compileOnly("io.temporal:temporal-workflowcheck:N.N.N:all")
 ```
 
 Simply running the following will show help text:
