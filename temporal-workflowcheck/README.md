@@ -1,6 +1,6 @@
 # Temporal Workflow Check for Java
 
-Temporal workflowcheck is a utility scans Java bytecode looking for workflow implementation methods that do invalid
+Temporal workflowcheck is a utility that scans Java bytecode looking for workflow implementation methods that do invalid
 things. This mostly centers around
 [workflow logic constraints](https://docs.temporal.io/dev-guide/java/foundations#workflow-logic-requirements) that
 require workflows are deterministic. Currently it will catch when a workflow method does any of the following:
@@ -26,8 +26,7 @@ This software is beta quality. We are gathering feedback before considering it s
 ### Running manually
 
 The all-in-one JAR is best for running manually. Either download the latest version `-all.jar` from
-https://repo1.maven.org/maven2/io/temporal/temporal-workflowcheck or build via `gradlew :temporal-workflowcheck:build`
-then obtain `-all.jar` in `temporal-workflowcheck/build/libs`.
+https://repo1.maven.org/maven2/io/temporal/temporal-workflowcheck or build via `gradlew :temporal-workflowcheck:build` then obtain `-all.jar` in `temporal-workflowcheck/build/libs`.
 
 Simply running the following will show help text:
 

@@ -92,7 +92,8 @@
                     <dependency>
                         <groupId>io.temporal</groupId>
                         <artifactId>temporal-workflowcheck</artifactId>
-                        <version>1.0-SNAPSHOT</version>
+                        <version>1.33.0</version>
+                        <classifier>all</classifier>
                     </dependency>
                 </dependencies>
             </plugin>
