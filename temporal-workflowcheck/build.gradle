@@ -33,14 +33,16 @@ startScripts.dependsOn shadowJar
 // Configure publishing to publish both regular library jar and shadow executable jar
 publishing {
     publications {
-        // Regular library jar for programmatic usage and compile-time annotations
-        maven(MavenPublication) {
-            from components.java
-        }
+        // Regular library jar for programmatic usage and compile-time annotations.
+        // That publication is configured by the default setup in publishing.gradle.
+        // mavenJava(MavenPublication) { ... }
+
         // Fat executable jar with shaded dependencies
         shadow(MavenPublication) { publication ->
             project.shadow.component(publication)
             artifactId = "${project.name}-all"
+            artifact sourcesJar
+            artifact javadocJar
         }
     }
 }
