@@ -193,6 +193,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       if (((ApplicationFailure) failure).isNonRetryable()) {
         throw new HandlerException(
             HandlerException.ErrorType.INTERNAL,
+            "Handler failed with non-retryable application error",
             failure,
             HandlerException.RetryBehavior.NON_RETRYABLE);
       }

@@ -7,8 +7,6 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.Duration;
 import io.nexusrpc.Header;
-import io.nexusrpc.OperationInfo;
-import io.nexusrpc.OperationStillRunningException;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Request;
@@ -202,17 +200,6 @@ public class NexusTaskHandlerImplTest {
       public OperationStartResult<String> start(
           OperationContext context, OperationStartDetails details, @Nullable String id) {
         return OperationStartResult.async(id);
-      }
-
-      @Override
-      public String fetchResult(OperationContext context, OperationFetchResultDetails details)
-          throws OperationStillRunningException {
-        throw new UnsupportedOperationException("Not implemented");
-      }
-
-      @Override
-      public OperationInfo fetchInfo(OperationContext context, OperationFetchInfoDetails details) {
-        throw new UnsupportedOperationException("Not implemented");
       }
 
       @Override

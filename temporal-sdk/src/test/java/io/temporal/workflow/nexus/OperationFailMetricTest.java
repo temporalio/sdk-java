@@ -16,6 +16,7 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -90,6 +91,12 @@ public class OperationFailMetricTest {
     assertNoRetries("fail");
     ApplicationFailure applicationFailure =
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
+    if (isUsingNewFormat()) {
+      Assert.assertEquals(
+          "java.lang.RuntimeException: intentional failure",
+          applicationFailure.getOriginalMessage());
+      applicationFailure = (ApplicationFailure) applicationFailure.getCause();
+    }
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
 
     Map<String, String> execFailedTags =
@@ -117,14 +124,15 @@ public class OperationFailMetricTest {
     assertNoRetries("cancel");
     CanceledFailure canceledFailure =
         assertNexusOperationFailure(CanceledFailure.class, workflowException);
-    Assert.assertEquals("intentional cancel", canceledFailure.getOriginalMessage());
-    // TODO assert stack trace
+    TemporalFailure temporalFailure = canceledFailure;
     if (isUsingNewFormat()) {
+      Assert.assertEquals(
+          "java.lang.RuntimeException: intentional cancel", temporalFailure.getOriginalMessage());
       Assert.assertNotNull(canceledFailure.getCause());
       Assert.assertTrue(canceledFailure.getCause() instanceof ApplicationFailure);
-      ApplicationFailure applicationFailure = (ApplicationFailure) canceledFailure.getCause();
-      Assert.assertEquals("intentional cancel", applicationFailure.getOriginalMessage());
+      temporalFailure = (TemporalFailure) temporalFailure.getCause();
     }
+    Assert.assertEquals("intentional cancel", temporalFailure.getOriginalMessage());
 
     Map<String, String> execFailedTags =
         getOperationTags()
@@ -155,7 +163,7 @@ public class OperationFailMetricTest {
         assertNexusOperationFailure(ApplicationFailure.class, workflowException);
     if (isUsingNewFormat()) {
       Assert.assertEquals(
-          "message='intentional failure', type='TestFailure', nonRetryable=false",
+          "io.temporal.failure.ApplicationFailure: message='intentional failure', type='TestFailure', nonRetryable=false",
           applicationFailure.getOriginalMessage());
       Assert.assertEquals("OperationError", applicationFailure.getType());
       Assert.assertNotNull(applicationFailure.getCause());
@@ -191,10 +199,9 @@ public class OperationFailMetricTest {
     assertNoRetries("cancel-app");
     CanceledFailure canceledFailure =
         assertNexusOperationFailure(CanceledFailure.class, workflowException);
-    //
     if (isUsingNewFormat()) {
       Assert.assertEquals(
-          "message='intentional cancel', type='TestFailure', nonRetryable=false",
+          "io.temporal.failure.ApplicationFailure: message='intentional cancel', type='TestFailure', nonRetryable=false",
           canceledFailure.getOriginalMessage());
       Assert.assertEquals(0, canceledFailure.getDetails().getSize());
       Assert.assertNotNull(canceledFailure.getCause());
@@ -469,10 +476,18 @@ public class OperationFailMetricTest {
         assertNexusOperationFailure(HandlerException.class, workflowException);
     assertNoRetries("non-retryable-application-failure");
 
-    Assert.assertTrue(handlerFailure.getMessage().contains("intentional failure"));
-    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
-    Assert.assertEquals(
-        HandlerException.RetryBehavior.NON_RETRYABLE, handlerFailure.getRetryBehavior());
+    Exception failure = handlerFailure;
+    if (isUsingNewFormat()) {
+      Assert.assertEquals(
+          "Handler failed with non-retryable application error", handlerFailure.getMessage());
+      Assert.assertEquals(HandlerException.ErrorType.INTERNAL, handlerFailure.getErrorType());
+      Assert.assertEquals(
+          HandlerException.RetryBehavior.NON_RETRYABLE, handlerFailure.getRetryBehavior());
+      Assert.assertNotNull(failure.getCause());
+      failure = (Exception) failure.getCause();
+    }
+
+    Assert.assertTrue(failure.getMessage().contains("intentional failure"));
 
     Map<String, String> execFailedTags =
         getOperationTags()
@@ -621,7 +636,8 @@ public class OperationFailMetricTest {
                     "failure message",
                     ApplicationFailure.newFailure("intentional cancel", "TestFailure", "foo"));
               case "handlererror":
-                throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, "handlererror");
+                throw new HandlerException(
+                    HandlerException.ErrorType.BAD_REQUEST, new RuntimeException("handlererror"));
               case "handlererror-app":
                 throw new HandlerException(
                     HandlerException.ErrorType.BAD_REQUEST,

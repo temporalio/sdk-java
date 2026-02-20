@@ -133,7 +133,7 @@ public class SyncOperationFailTest {
       // Implemented inline
       return OperationHandler.sync(
           (ctx, details, name) -> {
-            throw OperationException.failure(new RuntimeException("failed to call operation"));
+            throw OperationException.failure("failed to call operation");
           });
     }
   }
