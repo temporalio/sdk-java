@@ -337,6 +337,32 @@ final class ActivityWorker implements SuspendableWorker {
           failure);
     }
 
+    /**
+     * Executes a gRPC call with proper interrupted flag handling.
+     * Activities that return with the 'interrupted' flag set, were unable to report their completion to the server.
+     * We need to clear 'interrupted' flag to allow gRPC calls to succeed,then restore it after reporting completion,
+     * to ensure gRPC calls succeed even when the thread has been interrupted.
+     *
+     * @param grpcCall the gRPC call to execute
+     * @see <a href="https://github.com/temporalio/sdk-java/issues/731">GitHub Issue #731</a>
+     */
+    private void executeGrpcCallWithInterruptHandling(Runnable grpcCall) {
+      // Check if the current thread is interrupted before making gRPC calls
+      // If it is, we need to clear the flag to allow gRPC calls to succeed,then restore it after reporting.
+      // This handles the case where an activity catches InterruptedException, restores the interrupted flag,
+      // and continues to return a result.
+
+      boolean wasInterrupted = Thread.interrupted(); // This clears the flag
+      try {
+        grpcCall.run();
+      } finally {
+        // Restore the interrupted flag if it was set
+        if (wasInterrupted) {
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+
     // TODO: Suppress warning until the SDK supports deployment
     @SuppressWarnings("deprecation")
     private void sendReply(
@@ -351,13 +377,15 @@ final class ActivityWorker implements SuspendableWorker {
                 .setWorkerVersion(options.workerVersionStamp())
                 .build();
 
-        grpcRetryer.retry(
+        executeGrpcCallWithInterruptHandling(
             () ->
-                service
-                    .blockingStub()
-                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .respondActivityTaskCompleted(request),
-            replyGrpcRetryerOptions);
+                grpcRetryer.retry(
+                    () ->
+                        service
+                            .blockingStub()
+                            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                            .respondActivityTaskCompleted(request),
+                    replyGrpcRetryerOptions));
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -369,13 +397,15 @@ final class ActivityWorker implements SuspendableWorker {
                   .setWorkerVersion(options.workerVersionStamp())
                   .build();
 
-          grpcRetryer.retry(
+          executeGrpcCallWithInterruptHandling(
               () ->
-                  service
-                      .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .respondActivityTaskFailed(request),
-              replyGrpcRetryerOptions);
+                  grpcRetryer.retry(
+                      () ->
+                          service
+                              .blockingStub()
+                              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                              .respondActivityTaskFailed(request),
+                      replyGrpcRetryerOptions));
         } else {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
@@ -387,13 +417,15 @@ final class ActivityWorker implements SuspendableWorker {
                     .setWorkerVersion(options.workerVersionStamp())
                     .build();
 
-            grpcRetryer.retry(
+            executeGrpcCallWithInterruptHandling(
                 () ->
-                    service
-                        .blockingStub()
-                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                        .respondActivityTaskCanceled(request),
-                replyGrpcRetryerOptions);
+                    grpcRetryer.retry(
+                        () ->
+                            service
+                                .blockingStub()
+                                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                                .respondActivityTaskCanceled(request),
+                        replyGrpcRetryerOptions));
           }
         }
       }
