@@ -3,14 +3,14 @@ package io.temporal.workflow;
 import java.lang.reflect.Type;
 
 /**
- * ActivityStub is used to call an activity without referencing an interface it implements. This is
- * useful to call activities when their type is not known at compile time or to execute activities
+ * ActivityStub is used to call an activity without referencing an interface that it implements. This is
+ * useful for calling activities when their type is not known at compile time, or for executing activities
  * implemented in other languages. Created through {@link Workflow#newActivityStub(Class)}.
  */
 public interface ActivityStub {
 
   /**
-   * Executes an activity by its type name and arguments. Blocks until the activity completion.
+   * Executes an activity by its type name and arguments. Blocks until activity completion.
    *
    * @param activityName name of an activity type to execute.
    * @param resultClass the expected return type of the activity. Use Void.class for activities that
@@ -22,7 +22,7 @@ public interface ActivityStub {
   <R> R execute(String activityName, Class<R> resultClass, Object... args);
 
   /**
-   * Executes an activity by its type name and arguments. Blocks until the activity completion.
+   * Executes an activity by its type name and arguments. Blocks until activity completion.
    *
    * @param activityName name of an activity type to execute.
    * @param resultClass the expected return class of the activity. Use Void.class for activities
