@@ -1322,14 +1322,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     boolean cancelTimerOnCondition =
         replayContext.checkSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
 
-    // If new behavior is enabled and condition is already satisfied, skip creating timer
-    if (cancelTimerOnCondition && unblockCondition.get()) {
-      return true;
-    }
-
     if (cancelTimerOnCondition) {
-      // New behavior: create timer in a cancellation scope so we can cancel it when condition is
-      // satisfied
+      // If condition is already satisfied, skip creating timer
+      if (unblockCondition.get()) {
+        return true;
+      }
+      // Create timer in a cancellation scope so we can cancel it when condition is satisfied
       CompletablePromise<Void> timer = Workflow.newPromise();
       CancellationScope timerScope =
           Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout)));
