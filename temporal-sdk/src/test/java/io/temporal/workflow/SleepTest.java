@@ -1,23 +1,31 @@
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.TestWorkflows.TestTraceWorkflow;
 import java.time.Duration;
 import java.util.List;
-import org.junit.Assert;
+import java.util.stream.Collectors;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SleepTest {
 
+  static final String SLEEP_SUMMARY = "sleep1";
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestTimerWorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestSleepWorkflowImpl.class).build();
 
   @Test
   public void testSleep() {
@@ -33,7 +41,19 @@ public class SleepTest {
     TestTraceWorkflow client =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestTraceWorkflow.class, options);
     String result = client.execute();
-    Assert.assertEquals("testSleep", result);
+    assertEquals("testSleep", result);
+
+    // Validate that the timer summary was actually set in the history
+    WorkflowExecution exec = WorkflowStub.fromTyped(client).getExecution();
+    WorkflowExecutionHistory history =
+        testWorkflowRule.getWorkflowClient().fetchHistory(exec.getWorkflowId());
+    List<HistoryEvent> timerStartedEvents =
+        history.getEvents().stream()
+            .filter(HistoryEvent::hasTimerStartedEventAttributes)
+            .collect(Collectors.toList());
+    assertEquals(1, timerStartedEvents.size());
+    HistoryUtils.assertEventMetadata(timerStartedEvents.get(0), SLEEP_SUMMARY, null);
+
     if (testWorkflowRule.isUseExternalService()) {
       testWorkflowRule
           .getInterceptor(TracingWorkerInterceptor.class)
@@ -41,12 +61,8 @@ public class SleepTest {
               "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
               "registerQuery getTrace",
               "newThread workflow-method",
-              "newTimer PT0.7S",
-              "newTimer PT1.3S",
               "currentTimeMillis",
-              "newTimer PT10S",
-              "currentTimeMillis",
-              "currentTimeMillis",
+              "sleep PT0.7S",
               "currentTimeMillis");
     } else {
       testWorkflowRule
@@ -55,24 +71,20 @@ public class SleepTest {
               "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
               "registerQuery getTrace",
               "newThread workflow-method",
-              "newTimer PT11M40S",
-              "newTimer PT21M40S",
               "currentTimeMillis",
-              "newTimer PT10H",
-              "currentTimeMillis",
-              "currentTimeMillis",
+              "sleep PT11M40S",
               "currentTimeMillis");
     }
   }
 
-  public static class TestTimerWorkflowImpl implements TestTraceWorkflow {
+  public static class TestSleepWorkflowImpl implements TestTraceWorkflow {
 
     @Override
     public String execute() {
       boolean useExternalService = SDKTestWorkflowRule.useExternalService;
       Duration timeout1 = useExternalService ? Duration.ofMillis(700) : Duration.ofSeconds(700);
       long time = Workflow.currentTimeMillis();
-      Workflow.sleep(timeout1, TimerOptions.newBuilder().setSummary("timer1").build());
+      Workflow.sleep(timeout1, TimerOptions.newBuilder().setSummary(SLEEP_SUMMARY).build());
       long slept = Workflow.currentTimeMillis() - time;
       // Also checks that rounding up to a second works.
       assertTrue(slept + "<" + timeout1.toMillis(), slept >= timeout1.toMillis());
