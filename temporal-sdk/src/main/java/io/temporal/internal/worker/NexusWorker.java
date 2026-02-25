@@ -52,6 +52,7 @@ final class NexusWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
+  private final boolean forceOldFailureFormat;
 
   public NexusWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -76,6 +77,9 @@ final class NexusWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
+    // Allow tests to force old format for backward compatibility testing
+    String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
+    this.forceOldFailureFormat = "true".equalsIgnoreCase(forceOldFormat);
   }
 
   @Override
@@ -341,10 +345,7 @@ final class NexusWorker implements SuspendableWorker {
         // Check if the server supports using the Failure directly in responses
         boolean supportTemporalFailure =
             task.getResponse().getRequest().getCapabilities().getTemporalFailureResponses();
-
-        // Allow tests to force old format for backward compatibility testing
-        String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
-        if ("true".equalsIgnoreCase(forceOldFormat)) {
+        if (forceOldFailureFormat) {
           supportTemporalFailure = false;
         }
 
@@ -373,6 +374,27 @@ final class NexusWorker implements SuspendableWorker {
       }
     }
 
+    private Response getResponseForOldServer(Response response) {
+      Response.Builder b = response.toBuilder();
+      Failure failure = response.getStartOperation().getFailure();
+      String operationState;
+      if (failure.hasApplicationFailureInfo()) {
+        operationState = OperationState.FAILED.toString().toLowerCase();
+      } else if (failure.hasCanceledFailureInfo()) {
+        operationState = OperationState.CANCELED.toString().toLowerCase();
+      } else {
+        throw new IllegalArgumentException(
+            "[BUG] Failure must have either ApplicationFailureInfo or CanceledFailureInfo");
+      }
+      return b.setStartOperation(
+              response.getStartOperation().toBuilder()
+                  .setOperationError(
+                      UnsuccessfulOperationError.newBuilder()
+                          .setOperationState(operationState)
+                          .setFailure(NexusUtil.temporalFailureToNexusFailure(failure.getCause()))))
+          .build();
+    }
+
     @SuppressWarnings("deprecation")
     private void sendReply(
         ByteString taskToken,
@@ -384,43 +406,7 @@ final class NexusWorker implements SuspendableWorker {
         // For old servers that do not support TemporalFailure in Failure proto,
         // we need to convert the Failure to a UnsuccessfulOperationError
         if (!supportTemporalFailure && taskResponse.getStartOperation().hasFailure()) {
-          Response.Builder b = taskResponse.toBuilder();
-          Failure failure = taskResponse.getStartOperation().getFailure();
-          String operationState;
-          if (failure.hasApplicationFailureInfo()) {
-            operationState = OperationState.FAILED.toString().toLowerCase();
-          } else if (failure.hasCanceledFailureInfo()) {
-            operationState = OperationState.CANCELED.toString().toLowerCase();
-          } else {
-            RespondNexusTaskFailedRequest.Builder request =
-                RespondNexusTaskFailedRequest.newBuilder()
-                    .setTaskToken(taskToken)
-                    .setIdentity(options.getIdentity())
-                    .setNamespace(namespace)
-                    .setError(
-                        NexusUtil.handlerErrorToNexusError(
-                            new HandlerException(
-                                HandlerException.ErrorType.INTERNAL,
-                                "Failure does not have applicationFailureInfo or canceledFailureInfo"),
-                            dataConverter));
-            grpcRetryer.retry(
-                () ->
-                    service
-                        .blockingStub()
-                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                        .respondNexusTaskFailed(request.build()),
-                replyGrpcRetryerOptions);
-            return;
-          }
-          taskResponse =
-              b.setStartOperation(
-                      taskResponse.getStartOperation().toBuilder()
-                          .setOperationError(
-                              UnsuccessfulOperationError.newBuilder()
-                                  .setOperationState(operationState)
-                                  .setFailure(
-                                      NexusUtil.temporalFailureToNexusFailure(failure.getCause()))))
-                  .build();
+          taskResponse = getResponseForOldServer(taskResponse);
         }
         RespondNexusTaskCompletedRequest request =
             RespondNexusTaskCompletedRequest.newBuilder()

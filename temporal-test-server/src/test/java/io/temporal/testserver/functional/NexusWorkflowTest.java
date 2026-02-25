@@ -1102,6 +1102,7 @@ public class NexusWorkflowTest {
         });
   }
 
+  @SuppressWarnings("deprecation")
   private CompletableFuture<RespondNexusTaskFailedResponse> failNexusTask(
       ByteString taskToken, HandlerError err) {
     return CompletableFuture.supplyAsync(
