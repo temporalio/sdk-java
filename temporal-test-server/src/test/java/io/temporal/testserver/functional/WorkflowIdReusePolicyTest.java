@@ -80,6 +80,7 @@ public class WorkflowIdReusePolicyTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation") // Test for deprecated policy behavior
   public void secondWorkflowTerminatesFirst() {
     String workflowId = "terminate-if-running-1";
     WorkflowOptions options =

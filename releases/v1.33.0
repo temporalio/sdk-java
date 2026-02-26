@@ -1,0 +1,49 @@
+# **💥 BREAKING CHANGES**
+
+## TLS When API Key Is Provided
+
+TLS is now enabled automatically when an API key is provided to the client.
+
+If you currently use an API key without TLS, you will need to adjust your connection configuration or explicitly disable TLS where appropriate.
+
+## Search Attributes on Continue-As-New
+
+When a workflow continues-as-new without explicitly setting search attributes, the SDK now carries over the previous execution's search attributes.
+
+If your code relied on search attributes being cleared on continue-as-new when none were set, you must now explicitly set or clear them as needed.
+
+# **Highlights**
+
+## Plugin Support
+
+This release adds plugin support for the Java SDK, making it easier to design features that customizes SDK behavior.
+
+## Worker Versioning and Environment Config
+
+Removed experimental warnings for worker versioning and environment configuration; these features are now considered stable.
+
+## gRPC Security Upgrade
+
+Upgraded gRPC to 1.75.0 to address CVE-2025-55163 and CVE-2025-24970.
+
+## workflowcheck (Experimental)
+
+Initial support for the Java static analyzer (workflowcheck) to help validate workflow code (experimental).
+
+# What's Changed
+
+2025-12-04 - 50d15bd7 - 💥 Carry over search attributes on continue-as-new if none are explicitly set (#2731)
+2025-12-10 - a39d10cc - Defer updating workflow completion metrics until completion accepted by server (#2742)
+2026-01-05 - 2ff9c2c1 - 💥 [BREAKING] enable TLS if api key provided (#2740)
+2026-01-07 - 2322bd0d - Fix test server to return INVALID_ARGUMENT for UNHANDLED_COMMAND (#2757)
+2026-01-16 - 7a1a238a - Update Graal reachability metadata to fix Nexus in time skipping test server (#2759)
+2026-01-18 - f5df5c44 - fix: envconfig, use OS-specific config file paths (#2762)
+2026-01-26 - 67d56ddb - Plugin Support for Java SDK (#2761)
+2026-01-26 - 9fae229e - Upgrade grpc to 1.75.0 to fix CVE-2025-55163 and CVE-2025-24970 (#2763)
+2026-01-28 - 87b07f58 - Fix UnsupportedOperationException when merging ActivityOptions with immutable context propagators (#2749)
+2026-02-04 - fecc1566 - workflowcheck - initial support for Java static analyzer (#2767)
+2026-02-09 - 2a0ad001 - Remove experimental warnings for worker versioning and envconfig (#2771)
+2026-02-11 - 22a1c1a6 - Fix deep recursion in ResourceBasedSlotSupplier causing futures to never resolve (#2779)
+2026-02-17 - c43aa836 - Add DETERMINISTIC_CANCELLATION_SCOPE_ORDER to initial SDK flags (#2782)
+2026-02-18 - ea2a0946 - Make search attribute type more lenient when parsing (#2788)
+2026-02-19 - 81f3cc33 - fix nexus-service-bean explicitConfig support (#2789)

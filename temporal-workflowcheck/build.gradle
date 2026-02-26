@@ -1,6 +1,6 @@
 plugins {
     id 'application'
-    id 'com.gradleup.shadow' version '8.3.3'
+    id 'com.gradleup.shadow' version '8.3.9'
     id 'java'
 }
 
@@ -22,33 +22,13 @@ application {
 // Need all-in-one JAR
 shadowJar {
     relocate 'org.objectweb.asm', 'io.temporal.workflowcheck.shaded.org.objectweb.asm'
-    archiveClassifier = ''
 }
+
 shadowJar.dependsOn(jar)
 build.dependsOn shadowJar
 distTar.dependsOn shadowJar
 distZip.dependsOn shadowJar
 startScripts.dependsOn shadowJar
-
-// Configure publishing to publish both regular library jar and shadow executable jar
-publishing {
-    publications {
-        // Regular library jar for programmatic usage and compile-time annotations
-        maven(MavenPublication) {
-            from components.java
-        }
-        // Fat executable jar with shaded dependencies
-        shadow(MavenPublication) { publication ->
-            project.shadow.component(publication)
-            artifactId = "${project.name}-all"
-        }
-    }
-}
-
-// Fix dependency issue with shadow publication metadata generation
-tasks.named('generateMetadataFileForShadowPublication').configure {
-    dependsOn 'jar'
-}
 
 // Copy Java test source files to resources so they can be loaded at runtime
 tasks.register('copyJavaSourcesToResources', Copy) {
@@ -59,7 +39,6 @@ tasks.register('copyJavaSourcesToResources', Copy) {
     into 'build/resources/test'
 }
 processTestResources.dependsOn copyJavaSourcesToResources
-
 
 spotless {
     java {
