@@ -3,7 +3,6 @@ package io.temporal.envconfig;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.toml.TomlMapper;
-import io.temporal.common.Experimental;
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -21,7 +20,6 @@ import java.util.Objects;
  *   <li>Linux/other: $HOME/.config/temporalio/temporal.toml
  * </ul>
  */
-@Experimental
 public class ClientConfig {
   /** Creates a new builder to build a {@link ClientConfig}. */
   public static Builder newBuilder() {

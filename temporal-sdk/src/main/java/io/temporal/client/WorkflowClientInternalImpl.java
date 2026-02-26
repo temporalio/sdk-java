@@ -21,9 +21,11 @@ import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.*;
 import java.lang.annotation.Annotation;
@@ -36,8 +38,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClientInternal {
+
+  private static final Logger log = LoggerFactory.getLogger(WorkflowClientInternalImpl.class);
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
@@ -65,7 +71,29 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   WorkflowClientInternalImpl(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
-    options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
+    // Extract WorkflowClientPlugins from service stubs plugins (propagation)
+    WorkflowClientPlugin[] propagatedPlugins =
+        extractClientPlugins(workflowServiceStubs.getOptions().getPlugins());
+
+    // Merge propagated plugins with client-specified plugins
+    WorkflowClientPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            options.getPlugins(),
+            WorkflowClientPlugin::getName,
+            log,
+            "service stubs",
+            WorkflowClientPlugin.class);
+
+    // Apply plugin configuration phase (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
+    WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder(options);
+    for (WorkflowClientPlugin plugin : mergedPlugins) {
+      plugin.configureWorkflowClient(builder);
+    }
+    // Set merged plugins after configuration, then validate
+    builder.setPlugins(mergedPlugins);
+    options = builder.validateAndBuildWithDefaults();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.options = options;
@@ -355,6 +383,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         workflowId);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public void updateWorkerBuildIdCompatability(
       @Nonnull String taskQueue, @Nonnull BuildIdOperation operation) {
@@ -366,6 +395,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     genericClient.updateWorkerBuildIdCompatability(reqBuilder.build());
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue) {
     GetWorkerBuildIdCompatibilityRequest req =
@@ -377,6 +407,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return new WorkerBuildIdVersionSets(resp);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public WorkerTaskReachability getWorkerTaskReachability(
       @Nonnull Iterable<String> buildIds,
@@ -770,5 +801,24 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
     }
+  }
+
+  /**
+   * Extracts WorkflowClientPlugins from service stubs plugins. Only plugins that also implement
+   * {@link WorkflowClientPlugin} are included. This enables plugin propagation from service stubs
+   * to workflow client.
+   */
+  private static WorkflowClientPlugin[] extractClientPlugins(
+      WorkflowServiceStubsPlugin[] stubsPlugins) {
+    if (stubsPlugins == null || stubsPlugins.length == 0) {
+      return new WorkflowClientPlugin[0];
+    }
+    List<WorkflowClientPlugin> clientPlugins = new ArrayList<>();
+    for (WorkflowServiceStubsPlugin plugin : stubsPlugins) {
+      if (plugin instanceof WorkflowClientPlugin) {
+        clientPlugins.add((WorkflowClientPlugin) plugin);
+      }
+    }
+    return clientPlugins.toArray(new WorkflowClientPlugin[0]);
   }
 }

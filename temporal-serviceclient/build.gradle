@@ -12,6 +12,7 @@ dependencies {
     api ("io.grpc:grpc-api") //Classes like io.grpc.Metadata are used as a part of our API
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
+    api "io.grpc:grpc-protobuf" //For io.grpc.protobuf.StatusProto and ProtoUtils used by generated stubs
     api "io.grpc:grpc-services" //Standard gRPC HealthCheck Response class
     api "io.grpc:grpc-inprocess" //For the in-process time skipping test server
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API

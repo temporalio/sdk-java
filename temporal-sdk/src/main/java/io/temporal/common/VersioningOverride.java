@@ -3,7 +3,6 @@ package io.temporal.common;
 import javax.annotation.Nonnull;
 
 /** Represents the override of a worker's versioning behavior for a workflow execution. */
-@Experimental
 public abstract class VersioningOverride {
   private VersioningOverride() {}
 

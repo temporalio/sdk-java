@@ -1,0 +1,47 @@
+plugins {
+    id 'application'
+    id 'com.gradleup.shadow' version '8.3.9'
+    id 'java'
+}
+
+description = 'Temporal Java WorkflowCheck Static Analyzer'
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.7'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    testImplementation project(":temporal-sdk")
+    testImplementation "junit:junit:${junitVersion}"
+    // Only for testing external-JAR-based bad calls
+    testImplementation "com.google.guava:guava:$guavaVersion"
+}
+
+application {
+    mainClass = 'io.temporal.workflowcheck.Main'
+}
+
+// Need all-in-one JAR
+shadowJar {
+    relocate 'org.objectweb.asm', 'io.temporal.workflowcheck.shaded.org.objectweb.asm'
+}
+
+shadowJar.dependsOn(jar)
+build.dependsOn shadowJar
+distTar.dependsOn shadowJar
+distZip.dependsOn shadowJar
+startScripts.dependsOn shadowJar
+
+// Copy Java test source files to resources so they can be loaded at runtime
+tasks.register('copyJavaSourcesToResources', Copy) {
+    from('src/test/java') {
+        include '**/*.java'
+        include '**/*.properties'
+    }
+    into 'build/resources/test'
+}
+processTestResources.dependsOn copyJavaSourcesToResources
+
+spotless {
+    java {
+        toggleOffOn()
+    }
+}

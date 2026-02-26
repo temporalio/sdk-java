@@ -1,0 +1,14 @@
+plugins {
+    id 'java'
+}
+
+group = 'io.temporal'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.temporal:temporal-sdk:1.22.3'
+}

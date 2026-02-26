@@ -575,7 +575,7 @@ public final class WorkflowInternal {
     boolean deterministicCancellationScopeOrder =
         getRootWorkflowContext()
             .getReplayContext()
-            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+            .tryUseSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
     return new CancellationScopeImpl(detached, deterministicCancellationScopeOrder, runnable);
   }
 
@@ -584,7 +584,7 @@ public final class WorkflowInternal {
     boolean deterministicCancellationScopeOrder =
         getRootWorkflowContext()
             .getReplayContext()
-            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+            .tryUseSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
     return new CancellationScopeImpl(detached, deterministicCancellationScopeOrder, proc);
   }
 
