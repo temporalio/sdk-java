@@ -3,6 +3,7 @@ package io.temporal.internal.sync;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
 import java.util.Optional;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -91,6 +92,24 @@ interface DeterministicRunner {
   /** Creates a new instance of a workflow callback thread. */
   @Nonnull
   WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name);
+
+  /**
+   * Creates a new repeatable workflow thread that re-evaluates its condition on each
+   * runUntilBlocked() call. The thread completes when the condition returns true or when
+   * cancelled/destroyed.
+   *
+   * <p>This is used for async await where the condition can contain blocking operations like
+   * Workflow.await(), activity calls, etc. Unlike simple condition watchers, these conditions run
+   * in their own workflow thread context with full workflow capabilities.
+   *
+   * @param condition The condition to evaluate repeatedly. May contain blocking operations.
+   * @param detached Whether the thread is detached from parent cancellation scope
+   * @param name Optional name for the thread
+   * @return A new WorkflowThread that repeatedly evaluates the condition
+   */
+  @Nonnull
+  WorkflowThread newRepeatableThread(
+      Supplier<Boolean> condition, boolean detached, @Nullable String name);
 
   /**
    * Retrieve data from runner locals. Returns 1. not found (an empty Optional) 2. found but null

@@ -1327,6 +1327,93 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     WorkflowThread.await(reason, unblockCondition);
   }
 
+  @Override
+  public Promise<Void> awaitAsync(Supplier<Boolean> unblockCondition) {
+    CompletablePromise<Void> result = Workflow.newPromise();
+
+    Supplier<Boolean> wrappedCondition =
+        () -> {
+          try {
+            if (unblockCondition.get()) {
+              result.complete(null);
+              return true;
+            }
+            return false;
+          } catch (RuntimeException e) {
+            result.completeExceptionally(e);
+            return true;
+          }
+        };
+
+    WorkflowThread conditionThread =
+        runner.newRepeatableThread(wrappedCondition, false, "awaitAsync");
+
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              if (!result.isCompleted()) {
+                result.completeExceptionally(new CanceledFailure(r));
+              }
+              conditionThread.cancel(r);
+              return r;
+            });
+
+    return result;
+  }
+
+  @Override
+  public Promise<Boolean> awaitAsync(
+      Duration timeout, String timerSummary, Supplier<Boolean> unblockCondition) {
+    CompletablePromise<Boolean> result = Workflow.newPromise();
+
+    TimerOptions timerOptions = TimerOptions.newBuilder().setSummary(timerSummary).build();
+
+    // Detached scope allows cancelling the timer when condition is met
+    CompletablePromise<Void> timerPromise = Workflow.newPromise();
+    CancellationScope timerScope =
+        Workflow.newDetachedCancellationScope(
+            () -> timerPromise.completeFrom(newTimer(timeout, timerOptions)));
+    timerScope.run();
+
+    Supplier<Boolean> wrappedCondition =
+        () -> {
+          try {
+            if (unblockCondition.get()) {
+              result.complete(true);
+              timerScope.cancel();
+              return true;
+            }
+            if (timerPromise.isCompleted()) {
+              result.complete(false);
+              return true;
+            }
+            return false;
+          } catch (RuntimeException e) {
+            result.completeExceptionally(e);
+            timerScope.cancel();
+            return true;
+          }
+        };
+
+    WorkflowThread conditionThread =
+        runner.newRepeatableThread(wrappedCondition, false, "awaitAsync");
+
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (r) -> {
+              if (!result.isCompleted()) {
+                result.completeExceptionally(new CanceledFailure(r));
+              }
+              timerScope.cancel();
+              conditionThread.cancel(r);
+              return r;
+            });
+
+    return result;
+  }
+
   @SuppressWarnings("deprecation")
   @Override
   public void continueAsNew(ContinueAsNewInput input) {
