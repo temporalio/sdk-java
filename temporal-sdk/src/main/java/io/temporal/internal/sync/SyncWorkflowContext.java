@@ -1316,6 +1316,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   @Override
+  public void sleep(Duration duration, TimerOptions options) {
+    newTimer(duration, options).get();
+  }
+
+  @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
     Promise<Void> timer = newTimer(timeout);
     WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));

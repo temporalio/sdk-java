@@ -660,6 +660,11 @@ public final class WorkflowInternal {
     getWorkflowOutboundInterceptor().sleep(duration);
   }
 
+  public static void sleep(Duration duration, TimerOptions options) {
+    assertNotReadOnly("sleep");
+    getWorkflowOutboundInterceptor().sleep(duration, options);
+  }
+
   public static boolean isWorkflowThread() {
     return WorkflowThreadMarker.isWorkflowThread();
   }
