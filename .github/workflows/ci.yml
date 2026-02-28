@@ -41,6 +41,12 @@ jobs:
         USE_DOCKER_SERVICE: false
       run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
 
+    - name: Run Spring Boot 4 compatibility tests
+      env:
+        USER: unittest
+        USE_DOCKER_SERVICE: false
+      run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P springBoot4Test
+
     - name: Publish Test Report
       uses: mikepenz/action-junit-report@v6
       if: success() || failure() # always run even if the previous step fails
@@ -106,6 +112,12 @@ jobs:
         TEMPORAL_SERVICE_ADDRESS: localhost:7233
         USE_DOCKER_SERVICE: true
       run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava
+
+    - name: Run Jackson 3 converter tests
+      env:
+        USER: unittest
+        USE_DOCKER_SERVICE: false
+      run: ./gradlew --no-daemon :temporal-sdk:jackson3Tests -x spotlessCheck -x spotlessApply -x spotlessJava
 
     - name: Run virtual thread tests
       env:

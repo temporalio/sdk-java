@@ -5,6 +5,19 @@ ext {
     otShimVersion = "${otelVersion}-alpha"
 }
 
+if (project.hasProperty("springBoot4Test")) {
+    // SB4 requires Java 17+. Override --release 8 (from gradle/java.gradle) for test
+    // compilation only; main sources stay compiled against SB 2.7 at Java 8 target.
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    compileTestJava {
+        options.compilerArgs.removeAll(['--release', '8'])
+        options.compilerArgs.addAll(['--release', '17'])
+    }
+}
+
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
     api(platform("io.opentelemetry:opentelemetry-bom:$otelVersion"))
@@ -31,13 +44,31 @@ dependencies {
     testImplementation project(':temporal-testing')
 
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    // For auto-configuration ordering tests (metrics)
+    testImplementation "org.springframework.boot:spring-boot-starter-actuator"
+    // For auto-configuration ordering tests (OpenTelemetry)
+    testImplementation "io.opentelemetry:opentelemetry-sdk"
 
-    testImplementation('org.slf4j:slf4j-api') {
-        version {
-            strictly "${slf4jVersion}"
+    if (project.hasProperty("springBoot4Test")) {
+        // Override the SB 2.7 BOM for test classpath so tests run against SB 4.
+        // Main classes are still compiled against SB 2.7 — we're validating that
+        // the published JAR works at runtime with SB 4.
+        testImplementation(platform("org.springframework.boot:spring-boot-dependencies:$springBoot4Version"))
+        // SB4 requires SLF4J 2.x + Logback 1.5+; let the SB4 BOM provide them
+        // instead of using the root project's pinned versions.
+        testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+        // SB4 modularized auto-configs into separate modules that
+        // spring-boot-starter-actuator no longer transitively includes.
+        testImplementation "org.springframework.boot:spring-boot-micrometer-metrics"
+        testImplementation "org.springframework.boot:spring-boot-opentelemetry"
+    } else {
+        testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+        testImplementation('org.slf4j:slf4j-api') {
+            version {
+                strictly "${slf4jVersion}"
+            }
         }
     }
 }
