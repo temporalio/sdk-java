@@ -1317,9 +1317,35 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
-    Promise<Void> timer = newTimer(timeout);
-    WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
-    return !timer.isCompleted();
+    // TODO: Change checkSdkFlag to tryUseSdkFlag in the next release to enable this flag by
+    // default.
+    boolean cancelTimerOnCondition =
+        replayContext.checkSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
+
+    if (cancelTimerOnCondition) {
+      // If condition is already satisfied, skip creating timer
+      if (unblockCondition.get()) {
+        return true;
+      }
+      // Create timer in a cancellation scope so we can cancel it when condition is satisfied
+      CompletablePromise<Void> timer = Workflow.newPromise();
+      CancellationScope timerScope =
+          Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout)));
+      timerScope.run();
+
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+
+      boolean conditionSatisfied = !timer.isCompleted();
+      if (conditionSatisfied) {
+        timerScope.cancel("await condition resolved");
+      }
+      return conditionSatisfied;
+    } else {
+      // Old behavior: timer is not cancelled when condition is satisfied
+      Promise<Void> timer = newTimer(timeout);
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      return !timer.isCompleted();
+    }
   }
 
   @Override
