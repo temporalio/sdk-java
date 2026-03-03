@@ -60,7 +60,9 @@ public class NexusUtil {
       io.temporal.api.failure.v1.Failure temporalFailure) {
     String details;
     try {
-      details = PROTO_JSON_PRINTER.print(temporalFailure.toBuilder().setMessage("").build());
+      details =
+          PROTO_JSON_PRINTER.print(
+              temporalFailure.toBuilder().setMessage("").setStackTrace("").build());
     } catch (InvalidProtocolBufferException e) {
       return Failure.newBuilder()
           .setMessage("Failed to serialize failure details")
@@ -138,7 +140,9 @@ public class NexusUtil {
       io.temporal.api.failure.v1.Failure temporalFailure) {
     String details;
     try {
-      details = PROTO_JSON_PRINTER.print(temporalFailure.toBuilder().setMessage("").build());
+      details =
+          PROTO_JSON_PRINTER.print(
+              temporalFailure.toBuilder().setMessage("").setStackTrace("").build());
     } catch (InvalidProtocolBufferException e) {
       return FailureInfo.newBuilder()
           .setMessage("Failed to serialize failure details")
@@ -157,18 +161,23 @@ public class NexusUtil {
     return temporalFailureToNexusFailure(failure);
   }
 
+  /**
+   * Convert a HandlerException to the legacy HandlerError format used by Nexus, including
+   * converting the cause to a Failure.
+   */
   public static HandlerError handlerErrorToNexusError(
       HandlerException e, DataConverter dataConverter) {
     HandlerError.Builder handlerError =
         HandlerError.newBuilder()
             .setErrorType(e.getErrorType().toString())
             .setRetryBehavior(mapRetryBehavior(e.getRetryBehavior()));
-    // TODO: check if this works on old server
     if (e.getCause() != null) {
       handlerError.setFailure(exceptionToNexusFailure(e.getCause(), dataConverter));
     } else if (e.getMessage() != null && !e.getMessage().isEmpty()) {
-      // Include message even when there's no cause
-      handlerError.setFailure(Failure.newBuilder().setMessage(e.getMessage()).build());
+      // Generate a failure from the message if no cause is provided, to ensure the error is not
+      // empty
+      handlerError.setFailure(
+          exceptionToNexusFailure(new RuntimeException(e.getMessage()), dataConverter));
     }
     return handlerError.build();
   }

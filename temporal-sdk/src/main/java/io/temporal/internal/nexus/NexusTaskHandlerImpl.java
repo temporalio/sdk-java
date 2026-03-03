@@ -105,8 +105,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                   java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (IllegalArgumentException e) {
           throw new HandlerException(
-              HandlerException.ErrorType.BAD_REQUEST,
-              new RuntimeException("Invalid request timeout header", e));
+              HandlerException.ErrorType.BAD_REQUEST, "Invalid request timeout header", e);
         }
       }
 
@@ -125,12 +124,14 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         default:
           throw new HandlerException(
               HandlerException.ErrorType.NOT_IMPLEMENTED,
-              new RuntimeException("Unknown request type: " + request.getVariantCase()));
+              "Unknown request type: " + request.getVariantCase(),
+              (Throwable) null);
       }
     } catch (HandlerException e) {
       return new Result(e);
     } catch (Throwable e) {
-      return new Result(new HandlerException(HandlerException.ErrorType.INTERNAL, e));
+      return new Result(
+          new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e));
     } finally {
       // If the task timed out, we should not send a response back to the server
       if (timedOut.get()) {
@@ -285,7 +286,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                 log.error("failed to parse link url: " + link.getUrl(), e);
                 throw new HandlerException(
                     HandlerException.ErrorType.BAD_REQUEST,
-                    new RuntimeException("Invalid link URL: " + link.getUrl(), e));
+                    "Invalid link URL: " + link.getUrl(),
+                    e);
               }
             });
 

@@ -68,9 +68,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
         ctx.addLinks(nexusProtoLinkToLink(nexusLink));
       } catch (URISyntaxException e) {
         // Not expected as the link is constructed by the SDK.
-        throw new HandlerException(
-            HandlerException.ErrorType.INTERNAL,
-            new IllegalArgumentException("failed to parse URI", e));
+        throw new HandlerException(HandlerException.ErrorType.INTERNAL, "failed to parse URI", e);
       }
     }
     return result.build();
@@ -86,8 +84,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
               operationCancelDetails.getOperationToken());
     } catch (IllegalArgumentException e) {
       throw new HandlerException(
-          HandlerException.ErrorType.BAD_REQUEST,
-          new IllegalArgumentException("failed to parse operation token", e));
+          HandlerException.ErrorType.BAD_REQUEST, "failed to parse operation token", e);
     }
 
     WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();
