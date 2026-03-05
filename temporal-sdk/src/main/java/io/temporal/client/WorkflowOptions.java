@@ -477,7 +477,6 @@ public final class WorkflowOptions {
     }
 
     /** Sets the versioning override to use when starting this workflow. */
-    @Experimental
     public Builder setVersioningOverride(VersioningOverride versioningOverride) {
       this.versioningOverride = versioningOverride;
       return this;
@@ -737,7 +736,6 @@ public final class WorkflowOptions {
     return priority;
   }
 
-  @Experimental
   public VersioningOverride getVersioningOverride() {
     return versioningOverride;
   }

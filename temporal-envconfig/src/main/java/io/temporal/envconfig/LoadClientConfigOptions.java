@@ -1,10 +1,8 @@
 package io.temporal.envconfig;
 
-import io.temporal.common.Experimental;
 import java.util.Map;
 
 /** Options for loading a client config via {@link ClientConfig#load(LoadClientConfigOptions)} */
-@Experimental
 public class LoadClientConfigOptions {
   /** Create a builder for {@link LoadClientConfigOptions}. */
   public static Builder newBuilder() {

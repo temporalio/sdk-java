@@ -230,7 +230,6 @@ public final class POJOWorkflowImplMetadata {
    * @throws RuntimeException if the method is not found on the implementation class or is not a
    *     workflow method.
    */
-  @Experimental
   @Nullable
   public static VersioningBehavior getVersioningBehaviorForMethod(
       Class<?> implementationClass, POJOWorkflowMethodMetadata workflowMethod) {

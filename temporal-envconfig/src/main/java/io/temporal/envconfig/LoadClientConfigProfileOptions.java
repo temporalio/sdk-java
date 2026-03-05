@@ -1,13 +1,11 @@
 package io.temporal.envconfig;
 
-import io.temporal.common.Experimental;
 import java.util.Map;
 
 /**
  * Options for loading a client config profile via {@link
  * ClientConfigProfile#load(LoadClientConfigProfileOptions)}
  */
-@Experimental
 public class LoadClientConfigProfileOptions {
   /** Create a builder for {@link LoadClientConfigProfileOptions}. */
   public static Builder newBuilder() {

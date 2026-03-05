@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Implements a {@link SlotSupplier} based on resource usage for a particular slot type. */
 public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSupplier<SI> {
@@ -190,6 +191,31 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
   }
 
   private SlotSupplierFuture scheduleSlotAcquisition(SlotReserveContext<SI> ctx) {
+    CompletableFuture<SlotPermit> resultFuture = new CompletableFuture<>();
+    AtomicReference<ScheduledFuture<?>> taskRef = new AtomicReference<>();
+
+    Runnable pollingTask =
+        new Runnable() {
+          @Override
+          public void run() {
+            if (resultFuture.isDone()) {
+              return; // Already completed or cancelled
+            }
+
+            try {
+              Optional<SlotPermit> permit = tryReserveSlot(ctx);
+              if (permit.isPresent()) {
+                resultFuture.complete(permit.get());
+              } else {
+                taskRef.set(scheduler.schedule(this, 10, TimeUnit.MILLISECONDS));
+              }
+            } catch (Exception e) {
+              resultFuture.completeExceptionally(e);
+            }
+          }
+        };
+
+    // Calculate initial delay based on ramp throttle
     Duration mustWaitFor;
     try {
       mustWaitFor = options.getRampThrottle().minus(timeSinceLastSlotIssued());
@@ -197,28 +223,20 @@ public class ResourceBasedSlotSupplier<SI extends SlotInfo> implements SlotSuppl
       mustWaitFor = Duration.ZERO;
     }
 
-    CompletableFuture<Void> permitFuture;
-    if (mustWaitFor.compareTo(Duration.ZERO) > 0) {
-      permitFuture =
-          CompletableFuture.supplyAsync(() -> null, delayedExecutor(mustWaitFor.toMillis()));
-    } else {
-      permitFuture = CompletableFuture.completedFuture(null);
-    }
+    long initialDelayMs = Math.max(0, mustWaitFor.toMillis());
 
-    // After the delay, try to reserve the slot
+    // Schedule the initial attempt
+    taskRef.set(scheduler.schedule(pollingTask, initialDelayMs, TimeUnit.MILLISECONDS));
+
     return SlotSupplierFuture.fromCompletableFuture(
-        permitFuture.thenCompose(
-            ignored -> {
-              Optional<SlotPermit> permit = tryReserveSlot(ctx);
-              // If we couldn't get a slot this time, delay for a short period and try again
-              return permit
-                  .map(CompletableFuture::completedFuture)
-                  .orElseGet(
-                      () ->
-                          CompletableFuture.supplyAsync(() -> null, delayedExecutor(10))
-                              .thenCompose(ig -> scheduleSlotAcquisition(ctx)));
-            }),
-        () -> permitFuture.cancel(true));
+        resultFuture,
+        () -> {
+          // Cancel the scheduled task when aborting
+          ScheduledFuture<?> task = taskRef.get();
+          if (task != null) {
+            task.cancel(true);
+          }
+        });
   }
 
   @Override

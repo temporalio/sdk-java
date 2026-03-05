@@ -101,6 +101,8 @@ spring:
           - io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflowImpl
         activity-beans:
           - TestActivityImpl
+        nexus-service-beans:
+          - TestNexusServiceImpl
 
 ---
 spring:

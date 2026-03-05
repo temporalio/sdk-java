@@ -383,6 +383,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         workflowId);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public void updateWorkerBuildIdCompatability(
       @Nonnull String taskQueue, @Nonnull BuildIdOperation operation) {
@@ -394,6 +395,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     genericClient.updateWorkerBuildIdCompatability(reqBuilder.build());
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue) {
     GetWorkerBuildIdCompatibilityRequest req =
@@ -405,6 +407,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     return new WorkerBuildIdVersionSets(resp);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public WorkerTaskReachability getWorkerTaskReachability(
       @Nonnull Iterable<String> buildIds,

@@ -958,6 +958,7 @@ class StateMachines {
             .setTaskToken(taskToken.toBytes())
             .setRequest(
                 io.temporal.api.nexus.v1.Request.newBuilder()
+                    .putAllHeader(data.scheduledEvent.getNexusHeaderMap())
                     .setCancelOperation(
                         CancelOperationRequest.newBuilder()
                             .setOperationToken(data.operationToken)

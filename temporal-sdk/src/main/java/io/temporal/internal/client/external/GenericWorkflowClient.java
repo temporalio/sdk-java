@@ -62,6 +62,7 @@ public interface GenericWorkflowClient {
       DescribeWorkflowExecutionRequest request);
 
   @Experimental
+  @Deprecated
   UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIdCompatability(
       UpdateWorkerBuildIdCompatibilityRequest request);
 
@@ -70,9 +71,11 @@ public interface GenericWorkflowClient {
       ExecuteMultiOperationRequest request, @Nonnull Deadline deadline);
 
   @Experimental
+  @Deprecated
   GetWorkerBuildIdCompatibilityResponse getWorkerBuildIdCompatability(
       GetWorkerBuildIdCompatibilityRequest req);
 
   @Experimental
+  @Deprecated
   GetWorkerTaskReachabilityResponse GetWorkerTaskReachability(GetWorkerTaskReachabilityRequest req);
 }

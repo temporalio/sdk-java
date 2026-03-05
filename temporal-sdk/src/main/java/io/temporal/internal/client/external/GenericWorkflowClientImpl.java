@@ -364,6 +364,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIdCompatability(
       UpdateWorkerBuildIdCompatibilityRequest request) {
@@ -376,6 +377,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public GetWorkerBuildIdCompatibilityResponse getWorkerBuildIdCompatability(
       GetWorkerBuildIdCompatibilityRequest req) {
@@ -388,6 +390,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public GetWorkerTaskReachabilityResponse GetWorkerTaskReachability(
       GetWorkerTaskReachabilityRequest req) {

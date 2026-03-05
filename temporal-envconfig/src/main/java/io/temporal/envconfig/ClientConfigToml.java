@@ -3,7 +3,6 @@ package io.temporal.envconfig;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.grpc.Metadata;
-import io.temporal.common.Experimental;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +14,6 @@ import javax.annotation.Nullable;
  * <p>These are package private, use {@link ClientConfig} and {@link ClientConfigProfile} to load
  * and work with client configs.
  */
-@Experimental
 class ClientConfigToml {
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   static class TomlClientConfig {

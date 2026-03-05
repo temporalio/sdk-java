@@ -646,6 +646,7 @@ public class UpdateWithStartTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation") // Test uses deprecated policy for validation
   public void failServerSideWhenStartIsInvalid() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 
