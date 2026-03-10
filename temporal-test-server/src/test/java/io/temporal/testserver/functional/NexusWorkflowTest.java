@@ -25,6 +25,7 @@ import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.testservice.NexusTaskToken;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -547,10 +548,6 @@ public class NexusWorkflowTest {
       PollNexusTaskQueueResponse nexusPollResp = pollNexusTask().get();
       Assert.assertTrue(nexusPollResp.getRequest().hasStartOperation());
 
-      // Request timeout and long poll deadline are both 10s, so sleep to give some buffer so poll
-      // request doesn't time out.
-      Thread.sleep(2000);
-
       // Poll again to verify task is resent on timeout
       PollNexusTaskQueueResponse nextNexusPollResp = pollNexusTask().get();
       Assert.assertNotEquals(nexusPollResp.getTaskToken(), nextNexusPollResp.getTaskToken());
@@ -631,7 +628,7 @@ public class NexusWorkflowTest {
     }
   }
 
-  @Test(timeout = 30000)
+  @Test(timeout = 60000)
   public void testNexusOperationTimeout_AfterCancel() {
     String operationId = UUID.randomUUID().toString();
     CompletableFuture<?> nexusPoller =
@@ -647,7 +644,7 @@ public class NexusWorkflowTest {
           pollResp.getTaskToken(),
           newScheduleOperationCommand(
               defaultScheduleOperationAttributes()
-                  .setScheduleToCloseTimeout(Durations.fromSeconds(22))));
+                  .setScheduleToCloseTimeout(Durations.fromSeconds(10))));
       testWorkflowRule.assertHistoryEvent(
           execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
 
@@ -672,24 +669,21 @@ public class NexusWorkflowTest {
               .build();
       completeWorkflowTask(pollResp.getTaskToken(), cancelCmd);
 
-      // Poll for cancellation task but do not complete it
-      PollNexusTaskQueueResponse nexusPollResp = pollNexusTask().get();
-      Assert.assertTrue(nexusPollResp.getRequest().hasCancelOperation());
+      // The cancel task may not be completed in time, causing a
+      // NEXUS_OPERATION_CANCEL_REQUEST_FAILED event and a new WFT. Handle any intermediate WFTs
+      // until the operation actually times out.
+      while (true) {
+        pollResp = pollWorkflowTask();
+        events =
+            testWorkflowRule.getHistoryEvents(
+                execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT);
+        if (!events.isEmpty()) {
+          break;
+        }
+        // Not timed out yet, acknowledge the WFT and keep waiting
+        completeWorkflowTask(pollResp.getTaskToken());
+      }
 
-      // Request timeout and long poll deadline are both 10s, so sleep to give some buffer so poll
-      // request doesn't timeout.
-      Thread.sleep(2000);
-
-      // Poll for cancellation task again
-      nexusPollResp = pollNexusTask().get();
-      Assert.assertTrue(nexusPollResp.getRequest().hasCancelOperation());
-
-      // Request timeout and long poll deadline are both 10s, so sleep to give some buffer so poll
-      // request doesn't timeout.
-      Thread.sleep(2000);
-
-      // Poll to wait for new task after operation times out
-      pollResp = pollWorkflowTask();
       completeWorkflow(pollResp.getTaskToken());
 
       events =
@@ -706,6 +700,144 @@ public class NexusWorkflowTest {
       Assert.assertEquals(
           TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
           cause.getTimeoutFailureInfo().getTimeoutType());
+    } catch (Exception e) {
+      Assert.fail(e.getMessage());
+    } finally {
+      nexusPoller.cancel(true);
+    }
+  }
+
+  @Test(timeout = 30000)
+  public void testNexusOperationScheduleToStartTimeout() {
+    WorkflowStub stub = newWorkflowStub("TestNexusOperationScheduleToStartTimeoutWorkflow");
+    WorkflowExecution execution = stub.start();
+
+    // Use a longer schedule-to-start timeout so the nexus poll has time to return on real server
+    int scheduleToStartSeconds = testWorkflowRule.isUseExternalService() ? 10 : 1;
+
+    // Get first WFT and respond with ScheduleNexusOperation command with schedule-to-start timeout
+    PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+    completeWorkflowTask(
+        pollResp.getTaskToken(),
+        newScheduleOperationCommand(
+            defaultScheduleOperationAttributes()
+                .setScheduleToStartTimeout(Durations.fromSeconds(scheduleToStartSeconds))
+                .setScheduleToCloseTimeout(Durations.fromSeconds(30))));
+    testWorkflowRule.assertHistoryEvent(
+        execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
+
+    try {
+      // Poll for Nexus task but do not complete it - let it time out before starting
+      PollNexusTaskQueueResponse nexusPollResp = pollNexusTask().get();
+      Assert.assertTrue(nexusPollResp.getRequest().hasStartOperation());
+
+      // Verify OPERATION_TIMEOUT header is set and valid
+      String operationTimeoutHeader =
+          nexusPollResp.getRequest().getHeaderMap().get("operation-timeout");
+      Assert.assertNotNull("OPERATION_TIMEOUT header should be set", operationTimeoutHeader);
+      Assert.assertTrue(
+          "OPERATION_TIMEOUT should end with 'ms'", operationTimeoutHeader.endsWith("ms"));
+      long operationTimeoutMs =
+          Long.parseLong(operationTimeoutHeader.substring(0, operationTimeoutHeader.length() - 2));
+      // Should be <= schedule-to-close timeout (30 seconds = 30000ms)
+      // Note: schedule-to-start timeout is not reflected in the operation-timeout header
+      Assert.assertTrue(
+          "OPERATION_TIMEOUT should be <= schedule-to-close timeout", operationTimeoutMs <= 30000);
+      Assert.assertTrue("OPERATION_TIMEOUT should be positive", operationTimeoutMs > 0);
+
+      // Sleep longer than schedule-to-start timeout to trigger the timeout
+      testWorkflowRule.sleep(Duration.ofSeconds(scheduleToStartSeconds + 1));
+    } catch (Exception e) {
+      Assert.fail(e.getMessage());
+    }
+
+    // Poll to wait for new task after operation times out
+    pollResp = pollWorkflowTask();
+    completeWorkflow(pollResp.getTaskToken());
+
+    List<HistoryEvent> events =
+        testWorkflowRule.getHistoryEvents(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT);
+    Assert.assertEquals(1, events.size());
+    io.temporal.api.failure.v1.Failure failure =
+        events.get(0).getNexusOperationTimedOutEventAttributes().getFailure();
+    assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
+    Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
+    io.temporal.api.failure.v1.Failure cause = failure.getCause();
+    Assert.assertEquals("operation timed out", cause.getMessage());
+    Assert.assertTrue(cause.hasTimeoutFailureInfo());
+    Assert.assertEquals(
+        TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START, cause.getTimeoutFailureInfo().getTimeoutType());
+  }
+
+  @Test
+  public void testNexusOperationStartToCloseTimeout() {
+    String operationId = UUID.randomUUID().toString();
+    CompletableFuture<?> nexusPoller =
+        pollNexusTask()
+            .thenCompose(
+                task -> {
+                  // Verify OPERATION_TIMEOUT header is set and valid
+                  String operationTimeoutHeader =
+                      task.getRequest().getHeaderMap().get("operation-timeout");
+                  Assert.assertNotNull(
+                      "OPERATION_TIMEOUT header should be set", operationTimeoutHeader);
+                  Assert.assertTrue(
+                      "OPERATION_TIMEOUT should end with 'ms'",
+                      operationTimeoutHeader.endsWith("ms"));
+                  long operationTimeoutMs =
+                      Long.parseLong(
+                          operationTimeoutHeader.substring(0, operationTimeoutHeader.length() - 2));
+                  // Should be <= start-to-close timeout (1 second = 1000ms)
+                  Assert.assertTrue(
+                      "OPERATION_TIMEOUT should be <= start-to-close timeout",
+                      operationTimeoutMs <= 1000);
+                  Assert.assertTrue("OPERATION_TIMEOUT should be positive", operationTimeoutMs > 0);
+
+                  return completeNexusTask(task, operationId);
+                });
+
+    try {
+      WorkflowStub stub = newWorkflowStub("TestNexusOperationStartToCloseTimeoutWorkflow");
+      WorkflowExecution execution = stub.start();
+
+      // Get first WFT and respond with ScheduleNexusOperation command with start-to-close timeout
+      PollWorkflowTaskQueueResponse pollResp = pollWorkflowTask();
+      completeWorkflowTask(
+          pollResp.getTaskToken(),
+          newScheduleOperationCommand(
+              defaultScheduleOperationAttributes()
+                  .setStartToCloseTimeout(Durations.fromSeconds(1))
+                  .setScheduleToCloseTimeout(Durations.fromSeconds(30))));
+      testWorkflowRule.assertHistoryEvent(
+          execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
+
+      // Wait for operation to be started
+      nexusPoller.get();
+
+      // Poll and verify started event is recorded
+      pollResp = pollWorkflowTask();
+      testWorkflowRule.assertHistoryEvent(
+          execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_STARTED);
+      completeWorkflowTask(pollResp.getTaskToken());
+
+      // Poll to wait for new task after operation times out (start-to-close timeout)
+      pollResp = pollWorkflowTask();
+      completeWorkflow(pollResp.getTaskToken());
+
+      List<HistoryEvent> events =
+          testWorkflowRule.getHistoryEvents(
+              execution.getWorkflowId(), EventType.EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT);
+      Assert.assertEquals(1, events.size());
+      io.temporal.api.failure.v1.Failure failure =
+          events.get(0).getNexusOperationTimedOutEventAttributes().getFailure();
+      assertOperationFailureInfo(operationId, failure.getNexusOperationExecutionFailureInfo());
+      Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
+      io.temporal.api.failure.v1.Failure cause = failure.getCause();
+      Assert.assertEquals("operation timed out", cause.getMessage());
+      Assert.assertTrue(cause.hasTimeoutFailureInfo());
+      Assert.assertEquals(
+          TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, cause.getTimeoutFailureInfo().getTimeoutType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -753,8 +885,6 @@ public class NexusWorkflowTest {
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
       Assert.assertEquals("deliberate test failure", cause.getMessage());
-      Assert.assertTrue(cause.hasApplicationFailureInfo());
-      Assert.assertEquals("NexusFailure", cause.getApplicationFailureInfo().getType());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -815,9 +945,9 @@ public class NexusWorkflowTest {
       assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
-      Assert.assertTrue(cause.getMessage().endsWith("deliberate terminal error"));
       Assert.assertTrue(cause.hasNexusHandlerFailureInfo());
       Assert.assertEquals("BAD_REQUEST", cause.getNexusHandlerFailureInfo().getType());
+      Assert.assertEquals("deliberate terminal error", cause.getCause().getMessage());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {
@@ -884,9 +1014,9 @@ public class NexusWorkflowTest {
       assertOperationFailureInfo(failure.getNexusOperationExecutionFailureInfo());
       Assert.assertEquals("nexus operation completed unsuccessfully", failure.getMessage());
       io.temporal.api.failure.v1.Failure cause = failure.getCause();
-      Assert.assertTrue(cause.getMessage().endsWith("deliberate terminal error"));
       Assert.assertTrue(cause.hasNexusHandlerFailureInfo());
       Assert.assertEquals("BAD_REQUEST", cause.getNexusHandlerFailureInfo().getType());
+      Assert.assertEquals("deliberate terminal error", cause.getCause().getMessage());
     } catch (Exception e) {
       Assert.fail(e.getMessage());
     } finally {

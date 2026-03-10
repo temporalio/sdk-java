@@ -116,6 +116,12 @@ interface TestWorkflowMutableState {
 
   boolean validateOperationTaskToken(NexusTaskToken tt);
 
+  @Nullable
+  NexusOperationScheduledEventAttributes getNexusOperationScheduledEventAttributes(
+      long scheduledEventId);
+
+  boolean isNexusOperationStarted(long scheduledEventId);
+
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 
   TestWorkflowMutableStateImpl.UpdateHandle updateWorkflowExecution(
