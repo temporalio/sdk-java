@@ -14,7 +14,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnClass(io.opentelemetry.api.OpenTelemetry.class)
 @ConditionalOnBean(io.opentelemetry.api.OpenTelemetry.class)
-@AutoConfigureAfter(name = "org.springframework.cloud.sleuth.autoconfig.otel.OtelAutoConfiguration")
+@AutoConfigureAfter(
+    name = {
+      "org.springframework.cloud.sleuth.autoconfig.otel.OtelAutoConfiguration",
+      "org.springframework.boot.actuate.autoconfigure.tracing.OpenTelemetryAutoConfiguration",
+      "org.springframework.boot.actuate.autoconfigure.opentelemetry.OpenTelemetryAutoConfiguration",
+      "org.springframework.boot.opentelemetry.autoconfigure.OpenTelemetrySdkAutoConfiguration"
+    })
 public class OpenTracingAutoConfiguration {
   @ConditionalOnMissingBean(Tracer.class)
   @Bean(name = "temporalOtTracer")
