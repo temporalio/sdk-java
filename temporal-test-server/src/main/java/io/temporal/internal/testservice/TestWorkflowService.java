@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
-  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
+  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser().ignoringUnknownFields();
 
   private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
 
@@ -313,8 +313,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  @SuppressWarnings(
-      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+  @SuppressWarnings("deprecation") // Handles deprecated TERMINATE_IF_RUNNING reuse policy
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
       Duration backoffStartInterval,
@@ -481,8 +480,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
-  @SuppressWarnings(
-      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+  @SuppressWarnings("deprecation") // Validates deprecated TERMINATE_IF_RUNNING reuse policy
   private void validateWorkflowIdReusePolicy(
       WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
     if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
@@ -1043,7 +1041,17 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         mutableState.cancelNexusOperationRequestAcknowledge(tt.getOperationRef());
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();
-        if (startResp.hasOperationError()) {
+        if (startResp.hasFailure()) {
+          // New format: Failure directly contains ApplicationFailureInfo or CanceledFailureInfo
+          Failure failure = startResp.getFailure();
+          if (failure.hasCanceledFailureInfo()) {
+            mutableState.cancelNexusOperation(tt.getOperationRef(), failure);
+          } else {
+            mutableState.failNexusOperation(
+                tt.getOperationRef(), wrapNexusOperationFailure(failure));
+          }
+        } else if (startResp.hasOperationError()) {
+          // Old format: UnsuccessfulOperationError with Nexus Failure
           UnsuccessfulOperationError opError = startResp.getOperationError();
           Failure.Builder b = Failure.newBuilder().setMessage(opError.getFailure().getMessage());
 
@@ -1068,7 +1076,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               tt.getOperationRef(), startResp.getSyncSuccess().getPayload());
         } else {
           throw Status.INVALID_ARGUMENT
-              .withDescription("Expected success or OperationError to be set on request.")
+              .withDescription("Expected success, Failure, or OperationError to be set on request.")
               .asRuntimeException();
         }
       } else {
@@ -1083,21 +1091,35 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation") // to allow using Failure in the old and new formats
   @Override
   public void respondNexusTaskFailed(
       RespondNexusTaskFailedRequest request,
       StreamObserver<RespondNexusTaskFailedResponse> responseObserver) {
     try {
-      if (!request.hasError()) {
+      Failure failure;
+      if (request.hasFailure()) {
+        if (!request.getFailure().hasNexusHandlerFailureInfo()) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription(
+                  "request Failure must contain error or failure with NexusHandlerFailureInfo")
+              .asRuntimeException();
+        }
+        // New format: Failure directly contains the handler error with NexusHandlerFailureInfo
+        // Don't wrap with NexusOperationFailureInfo - the state machine will do that if needed
+        failure = request.getFailure();
+      } else if (request.hasError()) {
+        // Old format: HandlerError needs to be converted
+        failure = handlerErrorToFailure(request.getError());
+      } else {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Nexus handler error not set on RespondNexusTaskFailedRequest")
+            .withDescription("Neither Failure nor Error set on RespondNexusTaskFailedRequest")
             .asRuntimeException();
       }
       NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
       TestWorkflowMutableState mutableState =
           getMutableState(tt.getOperationRef().getExecutionId());
       if (mutableState.validateOperationTaskToken(tt)) {
-        Failure failure = handlerErrorToFailure(request.getError());
         mutableState.failNexusOperation(tt.getOperationRef(), failure);
       }
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
@@ -1181,7 +1203,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   /**
-   * nexusFailureToAPIFailure converts a Nexus Failure to an API proto Failure. If the failure
+   * nexusFailureToTemporalFailure converts a Nexus Failure to an API proto Failure. If the failure
    * metadata "type" field is set to the fullname of the temporal API Failure message, the failure
    * is reconstructed using protojson.Unmarshal on the failure details field.
    */
@@ -1195,8 +1217,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }
+    } else {
+      Payloads payloads = nexusFailureMetadataToPayloads(failure);
+      ApplicationFailureInfo.Builder applicationFailureInfo = ApplicationFailureInfo.newBuilder();
+      applicationFailureInfo.setType("NexusFailure");
+      applicationFailureInfo.setDetails(payloads);
+      applicationFailureInfo.setNonRetryable(!retryable);
+      apiFailure.setApplicationFailureInfo(applicationFailureInfo.build());
     }
+    // Ensure these always get written
     apiFailure.setMessage(failure.getMessage());
+    if (!failure.getStackTrace().isEmpty()) {
+      apiFailure.setStackTrace(failure.getStackTrace());
+    }
     return apiFailure.build();
   }
 
