@@ -646,7 +646,7 @@ public class UpdateWithStartTest {
   }
 
   @Test
-  @SuppressWarnings("deprecation") // Test uses deprecated policy for validation
+  @SuppressWarnings("deprecation") // Tests validation of deprecated TERMINATE_IF_RUNNING policy
   public void failServerSideWhenStartIsInvalid() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
 

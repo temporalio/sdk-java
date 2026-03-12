@@ -88,8 +88,7 @@ public class SyncOperationCancelledTest {
       return OperationHandler.sync(
           (ctx, details, input) -> {
             if (input.equals("cancel-in-handler")) {
-              throw OperationException.canceled(
-                  new RuntimeException("operation canceled in handler"));
+              throw OperationException.canceled("operation canceled in handler");
             }
             throw new RuntimeException("failed to call operation");
           });
