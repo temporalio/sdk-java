@@ -67,7 +67,11 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private Object lastDetails;
   private boolean hasOutstandingHeartbeat;
   private ScheduledFuture<?> scheduledHeartbeat;
-  private ScheduledFuture<?> heartbeatTimeoutFuture;
+
+  // Deadline (in nanos, from System.nanoTime()) by which a successful heartbeat must occur.
+  // 0 means no local timeout is active.
+  private long heartbeatTimeoutDeadlineNanos;
+  private boolean heartbeatTimedOut;
 
   private ActivityCompletionException lastException;
 
@@ -130,11 +134,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     this.heartbeatTimeoutMillis = info.getHeartbeatTimeout().toMillis();
     this.localHeartbeatTimeoutBufferMillis = localHeartbeatTimeoutBufferMillis;
     if (this.heartbeatTimeoutMillis > 0) {
-      this.heartbeatTimeoutFuture =
-          heartbeatExecutor.schedule(
-              this::onHeartbeatTimeout,
-              heartbeatTimeoutMillis + localHeartbeatTimeoutBufferMillis,
-              TimeUnit.MILLISECONDS);
+      this.heartbeatTimeoutDeadlineNanos = computeHeartbeatTimeoutDeadlineNanos();
     }
   }
 
@@ -148,6 +148,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     }
     lock.lock();
     try {
+      checkHeartbeatTimeoutDeadlineLocked();
       receivedAHeartbeat = true;
       lastDetails = details;
       hasOutstandingHeartbeat = true;
@@ -220,10 +221,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
         scheduledHeartbeat.cancel(false);
         scheduledHeartbeat = null;
       }
-      if (heartbeatTimeoutFuture != null) {
-        heartbeatTimeoutFuture.cancel(false);
-        heartbeatTimeoutFuture = null;
-      }
+      heartbeatTimeoutDeadlineNanos = 0;
       hasOutstandingHeartbeat = false;
     } finally {
       lock.unlock();
@@ -236,9 +234,12 @@ class HeartbeatContextImpl implements HeartbeatContext {
       sendHeartbeatRequest(details);
       hasOutstandingHeartbeat = false;
       nextHeartbeatDelay = heartbeatIntervalMillis;
-      // Reset the local heartbeat timeout timer only on successful send.
-      // If sends keep failing, the timer will eventually fire and cancel the activity.
-      resetHeartbeatTimeoutLocked();
+      // Reset the local heartbeat timeout deadline only on successful send.
+      // If sends keep failing, the next heartbeat() call after the deadline will cancel the
+      // activity.
+      if (heartbeatTimeoutDeadlineNanos != 0) {
+        heartbeatTimeoutDeadlineNanos = computeHeartbeatTimeoutDeadlineNanos();
+      }
     } catch (StatusRuntimeException e) {
       // Not rethrowing to not fail activity implementation on intermittent connection or Temporal
       // errors.
@@ -274,31 +275,24 @@ class HeartbeatContextImpl implements HeartbeatContext {
             TimeUnit.MILLISECONDS);
   }
 
-  private void resetHeartbeatTimeoutLocked() {
-    if (heartbeatTimeoutFuture != null) {
-      heartbeatTimeoutFuture.cancel(false);
-      heartbeatTimeoutFuture =
-          heartbeatExecutor.schedule(
-              this::onHeartbeatTimeout,
-              heartbeatTimeoutMillis + localHeartbeatTimeoutBufferMillis,
-              TimeUnit.MILLISECONDS);
-    }
+  private long computeHeartbeatTimeoutDeadlineNanos() {
+    return System.nanoTime()
+        + TimeUnit.MILLISECONDS.toNanos(heartbeatTimeoutMillis + localHeartbeatTimeoutBufferMillis);
   }
 
-  private void onHeartbeatTimeout() {
-    lock.lock();
-    try {
-      if (lastException == null) {
-        log.warn(
-            "Activity heartbeat timed out locally. ActivityId={}, activityType={}",
-            info.getActivityId(),
-            info.getActivityType());
-        lastException =
-            new ActivityCanceledException(
-                info, new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_HEARTBEAT));
-      }
-    } finally {
-      lock.unlock();
+  private void checkHeartbeatTimeoutDeadlineLocked() {
+    if (heartbeatTimedOut) {
+      throw new ActivityCanceledException(
+          info, new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_HEARTBEAT));
+    }
+    if (heartbeatTimeoutDeadlineNanos != 0 && System.nanoTime() >= heartbeatTimeoutDeadlineNanos) {
+      heartbeatTimedOut = true;
+      log.warn(
+          "Activity heartbeat timed out locally. ActivityId={}, activityType={}",
+          info.getActivityId(),
+          info.getActivityType());
+      throw new ActivityCanceledException(
+          info, new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_HEARTBEAT));
     }
   }
 

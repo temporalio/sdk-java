@@ -143,6 +143,46 @@ public class HeartbeatContextImplTest {
     ctx.cancelOutstandingHeartbeat();
   }
 
+  @Test
+  public void heartbeatTimeoutPersistsAcrossMultipleCalls() {
+    Duration heartbeatTimeout = Duration.ofMillis(500);
+
+    // All heartbeat RPCs fail with UNAVAILABLE
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(new StatusRuntimeException(Status.UNAVAILABLE));
+
+    ActivityInfo info = activityInfoWithHeartbeatTimeout(heartbeatTimeout);
+    HeartbeatContextImpl ctx = createHeartbeatContext(info);
+
+    ctx.heartbeat("details-1");
+
+    // Wait for timeout to fire
+    Eventually.assertEventually(
+        Duration.ofSeconds(10),
+        () -> {
+          try {
+            ctx.heartbeat("poll");
+            fail("Expected ActivityCanceledException");
+          } catch (ActivityCanceledException e) {
+            // expected
+          }
+        });
+
+    // Subsequent calls should continue to throw
+    for (int i = 0; i < 5; i++) {
+      try {
+        ctx.heartbeat("details-" + i);
+        fail("Expected ActivityCanceledException on call " + i);
+      } catch (ActivityCompletionException e) {
+        assertSame(ActivityCanceledException.class, e.getClass());
+        assertNotNull(e.getCause());
+        assertSame(TimeoutFailure.class, e.getCause().getClass());
+      }
+    }
+
+    ctx.cancelOutstandingHeartbeat();
+  }
+
   private HeartbeatContextImpl createHeartbeatContext(ActivityInfo info) {
     return new HeartbeatContextImpl(
         service,
