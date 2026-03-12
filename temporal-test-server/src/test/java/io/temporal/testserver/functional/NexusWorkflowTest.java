@@ -8,6 +8,7 @@ import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.*;
+import io.temporal.api.failure.v1.NexusHandlerFailureInfo;
 import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.nexus.v1.*;
@@ -965,10 +966,18 @@ public class NexusWorkflowTest {
                 task ->
                     failNexusTask(
                         task.getTaskToken(),
-                        HandlerError.newBuilder()
-                            .setErrorType("BAD_REQUEST")
-                            .setFailure(
-                                Failure.newBuilder().setMessage("specific handler error message"))
+                        io.temporal.api.failure.v1.Failure.newBuilder()
+                            .setMessage("specific handler error message")
+                            .setNexusHandlerFailureInfo(
+                                NexusHandlerFailureInfo.newBuilder().setType("BAD_REQUEST"))
+                            .setCause(
+                                io.temporal.api.failure.v1.Failure.newBuilder()
+                                    .setMessage("specific handler error message")
+                                    .setApplicationFailureInfo(
+                                        io.temporal.api.failure.v1.ApplicationFailureInfo
+                                            .newBuilder()
+                                            .setType("NexusFailure")
+                                            .setNonRetryable(true)))
                             .build()));
 
     try {
@@ -1487,6 +1496,23 @@ public class NexusWorkflowTest {
                       .build());
           return pollResp.getRequest();
         });
+  }
+
+  private CompletableFuture<RespondNexusTaskFailedResponse> failNexusTask(
+      ByteString taskToken, io.temporal.api.failure.v1.Failure failure) {
+    return CompletableFuture.supplyAsync(
+        () ->
+            testWorkflowRule
+                .getWorkflowClient()
+                .getWorkflowServiceStubs()
+                .blockingStub()
+                .respondNexusTaskFailed(
+                    RespondNexusTaskFailedRequest.newBuilder()
+                        .setIdentity(UUID.randomUUID().toString())
+                        .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                        .setTaskToken(taskToken)
+                        .setFailure(failure)
+                        .build()));
   }
 
   @SuppressWarnings("deprecation") // Uses deprecated HandlerError/setError() to test old format
