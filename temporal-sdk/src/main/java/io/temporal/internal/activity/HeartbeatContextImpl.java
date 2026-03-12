@@ -32,14 +32,15 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   // Buffer added to the heartbeat timeout to avoid racing with the server's own timeout tracking.
   private static final long DEFAULT_LOCAL_HEARTBEAT_TIMEOUT_BUFFER_MILLIS = 5000;
+  static final String LOCAL_TIMEOUT_BUFFER_PROPERTY = "temporal.activity.localTimeoutBufferMs";
 
   static long getLocalHeartbeatTimeoutBufferMillis() {
-    String envVal = System.getenv("TEMPORAL_ACTIVITY_TIMEOUT_DELAY");
-    if (envVal != null) {
+    String val = System.getProperty(LOCAL_TIMEOUT_BUFFER_PROPERTY);
+    if (val != null) {
       try {
-        return Long.parseLong(envVal);
+        return Long.parseLong(val);
       } catch (NumberFormatException e) {
-        log.warn("Invalid TEMPORAL_ACTIVITY_TIMEOUT_DELAY value: {}", envVal);
+        log.warn("Invalid {} value: {}", LOCAL_TIMEOUT_BUFFER_PROPERTY, val);
       }
     }
     return DEFAULT_LOCAL_HEARTBEAT_TIMEOUT_BUFFER_MILLIS;
