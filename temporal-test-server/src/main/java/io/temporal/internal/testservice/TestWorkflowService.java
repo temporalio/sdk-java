@@ -1119,7 +1119,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
       TestWorkflowMutableState mutableState =
           getMutableState(tt.getOperationRef().getExecutionId());
-      if (mutableState.validateOperationTaskToken(tt)) {
+      Failure failure = handlerErrorToFailure(request.getError());
+      if (tt.isCancel()) {
+        // For cancel failures, the operation may already be completed/removed,
+        // so skip token validation and record the event directly.
+        mutableState.failNexusOperationCancelRequest(tt.getOperationRef(), failure);
+      } else if (mutableState.validateOperationTaskToken(tt)) {
         mutableState.failNexusOperation(tt.getOperationRef(), failure);
       }
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
