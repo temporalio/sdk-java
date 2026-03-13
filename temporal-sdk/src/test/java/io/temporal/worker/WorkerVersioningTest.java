@@ -387,6 +387,63 @@ public class WorkerVersioningTest {
         e.getMessage());
   }
 
+  @Test
+  public void testWorkerWithDeploymentOptionsVersioningOffCanRunWorkflows() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    Worker w1 =
+        testWorkflowRule.newWorker(
+            (opts) ->
+                opts.setDeploymentOptions(
+                    WorkerDeploymentOptions.newBuilder()
+                        .setVersion(
+                            new WorkerDeploymentVersion(
+                                testWorkflowRule.getDeploymentName(), "my-custom-build-id-1.0"))
+                        .setUseVersioning(false)
+                        .build()));
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningMissingAnnotation.class);
+    w1.start();
+
+    TestWorkflows.QueryableWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.QueryableWorkflow.class, "versioning-off-build-id");
+    WorkflowExecution we = WorkflowClient.start(wf::execute);
+    wf.mySignal("done");
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(we.getWorkflowId())
+            .getResult(String.class);
+    Assert.assertEquals("no-annotation", result);
+
+    WorkflowExecutionHistory hist = testWorkflowRule.getExecutionHistory(we.getWorkflowId());
+    Assert.assertTrue(
+        "Expected build ID to appear in workflow history",
+        hist.getHistory().getEventsList().stream()
+            .anyMatch(
+                e ->
+                    e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+                        && e.getWorkflowTaskCompletedEventAttributes()
+                            .getDeploymentVersion()
+                            .getBuildId()
+                            .equals("my-custom-build-id-1.0")));
+  }
+
+  @Test
+  public void testRejectsVersioningBehaviorWhenVersioningOff() {
+    IllegalStateException e =
+        Assert.assertThrows(
+            IllegalStateException.class,
+            () ->
+                WorkerDeploymentOptions.newBuilder()
+                    .setVersion(
+                        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0"))
+                    .setUseVersioning(false)
+                    .setDefaultVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
+                    .build());
+    Assert.assertTrue(e.getMessage().contains("defaultVersioningBehavior must be UNSPECIFIED"));
+  }
+
   @SuppressWarnings("deprecation")
   @Test
   public void testWorkflowsCanUseVersioningOverride() {
