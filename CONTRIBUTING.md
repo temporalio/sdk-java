@@ -41,11 +41,10 @@ the main repo.
 
 ## Test and Build
 
-Testing and building `sdk-java` requires running temporal docker locally, execute:
+Run a local temporal server with the [temporal CLI](https://docs.temporal.io/cli#installation):
 
 ```bash
-curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
-docker-compose up
+temporal server start-dev
 ```
 
 (If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.)
