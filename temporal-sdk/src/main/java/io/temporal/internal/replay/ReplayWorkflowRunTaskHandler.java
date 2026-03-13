@@ -33,6 +33,7 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -40,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements workflow executor that relies on replay of a workflow code. An instance of this class
@@ -74,6 +77,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   private final ReplayWorkflowExecutor replayWorkflowExecutor;
 
   private final GetSystemInfoResponse.Capabilities capabilities;
+
+  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowRunTaskHandler.class);
 
   ReplayWorkflowRunTaskHandler(
       String namespace,
@@ -193,6 +198,9 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         result.setApplyPostCompletionMetrics(
             () -> {
               if (postCompleteCounter != null) {
+                log.info(
+                    "ReplayWorkflowRunTaskHandler: Incrementing postcomplete counter metric: ts={}",
+                    Instant.now().toString());
                 metricsScope.counter(postCompleteCounter).inc(1);
               }
               if (postCompleteLatency != null) {

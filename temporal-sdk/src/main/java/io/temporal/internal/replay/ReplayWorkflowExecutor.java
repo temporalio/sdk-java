@@ -21,6 +21,7 @@ import io.temporal.internal.sync.UpdateHandlerInfo;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.HandlerUnfinishedPolicy;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -141,9 +142,13 @@ final class ReplayWorkflowExecutor {
         //  so no new commands are generated after the call.
         //  This way attributes will need to be carried over in the mutable state and the flow
         //  generally will be aligned with the flow of other commands.
+        log.info(
+            "ReplayWorkflowExecutor: Completing workflow via continueAsNew: ts={}",
+            Instant.now().toString());
         workflowStateMachines.continueAsNewWorkflow(attributes);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
+        log.info("ReplayWorkflowExecutor: Completing workflow: ts={}", Instant.now().toString());
         workflowStateMachines.completeWorkflow(workflowOutput);
       }
     }
