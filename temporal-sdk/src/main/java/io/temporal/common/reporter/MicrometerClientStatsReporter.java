@@ -67,7 +67,7 @@ public class MicrometerClientStatsReporter implements StatsReporter {
     registry.counter(name, getTags(tags)).increment(value);
     long elapsedNs = System.nanoTime() - startNs;
     if (name.equals("temporal_workflow_completed")) {
-        log.info("reportCounter: name={} elapsedNs={}", name, elapsedNs);
+      log.info("reportCounter: name={}, value ={} elapsedNs={}", name, value, elapsedNs);
     }
   }
 
