@@ -9,7 +9,7 @@ import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.*;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.TimeoutFailure;
+import io.temporal.failure.TerminatedFailure;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.worker.PollerOptions;
@@ -71,7 +71,7 @@ public class GrpcMessageTooLargeTest {
 
     WorkflowFailedException e =
         assertThrows(WorkflowFailedException.class, () -> workflow.execute(""));
-    assertTrue(e.getCause() instanceof TimeoutFailure);
+    assertTrue(e.getCause() instanceof TerminatedFailure);
 
     String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
     assertTrue(
@@ -83,7 +83,7 @@ public class GrpcMessageTooLargeTest {
             workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
     assertEquals(1, events.size());
     assertEquals(
-        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE,
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_FORCE_CLOSE_COMMAND,
         events.get(0).getWorkflowTaskFailedEventAttributes().getCause());
   }
 
@@ -97,14 +97,14 @@ public class GrpcMessageTooLargeTest {
       WorkflowFailedException e =
           assertThrows(WorkflowFailedException.class, () -> workflow.execute(""));
 
-      assertTrue(e.getCause() instanceof TimeoutFailure);
+      assertTrue(e.getCause() instanceof TerminatedFailure);
       String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
       List<HistoryEvent> events =
           failureWorkflowRule.getHistoryEvents(
               workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
       assertEquals(1, events.size());
       assertEquals(
-          WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE,
+          WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_FORCE_CLOSE_COMMAND,
           events.get(0).getWorkflowTaskFailedEventAttributes().getCause());
     }
   }

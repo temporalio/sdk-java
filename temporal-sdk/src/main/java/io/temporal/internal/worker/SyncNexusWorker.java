@@ -42,6 +42,7 @@ public class SyncNexusWorker implements SuspendableWorker {
             taskQueue,
             options,
             taskHandler,
+            options.getDataConverter(),
             slotSupplier);
   }
 

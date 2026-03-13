@@ -1,22 +1,24 @@
 package io.temporal.internal.nexus;
 
-import static io.temporal.internal.common.NexusUtil.exceptionToNexusFailure;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
 import com.uber.m3.tally.Scope;
 import io.grpc.StatusRuntimeException;
 import io.nexusrpc.Header;
 import io.nexusrpc.OperationException;
+import io.nexusrpc.OperationState;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
-import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
@@ -26,6 +28,7 @@ import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -78,9 +81,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   public Result handle(NexusTask task, Scope metricsScope) throws TimeoutException {
     Request request = task.getResponse().getRequest();
     Map<String, String> headers = request.getHeaderMap();
-    if (headers == null) {
-      headers = Collections.emptyMap();
-    }
 
     OperationContext.Builder ctx = OperationContext.newBuilder();
     headers.forEach(ctx::putHeader);
@@ -104,10 +104,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                   },
                   timeout.toMillis(),
                   java.util.concurrent.TimeUnit.MILLISECONDS);
+          ctx.setDeadline(Instant.now().plus(timeout));
         } catch (IllegalArgumentException e) {
           throw new HandlerException(
-              HandlerException.ErrorType.BAD_REQUEST,
-              new RuntimeException("Invalid request timeout header", e));
+              HandlerException.ErrorType.BAD_REQUEST, "Invalid request timeout header", e);
         }
       }
 
@@ -126,21 +126,14 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         default:
           throw new HandlerException(
               HandlerException.ErrorType.NOT_IMPLEMENTED,
-              new RuntimeException("Unknown request type: " + request.getVariantCase()));
+              "Unknown request type: " + request.getVariantCase(),
+              (Throwable) null);
       }
     } catch (HandlerException e) {
-      return new Result(
-          HandlerError.newBuilder()
-              .setErrorType(e.getErrorType().toString())
-              .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
-              .setRetryBehavior(mapRetryBehavior(e.getRetryBehavior()))
-              .build());
+      return new Result(e);
     } catch (Throwable e) {
       return new Result(
-          HandlerError.newBuilder()
-              .setErrorType(HandlerException.ErrorType.INTERNAL.toString())
-              .setFailure(exceptionToNexusFailure(e, dataConverter))
-              .build());
+          new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e));
     } finally {
       // If the task timed out, we should not send a response back to the server
       if (timedOut.get()) {
@@ -151,18 +144,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         timeoutTask.cancel(false);
       }
       CurrentNexusOperationContext.unset();
-    }
-  }
-
-  private NexusHandlerErrorRetryBehavior mapRetryBehavior(
-      HandlerException.RetryBehavior retryBehavior) {
-    switch (retryBehavior) {
-      case RETRYABLE:
-        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE;
-      case NON_RETRYABLE:
-        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_NON_RETRYABLE;
-      default:
-        return NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_UNSPECIFIED;
     }
   }
 
@@ -215,6 +196,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       if (((ApplicationFailure) failure).isNonRetryable()) {
         throw new HandlerException(
             HandlerException.ErrorType.INTERNAL,
+            "Handler failed with non-retryable application error",
             failure,
             HandlerException.RetryBehavior.NON_RETRYABLE);
       }
@@ -306,7 +288,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                 log.error("failed to parse link url: " + link.getUrl(), e);
                 throw new HandlerException(
                     HandlerException.ErrorType.BAD_REQUEST,
-                    new RuntimeException("Invalid link URL: " + link.getUrl(), e));
+                    "Invalid link URL: " + link.getUrl(),
+                    e);
               }
             });
 
@@ -346,11 +329,21 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         convertKnownFailures(failure);
       }
     } catch (OperationException e) {
-      startResponseBuilder.setOperationError(
-          UnsuccessfulOperationError.newBuilder()
-              .setOperationState(e.getState().toString().toLowerCase())
-              .setFailure(exceptionToNexusFailure(e.getCause(), dataConverter))
-              .build());
+      TemporalFailure temporalFailure;
+      if (e.getState() == OperationState.FAILED) {
+        temporalFailure =
+            ApplicationFailure.newFailureWithCause(e.getMessage(), "OperationError", e.getCause());
+        temporalFailure.setStackTrace(e.getStackTrace());
+      } else if (e.getState() == OperationState.CANCELED) {
+        temporalFailure =
+            new CanceledFailure(e.getMessage(), new EncodedValues(null), e.getCause());
+        temporalFailure.setStackTrace(e.getStackTrace());
+      } else {
+        throw new HandlerException(
+            HandlerException.ErrorType.INTERNAL,
+            new RuntimeException("Unknown operation state: " + e.getState()));
+      }
+      startResponseBuilder.setFailure(dataConverter.exceptionToFailure(temporalFailure));
     }
     return startResponseBuilder.build();
   }
