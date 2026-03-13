@@ -9,6 +9,9 @@ import com.uber.m3.util.Duration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -38,6 +41,9 @@ public class MicrometerClientStatsReporter implements StatsReporter {
    */
   private final ConcurrentMap<MetricID, AtomicDouble> registeredGauges = new ConcurrentHashMap<>();
 
+  private static final Logger log = LoggerFactory.getLogger(MicrometerClientStatsReporter.class);
+
+
   public MicrometerClientStatsReporter(MeterRegistry registry) {
     this.registry = Objects.requireNonNull(registry);
   }
@@ -59,7 +65,10 @@ public class MicrometerClientStatsReporter implements StatsReporter {
 
   @Override
   public void reportCounter(String name, Map<String, String> tags, long value) {
+    long startNs = System.nanoTime();
     registry.counter(name, getTags(tags)).increment(value);
+    long elapsedNs = System.nanoTime() - startNs;
+    log.info("reportCounter: name={} elapsedNs={}", name, elapsedNs);
   }
 
   @Override
