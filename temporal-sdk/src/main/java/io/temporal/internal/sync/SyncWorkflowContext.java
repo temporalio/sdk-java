@@ -799,6 +799,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     input.getHeaders().forEach((k, v) -> attributes.putNexusHeader(k.toLowerCase(), v));
     attributes.setScheduleToCloseTimeout(
         ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToCloseTimeout()));
+    attributes.setScheduleToStartTimeout(
+        ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToStartTimeout()));
+    attributes.setStartToCloseTimeout(
+        ProtobufTimeUtils.toProtoDuration(input.getOptions().getStartToCloseTimeout()));
 
     @Nullable
     UserMetadata userMetadata =
