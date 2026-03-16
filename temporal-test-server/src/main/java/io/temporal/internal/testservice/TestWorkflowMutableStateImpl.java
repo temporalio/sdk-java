@@ -107,8 +107,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<Long, StateMachine<NexusOperationData>> nexusOperations = new HashMap<>();
   // Tracks cancelRequestedEventId by scheduledEventId, persists after operation removal.
   private final Map<Long, Long> nexusCancelRequestedEventIds = new HashMap<>();
-  // Tracks scheduledEventIds of nexus cancel requests that have not yet received a response.
-  private final Set<Long> unresolvedNexusCancelRequests = new HashSet<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
@@ -490,13 +488,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .asRuntimeException();
           }
 
-          if (unhandledCommand(request)
-              || unhandledMessages(request)
-              || hasUnresolvedNexusCancelWithCompletion(request)) {
+          if (unhandledCommand(request) || unhandledMessages(request)) {
             // Fail the workflow task if there are new events or messages and a command tries to
-            // complete the workflow, or if there are unresolved nexus cancel requests. Record the
-            // failure in history, then throw an error to the caller (matching real server
-            // behavior).
+            // complete the workflow. Record the failure in history, then throw an error to the
+            // caller (matching real server behavior).
             failWorkflowTaskWithAReason(
                 WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND,
                 null,
@@ -678,12 +673,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private boolean unhandledMessages(RespondWorkflowTaskCompletedRequest request) {
     return (!workflowTaskStateMachine.getData().updateRequestBuffer.isEmpty()
         && hasCompletionCommand(request.getCommandsList()));
-  }
-
-  private boolean hasUnresolvedNexusCancelWithCompletion(
-      RespondWorkflowTaskCompletedRequest request) {
-    return !unresolvedNexusCancelRequests.isEmpty()
-        && hasCompletionCommand(request.getCommandsList());
   }
 
   private boolean hasCompletionCommand(List<Command> commands) {
@@ -916,7 +905,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           historySize -> {
             nexusCancelRequestedEventIds.put(
                 scheduleEventId, operation.getData().cancelRequestedEventId);
-            unresolvedNexusCancelRequests.add(scheduleEventId);
           });
       ctx.addTimer(
           ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
@@ -2435,8 +2423,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           .setScheduledEventId(ref.getScheduledEventId())
                           .setRequestedEventId(cancelRequestedEventId))
                   .build());
-          ctx.onCommit(
-              historySize -> unresolvedNexusCancelRequests.remove(ref.getScheduledEventId()));
           scheduleWorkflowTask(ctx);
           ctx.unlockTimer("cancelNexusOperationRequestAcknowledge");
         });
@@ -2459,8 +2445,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           .setRequestedEventId(cancelRequestedEventId)
                           .setFailure(failure))
                   .build());
-          ctx.onCommit(
-              historySize -> unresolvedNexusCancelRequests.remove(ref.getScheduledEventId()));
           scheduleWorkflowTask(ctx);
           ctx.unlockTimer("failNexusOperationCancelRequest");
         });
@@ -2538,8 +2522,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             operation.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);
             nexusOperations.remove(scheduledEventId);
-            // The cancel response won't matter after a timeout, so clear the unresolved cancel.
-            unresolvedNexusCancelRequests.remove(scheduledEventId);
             scheduleWorkflowTask(ctx);
           });
     } catch (StatusRuntimeException e) {
@@ -2580,8 +2562,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
             if (isTerminalState(operation.getState())) {
               nexusOperations.remove(scheduledEventId);
-              // Cancel response won't arrive after terminal state, unblock workflow completion.
-              unresolvedNexusCancelRequests.remove(scheduledEventId);
               scheduleWorkflowTask(ctx);
             } else {
               retryNexusTask(ctx, operation);
