@@ -136,8 +136,8 @@ public class TestServerAutoConfiguration {
             sortedSchedulePlugins, WorkflowServiceStubsPlugin.class);
     List<WorkerPlugin> filteredWorkerPlugins =
         AutoConfigurationUtils.filterPlugins(
-            AutoConfigurationUtils.filterPlugins(
-                sortedWorkerPlugins, WorkflowServiceStubsPlugin.class),
+            sortedWorkerPlugins,
+            WorkflowServiceStubsPlugin.class,
             WorkflowClientPlugin.class);
 
     TestEnvironmentOptions.Builder options =

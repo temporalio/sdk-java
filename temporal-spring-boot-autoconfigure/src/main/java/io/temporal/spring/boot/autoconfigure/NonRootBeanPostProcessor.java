@@ -98,8 +98,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
                 findAllBeans(ScheduleClientPlugin.class), WorkflowServiceStubsPlugin.class);
         workerPlugins =
             AutoConfigurationUtils.filterPlugins(
-                AutoConfigurationUtils.filterPlugins(
-                    findAllBeans(WorkerPlugin.class), WorkflowServiceStubsPlugin.class),
+                findAllBeans(WorkerPlugin.class),
+                WorkflowServiceStubsPlugin.class,
                 WorkflowClientPlugin.class);
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
