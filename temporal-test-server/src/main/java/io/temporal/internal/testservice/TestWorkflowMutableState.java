@@ -107,6 +107,8 @@ interface TestWorkflowMutableState {
 
   void cancelNexusOperationRequestAcknowledge(NexusOperationRef ref);
 
+  void failNexusOperationCancelRequest(NexusOperationRef ref, Failure failure);
+
   void completeNexusOperation(NexusOperationRef ref, Payload result);
 
   void completeAsyncNexusOperation(
@@ -115,6 +117,12 @@ interface TestWorkflowMutableState {
   void failNexusOperation(NexusOperationRef ref, Failure failure);
 
   boolean validateOperationTaskToken(NexusTaskToken tt);
+
+  @Nullable
+  NexusOperationScheduledEventAttributes getNexusOperationScheduledEventAttributes(
+      long scheduledEventId);
+
+  boolean isNexusOperationStarted(long scheduledEventId);
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
 
