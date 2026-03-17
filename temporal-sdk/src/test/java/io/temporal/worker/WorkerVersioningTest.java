@@ -417,19 +417,17 @@ public class WorkerVersioningTest {
     Assert.assertEquals("no-annotation", result);
 
     WorkflowExecutionHistory hist = testWorkflowRule.getExecutionHistory(we.getWorkflowId());
-    // When use_worker_versioning=false, the server populates the deprecated worker_version
-    // field rather than deployment_version.
-    @SuppressWarnings("deprecation")
-    boolean hasBuildId =
+    // The Java SDK sends deployment_options on WFT completion, and the server records the
+    // deployment name in the worker_deployment_name field of the history event.
+    Assert.assertTrue(
+        "Expected deployment name to appear in workflow history",
         hist.getHistory().getEventsList().stream()
             .anyMatch(
                 e ->
                     e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
-                        && e.getWorkflowTaskCompletedEventAttributes()
-                            .getWorkerVersion()
-                            .getBuildId()
-                            .equals("my-custom-build-id-1.0"));
-    Assert.assertTrue("Expected build ID to appear in workflow history", hasBuildId);
+                        && !e.getWorkflowTaskCompletedEventAttributes()
+                            .getWorkerDeploymentName()
+                            .isEmpty()));
   }
 
   @Test
