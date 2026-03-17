@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -17,6 +18,8 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -121,6 +124,66 @@ public class SlotSupplierTest {
         throw new RuntimeException(e);
       }
       verify(mockSupplier, times(0)).releaseSlot(any());
+      assertEquals(1, trackingSS.getUsedSlots().size());
+    }
+  }
+
+  @Test
+  public void asyncPollerSupplierIsCalledAppropriately() throws Exception {
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+    when(client.futureStub()).thenReturn(futureStub);
+    when(futureStub.withOption(any(), any())).thenReturn(futureStub);
+
+    SlotSupplier<WorkflowSlotInfo> mockSupplier = mock(SlotSupplier.class);
+    Scope metricsScope =
+        new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+    TrackingSlotSupplier<WorkflowSlotInfo> trackingSS =
+        new TrackingSlotSupplier<>(mockSupplier, metricsScope);
+
+    PollWorkflowTaskQueueResponse pollResponse =
+        PollWorkflowTaskQueueResponse.newBuilder()
+            .setTaskToken(ByteString.copyFrom("token", UTF_8))
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId(RUN_ID).build())
+            .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
+            .build();
+
+    if (throwOnPoll) {
+      when(futureStub.pollWorkflowTaskQueue(any()))
+          .thenReturn(Futures.immediateFailedFuture(new RuntimeException("Poll failed")));
+    } else {
+      when(futureStub.pollWorkflowTaskQueue(any()))
+          .thenReturn(Futures.immediateFuture(pollResponse));
+    }
+
+    AsyncWorkflowPollTask pollTask =
+        new AsyncWorkflowPollTask(
+            client,
+            "default",
+            TASK_QUEUE,
+            null,
+            "",
+            new WorkerVersioningOptions("", false, null),
+            trackingSS,
+            metricsScope,
+            () -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+    SlotPermit permit = new SlotPermit();
+
+    CompletableFuture<WorkflowTask> future = pollTask.poll(permit);
+    if (throwOnPoll) {
+      assertThrows(ExecutionException.class, future::get);
+      assertEquals(0, trackingSS.getUsedSlots().size());
+    } else {
+      WorkflowTask task = future.get();
+      assertNotNull(task);
       assertEquals(1, trackingSS.getUsedSlots().size());
     }
   }

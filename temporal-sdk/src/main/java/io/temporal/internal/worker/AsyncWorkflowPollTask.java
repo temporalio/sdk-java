@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 public class AsyncWorkflowPollTask
     implements AsyncPoller.PollTaskAsync<WorkflowTask>, DisableNormalPolling {
   private static final Logger log = LoggerFactory.getLogger(AsyncWorkflowPollTask.class);
-  private final TrackingSlotSupplier<?> slotSupplier;
+  private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final Scope pollerMetricScope;
@@ -150,6 +150,7 @@ public class AsyncWorkflowPollTask
                     .inc(1);
                 return null;
               }
+              slotSupplier.markSlotUsed(new WorkflowSlotInfo(r, pollRequest), permit);
               pollerMetricScope
                   .counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER)
                   .inc(1);
