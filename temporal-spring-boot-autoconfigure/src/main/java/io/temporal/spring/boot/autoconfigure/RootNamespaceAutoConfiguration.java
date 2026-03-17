@@ -149,9 +149,7 @@ public class RootNamespaceAutoConfiguration {
             sortedSchedulePlugins, WorkflowServiceStubsPlugin.class);
     List<WorkerPlugin> filteredWorkerPlugins =
         AutoConfigurationUtils.filterPlugins(
-            sortedWorkerPlugins,
-            WorkflowServiceStubsPlugin.class,
-            WorkflowClientPlugin.class);
+            sortedWorkerPlugins, WorkflowServiceStubsPlugin.class, WorkflowClientPlugin.class);
 
     return new NamespaceTemplate(
         properties,

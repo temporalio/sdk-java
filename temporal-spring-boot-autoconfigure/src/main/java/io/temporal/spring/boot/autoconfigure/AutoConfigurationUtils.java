@@ -181,8 +181,7 @@ class AutoConfigurationUtils {
    * @param excludeTypes the plugin interfaces to exclude
    * @return the filtered list, or null if input was null or all plugins were filtered out
    */
-  static <T> @Nullable List<T> filterPlugins(
-      @Nullable List<T> plugins, Class<?>... excludeTypes) {
+  static <T> @Nullable List<T> filterPlugins(@Nullable List<T> plugins, Class<?>... excludeTypes) {
     if (plugins == null || plugins.isEmpty()) {
       return null;
     }
