@@ -287,7 +287,7 @@ final class NexusWorker implements SuspendableWorker {
           "Failure processing nexus response: " + response.getRequest().toString(), failure);
     }
 
-    @SuppressWarnings("deprecation") // Uses deprecated operationError
+    @SuppressWarnings("deprecation") // Uses hasOperationError()/getOperationError() for compat
     private void handleNexusTask(NexusTask task, Scope metricsScope) {
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
@@ -380,7 +380,12 @@ final class NexusWorker implements SuspendableWorker {
       }
     }
 
+<<<<<<< HEAD
     @SuppressWarnings("deprecation") // Uses deprecated setOperationError
+=======
+    @SuppressWarnings(
+        "deprecation") // Uses setOperationError() for backward compat with old servers
+>>>>>>> 82235fc5 (Add upgrade-on-CAN support)
     private Response getResponseForOldServer(Response response) {
       Response.Builder b = response.toBuilder();
       Failure failure = response.getStartOperation().getFailure();

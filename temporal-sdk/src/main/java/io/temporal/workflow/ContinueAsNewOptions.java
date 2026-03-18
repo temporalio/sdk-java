@@ -45,6 +45,8 @@ public final class ContinueAsNewOptions {
     @SuppressWarnings("deprecation")
     private VersioningIntent versioningIntent;
 
+    private InitialVersioningBehavior initialVersioningBehavior;
+
     private Builder() {}
 
     private Builder(ContinueAsNewOptions options) {
@@ -60,6 +62,7 @@ public final class ContinueAsNewOptions {
       this.typedSearchAttributes = options.getTypedSearchAttributes();
       this.contextPropagators = options.getContextPropagators();
       this.versioningIntent = options.versioningIntent;
+      this.initialVersioningBehavior = options.initialVersioningBehavior;
     }
 
     public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
@@ -131,6 +134,18 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
+    /**
+     * Specifies the versioning behavior for the first task of the new workflow run. For example,
+     * set to AUTO_UPGRADE to upgrade to the latest version on continue-as-new instead of inheriting
+     * the pinned version from the previous run.
+     */
+    @Experimental
+    public Builder setInitialVersioningBehavior(
+        InitialVersioningBehavior initialVersioningBehavior) {
+      this.initialVersioningBehavior = initialVersioningBehavior;
+      return this;
+    }
+
     public ContinueAsNewOptions build() {
       return new ContinueAsNewOptions(
           workflowRunTimeout,
@@ -141,7 +156,8 @@ public final class ContinueAsNewOptions {
           searchAttributes,
           typedSearchAttributes,
           contextPropagators,
-          versioningIntent);
+          versioningIntent,
+          initialVersioningBehavior);
     }
   }
 
@@ -157,6 +173,8 @@ public final class ContinueAsNewOptions {
   @SuppressWarnings("deprecation")
   private final @Nullable VersioningIntent versioningIntent;
 
+  private final @Nullable InitialVersioningBehavior initialVersioningBehavior;
+
   public ContinueAsNewOptions(
       @Nullable Duration workflowRunTimeout,
       @Nullable String taskQueue,
@@ -166,7 +184,8 @@ public final class ContinueAsNewOptions {
       @Nullable Map<String, Object> searchAttributes,
       @Nullable SearchAttributes typedSearchAttributes,
       @Nullable List<ContextPropagator> contextPropagators,
-      @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent) {
+      @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent,
+      @Nullable InitialVersioningBehavior initialVersioningBehavior) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
@@ -176,6 +195,7 @@ public final class ContinueAsNewOptions {
     this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
     this.versioningIntent = versioningIntent;
+    this.initialVersioningBehavior = initialVersioningBehavior;
   }
 
   public @Nullable Duration getWorkflowRunTimeout() {
@@ -222,5 +242,14 @@ public final class ContinueAsNewOptions {
   @Deprecated
   public @Nullable VersioningIntent getVersioningIntent() {
     return versioningIntent;
+  }
+
+  /**
+   * @return the initial versioning behavior for the first task of the new workflow run, or null if
+   *     unset.
+   */
+  @Experimental
+  public @Nullable InitialVersioningBehavior getInitialVersioningBehavior() {
+    return initialVersioningBehavior;
   }
 }

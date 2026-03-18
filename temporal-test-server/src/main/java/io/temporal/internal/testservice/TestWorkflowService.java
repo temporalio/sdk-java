@@ -1023,6 +1023,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         .build();
   }
 
+  @SuppressWarnings("deprecation") // Uses hasOperationError()/getOperationError() for compat
   @Override
   @SuppressWarnings("deprecation") // Uses deprecated operationError
   public void respondNexusTaskCompleted(
