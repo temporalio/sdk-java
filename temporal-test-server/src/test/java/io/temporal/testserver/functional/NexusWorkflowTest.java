@@ -846,6 +846,7 @@ public class NexusWorkflowTest {
     }
   }
 
+  @SuppressWarnings("deprecation") // Uses deprecated operationError
   @Test
   public void testNexusOperationError() {
     Response unsuccessfulResp =
