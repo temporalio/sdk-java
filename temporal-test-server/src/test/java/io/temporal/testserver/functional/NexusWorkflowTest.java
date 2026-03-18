@@ -846,7 +846,7 @@ public class NexusWorkflowTest {
     }
   }
 
-  @SuppressWarnings("deprecation") // Uses deprecated operationError
+  @SuppressWarnings("deprecation")
   @Test
   public void testNexusOperationError() {
     Response unsuccessfulResp =
@@ -1159,6 +1159,7 @@ public class NexusWorkflowTest {
     }
   }
 
+  @SuppressWarnings("deprecation")
   @Test(timeout = 30000)
   @SuppressWarnings("deprecation") // Uses deprecated operationError
   public void testNexusOperationCanceledErrorWithCauseChain() {
