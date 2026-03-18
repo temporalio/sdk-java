@@ -490,10 +490,19 @@ public class WorkerVersioningTest {
                             == PINNED_OVERRIDE_BEHAVIOR_PINNED));
   }
 
-  public static class TestWorkerVersioningCanV1 implements TestWorkflows.QueryableWorkflow {
+  @WorkflowInterface
+  public interface ContinueAsNewVersionUpgradeWorkflow {
+    @WorkflowMethod
+    String execute(int attempt);
+  }
+
+  public static class TestWorkerVersioningCanV1 implements ContinueAsNewVersionUpgradeWorkflow {
     @Override
     @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
-    public String execute() {
+    public String execute(int attempt) {
+      if (attempt > 0) {
+        return "v1.0";
+      }
       while (!Workflow.getInfo().isTargetWorkerDeploymentVersionChanged()) {
         Workflow.sleep(java.time.Duration.ofMillis(10));
       }
@@ -501,34 +510,18 @@ public class WorkerVersioningTest {
           ContinueAsNewOptions.newBuilder()
               .setInitialVersioningBehavior(InitialVersioningBehavior.AUTO_UPGRADE)
               .build();
-      TestWorkflows.QueryableWorkflow next =
-          Workflow.newContinueAsNewStub(TestWorkflows.QueryableWorkflow.class, options);
-      next.execute();
+      ContinueAsNewVersionUpgradeWorkflow next =
+          Workflow.newContinueAsNewStub(ContinueAsNewVersionUpgradeWorkflow.class, options);
+      next.execute(attempt + 1);
       throw new RuntimeException("unreachable");
-    }
-
-    @Override
-    public void mySignal(String arg) {}
-
-    @Override
-    public String getState() {
-      return "v1-can";
     }
   }
 
-  public static class TestWorkerVersioningCanV2 implements TestWorkflows.QueryableWorkflow {
+  public static class TestWorkerVersioningCanV2 implements ContinueAsNewVersionUpgradeWorkflow {
     @Override
     @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
-    public String execute() {
+    public String execute(int attempt) {
       return "v2.0";
-    }
-
-    @Override
-    public void mySignal(String arg) {}
-
-    @Override
-    public String getState() {
-      return "v2-can";
     }
   }
 
@@ -555,13 +548,12 @@ public class WorkerVersioningTest {
     waitForRoutingConfigPropagation(v1);
 
     // Start workflow on v1
-    TestWorkflows.QueryableWorkflow wf =
+    ContinueAsNewVersionUpgradeWorkflow wf =
         testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestWorkflows.QueryableWorkflow.class, "can-version-upgrade");
-    WorkflowExecution we = WorkflowClient.start(wf::execute);
+            ContinueAsNewVersionUpgradeWorkflow.class, "can-version-upgrade");
+    WorkflowExecution we = WorkflowClient.start(wf::execute, 0);
 
     // Verify workflow is running on v1
-    Assert.assertEquals("v1-can", wf.getState());
     waitForWorkflowRunningOnVersion(we.getWorkflowId(), "1.0");
 
     // Set v2 as current — triggers targetWorkerDeploymentVersionChanged
