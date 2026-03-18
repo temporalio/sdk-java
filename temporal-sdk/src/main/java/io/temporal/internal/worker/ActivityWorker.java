@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
+  private final AtomicBoolean serverSupportsAutoscaling;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -56,7 +58,8 @@ final class ActivityWorker implements SuspendableWorker {
       double taskQueueActivitiesPerSecond,
       @Nonnull SingleWorkerOptions options,
       @Nonnull ActivityTaskHandler handler,
-      @Nonnull SlotSupplier<ActivitySlotInfo> slotSupplier) {
+      @Nonnull SlotSupplier<ActivitySlotInfo> slotSupplier,
+      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -72,6 +75,7 @@ final class ActivityWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
+    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
   }
 
   @Override
@@ -106,6 +110,7 @@ final class ActivityWorker implements SuspendableWorker {
                     service.getServerCapabilities()),
                 this.pollTaskExecutor,
                 pollerOptions,
+                serverSupportsAutoscaling.get(),
                 workerMetricsScope);
 
       } else {
