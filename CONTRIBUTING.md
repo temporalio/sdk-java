@@ -60,3 +60,20 @@ Build with:
 ```bash
 ./gradlew build
 ```
+
+## Note on Rosetta
+Newer Apple Silicon macs do not ship with Rosetta by default, and the version of `protoc-gen-rpc-java` we use (1.34.1) does not ship Apple Silicon binaries.
+
+So Gradle is set to hardcode the download of the x86_64 binaries on MacOS, but this depends on Rosetta to function. Make sure Rosetta is installed with
+
+```bash
+/usr/bin/pgrep oahd
+```
+
+which should return a PID of the Rosetta process. If it doesn't, you'll need to run
+
+```bash
+softwareupdate --install-rosetta
+```
+
+for builds to complete successfully.
