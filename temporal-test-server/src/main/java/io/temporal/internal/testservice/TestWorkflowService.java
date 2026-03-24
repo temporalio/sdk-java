@@ -1024,6 +1024,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
+  @SuppressWarnings("deprecation") // Uses deprecated operationError
   public void respondNexusTaskCompleted(
       RespondNexusTaskCompletedRequest request,
       StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {

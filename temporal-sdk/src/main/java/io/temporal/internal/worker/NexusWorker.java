@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,7 @@ final class NexusWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
+  private final AtomicBoolean serverSupportsAutoscaling;
   private final boolean forceOldFailureFormat;
 
   public NexusWorker(
@@ -61,7 +63,8 @@ final class NexusWorker implements SuspendableWorker {
       @Nonnull SingleWorkerOptions options,
       @Nonnull NexusTaskHandler handler,
       @Nonnull DataConverter dataConverter,
-      @Nonnull SlotSupplier<NexusSlotInfo> slotSupplier) {
+      @Nonnull SlotSupplier<NexusSlotInfo> slotSupplier,
+      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -77,6 +80,7 @@ final class NexusWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
+    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
     // Allow tests to force old format for backward compatibility testing
     String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
     this.forceOldFailureFormat = "true".equalsIgnoreCase(forceOldFormat);
@@ -112,6 +116,7 @@ final class NexusWorker implements SuspendableWorker {
                     this.slotSupplier),
                 this.pollTaskExecutor,
                 pollerOptions,
+                serverSupportsAutoscaling.get(),
                 workerMetricsScope);
       } else {
         poller =
@@ -282,6 +287,7 @@ final class NexusWorker implements SuspendableWorker {
           "Failure processing nexus response: " + response.getRequest().toString(), failure);
     }
 
+    @SuppressWarnings("deprecation") // Uses deprecated operationError
     private void handleNexusTask(NexusTask task, Scope metricsScope) {
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
@@ -374,6 +380,7 @@ final class NexusWorker implements SuspendableWorker {
       }
     }
 
+    @SuppressWarnings("deprecation") // Uses deprecated setOperationError
     private Response getResponseForOldServer(Response response) {
       Response.Builder b = response.toBuilder();
       Failure failure = response.getStartOperation().getFailure();
