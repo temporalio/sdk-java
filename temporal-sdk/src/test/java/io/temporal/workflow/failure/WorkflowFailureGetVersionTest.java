@@ -19,7 +19,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-public class WorkflowFailureGetVersion {
+public class WorkflowFailureGetVersionTest {
 
   @Rule public TestName testName = new TestName();
 
