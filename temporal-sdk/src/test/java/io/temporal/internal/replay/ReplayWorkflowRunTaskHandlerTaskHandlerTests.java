@@ -3,10 +3,13 @@ package io.temporal.internal.replay;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
@@ -66,7 +69,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   }
 
   @Test
-  public void workflowTaskFailOnIncompleteHistory() throws Throwable {
+  public void workflowTaskRecoversFromIncompleteHistory() throws Throwable {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     WorkflowExecutorCache cache =
@@ -80,16 +83,20 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
     // Simulate a stale history node sending a workflow task with an incomplete history
-    List<HistoryEvent> history =
-        HistoryUtils.generateWorkflowTaskWithInitialHistory().getHistory().getEventsList();
+    PollWorkflowTaskQueueResponse workflowTaskWithFullHistory =
+        HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    List<HistoryEvent> history = workflowTaskWithFullHistory.getHistory().getEventsList();
     assertEquals(3, history.size());
     assertEquals(
         EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED, history.get(history.size() - 1).getEventType());
-    history = history.subList(0, history.size() - 1);
+    List<HistoryEvent> staleHistory = history.subList(0, history.size() - 1);
     when(blockingStub.getWorkflowExecutionHistory(any()))
         .thenReturn(
             GetWorkflowExecutionHistoryResponse.newBuilder()
-                .setHistory(History.newBuilder().addAllEvents(history).build())
+                .setHistory(History.newBuilder().addAllEvents(staleHistory).build())
+                .build(),
+            GetWorkflowExecutionHistoryResponse.newBuilder()
+                .setHistory(workflowTaskWithFullHistory.getHistory())
                 .build());
 
     WorkflowTaskHandler taskHandler =
@@ -107,18 +114,79 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     // history
     WorkflowTaskHandler.Result result =
         taskHandler.handleWorkflowTask(
-            HistoryUtils.generateWorkflowTaskWithInitialHistory().toBuilder()
+            workflowTaskWithFullHistory.toBuilder()
                 .setHistory(History.newBuilder().build())
                 .setNextPageToken(ByteString.EMPTY)
                 .build());
 
     // Assert
     assertEquals(0, cache.size());
-    assertNotNull(result.getTaskFailed());
-    assertTrue(result.getTaskFailed().hasFailure());
-    assertEquals(
-        "Premature end of stream, expectedLastEventID=3 but no more events after eventID=2",
-        result.getTaskFailed().getFailure().getMessage());
+    assertNull(result.getTaskFailed());
+    assertNotNull(result.getTaskCompleted());
+    verify(blockingStub, times(2)).getWorkflowExecutionHistory(any());
+  }
+
+  @Test
+  public void workflowTaskLeavesStaleHistoryUncompletedWhenRetryWindowExpires() throws Throwable {
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+
+    WorkflowExecutorCache cache =
+        new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope());
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(client.blockingStub()).thenReturn(blockingStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+
+    PollWorkflowTaskQueueResponse workflowTaskWithFullHistory =
+        HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    List<HistoryEvent> history = workflowTaskWithFullHistory.getHistory().getEventsList();
+    HistoryEvent startedEventWithShortTimeout =
+        history.get(0).toBuilder()
+            .setWorkflowExecutionStartedEventAttributes(
+                history.get(0).getWorkflowExecutionStartedEventAttributes().toBuilder()
+                    .setWorkflowTaskTimeout(Durations.fromSeconds(1)))
+            .build();
+    History shortTimeoutHistory =
+        History.newBuilder()
+            .addEvents(startedEventWithShortTimeout)
+            .addAllEvents(history.subList(1, history.size()))
+            .build();
+    PollWorkflowTaskQueueResponse shortTimeoutWorkflowTask =
+        workflowTaskWithFullHistory.toBuilder().setHistory(shortTimeoutHistory).build();
+    List<HistoryEvent> staleHistory =
+        shortTimeoutHistory.getEventsList().subList(0, shortTimeoutHistory.getEventsCount() - 1);
+    when(blockingStub.getWorkflowExecutionHistory(any()))
+        .thenReturn(
+            GetWorkflowExecutionHistoryResponse.newBuilder()
+                .setHistory(History.newBuilder().addAllEvents(staleHistory).build())
+                .build());
+
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
+            "namespace",
+            setUpMockWorkflowFactory(),
+            cache,
+            SingleWorkerOptions.newBuilder().build(),
+            null,
+            Duration.ofSeconds(5),
+            client,
+            null);
+
+    WorkflowTaskHandler.Result result =
+        taskHandler.handleWorkflowTask(
+            shortTimeoutWorkflowTask.toBuilder()
+                .setHistory(History.newBuilder().build())
+                .setNextPageToken(ByteString.EMPTY)
+                .build());
+
+    assertEquals(0, cache.size());
+    assertNull(result.getTaskCompleted());
+    assertNull(result.getTaskFailed());
+    assertNull(result.getQueryCompleted());
+    verify(blockingStub, times(1)).getWorkflowExecutionHistory(any());
   }
 
   @Test

@@ -1,12 +1,12 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
@@ -52,7 +52,7 @@ public class GetVersionInterleavedUpdateReplayTest extends BaseVersionTest {
   }
 
   @Test(timeout = 90000)
-  public void testReplayFailsWhenUpdateCompletedInterleavesBetweenVersionMarkers()
+  public void testReplaySucceedsWhenUpdateCompletedInterleavesBetweenVersionMarkers()
       throws Exception {
     assumeTrue(
         "Requires external service to reproduce live replay of an in-flight workflow task.",
@@ -99,39 +99,17 @@ public class GetVersionInterleavedUpdateReplayTest extends BaseVersionTest {
       testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
       testWorkflowRule.invalidateWorkflowCache();
 
-      Future<?> replayTrigger =
+      Future<String> replayTrigger =
           executor.submit(
               () -> {
                 WorkflowStub stub =
                     workflowClient.newUntypedWorkflowStub(execution.getWorkflowId());
-                try {
-                  stub.update("ping", String.class);
-                } catch (Exception e) {
-                  // The worker-side replay failure is asserted from history below.
-                }
-                return null;
+                return stub.update("ping", String.class);
               });
 
-      HistoryEvent failedWorkflowTask = waitForReplayFailure(execution.getWorkflowId());
-      assertEquals(
-          WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE,
-          failedWorkflowTask.getWorkflowTaskFailedEventAttributes().getCause());
-      assertEquals(
-          IllegalStateException.class.getName(),
-          failedWorkflowTask
-              .getWorkflowTaskFailedEventAttributes()
-              .getFailure()
-              .getApplicationFailureInfo()
-              .getType());
-      assertTrue(
-          failedWorkflowTask.getWorkflowTaskFailedEventAttributes().getFailure().getMessage(),
-          failedWorkflowTask
-              .getWorkflowTaskFailedEventAttributes()
-              .getFailure()
-              .getMessage()
-              .contains("Premature end of stream"));
-
-      replayTrigger.cancel(true);
+      assertEquals("pong", replayTrigger.get(20, TimeUnit.SECONDS));
+      testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
+      assertNoWorkflowTaskFailure(execution.getWorkflowId());
       testWorkflowRule.regenerateHistoryForReplay(execution.getWorkflowId(), HISTORY_FILE_NAME);
     } finally {
       startUpdate.countDown();
@@ -149,21 +127,14 @@ public class GetVersionInterleavedUpdateReplayTest extends BaseVersionTest {
     }
   }
 
-  private HistoryEvent waitForReplayFailure(String workflowId) {
-    return Eventually.assertEventually(
-        Duration.ofSeconds(20),
-        () -> {
-          WorkflowExecutionHistory history =
-              testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
-          for (HistoryEvent event : history.getEvents()) {
-            if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
-              return event;
-            }
-          }
-          throw new AssertionError(
-              "Expected replay-triggered workflow task failure but saw:\n"
-                  + summarizeHistory(history));
-        });
+  private void assertNoWorkflowTaskFailure(String workflowId) {
+    WorkflowExecutionHistory history =
+        testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
+    for (HistoryEvent event : history.getEvents()) {
+      assertFalse(
+          "Unexpected replay-triggered workflow task failure:\n" + summarizeHistory(history),
+          event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+    }
   }
 
   private WorkflowExecutionHistory waitForInterleavedHistory(String workflowId) {
