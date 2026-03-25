@@ -265,6 +265,21 @@ public interface ReplayWorkflowContext extends ReplayAware {
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback);
 
+  default Integer getVersion(
+      String changeId,
+      int minSupported,
+      int maxSupported,
+      Functions.Proc2<Integer, RuntimeException> callback) {
+    return getVersion(
+        changeId,
+        minSupported,
+        maxSupported,
+        (version, exception) -> {
+          callback.apply(version, exception);
+          return true;
+        });
+  }
+
   /**
    * GetVersion is used to safely perform backwards incompatible changes to workflow definitions. It
    * is not allowed to update workflow code while there are workflows running as it is going to
@@ -278,14 +293,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param changeId identifier of a particular change
    * @param minSupported min version supported for the change
    * @param maxSupported max version supported for the change
-   * @param callback used to return version
+   * @param callback used to return version. Returning true requests an additional event loop turn.
    * @return True if the identifier is not present in history
    */
   Integer getVersion(
       String changeId,
       int minSupported,
       int maxSupported,
-      Functions.Proc2<Integer, RuntimeException> callback);
+      Functions.Func2<Integer, RuntimeException, Boolean> callback);
 
   /** Replay safe random. */
   Random newRandom();

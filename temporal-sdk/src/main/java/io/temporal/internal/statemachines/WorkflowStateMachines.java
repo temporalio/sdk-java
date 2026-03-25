@@ -1230,6 +1230,21 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
+    return getVersion(
+        changeId,
+        minSupported,
+        maxSupported,
+        (version, exception) -> {
+          callback.apply(version, exception);
+          return true;
+        });
+  }
+
+  public Integer getVersion(
+      String changeId,
+      int minSupported,
+      int maxSupported,
+      Functions.Func2<Integer, RuntimeException, Boolean> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
             changeId,
@@ -1261,11 +1276,14 @@ public final class WorkflowStateMachines {
           return sa;
         },
         (v, e) -> {
-          callback.apply(v, e);
-          // without this getVersion call will trigger the end of WFT,
-          // instead we want to prepare subsequent commands and unblock the execution one more
-          // time.
-          eventLoop();
+          if (Boolean.TRUE.equals(callback.apply(v, e))) {
+            // without this getVersion call will trigger the end of WFT,
+            // instead we want to prepare subsequent commands and unblock the execution one more
+            // time.
+            eventLoop();
+          } else if (e != null) {
+            throw e;
+          }
         });
   }
 

@@ -335,7 +335,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       String changeId,
       int minSupported,
       int maxSupported,
-      Functions.Proc2<Integer, RuntimeException> callback) {
+      Functions.Func2<Integer, RuntimeException, Boolean> callback) {
     return workflowStateMachines.getVersion(changeId, minSupported, maxSupported, callback);
   }
 

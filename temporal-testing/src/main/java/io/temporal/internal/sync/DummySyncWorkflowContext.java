@@ -278,7 +278,7 @@ public class DummySyncWorkflowContext {
         String changeId,
         int minSupported,
         int maxSupported,
-        Functions.Proc2<Integer, RuntimeException> callback) {
+        Functions.Func2<Integer, RuntimeException, Boolean> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
