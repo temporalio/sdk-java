@@ -1,13 +1,19 @@
 package io.temporal.workflow.failure;
 
+import static io.temporal.testUtils.Eventually.assertEventually;
+
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
-import io.temporal.common.RetryOptions;
-import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.List;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,35 +31,41 @@ public class WorkflowFailureGetVersion {
 
   @Test
   public void getVersionAndException() {
-    RetryOptions workflowRetryOptions =
-        RetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofSeconds(1))
-            .setMaximumAttempts(100)
-            .setBackoffCoefficient(1.0)
-            .build();
-    TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflow1.class,
-                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-                    .toBuilder()
-                    .setRetryOptions(workflowRetryOptions)
-                    .build());
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute, testName.getMethodName());
+    WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
+
     try {
-      workflowStub.execute(testName.getMethodName());
-      Assert.fail("unreachable");
-    } catch (WorkflowException e) {
-      Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
-      Assert.assertEquals("foo", ((ApplicationFailure) e.getCause()).getType());
+      HistoryEvent workflowTaskFailed =
+          assertEventually(
+              Duration.ofSeconds(5),
+              () -> {
+                List<HistoryEvent> failedEvents =
+                    testWorkflowRule.getHistoryEvents(
+                        execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+                Assert.assertFalse("No workflow task failure recorded", failedEvents.isEmpty());
+                return failedEvents.get(0);
+              });
+
+      Failure failure =
+          getDeepestFailure(workflowTaskFailed.getWorkflowTaskFailedEventAttributes().getFailure());
+      Assert.assertEquals("Any error", failure.getMessage());
+      Assert.assertTrue(failure.hasApplicationFailureInfo());
       Assert.assertEquals(
-          "details1", ((ApplicationFailure) e.getCause()).getDetails().get(0, String.class));
-      Assert.assertEquals(
-          Integer.valueOf(123),
-          ((ApplicationFailure) e.getCause()).getDetails().get(1, Integer.class));
-      Assert.assertEquals(
-          "message='simulated 3', type='foo', nonRetryable=true", e.getCause().getMessage());
+          RuntimeException.class.getName(), failure.getApplicationFailureInfo().getType());
+    } finally {
+      try {
+        workflowStub.terminate("terminate test workflow");
+      } catch (WorkflowException ignored) {
+      }
     }
+  }
+
+  private static Failure getDeepestFailure(Failure failure) {
+    while (failure.hasCause()) {
+      failure = failure.getCause();
+    }
+    return failure;
   }
 
   public static class TestWorkflowGetVersionAndException implements TestWorkflow1 {
