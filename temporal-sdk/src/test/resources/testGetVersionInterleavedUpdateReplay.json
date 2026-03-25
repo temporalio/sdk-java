@@ -1,0 +1,362 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2026-03-25T19:59:29.605616Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
+      "taskId": "1050227",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "GreetingWorkflow"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-testReplayFailsWhenUpdateCompletedInterleavesBetweenVersionMarkers[3]-a85c686e-5f43-43ad-841b-0f90c5361b05",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+              },
+              "data": "IlRlbXBvcmFsIg\u003d\u003d"
+            }
+          ]
+        },
+        "workflowExecutionTimeout": "0s",
+        "workflowRunTimeout": "200s",
+        "workflowTaskTimeout": "5s",
+        "originalExecutionRunId": "019d2694-a745-7966-ab6a-fcf913b722e9",
+        "identity": "75377@ambrose.local",
+        "firstExecutionRunId": "019d2694-a745-7966-ab6a-fcf913b722e9",
+        "attempt": 1,
+        "firstWorkflowTaskBackoff": "0s",
+        "header": {},
+        "workflowId": "get-version-interleaved-update-605a859c-4cef-4bb2-9fdb-fc4c56df7509"
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2026-03-25T19:59:29.605652Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1050228",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testReplayFailsWhenUpdateCompletedInterleavesBetweenVersionMarkers[3]-a85c686e-5f43-43ad-841b-0f90c5361b05",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2026-03-25T19:59:29.609627Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1050234",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "75377@ambrose.local",
+        "requestId": "33452ba9-7557-4a30-82dc-c59afec88c5b",
+        "historySizeBytes": "560"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2026-03-25T19:59:29.613665Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1050238",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "startedEventId": "3",
+        "identity": "75377@ambrose.local",
+        "workerVersion": {},
+        "sdkMetadata": {
+          "langUsedFlags": [
+            1,
+            2,
+            3
+          ],
+          "sdkName": "temporal-java",
+          "sdkVersion": "1.34.0"
+        },
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2026-03-25T19:59:29.613699Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED",
+      "taskId": "1050239",
+      "workflowExecutionUpdateAcceptedEventAttributes": {
+        "protocolInstanceId": "f2364454-913e-4c27-8da8-791b260605bf",
+        "acceptedRequestMessageId": "f2364454-913e-4c27-8da8-791b260605bf/request",
+        "acceptedRequestSequencingEventId": "2",
+        "acceptedRequest": {
+          "meta": {
+            "updateId": "f2364454-913e-4c27-8da8-791b260605bf",
+            "identity": "75377@ambrose.local"
+          },
+          "input": {
+            "header": {},
+            "name": "notify",
+            "args": {
+              "payloads": [
+                {
+                  "metadata": {
+                    "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                  },
+                  "data": "InVwZGF0ZS0wIg\u003d\u003d"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2026-03-25T19:59:29.613714Z",
+      "eventType": "EVENT_TYPE_MARKER_RECORDED",
+      "taskId": "1050240",
+      "markerRecordedEventAttributes": {
+        "markerName": "SideEffect",
+        "details": {
+          "data": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "ImE5Yjc5ZmZhLWUwMzgtNDk0Ni04YWM2LWU0MjYyNjk1ZDY4OCI\u003d"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "4"
+      }
+    },
+    {
+      "eventId": "7",
+      "eventTime": "2026-03-25T19:59:29.613717Z",
+      "eventType": "EVENT_TYPE_MARKER_RECORDED",
+      "taskId": "1050241",
+      "markerRecordedEventAttributes": {
+        "markerName": "Version",
+        "details": {
+          "changeId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IkNoYW5nZUlkMSI\u003d"
+              }
+            ]
+          },
+          "version": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MQ\u003d\u003d"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "4"
+      }
+    },
+    {
+      "eventId": "8",
+      "eventTime": "2026-03-25T19:59:29.613724Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED",
+      "taskId": "1050242",
+      "workflowExecutionUpdateCompletedEventAttributes": {
+        "meta": {
+          "updateId": "f2364454-913e-4c27-8da8-791b260605bf",
+          "identity": "75377@ambrose.local"
+        },
+        "outcome": {
+          "success": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IndvcmtzIg\u003d\u003d"
+              }
+            ]
+          }
+        },
+        "acceptedEventId": "5"
+      }
+    },
+    {
+      "eventId": "9",
+      "eventTime": "2026-03-25T19:59:29.613732Z",
+      "eventType": "EVENT_TYPE_MARKER_RECORDED",
+      "taskId": "1050243",
+      "markerRecordedEventAttributes": {
+        "markerName": "Version",
+        "details": {
+          "changeId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IkNoYW5nZUlkMiI\u003d"
+              }
+            ]
+          },
+          "version": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MQ\u003d\u003d"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "4"
+      }
+    },
+    {
+      "eventId": "10",
+      "eventTime": "2026-03-25T19:59:29.729159Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1050250",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "75377@ambrose.local:4246d637-8a5a-4292-bf69-164316254269",
+          "kind": "TASK_QUEUE_KIND_STICKY",
+          "normalName": "WorkflowTest-testReplayFailsWhenUpdateCompletedInterleavesBetweenVersionMarkers[3]-a85c686e-5f43-43ad-841b-0f90c5361b05"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "11",
+      "eventTime": "2026-03-25T19:59:29.729694Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1050251",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "10",
+        "identity": "75377@ambrose.local",
+        "requestId": "ad45a794-4f2c-4c7b-9706-62ea10a58d31",
+        "historySizeBytes": "1479",
+        "workerVersion": {}
+      }
+    },
+    {
+      "eventId": "12",
+      "eventTime": "2026-03-25T19:59:29.737164Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_FAILED",
+      "taskId": "1050252",
+      "workflowTaskFailedEventAttributes": {
+        "scheduledEventId": "10",
+        "startedEventId": "11",
+        "cause": "WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE",
+        "failure": {
+          "message": "Premature end of stream, expectedLastEventID\u003d11 but no more events after eventID\u003d9",
+          "source": "JavaSDK",
+          "stackTrace": "io.temporal.internal.replay.ReplayWorkflowRunTaskHandler.verifyAllEventsProcessed(ReplayWorkflowRunTaskHandler.java:303)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.applyServerHistory(ReplayWorkflowRunTaskHandler.java:288)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTaskImpl(ReplayWorkflowRunTaskHandler.java:243)\nio.temporal.internal.replay.ReplayWorkflowRunTaskHandler.handleWorkflowTask(ReplayWorkflowRunTaskHandler.java:151)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTaskWithQuery(ReplayWorkflowTaskHandler.java:115)\nio.temporal.internal.replay.ReplayWorkflowTaskHandler.handleWorkflowTask(ReplayWorkflowTaskHandler.java:80)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handleTask(WorkflowWorker.java:574)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:408)\nio.temporal.internal.worker.WorkflowWorker$TaskHandlerImpl.handle(WorkflowWorker.java:348)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$1(PollTaskExecutor.java:76)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)\njava.base/java.lang.Thread.run(Thread.java:1575)\n",
+          "applicationFailureInfo": {
+            "type": "java.lang.IllegalStateException"
+          }
+        },
+        "identity": "75377@ambrose.local"
+      }
+    },
+    {
+      "eventId": "13",
+      "eventTime": "2026-03-25T19:59:29.737168Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+      "taskId": "1050253",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testReplayFailsWhenUpdateCompletedInterleavesBetweenVersionMarkers[3]-a85c686e-5f43-43ad-841b-0f90c5361b05",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "14",
+      "eventTime": "2026-03-25T19:59:29.738117Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+      "taskId": "1050257",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "13",
+        "identity": "75377@ambrose.local",
+        "requestId": "eabf0903-d499-4aee-9fe2-cc3347e7d12f",
+        "historySizeBytes": "3427"
+      }
+    },
+    {
+      "eventId": "15",
+      "eventTime": "2026-03-25T19:59:29.743622Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+      "taskId": "1050261",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "13",
+        "startedEventId": "14",
+        "identity": "75377@ambrose.local",
+        "workerVersion": {},
+        "meteringMetadata": {}
+      }
+    },
+    {
+      "eventId": "16",
+      "eventTime": "2026-03-25T19:59:29.743664Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED",
+      "taskId": "1050262",
+      "workflowExecutionUpdateAcceptedEventAttributes": {
+        "protocolInstanceId": "ff60ff41-25e7-4196-873d-ea6b389bc8c8",
+        "acceptedRequestMessageId": "ff60ff41-25e7-4196-873d-ea6b389bc8c8/request",
+        "acceptedRequestSequencingEventId": "13",
+        "acceptedRequest": {
+          "meta": {
+            "updateId": "ff60ff41-25e7-4196-873d-ea6b389bc8c8",
+            "identity": "75377@ambrose.local"
+          },
+          "input": {
+            "header": {},
+            "name": "ping"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "17",
+      "eventTime": "2026-03-25T19:59:29.743687Z",
+      "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED",
+      "taskId": "1050263",
+      "workflowExecutionUpdateCompletedEventAttributes": {
+        "meta": {
+          "updateId": "ff60ff41-25e7-4196-873d-ea6b389bc8c8",
+          "identity": "75377@ambrose.local"
+        },
+        "outcome": {
+          "success": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "InBvbmci"
+              }
+            ]
+          }
+        },
+        "acceptedEventId": "16"
+      }
+    }
+  ]
+}
