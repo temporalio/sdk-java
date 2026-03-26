@@ -28,22 +28,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /** Provides a client based on `spring.temporal.testServer` section */
-@Configuration
+@AutoConfiguration(
+    after = {OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 @EnableConfigurationProperties(TemporalProperties.class)
 @ConditionalOnClass(name = "io.temporal.testing.TestWorkflowEnvironment")
 @ConditionalOnProperty(
     prefix = "spring.temporal",
     name = "test-server.enabled",
     havingValue = "true")
-@AutoConfigureAfter({OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 public class TestServerAutoConfiguration {
 
   private static final Logger log = LoggerFactory.getLogger(TestServerAutoConfiguration.class);
