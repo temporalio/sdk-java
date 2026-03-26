@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
+import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
@@ -28,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -55,6 +57,9 @@ public final class WorkerFactory {
 
   /** Plugins propagated from the client and applied to this factory. */
   private final List<WorkerPlugin> plugins;
+
+  /** Set during start() if the namespace has the poller_autoscaling capability. */
+  private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
 
   private State state = State.Initial;
 
@@ -192,7 +197,8 @@ public final class WorkerFactory {
               true,
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators(),
-              plugins);
+              plugins,
+              pollerAutoscaling);
       workers.put(taskQueue, worker);
 
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
@@ -251,13 +257,17 @@ public final class WorkerFactory {
 
     // Workers check and require that Temporal Server is available during start to fail-fast in case
     // of configuration issues.
-    workflowClient
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .describeNamespace(
-            DescribeNamespaceRequest.newBuilder()
-                .setNamespace(workflowClient.getOptions().getNamespace())
-                .build());
+    DescribeNamespaceResponse describeNamespaceResponse =
+        workflowClient
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .describeNamespace(
+                DescribeNamespaceRequest.newBuilder()
+                    .setNamespace(workflowClient.getOptions().getNamespace())
+                    .build());
+    if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
+      pollerAutoscaling.set(true);
+    }
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;

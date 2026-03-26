@@ -31,6 +31,7 @@ import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -83,7 +84,8 @@ public class WorkflowWorkerTest {
             cache,
             taskHandler,
             eagerActivityDispatcher,
-            slotSupplier);
+            slotSupplier,
+            new AtomicBoolean(false));
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -252,7 +254,8 @@ public class WorkflowWorkerTest {
             cache,
             taskHandler,
             eagerActivityDispatcher,
-            slotSupplier);
+            slotSupplier,
+            new AtomicBoolean(false));
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -394,7 +397,8 @@ public class WorkflowWorkerTest {
             cache,
             taskHandler,
             eagerActivityDispatcher,
-            slotSupplier);
+            slotSupplier,
+            new AtomicBoolean(false));
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
