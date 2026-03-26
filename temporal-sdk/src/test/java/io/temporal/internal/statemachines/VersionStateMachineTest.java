@@ -41,6 +41,14 @@ public class VersionStateMachineTest {
     return new WorkflowStateMachines(listener, stateMachineList::add);
   }
 
+  private static <T1, T2> Functions.Func2<T1, T2, Boolean> continueAsEventLoopTurn(
+      Functions.Proc2<T1, T2> callback) {
+    return (t1, t2) -> {
+      callback.apply(t1, t2);
+      return true;
+    };
+  }
+
   @AfterClass
   public static void generateCoverage() {
     List<Transition<VersionStateMachine.State, TransitionEvent<VersionStateMachine.ExplicitEvent>>>
@@ -65,7 +73,9 @@ public class VersionStateMachineTest {
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
     }
@@ -125,16 +135,20 @@ public class VersionStateMachineTest {
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   assertNull(v.getT2());
-                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                  stateMachines.getVersion(
+                      "id1", DEFAULT_VERSION, maxSupported + 10, continueAsEventLoopTurn(c));
                 })
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   assertNull(v.getT2());
-                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
+                  stateMachines.getVersion(
+                      "id1", DEFAULT_VERSION, maxSupported + 100, continueAsEventLoopTurn(c));
                 })
             .add(
                 (v) -> {
@@ -211,11 +225,14 @@ public class VersionStateMachineTest {
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   assertNull(v.getT2());
-                  stateMachines.getVersion("id1", maxSupported + 10, maxSupported + 10, c);
+                  stateMachines.getVersion(
+                      "id1", maxSupported + 10, maxSupported + 10, continueAsEventLoopTurn(c));
                 })
             .add(
                 (v) -> {
@@ -295,7 +312,8 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer, RuntimeException>add2((v, c) -> stateMachines.getVersion("id1", 1, 1, c))
+            .<Integer, RuntimeException>add2(
+                (v, c) -> stateMachines.getVersion("id1", 1, 1, continueAsEventLoopTurn(c)))
             .add(
                 (v) -> {
                   versionCallException.set(v.getT2());
@@ -346,16 +364,20 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   trace.append(v.getT1()).append(", ");
-                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                  stateMachines.getVersion(
+                      "id1", DEFAULT_VERSION, maxSupported + 10, continueAsEventLoopTurn(c));
                 })
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   trace.append(v.getT1()).append(", ");
-                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
+                  stateMachines.getVersion(
+                      "id1", DEFAULT_VERSION, maxSupported + 100, continueAsEventLoopTurn(c));
                 })
             .<HistoryEvent>add1(
                 (v, c) -> {
@@ -421,7 +443,9 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .add(
                 (v) -> {
                   assertNull(v.getT2());
@@ -464,11 +488,14 @@ public class VersionStateMachineTest {
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   trace.append(v.getT1()).append(", ");
-                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                  stateMachines.getVersion(
+                      "id1", DEFAULT_VERSION, maxSupported + 10, continueAsEventLoopTurn(c));
                 })
             .<HistoryEvent>add1(
                 (v, c) -> {
@@ -489,11 +516,14 @@ public class VersionStateMachineTest {
                         null,
                         c))
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", maxSupported - 3, maxSupported + 10, continueAsEventLoopTurn(c)))
             .<Integer, RuntimeException>add2(
                 (v, c) -> {
                   trace.append(v.getT1()).append(", ");
-                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
+                  stateMachines.getVersion(
+                      "id1", DEFAULT_VERSION, maxSupported + 100, continueAsEventLoopTurn(c));
                 })
             .add(
                 (v) -> {
@@ -608,9 +638,17 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            /*.<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))*/
+            /*.<Integer>add(
+            (v, c) ->
+                stateMachines.getVersion(
+                    "id1",
+                    DEFAULT_VERSION,
+                    maxSupported,
+                    continueAsEventLoopTurn(c)))*/
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported + 10, continueAsEventLoopTurn(c)))
             .<HistoryEvent>add1(
                 (v, c) -> {
                   trace.append(v.getT1()).append(", ");
@@ -630,8 +668,16 @@ public class VersionStateMachineTest {
                         null,
                         c))
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
-            /*.<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c));*/
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", maxSupported - 3, maxSupported + 10, continueAsEventLoopTurn(c)))
+            /*.<Integer>add(
+            (v, c) ->
+                stateMachines.getVersion(
+                    "id1",
+                    DEFAULT_VERSION,
+                    maxSupported + 100,
+                    continueAsEventLoopTurn(c)));*/
             .add(
                 (v) -> {
                   trace.append(v.getT1());
@@ -721,6 +767,7 @@ public class VersionStateMachineTest {
                           assertNull(e);
                           versionId2 = r;
                           c.apply(r);
+                          return true;
                         }))
             .<HistoryEvent>add1(
                 (v, c) ->
@@ -814,11 +861,21 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             /*
-            .<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<Integer>add(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1",
+                        DEFAULT_VERSION,
+                        maxSupported,
+                        continueAsEventLoopTurn(c)))
                 .<Integer>add(
                         (v, c) -> {
                           trace.append(v + ", ");
-                          stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                          stateMachines.getVersion(
+                              "id1",
+                              DEFAULT_VERSION,
+                              maxSupported + 10,
+                              continueAsEventLoopTurn(c));
                         })
                  */
             .<HistoryEvent>add1(
@@ -838,9 +895,16 @@ public class VersionStateMachineTest {
                         null,
                         c))
             /*.<Integer>add(
-            (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))*/
+            (v, c) ->
+                stateMachines.getVersion(
+                    "id1",
+                    maxSupported - 3,
+                    maxSupported + 10,
+                    continueAsEventLoopTurn(c)))*/
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported + 100, continueAsEventLoopTurn(c)))
             .add(
                 (v) -> {
                   trace.append(v.getT1());
@@ -1062,7 +1126,9 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .<HistoryEvent>add1(
                 (v, c) -> {
                   assertNull(v.getT2());
@@ -1074,7 +1140,9 @@ public class VersionStateMachineTest {
                       c);
                 })
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported + 100, continueAsEventLoopTurn(c)))
             .add(
                 (v) -> {
                   assertNull(v.getT2());
@@ -1176,7 +1244,9 @@ public class VersionStateMachineTest {
                             ignore -> {})))
             .add((v) -> cancelTimerProc.get().apply())
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", maxSupported - 3, maxSupported + 10, continueAsEventLoopTurn(c)))
             .<HistoryEvent>add1(
                 (v, c) -> {
                   assertNull(v.getT2());
@@ -1250,7 +1320,9 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .<HistoryEvent>add1(
                 (v, c) -> {
                   assertNull(v.getT2());
@@ -1262,7 +1334,9 @@ public class VersionStateMachineTest {
                       c);
                 })
             .<Integer, RuntimeException>add2(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, continueAsEventLoopTurn(c)))
             .add(
                 (v) -> {
                   assertNull(v.getT2());

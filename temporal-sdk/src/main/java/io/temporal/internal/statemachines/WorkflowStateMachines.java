@@ -1229,21 +1229,6 @@ public final class WorkflowStateMachines {
       String changeId,
       int minSupported,
       int maxSupported,
-      Functions.Proc2<Integer, RuntimeException> callback) {
-    return getVersion(
-        changeId,
-        minSupported,
-        maxSupported,
-        (version, exception) -> {
-          callback.apply(version, exception);
-          return true;
-        });
-  }
-
-  public Integer getVersion(
-      String changeId,
-      int minSupported,
-      int maxSupported,
       Functions.Func2<Integer, RuntimeException, Boolean> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
