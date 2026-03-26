@@ -7,15 +7,17 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
-@AutoConfigureAfter(
-    name =
-        "org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration")
+@AutoConfiguration(
+    afterName = {
+      // SB 2.7 / 3.x
+      "org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration",
+      // SB 4.0
+      "org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration"
+    })
 @ConditionalOnBean(MeterRegistry.class)
 public class MetricsScopeAutoConfiguration {
   @Bean(name = "temporalMetricsScope", destroyMethod = "close")
