@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -47,6 +48,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   private final LocalActivityDispatcherImpl laScheduler;
 
+  private final AtomicInteger totalProcessedTasks = new AtomicInteger();
+  private final AtomicInteger totalFailedTasks = new AtomicInteger();
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
 
@@ -473,10 +476,17 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         }
 
         reason = handleResult(activityHandlerResult, attemptTask, metricsScope);
+        totalProcessedTasks.incrementAndGet();
+        if (activityHandlerResult.getTaskFailed() != null
+            && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
+                activityHandlerResult.getTaskFailed().getFailure())) {
+          totalFailedTasks.incrementAndGet();
+        }
       } catch (Throwable ex) {
         // handleLocalActivity is expected to never throw an exception and return a result
         // that can be used for a workflow callback if this method throws, it's a bug.
         log.error("[BUG] Code that expected to never throw an exception threw an exception", ex);
+        totalFailedTasks.incrementAndGet();
         executionContext.callback(
             processingFailed(activityTask.getActivityId(), activityTask.getAttempt(), ex));
         throw ex;
@@ -748,8 +758,20 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     return pollerOptions;
   }
 
+  public TrackingSlotSupplier<LocalActivitySlotInfo> getSlotSupplier() {
+    return slotSupplier;
+  }
+
   public LocalActivityDispatcher getLocalActivityScheduler() {
     return laScheduler;
+  }
+
+  public AtomicInteger getTotalProcessedTasks() {
+    return totalProcessedTasks;
+  }
+
+  public AtomicInteger getTotalFailedTasks() {
+    return totalFailedTasks;
   }
 
   private static Failure newTimeoutFailure(TimeoutType timeoutType, @Nullable Failure cause) {

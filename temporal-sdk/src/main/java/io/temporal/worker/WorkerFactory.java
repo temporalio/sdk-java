@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
@@ -13,6 +14,7 @@ import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
+import io.temporal.internal.worker.HeartbeatManager;
 import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -33,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -62,6 +65,7 @@ public final class WorkerFactory {
   private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
 
   private State state = State.Initial;
+  private boolean heartbeatsSupported;
 
   private final String statusErrorMessage =
       "attempted to %s while in %s state. Acceptable States: %s";
@@ -265,6 +269,15 @@ public final class WorkerFactory {
                 DescribeNamespaceRequest.newBuilder()
                     .setNamespace(workflowClient.getOptions().getNamespace())
                     .build());
+    boolean heartbeatsSupported =
+        describeNamespaceResponse.getNamespaceInfo().getCapabilities().getWorkerHeartbeats();
+    if (!heartbeatsSupported) {
+      log.debug(
+          "Server does not support worker heartbeats for namespace {}",
+          workflowClient.getOptions().getNamespace());
+    }
+    this.heartbeatsSupported = heartbeatsSupported;
+
     if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
       pollerAutoscaling.set(true);
     }
@@ -298,6 +311,20 @@ public final class WorkerFactory {
 
       // Execute the chain for this worker
       startChain.accept(taskQueue, worker);
+    }
+
+    // Register heartbeat callbacks after workers are started.
+    WorkflowClientInternal clientInternal = (WorkflowClientInternal) workflowClient.getInternal();
+    HeartbeatManager hbManager = clientInternal.getHeartbeatManager();
+    if (hbManager != null && heartbeatsSupported) {
+      String namespace = workflowClient.getOptions().getNamespace();
+      String workerGroupingKey = clientInternal.getWorkerGroupingKey();
+      for (Worker worker : workers.values()) {
+        Supplier<WorkerHeartbeat> heartbeatSupplier =
+            worker.buildHeartbeatCallback(workerGroupingKey);
+        hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
+        worker.workflowWorker.setHeartbeatSupplier(heartbeatSupplier);
+      }
     }
 
     state = State.Started;
@@ -418,6 +445,18 @@ public final class WorkerFactory {
     CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
         .thenApply(
             r -> {
+              // Unregister workers from heartbeat manager only after full shutdown,
+              // so heartbeats continue reporting SHUTTING_DOWN until the worker is fully stopped.
+              if (heartbeatsSupported) {
+                HeartbeatManager hbManager =
+                    ((WorkflowClientInternal) workflowClient.getInternal()).getHeartbeatManager();
+                if (hbManager != null) {
+                  String namespace = workflowClient.getOptions().getNamespace();
+                  for (Worker worker : workers.values()) {
+                    hbManager.unregisterWorker(namespace, worker.getWorkerInstanceKey());
+                  }
+                }
+              }
               cache.invalidateAll();
               workflowThreadPool.shutdownNow();
               return null;

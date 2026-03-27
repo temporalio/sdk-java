@@ -3,7 +3,9 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -22,10 +24,13 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -61,6 +66,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowClient client,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
+      @Nonnull String workerInstanceKey,
+      @Nonnull List<TaskQueueType> activeTaskQueueTypes,
       @Nonnull SingleWorkerOptions singleWorkerOptions,
       @Nonnull SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -118,6 +125,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             client.getWorkflowServiceStubs(),
             namespace,
             taskQueue,
+            workerInstanceKey,
+            activeTaskQueueTypes,
             stickyTaskQueueName,
             singleWorkerOptions,
             runLocks,
@@ -235,7 +244,54 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return null;
   }
 
-  @Override
+  public TrackingSlotSupplier<WorkflowSlotInfo> getWorkflowSlotSupplier() {
+    return workflowWorker.getSlotSupplier();
+  }
+
+  public TrackingSlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
+    return laWorker.getSlotSupplier();
+  }
+
+  public void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
+    workflowWorker.setHeartbeatSupplier(supplier);
+  }
+
+  public boolean hasStickyQueue() {
+    return workflowWorker.hasStickyQueue();
+  }
+
+  public AtomicInteger getWorkflowTotalProcessedTasks() {
+    return workflowWorker.getTotalProcessedTasks();
+  }
+
+  public AtomicInteger getWorkflowTotalFailedTasks() {
+    return workflowWorker.getTotalFailedTasks();
+  }
+
+  public AtomicInteger getLocalActivityTotalProcessedTasks() {
+    return laWorker.getTotalProcessedTasks();
+  }
+
+  public AtomicInteger getLocalActivityTotalFailedTasks() {
+    return laWorker.getTotalFailedTasks();
+  }
+
+  public PollerOptions getWorkflowPollerOptions() {
+    return workflowWorker.getPollerOptions();
+  }
+
+  public PollerTracker getWorkflowPollerTracker() {
+    return workflowWorker.getPollerTracker();
+  }
+
+  public PollerTracker getStickyPollerTracker() {
+    return workflowWorker.getStickyPollerTracker();
+  }
+
+  public String getStickyTaskQueueName() {
+    return workflowWorker.getStickyTaskQueueName();
+  }
+
   public String toString() {
     return String.format(
         "SyncWorkflowWorker{namespace=%s, taskQueue=%s, identity=%s}",
