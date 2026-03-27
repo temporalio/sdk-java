@@ -1159,7 +1159,6 @@ public class NexusWorkflowTest {
     }
   }
 
-  @SuppressWarnings("deprecation")
   @Test(timeout = 30000)
   @SuppressWarnings("deprecation") // Uses deprecated operationError
   public void testNexusOperationCanceledErrorWithCauseChain() {
