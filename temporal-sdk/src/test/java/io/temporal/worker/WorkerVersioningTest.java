@@ -10,6 +10,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.InitialVersioningBehavior;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.VersioningOverride;
 import io.temporal.common.WorkerDeploymentVersion;
@@ -489,6 +490,86 @@ public class WorkerVersioningTest {
                             == PINNED_OVERRIDE_BEHAVIOR_PINNED));
   }
 
+  @WorkflowInterface
+  public interface ContinueAsNewVersionUpgradeWorkflow {
+    @WorkflowMethod
+    String execute(int attempt);
+  }
+
+  public static class TestWorkerVersioningCanV1 implements ContinueAsNewVersionUpgradeWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      if (attempt > 0) {
+        return "v1.0";
+      }
+      while (!Workflow.getInfo().isTargetWorkerDeploymentVersionChanged()) {
+        Workflow.sleep(java.time.Duration.ofMillis(10));
+      }
+      ContinueAsNewOptions options =
+          ContinueAsNewOptions.newBuilder()
+              .setInitialVersioningBehavior(InitialVersioningBehavior.AUTO_UPGRADE)
+              .build();
+      ContinueAsNewVersionUpgradeWorkflow next =
+          Workflow.newContinueAsNewStub(ContinueAsNewVersionUpgradeWorkflow.class, options);
+      next.execute(attempt + 1);
+      throw new RuntimeException("unreachable");
+    }
+  }
+
+  public static class TestWorkerVersioningCanV2 implements ContinueAsNewVersionUpgradeWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      return "v2.0";
+    }
+  }
+
+  @Test
+  public void testContinueAsNewWithVersionUpgrade() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    WorkerDeploymentVersion v2 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningCanV1.class);
+    w1.start();
+
+    Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
+    w2.registerWorkflowImplementationTypes(TestWorkerVersioningCanV2.class);
+    w2.start();
+
+    // Set v1 as current
+    DescribeWorkerDeploymentResponse d1 = waitUntilWorkerDeploymentVisible(v1);
+    setCurrentVersion(v1, d1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
+
+    // Start workflow on v1
+    ContinueAsNewVersionUpgradeWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            ContinueAsNewVersionUpgradeWorkflow.class, "can-version-upgrade");
+    WorkflowExecution we = WorkflowClient.start(wf::execute, 0);
+
+    // Verify workflow is running on v1
+    waitForWorkflowRunningOnVersion(we.getWorkflowId(), "1.0");
+
+    // Set v2 as current — triggers targetWorkerDeploymentVersionChanged
+    DescribeWorkerDeploymentResponse d2 = waitUntilWorkerDeploymentVisible(v2);
+    setCurrentVersion(v2, d2.getConflictToken());
+    waitForRoutingConfigPropagation(v2);
+
+    // V1 workflow should detect version change, CAN with AUTO_UPGRADE, v2 returns "v2.0"
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(we.getWorkflowId())
+            .getResult(String.class);
+    Assert.assertEquals("v2.0", result);
+  }
+
   @SuppressWarnings("deprecation")
   private DescribeWorkerDeploymentResponse waitUntilWorkerDeploymentVisible(
       WorkerDeploymentVersion v) {
@@ -556,5 +637,65 @@ public class WorkerVersioningTest {
                 .setConflictToken(conflictToken)
                 .setPercentage(percent)
                 .build());
+  }
+
+  @SuppressWarnings("deprecation")
+  private void waitForRoutingConfigPropagation(WorkerDeploymentVersion v) {
+    Eventually.assertEventually(
+        Duration.ofSeconds(15),
+        () -> {
+          DescribeWorkerDeploymentResponse resp =
+              testWorkflowRule
+                  .getWorkflowClient()
+                  .getWorkflowServiceStubs()
+                  .blockingStub()
+                  .describeWorkerDeployment(
+                      DescribeWorkerDeploymentRequest.newBuilder()
+                          .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                          .setDeploymentName(v.getDeploymentName())
+                          .build());
+          Assert.assertEquals(
+              v.getBuildId(),
+              resp.getWorkerDeploymentInfo()
+                  .getRoutingConfig()
+                  .getCurrentDeploymentVersion()
+                  .getBuildId());
+          // Check routing config update is not in progress
+          int state = resp.getWorkerDeploymentInfo().getRoutingConfigUpdateStateValue();
+          Assert.assertNotEquals(
+              io.temporal.api.enums.v1.RoutingConfigUpdateState
+                  .ROUTING_CONFIG_UPDATE_STATE_IN_PROGRESS_VALUE,
+              state);
+        });
+  }
+
+  private void waitForWorkflowRunningOnVersion(String workflowId, String expectedBuildId) {
+    Eventually.assertEventually(
+        Duration.ofSeconds(15),
+        () -> {
+          io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse resp =
+              testWorkflowRule
+                  .getWorkflowClient()
+                  .getWorkflowServiceStubs()
+                  .blockingStub()
+                  .describeWorkflowExecution(
+                      io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest
+                          .newBuilder()
+                          .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                          .setExecution(
+                              io.temporal.api.common.v1.WorkflowExecution.newBuilder()
+                                  .setWorkflowId(workflowId)
+                                  .build())
+                          .build());
+          Assert.assertEquals(
+              io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING,
+              resp.getWorkflowExecutionInfo().getStatus());
+          Assert.assertEquals(
+              expectedBuildId,
+              resp.getWorkflowExecutionInfo()
+                  .getVersioningInfo()
+                  .getDeploymentVersion()
+                  .getBuildId());
+        });
   }
 }
