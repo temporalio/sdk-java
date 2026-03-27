@@ -13,8 +13,11 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.enums.v1.TaskQueueType;
+import io.temporal.api.enums.v1.WorkerStatus;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
@@ -31,6 +34,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -55,6 +60,14 @@ final class WorkflowWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
+  private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
+  private final String workerInstanceKey;
+  private final List<TaskQueueType> activeTaskQueueTypes;
+
+  private final AtomicInteger totalProcessedTasks = new AtomicInteger();
+  private final AtomicInteger totalFailedTasks = new AtomicInteger();
+  private final PollerTracker pollerTracker = new PollerTracker();
+  private final PollerTracker stickyPollerTracker = new PollerTracker();
   private final AtomicBoolean serverSupportsAutoscaling;
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
@@ -69,6 +82,8 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
+      @Nonnull String workerInstanceKey,
+      @Nonnull List<TaskQueueType> activeTaskQueueTypes,
       @Nullable String stickyTaskQueueName,
       @Nonnull SingleWorkerOptions options,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -80,6 +95,8 @@ final class WorkflowWorker implements SuspendableWorker {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.workerInstanceKey = Objects.requireNonNull(workerInstanceKey);
+    this.activeTaskQueueTypes = Objects.requireNonNull(activeTaskQueueTypes);
     this.options = Objects.requireNonNull(options);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
@@ -122,7 +139,8 @@ final class WorkflowWorker implements SuspendableWorker {
                   options.getWorkerVersioningOptions(),
                   slotSupplier,
                   workerMetricsScope,
-                  service.getServerCapabilities());
+                  service.getServerCapabilities(),
+                  pollerTracker);
           pollers =
               Arrays.asList(
                   new AsyncWorkflowPollTask(
@@ -134,7 +152,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       options.getWorkerVersioningOptions(),
                       slotSupplier,
                       workerMetricsScope,
-                      service.getServerCapabilities()),
+                      service.getServerCapabilities(),
+                      stickyPollerTracker),
                   normalPoller);
           this.stickyQueueBalancer = normalPoller;
         } else {
@@ -149,7 +168,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       options.getWorkerVersioningOptions(),
                       slotSupplier,
                       workerMetricsScope,
-                      service.getServerCapabilities()));
+                      service.getServerCapabilities(),
+                      pollerTracker));
         }
         poller =
             new AsyncPoller<>(
@@ -180,7 +200,9 @@ final class WorkflowWorker implements SuspendableWorker {
                     slotSupplier,
                     stickyQueueBalancer,
                     workerMetricsScope,
-                    service.getServerCapabilities()),
+                    service.getServerCapabilities(),
+                    pollerTracker,
+                    stickyPollerTracker),
                 pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope);
@@ -216,19 +238,25 @@ final class WorkflowWorker implements SuspendableWorker {
     return CompletableFuture.allOf(
         pollerShutdown.thenCompose(
             ignore -> {
-              if (!interruptTasks && stickyTaskQueueName != null) {
-                return shutdownManager.waitOnWorkerShutdownRequest(
-                    service
-                        .futureStub()
-                        .shutdownWorker(
-                            ShutdownWorkerRequest.newBuilder()
-                                .setIdentity(options.getIdentity())
-                                .setNamespace(namespace)
-                                .setStickyTaskQueue(stickyTaskQueueName)
-                                .setReason(GRACEFUL_SHUTDOWN_MESSAGE)
-                                .build()));
+              ShutdownWorkerRequest.Builder shutdownReq =
+                  ShutdownWorkerRequest.newBuilder()
+                      .setIdentity(options.getIdentity())
+                      .setNamespace(namespace)
+                      .setTaskQueue(taskQueue)
+                      .setWorkerInstanceKey(workerInstanceKey)
+                      .setReason(GRACEFUL_SHUTDOWN_MESSAGE)
+                      .addAllTaskQueueTypes(activeTaskQueueTypes);
+              if (stickyTaskQueueName != null) {
+                shutdownReq.setStickyTaskQueue(stickyTaskQueueName);
               }
-              return CompletableFuture.completedFuture(null);
+              if (heartbeatSupplier != null) {
+                shutdownReq.setWorkerHeartbeat(
+                    heartbeatSupplier.get().toBuilder()
+                        .setStatus(WorkerStatus.WORKER_STATUS_SHUTTING_DOWN)
+                        .build());
+              }
+              return shutdownManager.waitOnWorkerShutdownRequest(
+                  service.futureStub().shutdownWorker(shutdownReq.build()));
             }),
         pollerShutdown
             .thenCompose(
@@ -338,6 +366,42 @@ final class WorkflowWorker implements SuspendableWorker {
         .orElse(null);
   }
 
+  public void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
+    this.heartbeatSupplier = supplier;
+  }
+
+  public TrackingSlotSupplier<WorkflowSlotInfo> getSlotSupplier() {
+    return slotSupplier;
+  }
+
+  public boolean hasStickyQueue() {
+    return stickyTaskQueueName != null;
+  }
+
+  public String getStickyTaskQueueName() {
+    return stickyTaskQueueName;
+  }
+
+  public AtomicInteger getTotalProcessedTasks() {
+    return totalProcessedTasks;
+  }
+
+  public AtomicInteger getTotalFailedTasks() {
+    return totalFailedTasks;
+  }
+
+  public PollerOptions getPollerOptions() {
+    return pollerOptions;
+  }
+
+  public PollerTracker getPollerTracker() {
+    return pollerTracker;
+  }
+
+  public PollerTracker getStickyPollerTracker() {
+    return stickyPollerTracker;
+  }
+
   @Override
   public String toString() {
     return String.format(
@@ -368,6 +432,7 @@ final class WorkflowWorker implements SuspendableWorker {
       MDC.put(LoggerTag.RUN_ID, runId);
 
       boolean locked = false;
+      boolean taskProcessingFailed = false;
 
       Stopwatch swTotal =
           workflowTypeScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
@@ -511,6 +576,7 @@ final class WorkflowWorker implements SuspendableWorker {
               }
             }
           } catch (Exception e) {
+            taskProcessingFailed = true;
             releaseReason = SlotReleaseReason.error(e);
             handleReportingFailure(e, currentTask, result, workflowExecution, workflowTypeScope);
             throw e;
@@ -546,6 +612,11 @@ final class WorkflowWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
+
+        totalProcessedTasks.incrementAndGet();
+        if (taskProcessingFailed) {
+          totalFailedTasks.incrementAndGet();
+        }
 
         if (locked) {
           runLocks.unlock(runId);

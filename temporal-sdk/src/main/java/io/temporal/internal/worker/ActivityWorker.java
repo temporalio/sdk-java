@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,9 @@ final class ActivityWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
+  private final AtomicInteger totalProcessedTasks = new AtomicInteger();
+  private final AtomicInteger totalFailedTasks = new AtomicInteger();
+  private final PollerTracker pollerTracker;
   private final AtomicBoolean serverSupportsAutoscaling;
 
   public ActivityWorker(
@@ -75,6 +79,7 @@ final class ActivityWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
+    this.pollerTracker = new PollerTracker();
     this.serverSupportsAutoscaling = serverSupportsAutoscaling;
   }
 
@@ -107,7 +112,8 @@ final class ActivityWorker implements SuspendableWorker {
                     taskQueueActivitiesPerSecond,
                     this.slotSupplier,
                     workerMetricsScope,
-                    service.getServerCapabilities()),
+                    service.getServerCapabilities(),
+                    pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
                 serverSupportsAutoscaling.get(),
@@ -126,7 +132,8 @@ final class ActivityWorker implements SuspendableWorker {
                     taskQueueActivitiesPerSecond,
                     this.slotSupplier,
                     workerMetricsScope,
-                    service.getServerCapabilities()),
+                    service.getServerCapabilities(),
+                    pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope);
@@ -216,6 +223,26 @@ final class ActivityWorker implements SuspendableWorker {
     return pollerOptions;
   }
 
+  public TrackingSlotSupplier<ActivitySlotInfo> getSlotSupplier() {
+    return slotSupplier;
+  }
+
+  public AtomicInteger getTotalProcessedTasks() {
+    return totalProcessedTasks;
+  }
+
+  public AtomicInteger getTotalFailedTasks() {
+    return totalFailedTasks;
+  }
+
+  public PollerOptions getPollerOptions() {
+    return pollerOptions;
+  }
+
+  public PollerTracker getPollerTracker() {
+    return pollerTracker;
+  }
+
   @Override
   public String toString() {
     return String.format(
@@ -261,6 +288,15 @@ final class ActivityWorker implements SuspendableWorker {
       ActivityTaskHandler.Result result = null;
       try {
         result = handleActivity(task, metricsScope);
+        totalProcessedTasks.incrementAndGet();
+        if (result.getTaskFailed() != null
+            && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
+                result.getTaskFailed().getFailure())) {
+          totalFailedTasks.incrementAndGet();
+        }
+      } catch (Exception e) {
+        totalFailedTasks.incrementAndGet();
+        throw e;
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);

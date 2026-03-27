@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import com.google.common.base.Preconditions;
 import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
@@ -7,6 +8,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -49,6 +51,7 @@ public final class WorkflowClientOptions {
     private List<ContextPropagator> contextPropagators;
     private QueryRejectCondition queryRejectCondition;
     private WorkflowClientPlugin[] plugins;
+    private Duration workerHeartbeatInterval;
 
     private Builder() {}
 
@@ -64,6 +67,7 @@ public final class WorkflowClientOptions {
       contextPropagators = options.contextPropagators;
       queryRejectCondition = options.queryRejectCondition;
       plugins = options.plugins;
+      workerHeartbeatInterval = options.workerHeartbeatInterval;
     }
 
     public Builder setNamespace(String namespace) {
@@ -153,6 +157,19 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Sets the interval at which workers send heartbeat RPCs to the server. If not set or set to
+     * zero, defaults to 60 seconds. A negative duration disables heartbeating. Positive values must
+     * be between 1 and 60 seconds inclusive.
+     *
+     * @param workerHeartbeatInterval the heartbeat interval, or a negative duration to disable
+     */
+    @Experimental
+    public Builder setWorkerHeartbeatInterval(Duration workerHeartbeatInterval) {
+      this.workerHeartbeatInterval = workerHeartbeatInterval;
+      return this;
+    }
+
     public WorkflowClientOptions build() {
       return new WorkflowClientOptions(
           namespace,
@@ -162,7 +179,8 @@ public final class WorkflowClientOptions {
           binaryChecksum,
           contextPropagators,
           queryRejectCondition,
-          plugins == null ? EMPTY_PLUGINS : plugins);
+          plugins == null ? EMPTY_PLUGINS : plugins,
+          resolveHeartbeatInterval(workerHeartbeatInterval));
     }
 
     /**
@@ -188,7 +206,22 @@ public final class WorkflowClientOptions {
           queryRejectCondition == null
               ? QueryRejectCondition.QUERY_REJECT_CONDITION_UNSPECIFIED
               : queryRejectCondition,
-          plugins == null ? EMPTY_PLUGINS : plugins);
+          plugins == null ? EMPTY_PLUGINS : plugins,
+          resolveHeartbeatInterval(workerHeartbeatInterval));
+    }
+
+    private static Duration resolveHeartbeatInterval(Duration raw) {
+      if (raw == null || raw.isZero()) {
+        return Duration.ofSeconds(60);
+      }
+      if (raw.isNegative()) {
+        return raw;
+      }
+      Preconditions.checkArgument(
+          raw.compareTo(Duration.ofSeconds(1)) >= 0 && raw.compareTo(Duration.ofSeconds(60)) <= 0,
+          "workerHeartbeatInterval must be between 1s and 60s, got %s",
+          raw);
+      return raw;
     }
   }
 
@@ -215,6 +248,8 @@ public final class WorkflowClientOptions {
 
   private final WorkflowClientPlugin[] plugins;
 
+  private final Duration workerHeartbeatInterval;
+
   private WorkflowClientOptions(
       String namespace,
       DataConverter dataConverter,
@@ -223,7 +258,8 @@ public final class WorkflowClientOptions {
       String binaryChecksum,
       List<ContextPropagator> contextPropagators,
       QueryRejectCondition queryRejectCondition,
-      WorkflowClientPlugin[] plugins) {
+      WorkflowClientPlugin[] plugins,
+      Duration workerHeartbeatInterval) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
@@ -232,6 +268,7 @@ public final class WorkflowClientOptions {
     this.contextPropagators = contextPropagators;
     this.queryRejectCondition = queryRejectCondition;
     this.plugins = plugins;
+    this.workerHeartbeatInterval = workerHeartbeatInterval;
   }
 
   /**
@@ -289,6 +326,15 @@ public final class WorkflowClientOptions {
     return plugins;
   }
 
+  /**
+   * Returns the worker heartbeat interval. Defaults to 60 seconds if not configured. A negative
+   * duration means heartbeating is explicitly disabled.
+   */
+  @Experimental
+  public Duration getWorkerHeartbeatInterval() {
+    return workerHeartbeatInterval;
+  }
+
   @Override
   public String toString() {
     return "WorkflowClientOptions{"
@@ -311,6 +357,8 @@ public final class WorkflowClientOptions {
         + queryRejectCondition
         + ", plugins="
         + Arrays.toString(plugins)
+        + ", workerHeartbeatInterval="
+        + workerHeartbeatInterval
         + '}';
   }
 
@@ -326,7 +374,9 @@ public final class WorkflowClientOptions {
         && com.google.common.base.Objects.equal(binaryChecksum, that.binaryChecksum)
         && com.google.common.base.Objects.equal(contextPropagators, that.contextPropagators)
         && queryRejectCondition == that.queryRejectCondition
-        && Arrays.equals(plugins, that.plugins);
+        && Arrays.equals(plugins, that.plugins)
+        && com.google.common.base.Objects.equal(
+            workerHeartbeatInterval, that.workerHeartbeatInterval);
   }
 
   @Override
@@ -339,6 +389,7 @@ public final class WorkflowClientOptions {
         binaryChecksum,
         contextPropagators,
         queryRejectCondition,
-        Arrays.hashCode(plugins));
+        Arrays.hashCode(plugins),
+        workerHeartbeatInterval);
   }
 }

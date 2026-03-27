@@ -70,6 +70,8 @@ public class WorkflowWorkerTest {
             client,
             "default",
             "task_queue",
+            "test-worker-instance-key",
+            java.util.Collections.emptyList(),
             "sticky_task_queue",
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
@@ -240,6 +242,8 @@ public class WorkflowWorkerTest {
             client,
             "default",
             "task_queue",
+            "test-worker-instance-key",
+            java.util.Collections.emptyList(),
             "sticky_task_queue",
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
@@ -383,6 +387,8 @@ public class WorkflowWorkerTest {
             client,
             "default",
             "taskQueue",
+            "test-worker-instance-key",
+            java.util.Collections.emptyList(),
             "sticky",
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
@@ -400,9 +406,15 @@ public class WorkflowWorkerTest {
             slotSupplier,
             new AtomicBoolean(false));
 
+    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
+        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
+
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     when(client.blockingStub()).thenReturn(blockingStub);
+    when(client.futureStub()).thenReturn(futureStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
     PollWorkflowTaskQueueResponse pollResponse =
