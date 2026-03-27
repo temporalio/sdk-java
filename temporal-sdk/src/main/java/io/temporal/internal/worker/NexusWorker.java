@@ -380,12 +380,7 @@ final class NexusWorker implements SuspendableWorker {
       }
     }
 
-<<<<<<< HEAD
     @SuppressWarnings("deprecation") // Uses deprecated setOperationError
-=======
-    @SuppressWarnings(
-        "deprecation") // Uses setOperationError() for backward compat with old servers
->>>>>>> 82235fc5 (Add upgrade-on-CAN support)
     private Response getResponseForOldServer(Response response) {
       Response.Builder b = response.toBuilder();
       Failure failure = response.getStartOperation().getFailure();
