@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 final class WorkflowWorker implements SuspendableWorker {
-  private static final String GRACEFUL_SHUTDOWN_MESSAGE = "graceful shutdown";
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private final WorkflowRunLockManager runLocks;
@@ -133,6 +132,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   null,
                   options.getIdentity(),
+                  options.getWorkerInstanceKey(),
                   options.getWorkerVersioningOptions(),
                   slotSupplier,
                   workerMetricsScope,
@@ -146,6 +146,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       taskQueue,
                       stickyTaskQueueName,
                       options.getIdentity(),
+                      options.getWorkerInstanceKey(),
                       options.getWorkerVersioningOptions(),
                       slotSupplier,
                       workerMetricsScope,
@@ -162,6 +163,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       taskQueue,
                       null,
                       options.getIdentity(),
+                      options.getWorkerInstanceKey(),
                       options.getWorkerVersioningOptions(),
                       slotSupplier,
                       workerMetricsScope,
@@ -175,7 +177,7 @@ final class WorkflowWorker implements SuspendableWorker {
                 pollers,
                 this.pollTaskExecutor,
                 pollerOptions,
-                namespaceCapabilities.isPollerAutoscaling(),
+                namespaceCapabilities,
                 workerMetricsScope);
       } else {
         PollerBehaviorSimpleMaximum pollerBehavior =
@@ -193,6 +195,7 @@ final class WorkflowWorker implements SuspendableWorker {
                     taskQueue,
                     stickyTaskQueueName,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     slotSupplier,
                     stickyQueueBalancer,
@@ -202,7 +205,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     stickyPollerTracker),
                 pollTaskExecutor,
                 pollerOptions,
-                workerMetricsScope);
+                workerMetricsScope,
+                namespaceCapabilities);
       }
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
@@ -232,46 +236,23 @@ final class WorkflowWorker implements SuspendableWorker {
                             stickyQueueBalancer, options.getDrainStickyTaskQueueTimeout())
                         : CompletableFuture.completedFuture(null))
             .thenCompose(ignore -> poller.shutdown(shutdownManager, interruptTasks));
-    return CompletableFuture.allOf(
-        pollerShutdown.thenCompose(
-            ignore -> {
-              ShutdownWorkerRequest.Builder shutdownReq =
-                  ShutdownWorkerRequest.newBuilder()
-                      .setIdentity(options.getIdentity())
-                      .setNamespace(namespace)
-                      .setTaskQueue(taskQueue)
-                      .setWorkerInstanceKey(workerInstanceKey)
-                      .setReason(GRACEFUL_SHUTDOWN_MESSAGE)
-                      .addAllTaskQueueTypes(activeTaskQueueTypesSupplier.get());
-              if (stickyTaskQueueName != null) {
-                shutdownReq.setStickyTaskQueue(stickyTaskQueueName);
-              }
-              if (heartbeatSupplier != null) {
-                shutdownReq.setWorkerHeartbeat(
-                    heartbeatSupplier.get().toBuilder()
-                        .setStatus(WorkerStatus.WORKER_STATUS_SHUTTING_DOWN)
-                        .build());
-              }
-              return shutdownManager.waitOnWorkerShutdownRequest(
-                  service.futureStub().shutdownWorker(shutdownReq.build()));
-            }),
-        pollerShutdown
-            .thenCompose(
-                ignore ->
-                    !interruptTasks
-                        ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
-                            slotSupplier, supplierName)
-                        : CompletableFuture.completedFuture(null))
-            .thenCompose(
-                ignore ->
-                    pollTaskExecutor != null
-                        ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
-                        : CompletableFuture.completedFuture(null))
-            .exceptionally(
-                e -> {
-                  log.error("Unexpected exception during shutdown", e);
-                  return null;
-                }));
+    return pollerShutdown
+        .thenCompose(
+            ignore ->
+                !interruptTasks
+                    ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
+                        slotSupplier, supplierName)
+                    : CompletableFuture.completedFuture(null))
+        .thenCompose(
+            ignore ->
+                pollTaskExecutor != null
+                    ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
+                    : CompletableFuture.completedFuture(null))
+        .exceptionally(
+            e -> {
+              log.error("Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override

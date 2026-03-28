@@ -279,6 +279,12 @@ public final class WorkerFactory {
     if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
       namespaceCapabilities.setPollerAutoscaling(true);
     }
+    if (describeNamespaceResponse
+        .getNamespaceInfo()
+        .getCapabilities()
+        .getWorkerPollCompleteOnShutdown()) {
+      namespaceCapabilities.setGracefulPollShutdown(true);
+    }
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;
