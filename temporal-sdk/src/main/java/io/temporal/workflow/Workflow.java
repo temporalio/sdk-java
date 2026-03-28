@@ -572,8 +572,18 @@ public final class Workflow {
   }
 
   /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
+  public static void sleep(Duration duration, TimerOptions options) {
+    WorkflowInternal.sleep(duration, options);
+  }
+
+  /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
   public static void sleep(long millis) {
     WorkflowInternal.sleep(Duration.ofMillis(millis));
+  }
+
+  /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
+  public static void sleep(long millis, TimerOptions options) {
+    WorkflowInternal.sleep(Duration.ofMillis(millis), options);
   }
 
   /**
