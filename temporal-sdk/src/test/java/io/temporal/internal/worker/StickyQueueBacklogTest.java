@@ -68,6 +68,7 @@ public class StickyQueueBacklogTest {
             "taskqueue",
             "stickytaskqueue",
             "",
+            "test-instance-key",
             new WorkerVersioningOptions("", false, null),
             slotSupplier,
             stickyQueueBalancer,

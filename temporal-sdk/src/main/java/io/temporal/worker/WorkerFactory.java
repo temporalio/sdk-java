@@ -13,6 +13,7 @@ import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
+import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -29,7 +30,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -58,8 +58,8 @@ public final class WorkerFactory {
   /** Plugins propagated from the client and applied to this factory. */
   private final List<WorkerPlugin> plugins;
 
-  /** Set during start() if the namespace has the poller_autoscaling capability. */
-  private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
+  /** Namespace capabilities populated during start() from DescribeNamespace response. */
+  private final NamespaceCapabilities namespaceCapabilities = new NamespaceCapabilities();
 
   private State state = State.Initial;
 
@@ -198,7 +198,7 @@ public final class WorkerFactory {
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators(),
               plugins,
-              pollerAutoscaling);
+              namespaceCapabilities);
       workers.put(taskQueue, worker);
 
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
@@ -266,7 +266,13 @@ public final class WorkerFactory {
                     .setNamespace(workflowClient.getOptions().getNamespace())
                     .build());
     if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
-      pollerAutoscaling.set(true);
+      namespaceCapabilities.setPollerAutoscaling(true);
+    }
+    if (describeNamespaceResponse
+        .getNamespaceInfo()
+        .getCapabilities()
+        .getWorkerPollCompleteOnShutdown()) {
+      namespaceCapabilities.setGracefulPollShutdown(true);
     }
 
     // Build plugin execution chain (reverse order for proper nesting)

@@ -52,8 +52,9 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
       PollTask<T> pollTask,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
-      Scope workerMetricsScope) {
-    super(taskExecutor);
+      Scope workerMetricsScope,
+      NamespaceCapabilities namespaceCapabilities) {
+    super(taskExecutor, namespaceCapabilities);
     Objects.requireNonNull(identity, "identity cannot be null");
     Objects.requireNonNull(pollTask, "poll service should not be null");
     Objects.requireNonNull(pollerOptions, "pollerOptions should not be null");

@@ -29,7 +29,6 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
   private final List<PollTaskAsync<T>> asyncTaskPollers;
   private final PollerOptions pollerOptions;
   private final PollerBehaviorAutoscaling pollerBehavior;
-  private final boolean serverSupportsAutoscaling;
   private final Scope workerMetricsScope;
   private Throttler pollRateThrottler;
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
@@ -43,7 +42,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
       PollTaskAsync<T> asyncTaskPoller,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
-      boolean serverSupportsAutoscaling,
+      NamespaceCapabilities namespaceCapabilities,
       Scope workerMetricsScope) {
     this(
         slotSupplier,
@@ -51,7 +50,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
         Collections.singletonList(asyncTaskPoller),
         taskExecutor,
         pollerOptions,
-        serverSupportsAutoscaling,
+        namespaceCapabilities,
         workerMetricsScope);
   }
 
@@ -61,9 +60,9 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
       List<PollTaskAsync<T>> asyncTaskPollers,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
-      boolean serverSupportsAutoscaling,
+      NamespaceCapabilities namespaceCapabilities,
       Scope workerMetricsScope) {
-    super(taskExecutor);
+    super(taskExecutor, namespaceCapabilities);
     Objects.requireNonNull(slotSupplier, "slotSupplier cannot be null");
     Objects.requireNonNull(slotReservationData, "slotReservation data should not be null");
     Objects.requireNonNull(asyncTaskPollers, "asyncTaskPollers should not be null");
@@ -82,7 +81,6 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
               + " is not supported for AsyncPoller. Only PollerBehaviorAutoscaling is supported.");
     }
     this.pollerBehavior = (PollerBehaviorAutoscaling) pollerOptions.getPollerBehavior();
-    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
     this.pollerOptions = pollerOptions;
     this.workerMetricsScope = workerMetricsScope;
   }
@@ -114,7 +112,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
               pollerBehavior.getMinConcurrentTaskPollers(),
               pollerBehavior.getMaxConcurrentTaskPollers(),
               pollerBehavior.getInitialConcurrentTaskPollers(),
-              serverSupportsAutoscaling,
+              namespaceCapabilities.isPollerAutoscaling(),
               (newTarget) -> {
                 log.debug(
                     "Updating maximum number of pollers for {} to: {}",
@@ -136,12 +134,14 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
     return super.shutdown(shutdownManager, interruptTasks)
         .thenApply(
             (f) -> {
-              for (PollTaskAsync<T> asyncTaskPoller : asyncTaskPollers) {
-                try {
-                  log.debug("Shutting down async poller: {}", asyncTaskPoller.getLabel());
-                  asyncTaskPoller.cancel(new RuntimeException("Shutting down poller"));
-                } catch (Throwable e) {
-                  log.error("Error while cancelling poll task", e);
+              if (!namespaceCapabilities.isGracefulPollShutdown()) {
+                for (PollTaskAsync<T> asyncTaskPoller : asyncTaskPollers) {
+                  try {
+                    log.debug("Shutting down async poller: {}", asyncTaskPoller.getLabel());
+                    asyncTaskPoller.cancel(new RuntimeException("Shutting down poller"));
+                  } catch (Throwable e) {
+                    log.error("Error while cancelling poll task", e);
+                  }
                 }
               }
               return null;
