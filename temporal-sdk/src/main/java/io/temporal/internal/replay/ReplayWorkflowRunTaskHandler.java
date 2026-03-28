@@ -144,8 +144,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         // task,
         // we always can rework it to graceful invalidation of the cache entity and a full replay
         // from the server
-        throw new IllegalStateException(
-            "Server history for the workflow is below the progress of the workflow on the worker, the progress needs to be discarded");
+        throw StaleWorkflowHistoryException.newCacheProgressMismatch();
       }
 
       handleWorkflowTaskImpl(workflowTask, historyIterator);
@@ -299,10 +298,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   // a stale node.
   private void verifyAllEventsProcessed(long lastEventId, long processedEventId) {
     if (lastEventId != Long.MAX_VALUE && lastEventId > 0 && processedEventId < lastEventId) {
-      throw new IllegalStateException(
-          String.format(
-              "Premature end of stream, expectedLastEventID=%d but no more events after eventID=%d",
-              lastEventId, processedEventId));
+      throw StaleWorkflowHistoryException.newPrematureEndOfStream(lastEventId, processedEventId);
     }
   }
 
