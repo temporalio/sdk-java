@@ -1349,14 +1349,6 @@ public final class WorkflowStateMachines {
               true,
               commandAttributes.getMessageId().endsWith("accept"));
           break;
-        case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_REJECTED:
-          assertMatch(
-              command,
-              event,
-              "messageType",
-              true,
-              commandAttributes.getMessageId().endsWith("reject"));
-          break;
         case EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
           assertMatch(
               command,
