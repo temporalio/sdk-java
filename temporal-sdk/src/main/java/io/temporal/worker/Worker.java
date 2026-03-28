@@ -505,7 +505,13 @@ public final class Worker {
         shutdownManager.waitOnWorkerShutdownRequest(
             service.futureStub().shutdownWorker(requestBuilder.build()));
 
-    return shutdownWorkerRpc.thenCompose(
+    // When interrupting tasks (shutdownNow), fire the RPC but don't block on it — proceed to
+    // shut down pollers immediately. For graceful shutdown, wait for the RPC so the server can
+    // complete outstanding polls with empty responses before we start waiting on them.
+    CompletableFuture<Void> preShutdown =
+        interruptUserTasks ? CompletableFuture.completedFuture(null) : shutdownWorkerRpc;
+
+    return preShutdown.thenCompose(
         ignore -> {
           CompletableFuture<Void> workflowWorkerShutdownFuture =
               workflowWorker.shutdown(shutdownManager, interruptUserTasks);
