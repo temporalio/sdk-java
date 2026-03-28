@@ -1,18 +1,17 @@
 package io.temporal.internal.worker;
 
+import static org.junit.Assert.*;
+
 import com.uber.m3.tally.NoopScope;
 import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.Assert.*;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Tests that an in-flight poll survives shutdown when graceful poll shutdown is enabled, and is
