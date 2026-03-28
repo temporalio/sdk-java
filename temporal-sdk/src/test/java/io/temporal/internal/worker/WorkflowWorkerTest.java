@@ -80,6 +80,7 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(3))
@@ -252,6 +253,7 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -397,6 +399,7 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))

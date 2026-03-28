@@ -98,6 +98,7 @@ public class StickyQueueBacklogTest {
                                 .setKind(TaskQueueKind.TASK_QUEUE_KIND_STICKY)
                                 .build())
                         .setNamespace("default")
+                        .setWorkerInstanceKey("test-instance-key")
                         .build())))
             .thenReturn(pollResponse);
     if (throwOnPoll) {
