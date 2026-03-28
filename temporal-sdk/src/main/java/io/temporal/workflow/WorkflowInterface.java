@@ -64,7 +64,7 @@ import java.lang.annotation.Target;
  *     String d();
  *  }
  *
- *  public class CImpl implements C {
+ *  public class DImpl implements D {
  *      public void a() {}
  *      public void aa() {}
  *      public void b() {}
@@ -73,7 +73,7 @@ import java.lang.annotation.Target;
  *  }
  * </code></pre>
  *
- * When <code>CImpl</code> instance is registered with the {@link io.temporal.worker.Worker} the
+ * When <code>DImpl</code> instance is registered with the {@link io.temporal.worker.Worker} the
  * following is registered:
  *
  * <p>
@@ -87,7 +87,7 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * The client code can call signals through stubs to <code>B</code>, <code>C</code> and <code>D
- * </code> interfaces. A call to crate a stub to <code>A</code> interface will fail as <code>A
+ * </code> interfaces. A call to create a stub to <code>A</code> interface will fail as <code>A
  * </code> is not annotated with the WorkflowInterface.
  */
 @Retention(RetentionPolicy.RUNTIME)
