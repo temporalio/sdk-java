@@ -48,6 +48,7 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
@@ -70,6 +71,7 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(Objects.requireNonNull(namespace))
             .setIdentity(Objects.requireNonNull(identity));
+    pollRequestBuilder.setWorkerInstanceKey(workerInstanceKey);
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequestBuilder.setDeploymentOptions(

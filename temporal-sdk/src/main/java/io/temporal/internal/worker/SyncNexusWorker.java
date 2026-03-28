@@ -6,7 +6,6 @@ import io.temporal.worker.tuning.NexusSlotInfo;
 import io.temporal.worker.tuning.SlotSupplier;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +25,7 @@ public class SyncNexusWorker implements SuspendableWorker {
       String taskQueue,
       SingleWorkerOptions options,
       SlotSupplier<NexusSlotInfo> slotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.identity = options.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -47,7 +46,7 @@ public class SyncNexusWorker implements SuspendableWorker {
             taskHandler,
             options.getDataConverter(),
             slotSupplier,
-            serverSupportsAutoscaling);
+            namespaceCapabilities);
   }
 
   @Override

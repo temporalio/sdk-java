@@ -19,3 +19,4 @@ src/main/idls/*
 .vscode/
 */bin
 /.claude
+**/.factorypath

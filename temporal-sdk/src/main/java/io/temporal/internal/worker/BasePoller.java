@@ -27,9 +27,14 @@ abstract class BasePoller<T> implements SuspendableWorker {
 
   protected ExecutorService pollExecutor;
 
-  protected BasePoller(ShutdownableTaskExecutor<T> taskExecutor) {
+  protected final NamespaceCapabilities namespaceCapabilities;
+
+  protected BasePoller(
+      ShutdownableTaskExecutor<T> taskExecutor, NamespaceCapabilities namespaceCapabilities) {
     Objects.requireNonNull(taskExecutor, "taskExecutor should not be null");
     this.taskExecutor = taskExecutor;
+    this.namespaceCapabilities =
+        Objects.requireNonNull(namespaceCapabilities, "namespaceCapabilities should not be null");
   }
 
   @Override
@@ -55,15 +60,23 @@ abstract class BasePoller<T> implements SuspendableWorker {
         return CompletableFuture.completedFuture(null);
     }
 
-    return shutdownManager
-        // it's ok to forcefully shutdown pollers, because they are stuck in a long poll call
-        // so we don't risk loosing any progress doing that.
-        .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
-        .exceptionally(
-            e -> {
-              log.error("Unexpected exception during shutdown", e);
-              return null;
-            });
+    CompletableFuture<Void> pollExecutorShutdown;
+    if (namespaceCapabilities.isGracefulPollShutdown()) {
+      // When graceful poll shutdown is enabled, the server will complete outstanding polls with
+      // empty responses after ShutdownWorker is called. We simply wait for polls to return.
+      pollExecutorShutdown =
+          shutdownManager.shutdownExecutorUntimed(pollExecutor, this + "#pollExecutor");
+    } else {
+      // Old behaviour forcibly stops outstanding polls.
+      pollExecutorShutdown =
+          shutdownManager.shutdownExecutorNow(
+              pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1));
+    }
+    return pollExecutorShutdown.exceptionally(
+        e -> {
+          log.error("Unexpected exception during shutdown", e);
+          return null;
+        });
   }
 
   @Override

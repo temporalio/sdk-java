@@ -31,7 +31,6 @@ import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -74,6 +73,7 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(3))
@@ -85,7 +85,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -244,6 +244,7 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -255,7 +256,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -387,6 +388,7 @@ public class WorkflowWorkerTest {
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -398,7 +400,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);

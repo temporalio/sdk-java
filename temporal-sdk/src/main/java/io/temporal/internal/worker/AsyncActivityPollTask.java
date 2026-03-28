@@ -43,6 +43,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       double activitiesPerSecond,
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
@@ -57,6 +58,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
             .setNamespace(namespace)
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+    pollRequest.setWorkerInstanceKey(workerInstanceKey);
     if (activitiesPerSecond > 0) {
       pollRequest.setTaskQueueMetadata(
           TaskQueueMetadata.newBuilder()
