@@ -24,7 +24,6 @@ final class VersionStateMachine {
 
   private final String changeId;
   private final Functions.Func<Boolean> replaying;
-  private final Functions.Func<Boolean> notifyOnMarkerRecordedReplaying;
   private final Functions.Proc1<CancellableCommand> commandSink;
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
@@ -265,20 +264,8 @@ final class VersionStateMachine {
     }
 
     void notifyMarkerCreatedReplaying() {
-      if (notifyOnMarkerRecordedReplaying.apply()) {
-        // Flagged histories already get the version synchronously from getVersion(), so delay the
-        // replay callback until the real marker event is matched.
-        return;
-      }
-      try {
-        // it's a replay and the version to return from the getVersion call should be preloaded from
-        // the history
-        final boolean usePreloadedVersion = true;
-        validateVersionAndThrow(usePreloadedVersion);
-        notifyFromVersion(usePreloadedVersion);
-      } catch (RuntimeException ex) {
-        notifyFromException(ex);
-      }
+      // Replay already preloads the version value, so delay the callback until the real marker
+      // event is matched.
     }
 
     State createMarkerReplaying() {
@@ -301,13 +288,11 @@ final class VersionStateMachine {
       Preconditions.checkState(
           preloadedVersion != null, "preloadedVersion is expected to be initialized");
       flushPreloadedVersionAndUpdateFromEvent(currentEvent);
-      if (notifyOnMarkerRecordedReplaying.apply()) {
-        try {
-          validateVersionAndThrow(false);
-          notifyFromVersion(false);
-        } catch (RuntimeException ex) {
-          notifyFromException(ex);
-        }
+      try {
+        validateVersionAndThrow(false);
+        notifyFromVersion(false);
+      } catch (RuntimeException ex) {
+        notifyFromException(ex);
       }
     }
 
@@ -380,22 +365,18 @@ final class VersionStateMachine {
   public static VersionStateMachine newInstance(
       String id,
       Functions.Func<Boolean> replaying,
-      Functions.Func<Boolean> notifyOnMarkerRecordedReplaying,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    return new VersionStateMachine(
-        id, replaying, notifyOnMarkerRecordedReplaying, commandSink, stateMachineSink);
+    return new VersionStateMachine(id, replaying, commandSink, stateMachineSink);
   }
 
   private VersionStateMachine(
       String changeId,
       Functions.Func<Boolean> replaying,
-      Functions.Func<Boolean> notifyOnMarkerRecordedReplaying,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     this.changeId = Objects.requireNonNull(changeId);
     this.replaying = Objects.requireNonNull(replaying);
-    this.notifyOnMarkerRecordedReplaying = Objects.requireNonNull(notifyOnMarkerRecordedReplaying);
     this.commandSink = Objects.requireNonNull(commandSink);
     this.stateMachineSink = stateMachineSink;
   }
