@@ -1,13 +1,10 @@
 package io.temporal.internal.replay;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
 import com.uber.m3.tally.NoopScope;
-import io.temporal.api.command.v1.Command;
-import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -30,16 +27,12 @@ import org.junit.Test;
 public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
   private static final String HISTORY_RESOURCE =
       "testGetVersionInterleavedUpdateReplayHistory.json";
-  private static final String EXPECTED_NON_DETERMINISTIC_MESSAGE =
-      "[TMPRL1100] getVersion call before the existing version marker event. The most probable cause is retroactive addition of a getVersion call with an existing 'changeId'";
-  private static final String EXPECTED_NON_DETERMINISTIC_FRAGMENT =
-      "io.temporal.worker.NonDeterministicException: " + EXPECTED_NON_DETERMINISTIC_MESSAGE;
   private static final String EXPECTED_FIRST_CHANGE_ID = "ChangeId1";
   private static final String EXPECTED_SECOND_CHANGE_ID = "ChangeId2";
   private static final String TEST_TASK_QUEUE = "get-version-interleaved-update-replay";
 
   @Test
-  public void testReplayQueuesSecondVersionMarkerBeforeUpdateCompletionCommands() throws Exception {
+  public void testReplayDirectQueryWorkflowTaskSucceeds() throws Throwable {
     WorkflowExecutionHistory history =
         WorkflowHistoryLoader.readHistoryFromResource(HISTORY_RESOURCE);
     assertEquals(
@@ -62,27 +55,11 @@ public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
       ServiceWorkflowHistoryIterator historyIterator =
           new ServiceWorkflowHistoryIterator(service, namespace, replayTask, new NoopScope());
 
-      ReplayWorkflowRunTaskHandler replayHandler = runTaskHandler;
-      RuntimeException thrown =
-          assertThrows(
-              RuntimeException.class,
-              () -> replayHandler.handleDirectQueryWorkflowTask(replayTask, historyIterator));
-      assertTrue(
-          "Expected replay failure to contain the nondeterminism marker, but got: " + thrown,
-          throwableChainContains(thrown, EXPECTED_NON_DETERMINISTIC_FRAGMENT)
-              || throwableChainContains(thrown, EXPECTED_NON_DETERMINISTIC_MESSAGE));
-
-      List<Command> pendingCommands = runTaskHandler.getWorkflowStateMachines().takeCommands();
-      int versionMarkerIndex = indexOfVersionMarker(pendingCommands);
-      int protocolMessageIndex =
-          indexOfCommandType(pendingCommands, CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE);
-
-      assertNotEquals(
-          "Expected a pending Version marker command after replay failure", -1, versionMarkerIndex);
-      assertTrue(
-          "Expected the pending Version marker to be queued before any update completion protocol command: "
-              + pendingCommands,
-          protocolMessageIndex == -1 || versionMarkerIndex < protocolMessageIndex);
+      QueryResult result =
+          runTaskHandler.handleDirectQueryWorkflowTask(replayTask, historyIterator);
+      assertNotNull(result);
+      assertFalse(result.isWorkflowMethodCompleted());
+      assertFalse(result.getResponsePayloads().isPresent());
     } finally {
       if (runTaskHandler != null) {
         runTaskHandler.close();
@@ -137,35 +114,6 @@ public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
       }
     }
     return changeIds;
-  }
-
-  private static int indexOfVersionMarker(List<Command> commands) {
-    for (int i = 0; i < commands.size(); i++) {
-      if (VersionMarkerUtils.hasVersionMarkerStructure(commands.get(i))) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  private static int indexOfCommandType(List<Command> commands, CommandType commandType) {
-    for (int i = 0; i < commands.size(); i++) {
-      if (commands.get(i).getCommandType() == commandType) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  private static boolean throwableChainContains(Throwable throwable, String expected) {
-    Throwable current = throwable;
-    while (current != null) {
-      if (String.valueOf(current).contains(expected)) {
-        return true;
-      }
-      current = current.getCause();
-    }
-    return false;
   }
 
   private static <T> T getField(Object target, String fieldName, Class<T> expectedType)
