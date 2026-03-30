@@ -24,6 +24,13 @@ public class GetVersionInterleavedUpdateReplayTest {
   private static final String HISTORY_RESOURCE =
       "testGetVersionInterleavedUpdateReplayHistory.json";
 
+  /**
+   * Regression test for the interleaved update/getVersion replay bug.
+   *
+   * <p>This replays the original failing history through the public {@link WorkflowReplayer} API
+   * and verifies that replay now succeeds instead of surfacing the old {@code [TMPRL1100]}
+   * nondeterminism failure.
+   */
   @Test
   public void testReplayHistory() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(

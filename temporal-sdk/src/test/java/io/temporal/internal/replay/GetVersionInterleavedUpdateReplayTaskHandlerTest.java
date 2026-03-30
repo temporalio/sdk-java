@@ -31,6 +31,13 @@ public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
   private static final String EXPECTED_SECOND_CHANGE_ID = "ChangeId2";
   private static final String TEST_TASK_QUEUE = "get-version-interleaved-update-replay";
 
+  /**
+   * Regression test for the lower-level replay path behind the public replayer API.
+   *
+   * <p>We replay the same recorded history through the direct-query task handler so the fix is
+   * verified at the state-machine layer that previously produced the ordering bug. Success here
+   * shows replay no longer fails before query handling can complete.
+   */
   @Test
   public void testReplayDirectQueryWorkflowTaskSucceeds() throws Throwable {
     WorkflowExecutionHistory history =
