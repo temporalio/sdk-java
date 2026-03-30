@@ -133,17 +133,20 @@ final class VersionStateMachine {
 
     private final int minSupported;
     private final int maxSupported;
+    private final boolean waitForMarkerRecordedReplaying;
     private final Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback;
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
     InvocationStateMachine(
         int minSupported,
         int maxSupported,
+        boolean waitForMarkerRecordedReplaying,
         Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
         Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
+      this.waitForMarkerRecordedReplaying = waitForMarkerRecordedReplaying;
       this.upsertSearchAttributeCallback = upsertSearchAttributeCallback;
       this.resultCallback = Objects.requireNonNull(callback);
     }
@@ -264,8 +267,20 @@ final class VersionStateMachine {
     }
 
     void notifyMarkerCreatedReplaying() {
-      // Replay already preloads the version value, so delay the callback until the real marker
-      // event is matched.
+      if (waitForMarkerRecordedReplaying) {
+        // Replay already preloads the version value, so delay the callback until the real marker
+        // event is matched.
+        return;
+      }
+      try {
+        // It's a replay and the version to return from the getVersion call should be preloaded
+        // from the history.
+        final boolean usePreloadedVersion = true;
+        validateVersionAndThrow(usePreloadedVersion);
+        notifyFromVersion(usePreloadedVersion);
+      } catch (RuntimeException ex) {
+        notifyFromException(ex);
+      }
     }
 
     State createMarkerReplaying() {
@@ -288,11 +303,13 @@ final class VersionStateMachine {
       Preconditions.checkState(
           preloadedVersion != null, "preloadedVersion is expected to be initialized");
       flushPreloadedVersionAndUpdateFromEvent(currentEvent);
-      try {
-        validateVersionAndThrow(false);
-        notifyFromVersion(false);
-      } catch (RuntimeException ex) {
-        notifyFromException(ex);
+      if (waitForMarkerRecordedReplaying) {
+        try {
+          validateVersionAndThrow(false);
+          notifyFromVersion(false);
+        } catch (RuntimeException ex) {
+          notifyFromException(ex);
+        }
       }
     }
 
@@ -392,11 +409,16 @@ final class VersionStateMachine {
   public Integer getVersion(
       int minSupported,
       int maxSupported,
+      boolean waitForMarkerRecordedReplaying,
       Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
       Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism =
         new InvocationStateMachine(
-            minSupported, maxSupported, upsertSearchAttributeCallback, callback);
+            minSupported,
+            maxSupported,
+            waitForMarkerRecordedReplaying,
+            upsertSearchAttributeCallback,
+            callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
     //  If the state is SKIPPED_REPLAYING that means we:
