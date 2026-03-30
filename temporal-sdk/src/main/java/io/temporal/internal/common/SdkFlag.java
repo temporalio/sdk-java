@@ -23,6 +23,11 @@ public enum SdkFlag {
    * condition is resolved before the timeout.
    */
   CANCEL_AWAIT_TIMER_ON_CONDITION(4),
+  /*
+   * Changes replay behavior of GetVersion to wait for the matching marker event before executing
+   * the callback.
+   */
+  VERSION_WAIT_FOR_MARKER(5),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;
