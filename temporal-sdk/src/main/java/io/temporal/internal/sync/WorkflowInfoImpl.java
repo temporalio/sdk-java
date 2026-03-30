@@ -4,10 +4,12 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -145,6 +147,16 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   @Override
   public boolean isContinueAsNewSuggested() {
     return context.isContinueAsNewSuggested();
+  }
+
+  @Override
+  public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+    return context.getSuggestContinueAsNewReasons();
+  }
+
+  @Override
+  public boolean isTargetWorkerDeploymentVersionChanged() {
+    return context.isTargetWorkerDeploymentVersionChanged();
   }
 
   @Override

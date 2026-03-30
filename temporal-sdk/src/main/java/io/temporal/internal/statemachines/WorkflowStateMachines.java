@@ -20,6 +20,7 @@ import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.*;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
@@ -87,6 +88,10 @@ public final class WorkflowStateMachines {
   private long historySize;
 
   private boolean isContinueAsNewSuggested;
+
+  private List<SuggestContinueAsNewReason> suggestContinueAsNewReasons = Collections.emptyList();
+
+  private boolean isTargetWorkerDeploymentVersionChanged;
 
   /**
    * EventId of the last event seen by these state machines. Events earlier than this one will be
@@ -274,6 +279,14 @@ public final class WorkflowStateMachines {
 
   public boolean isContinueAsNewSuggested() {
     return isContinueAsNewSuggested;
+  }
+
+  public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+    return suggestContinueAsNewReasons;
+  }
+
+  public boolean isTargetWorkerDeploymentVersionChanged() {
+    return isTargetWorkerDeploymentVersionChanged;
   }
 
   public void setReplaying(boolean replaying) {
@@ -1493,7 +1506,9 @@ public final class WorkflowStateMachines {
         long currentTimeMillis,
         boolean nonProcessedWorkflowTask,
         long historySize,
-        boolean isContinueAsNewSuggested) {
+        boolean isContinueAsNewSuggested,
+        List<SuggestContinueAsNewReason> suggestContinueAsNewReasons,
+        boolean isTargetWorkerDeploymentVersionChanged) {
       setCurrentTimeMillis(currentTimeMillis);
       for (CancellableCommand cancellableCommand : commands) {
         cancellableCommand.handleWorkflowTaskStarted();
@@ -1509,6 +1524,9 @@ public final class WorkflowStateMachines {
       WorkflowStateMachines.this.lastWFTStartedEventId = startedEventId;
       WorkflowStateMachines.this.historySize = historySize;
       WorkflowStateMachines.this.isContinueAsNewSuggested = isContinueAsNewSuggested;
+      WorkflowStateMachines.this.suggestContinueAsNewReasons = suggestContinueAsNewReasons;
+      WorkflowStateMachines.this.isTargetWorkerDeploymentVersionChanged =
+          isTargetWorkerDeploymentVersionChanged;
 
       eventLoop();
     }

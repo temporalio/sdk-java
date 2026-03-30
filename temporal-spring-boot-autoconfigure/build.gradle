@@ -5,6 +5,16 @@ ext {
     otShimVersion = "${otelVersion}-alpha"
 }
 
+if (project.hasProperty("springBoot3Test") || project.hasProperty("springBoot4Test")) {
+    if (!project.hasProperty("edgeDepsTest")) {
+        // Spring Boot 3 and 4 require Java 17. Non-edge tests run against Java 8, so wouldn't work.
+        throw new IllegalArgumentException("springBoot3Test or springBoot4Test requires edgeDepsTest")
+    }
+    if (project.hasProperty("springBoot3Test") && project.hasProperty("springBoot4Test")) {
+        throw new IllegalArgumentException("Can't specify both springBoot3Test and springBoot4Test")
+    }
+}
+
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
     api(platform("io.opentelemetry:opentelemetry-bom:$otelVersion"))
@@ -31,14 +41,25 @@ dependencies {
     testImplementation project(':temporal-testing')
 
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    // For auto-configuration ordering tests (metrics)
+    testImplementation "org.springframework.boot:spring-boot-starter-actuator"
+    // For auto-configuration ordering tests (OpenTelemetry)
+    testImplementation "io.opentelemetry:opentelemetry-sdk"
 
-    testImplementation('org.slf4j:slf4j-api') {
-        version {
-            strictly "${slf4jVersion}"
-        }
+    // Override the SB 2.7 BOM for test classpath so tests run against SB 3 or 4.
+    // Main classes are still compiled against SB 2.7. We're simply
+    // validating that the published JAR works at runtime with SB 3 or 4.
+    if (project.hasProperty("springBoot4Test")) {
+        testImplementation(platform("org.springframework.boot:spring-boot-dependencies:$springBoot4Version"))
+        testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+        // SB4 modularized auto-configs into separate modules that
+        // spring-boot-starter-actuator no longer transitively includes.
+        testImplementation "org.springframework.boot:spring-boot-opentelemetry"
+    } else if (project.hasProperty("springBoot3Test")) {
+        testImplementation(platform("org.springframework.boot:spring-boot-dependencies:$springBoot3Version"))
+        testRuntimeOnly "org.junit.platform:junit-platform-launcher"
     }
 }
 
