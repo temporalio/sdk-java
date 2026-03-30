@@ -660,7 +660,11 @@ public final class WorkflowStateMachines {
               changeId,
               (idKey) ->
                   VersionStateMachine.newInstance(
-                      changeId, this::isReplaying, commandSink, stateMachineSink));
+                      changeId,
+                      this::isReplaying,
+                      () -> checkSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION),
+                      commandSink,
+                      stateMachineSink));
       Integer version = versionStateMachine.handleMarkersPreload(event);
       if (versionStateMachine.isWriteVersionChangeSA()) {
         changeVersions.put(changeId, version);
@@ -1249,7 +1253,11 @@ public final class WorkflowStateMachines {
             changeId,
             (idKey) ->
                 VersionStateMachine.newInstance(
-                    changeId, this::isReplaying, commandSink, stateMachineSink));
+                    changeId,
+                    this::isReplaying,
+                    () -> checkSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION),
+                    commandSink,
+                    stateMachineSink));
     return stateMachine.getVersion(
         minSupported,
         maxSupported,
