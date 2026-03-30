@@ -1415,6 +1415,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
+      if (options.getInitialVersioningBehavior() != null) {
+        switch (options.getInitialVersioningBehavior()) {
+          case AUTO_UPGRADE:
+            attributes.setInitialVersioningBehavior(
+                io.temporal.api.enums.v1.ContinueAsNewVersioningBehavior
+                    .CONTINUE_AS_NEW_VERSIONING_BEHAVIOR_AUTO_UPGRADE);
+            break;
+        }
+      }
     }
 
     if (options == null && replayContext.getRetryOptions() != null) {
