@@ -1,6 +1,7 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityInterface;
@@ -32,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 
@@ -52,18 +52,26 @@ public class GetVersionInterleavedUpdateReplayTest {
    * This recorded history predates {@link SdkFlag#SKIP_YIELD_ON_VERSION}, so it no longer matches
    * the histories produced by the current branch.
    *
-   * <p>We keep the fixture around for reference, but do not execute it as part of the suite. Making
-   * this exact history replay again would require changing replay behavior for histories that did
-   * not record the newer flags, which may break other existing replays. The fix is to put the
-   * state-machine behavior change behind an SDK flag {@link SdkFlag#VERSION_WAIT_FOR_MARKER}, and
-   * to make sure new workflows run with {@link SdkFlag#SKIP_YIELD_ON_VERSION} by default to avoid
-   * interleaved histories.
+   * <p>Keep this fixture as a reproducer that old histories without the newer flags still preserve
+   * the old failure. Making this exact history replay again would require changing replay behavior
+   * for histories that did not record the newer flags, which may break other existing replays. The
+   * fix is to put the state-machine behavior change behind an SDK flag {@link
+   * SdkFlag#VERSION_WAIT_FOR_MARKER}, and to make sure new workflows run with {@link
+   * SdkFlag#SKIP_YIELD_ON_VERSION} by default to avoid interleaved histories.
    */
-  @Ignore("Recorded history predates SKIP_YIELD_ON_VERSION. Use the live-history replay test.")
   @Test
-  public void testReplayHistory() throws Exception {
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        HISTORY_RESOURCE, GreetingWorkflowImpl.class);
+  public void testReplayHistoryWithoutFlagStillFails() {
+    RuntimeException replayFailure =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                WorkflowReplayer.replayWorkflowExecutionFromResource(
+                    HISTORY_RESOURCE, GreetingWorkflowImpl.class));
+
+    assertTrue(
+        replayFailure
+            .getMessage()
+            .contains("[TMPRL1100] getVersion call before the existing version marker event"));
   }
 
   @Test
