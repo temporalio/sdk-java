@@ -77,7 +77,9 @@ public class WorkerHeartbeatDeploymentVersionTest {
         });
   }
 
-  /** Uses deprecated WorkersInfo field because the replacement is not yet populated by the server. */
+  /**
+   * Uses deprecated WorkersInfo field because the replacement is not yet populated by the server.
+   */
   @SuppressWarnings("deprecation")
   private List<WorkerHeartbeat> listWorkersForQueue(String taskQueue) {
     ListWorkersResponse resp =

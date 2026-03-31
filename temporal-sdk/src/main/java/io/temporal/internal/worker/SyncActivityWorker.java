@@ -11,7 +11,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +34,7 @@ public class SyncActivityWorker implements SuspendableWorker {
       double taskQueueActivitiesPerSecond,
       SingleWorkerOptions options,
       SlotSupplier<ActivitySlotInfo> slotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.identity = options.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -76,7 +75,7 @@ public class SyncActivityWorker implements SuspendableWorker {
             options,
             taskHandler,
             slotSupplier,
-            serverSupportsAutoscaling);
+            namespaceCapabilities);
   }
 
   public void registerActivityImplementations(Object... activitiesImplementation) {

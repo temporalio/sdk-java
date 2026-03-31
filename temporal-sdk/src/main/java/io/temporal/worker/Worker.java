@@ -104,7 +104,7 @@ public final class Worker {
       WorkflowThreadExecutor workflowThreadExecutor,
       List<ContextPropagator> contextPropagators,
       @Nonnull List<WorkerPlugin> plugins,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
 
     Objects.requireNonNull(client, "client should not be null");
     this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
@@ -140,7 +140,7 @@ public final class Worker {
               this.options.getMaxTaskQueueActivitiesPerSecond(),
               activityOptions,
               activitySlotSupplier,
-              serverSupportsAutoscaling);
+              namespaceCapabilities);
     }
 
     EagerActivityDispatcher eagerActivityDispatcher =
@@ -159,12 +159,7 @@ public final class Worker {
 
     nexusWorker =
         new SyncNexusWorker(
-            client,
-            namespace,
-            taskQueue,
-            nexusOptions,
-            nexusSlotSupplier,
-            serverSupportsAutoscaling);
+            client, namespace, taskQueue, nexusOptions, nexusSlotSupplier, namespaceCapabilities);
 
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
@@ -205,7 +200,7 @@ public final class Worker {
             eagerActivityDispatcher,
             workflowSlotSupplier,
             localActivitySlotSupplier,
-            serverSupportsAutoscaling);
+            namespaceCapabilities);
   }
 
   /**

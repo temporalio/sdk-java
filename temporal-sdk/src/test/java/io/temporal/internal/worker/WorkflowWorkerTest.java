@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.Test;
@@ -92,7 +91,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -264,7 +263,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -409,7 +408,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -487,7 +486,7 @@ public class WorkflowWorkerTest {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            new AtomicBoolean(false));
+            new NamespaceCapabilities());
 
     // Simulate registering Nexus after construction
     typesRef.set(

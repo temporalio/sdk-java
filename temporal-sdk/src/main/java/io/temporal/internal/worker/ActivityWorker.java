@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +50,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
   private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker;
-  private final AtomicBoolean serverSupportsAutoscaling;
+  private final NamespaceCapabilities namespaceCapabilities;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -61,7 +60,7 @@ final class ActivityWorker implements SuspendableWorker {
       @Nonnull SingleWorkerOptions options,
       @Nonnull ActivityTaskHandler handler,
       @Nonnull SlotSupplier<ActivitySlotInfo> slotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -78,7 +77,7 @@ final class ActivityWorker implements SuspendableWorker {
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
     this.pollerTracker = new PollerTracker();
-    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
+    this.namespaceCapabilities = namespaceCapabilities;
   }
 
   @Override
@@ -114,7 +113,7 @@ final class ActivityWorker implements SuspendableWorker {
                     pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
-                serverSupportsAutoscaling.get(),
+                namespaceCapabilities.isPollerAutoscaling(),
                 workerMetricsScope);
 
       } else {

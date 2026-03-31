@@ -15,6 +15,7 @@ import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -31,7 +32,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -61,11 +61,10 @@ public final class WorkerFactory {
   /** Plugins propagated from the client and applied to this factory. */
   private final List<WorkerPlugin> plugins;
 
-  /** Set during start() if the namespace has the poller_autoscaling capability. */
-  private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
+  /** Namespace capabilities populated during start() from DescribeNamespace response. */
+  private final NamespaceCapabilities namespaceCapabilities = new NamespaceCapabilities();
 
   private State state = State.Initial;
-  private boolean heartbeatsSupported;
 
   private final String statusErrorMessage =
       "attempted to %s while in %s state. Acceptable States: %s";
@@ -202,7 +201,7 @@ public final class WorkerFactory {
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators(),
               plugins,
-              pollerAutoscaling);
+              namespaceCapabilities);
       workers.put(taskQueue, worker);
 
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
@@ -269,17 +268,16 @@ public final class WorkerFactory {
                 DescribeNamespaceRequest.newBuilder()
                     .setNamespace(workflowClient.getOptions().getNamespace())
                     .build());
-    boolean heartbeatsSupported =
-        describeNamespaceResponse.getNamespaceInfo().getCapabilities().getWorkerHeartbeats();
-    if (!heartbeatsSupported) {
+    if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getWorkerHeartbeats()) {
+      namespaceCapabilities.setWorkerHeartbeats(true);
+    } else {
       log.debug(
           "Server does not support worker heartbeats for namespace {}",
           workflowClient.getOptions().getNamespace());
     }
-    this.heartbeatsSupported = heartbeatsSupported;
 
     if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
-      pollerAutoscaling.set(true);
+      namespaceCapabilities.setPollerAutoscaling(true);
     }
 
     // Build plugin execution chain (reverse order for proper nesting)
@@ -316,7 +314,7 @@ public final class WorkerFactory {
     // Register heartbeat callbacks after workers are started.
     WorkflowClientInternal clientInternal = (WorkflowClientInternal) workflowClient.getInternal();
     HeartbeatManager hbManager = clientInternal.getHeartbeatManager();
-    if (hbManager != null && heartbeatsSupported) {
+    if (hbManager != null && namespaceCapabilities.isWorkerHeartbeats()) {
       String namespace = workflowClient.getOptions().getNamespace();
       String workerGroupingKey = clientInternal.getWorkerGroupingKey();
       for (Worker worker : workers.values()) {
@@ -447,7 +445,7 @@ public final class WorkerFactory {
             r -> {
               // Unregister workers from heartbeat manager only after full shutdown,
               // so heartbeats continue reporting SHUTTING_DOWN until the worker is fully stopped.
-              if (heartbeatsSupported) {
+              if (namespaceCapabilities.isWorkerHeartbeats()) {
                 HeartbeatManager hbManager =
                     ((WorkflowClientInternal) workflowClient.getInternal()).getHeartbeatManager();
                 if (hbManager != null) {
