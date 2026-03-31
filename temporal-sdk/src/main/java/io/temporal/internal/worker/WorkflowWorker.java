@@ -577,6 +577,7 @@ final class WorkflowWorker implements SuspendableWorker {
             }
 
             if (taskFailedCause != null) {
+              iterationFailed = true;
               String taskFailureType;
               switch (taskFailedCause) {
                 case WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR:

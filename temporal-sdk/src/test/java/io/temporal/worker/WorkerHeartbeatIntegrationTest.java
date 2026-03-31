@@ -35,10 +35,23 @@ public class WorkerHeartbeatIntegrationTest {
   private static final Duration EVENTUALLY_TIMEOUT = Duration.ofSeconds(10);
 
   @Before
-  public void checkRealServer() {
+  public void checkServerSupportsHeartbeats() {
     assumeTrue(
-        "Test Server doesn't support ListWorkers, requires real server",
+        "Requires real server with worker heartbeat support",
         SDKTestWorkflowRule.useExternalService);
+    assumeTrue(
+        "Server does not support worker heartbeats",
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .describeNamespace(
+                DescribeNamespaceRequest.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .build())
+            .getNamespaceInfo()
+            .getCapabilities()
+            .getWorkerHeartbeats());
   }
 
   // Shared latches for blocking activity tests

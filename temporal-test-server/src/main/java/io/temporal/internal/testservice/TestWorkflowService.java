@@ -733,7 +733,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     responseObserver.onCompleted();
   }
 
-
   @Override
   public void shutdownWorker(
       ShutdownWorkerRequest request, StreamObserver<ShutdownWorkerResponse> responseObserver) {

@@ -24,10 +24,23 @@ public class WorkerHeartbeatDeploymentVersionTest {
   private static final String TEST_BUILD_ID = "1.0.0";
 
   @Before
-  public void checkRealServer() {
+  public void checkServerSupportsHeartbeats() {
     assumeTrue(
-        "Requires real server for ListWorkers/DescribeWorker",
+        "Requires real server with worker heartbeat support",
         SDKTestWorkflowRule.useExternalService);
+    assumeTrue(
+        "Server does not support worker heartbeats",
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .describeNamespace(
+                DescribeNamespaceRequest.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .build())
+            .getNamespaceInfo()
+            .getCapabilities()
+            .getWorkerHeartbeats());
   }
 
   @Rule
