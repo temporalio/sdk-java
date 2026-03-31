@@ -1,12 +1,13 @@
 package io.temporal.workflow.versionTests;
 
-import static org.junit.Assert.*;
-import static org.junit.Assume.assumeTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.internal.Issue;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
@@ -14,19 +15,19 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 @Issue("https://github.com/temporalio/sdk-java/issues/2307")
-public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
+public class GetVersionMultithreadingRemoveTest {
 
   private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              getDefaultWorkflowImplementationOptions(), TestGetVersionWorkflowImpl.class)
+          .setWorkflowTypes(TestGetVersionWorkflowImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           // Forcing a replay. Full history arrived from a normal queue causing a replay.
           .setWorkerOptions(
@@ -35,18 +36,30 @@ public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
                   .build())
           .build();
 
-  public GetVersionMultithreadingRemoveTest(boolean setVersioningFlag, boolean upsertVersioningSA) {
-    super(setVersioningFlag, upsertVersioningSA);
+  @Before
+  public void setUp() {
+    hasReplayed = false;
   }
 
   @Test
   public void testGetVersionMultithreadingRemoval() {
-    assumeTrue("This test only passes if SKIP_YIELD_ON_VERSION is enabled", setVersioningFlag);
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
+
     assertTrue(hasReplayed);
     assertEquals("activity1", result);
+    testWorkflowRule
+        .getInterceptor(TracingWorkerInterceptor.class)
+        .setExpected(
+            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
+            "newThread workflow-method",
+            "newThread null",
+            "getVersion",
+            "executeActivity customActivity1",
+            "sleep PT1S",
+            "activity customActivity1");
   }
 
   @Test
@@ -76,9 +89,8 @@ public class GetVersionMultithreadingRemoveTest extends BaseVersionTest {
       } else {
         hasReplayed = true;
       }
-      String result =
-          "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
-      return result;
+
+      return "activity" + testActivities.activity1(1);
     }
   }
 }
