@@ -426,6 +426,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
       boolean locked = false;
       boolean taskProcessingFailed = false;
+      boolean taskExecuted = false;
 
       Stopwatch swTotal =
           workflowTypeScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
@@ -463,7 +464,14 @@ final class WorkflowWorker implements SuspendableWorker {
         do {
           PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
           nextWFTResponse = Optional.empty();
-          WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
+          taskExecuted = true;
+          WorkflowTaskHandler.Result result;
+          try {
+            result = handleTask(currentTask, workflowTypeScope);
+          } catch (Exception e) {
+            taskProcessingFailed = true;
+            throw e;
+          }
           WorkflowTaskFailedCause taskFailedCause = null;
           try {
             RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();
@@ -606,9 +614,11 @@ final class WorkflowWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
 
-        taskCounter.recordProcessed();
-        if (taskProcessingFailed) {
-          taskCounter.recordFailed();
+        if (taskExecuted) {
+          taskCounter.recordProcessed();
+          if (taskProcessingFailed) {
+            taskCounter.recordFailed();
+          }
         }
 
         if (locked) {

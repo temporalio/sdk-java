@@ -399,6 +399,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       executionContext.newAttempt();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
       boolean taskFailed = false;
+      boolean taskExecuted = false;
 
       try {
         // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
@@ -458,6 +459,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         } finally {
           sw.stop();
         }
+        taskExecuted = true;
 
         // Cancel startToCloseTimeoutFuture if it's not yet fired.
         boolean startToCloseTimeoutFired =
@@ -489,9 +491,11 @@ final class LocalActivityWorker implements Startable, Shutdownable {
             processingFailed(activityTask.getActivityId(), activityTask.getAttempt(), ex));
         throw ex;
       } finally {
-        taskCounter.recordProcessed();
-        if (taskFailed) {
-          taskCounter.recordFailed();
+        if (taskExecuted) {
+          taskCounter.recordProcessed();
+          if (taskFailed) {
+            taskCounter.recordFailed();
+          }
         }
         slotSupplier.releaseSlot(reason, executionContext.getPermit());
         MDC.remove(LoggerTag.ACTIVITY_ID);
