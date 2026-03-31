@@ -87,10 +87,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final TestNexusEndpointStore nexusEndpointStore;
   private final SelfAdvancingTimer selfAdvancingTimer;
 
-  // Worker heartbeat storage: workerInstanceKey -> latest WorkerHeartbeat
-  private final ConcurrentHashMap<String, io.temporal.api.worker.v1.WorkerHeartbeat>
-      workerHeartbeats = new ConcurrentHashMap<>();
-
   private final ScheduledExecutorService backgroundScheduler =
       Executors.newSingleThreadScheduledExecutor();
 
@@ -737,38 +733,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     responseObserver.onCompleted();
   }
 
-  @Override
-  public void recordWorkerHeartbeat(
-      RecordWorkerHeartbeatRequest request,
-      StreamObserver<RecordWorkerHeartbeatResponse> responseObserver) {
-    for (io.temporal.api.worker.v1.WorkerHeartbeat hb : request.getWorkerHeartbeatList()) {
-      if (!hb.getWorkerInstanceKey().isEmpty()) {
-        workerHeartbeats.put(hb.getWorkerInstanceKey(), hb);
-      }
-    }
-    responseObserver.onNext(RecordWorkerHeartbeatResponse.getDefaultInstance());
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void describeWorker(
-      DescribeWorkerRequest request, StreamObserver<DescribeWorkerResponse> responseObserver) {
-    io.temporal.api.worker.v1.WorkerHeartbeat hb =
-        workerHeartbeats.get(request.getWorkerInstanceKey());
-    if (hb == null) {
-      responseObserver.onError(
-          Status.NOT_FOUND
-              .withDescription("Worker not found: " + request.getWorkerInstanceKey())
-              .asRuntimeException());
-      return;
-    }
-    responseObserver.onNext(
-        DescribeWorkerResponse.newBuilder()
-            .setWorkerInfo(
-                io.temporal.api.worker.v1.WorkerInfo.newBuilder().setWorkerHeartbeat(hb).build())
-            .build());
-    responseObserver.onCompleted();
-  }
 
   @Override
   public void shutdownWorker(

@@ -141,8 +141,16 @@ public class HeartbeatManager {
 
       try {
         List<WorkerHeartbeat> heartbeats = new ArrayList<>();
-        for (Supplier<WorkerHeartbeat> callback : callbacks.values()) {
-          heartbeats.add(callback.get());
+        for (Map.Entry<String, Supplier<WorkerHeartbeat>> entry : callbacks.entrySet()) {
+          try {
+            heartbeats.add(entry.getValue().get());
+          } catch (Exception e) {
+            log.warn(
+                "Failed to build heartbeat for worker {} in namespace {}",
+                entry.getKey(),
+                namespace,
+                e);
+          }
         }
 
         if (!heartbeats.isEmpty()) {

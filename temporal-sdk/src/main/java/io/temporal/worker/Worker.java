@@ -518,7 +518,10 @@ public final class Worker {
         WorkerHeartbeat.Builder hb =
             WorkerHeartbeat.newBuilder()
                 .setWorkerInstanceKey(workerInstanceKey)
-                .setWorkerIdentity(clientOptions.getIdentity())
+                .setWorkerIdentity(
+                    options.getIdentity() != null
+                        ? options.getIdentity()
+                        : clientOptions.getIdentity())
                 .setTaskQueue(taskQueue)
                 .setSdkName(Version.SDK_NAME)
                 .setSdkVersion(Version.LIBRARY_VERSION)
