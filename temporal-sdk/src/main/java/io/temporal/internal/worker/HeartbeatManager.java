@@ -1,6 +1,5 @@
 package io.temporal.internal.worker;
 
-import com.google.common.base.Preconditions;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.RecordWorkerHeartbeatRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -61,11 +60,10 @@ public class HeartbeatManager {
   public void unregisterWorker(String namespace, String workerInstanceKey) {
     synchronized (lock) {
       SharedNamespaceWorker nsWorker = namespaceWorkers.get(namespace);
-      Preconditions.checkState(
-          nsWorker != null,
-          "unregisterWorker called for unknown namespace %s, worker %s",
-          namespace,
-          workerInstanceKey);
+      if (nsWorker == null) {
+        // Already cleaned up by shutdown()
+        return;
+      }
       nsWorker.unregisterWorker(workerInstanceKey);
       if (nsWorker.isEmpty()) {
         nsWorker.shutdown();

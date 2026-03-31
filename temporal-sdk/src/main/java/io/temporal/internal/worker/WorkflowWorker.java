@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -62,10 +61,9 @@ final class WorkflowWorker implements SuspendableWorker {
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
   private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
   private final String workerInstanceKey;
-  private final List<TaskQueueType> activeTaskQueueTypes;
+  private final Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier;
 
-  private final AtomicInteger totalProcessedTasks = new AtomicInteger();
-  private final AtomicInteger totalFailedTasks = new AtomicInteger();
+  private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker = new PollerTracker();
   private final PollerTracker stickyPollerTracker = new PollerTracker();
   private final AtomicBoolean serverSupportsAutoscaling;
@@ -83,7 +81,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String workerInstanceKey,
-      @Nonnull List<TaskQueueType> activeTaskQueueTypes,
+      @Nonnull Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier,
       @Nullable String stickyTaskQueueName,
       @Nonnull SingleWorkerOptions options,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -96,7 +94,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.workerInstanceKey = Objects.requireNonNull(workerInstanceKey);
-    this.activeTaskQueueTypes = Objects.requireNonNull(activeTaskQueueTypes);
+    this.activeTaskQueueTypesSupplier = Objects.requireNonNull(activeTaskQueueTypesSupplier);
     this.options = Objects.requireNonNull(options);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
@@ -245,7 +243,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       .setTaskQueue(taskQueue)
                       .setWorkerInstanceKey(workerInstanceKey)
                       .setReason(GRACEFUL_SHUTDOWN_MESSAGE)
-                      .addAllTaskQueueTypes(activeTaskQueueTypes);
+                      .addAllTaskQueueTypes(activeTaskQueueTypesSupplier.get());
               if (stickyTaskQueueName != null) {
                 shutdownReq.setStickyTaskQueue(stickyTaskQueueName);
               }
@@ -382,12 +380,8 @@ final class WorkflowWorker implements SuspendableWorker {
     return stickyTaskQueueName;
   }
 
-  public AtomicInteger getTotalProcessedTasks() {
-    return totalProcessedTasks;
-  }
-
-  public AtomicInteger getTotalFailedTasks() {
-    return totalFailedTasks;
+  public TaskCounter getTaskCounter() {
+    return taskCounter;
   }
 
   public PollerOptions getPollerOptions() {
@@ -613,9 +607,9 @@ final class WorkflowWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
 
-        totalProcessedTasks.incrementAndGet();
+        taskCounter.recordProcessed();
         if (taskProcessingFailed) {
-          totalFailedTasks.incrementAndGet();
+          taskCounter.recordFailed();
         }
 
         if (locked) {

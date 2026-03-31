@@ -7,7 +7,6 @@ import io.temporal.worker.tuning.SlotSupplier;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,12 +102,8 @@ public class SyncNexusWorker implements SuspendableWorker {
     return worker.getSlotSupplier();
   }
 
-  public AtomicInteger getTotalProcessedTasks() {
-    return worker.getTotalProcessedTasks();
-  }
-
-  public AtomicInteger getTotalFailedTasks() {
-    return worker.getTotalFailedTasks();
+  public TaskCounter getTaskCounter() {
+    return worker.getTaskCounter();
   }
 
   public PollerOptions getPollerOptions() {

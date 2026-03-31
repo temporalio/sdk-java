@@ -24,6 +24,7 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
+import io.temporal.internal.worker.TaskCounter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.Version;
 import io.temporal.worker.tuning.*;
@@ -43,7 +44,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -71,6 +71,16 @@ public final class Worker {
   private final WorkflowClientOptions clientOptions;
   private final @Nonnull WorkflowExecutorCache cache;
   private final Map<String, TaskSnapshot> previousSnapshots = new HashMap<>();
+
+  private static final class TaskSnapshot {
+    final int processed;
+    final int failed;
+
+    TaskSnapshot(int processed, int failed) {
+      this.processed = processed;
+      this.failed = failed;
+    }
+  }
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -185,7 +195,7 @@ public final class Worker {
             namespace,
             taskQueue,
             workerInstanceKey,
-            getActiveTaskQueueTypes(),
+            this::getActiveTaskQueueTypes,
             singleWorkerOptions,
             localActivityOptions,
             runLocks,
@@ -553,31 +563,22 @@ public final class Worker {
             buildSlotsInfo(
                 "workflow",
                 workflowWorker.getWorkflowSlotSupplier(),
-                workflowWorker.getWorkflowTotalProcessedTasks(),
-                workflowWorker.getWorkflowTotalFailedTasks()));
+                workflowWorker.getWorkflowTaskCounter()));
 
         if (activityWorker != null) {
           hb.setActivityTaskSlotsInfo(
               buildSlotsInfo(
-                  "activity",
-                  activityWorker.getSlotSupplier(),
-                  activityWorker.getTotalProcessedTasks(),
-                  activityWorker.getTotalFailedTasks()));
+                  "activity", activityWorker.getSlotSupplier(), activityWorker.getTaskCounter()));
         }
 
         hb.setLocalActivitySlotsInfo(
             buildSlotsInfo(
                 "local-activity",
                 workflowWorker.getLocalActivitySlotSupplier(),
-                workflowWorker.getLocalActivityTotalProcessedTasks(),
-                workflowWorker.getLocalActivityTotalFailedTasks()));
+                workflowWorker.getLocalActivityTaskCounter()));
 
         hb.setNexusTaskSlotsInfo(
-            buildSlotsInfo(
-                "nexus",
-                nexusWorker.getSlotSupplier(),
-                nexusWorker.getTotalProcessedTasks(),
-                nexusWorker.getTotalFailedTasks()));
+            buildSlotsInfo("nexus", nexusWorker.getSlotSupplier(), nexusWorker.getTaskCounter()));
 
         // Poller info
         hb.setWorkflowPollerInfo(
@@ -614,14 +615,11 @@ public final class Worker {
   }
 
   private WorkerSlotsInfo buildSlotsInfo(
-      String key,
-      TrackingSlotSupplier<?> tracker,
-      AtomicInteger totalProcessed,
-      AtomicInteger totalFailed) {
+      String key, TrackingSlotSupplier<?> tracker, TaskCounter taskCounter) {
     int maxSlots = tracker.maximumSlots().orElse(-1);
     int usedSlots = tracker.getUsedSlotCount();
-    int currentProcessed = totalProcessed.get();
-    int currentFailed = totalFailed.get();
+    int currentProcessed = taskCounter.getTotalProcessed();
+    int currentFailed = taskCounter.getTotalFailed();
     TaskSnapshot previous =
         previousSnapshots.put(key, new TaskSnapshot(currentProcessed, currentFailed));
     int intervalProcessed = previous != null ? currentProcessed - previous.processed : 0;
@@ -982,16 +980,6 @@ public final class Worker {
       ((ResourceBasedSlotSupplier<?>) supplier)
           .getResourceController()
           .setMetricsScope(metricsScope);
-    }
-  }
-
-  private static final class TaskSnapshot {
-    final int processed;
-    final int failed;
-
-    TaskSnapshot(int processed, int failed) {
-      this.processed = processed;
-      this.failed = failed;
     }
   }
 }

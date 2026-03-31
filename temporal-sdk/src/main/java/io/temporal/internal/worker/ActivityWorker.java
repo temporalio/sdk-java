@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +49,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
-  private final AtomicInteger totalProcessedTasks = new AtomicInteger();
-  private final AtomicInteger totalFailedTasks = new AtomicInteger();
+  private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker;
   private final AtomicBoolean serverSupportsAutoscaling;
 
@@ -227,12 +225,8 @@ final class ActivityWorker implements SuspendableWorker {
     return slotSupplier;
   }
 
-  public AtomicInteger getTotalProcessedTasks() {
-    return totalProcessedTasks;
-  }
-
-  public AtomicInteger getTotalFailedTasks() {
-    return totalFailedTasks;
+  public TaskCounter getTaskCounter() {
+    return taskCounter;
   }
 
   public PollerOptions getPollerOptions() {
@@ -286,18 +280,22 @@ final class ActivityWorker implements SuspendableWorker {
       MDC.put(LoggerTag.ATTEMPT, Integer.toString(pollResponse.getAttempt()));
 
       ActivityTaskHandler.Result result = null;
+      boolean taskFailed = false;
       try {
         result = handleActivity(task, metricsScope);
-        totalProcessedTasks.incrementAndGet();
         if (result.getTaskFailed() != null
             && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
                 result.getTaskFailed().getFailure())) {
-          totalFailedTasks.incrementAndGet();
+          taskFailed = true;
         }
       } catch (Exception e) {
-        totalFailedTasks.incrementAndGet();
+        taskFailed = true;
         throw e;
       } finally {
+        taskCounter.recordProcessed();
+        if (taskFailed) {
+          taskCounter.recordFailed();
+        }
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);

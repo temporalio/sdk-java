@@ -29,7 +29,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -67,7 +66,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String workerInstanceKey,
-      @Nonnull List<TaskQueueType> activeTaskQueueTypes,
+      @Nonnull Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier,
       @Nonnull SingleWorkerOptions singleWorkerOptions,
       @Nonnull SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -126,7 +125,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             namespace,
             taskQueue,
             workerInstanceKey,
-            activeTaskQueueTypes,
+            activeTaskQueueTypesSupplier,
             stickyTaskQueueName,
             singleWorkerOptions,
             runLocks,
@@ -260,20 +259,12 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return workflowWorker.hasStickyQueue();
   }
 
-  public AtomicInteger getWorkflowTotalProcessedTasks() {
-    return workflowWorker.getTotalProcessedTasks();
+  public TaskCounter getWorkflowTaskCounter() {
+    return workflowWorker.getTaskCounter();
   }
 
-  public AtomicInteger getWorkflowTotalFailedTasks() {
-    return workflowWorker.getTotalFailedTasks();
-  }
-
-  public AtomicInteger getLocalActivityTotalProcessedTasks() {
-    return laWorker.getTotalProcessedTasks();
-  }
-
-  public AtomicInteger getLocalActivityTotalFailedTasks() {
-    return laWorker.getTotalFailedTasks();
+  public TaskCounter getLocalActivityTaskCounter() {
+    return laWorker.getTaskCounter();
   }
 
   public PollerOptions getWorkflowPollerOptions() {

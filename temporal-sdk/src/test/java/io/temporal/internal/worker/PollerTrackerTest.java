@@ -72,14 +72,11 @@ public class PollerTrackerTest {
   }
 
   @Test
-  public void testMultipleSuccessfulPolls() throws Exception {
+  public void testMultipleSuccessfulPolls() {
     PollerTracker tracker = new PollerTracker();
     tracker.pollSucceeded();
     Instant first = tracker.getLastSuccessfulPollTime();
     assertNotNull(first);
-
-    // Ensure at least 1ms passes so Instant.now() can advance
-    Thread.sleep(2);
 
     tracker.pollSucceeded();
     Instant second = tracker.getLastSuccessfulPollTime();

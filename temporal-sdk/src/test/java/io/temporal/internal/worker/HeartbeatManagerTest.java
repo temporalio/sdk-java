@@ -15,6 +15,9 @@ import org.mockito.ArgumentCaptor;
 
 public class HeartbeatManagerTest {
 
+  private static final Duration FAST_INTERVAL = Duration.ofMillis(50);
+  private static final int VERIFY_TIMEOUT_MS = 1000;
+
   private WorkflowServiceStubs service;
   private WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private HeartbeatManager manager;
@@ -37,7 +40,7 @@ public class HeartbeatManagerTest {
 
   @Test
   public void testHeartbeatRpcSentAtInterval() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb =
         WorkerHeartbeat.newBuilder()
@@ -46,7 +49,7 @@ public class HeartbeatManagerTest {
             .build();
     manager.registerWorker("default", "worker-1", () -> hb);
 
-    verify(blockingStub, timeout(3000).atLeastOnce()).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
     ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
         ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);
@@ -61,7 +64,7 @@ public class HeartbeatManagerTest {
 
   @Test
   public void testMultipleWorkersInSingleRpc() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb1 =
         WorkerHeartbeat.newBuilder()
@@ -76,8 +79,7 @@ public class HeartbeatManagerTest {
     manager.registerWorker("default", "worker-1", () -> hb1);
     manager.registerWorker("default", "worker-2", () -> hb2);
 
-    // Wait for enough ticks so both workers are captured in at least one RPC
-    verify(blockingStub, timeout(5000).atLeast(2)).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
 
     ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
         ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);
@@ -90,30 +92,29 @@ public class HeartbeatManagerTest {
 
   @Test
   public void testUnregisterStopsRpcWhenEmpty() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
     manager.registerWorker("default", "worker-1", () -> hb);
 
-    verify(blockingStub, timeout(3000).atLeastOnce()).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
     manager.unregisterWorker("default", "worker-1");
     clearInvocations(blockingStub);
 
-    Thread.sleep(2000);
-    verify(blockingStub, never()).recordWorkerHeartbeat(any());
+    verify(blockingStub, after(VERIFY_TIMEOUT_MS).never()).recordWorkerHeartbeat(any());
   }
 
   @Test
   public void testDifferentNamespacesGetSeparateRpcs() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb1 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns1").build();
     WorkerHeartbeat hb2 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns2").build();
     manager.registerWorker("namespace-1", "worker-ns1", () -> hb1);
     manager.registerWorker("namespace-2", "worker-ns2", () -> hb2);
 
-    verify(blockingStub, timeout(5000).atLeast(2)).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
 
     ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
         ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);
@@ -136,21 +137,20 @@ public class HeartbeatManagerTest {
   public void testExceptionsCaughtAndLogged() throws Exception {
     when(blockingStub.recordWorkerHeartbeat(any())).thenThrow(new RuntimeException("test error"));
 
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
     manager.registerWorker("default", "worker-1", () -> hb);
 
     // Wait for at least 2 ticks — proves the scheduler survived the exception
-    verify(blockingStub, timeout(5000).atLeast(2)).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
   }
 
   @Test
   public void testNoRpcsWhenNoWorkersRegistered() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
-    Thread.sleep(2000);
-    verify(blockingStub, never()).recordWorkerHeartbeat(any());
+    verify(blockingStub, after(VERIFY_TIMEOUT_MS).never()).recordWorkerHeartbeat(any());
   }
 
   @Test
@@ -158,23 +158,22 @@ public class HeartbeatManagerTest {
     when(blockingStub.recordWorkerHeartbeat(any()))
         .thenThrow(new io.grpc.StatusRuntimeException(io.grpc.Status.UNIMPLEMENTED));
 
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
     manager.registerWorker("default", "worker-1", () -> hb);
 
     // Wait for the first tick to hit UNIMPLEMENTED
-    verify(blockingStub, timeout(3000).atLeastOnce()).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
     // After UNIMPLEMENTED, scheduler should stop — no more RPCs
     clearInvocations(blockingStub);
-    Thread.sleep(2000);
-    verify(blockingStub, never()).recordWorkerHeartbeat(any());
+    verify(blockingStub, after(VERIFY_TIMEOUT_MS).never()).recordWorkerHeartbeat(any());
   }
 
   @Test
   public void testUnregisterFromOneNamespaceDoesNotAffectAnother() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb1 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns1").build();
     WorkerHeartbeat hb2 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns2").build();
@@ -182,14 +181,14 @@ public class HeartbeatManagerTest {
     manager.registerWorker("namespace-2", "worker-ns2", () -> hb2);
 
     // Both namespaces heartbeating
-    verify(blockingStub, timeout(5000).atLeast(2)).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
 
     // Unregister from namespace-1 only
     manager.unregisterWorker("namespace-1", "worker-ns1");
     clearInvocations(blockingStub);
 
     // namespace-2 should continue heartbeating
-    verify(blockingStub, timeout(5000).atLeastOnce()).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
     ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
         ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);
@@ -203,25 +202,24 @@ public class HeartbeatManagerTest {
 
   @Test
   public void testNamespaceSchedulerStopsWhenLastWorkerUnregisters() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", Duration.ofSeconds(1));
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb1 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
     WorkerHeartbeat hb2 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-2").build();
     manager.registerWorker("default", "worker-1", () -> hb1);
     manager.registerWorker("default", "worker-2", () -> hb2);
 
-    verify(blockingStub, timeout(3000).atLeastOnce()).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
     // Unregister first worker — namespace scheduler should still be running
     manager.unregisterWorker("default", "worker-1");
     clearInvocations(blockingStub);
-    verify(blockingStub, timeout(3000).atLeastOnce()).recordWorkerHeartbeat(any());
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
     // Unregister last worker — namespace scheduler should stop
     manager.unregisterWorker("default", "worker-2");
     clearInvocations(blockingStub);
-    Thread.sleep(2000);
-    verify(blockingStub, never()).recordWorkerHeartbeat(any());
+    verify(blockingStub, after(VERIFY_TIMEOUT_MS).never()).recordWorkerHeartbeat(any());
   }
 
   @Test

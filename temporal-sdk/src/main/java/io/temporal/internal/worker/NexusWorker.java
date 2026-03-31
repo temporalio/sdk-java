@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +55,7 @@ final class NexusWorker implements SuspendableWorker {
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final AtomicBoolean serverSupportsAutoscaling;
   private final boolean forceOldFailureFormat;
-  private final AtomicInteger totalProcessedTasks = new AtomicInteger();
-  private final AtomicInteger totalFailedTasks = new AtomicInteger();
+  private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker = new PollerTracker();
 
   public NexusWorker(
@@ -224,12 +222,8 @@ final class NexusWorker implements SuspendableWorker {
     return slotSupplier;
   }
 
-  public AtomicInteger getTotalProcessedTasks() {
-    return totalProcessedTasks;
-  }
-
-  public AtomicInteger getTotalFailedTasks() {
-    return totalFailedTasks;
+  public TaskCounter getTaskCounter() {
+    return taskCounter;
   }
 
   public PollerOptions getPollerOptions() {
@@ -297,16 +291,17 @@ final class NexusWorker implements SuspendableWorker {
               service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
           task.getPermit());
 
+      boolean taskFailed = false;
       try {
-        boolean handlerFailed = handleNexusTask(task, metricsScope);
-        totalProcessedTasks.incrementAndGet();
-        if (handlerFailed) {
-          totalFailedTasks.incrementAndGet();
-        }
+        taskFailed = handleNexusTask(task, metricsScope);
       } catch (Throwable e) {
-        totalFailedTasks.incrementAndGet();
+        taskFailed = true;
         throw e;
       } finally {
+        taskCounter.recordProcessed();
+        if (taskFailed) {
+          taskCounter.recordFailed();
+        }
         task.getCompletionCallback().apply();
         MDC.remove(LoggerTag.NEXUS_SERVICE);
         MDC.remove(LoggerTag.NEXUS_OPERATION);
