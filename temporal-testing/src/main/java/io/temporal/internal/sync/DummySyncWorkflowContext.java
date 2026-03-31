@@ -8,6 +8,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.SdkFlag;
@@ -377,6 +378,16 @@ public class DummySyncWorkflowContext {
 
     @Override
     public boolean isContinueAsNewSuggested() {
+      return false;
+    }
+
+    @Override
+    public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public boolean isTargetWorkerDeploymentVersionChanged() {
       return false;
     }
   }

@@ -315,10 +315,7 @@ final class NexusWorker implements SuspendableWorker {
           "Failure processing nexus response: " + response.getRequest().toString(), failure);
     }
 
-    /**
-     * @return true if the handler reported a failure or error
-     */
-    @SuppressWarnings("deprecation") // Uses deprecated operationError
+    @SuppressWarnings("deprecation") // Uses hasOperationError()/getOperationError() for compat
     private boolean handleNexusTask(NexusTask task, Scope metricsScope) {
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
