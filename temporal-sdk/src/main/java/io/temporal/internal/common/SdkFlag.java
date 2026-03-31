@@ -26,6 +26,12 @@ public enum SdkFlag {
   /*
    * Changes replay behavior of GetVersion to wait for the matching marker event before executing
    * the callback.
+   *
+   * Introduced: 1.34.0
+   *
+   * Enabled: (pending)
+   *
+   * Bug: https://github.com/temporalio/sdk-java/issues/2796
    */
   VERSION_WAIT_FOR_MARKER(5),
   UNKNOWN(Integer.MAX_VALUE);
