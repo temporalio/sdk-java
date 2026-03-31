@@ -19,3 +19,5 @@ src/main/idls/*
 .vscode/
 */bin
 /.claude
+mise.local.toml
+**/.factorypath

@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
  * parameters.
  *
  * @see WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor) for a definition of
- *     "next" {@link WorkflowInboundCallsInterceptor}
+ *     "next" WorkflowInboundCallsInterceptor
  */
 @Experimental
 public interface WorkflowInboundCallsInterceptor {
@@ -168,8 +168,8 @@ public interface WorkflowInboundCallsInterceptor {
    *
    * @param outboundCalls an existing interceptor instance to be proxied by the interceptor created
    *     inside this method
-   * @see WorkerInterceptor#interceptWorkflow for the definition of "next" {@link
-   *     WorkflowInboundCallsInterceptor}
+   * @see WorkerInterceptor#interceptWorkflow for the definition of "next"
+   *     WorkflowInboundCallsInterceptor
    */
   void init(WorkflowOutboundCallsInterceptor outboundCalls);
 

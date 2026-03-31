@@ -10,7 +10,6 @@ import io.temporal.internal.sync.StubMarker;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
@@ -273,8 +272,7 @@ public interface WorkflowStub {
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
    * @see #getResult(Class) as a sync version of this method for detailed information about
-   *     exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by {@link
-   *     ExecutionException}
+   *     exceptions that may be thrown from CompletableFuture.get() wrapped by ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass);
 
@@ -289,8 +287,7 @@ public interface WorkflowStub {
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
    * @see #getResult(Class, Type) as a sync version of this method for detailed information about
-   *     exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by {@link
-   *     ExecutionException}
+   *     exceptions that may be thrown from CompletableFuture.get() wrapped by ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, Type resultType);
 
@@ -305,8 +302,8 @@ public interface WorkflowStub {
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
    * @see #getResult(long, TimeUnit, Class) as a sync version of this method for detailed
-   *     information about exceptions that may be thrown from {@link CompletableFuture#get()}
-   *     wrapped by {@link ExecutionException}
+   *     information about exceptions that may be thrown from CompletableFuture.get() wrapped by
+   *     ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> resultClass);
 
@@ -323,8 +320,8 @@ public interface WorkflowStub {
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
    * @see #getResult(long, TimeUnit, Class, Type) as a sync version of this method for detailed
-   *     information about exceptions that may be thrown from {@link CompletableFuture#get()}
-   *     wrapped by {@link ExecutionException}
+   *     information about exceptions that may be thrown from CompletableFuture.get() wrapped by
+   *     ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, Type resultType);
