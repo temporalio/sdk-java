@@ -50,11 +50,16 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       long runStartedTimestampMillis,
       @Nullable String fullReplayDirectQueryName,
       SingleWorkerOptions workerOptions,
-      Scope workflowMetricsScope) {
+      Scope workflowMetricsScope,
+      @Nullable UserMetadata userMetadata) {
     this.workflowStateMachines = workflowStateMachines;
     this.basicWorkflowContext =
         new BasicWorkflowContext(
-            namespace, workflowExecution, startedAttributes, runStartedTimestampMillis);
+            namespace,
+            workflowExecution,
+            startedAttributes,
+            runStartedTimestampMillis,
+            userMetadata);
     this.mutableState = new WorkflowMutableState(startedAttributes);
     this.fullReplayDirectQueryName = fullReplayDirectQueryName;
     this.replayAwareWorkflowMetricsScope =
@@ -275,6 +280,26 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Priority getPriority() {
     return basicWorkflowContext.getPriority();
+  }
+
+  @Override
+  @Nullable
+  public Payload getStaticSummaryPayload() {
+    UserMetadata userMetadata = basicWorkflowContext.getUserMetadata();
+    if (userMetadata == null || !userMetadata.hasSummary()) {
+      return null;
+    }
+    return userMetadata.getSummary();
+  }
+
+  @Override
+  @Nullable
+  public Payload getStaticDetailsPayload() {
+    UserMetadata userMetadata = basicWorkflowContext.getUserMetadata();
+    if (userMetadata == null || !userMetadata.hasDetails()) {
+      return null;
+    }
+    return userMetadata.getDetails();
   }
 
   @Override

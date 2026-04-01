@@ -166,6 +166,18 @@ public class DummySyncWorkflowContext {
 
     @Override
     @Nullable
+    public Payload getStaticSummaryPayload() {
+      return null;
+    }
+
+    @Override
+    @Nullable
+    public Payload getStaticDetailsPayload() {
+      return null;
+    }
+
+    @Override
+    @Nullable
     public SearchAttributes getSearchAttributes() {
       throw new UnsupportedOperationException("not implemented");
     }
