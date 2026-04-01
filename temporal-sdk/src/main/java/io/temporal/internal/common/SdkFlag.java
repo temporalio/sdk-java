@@ -12,6 +12,8 @@ public enum SdkFlag {
   SKIP_YIELD_ON_DEFAULT_VERSION(1),
   /*
    * Changes behavior of GetVersion to never yield.
+   *
+   * Enabled: 1.34.0
    */
   SKIP_YIELD_ON_VERSION(2),
   /*
