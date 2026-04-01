@@ -108,6 +108,7 @@ jobs:
                 --dynamic-config-value history.MaxBufferedQueryCount=10000 \
               --dynamic-config-value frontend.workerVersioningDataAPIs=true \
               --dynamic-config-value history.enableRequestIdRefLinks=true \
+              --dynamic-config-value frontend.ListWorkersEnabled=true \
               --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' &
           sleep 10s
 

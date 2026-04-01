@@ -3,7 +3,9 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -22,10 +24,11 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -61,6 +64,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowClient client,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
+      @Nonnull String workerInstanceKey,
+      @Nonnull Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier,
       @Nonnull SingleWorkerOptions singleWorkerOptions,
       @Nonnull SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -70,7 +75,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -118,6 +123,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             client.getWorkflowServiceStubs(),
             namespace,
             taskQueue,
+            workerInstanceKey,
+            activeTaskQueueTypesSupplier,
             stickyTaskQueueName,
             singleWorkerOptions,
             runLocks,
@@ -125,7 +132,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            serverSupportsAutoscaling);
+            namespaceCapabilities);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
@@ -235,7 +242,46 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return null;
   }
 
-  @Override
+  public TrackingSlotSupplier<WorkflowSlotInfo> getWorkflowSlotSupplier() {
+    return workflowWorker.getSlotSupplier();
+  }
+
+  public TrackingSlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
+    return laWorker.getSlotSupplier();
+  }
+
+  public void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
+    workflowWorker.setHeartbeatSupplier(supplier);
+  }
+
+  public boolean hasStickyQueue() {
+    return workflowWorker.hasStickyQueue();
+  }
+
+  public TaskCounter getWorkflowTaskCounter() {
+    return workflowWorker.getTaskCounter();
+  }
+
+  public TaskCounter getLocalActivityTaskCounter() {
+    return laWorker.getTaskCounter();
+  }
+
+  public PollerOptions getWorkflowPollerOptions() {
+    return workflowWorker.getPollerOptions();
+  }
+
+  public PollerTracker getWorkflowPollerTracker() {
+    return workflowWorker.getPollerTracker();
+  }
+
+  public PollerTracker getStickyPollerTracker() {
+    return workflowWorker.getStickyPollerTracker();
+  }
+
+  public String getStickyTaskQueueName() {
+    return workflowWorker.getStickyTaskQueueName();
+  }
+
   public String toString() {
     return String.format(
         "SyncWorkflowWorker{namespace=%s, taskQueue=%s, identity=%s}",
