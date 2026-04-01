@@ -19,6 +19,7 @@ import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.WorkflowHistoryLoader;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
@@ -44,6 +45,8 @@ import org.slf4j.Logger;
 public class GetVersionInterleavedUpdateReplayTest {
   private static final String HISTORY_RESOURCE =
       "testGetVersionInterleavedUpdateReplayHistory.json";
+  private static final String WAIT_FOR_MARKER_HISTORY_RESOURCE =
+      "testGetVersionInterleavedUpdateReplayWaitForMarkerHistory.json";
   public static final String TASK_QUEUE = "get-version-interleaved-update-replay";
   private static final String EXPECTED_FIRST_CHANGE_ID = "ChangeId1";
   private static final String EXPECTED_SECOND_CHANGE_ID = "ChangeId2";
@@ -89,6 +92,25 @@ public class GetVersionInterleavedUpdateReplayTest {
         hasEvent(history.getEvents(), EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED));
 
     WorkflowReplayer.replayWorkflowExecution(history, GreetingWorkflowImpl.class);
+  }
+
+  @Test
+  public void testReplayHistoryWithWaitForMarkerFlagReplaysWithoutDefaultEnable() throws Exception {
+    WorkflowExecutionHistory history =
+        WorkflowHistoryLoader.readHistoryFromResource(WAIT_FOR_MARKER_HISTORY_RESOURCE);
+    assertTrue(
+        "The recorded history must advertise VERSION_WAIT_FOR_MARKER.",
+        hasSdkFlag(history, SdkFlag.VERSION_WAIT_FOR_MARKER));
+
+    List<SdkFlag> savedInitialFlags = WorkflowStateMachines.initialFlags;
+    List<SdkFlag> replayFlags = new ArrayList<>(savedInitialFlags);
+    replayFlags.remove(SdkFlag.VERSION_WAIT_FOR_MARKER);
+    WorkflowStateMachines.initialFlags = Collections.unmodifiableList(replayFlags);
+    try {
+      WorkflowReplayer.replayWorkflowExecution(history, GreetingWorkflowImpl.class);
+    } finally {
+      WorkflowStateMachines.initialFlags = savedInitialFlags;
+    }
   }
 
   public static WorkflowExecutionHistory captureReplayableHistory() {
