@@ -126,8 +126,8 @@ public interface ActivityInfo {
   /**
    * Return the priority of the activity task.
    *
-   * @apiNote If unset or on an older server version, this method will return {@link
-   *     Priority#getDefaultInstance()}.
+   * <p>Note: If unset or on an older server version, this method will return {@link
+   * Priority#getDefaultInstance()}.
    */
   @Experimental
   @Nonnull

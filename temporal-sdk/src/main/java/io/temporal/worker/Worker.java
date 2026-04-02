@@ -254,8 +254,6 @@ public final class Worker {
    * <p>This method is misaligned with other workflow implementation registration methods in this
    * aspect.
    *
-   * <p></font>
-   *
    * @deprecated Use {@link #registerWorkflowImplementationFactory(Class, Func,
    *     WorkflowImplementationOptions)} with {@code
    *     WorkflowImplementationOptions.newBuilder().setFailWorkflowExceptionTypes(Throwable.class).build()}
@@ -303,8 +301,6 @@ public final class Worker {
    * Activity that returns configuration to the workflow. Dependency Injection into Activity
    * instances is allowed. This way, the configuration is persisted into the history and maintained
    * same during replay.
-   *
-   * <p></font>
    *
    * @param workflowInterface Workflow interface that this factory implements
    * @param factory should create a new instance of the workflow implementation object every time

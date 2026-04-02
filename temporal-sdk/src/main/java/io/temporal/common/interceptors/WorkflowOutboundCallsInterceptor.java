@@ -33,8 +33,8 @@ import javax.annotation.Nullable;
  * implementation must forward all the calls to the outbound interceptor passed as a {@code
  * outboundCalls} parameter to the {@code init} call.
  *
- * @see WorkerInterceptor#interceptWorkflow for the definition of "next" {@link
- *     WorkflowInboundCallsInterceptor}.
+ * @see WorkerInterceptor#interceptWorkflow for the definition of "next"
+ *     WorkflowInboundCallsInterceptor.
  */
 @Experimental
 public interface WorkflowOutboundCallsInterceptor {
