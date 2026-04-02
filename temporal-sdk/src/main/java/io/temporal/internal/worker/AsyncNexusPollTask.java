@@ -42,6 +42,7 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
@@ -55,6 +56,8 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
             .setNamespace(namespace)
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+
+    pollRequest.setWorkerInstanceKey(workerInstanceKey);
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequest.setDeploymentOptions(

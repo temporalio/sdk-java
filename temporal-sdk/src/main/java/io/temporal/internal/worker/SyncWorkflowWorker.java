@@ -25,7 +25,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -70,7 +69,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -125,7 +124,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             taskHandler,
             eagerActivityDispatcher,
             slotSupplier,
-            serverSupportsAutoscaling);
+            namespaceCapabilities);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
