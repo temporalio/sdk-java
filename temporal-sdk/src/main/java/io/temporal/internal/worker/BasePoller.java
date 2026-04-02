@@ -65,7 +65,8 @@ abstract class BasePoller<T> implements SuspendableWorker {
       // When graceful poll shutdown is enabled, the server will complete outstanding polls with
       // empty responses after ShutdownWorker is called. We simply wait for polls to return.
       pollExecutorShutdown =
-          shutdownManager.shutdownExecutorUntimed(pollExecutor, this + "#pollExecutor");
+          shutdownManager.shutdownExecutor(
+              pollExecutor, this + "#pollExecutor", Duration.ofSeconds(80));
     } else {
       // Old behaviour forcibly stops outstanding polls.
       pollExecutorShutdown =
