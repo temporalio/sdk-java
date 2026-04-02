@@ -10,6 +10,7 @@ import io.temporal.internal.sync.StubMarker;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
@@ -268,11 +269,13 @@ public interface WorkflowStub {
    * to complete. Behind the scenes this call performs long polls the Temporal Server waiting for
    * workflow completion.
    *
+   * <p>See {@link #getResult(Class)} as a sync version of this method for detailed information
+   * about exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by {@link
+   * ExecutionException}.
+   *
    * @param resultClass class of the workflow return value
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(Class) as a sync version of this method for detailed information about
-   *     exceptions that may be thrown from CompletableFuture.get() wrapped by ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass);
 
@@ -281,13 +284,15 @@ public interface WorkflowStub {
    * to complete. Behind the scene this call performs long poll on Temporal service waiting for
    * workflow completion notification.
    *
+   * <p>See {@link #getResult(Class, Type)} as a sync version of this method for detailed
+   * information about exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by
+   * {@link ExecutionException}.
+   *
    * @param resultClass class of the workflow return value
    * @param resultType type of the workflow return value. Differs from {@code resultClass} for
    *     generic types.
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(Class, Type) as a sync version of this method for detailed information about
-   *     exceptions that may be thrown from CompletableFuture.get() wrapped by ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, Type resultType);
 
@@ -296,14 +301,15 @@ public interface WorkflowStub {
    * to complete. Behind the scene this call performs long poll on Temporal service waiting for
    * workflow completion notification.
    *
+   * <p>See {@link #getResult(long, TimeUnit, Class)} as a sync version of this method for detailed
+   * information about exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by
+   * {@link ExecutionException}.
+   *
    * @param timeout maximum time to wait and perform a background long poll
    * @param unit unit of timeout
    * @param resultClass class of the workflow return value
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(long, TimeUnit, Class) as a sync version of this method for detailed
-   *     information about exceptions that may be thrown from CompletableFuture.get() wrapped by
-   *     ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> resultClass);
 
@@ -312,6 +318,10 @@ public interface WorkflowStub {
    * to complete. Behind the scene this call performs long poll on Temporal service waiting for
    * workflow completion notification.
    *
+   * <p>See {@link #getResult(long, TimeUnit, Class, Type)} as a sync version of this method for
+   * detailed information about exceptions that may be thrown from {@link CompletableFuture#get()}
+   * wrapped by {@link ExecutionException}.
+   *
    * @param timeout maximum time to wait and perform a background long poll
    * @param unit unit of timeout
    * @param resultClass class of the workflow return value
@@ -319,9 +329,6 @@ public interface WorkflowStub {
    *     generic types.
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(long, TimeUnit, Class, Type) as a sync version of this method for detailed
-   *     information about exceptions that may be thrown from CompletableFuture.get() wrapped by
-   *     ExecutionException
    */
   <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, Type resultType);
