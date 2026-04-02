@@ -90,8 +90,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           "First event in the history is not WorkflowExecutionStarted");
     }
     this.startedEvent = startedEvent.getWorkflowExecutionStartedEventAttributes();
-    UserMetadata userMetadata =
-        startedEvent.hasUserMetadata() ? startedEvent.getUserMetadata() : null;
+    UserMetadata userMetadata = startedEvent.getUserMetadata();
     this.metricsScope = metricsScope;
     this.localActivityDispatcher = localActivityDispatcher;
     this.workflow = workflow;

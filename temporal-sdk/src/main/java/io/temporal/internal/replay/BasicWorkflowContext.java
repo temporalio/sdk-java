@@ -25,7 +25,7 @@ final class BasicWorkflowContext {
   private final WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
   @Nonnull private final WorkflowExecution workflowExecution;
-  @Nullable private final UserMetadata userMetadata;
+  @Nonnull private final UserMetadata userMetadata;
 
   @Nullable private final Payloads lastCompletionResult;
 
@@ -36,7 +36,7 @@ final class BasicWorkflowContext {
       @Nonnull WorkflowExecution workflowExecution,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
-      @Nullable UserMetadata userMetadata) {
+      @Nonnull UserMetadata userMetadata) {
     this.namespace = namespace;
     this.workflowExecution = Preconditions.checkNotNull(workflowExecution);
     this.startedAttributes = startedAttributes;
@@ -149,7 +149,7 @@ final class BasicWorkflowContext {
     return startedAttributes.getPriority();
   }
 
-  @Nullable
+  @Nonnull
   public UserMetadata getUserMetadata() {
     return userMetadata;
   }

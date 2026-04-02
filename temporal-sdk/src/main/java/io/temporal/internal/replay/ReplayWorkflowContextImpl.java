@@ -52,7 +52,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       @Nullable String fullReplayDirectQueryName,
       SingleWorkerOptions workerOptions,
       Scope workflowMetricsScope,
-      @Nullable UserMetadata userMetadata) {
+      @Nonnull UserMetadata userMetadata) {
     this.workflowStateMachines = workflowStateMachines;
     this.basicWorkflowContext =
         new BasicWorkflowContext(
@@ -287,20 +287,14 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Nullable
   public Payload getStaticSummaryPayload() {
     UserMetadata userMetadata = basicWorkflowContext.getUserMetadata();
-    if (userMetadata == null || !userMetadata.hasSummary()) {
-      return null;
-    }
-    return userMetadata.getSummary();
+    return userMetadata.hasSummary() ? userMetadata.getSummary() : null;
   }
 
   @Override
   @Nullable
   public Payload getStaticDetailsPayload() {
     UserMetadata userMetadata = basicWorkflowContext.getUserMetadata();
-    if (userMetadata == null || !userMetadata.hasDetails()) {
-      return null;
-    }
-    return userMetadata.getDetails();
+    return userMetadata.hasDetails() ? userMetadata.getDetails() : null;
   }
 
   @Override
