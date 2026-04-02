@@ -1174,7 +1174,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
      * Previously the SDK would yield on the getVersion call to the scheduler. This is not ideal because it can lead to non-deterministic
      * scheduling if the getVersion call was removed.
      * */
-    if (replayContext.checkSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
+    if (replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
       // This can happen if we are replaying a workflow and encounter a getVersion call that did not
       // exist on the original execution and the range does not include the default version.
       if (versionToUse == null) {
@@ -1321,9 +1321,35 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
-    Promise<Void> timer = newTimer(timeout);
-    WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
-    return !timer.isCompleted();
+    // TODO: Change checkSdkFlag to tryUseSdkFlag in the next release to enable this flag by
+    // default.
+    boolean cancelTimerOnCondition =
+        replayContext.checkSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
+
+    if (cancelTimerOnCondition) {
+      // If condition is already satisfied, skip creating timer
+      if (unblockCondition.get()) {
+        return true;
+      }
+      // Create timer in a cancellation scope so we can cancel it when condition is satisfied
+      CompletablePromise<Void> timer = Workflow.newPromise();
+      CancellationScope timerScope =
+          Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout)));
+      timerScope.run();
+
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+
+      boolean conditionSatisfied = !timer.isCompleted();
+      if (conditionSatisfied) {
+        timerScope.cancel("await condition resolved");
+      }
+      return conditionSatisfied;
+    } else {
+      // Old behavior: timer is not cancelled when condition is satisfied
+      Promise<Void> timer = newTimer(timeout);
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      return !timer.isCompleted();
+    }
   }
 
   @Override
@@ -1388,6 +1414,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .getVersioningIntent()
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
+      }
+      if (options.getInitialVersioningBehavior() != null) {
+        switch (options.getInitialVersioningBehavior()) {
+          case AUTO_UPGRADE:
+            attributes.setInitialVersioningBehavior(
+                io.temporal.api.enums.v1.ContinueAsNewVersioningBehavior
+                    .CONTINUE_AS_NEW_VERSIONING_BEHAVIOR_AUTO_UPGRADE);
+            break;
+        }
       }
     }
 

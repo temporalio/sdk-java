@@ -41,11 +41,10 @@ the main repo.
 
 ## Test and Build
 
-Testing and building `sdk-java` requires running temporal docker locally, execute:
+Run a local temporal server with the [temporal CLI](https://docs.temporal.io/cli#installation):
 
 ```bash
-curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
-docker-compose up
+temporal server start-dev
 ```
 
 (If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.)
@@ -61,3 +60,20 @@ Build with:
 ```bash
 ./gradlew build
 ```
+
+## Note on Rosetta
+Newer Apple Silicon macs do not ship with Rosetta by default, and the version of `protoc-gen-rpc-java` we use (1.34.1) does not ship Apple Silicon binaries.
+
+So Gradle is set to hardcode the download of the x86_64 binaries on MacOS, but this depends on Rosetta to function. Make sure Rosetta is installed with
+
+```bash
+/usr/bin/pgrep oahd
+```
+
+which should return a PID of the Rosetta process. If it doesn't, you'll need to run
+
+```bash
+softwareupdate --install-rosetta
+```
+
+for builds to complete successfully.

@@ -38,7 +38,13 @@ dependencies {
 
 // Temporal SDK supports Java 8 or later so to support virtual threads
 // we need to compile the code with Java 21 and package it in a multi-release jar.
+// Similarly, Jackson 3 support requires Java 17+ and is compiled separately.
 sourceSets {
+    java17 {
+        java {
+            srcDirs = ['src/main/java17']
+        }
+    }
     java21 {
         java {
             srcDirs = ['src/main/java21']
@@ -47,7 +53,29 @@ sourceSets {
 }
 
 dependencies {
+    // The java17 source set needs protobuf and other main dependencies to compile. We pass
+    // the main compile classpath as files rather than extending from api/implementation
+    // configurations, because extendsFrom triggers Gradle's variant-aware resolution which
+    // rejects project dependencies when the java17 target JVM (17) differs from the resolved
+    // project's JVM compatibility (e.g. 21+ on CI edge runners).
+    java17Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
+    java17Implementation files({ sourceSets.main.compileClasspath })
+    java17CompileOnly "tools.jackson.core:jackson-databind:$jackson3Version"
+
     java21Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
+}
+
+tasks.named('compileJava17Java') {
+    // Gradle toolchains are too strict and require the JDK to match the specified version exactly.
+    // This is a workaround to use a JDK 17+ compiler.
+    //
+    // See also: https://github.com/gradle/gradle/issues/16256
+    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        javaCompiler = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+    options.release = 17
 }
 
 tasks.named('compileJava21Java') {
@@ -64,12 +92,36 @@ tasks.named('compileJava21Java') {
 }
 
 jar {
+    into('META-INF/versions/17') {
+        from sourceSets.java17.output
+    }
     into('META-INF/versions/21') {
         from sourceSets.java21.output
     }
     manifest.attributes(
             'Multi-Release': 'true'
     )
+}
+
+// Publish Jackson 3 as an optional dependency so users can opt-in
+afterEvaluate {
+    publishing {
+        publications {
+            mavenJava {
+                pom.withXml {
+                    def depsNode = asNode()['dependencies'][0]
+                    if (depsNode == null) {
+                        depsNode = asNode().appendNode('dependencies')
+                    }
+                    def dep = depsNode.appendNode('dependency')
+                    dep.appendNode('groupId', 'tools.jackson.core')
+                    dep.appendNode('artifactId', 'jackson-databind')
+                    dep.appendNode('version', '[' + jackson3Version + ',)')
+                    dep.appendNode('optional', 'true')
+                }
+            }
+        }
+    }
 }
 
 task registerNamespace(type: JavaExec) {
@@ -82,6 +134,22 @@ test.dependsOn 'registerNamespace'
 test {
     useJUnit {
         excludeCategories 'io.temporal.worker.IndependentResourceBasedTests'
+    }
+}
+
+// On Java 17+, prepend java17 classes to all test classpaths so that Class.forName finds
+// the real Jackson3JsonPayloadConverter instead of the Java 8 stub. This lets us test
+// the present-java17-but-absent-jackson3 behavior (NoClassDefFoundError) in the same
+// test that tests the Java 8 stub behavior (UnsupportedOperationException).
+tasks.withType(Test).configureEach {
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        dependsOn compileJava17Java
+    }
+    doFirst {
+        int launcherMajorVersion = javaLauncher.get().metadata.languageVersion.asInt()
+        if (launcherMajorVersion >= 17) {
+            classpath = files(sourceSets.java17.output.classesDirs) + classpath
+        }
     }
 }
 
@@ -121,6 +189,36 @@ testing {
                         }
                     }
                 }
+            }
+        }
+
+        jackson3Tests(JvmTestSuite) {
+            dependencies {
+                // java17 output must come before project() (added by configureEach) so that
+                // the compiler and runtime see the real Jackson3JsonPayloadConverter — which
+                // has a wider API than the Java 8 stub (newDefaultJsonMapper, JsonMapper
+                // constructor) because the stub can't reference Jackson 3 types.
+                implementation files(sourceSets.java17.output.classesDirs) { builtBy compileJava17Java }
+                implementation "tools.jackson.core:jackson-databind:$jackson3Version"
+            }
+            targets {
+                all {
+                    testTask.configure {
+                        javaLauncher = javaToolchains.launcherFor {
+                            languageVersion = JavaLanguageVersion.of(17)
+                        }
+                        shouldRunAfter(test)
+                    }
+                }
+            }
+        }
+
+        // Unlike virtualThreadTests, jackson3Tests source directly imports Jackson 3 types
+        // and java17 classes, so the compile task also needs a Java 17 compiler (not just
+        // the test launcher).
+        tasks.named('compileJackson3TestsJava') {
+            javaCompiler = javaToolchains.compilerFor {
+                languageVersion = JavaLanguageVersion.of(17)
             }
         }
 
@@ -164,5 +262,6 @@ testing {
 }
 
 tasks.named('check') {
+    dependsOn(testing.suites.jackson3Tests)
     dependsOn(testing.suites.virtualThreadTests)
 }

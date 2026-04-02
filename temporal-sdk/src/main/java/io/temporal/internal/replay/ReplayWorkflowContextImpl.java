@@ -10,6 +10,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
@@ -439,6 +440,16 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public boolean isContinueAsNewSuggested() {
     return workflowStateMachines.isContinueAsNewSuggested();
+  }
+
+  @Override
+  public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+    return workflowStateMachines.getSuggestContinueAsNewReasons();
+  }
+
+  @Override
+  public boolean isTargetWorkerDeploymentVersionChanged() {
+    return workflowStateMachines.isTargetWorkerDeploymentVersionChanged();
   }
 
   /*

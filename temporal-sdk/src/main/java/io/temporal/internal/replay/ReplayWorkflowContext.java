@@ -8,12 +8,14 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -362,6 +364,17 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     value changes during the lifetime of a Workflow Execution.
    */
   boolean isContinueAsNewSuggested();
+
+  /**
+   * @return the reasons why continue-as-new is suggested, or an empty list if not suggested. This
+   *     value changes during the lifetime of a Workflow Execution.
+   */
+  List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons();
+
+  /**
+   * @return true if the target worker deployment version has changed for this workflow.
+   */
+  boolean isTargetWorkerDeploymentVersionChanged();
 
   /**
    * @return true if cancellation of the workflow is requested.

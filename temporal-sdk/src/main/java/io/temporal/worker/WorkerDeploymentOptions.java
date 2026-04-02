@@ -61,6 +61,9 @@ public class WorkerDeploymentOptions {
       Preconditions.checkState(
           !(useVersioning && version == null),
           "If useVersioning is set, setVersion must be called");
+      Preconditions.checkState(
+          useVersioning || defaultVersioningBehavior == VersioningBehavior.UNSPECIFIED,
+          "defaultVersioningBehavior must be UNSPECIFIED when useVersioning is false");
       return new WorkerDeploymentOptions(useVersioning, version, defaultVersioningBehavior);
     }
   }
