@@ -127,6 +127,12 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   Payload getMemo(String key);
 
+  @Nullable
+  Payload getStaticSummaryPayload();
+
+  @Nullable
+  Payload getStaticDetailsPayload();
+
   /**
    * Requests an activity execution.
    *

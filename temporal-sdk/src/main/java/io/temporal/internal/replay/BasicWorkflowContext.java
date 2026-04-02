@@ -7,6 +7,7 @@ import com.google.protobuf.util.Timestamps;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
@@ -24,6 +25,7 @@ final class BasicWorkflowContext {
   private final WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
   @Nonnull private final WorkflowExecution workflowExecution;
+  @Nonnull private final UserMetadata userMetadata;
 
   @Nullable private final Payloads lastCompletionResult;
 
@@ -33,11 +35,13 @@ final class BasicWorkflowContext {
       String namespace,
       @Nonnull WorkflowExecution workflowExecution,
       WorkflowExecutionStartedEventAttributes startedAttributes,
-      long runStartedTimestampMillis) {
+      long runStartedTimestampMillis,
+      @Nonnull UserMetadata userMetadata) {
     this.namespace = namespace;
     this.workflowExecution = Preconditions.checkNotNull(workflowExecution);
     this.startedAttributes = startedAttributes;
     this.runStartedTimestampMillis = runStartedTimestampMillis;
+    this.userMetadata = userMetadata;
     this.lastCompletionResult =
         startedAttributes.hasLastCompletionResult()
             ? startedAttributes.getLastCompletionResult()
@@ -143,5 +147,10 @@ final class BasicWorkflowContext {
   @Nonnull
   public Priority getPriority() {
     return startedAttributes.getPriority();
+  }
+
+  @Nonnull
+  public UserMetadata getUserMetadata() {
+    return userMetadata;
   }
 }

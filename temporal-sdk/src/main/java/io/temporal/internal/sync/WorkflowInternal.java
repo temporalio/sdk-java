@@ -856,6 +856,26 @@ public final class WorkflowInternal {
   }
 
   @Nullable
+  public static String getStaticSummary() {
+    Payload payload = getRootWorkflowContext().getReplayContext().getStaticSummaryPayload();
+    if (payload == null) {
+      return null;
+    }
+    return getDataConverterWithCurrentWorkflowContext()
+        .fromPayload(payload, String.class, String.class);
+  }
+
+  @Nullable
+  public static String getStaticDetails() {
+    Payload payload = getRootWorkflowContext().getReplayContext().getStaticDetailsPayload();
+    if (payload == null) {
+      return null;
+    }
+    return getDataConverterWithCurrentWorkflowContext()
+        .fromPayload(payload, String.class, String.class);
+  }
+
+  @Nullable
   public static Object getInstance() {
     return getRootWorkflowContext().getInstance();
   }

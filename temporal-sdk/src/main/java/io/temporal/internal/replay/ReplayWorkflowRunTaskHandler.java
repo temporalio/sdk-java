@@ -19,6 +19,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.Config;
@@ -89,6 +90,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           "First event in the history is not WorkflowExecutionStarted");
     }
     this.startedEvent = startedEvent.getWorkflowExecutionStartedEventAttributes();
+    UserMetadata userMetadata = startedEvent.getUserMetadata();
     this.metricsScope = metricsScope;
     this.localActivityDispatcher = localActivityDispatcher;
     this.workflow = workflow;
@@ -111,7 +113,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             Timestamps.toMillis(startedEvent.getEventTime()),
             fullReplayDirectQueryType,
             workerOptions,
-            metricsScope);
+            metricsScope,
+            userMetadata);
 
     this.replayWorkflowExecutor =
         new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);

@@ -1555,6 +1555,31 @@ public final class Workflow {
   }
 
   /**
+   * Get the fixed summary for this workflow execution that was set at workflow start. This can be
+   * in single-line Temporal markdown format.
+   *
+   * @return the static summary, or null if not set
+   */
+  @Experimental
+  @Nullable
+  public static String getStaticSummary() {
+    return WorkflowInternal.getStaticSummary();
+  }
+
+  /**
+   * Get the fixed details for this workflow execution that were set at workflow start. This can be
+   * in Temporal markdown format and can span multiple lines. Unlike {@link #getCurrentDetails()},
+   * this value cannot be updated during workflow execution.
+   *
+   * @return the static details, or null if not set
+   */
+  @Experimental
+  @Nullable
+  public static String getStaticDetails() {
+    return WorkflowInternal.getStaticDetails();
+  }
+
+  /**
    * Get the currently running workflow instance.
    *
    * @apiNote The instance is only available after it has been initialized. This function will
