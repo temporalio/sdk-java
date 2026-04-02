@@ -268,23 +268,8 @@ public final class WorkerFactory {
                 DescribeNamespaceRequest.newBuilder()
                     .setNamespace(workflowClient.getOptions().getNamespace())
                     .build());
-    if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getWorkerHeartbeats()) {
-      namespaceCapabilities.setWorkerHeartbeats(true);
-    } else {
-      log.debug(
-          "Server does not support worker heartbeats for namespace {}",
-          workflowClient.getOptions().getNamespace());
-    }
-
-    if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
-      namespaceCapabilities.setPollerAutoscaling(true);
-    }
-    if (describeNamespaceResponse
-        .getNamespaceInfo()
-        .getCapabilities()
-        .getWorkerPollCompleteOnShutdown()) {
-      namespaceCapabilities.setGracefulPollShutdown(true);
-    }
+    namespaceCapabilities.setFromCapabilities(
+        describeNamespaceResponse.getNamespaceInfo().getCapabilities());
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;

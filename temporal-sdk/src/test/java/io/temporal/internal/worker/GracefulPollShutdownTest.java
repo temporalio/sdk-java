@@ -3,6 +3,7 @@ package io.temporal.internal.worker;
 import static org.junit.Assert.*;
 
 import com.uber.m3.tally.NoopScope;
+import io.temporal.api.namespace.v1.NamespaceInfo.Capabilities;
 import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -30,7 +31,8 @@ public class GracefulPollShutdownTest {
   @Test(timeout = 10_000)
   public void inflightPollSurvivesShutdownOnlyWhenGraceful() throws Exception {
     NamespaceCapabilities capabilities = new NamespaceCapabilities();
-    capabilities.setGracefulPollShutdown(graceful);
+    capabilities.setFromCapabilities(
+        Capabilities.newBuilder().setWorkerPollCompleteOnShutdown(true).build());
 
     AtomicReference<String> processedTask = new AtomicReference<>();
     CountDownLatch taskProcessedLatch = new CountDownLatch(1);
