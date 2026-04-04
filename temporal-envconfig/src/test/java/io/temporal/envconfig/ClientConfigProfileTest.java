@@ -326,6 +326,22 @@ public class ClientConfigProfileTest {
   }
 
   @Test
+  public void loadDefaultConfigMissingHomeDir() throws IOException {
+    String original = System.getProperty("user.home");
+    try {
+      System.setProperty("user.home", "");
+      ClientConfig config =
+          ClientConfig.load(
+              LoadClientConfigOptions.newBuilder().setEnvOverrides(Collections.emptyMap()).build());
+      Assert.assertEquals(ClientConfig.getDefaultInstance(), config);
+    } finally {
+      if (original != null) {
+        System.setProperty("user.home", original);
+      }
+    }
+  }
+
+  @Test
   public void parseToml() throws IOException {
     String toml =
         "[profile.foo]\n"
