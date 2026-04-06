@@ -5,6 +5,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.enums.v1.TaskQueueType;
+import io.temporal.api.workflowservice.v1.ShutdownWorkerRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
@@ -17,6 +19,7 @@ import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -42,7 +45,13 @@ public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
+  private final String workerInstanceKey = UUID.randomUUID().toString();
   private final List<WorkerPlugin> plugins;
+  private final WorkflowServiceStubs service;
+  private final String namespace;
+  private final String identity;
+  private final String stickyTaskQueueName;
+  private final NamespaceCapabilities namespaceCapabilities;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
@@ -70,23 +79,32 @@ public final class Worker {
       WorkflowThreadExecutor workflowThreadExecutor,
       List<ContextPropagator> contextPropagators,
       @Nonnull List<WorkerPlugin> plugins,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
 
     Objects.requireNonNull(client, "client should not be null");
+    this.namespaceCapabilities =
+        Objects.requireNonNull(namespaceCapabilities, "namespaceCapabilities should not be null");
     this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
+    this.service = client.getWorkflowServiceStubs();
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
+    this.namespace = namespace;
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
     Scope taggedScope = metricsScope.tagged(tags);
     SingleWorkerOptions activityOptions =
         toActivityOptions(
-            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+            factoryOptions,
+            this.options,
+            clientOptions,
+            contextPropagators,
+            taggedScope,
+            workerInstanceKey);
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
@@ -104,7 +122,7 @@ public final class Worker {
               this.options.getMaxTaskQueueActivitiesPerSecond(),
               activityOptions,
               activitySlotSupplier,
-              serverSupportsAutoscaling);
+              namespaceCapabilities);
     }
 
     EagerActivityDispatcher eagerActivityDispatcher =
@@ -114,7 +132,12 @@ public final class Worker {
 
     SingleWorkerOptions nexusOptions =
         toNexusOptions(
-            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+            factoryOptions,
+            this.options,
+            clientOptions,
+            contextPropagators,
+            taggedScope,
+            workerInstanceKey);
     SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
         this.options.getWorkerTuner() == null
             ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentNexusExecutionSize())
@@ -123,12 +146,7 @@ public final class Worker {
 
     nexusWorker =
         new SyncNexusWorker(
-            client,
-            namespace,
-            taskQueue,
-            nexusOptions,
-            nexusSlotSupplier,
-            serverSupportsAutoscaling);
+            client, namespace, taskQueue, nexusOptions, nexusSlotSupplier, namespaceCapabilities);
 
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
@@ -137,10 +155,16 @@ public final class Worker {
             clientOptions,
             taskQueue,
             contextPropagators,
-            taggedScope);
+            taggedScope,
+            workerInstanceKey);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
-            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+            factoryOptions,
+            this.options,
+            clientOptions,
+            contextPropagators,
+            taggedScope,
+            workerInstanceKey);
 
     SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -153,6 +177,10 @@ public final class Worker {
             : this.options.getWorkerTuner().getLocalActivitySlotSupplier();
     attachMetricsToResourceController(taggedScope, localActivitySlotSupplier);
 
+    this.identity = singleWorkerOptions.getIdentity();
+    this.stickyTaskQueueName =
+        useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null;
+
     workflowWorker =
         new SyncWorkflowWorker(
             client,
@@ -162,12 +190,12 @@ public final class Worker {
             localActivityOptions,
             runLocks,
             cache,
-            useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
+            stickyTaskQueueName,
             workflowThreadExecutor,
             eagerActivityDispatcher,
             workflowSlotSupplier,
             localActivitySlotSupplier,
-            serverSupportsAutoscaling);
+            namespaceCapabilities);
   }
 
   /**
@@ -425,18 +453,46 @@ public final class Worker {
   }
 
   CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptUserTasks) {
-    CompletableFuture<Void> workflowWorkerShutdownFuture =
-        workflowWorker.shutdown(shutdownManager, interruptUserTasks);
-    CompletableFuture<Void> nexusWorkerShutdownFuture =
-        nexusWorker.shutdown(shutdownManager, interruptUserTasks);
+    ShutdownWorkerRequest.Builder requestBuilder =
+        ShutdownWorkerRequest.newBuilder()
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setWorkerInstanceKey(workerInstanceKey)
+            .setTaskQueue(taskQueue)
+            .setReason("graceful shutdown")
+            .addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW)
+            .addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_NEXUS);
     if (activityWorker != null) {
-      return CompletableFuture.allOf(
-          activityWorker.shutdown(shutdownManager, interruptUserTasks),
-          workflowWorkerShutdownFuture,
-          nexusWorkerShutdownFuture);
-    } else {
-      return CompletableFuture.allOf(workflowWorkerShutdownFuture, nexusWorkerShutdownFuture);
+      requestBuilder.addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY);
     }
+    if (stickyTaskQueueName != null) {
+      requestBuilder.setStickyTaskQueue(stickyTaskQueueName);
+    }
+    CompletableFuture<Void> shutdownWorkerRpc =
+        shutdownManager.waitOnWorkerShutdownRequest(
+            service.futureStub().shutdownWorker(requestBuilder.build()));
+
+    // When interrupting tasks (shutdownNow), fire the RPC but don't block on it — proceed to
+    // shut down pollers immediately. For graceful shutdown, wait for the RPC so the server can
+    // complete outstanding polls with empty responses before we start waiting on them.
+    CompletableFuture<Void> preShutdown =
+        interruptUserTasks ? CompletableFuture.completedFuture(null) : shutdownWorkerRpc;
+
+    return preShutdown.thenCompose(
+        ignore -> {
+          CompletableFuture<Void> workflowWorkerShutdownFuture =
+              workflowWorker.shutdown(shutdownManager, interruptUserTasks);
+          CompletableFuture<Void> nexusWorkerShutdownFuture =
+              nexusWorker.shutdown(shutdownManager, interruptUserTasks);
+          if (activityWorker != null) {
+            return CompletableFuture.allOf(
+                activityWorker.shutdown(shutdownManager, interruptUserTasks),
+                workflowWorkerShutdownFuture,
+                nexusWorkerShutdownFuture);
+          } else {
+            return CompletableFuture.allOf(workflowWorkerShutdownFuture, nexusWorkerShutdownFuture);
+          }
+        });
   }
 
   boolean isTerminated() {
@@ -602,8 +658,10 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+      Scope metricsScope,
+      String workerInstanceKey) {
+    return toSingleWorkerOptions(
+            factoryOptions, options, clientOptions, contextPropagators, workerInstanceKey)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
         .setPollerOptions(
             PollerOptions.newBuilder()
@@ -624,8 +682,10 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+      Scope metricsScope,
+      String workerInstanceKey) {
+    return toSingleWorkerOptions(
+            factoryOptions, options, clientOptions, contextPropagators, workerInstanceKey)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -646,7 +706,8 @@ public final class Worker {
       WorkflowClientOptions clientOptions,
       String taskQueue,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
+      Scope metricsScope,
+      String workerInstanceKey) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
 
@@ -675,7 +736,8 @@ public final class Worker {
       }
     }
 
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+    return toSingleWorkerOptions(
+            factoryOptions, options, clientOptions, contextPropagators, workerInstanceKey)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -697,8 +759,10 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+      Scope metricsScope,
+      String workerInstanceKey) {
+    return toSingleWorkerOptions(
+            factoryOptions, options, clientOptions, contextPropagators, workerInstanceKey)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -715,7 +779,8 @@ public final class Worker {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      String workerInstanceKey) {
     String buildId = null;
     if (options.getBuildId() != null) {
       buildId = options.getBuildId();
@@ -738,7 +803,8 @@ public final class Worker {
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
         .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
-        .setDeploymentOptions(options.getDeploymentOptions());
+        .setDeploymentOptions(options.getDeploymentOptions())
+        .setWorkerInstanceKey(workerInstanceKey);
   }
 
   /**

@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +52,7 @@ final class NexusWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
-  private final AtomicBoolean serverSupportsAutoscaling;
+  private final NamespaceCapabilities namespaceCapabilities;
   private final boolean forceOldFailureFormat;
 
   public NexusWorker(
@@ -64,7 +63,7 @@ final class NexusWorker implements SuspendableWorker {
       @Nonnull NexusTaskHandler handler,
       @Nonnull DataConverter dataConverter,
       @Nonnull SlotSupplier<NexusSlotInfo> slotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -80,7 +79,7 @@ final class NexusWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
-    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
+    this.namespaceCapabilities = namespaceCapabilities;
     // Allow tests to force old format for backward compatibility testing
     String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
     this.forceOldFailureFormat = "true".equalsIgnoreCase(forceOldFormat);
@@ -110,13 +109,14 @@ final class NexusWorker implements SuspendableWorker {
                     namespace,
                     taskQueue,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     this.slotSupplier),
                 this.pollTaskExecutor,
                 pollerOptions,
-                serverSupportsAutoscaling.get(),
+                namespaceCapabilities,
                 workerMetricsScope);
       } else {
         poller =
@@ -127,13 +127,15 @@ final class NexusWorker implements SuspendableWorker {
                     namespace,
                     taskQueue,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     this.slotSupplier,
                     workerMetricsScope,
                     service.getServerCapabilities()),
                 this.pollTaskExecutor,
                 pollerOptions,
-                workerMetricsScope);
+                workerMetricsScope,
+                namespaceCapabilities);
       }
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);

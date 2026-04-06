@@ -38,6 +38,7 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       double activitiesPerSecond,
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
@@ -52,6 +53,7 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
             .setNamespace(namespace)
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+    pollRequest.setWorkerInstanceKey(workerInstanceKey);
     if (activitiesPerSecond > 0) {
       pollRequest.setTaskQueueMetadata(
           TaskQueueMetadata.newBuilder()
