@@ -58,6 +58,15 @@
       "notes": "Do after plugin registration tests exist so we can verify the refactor doesn't break registration. Also resolves T10 (unnecessary MCP reflection)."
     },
     {
+      "id": "T14",
+      "title": "Fix NPE when ChatResponse metadata is null",
+      "description": "ActivityChatModel.toResponse() passes null metadata to ChatResponse.builder().metadata(null), which causes an NPE in Spring AI's builder. Fix: skip .metadata() call when metadata is null, or pass an empty ChatResponseMetadata.",
+      "severity": "high",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "todo"
+    },
+    {
       "id": "T7",
       "title": "Add max iteration limit to ActivityChatModel tool loop",
       "description": "Add a configurable max iteration count (default ~10) to the recursive call() loop in ActivityChatModel. Throw after limit to prevent infinite recursion from misbehaving models.",
