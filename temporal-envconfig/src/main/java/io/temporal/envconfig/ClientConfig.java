@@ -179,7 +179,7 @@ public class ClientConfig {
    *
    * @param config the client config to convert
    * @return the TOML data as bytes
-   * @apiNote The output will not be identical to the input if the config was loaded from a file
+   *     <p>Note: The output will not be identical to the input if the config was loaded from a file
    *     because comments and formatting are not preserved.
    */
   public static byte[] toTomlAsBytes(ClientConfig config) throws IOException {

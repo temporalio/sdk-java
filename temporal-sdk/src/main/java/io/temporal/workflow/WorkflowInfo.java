@@ -122,15 +122,15 @@ public interface WorkflowInfo {
 
   /**
    * @return Workflow ID of the root Workflow
-   * @apiNote On server versions prior to v1.27.0, this method will be empty. Otherwise, it will be
-   *     empty if the workflow is its own root.
+   *     <p>Note: On server versions prior to v1.27.0, this method will be empty. Otherwise, it will
+   *     be empty if the workflow is its own root.
    */
   Optional<String> getRootWorkflowId();
 
   /**
    * @return Run ID of the root Workflow
-   * @apiNote On server versions prior to v1.27.0, this method will be empty. Otherwise, it will be
-   *     empty if the workflow is its own root.
+   *     <p>Note: On server versions prior to v1.27.0, this method will be empty. Otherwise, it will
+   *     be empty if the workflow is its own root.
    */
   Optional<String> getRootRunId();
 
@@ -191,8 +191,8 @@ public interface WorkflowInfo {
   /**
    * Return the priority of the workflow task.
    *
-   * @apiNote If unset or on an older server version, this method will return {@link
-   *     Priority#getDefaultInstance()}.
+   * <p>Note: If unset or on an older server version, this method will return {@link
+   * Priority#getDefaultInstance()}.
    */
   @Experimental
   @Nonnull

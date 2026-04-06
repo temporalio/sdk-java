@@ -32,9 +32,8 @@ subprojects {
 
     javadoc {
         options.encoding = 'UTF-8'
-        if (JavaVersion.current().isJava8Compatible()) {
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
+        options.addStringOption('Xdoclint:reference', '-quiet')
+        options.addBooleanOption('Werror', true)
         if (JavaVersion.current().isJava9Compatible()) {
             options.addBooleanOption('html5', true)
         }
