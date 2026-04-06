@@ -128,7 +128,7 @@ public class HeartbeatManager {
 
     void shutdown() {
       if (!shuttingDown.compareAndSet(false, true)) return;
-      scheduler.shutdown();
+      scheduler.shutdownNow();
       try {
         scheduler.awaitTermination(5, TimeUnit.SECONDS);
       } catch (InterruptedException e) {

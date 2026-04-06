@@ -36,12 +36,12 @@ import java.net.InetAddress;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,12 +65,14 @@ public final class Worker {
   final SyncNexusWorker nexusWorker;
   private final AtomicBoolean started = new AtomicBoolean();
   private volatile boolean shuttingDown = false;
+  private boolean hasWorkflows = false;
+  private boolean hasActivities = false;
   private boolean hasNexusServices = false;
   private final String workerInstanceKey = UUID.randomUUID().toString();
-  private final Instant startTime = Instant.now();
+  private volatile Instant startTime;
   private final WorkflowClientOptions clientOptions;
   private final @Nonnull WorkflowExecutorCache cache;
-  private final Map<String, TaskSnapshot> previousSnapshots = new HashMap<>();
+  private final Map<String, TaskSnapshot> previousSnapshots = new ConcurrentHashMap<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -225,6 +227,7 @@ public final class Worker {
 
     workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
+    hasWorkflows = true;
   }
 
   /**
@@ -249,6 +252,7 @@ public final class Worker {
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
     workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
+    hasWorkflows = true;
   }
 
   /**
@@ -350,6 +354,7 @@ public final class Worker {
   public <R> void registerWorkflowImplementationFactory(
       Class<R> workflowInterface, Func<R> factory, WorkflowImplementationOptions options) {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
+    hasWorkflows = true;
   }
 
   @VisibleForTesting
@@ -358,6 +363,7 @@ public final class Worker {
       Functions.Func1<EncodedValues, R> factory,
       WorkflowImplementationOptions options) {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
+    hasWorkflows = true;
   }
 
   /**
@@ -401,6 +407,7 @@ public final class Worker {
       Class<R> workflowInterface, Func<R> factory) {
     workflowWorker.registerWorkflowImplementationFactory(
         WorkflowImplementationOptions.getDefaultInstance(), workflowInterface, factory);
+    hasWorkflows = true;
   }
 
   /**
@@ -427,6 +434,7 @@ public final class Worker {
 
     if (activityWorker != null) {
       activityWorker.registerActivityImplementations(activityImplementations);
+      hasActivities = true;
     }
     workflowWorker.registerLocalActivityImplementations(activityImplementations);
   }
@@ -451,6 +459,7 @@ public final class Worker {
     if (!started.compareAndSet(false, true)) {
       return;
     }
+    startTime = Instant.now();
     workflowWorker.start();
     nexusWorker.start();
     if (activityWorker != null) {
@@ -498,8 +507,10 @@ public final class Worker {
 
   List<TaskQueueType> getActiveTaskQueueTypes() {
     List<TaskQueueType> types = new ArrayList<>();
-    types.add(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW);
-    if (activityWorker != null) {
+    if (hasWorkflows) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW);
+    }
+    if (hasActivities) {
       types.add(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY);
     }
     if (hasNexusServices) {
