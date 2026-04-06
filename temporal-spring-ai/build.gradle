@@ -45,8 +45,10 @@ dependencies {
     testImplementation project(':temporal-testing')
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.ai:spring-ai-rag'
 
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 tasks.test {
