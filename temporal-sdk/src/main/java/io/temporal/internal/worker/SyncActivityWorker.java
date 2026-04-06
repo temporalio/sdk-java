@@ -150,6 +150,10 @@ public class SyncActivityWorker implements SuspendableWorker {
     return this.worker.getEagerActivityDispatcher();
   }
 
+  public boolean isAnyTypeSupported() {
+    return taskHandler.isAnyTypeSupported();
+  }
+
   public TrackingSlotSupplier<ActivitySlotInfo> getSlotSupplier() {
     return worker.getSlotSupplier();
   }

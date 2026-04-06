@@ -64,6 +64,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     this.nexusServiceInterceptor = new TemporalInterceptorMiddleware(interceptors);
   }
 
+  public boolean isAnyTypeSupported() {
+    return !serviceImplInstances.isEmpty();
+  }
+
   @Override
   public boolean start() {
     if (serviceImplInstances.isEmpty()) {

@@ -65,14 +65,11 @@ public final class Worker {
   final SyncNexusWorker nexusWorker;
   private final AtomicBoolean started = new AtomicBoolean();
   private volatile boolean shuttingDown = false;
-  private boolean hasWorkflows = false;
-  private boolean hasActivities = false;
-  private boolean hasNexusServices = false;
   private final String workerInstanceKey = UUID.randomUUID().toString();
   private volatile Instant startTime;
   private final WorkflowClientOptions clientOptions;
   private final @Nonnull WorkflowExecutorCache cache;
-  private final Map<String, TaskSnapshot> previousSnapshots = new ConcurrentHashMap<>();
+  private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -227,7 +224,6 @@ public final class Worker {
 
     workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
-    hasWorkflows = true;
   }
 
   /**
@@ -252,7 +248,6 @@ public final class Worker {
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
     workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
-    hasWorkflows = true;
   }
 
   /**
@@ -354,7 +349,6 @@ public final class Worker {
   public <R> void registerWorkflowImplementationFactory(
       Class<R> workflowInterface, Func<R> factory, WorkflowImplementationOptions options) {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
-    hasWorkflows = true;
   }
 
   @VisibleForTesting
@@ -363,7 +357,6 @@ public final class Worker {
       Functions.Func1<EncodedValues, R> factory,
       WorkflowImplementationOptions options) {
     workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
-    hasWorkflows = true;
   }
 
   /**
@@ -407,7 +400,6 @@ public final class Worker {
       Class<R> workflowInterface, Func<R> factory) {
     workflowWorker.registerWorkflowImplementationFactory(
         WorkflowImplementationOptions.getDefaultInstance(), workflowInterface, factory);
-    hasWorkflows = true;
   }
 
   /**
@@ -434,7 +426,6 @@ public final class Worker {
 
     if (activityWorker != null) {
       activityWorker.registerActivityImplementations(activityImplementations);
-      hasActivities = true;
     }
     workflowWorker.registerLocalActivityImplementations(activityImplementations);
   }
@@ -452,7 +443,6 @@ public final class Worker {
         !started.get(),
         "registerNexusServiceImplementation is not allowed after worker has started");
     nexusWorker.registerNexusServiceImplementation(nexusServiceImplementations);
-    hasNexusServices = true;
   }
 
   void start() {
@@ -507,13 +497,13 @@ public final class Worker {
 
   List<TaskQueueType> getActiveTaskQueueTypes() {
     List<TaskQueueType> types = new ArrayList<>();
-    if (hasWorkflows) {
+    if (workflowWorker.isAnyTypeSupported()) {
       types.add(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW);
     }
-    if (hasActivities) {
+    if (activityWorker != null && activityWorker.isAnyTypeSupported()) {
       types.add(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY);
     }
-    if (hasNexusServices) {
+    if (nexusWorker.isAnyTypeSupported()) {
       types.add(TaskQueueType.TASK_QUEUE_TYPE_NEXUS);
     }
     return types;
@@ -630,7 +620,7 @@ public final class Worker {
     int currentProcessed = taskCounter.getTotalProcessed();
     int currentFailed = taskCounter.getTotalFailed();
     TaskSnapshot previous =
-        previousSnapshots.put(key, new TaskSnapshot(currentProcessed, currentFailed));
+        previousHeartbeatSnapshots.put(key, new TaskSnapshot(currentProcessed, currentFailed));
     int intervalProcessed = previous != null ? currentProcessed - previous.processed : 0;
     int intervalFailed = previous != null ? currentFailed - previous.failed : 0;
     return WorkerSlotsInfo.newBuilder()

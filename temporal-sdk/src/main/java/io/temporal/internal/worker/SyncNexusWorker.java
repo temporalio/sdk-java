@@ -124,6 +124,10 @@ public class SyncNexusWorker implements SuspendableWorker {
         "SyncNexusWorker{namespace=%s, taskQueue=%s, identity=%s}", namespace, taskQueue, identity);
   }
 
+  public boolean isAnyTypeSupported() {
+    return taskHandler.isAnyTypeSupported();
+  }
+
   public void registerNexusServiceImplementation(Object... nexusServiceImplementations) {
     taskHandler.registerNexusServiceImplementations(nexusServiceImplementations);
   }

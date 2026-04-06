@@ -127,7 +127,7 @@ public class HeartbeatManager {
     }
 
     void shutdown() {
-      if (!shuttingDown.compareAndSet(false, true)) return;
+      shuttingDown.set(true);
       scheduler.shutdownNow();
       try {
         scheduler.awaitTermination(5, TimeUnit.SECONDS);
@@ -139,30 +139,30 @@ public class HeartbeatManager {
     private void heartbeatTick() {
       if (callbacks.isEmpty()) return;
 
-      try {
-        List<WorkerHeartbeat> heartbeats = new ArrayList<>();
-        for (Map.Entry<String, Supplier<WorkerHeartbeat>> entry : callbacks.entrySet()) {
-          try {
-            heartbeats.add(entry.getValue().get());
-          } catch (Exception e) {
-            log.warn(
-                "Failed to build heartbeat for worker {} in namespace {}",
-                entry.getKey(),
-                namespace,
-                e);
-          }
+      List<WorkerHeartbeat> heartbeats = new ArrayList<>();
+      for (Map.Entry<String, Supplier<WorkerHeartbeat>> entry : callbacks.entrySet()) {
+        try {
+          heartbeats.add(entry.getValue().get());
+        } catch (Exception e) {
+          log.warn(
+              "Failed to build heartbeat for worker {} in namespace {}",
+              entry.getKey(),
+              namespace,
+              e);
         }
+      }
 
-        if (!heartbeats.isEmpty()) {
-          service
-              .blockingStub()
-              .recordWorkerHeartbeat(
-                  RecordWorkerHeartbeatRequest.newBuilder()
-                      .setNamespace(namespace)
-                      .setIdentity(identity)
-                      .addAllWorkerHeartbeat(heartbeats)
-                      .build());
-        }
+      if (heartbeats.isEmpty()) return;
+
+      try {
+        service
+            .blockingStub()
+            .recordWorkerHeartbeat(
+                RecordWorkerHeartbeatRequest.newBuilder()
+                    .setNamespace(namespace)
+                    .setIdentity(identity)
+                    .addAllWorkerHeartbeat(heartbeats)
+                    .build());
       } catch (io.grpc.StatusRuntimeException e) {
         if (e.getStatus().getCode() == io.grpc.Status.Code.UNIMPLEMENTED) {
           log.warn(

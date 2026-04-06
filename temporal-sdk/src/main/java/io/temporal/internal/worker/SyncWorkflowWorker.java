@@ -258,6 +258,10 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return workflowWorker.hasStickyQueue();
   }
 
+  public boolean isAnyTypeSupported() {
+    return factory.isAnyTypeSupported();
+  }
+
   public TaskCounter getWorkflowTaskCounter() {
     return workflowWorker.getTaskCounter();
   }
