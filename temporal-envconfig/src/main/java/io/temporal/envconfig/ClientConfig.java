@@ -44,13 +44,16 @@ public class ClientConfig {
   private static String getDefaultConfigFilePath() {
     String userDir = System.getProperty("user.home");
     if (userDir == null || userDir.isEmpty()) {
-      throw new RuntimeException("failed getting user home directory");
+      return null;
     }
     return getDefaultConfigFilePath(userDir, System.getProperty("os.name"), System.getenv());
   }
 
   static String getDefaultConfigFilePath(
       String userDir, String osName, Map<String, String> environment) {
+    if (userDir == null || userDir.isEmpty()) {
+      return null;
+    }
     if (osName != null) {
       String osNameLower = osName.toLowerCase();
       if (osNameLower.contains("mac")) {
@@ -60,7 +63,7 @@ public class ClientConfig {
       if (osNameLower.contains("win")) {
         String appData = environment != null ? environment.get("APPDATA") : null;
         if (appData == null || appData.isEmpty()) {
-          throw new RuntimeException("%APPDATA% is not defined");
+          return null;
         }
         return Paths.get(appData, "temporalio", "temporal.toml").toString();
       }
@@ -121,6 +124,10 @@ public class ClientConfig {
       }
       if (file == null || file.isEmpty()) {
         file = getDefaultConfigFilePath();
+      }
+      // No config dir available — return default empty config
+      if (file == null) {
+        return getDefaultInstance();
       }
       try {
         ClientConfigToml.TomlClientConfig result = reader.readValue(new File(file));
