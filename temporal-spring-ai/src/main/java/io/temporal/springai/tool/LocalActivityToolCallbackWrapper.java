@@ -23,7 +23,12 @@ import org.springframework.ai.tool.metadata.ToolMetadata;
  * and executes it.
  *
  * <p><b>Memory Management:</b> Callbacks are automatically removed from the map after execution to
- * prevent memory leaks.
+ * prevent memory leaks. However, if a workflow is evicted from the worker's cache mid-execution
+ * (between registering a callback and the {@code finally} block that removes it), the callback
+ * reference will leak until the worker is restarted. This is bounded by the number of concurrent
+ * in-flight tool calls and is unlikely to be a practical issue, but callers should be aware that
+ * the registry size ({@link #getRegisteredCallbackCount()}) may drift above zero under heavy
+ * eviction pressure.
  *
  * <p>This class is primarily used by {@code SandboxingAdvisor} to wrap unsafe tools.
  *

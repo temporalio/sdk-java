@@ -23,6 +23,7 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
+import reactor.core.publisher.Flux;
 
 /**
  * A {@link ChatModel} implementation that delegates to a Temporal activity.
@@ -167,6 +168,19 @@ public class ActivityChatModel implements ChatModel {
    */
   public String getModelName() {
     return modelName;
+  }
+
+  /**
+   * Streaming is not supported through Temporal activities.
+   *
+   * @throws UnsupportedOperationException always
+   */
+  @Override
+  public Flux<ChatResponse> stream(Prompt prompt) {
+    throw new UnsupportedOperationException(
+        "Streaming is not supported in ActivityChatModel. "
+            + "Temporal activities are request/response based and cannot stream partial results. "
+            + "Use call() instead.");
   }
 
   @Override
