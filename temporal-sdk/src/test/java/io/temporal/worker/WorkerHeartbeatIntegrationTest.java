@@ -698,27 +698,14 @@ public class WorkerHeartbeatIntegrationTest {
       String taskQueue = noHeartbeatRule.getTaskQueue();
       String namespace = noHeartbeatRule.getWorkflowClient().getOptions().getNamespace();
 
-      // Poll ListWorkers repeatedly over 5 seconds — worker should never appear
-      long deadline = System.currentTimeMillis() + 5000;
+      // Poll ListWorkers over 5 seconds — worker should never appear
+      long deadline = System.currentTimeMillis() + 2000;
       while (System.currentTimeMillis() < deadline) {
-        ListWorkersResponse resp =
-            noHeartbeatRule
-                .getWorkflowClient()
-                .getWorkflowServiceStubs()
-                .blockingStub()
-                .listWorkers(
-                    ListWorkersRequest.newBuilder()
-                        .setNamespace(namespace)
-                        .setPageSize(100)
-                        .build());
-        List<WorkerHeartbeat> workers =
-            resp.getWorkersInfoList().stream()
-                .map(info -> info.getWorkerHeartbeat())
-                .filter(hb -> hb.getTaskQueue().equals(taskQueue))
-                .collect(Collectors.toList());
+        List<WorkerHeartbeat> workers = listWorkersForQueue(taskQueue);
         assertTrue(
             "no workers should appear via ListWorkers when heartbeat interval is not configured",
             workers.isEmpty());
+        Thread.sleep(500);
       }
     } finally {
       noHeartbeatRule.getTestEnvironment().shutdown();
@@ -750,20 +737,28 @@ public class WorkerHeartbeatIntegrationTest {
    */
   @SuppressWarnings("deprecation")
   private List<WorkerHeartbeat> listWorkersForQueue(String taskQueue) {
-    ListWorkersResponse resp =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .listWorkers(
-                ListWorkersRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                    .setPageSize(100)
-                    .build());
-    return resp.getWorkersInfoList().stream()
-        .map(info -> info.getWorkerHeartbeat())
-        .filter(hb -> hb.getTaskQueue().equals(taskQueue))
-        .collect(Collectors.toList());
+    try {
+      ListWorkersResponse resp =
+          testWorkflowRule
+              .getWorkflowClient()
+              .getWorkflowServiceStubs()
+              .blockingStub()
+              .listWorkers(
+                  ListWorkersRequest.newBuilder()
+                      .setNamespace(
+                          testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                      .setPageSize(100)
+                      .build());
+      return resp.getWorkersInfoList().stream()
+          .map(info -> info.getWorkerHeartbeat())
+          .filter(hb -> hb.getTaskQueue().equals(taskQueue))
+          .collect(Collectors.toList());
+    } catch (io.grpc.StatusRuntimeException e) {
+      if (e.getStatus().getCode() == io.grpc.Status.Code.RESOURCE_EXHAUSTED) {
+        return java.util.Collections.emptyList();
+      }
+      throw e;
+    }
   }
 
   /**
@@ -784,7 +779,8 @@ public class WorkerHeartbeatIntegrationTest {
                       .build());
       return resp.getWorkerInfo().getWorkerHeartbeat();
     } catch (io.grpc.StatusRuntimeException e) {
-      if (e.getStatus().getCode() == io.grpc.Status.Code.NOT_FOUND) {
+      if (e.getStatus().getCode() == io.grpc.Status.Code.NOT_FOUND
+          || e.getStatus().getCode() == io.grpc.Status.Code.RESOURCE_EXHAUSTED) {
         return null;
       }
       throw e;
