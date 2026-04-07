@@ -971,6 +971,7 @@ public final class WorkflowStateMachines {
    * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
    */
+  @SuppressWarnings("deprecation")
   public Functions.Proc startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
