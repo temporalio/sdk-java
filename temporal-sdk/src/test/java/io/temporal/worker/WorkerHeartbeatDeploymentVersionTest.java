@@ -95,20 +95,28 @@ public class WorkerHeartbeatDeploymentVersionTest {
    */
   @SuppressWarnings("deprecation")
   private List<WorkerHeartbeat> listWorkersForQueue(String taskQueue) {
-    ListWorkersResponse resp =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .listWorkers(
-                ListWorkersRequest.newBuilder()
-                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                    .setPageSize(100)
-                    .build());
-    return resp.getWorkersInfoList().stream()
-        .map(info -> info.getWorkerHeartbeat())
-        .filter(hb -> hb.getTaskQueue().equals(taskQueue))
-        .collect(Collectors.toList());
+    try {
+      ListWorkersResponse resp =
+          testWorkflowRule
+              .getWorkflowClient()
+              .getWorkflowServiceStubs()
+              .blockingStub()
+              .listWorkers(
+                  ListWorkersRequest.newBuilder()
+                      .setNamespace(
+                          testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                      .setQuery("TaskQueue = \"" + taskQueue + "\"")
+                      .setPageSize(200)
+                      .build());
+      return resp.getWorkersInfoList().stream()
+          .map(info -> info.getWorkerHeartbeat())
+          .collect(Collectors.toList());
+    } catch (io.grpc.StatusRuntimeException e) {
+      if (e.getStatus().getCode() == io.grpc.Status.Code.RESOURCE_EXHAUSTED) {
+        return java.util.Collections.emptyList();
+      }
+      throw e;
+    }
   }
 
   private WorkerHeartbeat describeWorker(String workerInstanceKey) {
