@@ -20,8 +20,8 @@ import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.tuning.ActivitySlotInfo;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -34,8 +34,8 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final PollActivityTaskQueueRequest pollRequest;
-  private final AtomicInteger pollGauge = new AtomicInteger();
   private final Context.CancellableContext grpcContext = Context.ROOT.withCancellation();
+  private final PollerTracker pollerTracker;
 
   @SuppressWarnings("deprecation")
   public AsyncActivityPollTask(
@@ -47,10 +47,12 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
       double activitiesPerSecond,
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
-      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      @Nonnull PollerTracker pollerTracker) {
     this.service = service;
     this.slotSupplier = slotSupplier;
     this.metricsScope = metricsScope;
+    this.pollerTracker = Objects.requireNonNull(pollerTracker);
 
     PollActivityTaskQueueRequest.Builder pollRequest =
         PollActivityTaskQueueRequest.newBuilder()
@@ -86,7 +88,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
         .gauge(MetricsType.NUM_POLLERS)
-        .update(pollGauge.incrementAndGet());
+        .update(pollerTracker.pollStarted());
 
     CompletableFuture<PollActivityTaskQueueResponse> response = null;
     try {
@@ -101,7 +103,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
     } catch (Exception e) {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(pollGauge.decrementAndGet());
+          .update(pollerTracker.pollCompleted());
       throw new RuntimeException(e);
     }
 
@@ -112,6 +114,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
                 metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
                 return null;
               }
+              pollerTracker.pollSucceeded();
               metricsScope
                   .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
                   .record(
@@ -123,10 +126,11 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
                   () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
             })
         .whenComplete(
-            (r, e) ->
-                MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
-                    .gauge(MetricsType.NUM_POLLERS)
-                    .update(pollGauge.decrementAndGet()));
+            (r, e) -> {
+              MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
+                  .gauge(MetricsType.NUM_POLLERS)
+                  .update(pollerTracker.pollCompleted());
+            });
   }
 
   @Override

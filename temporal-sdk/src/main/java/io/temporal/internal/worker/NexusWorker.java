@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,8 +52,10 @@ final class NexusWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
-  private final AtomicBoolean serverSupportsAutoscaling;
+  private final NamespaceCapabilities namespaceCapabilities;
   private final boolean forceOldFailureFormat;
+  private final TaskCounter taskCounter = new TaskCounter();
+  private final PollerTracker pollerTracker = new PollerTracker();
 
   public NexusWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -64,7 +65,7 @@ final class NexusWorker implements SuspendableWorker {
       @Nonnull NexusTaskHandler handler,
       @Nonnull DataConverter dataConverter,
       @Nonnull SlotSupplier<NexusSlotInfo> slotSupplier,
-      @Nonnull AtomicBoolean serverSupportsAutoscaling) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -80,7 +81,7 @@ final class NexusWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
-    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
+    this.namespaceCapabilities = namespaceCapabilities;
     // Allow tests to force old format for backward compatibility testing
     String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
     this.forceOldFailureFormat = "true".equalsIgnoreCase(forceOldFormat);
@@ -113,10 +114,11 @@ final class NexusWorker implements SuspendableWorker {
                     options.getWorkerVersioningOptions(),
                     workerMetricsScope,
                     service.getServerCapabilities(),
-                    this.slotSupplier),
+                    this.slotSupplier,
+                    pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
-                serverSupportsAutoscaling.get(),
+                namespaceCapabilities.isPollerAutoscaling(),
                 workerMetricsScope);
       } else {
         poller =
@@ -130,7 +132,8 @@ final class NexusWorker implements SuspendableWorker {
                     options.getWorkerVersioningOptions(),
                     this.slotSupplier,
                     workerMetricsScope,
-                    service.getServerCapabilities()),
+                    service.getServerCapabilities(),
+                    pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope);
@@ -214,6 +217,22 @@ final class NexusWorker implements SuspendableWorker {
     return pollerOptions;
   }
 
+  public TrackingSlotSupplier<NexusSlotInfo> getSlotSupplier() {
+    return slotSupplier;
+  }
+
+  public TaskCounter getTaskCounter() {
+    return taskCounter;
+  }
+
+  public PollerOptions getPollerOptions() {
+    return pollerOptions;
+  }
+
+  public PollerTracker getPollerTracker() {
+    return pollerTracker;
+  }
+
   @Override
   public String toString() {
     return String.format(
@@ -271,9 +290,17 @@ final class NexusWorker implements SuspendableWorker {
               service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
           task.getPermit());
 
+      boolean taskFailed = false;
       try {
-        handleNexusTask(task, metricsScope);
+        taskFailed = handleNexusTask(task, metricsScope);
+      } catch (Throwable e) {
+        taskFailed = true;
+        throw e;
       } finally {
+        taskCounter.recordProcessed();
+        if (taskFailed) {
+          taskCounter.recordFailed();
+        }
         task.getCompletionCallback().apply();
         MDC.remove(LoggerTag.NEXUS_SERVICE);
         MDC.remove(LoggerTag.NEXUS_OPERATION);
@@ -288,16 +315,18 @@ final class NexusWorker implements SuspendableWorker {
     }
 
     @SuppressWarnings("deprecation") // Uses hasOperationError()/getOperationError() for compat
-    private void handleNexusTask(NexusTask task, Scope metricsScope) {
+    private boolean handleNexusTask(NexusTask task, Scope metricsScope) {
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
 
       NexusTaskHandler.Result result;
+      boolean failed = false;
 
       Stopwatch sw = metricsScope.timer(MetricsType.NEXUS_EXEC_LATENCY).start();
       try {
         result = handler.handle(task, metricsScope);
         if (result.getHandlerException() != null) {
+          failed = true;
           metricsScope
               .tagged(
                   Collections.singletonMap(
@@ -307,6 +336,7 @@ final class NexusWorker implements SuspendableWorker {
               .inc(1);
         } else if (result.getResponse().hasStartOperation()
             && result.getResponse().getStartOperation().hasOperationError()) {
+          failed = true;
           String operationState =
               result.getResponse().getStartOperation().getOperationError().getOperationState();
           metricsScope
@@ -315,6 +345,7 @@ final class NexusWorker implements SuspendableWorker {
               .inc(1);
         } else if (result.getResponse().hasStartOperation()
             && result.getResponse().getStartOperation().hasFailure()) {
+          failed = true;
           Failure f = result.getResponse().getStartOperation().getFailure();
           String operationState;
           if (f.hasApplicationFailureInfo()) {
@@ -333,7 +364,7 @@ final class NexusWorker implements SuspendableWorker {
             .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "timeout"))
             .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
             .inc(1);
-        return;
+        return true;
       } catch (Throwable e) {
         metricsScope
             .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "internal_sdk_error"))
@@ -364,6 +395,7 @@ final class NexusWorker implements SuspendableWorker {
       Duration e2eDuration =
           ProtobufTimeUtils.toM3DurationSinceNow(pollResponse.getRequest().getScheduledTime());
       metricsScope.timer(MetricsType.NEXUS_TASK_E2E_LATENCY).record(e2eDuration);
+      return failed;
     }
 
     private void logExceptionDuringResultReporting(

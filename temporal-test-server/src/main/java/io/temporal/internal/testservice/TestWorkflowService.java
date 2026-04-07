@@ -733,6 +733,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     responseObserver.onCompleted();
   }
 
+  @Override
+  public void shutdownWorker(
+      ShutdownWorkerRequest request, StreamObserver<ShutdownWorkerResponse> responseObserver) {
+    responseObserver.onNext(ShutdownWorkerResponse.getDefaultInstance());
+    responseObserver.onCompleted();
+  }
+
   private Context.CancellableContext deadlineCtx(Deadline deadline) {
     return Context.current().withDeadline(deadline, this.backgroundScheduler);
   }
@@ -1903,7 +1910,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                           NamespaceInfo.Capabilities.newBuilder()
                               .setEagerWorkflowStart(true)
                               .setAsyncUpdate(true)
-                              .setSyncUpdate(true))
+                              .setSyncUpdate(true)
+                              .setWorkerHeartbeats(true))
                       .build())
               .build();
       responseObserver.onNext(result);
