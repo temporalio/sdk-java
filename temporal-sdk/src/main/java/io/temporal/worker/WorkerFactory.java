@@ -411,7 +411,6 @@ public final class WorkerFactory {
 
   /** Internal method that actually shuts down workers. Called from the plugin chain. */
   private void doShutdown(boolean interruptUserTasks) {
-    ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
 
     // Shutdown each worker with plugin hooks
@@ -464,6 +463,8 @@ public final class WorkerFactory {
               if (e != null) {
                 log.error("[BUG] Unexpected exception during shutdown", e);
               }
+              ((WorkflowClientInternal) workflowClient.getInternal())
+                  .deregisterWorkerFactory(WorkerFactory.this);
               shutdownManager.close();
             });
   }
