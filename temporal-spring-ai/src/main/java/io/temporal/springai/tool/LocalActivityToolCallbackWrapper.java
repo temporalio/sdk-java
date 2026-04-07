@@ -4,7 +4,6 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.ToolCallback;
@@ -87,7 +86,7 @@ public class LocalActivityToolCallbackWrapper implements ToolCallback {
 
   @Override
   public String call(String toolInput) {
-    String callbackId = UUID.randomUUID().toString();
+    String callbackId = Workflow.randomUUID().toString();
     try {
       CALLBACK_REGISTRY.put(callbackId, delegate);
       return stub.call(callbackId, toolInput);
