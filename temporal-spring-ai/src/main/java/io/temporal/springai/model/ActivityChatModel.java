@@ -180,10 +180,7 @@ public class ActivityChatModel implements ChatModel {
    */
   @Override
   public Flux<ChatResponse> stream(Prompt prompt) {
-    throw new UnsupportedOperationException(
-        "Streaming is not supported in ActivityChatModel. "
-            + "Temporal activities are request/response based and cannot stream partial results. "
-            + "Use call() instead.");
+    throw new UnsupportedOperationException("Streaming is not supported in ActivityChatModel.");
   }
 
   @Override
