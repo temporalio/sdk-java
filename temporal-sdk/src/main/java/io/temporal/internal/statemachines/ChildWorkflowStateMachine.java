@@ -145,6 +145,7 @@ final class ChildWorkflowStateMachine
         attributes, metadata, startedCallback, completionCallback, commandSink, stateMachineSink);
   }
 
+  @SuppressWarnings("deprecation")
   private ChildWorkflowStateMachine(
       StartChildWorkflowExecutionCommandAttributes startAttributes,
       UserMetadata metadata,
