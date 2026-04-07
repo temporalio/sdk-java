@@ -101,6 +101,7 @@ jobs:
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
             sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
+
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
         if: ${{ inputs.upload_artifact }}
