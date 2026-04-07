@@ -133,8 +133,8 @@
       "depends_on": [
         "T6"
       ],
-      "status": "todo",
-      "notes": "Blocked on T6 because samples currently need runtimeOnly workaround for the compileOnly issue."
+      "status": "completed",
+      "notes": "All 5 samples boot successfully. MCP requires Node.js/npx for MCP server (environment prereq, not a code issue)."
     },
     {
       "id": "T13",
