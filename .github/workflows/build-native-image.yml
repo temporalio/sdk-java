@@ -69,35 +69,37 @@ jobs:
           ref: ${{ env.INPUT_REF }}
 
       - name: Set up Java
-        if: matrix.os_family != 'Linux'
+        if: matrix.os_family != 'linux'
         uses: actions/setup-java@v5
         with:
           java-version: 23
           distribution: "graalvm"
 
       - name: Set up Gradle
-        if: matrix.os_family != 'Linux'
+        if: matrix.os_family != 'linux'
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build native test server (non-Docker)
-        if: matrix.os_family != 'Linux'
+        if: matrix.os_family != 'linux'
         run: |
           ./gradlew -PnativeBuild :temporal-test-server:nativeCompile
 
       - name: Build native test server (Docker non-musl)
-        if: matrix.os_family == 'Linux' && matrix.musl == false
+        if: matrix.os_family == 'linux' && matrix.musl == false
         run: |
+          IMAGE_ID=$(docker build -q ./docker/native-image)
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            $(docker build -q ./docker/native-image) \
+            "$IMAGE_ID" \
             sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeCompile"
 
       - name: Build native test server (Docker musl)
-        if: matrix.os_family == 'Linux' && matrix.musl == true
+        if: matrix.os_family == 'linux' && matrix.musl == true
         run: |
+          IMAGE_ID=$(docker build -q ./docker/native-image-musl)
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            $(docker build -q ./docker/native-image-musl) \
+            "$IMAGE_ID" \
             sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
