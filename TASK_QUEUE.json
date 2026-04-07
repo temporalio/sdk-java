@@ -91,7 +91,7 @@
       "depends_on": [
         "T2"
       ],
-      "status": "todo",
+      "status": "completed",
       "notes": "Do after tool detection tests exist so we can verify the refactor."
     },
     {
