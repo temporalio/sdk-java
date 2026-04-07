@@ -43,8 +43,10 @@
       "description": "Replace UUID.randomUUID() with Workflow.randomUUID() in LocalActivityToolCallbackWrapper.call(). One-line fix.",
       "severity": "high",
       "category": "bugfix",
-      "depends_on": ["T3"],
-      "status": "todo",
+      "depends_on": [
+        "T3"
+      ],
+      "status": "completed",
       "notes": "Do after replay test exists so we can verify the fix."
     },
     {
@@ -53,8 +55,10 @@
       "description": "Refactor so VectorStore, EmbeddingModel, and MCP are handled by separate @ConditionalOnClass auto-configuration classes. Core SpringAiPlugin only references ChatModel. compileOnly scope stays correct.",
       "severity": "high",
       "category": "refactor",
-      "depends_on": ["T4"],
-      "status": "todo",
+      "depends_on": [
+        "T4"
+      ],
+      "status": "completed",
       "notes": "Do after plugin registration tests exist so we can verify the refactor doesn't break registration. Also resolves T10 (unnecessary MCP reflection)."
     },
     {
@@ -64,7 +68,7 @@
       "severity": "high",
       "category": "bugfix",
       "depends_on": [],
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "T7",
@@ -72,8 +76,10 @@
       "description": "Add a configurable max iteration count (default ~10) to the recursive call() loop in ActivityChatModel. Throw after limit to prevent infinite recursion from misbehaving models.",
       "severity": "medium",
       "category": "bugfix",
-      "depends_on": ["T1"],
-      "status": "todo",
+      "depends_on": [
+        "T1"
+      ],
+      "status": "completed",
       "notes": "Do after type conversion tests exist to verify we don't break the call flow."
     },
     {
@@ -82,7 +88,9 @@
       "description": "TemporalStubUtil string-matches on internal handler class names. Since the plugin is in the SDK repo, use internal APIs or instanceof checks. Add tests to catch breakage.",
       "severity": "medium",
       "category": "refactor",
-      "depends_on": ["T2"],
+      "depends_on": [
+        "T2"
+      ],
       "status": "todo",
       "notes": "Do after tool detection tests exist so we can verify the refactor."
     },
@@ -101,8 +109,10 @@
       "description": "SpringAiPlugin uses Class.forName() for McpClientActivityImpl which is in the same module. Will be resolved by T6 (split into conditional configs).",
       "severity": "low",
       "category": "refactor",
-      "depends_on": ["T6"],
-      "status": "todo",
+      "depends_on": [
+        "T6"
+      ],
+      "status": "completed",
       "notes": "Likely resolved automatically by T6."
     },
     {
@@ -120,7 +130,9 @@
       "description": "Run chat, MCP, multi-model, RAG, and sandboxing samples interactively against a dev server. Verify tool calling works for each.",
       "severity": "medium",
       "category": "testing",
-      "depends_on": ["T6"],
+      "depends_on": [
+        "T6"
+      ],
       "status": "todo",
       "notes": "Blocked on T6 because samples currently need runtimeOnly workaround for the compileOnly issue."
     },
