@@ -158,9 +158,8 @@ public interface WorkflowClient {
    * @param workflowId Workflow id.
    * @param runId Run id of the workflow execution.
    * @return Stub that implements workflowInterface and can be used to signal, update, or query it.
-   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead.
-   * @apiNote This method is deprecated because the returned stub does not properly account for the
-   *     runId.
+   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead. This method is
+   *     deprecated because the returned stub does not properly account for the runId.
    */
   @Deprecated
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
@@ -205,9 +204,8 @@ public interface WorkflowClient {
    *     workflowId is assumed.
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
-   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead.
-   * @apiNote This method is deprecated because the returned stub does not properly account for the
-   *     runId.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead. This
+   *     method is deprecated because the returned stub does not properly account for the runId.
    */
   @Deprecated
   WorkflowStub newUntypedWorkflowStub(
@@ -220,9 +218,8 @@ public interface WorkflowClient {
    * @param execution workflow id and optional run id for execution
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
-   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead.
-   * @apiNote This method is deprecated because the returned stub does not properly account for the
-   *     runId.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead. This
+   *     method is deprecated because the returned stub does not properly account for the runId.
    */
   WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
 

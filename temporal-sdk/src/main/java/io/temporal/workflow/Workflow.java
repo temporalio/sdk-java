@@ -525,8 +525,9 @@ public final class Workflow {
   /**
    * Creates a {@link WorkflowLock} implementation that can be used from workflow code.
    *
-   * @apiNote The lock returned is not reentrant. If a workflow thread tries to acquire a lock that
-   *     it already holds, the call will block indefinitely.
+   * <p>Note: The lock returned is not reentrant. If a workflow thread tries to acquire a lock that
+   * it already holds, the call will block indefinitely.
+   *
    * @return new instance of {@link WorkflowLock}
    */
   public static WorkflowLock newWorkflowLock() {
@@ -663,8 +664,6 @@ public final class Workflow {
    * from calls to a child workflow. The original exception is attached as a cause to these wrapper
    * exceptions. So as exceptions are always wrapped adding checked ones to method signature causes
    * more pain than benefit.
-   *
-   * <p>
    *
    * <pre>
    * try {
@@ -1557,10 +1556,10 @@ public final class Workflow {
   /**
    * Get the currently running workflow instance.
    *
-   * @apiNote The instance is only available after it has been initialized. This function will
-   *     return null if called before the workflow has been initialized. For example, this could
-   *     happen if the function is called from a {@link WorkflowInit} constructor or {@link
-   *     io.temporal.common.interceptors.WorkflowInboundCallsInterceptor#init(WorkflowOutboundCallsInterceptor)}.
+   * <p>Note: The instance is only available after it has been initialized. This function will
+   * return null if called before the workflow has been initialized. For example, this could happen
+   * if the function is called from a {@link WorkflowInit} constructor or {@link
+   * io.temporal.common.interceptors.WorkflowInboundCallsInterceptor#init(WorkflowOutboundCallsInterceptor)}.
    */
   @Experimental
   @Nullable
