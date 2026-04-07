@@ -1677,6 +1677,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation")
   public void signalExternalWorkflowExecution(
       String signalId,
       SignalExternalWorkflowExecutionCommandAttributes commandAttributes,
