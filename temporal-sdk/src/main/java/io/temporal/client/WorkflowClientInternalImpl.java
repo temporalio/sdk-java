@@ -799,6 +799,9 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Override
   public void deregisterWorkerFactory(WorkerFactory workerFactory) {
     workerFactoryRegistry.deregister(workerFactory);
+    if (workerFactoryRegistry.isEmpty() && heartbeatManager != null) {
+      heartbeatManager.shutdown();
+    }
   }
 
   @Override

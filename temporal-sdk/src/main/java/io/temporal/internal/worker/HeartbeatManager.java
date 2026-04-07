@@ -4,12 +4,8 @@ import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.RecordWorkerHeartbeatRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +21,7 @@ public class HeartbeatManager {
   private final String identity;
   private final Duration interval;
   private final Map<String, SharedNamespaceWorker> namespaceWorkers = new HashMap<>();
+  private final Set<String> unimplementedNamespaces = new HashSet<>();
 
   private final Object lock = new Object();
 
@@ -41,6 +38,9 @@ public class HeartbeatManager {
   public void registerWorker(
       String namespace, String workerInstanceKey, Supplier<WorkerHeartbeat> callback) {
     synchronized (lock) {
+      if (unimplementedNamespaces.contains(namespace)) {
+        return;
+      }
       namespaceWorkers.compute(
           namespace,
           (ns, existing) -> {
@@ -49,7 +49,7 @@ public class HeartbeatManager {
               return existing;
             }
             SharedNamespaceWorker nsWorker =
-                new SharedNamespaceWorker(service, ns, identity, interval);
+                new SharedNamespaceWorker(this, service, ns, identity, interval);
             nsWorker.registerWorker(workerInstanceKey, callback);
             return nsWorker;
           });
@@ -61,7 +61,6 @@ public class HeartbeatManager {
     synchronized (lock) {
       SharedNamespaceWorker nsWorker = namespaceWorkers.get(namespace);
       if (nsWorker == null) {
-        // Already cleaned up by shutdown()
         return;
       }
       nsWorker.unregisterWorker(workerInstanceKey);
@@ -81,21 +80,37 @@ public class HeartbeatManager {
     }
   }
 
+  /** Called by SharedNamespaceWorker when the server returns UNIMPLEMENTED for a namespace. */
+  void markNamespaceUnimplemented(String namespace) {
+    synchronized (lock) {
+      unimplementedNamespaces.add(namespace);
+      SharedNamespaceWorker nsWorker = namespaceWorkers.remove(namespace);
+      if (nsWorker != null) {
+        nsWorker.shutdown();
+      }
+    }
+  }
+
   /**
    * Handles heartbeating for all workers in a specific namespace. Each instance owns its own
    * scheduler thread and callback map.
    */
   static class SharedNamespaceWorker {
+    private final HeartbeatManager manager;
     private final WorkflowServiceStubs service;
     private final String namespace;
     private final String identity;
     private final ConcurrentHashMap<String, Supplier<WorkerHeartbeat>> callbacks =
         new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler;
-    private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
     SharedNamespaceWorker(
-        WorkflowServiceStubs service, String namespace, String identity, Duration interval) {
+        HeartbeatManager manager,
+        WorkflowServiceStubs service,
+        String namespace,
+        String identity,
+        Duration interval) {
+      this.manager = manager;
       this.service = service;
       this.namespace = namespace;
       this.identity = identity;
@@ -127,7 +142,6 @@ public class HeartbeatManager {
     }
 
     void shutdown() {
-      shuttingDown.set(true);
       scheduler.shutdownNow();
       try {
         scheduler.awaitTermination(5, TimeUnit.SECONDS);
@@ -167,9 +181,7 @@ public class HeartbeatManager {
         if (e.getStatus().getCode() == io.grpc.Status.Code.UNIMPLEMENTED) {
           log.warn(
               "Server does not support worker heartbeats for namespace {}, disabling", namespace);
-          // Only signal shutdown — don't awaitTermination from within the scheduler's own thread
-          shuttingDown.set(true);
-          scheduler.shutdown();
+          manager.markNamespaceUnimplemented(namespace);
           return;
         }
         log.warn("Failed to send worker heartbeat for namespace {}", namespace, e);
