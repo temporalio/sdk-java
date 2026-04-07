@@ -80,13 +80,18 @@ public class HeartbeatManager {
     }
   }
 
-  /** Called by SharedNamespaceWorker when the server returns UNIMPLEMENTED for a namespace. */
+  /**
+   * Called from the scheduler thread when the server returns UNIMPLEMENTED. Uses
+   * scheduler.shutdown() (graceful) instead of shutdownNow() to avoid interrupting the
+   * currently-executing tick, and skips awaitTermination since we're on the scheduler thread
+   * itself.
+   */
   void markNamespaceUnimplemented(String namespace) {
     synchronized (lock) {
       unimplementedNamespaces.add(namespace);
       SharedNamespaceWorker nsWorker = namespaceWorkers.remove(namespace);
       if (nsWorker != null) {
-        nsWorker.shutdown();
+        nsWorker.stopScheduling();
       }
     }
   }
@@ -141,6 +146,12 @@ public class HeartbeatManager {
       return scheduler.isShutdown();
     }
 
+    /** Stops scheduling new ticks. Safe to call from the scheduler thread itself. */
+    void stopScheduling() {
+      scheduler.shutdown();
+    }
+
+    /** Full shutdown from an external thread. Interrupts in-flight work and waits. */
     void shutdown() {
       scheduler.shutdownNow();
       try {
