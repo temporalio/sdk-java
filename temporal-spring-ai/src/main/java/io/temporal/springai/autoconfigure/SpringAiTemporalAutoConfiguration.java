@@ -1,18 +1,38 @@
 package io.temporal.springai.autoconfigure;
 
 import io.temporal.springai.plugin.SpringAiPlugin;
+import java.util.Map;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Bean;
+import org.springframework.lang.Nullable;
 
 /**
- * Auto-configuration for the Spring AI Temporal plugin.
+ * Core auto-configuration for the Spring AI Temporal plugin.
  *
- * <p>Automatically registers {@link SpringAiPlugin} as a bean when Spring AI and Temporal SDK are
- * on the classpath. The plugin then auto-registers Spring AI activities with all Temporal workers.
+ * <p>Creates the {@link SpringAiPlugin} bean which registers {@link
+ * io.temporal.springai.activity.ChatModelActivity} and {@link
+ * io.temporal.springai.tool.ExecuteToolLocalActivity} with all Temporal workers.
+ *
+ * <p>Optional integrations are handled by separate auto-configuration classes:
+ *
+ * <ul>
+ *   <li>{@link SpringAiVectorStoreAutoConfiguration} - VectorStore support
+ *   <li>{@link SpringAiEmbeddingAutoConfiguration} - EmbeddingModel support
+ *   <li>{@link SpringAiMcpAutoConfiguration} - MCP support
+ * </ul>
  */
 @AutoConfiguration
 @ConditionalOnClass(
     name = {"org.springframework.ai.chat.model.ChatModel", "io.temporal.worker.Worker"})
-@Import(SpringAiPlugin.class)
-public class SpringAiTemporalAutoConfiguration {}
+public class SpringAiTemporalAutoConfiguration {
+
+  @Bean
+  public SpringAiPlugin springAiPlugin(
+      @Autowired Map<String, ChatModel> chatModels,
+      @Autowired(required = false) @Nullable ChatModel primaryChatModel) {
+    return new SpringAiPlugin(chatModels, primaryChatModel);
+  }
+}
