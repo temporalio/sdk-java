@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.chat.TemporalChatClient;
 import io.temporal.springai.model.ActivityChatModel;
 import io.temporal.springai.tool.DeterministicTool;
 import io.temporal.springai.tool.SideEffectTool;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
@@ -26,8 +29,8 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 
 /**
- * Verifies that workflows using ActivityChatModel with tools execute without non-determinism
- * errors.
+ * Verifies that workflows using ActivityChatModel with tools are deterministic by running them to
+ * completion and then replaying from the captured history.
  */
 class WorkflowDeterminismTest {
 
@@ -48,13 +51,11 @@ class WorkflowDeterminismTest {
   }
 
   @Test
-  void workflowWithChatModel_completesSuccessfully() {
+  void workflowWithChatModel_replaysDeterministically() throws Exception {
     Worker worker = testEnv.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ChatWorkflowImpl.class);
-
-    // Register a ChatModelActivityImpl backed by a mock model that returns a canned response
-    ChatModel mockModel = new StubChatModel("Hello from the model!");
-    worker.registerActivitiesImplementations(new ChatModelActivityImpl(mockModel));
+    worker.registerActivitiesImplementations(
+        new ChatModelActivityImpl(new StubChatModel("Hello from the model!")));
 
     testEnv.start();
 
@@ -64,16 +65,19 @@ class WorkflowDeterminismTest {
 
     String result = workflow.chat("Hi");
     assertEquals("Hello from the model!", result);
+
+    // Capture history and replay — any non-determinism throws here
+    WorkflowExecutionHistory history =
+        client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
+    WorkflowReplayer.replayWorkflowExecution(history, ChatWorkflowImpl.class);
   }
 
   @Test
-  void workflowWithDeterministicTool_completesSuccessfully() {
+  void workflowWithTools_replaysDeterministically() throws Exception {
     Worker worker = testEnv.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ChatWithToolsWorkflowImpl.class);
-
-    // Model returns a simple response (no tool calls)
-    ChatModel mockModel = new StubChatModel("I used the tools!");
-    worker.registerActivitiesImplementations(new ChatModelActivityImpl(mockModel));
+    worker.registerActivitiesImplementations(
+        new ChatModelActivityImpl(new StubChatModel("I used the tools!")));
 
     testEnv.start();
 
@@ -83,6 +87,11 @@ class WorkflowDeterminismTest {
 
     String result = workflow.chat("Use tools");
     assertEquals("I used the tools!", result);
+
+    // Capture history and replay
+    WorkflowExecutionHistory history =
+        client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
+    WorkflowReplayer.replayWorkflowExecution(history, ChatWithToolsWorkflowImpl.class);
   }
 
   // --- Workflow interfaces and implementations ---
