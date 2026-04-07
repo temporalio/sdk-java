@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
 /**
  * In memory implementation of the Workflow Service. To be used for testing purposes only.
  *
- * <p>Do not use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
+ * <p>Do not use directly, instead use {@code io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {

@@ -27,9 +27,9 @@ import javax.annotation.Nonnull;
 /**
  * Plugin interface for customizing Temporal workflow client configuration.
  *
- * <p>This interface is separate from {@link
- * io.temporal.serviceclient.WorkflowServiceStubs.ServiceStubsPlugin} to allow plugins that only
- * need to configure the workflow client without affecting the underlying gRPC connection.
+ * <p>This interface is separate from {@link io.temporal.serviceclient.WorkflowServiceStubsPlugin}
+ * to allow plugins that only need to configure the workflow client without affecting the underlying
+ * gRPC connection.
  *
  * <p>Plugins that implement both {@code ServiceStubsPlugin} and {@code WorkflowClientPlugin} will
  * have their service stubs configuration applied when creating the service stubs, and their client
@@ -54,7 +54,7 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see io.temporal.serviceclient.WorkflowServiceStubs.ServiceStubsPlugin
+ * @see io.temporal.serviceclient.WorkflowServiceStubsPlugin
  * @see io.temporal.worker.WorkerPlugin
  * @see SimplePlugin
  */

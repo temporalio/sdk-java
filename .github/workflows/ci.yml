@@ -193,7 +193,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          java-version: "11"
+          java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
@@ -201,6 +201,30 @@ jobs:
 
       - name: Run copyright and code format checks
         run: ./gradlew --no-daemon spotlessCheck
+
+  javadoc:
+    name: Javadoc
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "23"
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run javadoc
+        run: ./gradlew --no-daemon javadoc
 
   build_native_images:
     name: Build native test server

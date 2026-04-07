@@ -11,8 +11,6 @@ import javax.annotation.Nonnull;
 /**
  * Performs encoding/decoding of the payloads via the Remote Data Encoder (RDE) available over http.
  *
- * <p>
- *
  * <h2>Remote Data Encoder Http Server specification</h2>
  *
  * <p>RDE Server must:
