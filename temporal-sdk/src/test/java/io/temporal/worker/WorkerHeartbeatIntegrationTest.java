@@ -747,11 +747,11 @@ public class WorkerHeartbeatIntegrationTest {
                   ListWorkersRequest.newBuilder()
                       .setNamespace(
                           testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                      .setPageSize(100)
+                      .setQuery("TaskQueue = \"" + taskQueue + "\"")
+                      .setPageSize(200)
                       .build());
       return resp.getWorkersInfoList().stream()
           .map(info -> info.getWorkerHeartbeat())
-          .filter(hb -> hb.getTaskQueue().equals(taskQueue))
           .collect(Collectors.toList());
     } catch (io.grpc.StatusRuntimeException e) {
       if (e.getStatus().getCode() == io.grpc.Status.Code.RESOURCE_EXHAUSTED) {
