@@ -62,6 +62,7 @@ public final class ChildWorkflowOptions {
 
     private Builder() {}
 
+    @SuppressWarnings("deprecation")
     private Builder(ChildWorkflowOptions options) {
       if (options == null) {
         return;
@@ -91,7 +92,13 @@ public final class ChildWorkflowOptions {
      * Specify namespace in which workflow should be started.
      *
      * <p>TODO: Resolve conflict with WorkflowClient namespace.
+     *
+     * @deprecated Cross-namespace child workflow execution is disabled by default in Temporal
+     *     Server since version 1.30.1 (via {@code system.enableCrossNamespaceCommands} dynamic
+     *     config flag). Setting this option will fail unless that flag is explicitly re-enabled on
+     *     the server. This field may be removed at some point in the future.
      */
+    @Deprecated
     public Builder setNamespace(String namespace) {
       this.namespace = namespace;
       return this;
@@ -447,6 +454,13 @@ public final class ChildWorkflowOptions {
     this.priority = priority;
   }
 
+  /**
+   * @deprecated Cross-namespace child workflow execution is disabled by default in Temporal Server
+   *     since version 1.30.1 (via {@code system.enableCrossNamespaceCommands} dynamic config flag).
+   *     Setting this option will fail unless that flag is explicitly re-enabled on the server. This
+   *     field may be removed at some point in the future.
+   */
+  @Deprecated
   public String getNamespace() {
     return namespace;
   }

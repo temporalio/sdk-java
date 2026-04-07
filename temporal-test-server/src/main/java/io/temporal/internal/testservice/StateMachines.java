@@ -1169,6 +1169,7 @@ class StateMachines {
     ctx.addEvent(event);
   }
 
+  @SuppressWarnings("deprecation")
   private static void initiateChildWorkflow(
       RequestContext ctx,
       ChildWorkflowData data,
