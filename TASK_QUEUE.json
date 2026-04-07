@@ -79,8 +79,8 @@
       "depends_on": [
         "T1"
       ],
-      "status": "completed",
-      "notes": "Do after type conversion tests exist to verify we don't break the call flow."
+      "status": "reverted",
+      "notes": "Reverted: Spring AI does not limit tool call iterations either. Temporal activity timeouts and workflow execution timeout provide the safety net."
     },
     {
       "id": "T8",

@@ -83,9 +83,6 @@ public class ActivityChatModel implements ChatModel {
   /** Default maximum retry attempts for chat model activity calls. */
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
-  /** Maximum number of tool call iterations before aborting to prevent infinite loops. */
-  public static final int MAX_TOOL_CALL_ITERATIONS = 10;
-
   private final ChatModelActivity chatModelActivity;
   private final String modelName;
   private final ToolCallingManager toolCallingManager;
@@ -190,24 +187,22 @@ public class ActivityChatModel implements ChatModel {
 
   @Override
   public ChatResponse call(Prompt prompt) {
-    Prompt currentPrompt = prompt;
+    return internalCall(prompt);
+  }
 
-    for (int iteration = 0; iteration < MAX_TOOL_CALL_ITERATIONS; iteration++) {
-      // Convert prompt to activity input and call the activity
-      ChatModelTypes.ChatModelActivityInput input = createActivityInput(currentPrompt);
-      ChatModelTypes.ChatModelActivityOutput output = chatModelActivity.callChatModel(input);
+  private ChatResponse internalCall(Prompt prompt) {
+    // Convert prompt to activity input and call the activity
+    ChatModelTypes.ChatModelActivityInput input = createActivityInput(prompt);
+    ChatModelTypes.ChatModelActivityOutput output = chatModelActivity.callChatModel(input);
 
-      // Convert activity output to ChatResponse
-      ChatResponse response = toResponse(output);
+    // Convert activity output to ChatResponse
+    ChatResponse response = toResponse(output);
 
-      // If no tool calls requested, return the response
-      if (currentPrompt.getOptions() == null
-          || !toolExecutionEligibilityPredicate.isToolExecutionRequired(
-              currentPrompt.getOptions(), response)) {
-        return response;
-      }
-
-      var toolExecutionResult = toolCallingManager.executeToolCalls(currentPrompt, response);
+    // Handle tool calls if the model requested them
+    if (prompt.getOptions() != null
+        && toolExecutionEligibilityPredicate.isToolExecutionRequired(
+            prompt.getOptions(), response)) {
+      var toolExecutionResult = toolCallingManager.executeToolCalls(prompt, response);
 
       if (toolExecutionResult.returnDirect()) {
         return ChatResponse.builder()
@@ -216,15 +211,12 @@ public class ActivityChatModel implements ChatModel {
             .build();
       }
 
-      // Continue loop with tool results sent back to the model
-      currentPrompt =
-          new Prompt(toolExecutionResult.conversationHistory(), currentPrompt.getOptions());
+      // Send tool results back to the model
+      return internalCall(
+          new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()));
     }
 
-    throw new IllegalStateException(
-        "Chat model exceeded maximum tool call iterations ("
-            + MAX_TOOL_CALL_ITERATIONS
-            + "). This may indicate the model is stuck in a tool-calling loop.");
+    return response;
   }
 
   private ChatModelTypes.ChatModelActivityInput createActivityInput(Prompt prompt) {
