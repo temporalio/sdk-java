@@ -47,6 +47,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
   private final LocalActivityDispatcherImpl laScheduler;
 
+  private final TaskCounter taskCounter = new TaskCounter();
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
 
@@ -397,6 +398,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       LocalActivityExecutionContext executionContext = attemptTask.getExecutionContext();
       executionContext.newAttempt();
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
+      boolean taskFailed = false;
+      boolean taskExecuted = false;
 
       try {
         // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
@@ -456,6 +459,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         } finally {
           sw.stop();
         }
+        taskExecuted = true;
 
         // Cancel startToCloseTimeoutFuture if it's not yet fired.
         boolean startToCloseTimeoutFired =
@@ -473,14 +477,26 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         }
 
         reason = handleResult(activityHandlerResult, attemptTask, metricsScope);
+        if (activityHandlerResult.getTaskFailed() != null
+            && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
+                activityHandlerResult.getTaskFailed().getFailure())) {
+          taskFailed = true;
+        }
       } catch (Throwable ex) {
         // handleLocalActivity is expected to never throw an exception and return a result
         // that can be used for a workflow callback if this method throws, it's a bug.
         log.error("[BUG] Code that expected to never throw an exception threw an exception", ex);
+        taskFailed = true;
         executionContext.callback(
             processingFailed(activityTask.getActivityId(), activityTask.getAttempt(), ex));
         throw ex;
       } finally {
+        if (taskExecuted) {
+          taskCounter.recordProcessed();
+          if (taskFailed) {
+            taskCounter.recordFailed();
+          }
+        }
         slotSupplier.releaseSlot(reason, executionContext.getPermit());
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
@@ -748,8 +764,16 @@ final class LocalActivityWorker implements Startable, Shutdownable {
     return pollerOptions;
   }
 
+  public TrackingSlotSupplier<LocalActivitySlotInfo> getSlotSupplier() {
+    return slotSupplier;
+  }
+
   public LocalActivityDispatcher getLocalActivityScheduler() {
     return laScheduler;
+  }
+
+  public TaskCounter getTaskCounter() {
+    return taskCounter;
   }
 
   private static Failure newTimeoutFailure(TimeoutType timeoutType, @Nullable Failure cause) {

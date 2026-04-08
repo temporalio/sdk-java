@@ -20,7 +20,6 @@ import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -33,8 +32,8 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final PollNexusTaskQueueRequest pollRequest;
-  private final AtomicInteger pollGauge = new AtomicInteger();
   private final Context.CancellableContext grpcContext = Context.ROOT.withCancellation();
+  private final PollerTracker pollerTracker;
 
   @SuppressWarnings("deprecation")
   public AsyncNexusPollTask(
@@ -45,10 +44,12 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
-      TrackingSlotSupplier<?> slotSupplier) {
+      TrackingSlotSupplier<?> slotSupplier,
+      @Nonnull PollerTracker pollerTracker) {
     this.service = Objects.requireNonNull(service);
     this.metricsScope = Objects.requireNonNull(metricsScope);
     this.slotSupplier = slotSupplier;
+    this.pollerTracker = Objects.requireNonNull(pollerTracker);
 
     PollNexusTaskQueueRequest.Builder pollRequest =
         PollNexusTaskQueueRequest.newBuilder()
@@ -79,7 +80,7 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
         .gauge(MetricsType.NUM_POLLERS)
-        .update(pollGauge.incrementAndGet());
+        .update(pollerTracker.pollStarted());
 
     CompletableFuture<PollNexusTaskQueueResponse> response = null;
     try {
@@ -94,7 +95,7 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
     } catch (Exception e) {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(pollGauge.decrementAndGet());
+          .update(pollerTracker.pollCompleted());
       throw new RuntimeException(e);
     }
 
@@ -105,6 +106,7 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
                 metricsScope.counter(MetricsType.NEXUS_POLL_NO_TASK_COUNTER).inc(1);
                 return null;
               }
+              pollerTracker.pollSucceeded();
               Timestamp startedTime = ProtobufTimeUtils.getCurrentProtoTime();
               metricsScope
                   .timer(MetricsType.NEXUS_SCHEDULE_TO_START_LATENCY)
@@ -117,10 +119,11 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
                   () -> slotSupplier.releaseSlot(SlotReleaseReason.taskComplete(), permit));
             })
         .whenComplete(
-            (r, e) ->
-                MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
-                    .gauge(MetricsType.NUM_POLLERS)
-                    .update(pollGauge.decrementAndGet()));
+            (r, e) -> {
+              MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
+                  .gauge(MetricsType.NUM_POLLERS)
+                  .update(pollerTracker.pollCompleted());
+            });
   }
 
   @Override

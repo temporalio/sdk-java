@@ -14,7 +14,6 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -27,7 +26,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final Scope metricsScope;
   private final PollNexusTaskQueueRequest pollRequest;
-  private final AtomicInteger pollGauge = new AtomicInteger();
+  private final PollerTracker pollerTracker;
 
   @SuppressWarnings("deprecation")
   public NexusPollTask(
@@ -38,10 +37,12 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<NexusSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
-      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      @Nonnull PollerTracker pollerTracker) {
     this.service = Objects.requireNonNull(service);
     this.slotSupplier = slotSupplier;
     this.metricsScope = Objects.requireNonNull(metricsScope);
+    this.pollerTracker = Objects.requireNonNull(pollerTracker);
 
     PollNexusTaskQueueRequest.Builder pollRequest =
         PollNexusTaskQueueRequest.newBuilder()
@@ -89,7 +90,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
         .gauge(MetricsType.NUM_POLLERS)
-        .update(pollGauge.incrementAndGet());
+        .update(pollerTracker.pollStarted());
 
     try {
       response =
@@ -111,6 +112,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
                   startedTime, response.getRequest().getScheduledTime()));
 
       isSuccessful = true;
+      pollerTracker.pollSucceeded();
       return new NexusTask(
           response,
           permit,
@@ -118,7 +120,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
     } finally {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(pollGauge.decrementAndGet());
+          .update(pollerTracker.pollCompleted());
 
       if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
     }

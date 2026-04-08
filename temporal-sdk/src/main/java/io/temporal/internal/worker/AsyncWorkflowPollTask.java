@@ -20,7 +20,6 @@ import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,11 +34,11 @@ public class AsyncWorkflowPollTask
   private final Scope metricsScope;
   private final Scope pollerMetricScope;
   private final PollWorkflowTaskQueueRequest pollRequest;
-  private final AtomicInteger pollGauge = new AtomicInteger();
   private final MetricsTag.TagValue taskQueueTagValue;
   private final boolean stickyPoller;
   private final Context.CancellableContext grpcContext = Context.ROOT.withCancellation();
   private final AtomicBoolean shutdown = new AtomicBoolean(false);
+  private final PollerTracker pollerTracker;
 
   @Override
   public String toString() {
@@ -56,10 +55,12 @@ public class AsyncWorkflowPollTask
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
-      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      @Nonnull PollerTracker pollerTracker) {
     this.service = service;
     this.slotSupplier = slotSupplier;
     this.metricsScope = metricsScope;
+    this.pollerTracker = Objects.requireNonNull(pollerTracker);
 
     PollWorkflowTaskQueueRequest.Builder pollRequestBuilder =
         PollWorkflowTaskQueueRequest.newBuilder()
@@ -122,7 +123,7 @@ public class AsyncWorkflowPollTask
 
     MetricsTag.tagged(metricsScope, taskQueueTagValue)
         .gauge(MetricsType.NUM_POLLERS)
-        .update(pollGauge.incrementAndGet());
+        .update(pollerTracker.pollStarted());
 
     CompletableFuture<PollWorkflowTaskQueueResponse> response = null;
     try {
@@ -137,7 +138,7 @@ public class AsyncWorkflowPollTask
     } catch (Exception e) {
       MetricsTag.tagged(metricsScope, taskQueueTagValue)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(pollGauge.decrementAndGet());
+          .update(pollerTracker.pollCompleted());
       throw new RuntimeException(e);
     }
 
@@ -150,6 +151,7 @@ public class AsyncWorkflowPollTask
                     .inc(1);
                 return null;
               }
+              pollerTracker.pollSucceeded();
               slotSupplier.markSlotUsed(new WorkflowSlotInfo(r, pollRequest), permit);
               pollerMetricScope
                   .counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER)
@@ -160,10 +162,11 @@ public class AsyncWorkflowPollTask
               return new WorkflowTask(r, (reason) -> slotSupplier.releaseSlot(reason, permit));
             })
         .whenComplete(
-            (r, e) ->
-                MetricsTag.tagged(metricsScope, taskQueueTagValue)
-                    .gauge(MetricsType.NUM_POLLERS)
-                    .update(pollGauge.decrementAndGet()));
+            (r, e) -> {
+              MetricsTag.tagged(metricsScope, taskQueueTagValue)
+                  .gauge(MetricsType.NUM_POLLERS)
+                  .update(pollerTracker.pollCompleted());
+            });
   }
 
   @Override
