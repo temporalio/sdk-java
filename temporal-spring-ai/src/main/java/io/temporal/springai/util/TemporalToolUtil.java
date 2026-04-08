@@ -64,7 +64,7 @@ public final class TemporalToolUtil {
    *       NexusToolUtil#fromNexusServiceStub(Object...)}
    *   <li>Child workflow stubs throw {@link UnsupportedOperationException}
    *   <li>Classes annotated with {@link DeterministicTool} are converted using Spring AI's standard
-   *       {@link ToolCallbacks#from(Object)}
+   *       {@code ToolCallbacks.from(Object)}
    *   <li>Classes annotated with {@link SideEffectTool} are wrapped in {@code
    *       Workflow.sideEffect()}
    *   <li>Other objects throw {@link IllegalArgumentException}
