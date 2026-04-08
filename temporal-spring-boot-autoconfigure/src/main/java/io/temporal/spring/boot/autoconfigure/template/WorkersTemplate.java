@@ -21,6 +21,7 @@ import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
+import io.temporal.spring.boot.autoconfigure.properties.WorkersAutoDiscoveryProperties;
 import io.temporal.worker.*;
 import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
@@ -179,22 +180,40 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                   createWorkerFromAnExplicitConfig(workerFactory, workerProperties, workers));
     }
 
-    if (namespaceProperties.getWorkersAutoDiscovery() != null
-        && namespaceProperties.getWorkersAutoDiscovery().getPackages() != null) {
-      Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses =
-          autoDiscoverWorkflowImplementations();
-      Map<String, Object> autoDiscoveredActivityBeans = autoDiscoverActivityBeans();
-      Map<String, Object> autoDiscoveredNexusServiceBeans = autoDiscoverNexusServiceBeans();
+    WorkersAutoDiscoveryProperties autoDiscovery = namespaceProperties.getWorkersAutoDiscovery();
+    if (autoDiscovery != null) {
+      // @ActivityImpl beans are Spring beans, discoverable without classpath scanning.
+      if (autoDiscovery.isRegisterActivityBeans()) {
+        Map<String, Object> autoDiscoveredActivityBeans = autoDiscoverActivityBeans();
+        configureActivityBeansByTaskQueue(workerFactory, workers, autoDiscoveredActivityBeans);
+        configureActivityBeansByWorkerName(workers, autoDiscoveredActivityBeans);
+      }
 
-      configureWorkflowImplementationsByTaskQueue(
-          workerFactory, workers, autoDiscoveredWorkflowImplementationClasses);
-      configureActivityBeansByTaskQueue(workerFactory, workers, autoDiscoveredActivityBeans);
-      configureNexusServiceBeansByTaskQueue(
-          workerFactory, workers, autoDiscoveredNexusServiceBeans);
-      configureWorkflowImplementationsByWorkerName(
-          workers, autoDiscoveredWorkflowImplementationClasses);
-      configureActivityBeansByWorkerName(workers, autoDiscoveredActivityBeans);
-      configureNexusServiceBeansByWorkerName(workers, autoDiscoveredNexusServiceBeans);
+      // @NexusServiceImpl beans are Spring beans, discoverable without classpath scanning.
+      if (autoDiscovery.isRegisterNexusServiceBeans()) {
+        Map<String, Object> autoDiscoveredNexusServiceBeans = autoDiscoverNexusServiceBeans();
+        configureNexusServiceBeansByTaskQueue(
+            workerFactory, workers, autoDiscoveredNexusServiceBeans);
+        configureNexusServiceBeansByWorkerName(workers, autoDiscoveredNexusServiceBeans);
+      }
+
+      // Workflow discovery: Spring-bean-based (enabled: true) and/or classpath-scanning (packages).
+      // These two sources are unioned; duplicates are harmless because Set is used internally.
+      Set<Class<?>> autoDiscoveredWorkflowImplementationClasses = new HashSet<>();
+      if (autoDiscovery.isRegisterWorkflowManagedBeans()) {
+        autoDiscoveredWorkflowImplementationClasses.addAll(autoDiscoverWorkflowBeans());
+      }
+      List<String> workflowPackages = autoDiscovery.getEffectiveWorkflowPackages();
+      if (!workflowPackages.isEmpty()) {
+        autoDiscoveredWorkflowImplementationClasses.addAll(
+            autoDiscoverWorkflowImplementations(workflowPackages));
+      }
+      if (!autoDiscoveredWorkflowImplementationClasses.isEmpty()) {
+        configureWorkflowImplementationsByTaskQueue(
+            workerFactory, workers, autoDiscoveredWorkflowImplementationClasses);
+        configureWorkflowImplementationsByWorkerName(
+            workers, autoDiscoveredWorkflowImplementationClasses);
+      }
     }
 
     return workers.getWorkers();
@@ -350,12 +369,12 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         });
   }
 
-  private Collection<Class<?>> autoDiscoverWorkflowImplementations() {
+  private Collection<Class<?>> autoDiscoverWorkflowImplementations(List<String> packages) {
     ClassPathScanningCandidateComponentProvider scanner =
         new ClassPathScanningCandidateComponentProvider(false, environment);
     scanner.addIncludeFilter(new AnnotationTypeFilter(WorkflowImpl.class));
     Set<Class<?>> implementations = new HashSet<>();
-    for (String pckg : namespaceProperties.getWorkersAutoDiscovery().getPackages()) {
+    for (String pckg : packages) {
       Set<BeanDefinition> candidateComponents = scanner.findCandidateComponents(pckg);
       for (BeanDefinition beanDefinition : candidateComponents) {
         try {
@@ -367,6 +386,12 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       }
     }
     return implementations;
+  }
+
+  private Collection<Class<?>> autoDiscoverWorkflowBeans() {
+    return beanFactory.getBeansWithAnnotation(WorkflowImpl.class).values().stream()
+        .map(AopUtils::getTargetClass)
+        .collect(java.util.stream.Collectors.toSet());
   }
 
   private Map<String, Object> autoDiscoverActivityBeans() {

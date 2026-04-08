@@ -28,7 +28,41 @@ spring.temporal:
 spring:
   config:
     activate:
-      on-profile: auto-discovery-by-task-queue
+      on-profile: auto-discovery-mixed-packages-rejected
+  temporal:
+    workers-auto-discovery:
+      # packages is deprecated and cannot be combined with register-activity-beans. This should fail.
+      packages:
+        - io.temporal.spring.boot.autoconfigure.bytaskqueue
+      register-activity-beans: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: auto-discovery-enable
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+    workers-auto-discovery:
+      enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: auto-discovery-activities-only
+  temporal:
+    workers-auto-discovery:
+      register-activity-beans: true
+      register-nexus-service-beans: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: auto-discovery-by-task-queue-legacy
   temporal:
     workers-auto-discovery:
       packages:
@@ -38,11 +72,25 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-by-task-queue
+  temporal:
+    workers-auto-discovery:
+      workflow-packages:
+        - io.temporal.spring.boot.autoconfigure.bytaskqueue
+      register-activity-beans: true
+      register-nexus-service-beans: true
+
+---
+spring:
+  config:
+    activate:
       on-profile: auto-discovery-by-task-queue-dynamic-suffix
   temporal:
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.bytaskqueue
+      register-activity-beans: true
+      register-nexus-service-beans: true
 default-queue:
   name: PropertyResolverTest
 
@@ -56,8 +104,10 @@ spring:
       - task-queue: UnitTest
         name: mainWorker
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.byworkername
+      register-activity-beans: true
+      register-nexus-service-beans: true
 
 ---
 spring:
@@ -69,8 +119,9 @@ spring:
       - task-queue: UnitTest
         name: mainWorker
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.byworkername
+      register-activity-beans: true
 
 ---
 spring:
@@ -86,7 +137,7 @@ spring:
         activity-beans:
           - TestActivityImpl
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.byworkername
 
 ---
@@ -142,7 +193,7 @@ spring:
       on-profile: disable-start-workers
   temporal:
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.bytaskqueue
     start-workers: false
 
@@ -185,7 +236,7 @@ spring:
     test-server:
       enabled: false
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.workerversioning
     workers:
       - task-queue: UnitTest
@@ -204,7 +255,7 @@ spring:
   temporal:
     namespace: UnitTest
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.workerversioning
     workers:
       - task-queue: UnitTest
@@ -213,6 +264,7 @@ spring:
           # missing default is the key thing here
           deployment-version: "dname.bid"
           use-versioning: true
+
 ---
 spring:
   config:
@@ -221,7 +273,7 @@ spring:
   temporal:
     namespace: UnitTest
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.workerversioning
     workers:
       - task-queue: UnitTest
@@ -230,6 +282,7 @@ spring:
           use-versioning: true
           default-versioning-behavior: PINNED
           deployment-name: "dname"
+
 ---
 spring:
   config:
@@ -238,7 +291,7 @@ spring:
   temporal:
     namespace: UnitTest
     workers-auto-discovery:
-      packages:
+      workflow-packages:
         - io.temporal.spring.boot.autoconfigure.workerversioning
     workers:
       - task-queue: UnitTest
