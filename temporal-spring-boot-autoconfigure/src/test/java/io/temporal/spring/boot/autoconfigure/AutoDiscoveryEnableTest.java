@@ -16,7 +16,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Verifies that {@code workers-auto-discovery.enable: true} auto-registers {@code @WorkflowImpl}
+ * Verifies that {@code workers-auto-discovery.enabled: true} auto-registers {@code @WorkflowImpl}
  * and {@code @ActivityImpl} Spring beans without any package scanning configured.
  */
 @SpringBootTest(classes = AutoDiscoveryEnableTest.Configuration.class)
@@ -44,20 +44,20 @@ public class AutoDiscoveryEnableTest {
     WorkersTemplate.RegisteredInfo info = registeredInfoMap.get("UnitTest");
     assertNotNull(info, "Expected worker on task queue 'UnitTest'");
 
-    // @WorkflowImpl Spring bean registered via enable: true (no packages configured)
+    // @WorkflowImpl Spring bean registered via enabled: true (no packages configured)
     assertEquals(
         1,
         info.getRegisteredWorkflowInfo().size(),
-        "@WorkflowImpl bean should be registered via enable: true without packages");
+        "@WorkflowImpl bean should be registered via enabled: true without packages");
     assertEquals(
         "io.temporal.spring.boot.autoconfigure.byenable.TestWorkflow",
         info.getRegisteredWorkflowInfo().get(0).getClassName());
 
-    // @ActivityImpl bean registered via enable: true
+    // @ActivityImpl bean registered via enabled: true
     assertEquals(
         1,
         info.getRegisteredActivityInfo().size(),
-        "@ActivityImpl bean should be registered via enable: true");
+        "@ActivityImpl bean should be registered via enabled: true");
     assertEquals(
         "io.temporal.spring.boot.autoconfigure.byenable.TestActivityImpl",
         info.getRegisteredActivityInfo().get(0).getClassName());

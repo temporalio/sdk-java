@@ -19,7 +19,7 @@ public class WorkersAutoDiscoveryProperties {
    * <p>Classpath-scanning via {@link #workflowPackages} (for non-bean workflow classes) still
    * requires explicit package configuration regardless of this flag.
    */
-  private final @Nullable Boolean enable;
+  private final @Nullable Boolean enabled;
 
   private final @Nullable List<String> workflowPackages;
   private final @Nullable Boolean registerActivityBeans;
@@ -36,23 +36,23 @@ public class WorkersAutoDiscoveryProperties {
 
   @ConstructorBinding
   public WorkersAutoDiscoveryProperties(
-      @Nullable Boolean enable,
+      @Nullable Boolean enabled,
       @Nullable List<String> workflowPackages,
       @Nullable Boolean registerActivityBeans,
       @Nullable Boolean registerNexusServiceBeans,
       @Nullable List<String> packages) {
     if (packages != null
         && !packages.isEmpty()
-        && (enable != null
+        && (enabled != null
             || workflowPackages != null
             || registerActivityBeans != null
             || registerNexusServiceBeans != null)) {
       throw new IllegalStateException(
           "spring.temporal.workers-auto-discovery.packages is deprecated and cannot be combined "
-              + "with enable, workflow-packages, register-activity-beans, or register-nexus-service-beans. "
+              + "with enabled, workflow-packages, register-activity-beans, or register-nexus-service-beans. "
               + "Migrate to the new properties and remove packages.");
     }
-    this.enable = enable;
+    this.enabled = enabled;
     this.workflowPackages = workflowPackages;
     this.registerActivityBeans = registerActivityBeans;
     this.registerNexusServiceBeans = registerNexusServiceBeans;
@@ -62,32 +62,32 @@ public class WorkersAutoDiscoveryProperties {
   /**
    * Returns whether {@code @WorkflowImpl}-annotated classes that are also Spring-managed beans
    * should be automatically registered with matching workers (without classpath scanning). Defaults
-   * to {@code true} when {@link #enable} is {@code true}, {@code false} otherwise. Workflow
+   * to {@code true} when {@link #enabled} is {@code true}, {@code false} otherwise. Workflow
    * implementation classes that are not Spring-managed beans still require {@link
    * #workflowPackages} for classpath scanning.
    */
   public boolean isRegisterWorkflowManagedBeans() {
-    return Boolean.TRUE.equals(enable);
+    return Boolean.TRUE.equals(enabled);
   }
 
   /**
    * Returns whether {@code @ActivityImpl}-annotated beans should be automatically registered with
-   * matching workers. Defaults to {@code true} when {@link #enable} is {@code true} or when the
+   * matching workers. Defaults to {@code true} when {@link #enabled} is {@code true} or when the
    * deprecated {@link #packages} property is set and non-empty; {@code false} otherwise.
    */
   public boolean isRegisterActivityBeans() {
     if (registerActivityBeans != null) return registerActivityBeans;
-    return Boolean.TRUE.equals(enable) || (packages != null && !packages.isEmpty());
+    return Boolean.TRUE.equals(enabled) || (packages != null && !packages.isEmpty());
   }
 
   /**
    * Returns whether {@code @NexusServiceImpl}-annotated beans should be automatically registered
-   * with matching workers. Defaults to {@code true} when {@link #enable} is {@code true} or when
+   * with matching workers. Defaults to {@code true} when {@link #enabled} is {@code true} or when
    * the deprecated {@link #packages} property is set and non-empty; {@code false} otherwise.
    */
   public boolean isRegisterNexusServiceBeans() {
     if (registerNexusServiceBeans != null) return registerNexusServiceBeans;
-    return Boolean.TRUE.equals(enable) || (packages != null && !packages.isEmpty());
+    return Boolean.TRUE.equals(enabled) || (packages != null && !packages.isEmpty());
   }
 
   /**

@@ -46,7 +46,7 @@ spring:
       - task-queue: UnitTest
         name: mainWorker
     workers-auto-discovery:
-      enable: true
+      enabled: true
 
 ---
 spring:

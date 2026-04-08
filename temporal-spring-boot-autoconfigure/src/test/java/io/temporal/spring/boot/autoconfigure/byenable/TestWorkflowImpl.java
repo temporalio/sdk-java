@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * A workflow implementation that is a Spring bean (has {@code @Component}), used to verify that
- * {@code workers-auto-discovery.enable: true} can discover workflow beans without classpath
+ * {@code workers-auto-discovery.enabled: true} can discover workflow beans without classpath
  * scanning.
  */
 @Component

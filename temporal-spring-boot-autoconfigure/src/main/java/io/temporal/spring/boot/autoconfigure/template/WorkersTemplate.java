@@ -197,7 +197,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
         configureNexusServiceBeansByWorkerName(workers, autoDiscoveredNexusServiceBeans);
       }
 
-      // Workflow discovery: Spring-bean-based (enable: true) and/or classpath-scanning (packages).
+      // Workflow discovery: Spring-bean-based (enabled: true) and/or classpath-scanning (packages).
       // These two sources are unioned; duplicates are harmless because Set is used internally.
       Set<Class<?>> autoDiscoveredWorkflowImplementationClasses = new HashSet<>();
       if (autoDiscovery.isRegisterWorkflowManagedBeans()) {
