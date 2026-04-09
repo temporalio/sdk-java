@@ -127,7 +127,7 @@ public final class TemporalToolUtil {
             "Tool object of type '"
                 + toolObject.getClass().getName()
                 + "' is not a "
-                + "recognized Temporal primitive (activity stub, local activity stub) or "
+                + "recognized Temporal primitive (activity stub, local activity stub, Nexus service stub) or "
                 + "a class annotated with @DeterministicTool or @SideEffectTool. "
                 + "To use a plain object as a tool, either: "
                 + "(1) annotate its class with @DeterministicTool if it's truly deterministic, "

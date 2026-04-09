@@ -38,7 +38,7 @@
       "severity": "low",
       "category": "bugfix",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789727. May be partly superseded by T15 if the error message changes entirely."
     },
     {
