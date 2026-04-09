@@ -3,6 +3,7 @@ package io.temporal.springai.plugin;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.temporal.common.SimplePlugin;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.activity.EmbeddingModelActivityImpl;
 import io.temporal.springai.activity.VectorStoreActivityImpl;
@@ -109,28 +110,32 @@ class SpringAiPluginTest {
         IllegalArgumentException.class, () -> new SpringAiPlugin(new LinkedHashMap<>(), null));
   }
 
-  // --- VectorStorePlugin tests ---
+  // --- Builder-based plugin tests ---
 
   @Test
-  void vectorStorePlugin_registersActivity() {
+  void vectorStorePlugin_viaBuilder_registersActivity() {
     VectorStore vectorStore = mock(VectorStore.class);
     Worker worker = mock(Worker.class);
 
-    VectorStorePlugin plugin = new VectorStorePlugin(vectorStore);
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("io.temporal.spring-ai-vectorstore")
+            .registerActivitiesImplementations(new VectorStoreActivityImpl(vectorStore))
+            .build();
     plugin.initializeWorker("test-queue", worker);
 
     Set<Class<?>> types = activityTypes(captureRegisteredActivities(worker));
     assertTrue(types.contains(VectorStoreActivityImpl.class));
   }
 
-  // --- EmbeddingModelPlugin tests ---
-
   @Test
-  void embeddingModelPlugin_registersActivity() {
+  void embeddingModelPlugin_viaBuilder_registersActivity() {
     EmbeddingModel embeddingModel = mock(EmbeddingModel.class);
     Worker worker = mock(Worker.class);
 
-    EmbeddingModelPlugin plugin = new EmbeddingModelPlugin(embeddingModel);
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("io.temporal.spring-ai-embedding")
+            .registerActivitiesImplementations(new EmbeddingModelActivityImpl(embeddingModel))
+            .build();
     plugin.initializeWorker("test-queue", worker);
 
     Set<Class<?>> types = activityTypes(captureRegisteredActivities(worker));

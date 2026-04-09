@@ -22,8 +22,8 @@ import org.springframework.lang.Nullable;
  * auto-configuration:
  *
  * <ul>
- *   <li>{@link VectorStorePlugin} - when {@code spring-ai-rag} is on the classpath
- *   <li>{@link EmbeddingModelPlugin} - when {@code spring-ai-rag} is on the classpath
+ *   <li>VectorStore plugin - when {@code spring-ai-rag} is on the classpath
+ *   <li>EmbeddingModel plugin - when {@code spring-ai-rag} is on the classpath
  *   <li>{@link McpPlugin} - when {@code spring-ai-mcp} is on the classpath
  * </ul>
  *
