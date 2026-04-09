@@ -20,6 +20,126 @@
       "depends_on": [],
       "status": "blocked",
       "notes": "Blocked on PR review discussion with tconley1428. Agreed on direction but need to finalize details before implementing. Proposed design: https://github.com/temporalio/sdk-java/pull/2829#discussion_r3060711651"
+    },
+    {
+      "id": "T16",
+      "title": "Fix NPE on assistantMessage.getMedia() in ActivityChatModel",
+      "description": "ASSISTANT branch in toActivityMessages() calls assistantMessage.getMedia().stream() without null guard. Other places in the module use CollectionUtils.isEmpty(). Add the guard.",
+      "severity": "medium",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789704"
+    },
+    {
+      "id": "T17",
+      "title": "Fix error message in TemporalToolUtil to mention Nexus stubs",
+      "description": "The IllegalArgumentException for unknown tool types doesn't mention Nexus service stubs as supported, even though they are. Update the message.",
+      "severity": "low",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789727. May be partly superseded by T15 if the error message changes entirely."
+    },
+    {
+      "id": "T18",
+      "title": "Fix NoUniqueBeanDefinitionException with multiple ChatModels",
+      "description": "SpringAiTemporalAutoConfiguration injects @Autowired(required=false) ChatModel primaryChatModel, which fails with NoUniqueBeanDefinitionException when multiple ChatModel beans exist without @Primary. Use ObjectProvider<ChatModel> instead.",
+      "severity": "high",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "Real bug — hit this in the multimodel sample, worked around with auto-config exclusions. Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789744"
+    },
+    {
+      "id": "T19",
+      "title": "Make replay test actually exercise tool calls",
+      "description": "workflowWithTools_replaysDeterministically uses a StubChatModel that never requests tool calls, so tools are never invoked. Adjust the stub to return tool call requests first, then a final response, so the test actually validates tool execution determinism.",
+      "severity": "medium",
+      "category": "tests",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789763"
+    },
+    {
+      "id": "T20",
+      "title": "Handle duplicate MCP client names in McpClientActivityImpl",
+      "description": "Collectors.toMap() in the constructor throws IllegalStateException on duplicate keys. Two MCP clients with the same name() would crash. Should validate or handle gracefully.",
+      "severity": "medium",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054031855"
+    },
+    {
+      "id": "T21",
+      "title": "Use primitive arrays in EmbeddingModelTypes instead of List<Double>",
+      "description": "Converting float[] to List<Double> creates 1536+ boxed Double objects per embedding. Use float[] or double[] in EmbeddingModelTypes to avoid boxing overhead and reduce serialization size.",
+      "severity": "low",
+      "category": "improvement",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054058971"
+    },
+    {
+      "id": "T22",
+      "title": "Discuss: temporal-spring-ai-starter artifact for easier onboarding",
+      "description": "temporal-sdk is compileOnly, so users must declare it separately. DABH asks if a starter that pulls in the right transitive deps would reduce friction. Need to decide if this is worth it or if documentation is sufficient.",
+      "severity": "medium",
+      "category": "discussion",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053808755. Discuss with Don."
+    },
+    {
+      "id": "T23",
+      "title": "Discuss: ActivityMcpClient capability caching and replay",
+      "description": "ActivityMcpClient caches getServerCapabilities() after first call. DABH asks if stale cache is a replay concern. Probably fine (activity result is in history, so replay uses the original value — which is correct). But worth confirming the design intent.",
+      "severity": "low",
+      "category": "discussion",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054027377. Discuss with Don."
+    },
+    {
+      "id": "T24",
+      "title": "Discuss: Change ChatModelTypes.rawContent from Object to String",
+      "description": "rawContent is Object but always cast to String. DABH suggests making it String. Cleaner but changes the JSON schema. If we ever need non-string content (multimodal), we'd have to change it back.",
+      "severity": "low",
+      "category": "discussion",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054049714. Discuss with Don."
+    },
+    {
+      "id": "T25",
+      "title": "Reply: compatibility matrix in docs",
+      "description": "DABH suggests documenting the compatibility matrix (Java version, Spring Boot version, Spring AI version). Acknowledge and defer to a docs PR.",
+      "severity": "low",
+      "category": "reply",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053818533"
+    },
+    {
+      "id": "T26",
+      "title": "Reply: SandboxingAdvisor lacks tests",
+      "description": "DABH notes SandboxingAdvisor has no tests. Likely moot if T15 removes it. Reply explaining that.",
+      "severity": "low",
+      "category": "reply",
+      "depends_on": ["T15"],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053836427"
+    },
+    {
+      "id": "T27",
+      "title": "Reply: ToolContext silently dropped in LocalActivityToolCallbackWrapper",
+      "description": "DABH notes ToolContext is silently ignored. Likely moot if T15 removes LocalActivityToolCallbackWrapper. Reply explaining that.",
+      "severity": "low",
+      "category": "reply",
+      "depends_on": ["T15"],
+      "status": "todo",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054036773"
     }
   ]
 }
