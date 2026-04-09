@@ -2,141 +2,6 @@
   "project": "temporal-spring-ai",
   "tasks": [
     {
-      "id": "T1",
-      "title": "Add unit tests for type conversion",
-      "description": "Test ChatModelTypes <-> Spring AI types round-trip in ActivityChatModel and ChatModelActivityImpl. Cover messages (all roles), tool calls, media content, model options, embeddings, vector store types.",
-      "severity": "high",
-      "category": "tests",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T2",
-      "title": "Add unit tests for tool detection and conversion",
-      "description": "Test TemporalToolUtil.convertTools() with activity stubs, local activity stubs, @DeterministicTool, @SideEffectTool, Nexus stubs, and rejection of unknown types. Test TemporalStubUtil detection methods.",
-      "severity": "high",
-      "category": "tests",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T3",
-      "title": "Add replay test for determinism",
-      "description": "Create a workflow that uses ActivityChatModel with tools, run it once to produce history, then replay from that history to verify determinism. Cover activity tools, @DeterministicTool, and @SideEffectTool.",
-      "severity": "high",
-      "category": "tests",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T4",
-      "title": "Add unit tests for plugin registration",
-      "description": "Test SpringAiPlugin.initializeWorker() registers correct activities based on available beans. Test single model, multi-model, with/without VectorStore, with/without EmbeddingModel.",
-      "severity": "medium",
-      "category": "tests",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T5",
-      "title": "Fix UUID.randomUUID() in workflow context",
-      "description": "Replace UUID.randomUUID() with Workflow.randomUUID() in LocalActivityToolCallbackWrapper.call(). One-line fix.",
-      "severity": "high",
-      "category": "bugfix",
-      "depends_on": [
-        "T3"
-      ],
-      "status": "completed",
-      "notes": "Do after replay test exists so we can verify the fix."
-    },
-    {
-      "id": "T6",
-      "title": "Split SpringAiPlugin for optional deps",
-      "description": "Refactor so VectorStore, EmbeddingModel, and MCP are handled by separate @ConditionalOnClass auto-configuration classes. Core SpringAiPlugin only references ChatModel. compileOnly scope stays correct.",
-      "severity": "high",
-      "category": "refactor",
-      "depends_on": [
-        "T4"
-      ],
-      "status": "completed",
-      "notes": "Do after plugin registration tests exist so we can verify the refactor doesn't break registration. Also resolves T10 (unnecessary MCP reflection)."
-    },
-    {
-      "id": "T14",
-      "title": "Fix NPE when ChatResponse metadata is null",
-      "description": "ActivityChatModel.toResponse() passes null metadata to ChatResponse.builder().metadata(null), which causes an NPE in Spring AI's builder. Fix: skip .metadata() call when metadata is null, or pass an empty ChatResponseMetadata.",
-      "severity": "high",
-      "category": "bugfix",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T7",
-      "title": "Add max iteration limit to ActivityChatModel tool loop",
-      "description": "Add a configurable max iteration count (default ~10) to the recursive call() loop in ActivityChatModel. Throw after limit to prevent infinite recursion from misbehaving models.",
-      "severity": "medium",
-      "category": "bugfix",
-      "depends_on": [
-        "T1"
-      ],
-      "status": "reverted",
-      "notes": "Reverted: Spring AI does not limit tool call iterations either. Temporal activity timeouts and workflow execution timeout provide the safety net."
-    },
-    {
-      "id": "T8",
-      "title": "Replace fragile stub detection with SDK internals",
-      "description": "TemporalStubUtil string-matches on internal handler class names. Since the plugin is in the SDK repo, use internal APIs or instanceof checks. Add tests to catch breakage.",
-      "severity": "medium",
-      "category": "refactor",
-      "depends_on": [
-        "T2"
-      ],
-      "status": "completed",
-      "notes": "Do after tool detection tests exist so we can verify the refactor."
-    },
-    {
-      "id": "T9",
-      "title": "Document static CALLBACK_REGISTRY lifecycle",
-      "description": "Add javadoc to LocalActivityToolCallbackWrapper explaining the leak risk when workflows are evicted mid-execution. Consider adding a size metric or periodic cleanup.",
-      "severity": "medium",
-      "category": "improvement",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T10",
-      "title": "Remove unnecessary MCP reflection",
-      "description": "SpringAiPlugin uses Class.forName() for McpClientActivityImpl which is in the same module. Will be resolved by T6 (split into conditional configs).",
-      "severity": "low",
-      "category": "refactor",
-      "depends_on": [
-        "T6"
-      ],
-      "status": "completed",
-      "notes": "Likely resolved automatically by T6."
-    },
-    {
-      "id": "T11",
-      "title": "Add UnsupportedOperationException for stream()",
-      "description": "Override stream() in ActivityChatModel to throw UnsupportedOperationException with a clear message that streaming is not supported through activities.",
-      "severity": "low",
-      "category": "improvement",
-      "depends_on": [],
-      "status": "completed"
-    },
-    {
-      "id": "T12",
-      "title": "Verify all 5 samples run end-to-end",
-      "description": "Run chat, MCP, multi-model, RAG, and sandboxing samples interactively against a dev server. Verify tool calling works for each.",
-      "severity": "medium",
-      "category": "testing",
-      "depends_on": [
-        "T6"
-      ],
-      "status": "completed",
-      "notes": "All 5 samples boot successfully. MCP requires Node.js/npx for MCP server (environment prereq, not a code issue)."
-    },
-    {
       "id": "T13",
       "title": "Remove includeBuild from samples-java",
       "description": "Once temporal-spring-ai is published to Maven Central, remove the includeBuild('../sdk-java') block from samples-java/settings.gradle and the grpc-util workaround from core/build.gradle.",
@@ -145,7 +10,16 @@
       "depends_on": [],
       "status": "blocked",
       "notes": "Blocked on SDK release. Not actionable yet."
+    },
+    {
+      "id": "T15",
+      "title": "Change default tool execution to run in workflow context",
+      "description": "Currently unannotated tools passed to defaultTools() are rejected. Change so they execute directly in workflow context by default — user is responsible for determinism. Remove @DeterministicTool annotation (no longer needed since direct execution is the default). Remove SandboxingAdvisor and LocalActivityToolCallbackWrapper. Keep @SideEffectTool as a convenience for wrapping in Workflow.sideEffect(). Keep activity stub / nexus stub auto-detection as shortcuts.",
+      "severity": "high",
+      "category": "refactor",
+      "depends_on": [],
+      "status": "blocked",
+      "notes": "Blocked on PR review discussion with tconley1428. Agreed on direction but need to finalize details before implementing. See sdk-java#2829 comment thread on SandboxingAdvisor."
     }
-  ],
-  "execution_order_rationale": "Tests first (T1-T4) in parallel since they're independent. Then fixes that benefit from test coverage: T5 (UUID fix, verified by T3), T6 (plugin split, verified by T4), T7 (loop limit, verified by T1), T8 (stub detection, verified by T2). Then downstream: T10 (resolved by T6), T9/T11 (independent improvements). T12 after T6. T13 blocked on release."
+  ]
 }
