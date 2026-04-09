@@ -14,7 +14,7 @@
     {
       "id": "T15",
       "title": "Change default tool execution to run in workflow context",
-      "description": "Currently unannotated tools passed to defaultTools() are rejected. Change so they execute directly in workflow context by default — user is responsible for determinism. Remove @DeterministicTool annotation (no longer needed since direct execution is the default). Remove SandboxingAdvisor and LocalActivityToolCallbackWrapper. Keep @SideEffectTool as a convenience for wrapping in Workflow.sideEffect(). Keep activity stub / nexus stub auto-detection as shortcuts.",
+      "description": "Currently unannotated tools passed to defaultTools() are rejected. Change so they execute directly in workflow context by default \u2014 user is responsible for determinism. Remove @DeterministicTool annotation (no longer needed since direct execution is the default). Remove SandboxingAdvisor and LocalActivityToolCallbackWrapper. Keep @SideEffectTool as a convenience for wrapping in Workflow.sideEffect(). Keep activity stub / nexus stub auto-detection as shortcuts.",
       "severity": "high",
       "category": "refactor",
       "depends_on": [],
@@ -28,7 +28,7 @@
       "severity": "medium",
       "category": "bugfix",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789704"
     },
     {
@@ -49,7 +49,7 @@
       "category": "bugfix",
       "depends_on": [],
       "status": "todo",
-      "notes": "Real bug — hit this in the multimodel sample, worked around with auto-config exclusions. Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789744"
+      "notes": "Real bug \u2014 hit this in the multimodel sample, worked around with auto-config exclusions. Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789744"
     },
     {
       "id": "T19",
@@ -94,7 +94,7 @@
     {
       "id": "T23",
       "title": "Discuss: ActivityMcpClient capability caching and replay",
-      "description": "ActivityMcpClient caches getServerCapabilities() after first call. DABH asks if stale cache is a replay concern. Probably fine (activity result is in history, so replay uses the original value — which is correct). But worth confirming the design intent.",
+      "description": "ActivityMcpClient caches getServerCapabilities() after first call. DABH asks if stale cache is a replay concern. Probably fine (activity result is in history, so replay uses the original value \u2014 which is correct). But worth confirming the design intent.",
       "severity": "low",
       "category": "discussion",
       "depends_on": [],
@@ -127,7 +127,9 @@
       "description": "DABH notes SandboxingAdvisor has no tests. Likely moot if T15 removes it. Reply explaining that.",
       "severity": "low",
       "category": "reply",
-      "depends_on": ["T15"],
+      "depends_on": [
+        "T15"
+      ],
       "status": "todo",
       "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053836427"
     },
@@ -137,7 +139,9 @@
       "description": "DABH notes ToolContext is silently ignored. Likely moot if T15 removes LocalActivityToolCallbackWrapper. Reply explaining that.",
       "severity": "low",
       "category": "reply",
-      "depends_on": ["T15"],
+      "depends_on": [
+        "T15"
+      ],
       "status": "todo",
       "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054036773"
     }

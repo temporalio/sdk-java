@@ -294,10 +294,13 @@ public class ActivityChatModel implements ChatModel {
                                   tc.name(), tc.arguments())))
                   .collect(Collectors.toList());
         }
-        List<ChatModelTypes.MediaContent> mediaContents =
-            assistantMessage.getMedia().stream()
-                .map(this::toMediaContent)
-                .collect(Collectors.toList());
+        List<ChatModelTypes.MediaContent> mediaContents = null;
+        if (!CollectionUtils.isEmpty(assistantMessage.getMedia())) {
+          mediaContents =
+              assistantMessage.getMedia().stream()
+                  .map(this::toMediaContent)
+                  .collect(Collectors.toList());
+        }
         yield List.of(
             new ChatModelTypes.Message(
                 assistantMessage.getText(),
@@ -305,7 +308,7 @@ public class ActivityChatModel implements ChatModel {
                 null,
                 null,
                 toolCalls,
-                mediaContents.isEmpty() ? null : mediaContents));
+                mediaContents));
       }
       case TOOL -> {
         ToolResponseMessage toolMessage = (ToolResponseMessage) message;
