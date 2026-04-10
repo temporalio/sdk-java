@@ -24,7 +24,17 @@ public class McpClientActivityImpl implements McpClientActivity {
    */
   public McpClientActivityImpl(List<McpSyncClient> mcpClients) {
     this.mcpClients =
-        mcpClients.stream().collect(Collectors.toMap(c -> c.getClientInfo().name(), c -> c));
+        mcpClients.stream()
+            .collect(
+                Collectors.toMap(
+                    c -> c.getClientInfo().name(),
+                    c -> c,
+                    (existing, duplicate) -> {
+                      throw new IllegalArgumentException(
+                          "Duplicate MCP client name: '"
+                              + existing.getClientInfo().name()
+                              + "'. Each MCP client must have a unique name.");
+                    }));
   }
 
   @Override
