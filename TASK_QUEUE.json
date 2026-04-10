@@ -144,6 +144,16 @@
       ],
       "status": "todo",
       "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054036773"
+    },
+    {
+      "id": "T28",
+      "title": "Restore VectorStorePlugin and EmbeddingModelPlugin as public classes",
+      "description": "Restore the plugin subclasses so users not using auto-config can create them manually (e.g. new VectorStorePlugin(vectorStore)). Auto-config uses them too. Reverts the builder-inline approach from the earlier refactor.",
+      "severity": "medium",
+      "category": "refactor",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "tconley1428 review comments on SpringAiPlugin.java and SpringAiVectorStoreAutoConfiguration.java"
     }
   ]
 }
