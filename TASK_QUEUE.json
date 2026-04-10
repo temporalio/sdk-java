@@ -114,6 +114,16 @@
       "depends_on": [],
       "status": "completed",
       "notes": "Edge CI log showed: Dependency resolution is looking for a library compatible with JVM runtime version 17, but temporal-sdk is only compatible with JVM runtime version 21 or newer."
+    },
+    {
+      "id": "T31",
+      "title": "Fix CI: Docker build fails with Java 11 (release 17 not supported)",
+      "description": "Docker CI runs Java 11 which cannot compile --release 17. Conditionally exclude temporal-spring-ai from settings.gradle and BOM when JDK < 17.",
+      "severity": "high",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "completed",
+      "notes": "Docker CI log showed: error: release version 17 not supported. JAVA_HOME was Java 11."
     }
   ]
 }

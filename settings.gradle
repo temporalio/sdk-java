@@ -6,7 +6,11 @@ include 'temporal-testing'
 include 'temporal-test-server'
 include 'temporal-opentracing'
 include 'temporal-kotlin'
-include 'temporal-spring-ai'
+// temporal-spring-ai requires Java 17+ (Spring AI dependency).
+// Exclude from builds running on older JDKs.
+if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+    include 'temporal-spring-ai'
+}
 include 'temporal-spring-boot-autoconfigure'
 include 'temporal-spring-boot-starter'
 include 'temporal-remote-data-encoder'
