@@ -92,7 +92,7 @@
       "severity": "medium",
       "category": "refactor",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "tconley1428 review comments on SpringAiPlugin.java and SpringAiVectorStoreAutoConfiguration.java"
     }
   ]
