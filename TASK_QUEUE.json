@@ -104,6 +104,16 @@
       "depends_on": [],
       "status": "completed",
       "notes": "Do in this PR, not a follow-up."
+    },
+    {
+      "id": "T30",
+      "title": "Fix CI: Edge build fails with Java version mismatch",
+      "description": "Edge CI sets edgeDepsTest which compiles temporal-sdk at Java 21. Our module hardcodes Java 17, causing Gradle to reject the dependency. Fix: use 21 when edgeDepsTest is set, 17 otherwise.",
+      "severity": "high",
+      "category": "bugfix",
+      "depends_on": [],
+      "status": "completed",
+      "notes": "Edge CI log showed: Dependency resolution is looking for a library compatible with JVM runtime version 17, but temporal-sdk is only compatible with JVM runtime version 21 or newer."
     }
   ]
 }

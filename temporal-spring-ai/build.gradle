@@ -6,20 +6,26 @@ ext {
     springBootVersionForSpringAi = "$springBoot3Version"
 }
 
-// Spring AI requires Java 17+, override the default Java 8 target from java.gradle
+// Spring AI requires Java 17+, override the default Java 8 target from java.gradle.
+// When edgeDepsTest is set, use 21 to match other modules (avoids Gradle JVM compatibility rejection).
+ext {
+    springAiJavaVersion = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_17
+    springAiRelease = project.hasProperty("edgeDepsTest") ? '21' : '17'
+}
+
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = springAiJavaVersion
+    targetCompatibility = springAiJavaVersion
 }
 
 compileJava {
     options.compilerArgs.removeAll(['--release', '8'])
-    options.compilerArgs.addAll(['--release', '17'])
+    options.compilerArgs.addAll(['--release', springAiRelease])
 }
 
 compileTestJava {
     options.compilerArgs.removeAll(['--release', '8'])
-    options.compilerArgs.addAll(['--release', '17'])
+    options.compilerArgs.addAll(['--release', springAiRelease])
 }
 
 dependencies {
