@@ -102,7 +102,7 @@
       "severity": "high",
       "category": "docs",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "Do in this PR, not a follow-up."
     }
   ]
