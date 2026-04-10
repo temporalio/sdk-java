@@ -14,7 +14,7 @@
     {
       "id": "T15",
       "title": "Change default tool execution to run in workflow context",
-      "description": "Currently unannotated tools passed to defaultTools() are rejected. Change so they execute directly in workflow context by default \u2014 user is responsible for determinism. Remove @DeterministicTool annotation (no longer needed since direct execution is the default). Remove SandboxingAdvisor and LocalActivityToolCallbackWrapper. Keep @SideEffectTool as a convenience for wrapping in Workflow.sideEffect(). Keep activity stub / nexus stub auto-detection as shortcuts.",
+      "description": "Currently unannotated tools passed to defaultTools() are rejected. Change so they execute directly in workflow context by default \u2014 user is responsible for determinism. Remove @DeterministicTool annotation (no longer needed since direct execution is the default). Remove SandboxingAdvisor, LocalActivityToolCallbackWrapper, ExecuteToolLocalActivity, and ExecuteToolLocalActivityImpl. Remove ExecuteToolLocalActivityImpl registration from SpringAiPlugin. Keep @SideEffectTool as a convenience for wrapping in Workflow.sideEffect(). Keep activity stub / nexus stub auto-detection as shortcuts.",
       "severity": "high",
       "category": "refactor",
       "depends_on": [],
