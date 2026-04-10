@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.activity.EmbeddingModelActivityImpl;
 import io.temporal.springai.activity.VectorStoreActivityImpl;
-import io.temporal.springai.tool.ExecuteToolLocalActivityImpl;
 import io.temporal.worker.Worker;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,7 +39,6 @@ class SpringAiPluginTest {
 
     Set<Class<?>> types = activityTypes(captureRegisteredActivities(worker));
     assertTrue(types.contains(ChatModelActivityImpl.class));
-    assertTrue(types.contains(ExecuteToolLocalActivityImpl.class));
     // No VectorStore or EmbeddingModel — those are separate plugins now
     assertFalse(types.contains(VectorStoreActivityImpl.class));
     assertFalse(types.contains(EmbeddingModelActivityImpl.class));

@@ -2,7 +2,6 @@ package io.temporal.springai.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.temporal.springai.tool.DeterministicTool;
 import io.temporal.springai.tool.SideEffectTool;
 import io.temporal.springai.tool.SideEffectToolCallback;
 import java.util.List;
@@ -14,7 +13,6 @@ class TemporalToolUtilTest {
 
   // --- Test fixture classes ---
 
-  @DeterministicTool
   static class MathTools {
     @Tool(description = "Add two numbers")
     public int add(int a, int b) {
@@ -43,7 +41,6 @@ class TemporalToolUtilTest {
     }
   }
 
-  // No annotation
   static class UnannotatedTools {
     @Tool(description = "Some tool")
     public String doSomething() {
@@ -51,23 +48,22 @@ class TemporalToolUtilTest {
     }
   }
 
-  // --- Tests for convertTools with @DeterministicTool ---
+  // --- Tests for plain tools (execute in workflow context) ---
 
   @Test
-  void convertTools_deterministicTool_producesStandardCallbacks() {
+  void convertTools_plainTool_producesStandardCallbacks() {
     List<ToolCallback> callbacks = TemporalToolUtil.convertTools(new MathTools());
 
     assertEquals(2, callbacks.size());
-    // DeterministicTool callbacks should NOT be wrapped in SideEffectToolCallback
     for (ToolCallback cb : callbacks) {
       assertFalse(
           cb instanceof SideEffectToolCallback,
-          "DeterministicTool should not produce SideEffectToolCallback");
+          "Plain tool should not produce SideEffectToolCallback");
     }
   }
 
   @Test
-  void convertTools_deterministicTool_hasCorrectToolNames() {
+  void convertTools_plainTool_hasCorrectToolNames() {
     List<ToolCallback> callbacks = TemporalToolUtil.convertTools(new MathTools());
 
     List<String> toolNames =
@@ -75,7 +71,21 @@ class TemporalToolUtilTest {
     assertEquals(List.of("add", "multiply"), toolNames);
   }
 
-  // --- Tests for convertTools with @SideEffectTool ---
+  @Test
+  void convertTools_unannotatedTool_producesStandardCallbacks() {
+    List<ToolCallback> callbacks = TemporalToolUtil.convertTools(new UnannotatedTools());
+
+    assertEquals(1, callbacks.size());
+    assertEquals("doSomething", callbacks.get(0).getToolDefinition().name());
+  }
+
+  @Test
+  void convertTools_plainString_throwsIllegalState() {
+    // String has no @Tool methods — Spring AI's ToolCallbacks.from() throws
+    assertThrows(IllegalStateException.class, () -> TemporalToolUtil.convertTools("not a tool"));
+  }
+
+  // --- Tests for @SideEffectTool ---
 
   @Test
   void convertTools_sideEffectTool_producesSideEffectCallbackWrappers() {
@@ -101,46 +111,18 @@ class TemporalToolUtilTest {
     assertEquals("currentTimeMillis", wrapper.getDelegate().getToolDefinition().name());
   }
 
-  // --- Tests for unknown/unannotated objects ---
-
-  @Test
-  void convertTools_unannotatedObject_throwsIllegalArgumentException() {
-    UnannotatedTools unannotated = new UnannotatedTools();
-
-    IllegalArgumentException ex =
-        assertThrows(
-            IllegalArgumentException.class, () -> TemporalToolUtil.convertTools(unannotated));
-    assertTrue(ex.getMessage().contains("not a recognized Temporal primitive"));
-    assertTrue(ex.getMessage().contains("@DeterministicTool"));
-    assertTrue(ex.getMessage().contains("@SideEffectTool"));
-    assertTrue(ex.getMessage().contains(UnannotatedTools.class.getName()));
-  }
-
-  @Test
-  void convertTools_plainString_throwsIllegalArgumentException() {
-    IllegalArgumentException ex =
-        assertThrows(
-            IllegalArgumentException.class, () -> TemporalToolUtil.convertTools("not a tool"));
-    assertTrue(ex.getMessage().contains("java.lang.String"));
-  }
-
   // --- Tests for null handling ---
 
   @Test
   void convertTools_nullObject_throwsIllegalArgumentException() {
-    IllegalArgumentException ex =
-        assertThrows(
-            IllegalArgumentException.class, () -> TemporalToolUtil.convertTools((Object) null));
-    assertTrue(ex.getMessage().contains("null"));
+    assertThrows(
+        IllegalArgumentException.class, () -> TemporalToolUtil.convertTools((Object) null));
   }
 
   @Test
   void convertTools_nullInArray_throwsIllegalArgumentException() {
-    IllegalArgumentException ex =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalToolUtil.convertTools(new MathTools(), null));
-    assertTrue(ex.getMessage().contains("null"));
+    assertThrows(
+        IllegalArgumentException.class, () -> TemporalToolUtil.convertTools(new MathTools(), null));
   }
 
   // --- Tests for empty input ---
@@ -154,11 +136,10 @@ class TemporalToolUtilTest {
   // --- Tests for mixed tool types ---
 
   @Test
-  void convertTools_mixedDeterministicAndSideEffect_allConvertCorrectly() {
+  void convertTools_mixedPlainAndSideEffect_allConvertCorrectly() {
     List<ToolCallback> callbacks =
         TemporalToolUtil.convertTools(new MathTools(), new TimestampTools(), new RandomTools());
 
-    // MathTools has 2 methods, TimestampTools has 1, RandomTools has 1
     assertEquals(4, callbacks.size());
 
     long sideEffectCount =
@@ -166,45 +147,16 @@ class TemporalToolUtilTest {
     long standardCount =
         callbacks.stream().filter(cb -> !(cb instanceof SideEffectToolCallback)).count();
 
-    // 2 from TimestampTools + RandomTools are SideEffectToolCallback
     assertEquals(2, sideEffectCount);
-    // 2 from MathTools are standard
     assertEquals(2, standardCount);
   }
 
   @Test
-  void convertTools_mixedWithUnannotated_throwsOnFirstUnannotated() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> TemporalToolUtil.convertTools(new MathTools(), new UnannotatedTools()));
-  }
+  void convertTools_mixedWithUnannotated_allSucceed() {
+    List<ToolCallback> callbacks =
+        TemporalToolUtil.convertTools(new MathTools(), new UnannotatedTools());
 
-  // --- Tests for isRecognizedToolType ---
-
-  @Test
-  void isRecognizedToolType_deterministicTool_returnsTrue() {
-    assertTrue(TemporalToolUtil.isRecognizedToolType(new MathTools()));
-  }
-
-  @Test
-  void isRecognizedToolType_sideEffectTool_returnsTrue() {
-    assertTrue(TemporalToolUtil.isRecognizedToolType(new TimestampTools()));
-  }
-
-  @Test
-  void isRecognizedToolType_unannotatedObject_returnsFalse() {
-    assertFalse(TemporalToolUtil.isRecognizedToolType(new UnannotatedTools()));
-  }
-
-  @Test
-  void isRecognizedToolType_plainObject_returnsFalse() {
-    assertFalse(TemporalToolUtil.isRecognizedToolType("a string"));
-    assertFalse(TemporalToolUtil.isRecognizedToolType(42));
-  }
-
-  @Test
-  void isRecognizedToolType_null_returnsFalse() {
-    assertFalse(TemporalToolUtil.isRecognizedToolType(null));
+    assertEquals(3, callbacks.size()); // 2 from MathTools + 1 from UnannotatedTools
   }
 
   // --- Tests for TemporalStubUtil negative cases ---
@@ -239,7 +191,6 @@ class TemporalToolUtilTest {
 
   @Test
   void stubUtil_nonTemporalProxy_returnsFalse() {
-    // A JDK dynamic proxy that is NOT a Temporal stub should return false for all checks
     Object proxy =
         java.lang.reflect.Proxy.newProxyInstance(
             getClass().getClassLoader(),

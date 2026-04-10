@@ -45,13 +45,11 @@ import java.lang.annotation.Target;
  * <p><b>When to use which annotation:</b>
  *
  * <ul>
- *   <li>{@link DeterministicTool} - Pure functions with no side effects (math, string manipulation)
  *   <li>{@code @SideEffectTool} - Non-deterministic but cheap operations (timestamps, random
  *       values)
  *   <li>Activity stub - Operations with external side effects or that need retry/durability
  * </ul>
  *
- * @see DeterministicTool
  * @see io.temporal.workflow.Workflow#sideEffect(Class, io.temporal.workflow.Functions.Func)
  */
 @Target({ElementType.TYPE})

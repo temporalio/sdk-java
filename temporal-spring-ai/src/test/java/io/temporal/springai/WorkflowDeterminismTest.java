@@ -9,7 +9,6 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.chat.TemporalChatClient;
 import io.temporal.springai.model.ActivityChatModel;
-import io.temporal.springai.tool.DeterministicTool;
 import io.temporal.springai.tool.SideEffectTool;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
@@ -116,20 +115,17 @@ class WorkflowDeterminismTest {
     @Override
     public String chat(String message) {
       ActivityChatModel chatModel = ActivityChatModel.forDefault();
-      TestDeterministicTools deterministicTools = new TestDeterministicTools();
+      TestPlainTools plainTools = new TestPlainTools();
       TestSideEffectTools sideEffectTools = new TestSideEffectTools();
       ChatClient chatClient =
-          TemporalChatClient.builder(chatModel)
-              .defaultTools(deterministicTools, sideEffectTools)
-              .build();
+          TemporalChatClient.builder(chatModel).defaultTools(plainTools, sideEffectTools).build();
       return chatClient.prompt().user(message).call().content();
     }
   }
 
   // --- Test tool classes ---
 
-  @DeterministicTool
-  public static class TestDeterministicTools {
+  public static class TestPlainTools {
     @Tool(description = "Add two numbers")
     public int add(int a, int b) {
       return a + b;

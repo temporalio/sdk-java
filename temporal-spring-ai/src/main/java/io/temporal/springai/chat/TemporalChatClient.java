@@ -20,7 +20,6 @@ import org.springframework.util.Assert;
  *
  * <ul>
  *   <li>Automatic conversion of activity stubs to tool callbacks
- *   <li>Support for {@code @DeterministicTool} annotated classes
  *   <li>Clear errors for unsupported operations (streaming, tool context)
  * </ul>
  *
@@ -36,7 +35,6 @@ import org.springframework.util.Assert;
  *
  *     // Create tools
  *     WeatherActivity weatherTool = Workflow.newActivityStub(WeatherActivity.class, opts);
- *     MathTools mathTools = new MathTools(); // @DeterministicTool
  *
  *     // Build the Temporal-aware chat client
  *     this.chatClient = TemporalChatClient.builder(activityChatModel)
@@ -106,8 +104,9 @@ public class TemporalChatClient extends DefaultChatClient {
    * <ul>
    *   <li>Activity stubs (created with {@code Workflow.newActivityStub()})
    *   <li>Local activity stubs (created with {@code Workflow.newLocalActivityStub()})
-   *   <li>Classes annotated with {@code @DeterministicTool}
-   *   <li>Classes annotated with {@code @SideEffectTool}
+   *   <li>Nexus service stubs (created with {@code Workflow.newNexusServiceStub()})
+   *   <li>Classes annotated with {@code @SideEffectTool} (wrapped in {@code Workflow.sideEffect()})
+   *   <li>Plain objects with {@code @Tool} methods (executed directly in workflow context)
    * </ul>
    *
    * @see TemporalToolUtil
@@ -140,22 +139,13 @@ public class TemporalChatClient extends DefaultChatClient {
     /**
      * Sets the default tools for all requests.
      *
-     * <p>This method automatically detects and converts Temporal-specific tool types:
+     * <p>Activity stubs and Nexus stubs are auto-detected and executed as durable operations.
+     * {@code @SideEffectTool} classes are wrapped in {@code Workflow.sideEffect()}. Everything else
+     * executes directly in workflow context — the user is responsible for determinism.
      *
-     * <ul>
-     *   <li>Activity stubs are converted to durable tool callbacks
-     *   <li>Local activity stubs are converted to fast tool callbacks
-     *   <li>{@code @DeterministicTool} classes are converted to direct tool callbacks
-     *   <li>{@code @SideEffectTool} classes are wrapped in {@code Workflow.sideEffect()}
-     * </ul>
-     *
-     * <p>Unrecognized tool types will throw an {@link IllegalArgumentException}. For tools that
-     * aren't properly annotated, use {@code defaultToolCallbacks()} with {@link
-     * io.temporal.springai.advisor.SandboxingAdvisor} to wrap them safely.
-     *
-     * @param toolObjects the tool objects (activity stubs, deterministic tool instances, etc.)
+     * @param toolObjects the tool objects (activity stubs, {@code @SideEffectTool} instances, plain
+     *     {@code @Tool} objects, etc.)
      * @return this builder
-     * @throws IllegalArgumentException if a tool object is not a recognized type
      */
     @Override
     public ChatClient.Builder defaultTools(Object... toolObjects) {

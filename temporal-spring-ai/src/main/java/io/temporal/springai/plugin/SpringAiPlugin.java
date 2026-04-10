@@ -2,7 +2,6 @@ package io.temporal.springai.plugin;
 
 import io.temporal.common.SimplePlugin;
 import io.temporal.springai.activity.ChatModelActivityImpl;
-import io.temporal.springai.tool.ExecuteToolLocalActivityImpl;
 import io.temporal.worker.Worker;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -14,8 +13,8 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.lang.Nullable;
 
 /**
- * Core Temporal plugin that registers {@link io.temporal.springai.activity.ChatModelActivity} and
- * {@link io.temporal.springai.tool.ExecuteToolLocalActivity} with Temporal workers.
+ * Core Temporal plugin that registers {@link io.temporal.springai.activity.ChatModelActivity} with
+ * Temporal workers.
  *
  * <p>This plugin handles the required ChatModel integration. Optional integrations (VectorStore,
  * EmbeddingModel, MCP) are handled by separate plugins that are conditionally created by
@@ -99,20 +98,12 @@ public class SpringAiPlugin extends SimplePlugin {
 
   @Override
   public void initializeWorker(@Nonnull String taskQueue, @Nonnull Worker worker) {
-    // Register the ChatModelActivity implementation with all chat models
     ChatModelActivityImpl chatModelActivityImpl =
         new ChatModelActivityImpl(chatModels, defaultModelName);
     worker.registerActivitiesImplementations(chatModelActivityImpl);
 
-    // Register ExecuteToolLocalActivity for LocalActivityToolCallbackWrapper support
-    ExecuteToolLocalActivityImpl executeToolLocalActivity = new ExecuteToolLocalActivityImpl();
-    worker.registerActivitiesImplementations(executeToolLocalActivity);
-
     String modelInfo = chatModels.size() > 1 ? " (" + chatModels.size() + " models)" : "";
-    log.info(
-        "Registered ChatModelActivity{} and ExecuteToolLocalActivity for task queue {}",
-        modelInfo,
-        taskQueue);
+    log.info("Registered ChatModelActivity{} for task queue {}", modelInfo, taskQueue);
   }
 
   /**

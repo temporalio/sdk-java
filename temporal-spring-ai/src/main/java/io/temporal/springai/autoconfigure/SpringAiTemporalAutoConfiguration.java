@@ -13,8 +13,7 @@ import org.springframework.context.annotation.Bean;
  * Core auto-configuration for the Spring AI Temporal plugin.
  *
  * <p>Creates the {@link SpringAiPlugin} bean which registers {@link
- * io.temporal.springai.activity.ChatModelActivity} and {@link
- * io.temporal.springai.tool.ExecuteToolLocalActivity} with all Temporal workers.
+ * io.temporal.springai.activity.ChatModelActivity} with all Temporal workers.
  *
  * <p>Optional integrations are handled by separate auto-configuration classes:
  *
