@@ -7,6 +7,7 @@ import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Information about the Activity Task that the current Activity Execution is handling. Use {@link
@@ -21,13 +22,17 @@ public interface ActivityInfo {
   byte[] getTaskToken();
 
   /**
-   * @return WorkflowId of the Workflow Execution that scheduled the Activity Execution.
+   * @return WorkflowId of the Workflow Execution that scheduled the Activity Execution, or {@code
+   *     null} for standalone activities not scheduled by a workflow.
    */
+  @Nullable
   String getWorkflowId();
 
   /**
-   * @return RunId of the Workflow Execution that scheduled the Activity Execution.
+   * @return RunId of the Workflow Execution that scheduled the Activity Execution, or {@code null}
+   *     for standalone activities not scheduled by a workflow.
    */
+  @Nullable
   String getRunId();
 
   /**
@@ -82,8 +87,10 @@ public interface ActivityInfo {
   Optional<Payloads> getHeartbeatDetails();
 
   /**
-   * @return the Workflow Type of the Workflow Execution that executed the Activity.
+   * @return the Workflow Type of the Workflow Execution that executed the Activity, or {@code null}
+   *     for standalone activities not scheduled by a workflow.
    */
+  @Nullable
   String getWorkflowType();
 
   /**
@@ -92,10 +99,12 @@ public interface ActivityInfo {
    * same namespace, hence no need for different {@code getWorkflowNamespace()} and {@link
    * #getActivityNamespace()} methods.
    *
-   * @return the Namespace of Workflow Execution that scheduled the Activity.
+   * @return the Namespace of Workflow Execution that scheduled the Activity, or the activity
+   *     namespace for standalone activities.
    * @deprecated use {@link #getNamespace()}
    */
   @Deprecated
+  @Nullable
   String getWorkflowNamespace();
 
   /**
@@ -108,9 +117,19 @@ public interface ActivityInfo {
    * @deprecated use {@link #getNamespace()}
    */
   @Deprecated
+  @Nullable
   String getActivityNamespace();
 
   String getNamespace();
+
+  /**
+   * @return {@code true} if this activity was scheduled by a workflow execution; {@code false} for
+   *     standalone activities started via {@link io.temporal.client.WorkflowClient#startActivity}.
+   */
+  @Experimental
+  default boolean isWorkflowActivity() {
+    return getWorkflowId() != null && !getWorkflowId().isEmpty();
+  }
 
   String getActivityTaskQueue();
 

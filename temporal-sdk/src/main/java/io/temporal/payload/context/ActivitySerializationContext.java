@@ -32,8 +32,8 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
   public ActivitySerializationContext(ActivityInfo info) {
     this(
         info.getNamespace(),
-        info.getWorkflowId(),
-        info.getWorkflowType(),
+        info.getWorkflowId() != null ? info.getWorkflowId() : "",
+        info.getWorkflowType() != null ? info.getWorkflowType() : "",
         info.getActivityType(),
         info.getActivityTaskQueue(),
         info.isLocal());

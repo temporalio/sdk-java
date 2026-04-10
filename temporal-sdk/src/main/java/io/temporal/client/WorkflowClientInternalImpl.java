@@ -13,6 +13,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -357,6 +358,83 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         .listWorkflowExecutions(
             new WorkflowClientCallsInterceptor.ListWorkflowExecutionsInput(query, pageSize))
         .getStream();
+  }
+
+  @Override
+  public ActivityHandle startActivity(
+      String activityType, List<Object> args, StartActivityOptions options)
+      throws ActivityAlreadyStartedException {
+    WorkflowClientCallsInterceptor.StartActivityOutput output =
+        workflowClientCallsInvoker.startActivity(
+            new WorkflowClientCallsInterceptor.StartActivityInput(
+                activityType, args, options, Header.empty()));
+    return new ActivityHandleImpl(
+        output.getActivityId(), output.getActivityRunId(), workflowClientCallsInvoker);
+  }
+
+  @Override
+  public ActivityHandle startActivity(
+      String activityType, Class<?> resultType, List<Object> args, StartActivityOptions options)
+      throws ActivityAlreadyStartedException {
+    // resultType is advisory only (for documentation/type-checking); start behaves identically
+    return startActivity(activityType, args, options);
+  }
+
+  @Override
+  public void executeActivity(String activityType, List<Object> args, StartActivityOptions options)
+      throws ActivityFailedException {
+    startActivity(activityType, args, options).getResult();
+  }
+
+  @Override
+  public <R> R executeActivity(
+      String activityType, Class<R> resultType, List<Object> args, StartActivityOptions options)
+      throws ActivityFailedException {
+    return startActivity(activityType, args, options).getResult(resultType);
+  }
+
+  @Override
+  public ActivityHandle getActivityHandle(String id) {
+    return new ActivityHandleImpl(id, null, workflowClientCallsInvoker);
+  }
+
+  @Override
+  public ActivityHandle getActivityHandle(String id, String runId) {
+    return new ActivityHandleImpl(id, runId, workflowClientCallsInvoker);
+  }
+
+  @Override
+  public Stream<ActivityExecution> listActivities(String query) {
+    return listActivities(query, ActivityListOptions.newBuilder().build());
+  }
+
+  @Override
+  public Stream<ActivityExecution> listActivities(String query, ActivityListOptions options) {
+    return workflowClientCallsInvoker
+        .listActivities(new WorkflowClientCallsInterceptor.ListActivitiesInput(query, options))
+        .getStream();
+  }
+
+  @Override
+  public ActivityExecutionCount countActivities(String query) {
+    return countActivities(query, ActivityCountOptions.newBuilder().build());
+  }
+
+  @Override
+  public ActivityExecutionCount countActivities(String query, ActivityCountOptions options) {
+    return workflowClientCallsInvoker
+        .countActivities(new WorkflowClientCallsInterceptor.CountActivitiesInput(query, options))
+        .getCount();
+  }
+
+  @Override
+  public ActivityListPage listActivitiesPaginated(
+      String query, @Nullable byte[] nextPageToken, ActivityListPaginatedOptions options) {
+    return workflowClientCallsInvoker
+        .listActivitiesPaginated(
+            new WorkflowClientCallsInterceptor.ListActivitiesPaginatedInput(
+                query, nextPageToken, options))
+        .getPage();
   }
 
   @Override

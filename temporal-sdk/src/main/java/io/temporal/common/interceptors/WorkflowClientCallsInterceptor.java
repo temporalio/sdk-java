@@ -4,8 +4,10 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.update.v1.WaitPolicy;
 import io.temporal.client.*;
+import io.temporal.client.ActivityFailedException;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -111,6 +113,33 @@ public interface WorkflowClientCallsInterceptor {
   }
 
   CountWorkflowOutput countWorkflows(CountWorkflowsInput input);
+
+  // ---- Standalone Activity methods ----
+
+  @Experimental
+  StartActivityOutput startActivity(StartActivityInput input);
+
+  @Experimental
+  <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
+      throws ActivityFailedException;
+
+  @Experimental
+  DescribeActivityOutput describeActivity(DescribeActivityInput input);
+
+  @Experimental
+  CancelActivityOutput cancelActivity(CancelActivityInput input);
+
+  @Experimental
+  TerminateActivityOutput terminateActivity(TerminateActivityInput input);
+
+  @Experimental
+  ListActivitiesOutput listActivities(ListActivitiesInput input);
+
+  @Experimental
+  CountActivitiesOutput countActivities(CountActivitiesInput input);
+
+  @Experimental
+  ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input);
 
   final class WorkflowStartInput {
     private final String workflowId;
@@ -707,6 +736,312 @@ public interface WorkflowClientCallsInterceptor {
 
     public WorkflowExecutionCount getCount() {
       return count;
+    }
+  }
+
+  // ---- Standalone Activity Input/Output classes ----
+
+  @Experimental
+  final class GetActivityResultInput<R> {
+    private final String activityId;
+    private final @Nullable String runId;
+    private final Class<R> resultClass;
+
+    public GetActivityResultInput(String activityId, @Nullable String runId, Class<R> resultClass) {
+      this.activityId = activityId;
+      this.runId = runId;
+      this.resultClass = resultClass;
+    }
+
+    public String getActivityId() {
+      return activityId;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+  }
+
+  @Experimental
+  final class GetActivityResultOutput<R> {
+    private final R result;
+
+    public GetActivityResultOutput(R result) {
+      this.result = result;
+    }
+
+    public R getResult() {
+      return result;
+    }
+  }
+
+  @Experimental
+  final class StartActivityInput {
+    private final String activityType;
+    private final List<Object> args;
+    private final StartActivityOptions options;
+    private final Header header;
+
+    public StartActivityInput(
+        String activityType, List<Object> args, StartActivityOptions options, Header header) {
+      this.activityType = activityType;
+      this.args = args;
+      this.options = options;
+      this.header = header;
+    }
+
+    public String getActivityType() {
+      return activityType;
+    }
+
+    public List<Object> getArgs() {
+      return args;
+    }
+
+    public StartActivityOptions getOptions() {
+      return options;
+    }
+
+    public Header getHeader() {
+      return header;
+    }
+  }
+
+  @Experimental
+  final class StartActivityOutput {
+    private final String activityId;
+    private final @Nullable String activityRunId;
+
+    public StartActivityOutput(String activityId, @Nullable String activityRunId) {
+      this.activityId = activityId;
+      this.activityRunId = activityRunId;
+    }
+
+    public String getActivityId() {
+      return activityId;
+    }
+
+    @Nullable
+    public String getActivityRunId() {
+      return activityRunId;
+    }
+  }
+
+  @Experimental
+  final class DescribeActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final ActivityDescribeOptions options;
+
+    public DescribeActivityInput(
+        String id, @Nullable String runId, ActivityDescribeOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public ActivityDescribeOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class DescribeActivityOutput {
+    private final ActivityExecutionDescription description;
+
+    public DescribeActivityOutput(ActivityExecutionDescription description) {
+      this.description = description;
+    }
+
+    public ActivityExecutionDescription getDescription() {
+      return description;
+    }
+  }
+
+  @Experimental
+  final class CancelActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final ActivityCancelOptions options;
+
+    public CancelActivityInput(String id, @Nullable String runId, ActivityCancelOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public ActivityCancelOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class CancelActivityOutput {}
+
+  @Experimental
+  final class TerminateActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final @Nullable String reason;
+    private final ActivityTerminateOptions options;
+
+    public TerminateActivityInput(
+        String id,
+        @Nullable String runId,
+        @Nullable String reason,
+        ActivityTerminateOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.reason = reason;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
+    }
+
+    public ActivityTerminateOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class TerminateActivityOutput {}
+
+  @Experimental
+  final class ListActivitiesInput {
+    private final String query;
+    private final ActivityListOptions options;
+
+    public ListActivitiesInput(String query, ActivityListOptions options) {
+      this.query = query;
+      this.options = options;
+    }
+
+    public String getQuery() {
+      return query;
+    }
+
+    public ActivityListOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class ListActivitiesOutput {
+    private final Stream<ActivityExecution> stream;
+
+    public ListActivitiesOutput(Stream<ActivityExecution> stream) {
+      this.stream = stream;
+    }
+
+    public Stream<ActivityExecution> getStream() {
+      return stream;
+    }
+  }
+
+  @Experimental
+  final class CountActivitiesInput {
+    private final String query;
+    private final ActivityCountOptions options;
+
+    public CountActivitiesInput(String query, ActivityCountOptions options) {
+      this.query = query;
+      this.options = options;
+    }
+
+    public String getQuery() {
+      return query;
+    }
+
+    public ActivityCountOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class CountActivitiesOutput {
+    private final ActivityExecutionCount count;
+
+    public CountActivitiesOutput(ActivityExecutionCount count) {
+      this.count = count;
+    }
+
+    public ActivityExecutionCount getCount() {
+      return count;
+    }
+  }
+
+  @Experimental
+  final class ListActivitiesPaginatedInput {
+    private final String query;
+    private final @Nullable byte[] nextPageToken;
+    private final ActivityListPaginatedOptions options;
+
+    public ListActivitiesPaginatedInput(
+        String query, @Nullable byte[] nextPageToken, ActivityListPaginatedOptions options) {
+      this.query = query;
+      this.nextPageToken = nextPageToken;
+      this.options = options;
+    }
+
+    public String getQuery() {
+      return query;
+    }
+
+    @Nullable
+    public byte[] getNextPageToken() {
+      return nextPageToken;
+    }
+
+    public ActivityListPaginatedOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class ListActivitiesPaginatedOutput {
+    private final ActivityListPage page;
+
+    public ListActivitiesPaginatedOutput(ActivityListPage page) {
+      this.page = page;
+    }
+
+    public ActivityListPage getPage() {
+      return page;
     }
   }
 }
