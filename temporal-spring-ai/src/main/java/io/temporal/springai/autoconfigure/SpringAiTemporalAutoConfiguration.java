@@ -32,6 +32,6 @@ public class SpringAiTemporalAutoConfiguration {
   @Bean
   public SpringAiPlugin springAiPlugin(
       @Autowired Map<String, ChatModel> chatModels, ObjectProvider<ChatModel> primaryChatModel) {
-    return new SpringAiPlugin(chatModels, primaryChatModel.getIfAvailable());
+    return new SpringAiPlugin(chatModels, primaryChatModel.getIfUnique());
   }
 }
