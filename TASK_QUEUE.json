@@ -24,12 +24,12 @@
     {
       "id": "T22",
       "title": "Discuss: temporal-spring-ai-starter artifact for easier onboarding",
-      "description": "temporal-sdk is compileOnly, so users must declare it separately. DABH asks if a starter that pulls in the right transitive deps would reduce friction. Need to decide if this is worth it or if documentation is sufficient.",
+      "description": "Create a temporal-spring-ai-starter artifact (POM-only, no code) that transitively pulls in temporal-spring-ai, temporal-sdk, and temporal-spring-boot-starter. Prevents version mismatches and ClassNotFoundException for users starting from scratch.",
       "severity": "medium",
       "category": "discussion",
       "depends_on": [],
-      "status": "todo",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053808755. Discuss with Don."
+      "status": "blocked",
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053808755. Do after merging the main PR \u2014 not urgent for initial landing."
     },
     {
       "id": "T23",
