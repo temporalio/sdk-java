@@ -58,8 +58,8 @@
       "severity": "low",
       "category": "reply",
       "depends_on": [],
-      "status": "todo",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053818533"
+      "status": "completed",
+      "notes": "Replied to DABH acknowledging. Follow-up task T29 created."
     },
     {
       "id": "T26",
@@ -94,6 +94,16 @@
       "depends_on": [],
       "status": "completed",
       "notes": "tconley1428 review comments on SpringAiPlugin.java and SpringAiVectorStoreAutoConfiguration.java"
+    },
+    {
+      "id": "T29",
+      "title": "Add README with compatibility matrix to temporal-spring-ai module",
+      "description": "Document supported versions: Java 17+, Spring Boot 3.x+, Spring AI 1.1.0, Temporal SDK 1.33.0+.",
+      "severity": "low",
+      "category": "docs",
+      "depends_on": [],
+      "status": "todo",
+      "notes": "Follow-up from DABH review comment on build.gradle."
     }
   ]
 }
