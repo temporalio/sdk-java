@@ -44,12 +44,12 @@
     {
       "id": "T24",
       "title": "Discuss: Change ChatModelTypes.rawContent from Object to String",
-      "description": "rawContent is Object but always cast to String. DABH suggests making it String. Cleaner but changes the JSON schema. If we ever need non-string content (multimodal), we'd have to change it back.",
+      "description": "Change ChatModelTypes.Message rawContent from Object to String. Spring AI's Content.getText() returns String. We always cast to String on both sides anyway. Object type gives false flexibility that would ClassCastException at runtime.",
       "severity": "low",
-      "category": "discussion",
+      "category": "bugfix",
       "depends_on": [],
       "status": "todo",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054049714. Discuss with Don."
+      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054049714. Verified Spring AI Message interface uses String, not Object."
     },
     {
       "id": "T25",
