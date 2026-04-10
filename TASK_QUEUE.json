@@ -48,7 +48,7 @@
       "severity": "high",
       "category": "bugfix",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "Real bug \u2014 hit this in the multimodel sample, worked around with auto-config exclusions. Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789744"
     },
     {

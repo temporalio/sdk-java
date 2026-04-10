@@ -3,11 +3,11 @@ package io.temporal.springai.autoconfigure;
 import io.temporal.springai.plugin.SpringAiPlugin;
 import java.util.Map;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
-import org.springframework.lang.Nullable;
 
 /**
  * Core auto-configuration for the Spring AI Temporal plugin.
@@ -31,8 +31,7 @@ public class SpringAiTemporalAutoConfiguration {
 
   @Bean
   public SpringAiPlugin springAiPlugin(
-      @Autowired Map<String, ChatModel> chatModels,
-      @Autowired(required = false) @Nullable ChatModel primaryChatModel) {
-    return new SpringAiPlugin(chatModels, primaryChatModel);
+      @Autowired Map<String, ChatModel> chatModels, ObjectProvider<ChatModel> primaryChatModel) {
+    return new SpringAiPlugin(chatModels, primaryChatModel.getIfAvailable());
   }
 }
