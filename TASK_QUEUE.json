@@ -58,7 +58,7 @@
       "severity": "medium",
       "category": "tests",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "Copilot review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053789763"
     },
     {

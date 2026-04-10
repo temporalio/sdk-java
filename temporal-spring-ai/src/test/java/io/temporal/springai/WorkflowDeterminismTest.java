@@ -17,6 +17,7 @@ import io.temporal.worker.Worker;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +67,6 @@ class WorkflowDeterminismTest {
     String result = workflow.chat("Hi");
     assertEquals("Hello from the model!", result);
 
-    // Capture history and replay — any non-determinism throws here
     WorkflowExecutionHistory history =
         client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
     WorkflowReplayer.replayWorkflowExecution(history, ChatWorkflowImpl.class);
@@ -76,8 +76,10 @@ class WorkflowDeterminismTest {
   void workflowWithTools_replaysDeterministically() throws Exception {
     Worker worker = testEnv.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ChatWithToolsWorkflowImpl.class);
-    worker.registerActivitiesImplementations(
-        new ChatModelActivityImpl(new StubChatModel("I used the tools!")));
+
+    // First call: model requests the "add" tool. Second call: model returns final text.
+    ChatModel toolCallingModel = new ToolCallingStubChatModel();
+    worker.registerActivitiesImplementations(new ChatModelActivityImpl(toolCallingModel));
 
     testEnv.start();
 
@@ -85,10 +87,9 @@ class WorkflowDeterminismTest {
         client.newWorkflowStub(
             TestChatWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
 
-    String result = workflow.chat("Use tools");
-    assertEquals("I used the tools!", result);
+    String result = workflow.chat("What is 2+3?");
+    assertEquals("The answer is 5", result);
 
-    // Capture history and replay
     WorkflowExecutionHistory history =
         client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
     WorkflowReplayer.replayWorkflowExecution(history, ChatWithToolsWorkflowImpl.class);
@@ -143,8 +144,9 @@ class WorkflowDeterminismTest {
     }
   }
 
-  // --- Stub ChatModel that returns a canned response ---
+  // --- Stub ChatModels ---
 
+  /** Always returns a final text response, no tool calls. */
   private static class StubChatModel implements ChatModel {
     private final String response;
 
@@ -157,6 +159,40 @@ class WorkflowDeterminismTest {
       return ChatResponse.builder()
           .generations(List.of(new Generation(new AssistantMessage(response))))
           .build();
+    }
+
+    @Override
+    public reactor.core.publisher.Flux<ChatResponse> stream(Prompt prompt) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  /**
+   * First call: returns a tool call request for "add(2, 3)". Second call (after tool response):
+   * returns final text "The answer is 5".
+   */
+  private static class ToolCallingStubChatModel implements ChatModel {
+    private final AtomicInteger callCount = new AtomicInteger(0);
+
+    @Override
+    public ChatResponse call(Prompt prompt) {
+      if (callCount.getAndIncrement() == 0) {
+        // First call: request a tool call
+        AssistantMessage toolRequest =
+            AssistantMessage.builder()
+                .content("")
+                .toolCalls(
+                    List.of(
+                        new AssistantMessage.ToolCall(
+                            "call_1", "function", "add", "{\"a\":2,\"b\":3}")))
+                .build();
+        return ChatResponse.builder().generations(List.of(new Generation(toolRequest))).build();
+      } else {
+        // Second call: return final response
+        return ChatResponse.builder()
+            .generations(List.of(new Generation(new AssistantMessage("The answer is 5"))))
+            .build();
+      }
     }
 
     @Override
