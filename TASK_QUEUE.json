@@ -78,7 +78,7 @@
       "severity": "low",
       "category": "improvement",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054058971"
     },
     {

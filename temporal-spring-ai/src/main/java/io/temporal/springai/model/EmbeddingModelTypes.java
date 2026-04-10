@@ -31,7 +31,7 @@ public final class EmbeddingModelTypes {
    *
    * @param embedding the embedding vector
    */
-  public record EmbedOutput(List<Double> embedding) {}
+  public record EmbedOutput(float[] embedding) {}
 
   /**
    * Output containing multiple embedding vectors.
@@ -47,7 +47,7 @@ public final class EmbeddingModelTypes {
    * @param index the index in the original input list
    * @param embedding the embedding vector
    */
-  public record EmbeddingResult(int index, List<Double> embedding) {}
+  public record EmbeddingResult(int index, float[] embedding) {}
 
   /**
    * Metadata about the embedding operation.

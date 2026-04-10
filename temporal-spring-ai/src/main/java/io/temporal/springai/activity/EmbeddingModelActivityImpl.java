@@ -25,7 +25,7 @@ public class EmbeddingModelActivityImpl implements EmbeddingModelActivity {
   @Override
   public EmbeddingModelTypes.EmbedOutput embed(EmbeddingModelTypes.EmbedTextInput input) {
     float[] embedding = embeddingModel.embed(input.text());
-    return new EmbeddingModelTypes.EmbedOutput(toDoubleList(embedding));
+    return new EmbeddingModelTypes.EmbedOutput(embedding);
   }
 
   @Override
@@ -38,8 +38,7 @@ public class EmbeddingModelActivityImpl implements EmbeddingModelActivity {
             .mapToObj(
                 i -> {
                   var embedding = response.getResults().get(i);
-                  return new EmbeddingModelTypes.EmbeddingResult(
-                      i, toDoubleList(embedding.getOutput()));
+                  return new EmbeddingModelTypes.EmbeddingResult(i, embedding.getOutput());
                 })
             .collect(Collectors.toList());
 
@@ -61,12 +60,5 @@ public class EmbeddingModelActivityImpl implements EmbeddingModelActivity {
   @Override
   public EmbeddingModelTypes.DimensionsOutput dimensions() {
     return new EmbeddingModelTypes.DimensionsOutput(embeddingModel.dimensions());
-  }
-
-  private List<Double> toDoubleList(float[] floats) {
-    return IntStream.range(0, floats.length)
-        .mapToDouble(i -> floats[i])
-        .boxed()
-        .collect(Collectors.toList());
   }
 }
