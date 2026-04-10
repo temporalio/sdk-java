@@ -115,9 +115,9 @@ public class ChatModelActivityImpl implements ChatModelActivity {
 
   private org.springframework.ai.chat.messages.Message toSpringMessage(Message message) {
     return switch (message.role()) {
-      case SYSTEM -> new SystemMessage((String) message.rawContent());
+      case SYSTEM -> new SystemMessage(message.rawContent());
       case USER -> {
-        UserMessage.Builder builder = UserMessage.builder().text((String) message.rawContent());
+        UserMessage.Builder builder = UserMessage.builder().text(message.rawContent());
         if (!CollectionUtils.isEmpty(message.mediaContents())) {
           builder.media(
               message.mediaContents().stream().map(this::toMedia).collect(Collectors.toList()));
@@ -126,7 +126,7 @@ public class ChatModelActivityImpl implements ChatModelActivity {
       }
       case ASSISTANT ->
           AssistantMessage.builder()
-              .content((String) message.rawContent())
+              .content(message.rawContent())
               .properties(Map.of())
               .toolCalls(
                   message.toolCalls() != null
@@ -152,7 +152,7 @@ public class ChatModelActivityImpl implements ChatModelActivity {
               .responses(
                   List.of(
                       new ToolResponseMessage.ToolResponse(
-                          message.toolCallId(), message.name(), (String) message.rawContent())))
+                          message.toolCallId(), message.name(), message.rawContent())))
               .build();
     };
   }

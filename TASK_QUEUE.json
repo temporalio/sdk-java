@@ -48,7 +48,7 @@
       "severity": "low",
       "category": "bugfix",
       "depends_on": [],
-      "status": "todo",
+      "status": "completed",
       "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054049714. Verified Spring AI Message interface uses String, not Object."
     },
     {

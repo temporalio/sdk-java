@@ -369,7 +369,7 @@ public class ActivityChatModel implements ChatModel {
     }
 
     return AssistantMessage.builder()
-        .content((String) message.rawContent())
+        .content(message.rawContent())
         .properties(Map.of())
         .toolCalls(toolCalls)
         .media(media)

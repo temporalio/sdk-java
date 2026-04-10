@@ -82,7 +82,7 @@ public final class ChatModelTypes {
   /**
    * A message in the conversation.
    *
-   * @param rawContent the message content (typically a String)
+   * @param rawContent the message text content
    * @param role the role of the message author
    * @param name optional name for the participant
    * @param toolCallId tool call ID this message responds to (for TOOL role)
@@ -92,7 +92,7 @@ public final class ChatModelTypes {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Message(
-      @JsonProperty("content") Object rawContent,
+      @JsonProperty("content") String rawContent,
       @JsonProperty("role") Role role,
       @JsonProperty("name") String name,
       @JsonProperty("tool_call_id") String toolCallId,
@@ -101,11 +101,11 @@ public final class ChatModelTypes {
           List<ToolCall> toolCalls,
       @JsonProperty("media") @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
           List<MediaContent> mediaContents) {
-    public Message(Object content, Role role) {
+    public Message(String content, Role role) {
       this(content, role, null, null, null, null);
     }
 
-    public Message(Object content, List<MediaContent> mediaContents, Role role) {
+    public Message(String content, List<MediaContent> mediaContents, Role role) {
       this(content, role, null, null, null, mediaContents);
     }
 
