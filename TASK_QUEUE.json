@@ -38,8 +38,8 @@
       "severity": "low",
       "category": "discussion",
       "depends_on": [],
-      "status": "todo",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054027377. Discuss with Don."
+      "status": "completed",
+      "notes": "Replied to DABH: cache prevents non-determinism (live vs replay would diverge without it). Standard MCP practice."
     },
     {
       "id": "T24",
