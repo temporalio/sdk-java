@@ -99,11 +99,11 @@
       "id": "T29",
       "title": "Add README with compatibility matrix to temporal-spring-ai module",
       "description": "Document supported versions: Java 17+, Spring Boot 3.x+, Spring AI 1.1.0, Temporal SDK 1.33.0+.",
-      "severity": "low",
+      "severity": "high",
       "category": "docs",
       "depends_on": [],
       "status": "todo",
-      "notes": "Follow-up from DABH review comment on build.gradle."
+      "notes": "Do in this PR, not a follow-up."
     }
   ]
 }
