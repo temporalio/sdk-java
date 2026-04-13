@@ -12,16 +12,6 @@
       "notes": "Blocked on SDK release. Not actionable yet."
     },
     {
-      "id": "T15",
-      "title": "Change default tool execution to run in workflow context",
-      "description": "Currently unannotated tools passed to defaultTools() are rejected. Change so they execute directly in workflow context by default \u2014 user is responsible for determinism. Remove @DeterministicTool annotation (no longer needed since direct execution is the default). Remove SandboxingAdvisor, LocalActivityToolCallbackWrapper, ExecuteToolLocalActivity, and ExecuteToolLocalActivityImpl. Remove ExecuteToolLocalActivityImpl registration from SpringAiPlugin. Keep @SideEffectTool as a convenience for wrapping in Workflow.sideEffect(). Keep activity stub / nexus stub auto-detection as shortcuts.",
-      "severity": "high",
-      "category": "refactor",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "Blocked on PR review discussion with tconley1428. Agreed on direction but need to finalize details before implementing. Proposed design: https://github.com/temporalio/sdk-java/pull/2829#discussion_r3060711651"
-    },
-    {
       "id": "T22",
       "title": "Discuss: temporal-spring-ai-starter artifact for easier onboarding",
       "description": "Create a temporal-spring-ai-starter artifact (POM-only, no code) that transitively pulls in temporal-spring-ai, temporal-sdk, and temporal-spring-boot-starter. Prevents version mismatches and ClassNotFoundException for users starting from scratch.",
@@ -30,100 +20,6 @@
       "depends_on": [],
       "status": "blocked",
       "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053808755. Do after merging the main PR \u2014 not urgent for initial landing."
-    },
-    {
-      "id": "T23",
-      "title": "Discuss: ActivityMcpClient capability caching and replay",
-      "description": "ActivityMcpClient caches getServerCapabilities() after first call. DABH asks if stale cache is a replay concern. Probably fine (activity result is in history, so replay uses the original value \u2014 which is correct). But worth confirming the design intent.",
-      "severity": "low",
-      "category": "discussion",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "Replied to DABH: cache prevents non-determinism (live vs replay would diverge without it). Standard MCP practice."
-    },
-    {
-      "id": "T24",
-      "title": "Discuss: Change ChatModelTypes.rawContent from Object to String",
-      "description": "Change ChatModelTypes.Message rawContent from Object to String. Spring AI's Content.getText() returns String. We always cast to String on both sides anyway. Object type gives false flexibility that would ClassCastException at runtime.",
-      "severity": "low",
-      "category": "bugfix",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054049714. Verified Spring AI Message interface uses String, not Object."
-    },
-    {
-      "id": "T25",
-      "title": "Reply: compatibility matrix in docs",
-      "description": "DABH suggests documenting the compatibility matrix (Java version, Spring Boot version, Spring AI version). Acknowledge and defer to a docs PR.",
-      "severity": "low",
-      "category": "reply",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "Replied to DABH acknowledging. Follow-up task T29 created."
-    },
-    {
-      "id": "T26",
-      "title": "Reply: SandboxingAdvisor lacks tests",
-      "description": "DABH notes SandboxingAdvisor has no tests. Likely moot if T15 removes it. Reply explaining that.",
-      "severity": "low",
-      "category": "reply",
-      "depends_on": [
-        "T15"
-      ],
-      "status": "superseded",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3053836427 Moot once T15 removes these classes."
-    },
-    {
-      "id": "T27",
-      "title": "Reply: ToolContext silently dropped in LocalActivityToolCallbackWrapper",
-      "description": "DABH notes ToolContext is silently ignored. Likely moot if T15 removes LocalActivityToolCallbackWrapper. Reply explaining that.",
-      "severity": "low",
-      "category": "reply",
-      "depends_on": [
-        "T15"
-      ],
-      "status": "superseded",
-      "notes": "DABH review comment: https://github.com/temporalio/sdk-java/pull/2829/files#r3054036773 Moot once T15 removes these classes."
-    },
-    {
-      "id": "T28",
-      "title": "Restore VectorStorePlugin and EmbeddingModelPlugin as public classes",
-      "description": "Restore the plugin subclasses so users not using auto-config can create them manually (e.g. new VectorStorePlugin(vectorStore)). Auto-config uses them too. Reverts the builder-inline approach from the earlier refactor.",
-      "severity": "medium",
-      "category": "refactor",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "tconley1428 review comments on SpringAiPlugin.java and SpringAiVectorStoreAutoConfiguration.java"
-    },
-    {
-      "id": "T29",
-      "title": "Add README with compatibility matrix to temporal-spring-ai module",
-      "description": "Document supported versions: Java 17+, Spring Boot 3.x+, Spring AI 1.1.0, Temporal SDK 1.33.0+.",
-      "severity": "high",
-      "category": "docs",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "Do in this PR, not a follow-up."
-    },
-    {
-      "id": "T30",
-      "title": "Fix CI: Edge build fails with Java version mismatch",
-      "description": "Edge CI sets edgeDepsTest which compiles temporal-sdk at Java 21. Our module hardcodes Java 17, causing Gradle to reject the dependency. Fix: use 21 when edgeDepsTest is set, 17 otherwise.",
-      "severity": "high",
-      "category": "bugfix",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "Edge CI log showed: Dependency resolution is looking for a library compatible with JVM runtime version 17, but temporal-sdk is only compatible with JVM runtime version 21 or newer."
-    },
-    {
-      "id": "T31",
-      "title": "Fix CI: Docker build fails with Java 11 (release 17 not supported)",
-      "description": "Docker CI runs Java 11 which cannot compile --release 17. Conditionally exclude temporal-spring-ai from settings.gradle and BOM when JDK < 17.",
-      "severity": "high",
-      "category": "bugfix",
-      "depends_on": [],
-      "status": "completed",
-      "notes": "Docker CI log showed: error: release version 17 not supported. JAVA_HOME was Java 11."
     }
   ]
 }
