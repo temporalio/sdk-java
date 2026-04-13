@@ -119,15 +119,20 @@ public class AnthropicProvider implements Provider {
       @SuppressWarnings("unchecked")
       Map<String, Object> input = (Map<String, Object>) call.get("input");
       String result;
+      boolean isError = false;
       try {
         result = registry.dispatch(name, input);
       } catch (Exception e) {
         result = "error: " + e.getMessage();
+        isError = true;
       }
       Map<String, Object> toolResult = new LinkedHashMap<>();
       toolResult.put("type", "tool_result");
       toolResult.put("tool_use_id", id);
       toolResult.put("content", result);
+      if (isError) {
+        toolResult.put("is_error", Boolean.TRUE);
+      }
       toolResults.add(toolResult);
     }
     Map<String, Object> toolResultMsg = new LinkedHashMap<>();

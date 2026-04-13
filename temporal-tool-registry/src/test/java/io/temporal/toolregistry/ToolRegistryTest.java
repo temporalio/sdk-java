@@ -228,6 +228,77 @@ public class ToolRegistryTest {
     assertEquals("", reg.dispatch("read_file", Map.of("path", "/etc/hosts")));
   }
 
+  // ── AnthropicProvider is_error / handler error tests ─────────────────────────
+
+  /**
+   * Verifies that when a tool handler throws, the Anthropic tool result carries is_error=true and
+   * the turn does not propagate the exception.
+   */
+  @Test
+  public void testAnthropicProvider_HandlerError_SetsIsError() throws Exception {
+    // Start a minimal HTTP server to mock the Anthropic API.
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+
+    server.createContext(
+        "/",
+        exchange -> {
+          String body =
+              "{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\","
+                  + "\"content\":[{\"type\":\"tool_use\",\"id\":\"c1\","
+                  + "\"name\":\"boom\",\"input\":{}}],"
+                  + "\"model\":\"claude-sonnet-4-6\",\"stop_reason\":\"tool_use\","
+                  + "\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}";
+          byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (java.io.OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    server.start();
+
+    int port = server.getAddress().getPort();
+    String baseUrl = "http://localhost:" + port;
+
+    ToolRegistry registry = new ToolRegistry();
+    registry.register(
+        ToolDefinition.builder()
+            .name("boom")
+            .description("d")
+            .inputSchema(Collections.singletonMap("type", "object"))
+            .build(),
+        input -> {
+          throw new RuntimeException("intentional failure");
+        });
+
+    Provider provider =
+        new AnthropicProvider(
+            AnthropicConfig.builder().apiKey("test-key").baseUrl(baseUrl).build(),
+            registry,
+            "sys");
+
+    List<Map<String, Object>> messages = new ArrayList<>();
+    messages.add(new java.util.LinkedHashMap<>(Map.of("role", "user", "content", "go")));
+
+    TurnResult result = provider.runTurn(messages, registry.definitions());
+    server.stop(0);
+
+    assertFalse(result.isDone());
+    assertEquals(2, result.getNewMessages().size());
+
+    Map<String, Object> toolResultMsg = result.getNewMessages().get(1);
+    assertEquals("user", toolResultMsg.get("role"));
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> toolResults =
+        (List<Map<String, Object>>) toolResultMsg.get("content");
+    assertEquals(1, toolResults.size());
+    assertEquals("tool_result", toolResults.get(0).get("type"));
+    assertEquals(Boolean.TRUE, toolResults.get(0).get("is_error"));
+    String content = (String) toolResults.get(0).get("content");
+    assertTrue("error message should contain failure text", content.contains("intentional failure"));
+  }
+
   // ── Integration tests (skipped unless RUN_INTEGRATION_TESTS is set) ───────────
 
   private static ToolRegistry makeRecordRegistry(List<String> collected) throws Exception {
