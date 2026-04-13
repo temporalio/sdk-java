@@ -94,10 +94,18 @@ Auto-detected and executed as Nexus operations, similar to activity stubs.
 
 ## Optional Integrations
 
-These are auto-configured when their dependencies are on the classpath:
+Auto-configured when their dependencies are on the classpath:
 
 | Feature | Dependency | What it registers |
 |---|---|---|
 | Vector Store | `spring-ai-rag` | `VectorStoreActivity` |
 | Embeddings | `spring-ai-rag` | `EmbeddingModelActivity` |
 | MCP | `spring-ai-mcp` | `McpClientActivity` |
+
+These can also be set up programmatically without auto-configuration:
+
+```java
+new VectorStorePlugin(vectorStore)
+new EmbeddingModelPlugin(embeddingModel)
+new McpPlugin()
+```
