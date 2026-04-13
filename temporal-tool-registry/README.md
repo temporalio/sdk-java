@@ -38,7 +38,7 @@ import io.temporal.toolregistry.*;
 
 @ActivityMethod
 public List<String> analyze(String prompt) throws Exception {
-    List<String> issues = new ArrayList<>();
+    List<String> results = new ArrayList<>();
     ToolRegistry registry = new ToolRegistry();
     registry.register(
         ToolDefinition.builder()
@@ -50,7 +50,7 @@ public List<String> analyze(String prompt) throws Exception {
                 "required", List.of("description")))
             .build(),
         (Map<String, Object> input) -> {
-            issues.add((String) input.get("description"));
+            results.add((String) input.get("description"));
             return "recorded"; // this string is sent back to the LLM as the tool result
         });
 
@@ -61,7 +61,7 @@ public List<String> analyze(String prompt) throws Exception {
         "You are a code reviewer. Call flag_issue for each problem you find.");
 
     ToolRegistry.runToolLoop(provider, registry, prompt);
-    return issues;
+    return results;
 }
 ```
 
