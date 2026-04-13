@@ -15,13 +15,13 @@ class SessionCheckpoint {
   public int version = 1;
 
   public List<Map<String, Object>> messages = new ArrayList<>();
-  public List<Map<String, Object>> issues = new ArrayList<>();
+  public List<Map<String, Object>> results = new ArrayList<>();
 
   /** No-arg constructor required for Jackson deserialization. */
   SessionCheckpoint() {}
 
-  SessionCheckpoint(List<Map<String, Object>> messages, List<Map<String, Object>> issues) {
+  SessionCheckpoint(List<Map<String, Object>> messages, List<Map<String, Object>> results) {
     this.messages = new ArrayList<>(messages);
-    this.issues = new ArrayList<>(issues);
+    this.results = new ArrayList<>(results);
   }
 }

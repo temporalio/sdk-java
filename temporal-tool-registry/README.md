@@ -60,7 +60,7 @@ public List<String> analyze(String prompt) throws Exception {
     Provider provider = new AnthropicProvider(cfg, registry,
         "You are a code reviewer. Call flag_issue for each problem you find.");
 
-    ToolRegistry.runToolLoop(provider, registry, "" /* system prompt: "" defers to provider default */, prompt);
+    ToolRegistry.runToolLoop(provider, registry, prompt);
     return issues;
 }
 ```
@@ -97,23 +97,23 @@ For multi-turn LLM conversations that must survive activity retries, use
 ```java
 @ActivityMethod
 public List<Object> longAnalysis(String prompt) throws Exception {
-    List<Object> issues = new ArrayList<>();
+    List<Object> results = new ArrayList<>();
 
     AgenticSession.runWithSession(session -> {
         ToolRegistry registry = new ToolRegistry();
         registry.register(
             ToolDefinition.builder().name("flag").description("...").inputSchema(Map.of("type", "object")).build(),
-            input -> { session.addIssue(input); return "ok"; /* sent back to LLM */ });
+            input -> { session.addResult(input); return "ok"; /* sent back to LLM */ });
 
         AnthropicConfig cfg = AnthropicConfig.builder()
             .apiKey(System.getenv("ANTHROPIC_API_KEY")).build();
         Provider provider = new AnthropicProvider(cfg, registry, "your system prompt");
 
-        session.runToolLoop(provider, registry, "your system prompt", prompt);
-        issues.addAll(session.getIssues()); // capture after loop completes
+        session.runToolLoop(provider, registry, prompt);
+        results.addAll(session.getResults()); // capture after loop completes
     });
 
-    return issues;
+    return results;
 }
 ```
 
@@ -135,7 +135,7 @@ public void testAnalyze() throws Exception {
         MockResponse.done("analysis complete"));
 
     List<Map<String, Object>> msgs =
-        ToolRegistry.runToolLoop(provider, registry, "sys", "analyze");
+        ToolRegistry.runToolLoop(provider, registry, "analyze");
     assertTrue(msgs.size() > 2);
 }
 ```
@@ -156,7 +156,7 @@ incur billing — expect a few cents per full test run.
 
 ## Storing application results
 
-`session.getIssues()` accumulates application-level
+`session.getResults()` accumulates application-level
 results during the tool loop. Elements are serialized to JSON inside each heartbeat
 checkpoint — they must be plain maps/dicts with JSON-serializable values. A non-serializable
 value raises a non-retryable `ApplicationError` at heartbeat time rather than silently
@@ -167,17 +167,17 @@ losing data on the next retry.
 Convert your domain type to a plain dict at the tool-call site and back after the session:
 
 ```java
-record Issue(String type, String file) {}
+record Result(String type, String file) {}
 
 // Inside tool handler:
-session.addIssue(Map.of("type", "smell", "file", "Foo.java"));
+session.addResult(Map.of("type", "smell", "file", "Foo.java"));
 
 // After session (using Jackson for convenient mapping):
 // requires jackson-databind in your build.gradle:
 // implementation 'com.fasterxml.jackson.core:jackson-databind:VERSION'
 ObjectMapper mapper = new ObjectMapper();
-List<Issue> issues = session.getIssues().stream()
-    .map(m -> mapper.convertValue(m, Issue.class))
+List<Result> results = session.getResults().stream()
+    .map(m -> mapper.convertValue(m, Result.class))
     .toList();
 ```
 
@@ -202,6 +202,21 @@ Recommended timeouts:
 |---|---|
 | Standard (Claude 3.x, GPT-4o) | 30 s |
 | Reasoning (o1, o3, extended thinking) | 300 s |
+
+### Activity-level timeout
+
+Set `setScheduleToCloseTimeout` on the activity stub options to bound the entire conversation:
+
+```java
+ActivityOptions opts = ActivityOptions.newBuilder()
+    .setScheduleToCloseTimeout(Duration.ofMinutes(10))
+    .build();
+MyActivities stub = Workflow.newActivityStub(MyActivities.class, opts);
+```
+
+The per-turn client timeout and `ScheduleToCloseTimeout` are complementary:
+- Per-turn timeout fires if one LLM call hangs (protects against a single stuck turn)
+- `ScheduleToCloseTimeout` bounds the entire conversation including all retries (protects against runaway multi-turn loops)
 
 ## MCP integration
 

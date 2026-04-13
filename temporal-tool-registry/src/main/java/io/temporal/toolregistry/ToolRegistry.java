@@ -139,12 +139,11 @@ public class ToolRegistry {
    *
    * @param provider the LLM provider adapter
    * @param registry the tool registry (may be the same object, provided for clarity)
-   * @param system the system prompt
    * @param prompt the initial user prompt
    * @return the full message history on completion
    */
   public static List<Map<String, Object>> runToolLoop(
-      Provider provider, ToolRegistry registry, String system, String prompt) throws Exception {
+      Provider provider, ToolRegistry registry, String prompt) throws Exception {
     List<Map<String, Object>> messages = new ArrayList<>();
     Map<String, Object> userMsg = new LinkedHashMap<>();
     userMsg.put("role", "user");

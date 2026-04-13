@@ -13,15 +13,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Maintains conversation state (messages and issues) across multiple turns of a tool-calling loop,
- * with heartbeat checkpointing for crash recovery.
+ * Maintains conversation state (messages and results) across multiple turns of a tool-calling
+ * loop, with heartbeat checkpointing for crash recovery.
  *
  * <p>Use {@link #runWithSession(SessionFn)} inside a Temporal activity to get automatic checkpoint
  * restore-on-retry and heartbeat on each turn:
  *
  * <pre>{@code
  * AgenticSession.runWithSession(session -> {
- *     session.runToolLoop(provider, registry, systemPrompt, userPrompt);
+ *     session.runToolLoop(provider, registry, userPrompt);
  * });
  * }</pre>
  *
@@ -32,7 +32,7 @@ public class AgenticSession {
   private static final Logger log = LoggerFactory.getLogger(AgenticSession.class);
 
   private final List<Map<String, Object>> messages = new ArrayList<>();
-  private final List<Map<String, Object>> issues = new ArrayList<>();
+  private final List<Map<String, Object>> results = new ArrayList<>();
 
   /** Creates an empty session. */
   public AgenticSession() {}
@@ -50,13 +50,12 @@ public class AgenticSession {
    *
    * @param provider the LLM provider adapter
    * @param registry the tool registry
-   * @param system the system prompt
    * @param prompt the initial user prompt (ignored if restoring from a checkpoint that already has
    *     messages)
    * @throws ActivityCompletionException if the activity is cancelled
    * @throws Exception on API or dispatch errors
    */
-  public void runToolLoop(Provider provider, ToolRegistry registry, String system, String prompt)
+  public void runToolLoop(Provider provider, ToolRegistry registry, String prompt)
       throws Exception {
     if (messages.isEmpty()) {
       Map<String, Object> userMsg = new java.util.LinkedHashMap<>();
@@ -83,16 +82,16 @@ public class AgenticSession {
    *
    * <p>Throws {@link ActivityCompletionException} if the activity has been cancelled.
    *
-   * @throws ApplicationFailure (non-retryable) if any issue is not JSON-serializable
+   * @throws ApplicationFailure (non-retryable) if any result is not JSON-serializable
    */
   public void checkpoint() throws ActivityCompletionException {
     ObjectMapper mapper = new ObjectMapper();
-    for (int i = 0; i < issues.size(); i++) {
+    for (int i = 0; i < results.size(); i++) {
       try {
-        mapper.writeValueAsString(issues.get(i));
+        mapper.writeValueAsString(results.get(i));
       } catch (Exception e) {
         throw ApplicationFailure.newNonRetryableFailure(
-            "AgenticSession: issues["
+            "AgenticSession: results["
                 + i
                 + "] is not JSON-serializable: "
                 + e.getMessage()
@@ -100,7 +99,7 @@ public class AgenticSession {
             "InvalidArgument");
       }
     }
-    SessionCheckpoint cp = new SessionCheckpoint(messages, issues);
+    SessionCheckpoint cp = new SessionCheckpoint(messages, results);
     Activity.getExecutionContext().heartbeat(cp);
   }
 
@@ -114,7 +113,7 @@ public class AgenticSession {
    *
    * <pre>{@code
    * AgenticSession.runWithSession(session -> {
-   *     session.runToolLoop(provider, registry, systemPrompt, userPrompt);
+   *     session.runToolLoop(provider, registry, userPrompt);
    * });
    * }</pre>
    *
@@ -152,21 +151,21 @@ public class AgenticSession {
     return Collections.unmodifiableList(messages);
   }
 
-  /** Returns an unmodifiable view of the issues collected during the session. */
-  public List<Map<String, Object>> getIssues() {
-    return Collections.unmodifiableList(issues);
+  /** Returns an unmodifiable view of the results collected during the session. */
+  public List<Map<String, Object>> getResults() {
+    return Collections.unmodifiableList(results);
   }
 
-  /** Appends an issue to the issue list. */
-  public void addIssue(Map<String, Object> issue) {
-    issues.add(issue);
+  /** Appends a result to the results list. */
+  public void addResult(Map<String, Object> result) {
+    results.add(result);
   }
 
   /** Restores session state from a checkpoint. Called by {@link #runWithSession} on retry. */
   void restore(SessionCheckpoint checkpoint) {
     messages.clear();
     messages.addAll(checkpoint.messages);
-    issues.clear();
-    issues.addAll(checkpoint.issues);
+    results.clear();
+    results.addAll(checkpoint.results);
   }
 }

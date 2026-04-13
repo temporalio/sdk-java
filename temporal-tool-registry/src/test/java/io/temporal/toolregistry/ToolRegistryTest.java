@@ -148,7 +148,7 @@ public class ToolRegistryTest {
         new io.temporal.toolregistry.testing.MockProvider(
             io.temporal.toolregistry.testing.MockResponse.done("finished"));
 
-    List<Map<String, Object>> msgs = ToolRegistry.runToolLoop(provider, registry, "sys", "hello");
+    List<Map<String, Object>> msgs = ToolRegistry.runToolLoop(provider, registry, "hello");
 
     // user + assistant
     assertEquals(2, msgs.size());
@@ -195,7 +195,7 @@ public class ToolRegistryTest {
           }
         });
 
-    List<Map<String, Object>> msgs = ToolRegistry.runToolLoop(provider, registry, "sys", "go");
+    List<Map<String, Object>> msgs = ToolRegistry.runToolLoop(provider, registry, "go");
 
     assertEquals(Arrays.asList("first", "second"), collected);
     // user + (assistant + tool_result_wrapper)*2 + final assistant
@@ -335,7 +335,7 @@ public class ToolRegistryTest {
             "You must call record() exactly once with value='hello'.");
 
     ToolRegistry.runToolLoop(
-        provider, registry, "", "Please call the record tool with value='hello'.");
+        provider, registry, "Please call the record tool with value='hello'.");
 
     assertTrue("expected 'hello' in collected", collected.contains("hello"));
   }
@@ -355,7 +355,7 @@ public class ToolRegistryTest {
             "You must call record() exactly once with value='hello'.");
 
     ToolRegistry.runToolLoop(
-        provider, registry, "", "Please call the record tool with value='hello'.");
+        provider, registry, "Please call the record tool with value='hello'.");
 
     assertTrue("expected 'hello' in collected", collected.contains("hello"));
   }
