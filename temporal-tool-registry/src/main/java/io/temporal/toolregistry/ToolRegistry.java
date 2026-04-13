@@ -39,6 +39,32 @@ public class ToolRegistry {
   private final List<ToolDefinition> defs = new ArrayList<>();
   private final Map<String, ToolHandler> handlers = new HashMap<>();
 
+  /**
+   * Creates a {@link ToolRegistry} from a list of MCP tool descriptors.
+   *
+   * <p>Each tool is registered with a no-op handler (returning an empty string). Override handlers
+   * by calling {@link #register} with the same name after construction.
+   *
+   * @param tools MCP tool descriptors
+   * @return a new registry populated from the MCP tool list
+   */
+  public static ToolRegistry fromMcpTools(List<McpTool> tools) {
+    ToolRegistry registry = new ToolRegistry();
+    Map<String, Object> emptySchema = Map.of("type", "object", "properties", Map.of());
+    for (McpTool tool : tools) {
+      Map<String, Object> schema =
+          tool.getInputSchema() != null ? tool.getInputSchema() : emptySchema;
+      registry.register(
+          ToolDefinition.builder()
+              .name(tool.getName())
+              .description(tool.getDescription())
+              .inputSchema(schema)
+              .build(),
+          input -> "");
+    }
+    return registry;
+  }
+
   /** Registers a tool definition and its handler. */
   public void register(ToolDefinition definition, ToolHandler handler) {
     defs.add(definition);

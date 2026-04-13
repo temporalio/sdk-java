@@ -200,3 +200,22 @@ Recommended timeouts:
 |---|---|
 | Standard (Claude 3.x, GPT-4o) | 30 s |
 | Reasoning (o1, o3, extended thinking) | 300 s |
+
+## MCP integration
+
+`ToolRegistry.fromMcpTools` converts a list of `McpTool` descriptors into a populated
+registry. Handlers default to no-ops that return an empty string; override them with
+`register` after construction.
+
+```java
+// mcpTools is List<McpTool> — populate from your MCP client.
+ToolRegistry registry = ToolRegistry.fromMcpTools(mcpTools);
+
+// Override specific handlers before running the loop.
+registry.register(
+    ToolDefinition.builder().name("read_file") /* ... */ .build(),
+    input -> readFile((String) input.get("path")));
+```
+
+`McpTool` mirrors the MCP protocol's `Tool` object: `name`, `description`, and
+`inputSchema` (a `Map<String, Object>` containing a JSON Schema object).

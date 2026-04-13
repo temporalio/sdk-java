@@ -202,6 +202,32 @@ public class ToolRegistryTest {
     assertTrue(msgs.size() > 4);
   }
 
+  // ── fromMcpTools ──────────────────────────────────────────────────────────────
+
+  @Test
+  public void testFromMcpTools_populatesRegistry() throws Exception {
+    McpTool t1 =
+        new McpTool(
+            "read_file",
+            "Read a file",
+            Map.of(
+                "type", "object",
+                "properties", Map.of("path", Map.of("type", "string")),
+                "required", List.of("path")));
+    McpTool t2 = new McpTool("list_dir", null, null); // null schema → empty object schema
+
+    ToolRegistry reg = ToolRegistry.fromMcpTools(Arrays.asList(t1, t2));
+
+    List<ToolDefinition> defs = reg.definitions();
+    assertEquals(2, defs.size());
+    assertEquals("read_file", defs.get(0).getName());
+    assertEquals("Read a file", defs.get(0).getDescription());
+    assertEquals("list_dir", defs.get(1).getName());
+    assertEquals("object", defs.get(1).getInputSchema().get("type"));
+    // no-op handler returns empty string
+    assertEquals("", reg.dispatch("read_file", Map.of("path", "/etc/hosts")));
+  }
+
   // ── Integration tests (skipped unless RUN_INTEGRATION_TESTS is set) ───────────
 
   private static ToolRegistry makeRecordRegistry(List<String> collected) throws Exception {
