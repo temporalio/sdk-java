@@ -812,9 +812,12 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
         ActivityExecutionAlreadyStartedFailure detail =
             StatusUtils.getFailure(e, ActivityExecutionAlreadyStartedFailure.class);
-        String runId = (detail != null && !detail.getRunId().isEmpty()) ? detail.getRunId() : null;
-        throw new ActivityAlreadyStartedException(
-            options.getId(), input.getActivityType(), runId, e);
+        if (detail != null) {
+          String runId = detail.getRunId().isEmpty() ? null : detail.getRunId();
+          throw new ActivityAlreadyStartedException(
+              options.getId(), input.getActivityType(), runId, e);
+        }
+        // detail absent — unknown ALREADY_EXISTS, re-throw raw StatusRuntimeException
       }
       throw e;
     }
