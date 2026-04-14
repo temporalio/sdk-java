@@ -16,6 +16,10 @@ public final class ActivityDescribeOptions {
 
     private Builder() {}
 
+    private Builder(ActivityDescribeOptions options) {
+      this.longPollToken = options.longPollToken;
+    }
+
     /**
      * Long-poll token returned by a previous describe call. When set, the server will block until
      * there is a state change before returning.
@@ -37,7 +41,7 @@ public final class ActivityDescribeOptions {
   }
 
   public Builder toBuilder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   @Nullable

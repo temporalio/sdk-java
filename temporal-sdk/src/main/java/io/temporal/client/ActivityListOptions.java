@@ -16,6 +16,10 @@ public final class ActivityListOptions {
 
     private Builder() {}
 
+    private Builder(ActivityListOptions options) {
+      this.limit = options.limit;
+    }
+
     /** Maximum total number of results to return across all pages. */
     public Builder setLimit(int limit) {
       this.limit = limit;
@@ -34,7 +38,7 @@ public final class ActivityListOptions {
   }
 
   public Builder toBuilder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   @Nullable

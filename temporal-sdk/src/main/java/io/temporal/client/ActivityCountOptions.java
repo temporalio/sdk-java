@@ -13,6 +13,8 @@ public final class ActivityCountOptions {
   public static final class Builder {
     private Builder() {}
 
+    private Builder(ActivityCountOptions options) {}
+
     public ActivityCountOptions build() {
       return new ActivityCountOptions(this);
     }
@@ -21,6 +23,6 @@ public final class ActivityCountOptions {
   private ActivityCountOptions(Builder builder) {}
 
   public Builder toBuilder() {
-    return new Builder();
+    return new Builder(this);
   }
 }

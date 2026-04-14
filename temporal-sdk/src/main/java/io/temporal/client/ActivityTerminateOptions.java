@@ -16,6 +16,10 @@ public final class ActivityTerminateOptions {
 
     private Builder() {}
 
+    private Builder(ActivityTerminateOptions options) {
+      this.reason = options.reason;
+    }
+
     /** Human-readable reason for the termination. */
     public Builder setReason(String reason) {
       this.reason = reason;
@@ -34,7 +38,7 @@ public final class ActivityTerminateOptions {
   }
 
   public Builder toBuilder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   @Nullable

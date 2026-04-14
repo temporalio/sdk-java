@@ -19,6 +19,10 @@ public final class ActivityListPaginatedOptions {
 
     private Builder() {}
 
+    private Builder(ActivityListPaginatedOptions options) {
+      this.pageSize = options.pageSize;
+    }
+
     /** Number of results per page. Server default is used if not set. */
     public Builder setPageSize(int pageSize) {
       this.pageSize = pageSize;
@@ -37,7 +41,7 @@ public final class ActivityListPaginatedOptions {
   }
 
   public Builder toBuilder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   @Nullable

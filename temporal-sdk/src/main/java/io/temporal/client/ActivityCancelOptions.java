@@ -16,6 +16,10 @@ public final class ActivityCancelOptions {
 
     private Builder() {}
 
+    private Builder(ActivityCancelOptions options) {
+      this.reason = options.reason;
+    }
+
     /** Human-readable reason for the cancellation. */
     public Builder setReason(String reason) {
       this.reason = reason;
@@ -34,7 +38,7 @@ public final class ActivityCancelOptions {
   }
 
   public Builder toBuilder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   @Nullable
