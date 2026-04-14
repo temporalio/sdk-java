@@ -24,7 +24,7 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  *         OrderWorkflow.class,
  *         wf -> wf.processOrder(input),
  *         WorkflowOptions.newBuilder()
- *             .setWorkflowId("order-" + context.getRequestId())
+ *             .setWorkflowId("order-" + input.getOrderId())
  *             .build());
  *   });
  * }
