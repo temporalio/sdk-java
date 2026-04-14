@@ -1,0 +1,131 @@
+package io.temporal.nexus;
+
+import io.nexusrpc.handler.OperationContext;
+import io.nexusrpc.handler.OperationStartDetails;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.Experimental;
+import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.nexus.NexusStartWorkflowHelper;
+import io.temporal.workflow.Functions;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
+ * Temporal workflows from within a Nexus operation handler.
+ *
+ * <p>Obtained via the {@link TemporalOperationHandler.StartFunction} parameter. The client creates
+ * workflow stubs internally — users pass the workflow class, a lambda that calls the workflow
+ * method, and workflow options.
+ *
+ * <p>Usage example:
+ *
+ * <pre>{@code
+ * @OperationImpl
+ * public OperationHandler<OrderInput, OrderResult> createOrder() {
+ *   return TemporalOperationHandler.from((context, client, input) -> {
+ *     return client.startWorkflow(
+ *         OrderWorkflow.class,
+ *         wf -> wf.processOrder(input),
+ *         WorkflowOptions.newBuilder()
+ *             .setWorkflowId("order-" + context.getRequestId())
+ *             .build());
+ *   });
+ * }
+ * }</pre>
+ *
+ * <p>For advanced use cases, the underlying {@link WorkflowClient} can be accessed via {@link
+ * #getWorkflowClient()}. For example, to send a signal and return a synchronous result:
+ *
+ * <pre>{@code
+ * @OperationImpl
+ * public OperationHandler<CancelOrderInput, Void> cancelOrder() {
+ *   return TemporalOperationHandler.from((context, client, input) -> {
+ *     client.getWorkflowClient()
+ *         .newUntypedWorkflowStub("order-" + input.getOrderId())
+ *         .signal("requestCancellation", input);
+ *     return TemporalOperationResult.sync(null);
+ *   });
+ * }
+ * }</pre>
+ */
+@Experimental
+public final class TemporalNexusClient {
+
+  private final WorkflowClient client;
+  private final OperationContext operationContext;
+  private final OperationStartDetails operationStartDetails;
+
+  TemporalNexusClient(
+      WorkflowClient client,
+      OperationContext operationContext,
+      OperationStartDetails operationStartDetails) {
+    this.client = Objects.requireNonNull(client);
+    this.operationContext = Objects.requireNonNull(operationContext);
+    this.operationStartDetails = Objects.requireNonNull(operationStartDetails);
+  }
+
+  /** Returns the underlying {@link WorkflowClient} for advanced use cases. */
+  public WorkflowClient getWorkflowClient() {
+    return client;
+  }
+
+  /**
+   * Starts a workflow by invoking a method on a workflow stub. The client creates the stub from the
+   * given class and options, then passes it to the provided consumer which should call exactly one
+   * workflow method. Works for both returning and void workflow methods.
+   *
+   * <p>Example (returning):
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, wf -> wf.run(input), options)
+   * }</pre>
+   *
+   * <p>Example (void):
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, wf -> wf.execute(input), options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowInvocation receives the workflow stub and calls exactly one workflow method
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <R> the workflow return type (inferred from calling context)
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  public <T, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass, Consumer<T> workflowInvocation, WorkflowOptions options) {
+    T stub = client.newWorkflowStub(workflowClass, options);
+    Functions.Proc bound = () -> workflowInvocation.accept(stub);
+    return invokeAndReturn(WorkflowHandle.fromWorkflowMethod(bound));
+  }
+
+  /**
+   * Starts a workflow using an untyped workflow type name.
+   *
+   * @param workflowType the workflow type name string
+   * @param resultClass the expected result class
+   * @param args workflow arguments
+   * @param options workflow start options (must include workflowId)
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  public <R> TemporalOperationResult<R> startWorkflow(
+      String workflowType, Class<R> resultClass, Object[] args, WorkflowOptions options) {
+    WorkflowStub stub = client.newUntypedWorkflowStub(workflowType, options);
+    WorkflowHandle<R> handle = WorkflowHandle.fromWorkflowStub(stub, resultClass, args);
+    return invokeAndReturn(handle);
+  }
+
+  private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<?> handle) {
+    NexusStartWorkflowResponse response =
+        NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
+            operationContext,
+            operationStartDetails,
+            request -> handle.getInvoker().invoke(request));
+    return TemporalOperationResult.async(response.getOperationToken());
+  }
+}
