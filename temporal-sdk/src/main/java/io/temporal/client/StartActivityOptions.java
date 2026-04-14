@@ -266,6 +266,44 @@ public final class StartActivityOptions {
   }
 
   @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    StartActivityOptions that = (StartActivityOptions) o;
+    return Objects.equals(id, that.id)
+        && Objects.equals(taskQueue, that.taskQueue)
+        && Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
+        && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
+        && Objects.equals(heartbeatTimeout, that.heartbeatTimeout)
+        && idReusePolicy == that.idReusePolicy
+        && idConflictPolicy == that.idConflictPolicy
+        && Objects.equals(retryOptions, that.retryOptions)
+        && Objects.equals(typedSearchAttributes, that.typedSearchAttributes)
+        && Objects.equals(staticSummary, that.staticSummary)
+        && Objects.equals(staticDetails, that.staticDetails)
+        && Objects.equals(priority, that.priority);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        id,
+        taskQueue,
+        scheduleToCloseTimeout,
+        scheduleToStartTimeout,
+        startToCloseTimeout,
+        heartbeatTimeout,
+        idReusePolicy,
+        idConflictPolicy,
+        retryOptions,
+        typedSearchAttributes,
+        staticSummary,
+        staticDetails,
+        priority);
+  }
+
+  @Override
   public String toString() {
     return "StartActivityOptions{"
         + "id='"
