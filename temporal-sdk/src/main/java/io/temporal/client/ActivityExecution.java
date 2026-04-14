@@ -8,6 +8,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -135,5 +136,63 @@ public class ActivityExecution {
   @Nonnull
   public SearchAttributes getTypedSearchAttributes() {
     return typedSearchAttributes;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ActivityExecution that = (ActivityExecution) o;
+    return stateTransitionCount == that.stateTransitionCount
+        && Objects.equals(activityId, that.activityId)
+        && Objects.equals(activityRunId, that.activityRunId)
+        && Objects.equals(activityType, that.activityType)
+        && Objects.equals(closeTime, that.closeTime)
+        && Objects.equals(executionDuration, that.executionDuration)
+        && Objects.equals(scheduledTime, that.scheduledTime)
+        && status == that.status
+        && Objects.equals(taskQueue, that.taskQueue)
+        && Objects.equals(typedSearchAttributes, that.typedSearchAttributes);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        activityId,
+        activityRunId,
+        activityType,
+        closeTime,
+        executionDuration,
+        scheduledTime,
+        stateTransitionCount,
+        status,
+        taskQueue,
+        typedSearchAttributes);
+  }
+
+  @Override
+  public String toString() {
+    return "ActivityExecution{"
+        + "activityId='"
+        + activityId
+        + "', activityRunId='"
+        + activityRunId
+        + "', activityType='"
+        + activityType
+        + "', status="
+        + status
+        + ", scheduledTime="
+        + scheduledTime
+        + ", closeTime="
+        + closeTime
+        + ", executionDuration="
+        + executionDuration
+        + ", taskQueue='"
+        + taskQueue
+        + "', stateTransitionCount="
+        + stateTransitionCount
+        + ", typedSearchAttributes="
+        + typedSearchAttributes
+        + '}';
   }
 }

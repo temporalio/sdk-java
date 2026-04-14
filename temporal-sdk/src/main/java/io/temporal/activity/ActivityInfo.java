@@ -128,7 +128,7 @@ public interface ActivityInfo {
    */
   @Experimental
   default boolean isWorkflowActivity() {
-    return getWorkflowId() != null && !getWorkflowId().isEmpty();
+    return getWorkflowId() != null;
   }
 
   String getActivityTaskQueue();
