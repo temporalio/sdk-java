@@ -30,8 +30,9 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  * }
  * }</pre>
  *
- * <p>The cancel behavior is overridable. By default, canceling an operation backed by a
- * workflow-run token cancels the underlying workflow.
+ * <p>This class supports subclassing to customize cancel behavior. Override {@link
+ * #cancelWorkflowRun} to change how workflow-run cancellations are handled. The {@link #start} and
+ * {@link #cancel} methods should not be overridden — they contain the core dispatch logic.
  *
  * @param <T> the input type
  * @param <R> the result type
@@ -53,17 +54,18 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
   private final StartFunction<T, R> startFunction;
 
-  private TemporalOperationHandler(StartFunction<T, R> startFunction) {
+  protected TemporalOperationHandler(StartFunction<T, R> startFunction) {
     this.startFunction = startFunction;
   }
 
   /**
-   * Creates an {@link OperationHandler} from a start function.
+   * Creates a {@link TemporalOperationHandler} from a start function. Subclass and override {@link
+   * #cancelWorkflowRun} to customize cancel behavior.
    *
    * @param startFunction the function to invoke on start operation requests
    * @return an operation handler backed by the given start function
    */
-  public static <T, R> OperationHandler<T, R> from(StartFunction<T, R> startFunction) {
+  public static <T, R> TemporalOperationHandler<T, R> from(StartFunction<T, R> startFunction) {
     return new TemporalOperationHandler<>(startFunction);
   }
 

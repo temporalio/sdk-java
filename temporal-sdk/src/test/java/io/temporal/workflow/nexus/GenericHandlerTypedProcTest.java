@@ -64,7 +64,10 @@ public class GenericHandlerTypedProcTest {
           (context, client, input) ->
               client.startWorkflow(
                   TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class,
-                  wf -> wf.proc(),
+                  wf -> {
+                    wf.proc();
+                    return null;
+                  },
                   WorkflowOptions.newBuilder()
                       .setWorkflowId(
                           "generic-handler-proc-"
