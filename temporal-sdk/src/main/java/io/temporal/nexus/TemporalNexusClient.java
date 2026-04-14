@@ -10,7 +10,6 @@ import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
@@ -73,33 +72,33 @@ public final class TemporalNexusClient {
   }
 
   /**
-   * Starts a workflow by invoking a method on a workflow stub. The client creates the stub from the
-   * given class and options, then passes it to the provided consumer which should call exactly one
-   * workflow method. Works for both returning and void workflow methods.
+   * Starts a workflow by invoking a returning method on a workflow stub. The client creates the
+   * stub from the given class and options, then invokes the workflow method via the provided
+   * function.
    *
-   * <p>Example (returning):
+   * <p>Example:
    *
    * <pre>{@code
    * client.startWorkflow(MyWorkflow.class, wf -> wf.run(input), options)
    * }</pre>
    *
-   * <p>Example (void):
+   * <p>For void-returning workflow methods, use a block lambda that returns null:
    *
    * <pre>{@code
-   * client.startWorkflow(MyWorkflow.class, wf -> wf.execute(input), options)
+   * client.startWorkflow(MyWorkflow.class, wf -> { wf.execute(input); return null; }, options)
    * }</pre>
    *
    * @param workflowClass the workflow interface class
-   * @param workflowInvocation receives the workflow stub and calls exactly one workflow method
+   * @param workflowMethod receives the workflow stub and calls exactly one workflow method
    * @param options workflow start options (must include workflowId)
    * @param <T> the workflow interface type
-   * @param <R> the workflow return type (inferred from calling context)
+   * @param <R> the workflow return type
    * @return an async {@link TemporalOperationResult} with the workflow-run operation token
    */
   public <T, R> TemporalOperationResult<R> startWorkflow(
-      Class<T> workflowClass, Consumer<T> workflowInvocation, WorkflowOptions options) {
+      Class<T> workflowClass, Functions.Func1<T, R> workflowMethod, WorkflowOptions options) {
     T stub = client.newWorkflowStub(workflowClass, options);
-    Functions.Proc bound = () -> workflowInvocation.accept(stub);
+    Functions.Func<R> bound = () -> workflowMethod.apply(stub);
     return invokeAndReturn(WorkflowHandle.fromWorkflowMethod(bound));
   }
 
@@ -120,7 +119,7 @@ public final class TemporalNexusClient {
     return invokeAndReturn(handle);
   }
 
-  private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<?> handle) {
+  private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<R> handle) {
     NexusStartWorkflowResponse response =
         NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
             operationContext,
