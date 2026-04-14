@@ -841,13 +841,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         pollRequest.setRunId(input.getRunId());
       }
 
-      PollActivityExecutionResponse pollResponse;
-      try {
-        pollResponse = genericClient.pollActivity(pollRequest.build());
-      } catch (StatusRuntimeException e) {
-        throw new ActivityFailedException(
-            "Failed to poll activity result for activityId='" + input.getActivityId() + "'", e);
-      }
+      PollActivityExecutionResponse pollResponse = genericClient.pollActivity(pollRequest.build());
 
       if (!pollResponse.hasOutcome()) {
         // Server timed out long-poll; retry
