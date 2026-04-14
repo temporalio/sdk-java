@@ -15,33 +15,45 @@ public class OperationTokenUtil {
   private static final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
 
   /**
-   * Load a workflow run operation token from an operation token.
+   * Load and validate an operation token without asserting the token type. Use this for cancel
+   * dispatch where the token type determines the cancel behavior.
    *
-   * @throws IllegalArgumentException if the operation token is invalid
+   * @throws IllegalArgumentException if the operation token is malformed or has invalid structure
    */
-  public static WorkflowRunOperationToken loadWorkflowRunOperationToken(String operationToken) {
-    WorkflowRunOperationToken token;
+  public static OperationToken loadOperationToken(String operationToken) {
+    OperationToken token;
     try {
-      JavaType reference = mapper.getTypeFactory().constructType(WorkflowRunOperationToken.class);
+      JavaType reference = mapper.getTypeFactory().constructType(OperationToken.class);
       token = mapper.readValue(decoder.decode(operationToken), reference);
     } catch (Exception e) {
       throw new IllegalArgumentException("Failed to parse operation token: " + e.getMessage());
     }
-    if (!token.getType().equals(OperationTokenType.WORKFLOW_RUN)) {
-      throw new IllegalArgumentException(
-          "Invalid workflow run token: incorrect operation token type: " + token.getType());
-    }
     if (token.getVersion() != null && token.getVersion() != 0) {
-      throw new IllegalArgumentException("Invalid workflow run token: unexpected version field");
+      throw new IllegalArgumentException("Invalid operation token: unexpected version field");
     }
     if (Strings.isNullOrEmpty(token.getWorkflowId())) {
-      throw new IllegalArgumentException("Invalid workflow run token: missing workflow ID (wid)");
+      throw new IllegalArgumentException("Invalid operation token: missing workflow ID (wid)");
     }
     return token;
   }
 
   /**
-   * Attempt to extract the workflow Id from an operation token.
+   * Load a workflow run operation token, asserting that the token type is {@link
+   * OperationTokenType#WORKFLOW_RUN}.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid or not a workflow run token
+   */
+  public static OperationToken loadWorkflowRunOperationToken(String operationToken) {
+    OperationToken token = loadOperationToken(operationToken);
+    if (!token.getType().equals(OperationTokenType.WORKFLOW_RUN)) {
+      throw new IllegalArgumentException(
+          "Invalid workflow run token: incorrect operation token type: " + token.getType());
+    }
+    return token;
+  }
+
+  /**
+   * Extract the workflow ID from a workflow run operation token.
    *
    * @throws IllegalArgumentException if the operation token is invalid
    */
@@ -52,7 +64,9 @@ public class OperationTokenUtil {
   /** Generate a workflow run operation token from a workflow ID and namespace. */
   public static String generateWorkflowRunOperationToken(String workflowId, String namespace)
       throws JsonProcessingException {
-    String json = ow.writeValueAsString(new WorkflowRunOperationToken(namespace, workflowId));
+    String json =
+        ow.writeValueAsString(
+            new OperationToken(OperationTokenType.WORKFLOW_RUN, namespace, workflowId));
     return encoder.encodeToString(json.getBytes());
   }
 
