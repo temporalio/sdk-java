@@ -6,9 +6,8 @@ import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /**
- * Context for a Nexus cancel operation. Combines the {@link OperationContext} and {@link
- * OperationCancelDetails} into a single object passed to cancel methods on {@link
- * TemporalOperationHandler}.
+ * Context for a Nexus cancel operation request, passed to {@link
+ * TemporalOperationHandler#cancelWorkflowRun}.
  */
 @Experimental
 public final class TemporalOperationCancelContext {

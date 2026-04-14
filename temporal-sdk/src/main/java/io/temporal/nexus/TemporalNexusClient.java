@@ -15,9 +15,7 @@ import java.util.Objects;
  * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
  * Temporal workflows from within a Nexus operation handler.
  *
- * <p>Obtained via the {@link TemporalOperationHandler.StartFunction} parameter. The client creates
- * workflow stubs internally — users pass the workflow class, a lambda that calls the workflow
- * method, and workflow options.
+ * <p>Obtained via the {@link TemporalOperationHandler.StartFunction} parameter.
  *
  * <p>Usage example:
  *
@@ -29,7 +27,7 @@ import java.util.Objects;
  *         OrderWorkflow.class,
  *         wf -> wf.processOrder(input),
  *         WorkflowOptions.newBuilder()
- *             .setWorkflowId("order-" + context.getRequestId())
+ *             .setWorkflowId("order-" + input.getOrderId())
  *             .build());
  *   });
  * }

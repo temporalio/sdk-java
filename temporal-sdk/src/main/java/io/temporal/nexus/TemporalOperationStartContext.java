@@ -6,9 +6,8 @@ import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /**
- * Context for a Nexus start operation. Combines the {@link OperationContext} and {@link
- * OperationStartDetails} into a single object passed to {@link
- * TemporalOperationHandler.StartFunction}.
+ * Context for a Nexus start operation request, passed to {@link
+ * TemporalOperationHandler.StartFunction} alongside the {@link TemporalNexusClient} and input.
  */
 @Experimental
 public final class TemporalOperationStartContext {
@@ -32,7 +31,7 @@ public final class TemporalOperationStartContext {
     return operationContext.getOperation();
   }
 
-  /** Returns the request ID, commonly used as a workflow ID for idempotency. */
+  /** Returns the request ID for this operation. */
   public String getRequestId() {
     return operationStartDetails.getRequestId();
   }
