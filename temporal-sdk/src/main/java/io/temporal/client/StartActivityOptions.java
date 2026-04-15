@@ -13,7 +13,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * Options for starting a standalone activity via {@link WorkflowClient#startActivity}.
+ * Options for starting a standalone activity via {@link ActivityClient#start}.
  *
  * <p>At least one of {@link #getScheduleToCloseTimeout()} or {@link #getStartToCloseTimeout()} must
  * be set.

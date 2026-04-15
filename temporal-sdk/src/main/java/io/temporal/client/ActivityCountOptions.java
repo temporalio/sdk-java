@@ -2,7 +2,7 @@ package io.temporal.client;
 
 import io.temporal.common.Experimental;
 
-/** Options for {@link WorkflowClient#countActivities(String, ActivityCountOptions)}. */
+/** Options for {@link ActivityClient#countExecutions(String, ActivityCountOptions)}. */
 @Experimental
 public final class ActivityCountOptions {
 

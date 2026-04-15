@@ -5,9 +5,9 @@ import io.temporal.failure.TemporalException;
 import javax.annotation.Nullable;
 
 /**
- * Thrown by {@link WorkflowClient#startActivity} when the server returns an ALREADY_EXISTS error
- * because an activity with the same ID is already running (or has a completed run that conflicts
- * with the requested {@link StartActivityOptions#getIdReusePolicy()} / {@link
+ * Thrown by {@link ActivityClient#start} when the server returns an ALREADY_EXISTS error because an
+ * activity with the same ID is already running (or has a completed run that conflicts with the
+ * requested {@link StartActivityOptions#getIdReusePolicy()} / {@link
  * StartActivityOptions#getIdConflictPolicy()}).
  */
 @Experimental

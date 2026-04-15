@@ -3,24 +3,19 @@ package io.temporal.internal.client;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.START_WORKFLOW;
 import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.Response.ResponseCase.UPDATE_WORKFLOW;
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
-import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
 import com.google.common.collect.Iterators;
-import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.activity.v1.ActivityExecutionOutcome;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.errordetails.v1.ActivityExecutionAlreadyStartedFailure;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.sdk.v1.UserMetadata;
-import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
@@ -28,9 +23,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
-import io.temporal.internal.common.ProtoConverters;
-import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
@@ -745,246 +737,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       Type resultType,
       DataConverter dataConverter) {
     return dataConverter.fromPayloads(0, resultValue, resultClass, resultType);
-  }
-
-  // ---- Standalone Activity implementations ----
-
-  @Override
-  public StartActivityOutput startActivity(StartActivityInput input) {
-    StartActivityOptions options = input.getOptions();
-    DataConverter dc = clientOptions.getDataConverter();
-
-    StartActivityExecutionRequest.Builder request =
-        StartActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
-            .setRequestId(UUID.randomUUID().toString())
-            .setActivityId(options.getId())
-            .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
-            .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
-            .setIdReusePolicy(options.getIdReusePolicy())
-            .setIdConflictPolicy(options.getIdConflictPolicy());
-
-    Optional<Payloads> activityInput = dc.toPayloads(input.getArgs().toArray());
-    activityInput.ifPresent(request::setInput);
-
-    if (options.getScheduleToCloseTimeout() != null) {
-      request.setScheduleToCloseTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()));
-    }
-    if (options.getScheduleToStartTimeout() != null) {
-      request.setScheduleToStartTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getScheduleToStartTimeout()));
-    }
-    if (options.getStartToCloseTimeout() != null) {
-      request.setStartToCloseTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()));
-    }
-    if (options.getHeartbeatTimeout() != null) {
-      request.setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
-    }
-    if (options.getRetryOptions() != null) {
-      request.setRetryPolicy(toRetryPolicy(options.getRetryOptions()));
-    }
-    if (options.getTypedSearchAttributes() != null
-        && options.getTypedSearchAttributes().size() > 0) {
-      request.setSearchAttributes(
-          SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
-    }
-    if (options.getStaticSummary() != null || options.getStaticDetails() != null) {
-      UserMetadata userMetadata =
-          makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
-      if (userMetadata != null) {
-        request.setUserMetadata(userMetadata);
-      }
-    }
-    if (options.getPriority() != null) {
-      request.setPriority(ProtoConverters.toProto(options.getPriority()));
-    }
-
-    Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
-    request.setHeader(grpcHeader);
-
-    StartActivityExecutionResponse response;
-    try {
-      response = genericClient.startActivity(request.build());
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
-        ActivityExecutionAlreadyStartedFailure detail =
-            StatusUtils.getFailure(e, ActivityExecutionAlreadyStartedFailure.class);
-        if (detail != null) {
-          String runId = detail.getRunId().isEmpty() ? null : detail.getRunId();
-          throw new ActivityAlreadyStartedException(
-              options.getId(), input.getActivityType(), runId, e);
-        }
-        // detail absent — unknown ALREADY_EXISTS, re-throw raw StatusRuntimeException
-      }
-      throw e;
-    }
-
-    String runId = response.getRunId().isEmpty() ? null : response.getRunId();
-    return new StartActivityOutput(options.getId(), runId);
-  }
-
-  @Override
-  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
-      throws ActivityFailedException {
-    String namespace = clientOptions.getNamespace();
-    DataConverter dc = clientOptions.getDataConverter();
-
-    while (true) {
-      PollActivityExecutionRequest.Builder pollRequest =
-          PollActivityExecutionRequest.newBuilder()
-              .setNamespace(namespace)
-              .setActivityId(input.getActivityId());
-      if (input.getRunId() != null) {
-        pollRequest.setRunId(input.getRunId());
-      }
-
-      PollActivityExecutionResponse pollResponse = genericClient.pollActivity(pollRequest.build());
-
-      if (!pollResponse.hasOutcome()) {
-        // Server timed out long-poll; retry
-        if (Thread.currentThread().isInterrupted()) {
-          throw new ActivityFailedException(
-              "Interrupted while waiting for activity result for activityId='"
-                  + input.getActivityId()
-                  + "'",
-              new InterruptedException());
-        }
-        continue;
-      }
-
-      ActivityExecutionOutcome outcome = pollResponse.getOutcome();
-      switch (outcome.getValueCase()) {
-        case RESULT:
-          @SuppressWarnings("unchecked")
-          R result =
-              (R)
-                  dc.fromPayloads(
-                      0,
-                      outcome.hasResult() ? Optional.of(outcome.getResult()) : Optional.empty(),
-                      input.getResultClass(),
-                      input.getResultClass());
-          return new GetActivityResultOutput<>(result);
-        case FAILURE:
-          throw new ActivityFailedException(
-              "Activity failed: activityId='" + input.getActivityId() + "'",
-              dc.failureToException(outcome.getFailure()));
-        default:
-          throw new ActivityFailedException(
-              "Activity completed with unexpected outcome '"
-                  + outcome.getValueCase()
-                  + "' for activityId='"
-                  + input.getActivityId()
-                  + "'",
-              null);
-      }
-    }
-  }
-
-  @Override
-  public DescribeActivityOutput describeActivity(DescribeActivityInput input) {
-    DescribeActivityExecutionRequest.Builder req =
-        DescribeActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setActivityId(input.getId());
-    if (input.getRunId() != null) {
-      req.setRunId(input.getRunId());
-    }
-    if (input.getOptions().getLongPollToken() != null) {
-      req.setLongPollToken(ByteString.copyFrom(input.getOptions().getLongPollToken()));
-    }
-    DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
-    return new DescribeActivityOutput(
-        new ActivityExecutionDescription(response, clientOptions.getDataConverter()));
-  }
-
-  @Override
-  public CancelActivityOutput cancelActivity(CancelActivityInput input) {
-    RequestCancelActivityExecutionRequest.Builder req =
-        RequestCancelActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
-            .setRequestId(UUID.randomUUID().toString())
-            .setActivityId(input.getId());
-    if (input.getRunId() != null) {
-      req.setRunId(input.getRunId());
-    }
-    if (input.getOptions().getReason() != null) {
-      req.setReason(input.getOptions().getReason());
-    }
-    genericClient.cancelActivity(req.build());
-    return new CancelActivityOutput();
-  }
-
-  @Override
-  public TerminateActivityOutput terminateActivity(TerminateActivityInput input) {
-    TerminateActivityExecutionRequest.Builder req =
-        TerminateActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
-            .setRequestId(UUID.randomUUID().toString())
-            .setActivityId(input.getId());
-    if (input.getRunId() != null) {
-      req.setRunId(input.getRunId());
-    }
-    if (input.getReason() != null) {
-      req.setReason(input.getReason());
-    }
-    genericClient.terminateActivity(req.build());
-    return new TerminateActivityOutput();
-  }
-
-  @Override
-  public ListActivitiesOutput listActivities(ListActivitiesInput input) {
-    Integer limit = input.getOptions().getLimit();
-    ListActivityExecutionIterator iterator =
-        new ListActivityExecutionIterator(
-            input.getQuery(), clientOptions.getNamespace(), limit, genericClient);
-    iterator.init();
-    Iterator<ActivityExecution> wrappedIterator =
-        Iterators.transform(iterator, ActivityExecution::fromListInfo);
-
-    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
-    return new ListActivitiesOutput(
-        StreamSupport.stream(
-            Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false));
-  }
-
-  @Override
-  public CountActivitiesOutput countActivities(CountActivitiesInput input) {
-    CountActivityExecutionsRequest.Builder req =
-        CountActivityExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
-    if (input.getQuery() != null) {
-      req.setQuery(input.getQuery());
-    }
-    CountActivityExecutionsResponse resp = genericClient.countActivities(req.build());
-    return new CountActivitiesOutput(new ActivityExecutionCount(resp));
-  }
-
-  @Override
-  public ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input) {
-    ListActivityExecutionsRequest.Builder req =
-        ListActivityExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
-    if (input.getQuery() != null) {
-      req.setQuery(input.getQuery());
-    }
-    if (input.getNextPageToken() != null) {
-      req.setNextPageToken(ByteString.copyFrom(input.getNextPageToken()));
-    }
-    if (input.getOptions().getPageSize() != null) {
-      req.setPageSize(input.getOptions().getPageSize());
-    }
-    ListActivityExecutionsResponse response = genericClient.listActivities(req.build());
-    List<ActivityExecution> activities = new ArrayList<>();
-    for (io.temporal.api.activity.v1.ActivityExecutionListInfo info :
-        response.getExecutionsList()) {
-      activities.add(ActivityExecution.fromListInfo(info));
-    }
-    byte[] nextToken =
-        response.getNextPageToken().isEmpty() ? null : response.getNextPageToken().toByteArray();
-    return new ListActivitiesPaginatedOutput(new ActivityListPage(activities, nextToken));
   }
 
   /**

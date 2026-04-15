@@ -48,6 +48,18 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
+  public <R> void complete(String activityId, Optional<String> activityRunId, R result) {
+    try {
+      factory
+          .getClient(
+              toStandaloneExecution(activityRunId), activityId, metricsScope, serializationContext)
+          .complete(result);
+    } finally {
+      completionHandle.apply();
+    }
+  }
+
+  @Override
   public void completeExceptionally(byte[] taskToken, Exception result) {
     try {
       factory.getClient(taskToken, metricsScope, serializationContext).fail(result);
@@ -62,6 +74,19 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
     try {
       factory
           .getClient(toExecution(workflowId, runId), activityId, metricsScope, serializationContext)
+          .fail(result);
+    } finally {
+      completionHandle.apply();
+    }
+  }
+
+  @Override
+  public void completeExceptionally(
+      String activityId, Optional<String> activityRunId, Exception result) {
+    try {
+      factory
+          .getClient(
+              toStandaloneExecution(activityRunId), activityId, metricsScope, serializationContext)
           .fail(result);
     } finally {
       completionHandle.apply();
@@ -90,6 +115,18 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
+  public <V> void reportCancellation(String activityId, Optional<String> activityRunId, V details) {
+    try {
+      factory
+          .getClient(
+              toStandaloneExecution(activityRunId), activityId, metricsScope, serializationContext)
+          .reportCancellation(details);
+    } finally {
+      completionHandle.apply();
+    }
+  }
+
+  @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
     factory.getClient(taskToken, metricsScope).recordHeartbeat(details);
   }
@@ -108,10 +145,26 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
     return new ActivityCompletionClientImpl(factory, completionHandle, metricsScope, context);
   }
 
+  @Override
+  public <V> void heartbeat(String activityId, Optional<String> activityRunId, V details)
+      throws ActivityCompletionException {
+    factory
+        .getClient(
+            toStandaloneExecution(activityRunId), activityId, metricsScope, serializationContext)
+        .recordHeartbeat(details);
+  }
+
   private static WorkflowExecution toExecution(String workflowId, Optional<String> runId) {
     return WorkflowExecution.newBuilder()
         .setWorkflowId(workflowId)
         .setRunId(runId.orElse(""))
+        .build();
+  }
+
+  private static WorkflowExecution toStandaloneExecution(Optional<String> activityRunId) {
+    return WorkflowExecution.newBuilder()
+        .setWorkflowId("") // empty workflowId = standalone activity
+        .setRunId(activityRunId.orElse(""))
         .build();
   }
 }

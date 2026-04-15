@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 
 /**
  * Information about a standalone activity execution returned by {@link
- * WorkflowClient#listActivities}.
+ * ActivityClient#listExecutions}.
  */
 @Experimental
 public class ActivityExecution {

@@ -4,7 +4,7 @@ import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
- * Options for {@link WorkflowClient#listActivitiesPaginated(String, byte[],
+ * Options for {@link ActivityClient#listExecutionsPaginated(String, byte[],
  * ActivityListPaginatedOptions)}.
  */
 @Experimental

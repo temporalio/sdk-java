@@ -3,7 +3,7 @@ package io.temporal.client;
 import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
-/** Options for {@link WorkflowClient#listActivities(String, ActivityListOptions)}. */
+/** Options for {@link ActivityClient#listExecutions(String, ActivityListOptions)}. */
 @Experimental
 public final class ActivityListOptions {
 

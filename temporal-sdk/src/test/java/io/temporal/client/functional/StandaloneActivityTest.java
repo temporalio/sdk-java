@@ -14,14 +14,15 @@ import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
 import io.temporal.client.*;
-import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.*;
-import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -29,9 +30,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Integration tests for standalone activities started via {@link WorkflowClient#startActivity} and
- * {@link WorkflowClient#executeActivity}. These tests are a parallel to the .NET SDK's {@code
- * TemporalClientActivityTests}.
+ * Integration tests for standalone activities started via {@link ActivityClient}. These tests are a
+ * parallel to the .NET SDK's {@code TemporalClientActivityTests}.
  *
  * <p>All tests are gated behind {@link SDKTestWorkflowRule#useExternalService} because the embedded
  * test server may not support the standalone activity APIs.
@@ -163,6 +163,12 @@ public class StandaloneActivityTest {
         .build();
   }
 
+  private ActivityClient newActivityClient() {
+    return ActivityClient.newInstance(
+        testWorkflowRule.getWorkflowServiceStubs(),
+        ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
+  }
+
   // ---------------------------------------------------------------------------
   // Test 1: execute simple activity and get a typed result (.NET:
   // ExecuteActivityAsync_SimpleWithResult_Succeeds)
@@ -172,13 +178,8 @@ public class StandaloneActivityTest {
   public void testExecuteActivitySimpleWithResult() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .executeActivity(
-                "SimpleActivity",
-                String.class,
-                Collections.singletonList("hello"),
-                simpleOpts(uniqueId()));
+        newActivityClient()
+            .execute("SimpleActivity", String.class, simpleOpts(uniqueId()), "hello");
     assertEquals("echo:hello", result);
   }
 
@@ -189,9 +190,7 @@ public class StandaloneActivityTest {
   @Test
   public void testExecuteActivityVoidResult() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    testWorkflowRule
-        .getWorkflowClient()
-        .executeActivity("VoidActivity", Collections.emptyList(), simpleOpts(uniqueId()));
+    newActivityClient().execute("VoidActivity", simpleOpts(uniqueId()));
   }
 
   // ---------------------------------------------------------------------------
@@ -202,13 +201,8 @@ public class StandaloneActivityTest {
   public void testExecuteActivityByName() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .executeActivity(
-                "SimpleActivity",
-                String.class,
-                Collections.singletonList("world"),
-                simpleOpts(uniqueId()));
+        newActivityClient()
+            .execute("SimpleActivity", String.class, simpleOpts(uniqueId()), "world");
     assertEquals("echo:world", result);
   }
 
@@ -220,7 +214,7 @@ public class StandaloneActivityTest {
   @Test
   public void testStartActivityAlreadyStartedThrows() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ActivityClient client = newActivityClient();
     String activityId = uniqueId();
     StartActivityOptions opts =
         StartActivityOptions.newBuilder()
@@ -230,12 +224,11 @@ public class StandaloneActivityTest {
             .setIdConflictPolicy(ActivityIdConflictPolicy.ACTIVITY_ID_CONFLICT_POLICY_FAIL)
             .build();
 
-    ActivityHandle handle = client.startActivity("WaitForCancel", Collections.emptyList(), opts);
+    UntypedActivityHandle handle = client.start("WaitForCancel", opts);
     try {
       ActivityAlreadyStartedException err =
           assertThrows(
-              ActivityAlreadyStartedException.class,
-              () -> client.startActivity("WaitForCancel", Collections.emptyList(), opts));
+              ActivityAlreadyStartedException.class, () -> client.start("WaitForCancel", opts));
       assertEquals(activityId, err.getActivityId());
       assertEquals("WaitForCancel", err.getActivityType());
       assertNotNull(err.getRunId());
@@ -255,7 +248,7 @@ public class StandaloneActivityTest {
   @Test
   public void testStartActivityIdReusePolicyRejectDuplicateThrows() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ActivityClient client = newActivityClient();
     String activityId = uniqueId();
     StartActivityOptions opts =
         StartActivityOptions.newBuilder()
@@ -266,16 +259,14 @@ public class StandaloneActivityTest {
             .build();
 
     // Start and wait for completion.
-    ActivityHandle first =
-        client.startActivity("SimpleActivity", Collections.singletonList("first"), opts);
+    UntypedActivityHandle first = client.start("SimpleActivity", opts, "first");
     first.getResult(String.class);
 
     // Attempting to start again with the same ID should throw.
     ActivityAlreadyStartedException err =
         assertThrows(
             ActivityAlreadyStartedException.class,
-            () ->
-                client.startActivity("SimpleActivity", Collections.singletonList("second"), opts));
+            () -> client.start("SimpleActivity", opts, "second"));
     assertEquals(activityId, err.getActivityId());
   }
 
@@ -287,16 +278,14 @@ public class StandaloneActivityTest {
   @Test
   public void testGetActivityHandleExistingActivitySucceeds() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ActivityClient client = newActivityClient();
     String activityId = uniqueId();
 
-    ActivityHandle handle =
-        client.startActivity(
-            "SimpleActivity", Collections.singletonList("test"), simpleOpts(activityId));
+    UntypedActivityHandle handle = client.start("SimpleActivity", simpleOpts(activityId), "test");
     handle.getResult(String.class);
 
     // Reconstruct a handle from the known ID + runId.
-    ActivityHandle handle2 = client.getActivityHandle(activityId, handle.getActivityRunId());
+    UntypedActivityHandle handle2 = client.getHandle(activityId, handle.getActivityRunId());
     assertEquals(activityId, handle2.getActivityId());
     assertEquals(handle.getActivityRunId(), handle2.getActivityRunId());
     assertEquals("echo:test", handle2.getResult(String.class));
@@ -310,7 +299,7 @@ public class StandaloneActivityTest {
   @Test
   public void testDescribeRunningAndTerminatedIsAccurate() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ActivityClient client = newActivityClient();
     String activityId = uniqueId();
     StartActivityOptions opts =
         StartActivityOptions.newBuilder()
@@ -319,7 +308,7 @@ public class StandaloneActivityTest {
             .setScheduleToCloseTimeout(Duration.ofMinutes(5))
             .setStartToCloseTimeout(Duration.ofMinutes(5))
             .build();
-    ActivityHandle handle = client.startActivity("WaitForCancel", Collections.emptyList(), opts);
+    UntypedActivityHandle handle = client.start("WaitForCancel", opts);
 
     try {
       // Poll until we can confirm the activity is running.
@@ -366,7 +355,7 @@ public class StandaloneActivityTest {
   @Test
   public void testDescribeUserMetadataIsAccurate() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ActivityClient client = newActivityClient();
     StartActivityOptions opts =
         StartActivityOptions.newBuilder()
             .setId(uniqueId())
@@ -376,8 +365,7 @@ public class StandaloneActivityTest {
             .setStaticDetails("Test details\nLine 2")
             .build();
 
-    ActivityHandle handle =
-        client.startActivity("SimpleActivity", Collections.singletonList("meta"), opts);
+    UntypedActivityHandle handle = client.start("SimpleActivity", opts, "meta");
     handle.getResult(String.class);
 
     ActivityExecutionDescription desc = handle.describe();
@@ -395,11 +383,10 @@ public class StandaloneActivityTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     cancelLatch = new CountDownLatch(1);
     try {
-      WorkflowClient client = testWorkflowRule.getWorkflowClient();
-      ActivityHandle handle =
-          client.startActivity(
+      ActivityClient client = newActivityClient();
+      UntypedActivityHandle handle =
+          client.start(
               "WaitForCancel",
-              Collections.emptyList(),
               StartActivityOptions.newBuilder()
                   .setId(uniqueId())
                   .setTaskQueue(testWorkflowRule.getTaskQueue())
@@ -414,7 +401,8 @@ public class StandaloneActivityTest {
       handle.cancel(ActivityCancelOptions.newBuilder().setReason("test cancel reason").build());
 
       // getResult must throw ActivityFailedException wrapping CanceledFailure.
-      ActivityFailedException err = assertThrows(ActivityFailedException.class, handle::getResult);
+      ActivityFailedException err =
+          assertThrows(ActivityFailedException.class, () -> handle.getResult(Void.class));
       assertThat(err.getCause(), instanceOf(CanceledFailure.class));
 
       // Describe should eventually show the canceled status.
@@ -438,20 +426,20 @@ public class StandaloneActivityTest {
   @Test
   public void testListActivitiesSimpleListIsAccurate() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    ActivityClient client = newActivityClient();
     String taskQueue = testWorkflowRule.getTaskQueue();
 
     // Complete 5 activities sequentially.
     for (int i = 0; i < 5; i++) {
-      client.executeActivity(
+      client.execute(
           "SimpleActivity",
           String.class,
-          Collections.singletonList("item-" + i),
           StartActivityOptions.newBuilder()
               .setId("act-list-" + UUID.randomUUID())
               .setTaskQueue(taskQueue)
               .setScheduleToCloseTimeout(Duration.ofMinutes(5))
-              .build());
+              .build(),
+          "item-" + i);
     }
 
     String query = "TaskQueue = '" + taskQueue + "'";
@@ -461,7 +449,7 @@ public class StandaloneActivityTest {
         Duration.ofSeconds(30),
         () -> {
           List<ActivityExecution> activities =
-              client.listActivities(query).collect(Collectors.toList());
+              client.listExecutions(query).collect(Collectors.toList());
           assertEquals(5, activities.size());
           for (ActivityExecution act : activities) {
             assertEquals("SimpleActivity", act.getActivityType());
@@ -475,7 +463,7 @@ public class StandaloneActivityTest {
     assertEventually(
         Duration.ofSeconds(30),
         () -> {
-          ActivityExecutionCount count = client.countActivities(query);
+          ActivityExecutionCount count = client.countExecutions(query);
           assertEquals(5, count.getCount());
         });
 
@@ -486,17 +474,17 @@ public class StandaloneActivityTest {
           ActivityListPaginatedOptions pageOpts =
               ActivityListPaginatedOptions.newBuilder().setPageSize(2).build();
 
-          ActivityListPage first = client.listActivitiesPaginated(query, null, pageOpts);
+          ActivityListPage first = client.listExecutionsPaginated(query, null, pageOpts);
           assertEquals(2, first.getActivities().size());
           assertNotNull(first.getNextPageToken());
 
           ActivityListPage second =
-              client.listActivitiesPaginated(query, first.getNextPageToken(), pageOpts);
+              client.listExecutionsPaginated(query, first.getNextPageToken(), pageOpts);
           assertEquals(2, second.getActivities().size());
           assertNotNull(second.getNextPageToken());
 
           ActivityListPage third =
-              client.listActivitiesPaginated(query, second.getNextPageToken(), pageOpts);
+              client.listExecutionsPaginated(query, second.getNextPageToken(), pageOpts);
           assertEquals(1, third.getActivities().size());
           assertNull(third.getNextPageToken());
         });
@@ -513,19 +501,18 @@ public class StandaloneActivityTest {
     cancelLatch = new CountDownLatch(1);
     try {
       ActivityTracingInterceptor interceptor = new ActivityTracingInterceptor();
-      WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder()
-              .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-              .setInterceptors(interceptor)
-              .build();
-      WorkflowClient interceptedClient =
-          WorkflowClient.newInstance(testWorkflowRule.getWorkflowServiceStubs(), clientOptions);
+      ActivityClient interceptedClient =
+          ActivityClient.newInstance(
+              testWorkflowRule.getWorkflowServiceStubs(),
+              ActivityClientOptions.newBuilder()
+                  .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                  .setInterceptors(Collections.singletonList(interceptor))
+                  .build());
 
       String activityId = uniqueId();
-      ActivityHandle handle =
-          interceptedClient.startActivity(
+      UntypedActivityHandle handle =
+          interceptedClient.start(
               "WaitForCancel",
-              Collections.emptyList(),
               StartActivityOptions.newBuilder()
                   .setId(activityId)
                   .setTaskQueue(testWorkflowRule.getTaskQueue())
@@ -569,13 +556,8 @@ public class StandaloneActivityTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     String activityId = uniqueId();
     ActivityInfoSnapshot info =
-        testWorkflowRule
-            .getWorkflowClient()
-            .executeActivity(
-                "InspectInfo",
-                ActivityInfoSnapshot.class,
-                Collections.emptyList(),
-                simpleOpts(activityId));
+        newActivityClient()
+            .execute("InspectInfo", ActivityInfoSnapshot.class, simpleOpts(activityId));
 
     assertEquals(activityId, info.activityId);
     assertEquals("InspectInfo", info.activityType);
@@ -589,40 +571,71 @@ public class StandaloneActivityTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Test 13: executeAsync returns a CompletableFuture that resolves to the typed result
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testExecuteAsyncReturnsResult() throws Exception {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    CompletableFuture<String> future =
+        newActivityClient()
+            .executeAsync("SimpleActivity", String.class, simpleOpts(uniqueId()), "hello");
+    assertEquals("echo:hello", future.get());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 14: getResultAsync on an UntypedActivityHandle returns a resolved future
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testGetResultAsyncOnHandle() throws Exception {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    UntypedActivityHandle handle =
+        newActivityClient().start("SimpleActivity", simpleOpts(uniqueId()), "world");
+    CompletableFuture<String> future = handle.getResultAsync(String.class);
+    assertEquals("echo:world", future.get());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 15: typed ActivityHandle<R>.getResult() no-arg path
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testTypedHandleGetResultNoArg() throws ActivityFailedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityHandle<String> handle =
+        newActivityClient().start("SimpleActivity", String.class, simpleOpts(uniqueId()), "typed");
+    assertEquals("echo:typed", handle.getResult());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 16: client.getHandle(id, runId, Class<R>) returns a typed ActivityHandle<R>
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testGetHandleTypedReturnsActivityHandleR() throws ActivityFailedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityClient client = newActivityClient();
+    String activityId = uniqueId();
+    UntypedActivityHandle started = client.start("SimpleActivity", simpleOpts(activityId), "typed");
+    String runId = started.getActivityRunId();
+    started.getResult(String.class); // wait for completion
+
+    ActivityHandle<String> typed = client.getHandle(activityId, runId, String.class);
+    assertEquals("echo:typed", typed.getResult());
+  }
+
+  // ---------------------------------------------------------------------------
   // Interceptor helpers
   // ---------------------------------------------------------------------------
 
-  static class ActivityTracingInterceptor implements WorkflowClientInterceptor {
+  static class ActivityTracingInterceptor implements ActivityClientInterceptor {
     final List<String> events = Collections.synchronizedList(new ArrayList<>());
 
     @Override
-    @SuppressWarnings("deprecation")
-    public io.temporal.client.WorkflowStub newUntypedWorkflowStub(
-        String workflowType,
-        io.temporal.client.WorkflowOptions options,
-        io.temporal.client.WorkflowStub next) {
-      return next;
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public io.temporal.client.WorkflowStub newUntypedWorkflowStub(
-        io.temporal.api.common.v1.WorkflowExecution execution,
-        java.util.Optional<String> workflowType,
-        io.temporal.client.WorkflowStub next) {
-      return next;
-    }
-
-    @Override
-    public io.temporal.client.ActivityCompletionClient newActivityCompletionClient(
-        io.temporal.client.ActivityCompletionClient next) {
-      return next;
-    }
-
-    @Override
-    public WorkflowClientCallsInterceptor workflowClientCallsInterceptor(
-        WorkflowClientCallsInterceptor next) {
-      return new WorkflowClientCallsInterceptorBase(next) {
+    public ActivityClientCallsInterceptor activityClientCallsInterceptor(
+        ActivityClientCallsInterceptor next) {
+      return new ActivityClientCallsInterceptorBase(next) {
         @Override
         public StartActivityOutput startActivity(StartActivityInput input) {
           events.add("startActivity");

@@ -4,6 +4,7 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @Experimental
 public class ActivitySerializationContext implements HasWorkflowSerializationContext {
@@ -14,16 +15,26 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
   private final @Nonnull String activityTaskQueue;
   private final boolean local;
 
+  /**
+   * @param namespace the activity's namespace; must not be {@code null}
+   * @param workflowId the workflow ID that scheduled the activity, or {@code null} for standalone
+   *     activities (stored as an empty string)
+   * @param workflowType the workflow type that scheduled the activity, or {@code null} for
+   *     standalone activities (stored as an empty string)
+   * @param activityType the activity type name; must not be {@code null}
+   * @param activityTaskQueue the task queue for this activity; must not be {@code null}
+   * @param local {@code true} if this is a local activity
+   */
   public ActivitySerializationContext(
       @Nonnull String namespace,
-      @Nonnull String workflowId,
-      @Nonnull String workflowType,
+      @Nullable String workflowId,
+      @Nullable String workflowType,
       @Nonnull String activityType,
       @Nonnull String activityTaskQueue,
       boolean local) {
     this.namespace = Objects.requireNonNull(namespace);
-    this.workflowId = Objects.requireNonNull(workflowId);
-    this.workflowType = Objects.requireNonNull(workflowType);
+    this.workflowId = workflowId != null ? workflowId : "";
+    this.workflowType = workflowType != null ? workflowType : "";
     this.activityType = Objects.requireNonNull(activityType);
     this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
     this.local = local;
@@ -32,8 +43,8 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
   public ActivitySerializationContext(ActivityInfo info) {
     this(
         info.getNamespace(),
-        info.getWorkflowId() != null ? info.getWorkflowId() : "",
-        info.getWorkflowType() != null ? info.getWorkflowType() : "",
+        info.getWorkflowId(),
+        info.getWorkflowType(),
         info.getActivityType(),
         info.getActivityTaskQueue(),
         info.isLocal());

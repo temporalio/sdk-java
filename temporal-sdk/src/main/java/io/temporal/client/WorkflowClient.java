@@ -19,7 +19,6 @@ import io.temporal.workflow.Functions.Proc4;
 import io.temporal.workflow.Functions.Proc5;
 import io.temporal.workflow.Functions.Proc6;
 import io.temporal.workflow.WorkflowMethod;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
@@ -1750,93 +1749,4 @@ public interface WorkflowClient {
    * object returned by this method as-is.
    */
   Object getInternal();
-
-  // ---- Standalone Activity API ----
-
-  /**
-   * Starts a standalone activity and returns a handle to it. The activity will be dispatched to a
-   * worker polling the task queue specified in {@link StartActivityOptions}.
-   *
-   * @param activityType the registered activity type name
-   * @param args arguments passed to the activity function
-   * @param options start options (id, taskQueue, timeouts, etc.)
-   * @return a handle that can be used to get the result, describe, cancel, or terminate the
-   *     activity
-   * @throws ActivityAlreadyStartedException if an activity with the same ID is already running and
-   *     the conflict/reuse policy rejects it
-   */
-  @Experimental
-  ActivityHandle startActivity(String activityType, List<Object> args, StartActivityOptions options)
-      throws ActivityAlreadyStartedException;
-
-  /**
-   * Typed variant of {@link #startActivity}: returns a handle whose {@link
-   * ActivityHandle#getResult(Class)} is pre-typed.
-   */
-  @Experimental
-  ActivityHandle startActivity(
-      String activityType, Class<?> resultType, List<Object> args, StartActivityOptions options)
-      throws ActivityAlreadyStartedException;
-
-  /**
-   * Convenience method: starts a standalone activity and blocks until it completes.
-   *
-   * @throws ActivityFailedException if the activity fails, times out, or is cancelled
-   */
-  @Experimental
-  void executeActivity(String activityType, List<Object> args, StartActivityOptions options)
-      throws ActivityFailedException;
-
-  /**
-   * Typed convenience: starts an activity and returns the decoded result.
-   *
-   * @throws ActivityFailedException if the activity fails, times out, or is cancelled
-   */
-  @Experimental
-  <R> R executeActivity(
-      String activityType, Class<R> resultType, List<Object> args, StartActivityOptions options)
-      throws ActivityFailedException;
-
-  /**
-   * Returns a handle to an existing standalone activity execution. Use this when you only have the
-   * activity ID and want to describe/cancel/terminate or get its result.
-   */
-  @Experimental
-  ActivityHandle getActivityHandle(String id);
-
-  /** Returns a handle to an existing standalone activity execution by ID and run ID. */
-  @Experimental
-  ActivityHandle getActivityHandle(String id, String runId);
-
-  /**
-   * Lists standalone activity executions matching the given visibility query, streaming all pages
-   * lazily.
-   *
-   * @param query visibility query string (same syntax as workflow list queries)
-   */
-  @Experimental
-  Stream<ActivityExecution> listActivities(String query);
-
-  /** Lists standalone activity executions with options (e.g. page size limit). */
-  @Experimental
-  Stream<ActivityExecution> listActivities(String query, ActivityListOptions options);
-
-  /** Counts standalone activity executions matching the given visibility query. */
-  @Experimental
-  ActivityExecutionCount countActivities(String query);
-
-  /** Counts standalone activity executions with options. */
-  @Experimental
-  ActivityExecutionCount countActivities(String query, ActivityCountOptions options);
-
-  /**
-   * Returns a single page of standalone activity executions. Pass the {@link
-   * ActivityListPage#getNextPageToken()} of the returned page as {@code nextPageToken} on the next
-   * call.
-   *
-   * @param nextPageToken token from previous page, or {@code null} for the first page
-   */
-  @Experimental
-  ActivityListPage listActivitiesPaginated(
-      String query, @Nullable byte[] nextPageToken, ActivityListPaginatedOptions options);
 }

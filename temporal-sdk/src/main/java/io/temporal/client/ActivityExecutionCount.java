@@ -4,6 +4,7 @@ import io.temporal.api.workflowservice.v1.CountActivityExecutionsResponse;
 import io.temporal.common.Experimental;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
@@ -32,6 +33,24 @@ public class ActivityExecutionCount {
     public long getCount() {
       return count;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      AggregationGroup that = (AggregationGroup) o;
+      return count == that.count && Objects.equals(groupValues, that.groupValues);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(groupValues, count);
+    }
+
+    @Override
+    public String toString() {
+      return "AggregationGroup{groupValues=" + groupValues + ", count=" + count + '}';
+    }
   }
 
   private final long count;
@@ -54,5 +73,23 @@ public class ActivityExecutionCount {
   @Nonnull
   public List<AggregationGroup> getGroups() {
     return groups;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ActivityExecutionCount that = (ActivityExecutionCount) o;
+    return count == that.count && Objects.equals(groups, that.groups);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(count, groups);
+  }
+
+  @Override
+  public String toString() {
+    return "ActivityExecutionCount{count=" + count + ", groups=" + groups + '}';
   }
 }

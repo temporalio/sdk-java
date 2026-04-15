@@ -1,86 +1,57 @@
 package io.temporal.client;
 
 import io.temporal.common.Experimental;
+import java.lang.reflect.Type;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 /**
- * A handle to a standalone activity execution started via {@link WorkflowClient#startActivity}. Use
- * this to get the result, describe, cancel, or terminate the activity.
+ * A typed handle to a standalone activity execution. Extends {@link UntypedActivityHandle} with
+ * typed result methods.
  *
- * <p>Obtain an instance via {@link WorkflowClient#startActivity} or {@link
- * WorkflowClient#getActivityHandle(String)}.
+ * <p>Obtain an instance via {@link ActivityClient#start(String, Class, StartActivityOptions,
+ * Object...)} or {@link ActivityClient#getHandle(String, String, Class)}.
+ *
+ * @param <R> the result type of the activity
+ * @see UntypedActivityHandle
+ * @see ActivityClient
  */
 @Experimental
-public interface ActivityHandle {
-
-  /** The user-assigned activity ID. */
-  String getActivityId();
+public interface ActivityHandle<R> extends UntypedActivityHandle {
 
   /**
-   * The server-assigned run ID returned when the activity was started. May be {@code null} when
-   * obtained via {@link WorkflowClient#getActivityHandle(String)} without a run ID.
-   */
-  @Nullable
-  String getActivityRunId();
-
-  /**
-   * Blocks until the standalone activity completes, then returns. Polls the server via
-   * long-polling.
+   * Blocks until the standalone activity completes and returns the typed result.
    *
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  void getResult() throws ActivityFailedException;
+  R getResult() throws ActivityFailedException;
 
   /**
-   * Blocks until the standalone activity completes, then returns the typed result. Polls the server
-   * via long-polling.
+   * Returns a future that completes when the activity completes and resolves to the typed result.
+   */
+  CompletableFuture<R> getResultAsync();
+
+  /**
+   * Wraps an {@link UntypedActivityHandle} with a known result type.
    *
+   * @param handle the untyped handle to wrap
    * @param resultClass the class to deserialize the result into
-   * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
+   * @return a typed handle
    */
-  <R> R getResult(Class<R> resultClass) throws ActivityFailedException;
+  static <R> ActivityHandle<R> fromUntyped(UntypedActivityHandle handle, Class<R> resultClass) {
+    return fromUntyped(handle, resultClass, null);
+  }
 
   /**
-   * Describes the current state of the activity execution.
+   * Wraps an {@link UntypedActivityHandle} with a known result type for generic types.
    *
-   * @return detailed information about the activity
+   * @param handle the untyped handle to wrap
+   * @param resultClass the class to deserialize the result into
+   * @param resultType the generic type; may be {@code null}
+   * @return a typed handle
    */
-  ActivityExecutionDescription describe();
-
-  /**
-   * Describes the current state of the activity execution, with options.
-   *
-   * @param options describe options (e.g. long-poll token for change notification)
-   * @return detailed information about the activity
-   */
-  ActivityExecutionDescription describe(ActivityDescribeOptions options);
-
-  /**
-   * Requests cancellation of the activity. The activity will receive a {@link
-   * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} heartbeat failure with a
-   * {@link io.temporal.failure.CanceledFailure}.
-   */
-  void cancel();
-
-  /**
-   * Requests cancellation of the activity with options.
-   *
-   * @param options cancellation options such as a reason string
-   */
-  void cancel(ActivityCancelOptions options);
-
-  /**
-   * Terminates the activity immediately, regardless of its current state.
-   *
-   * @param reason human-readable reason for termination, may be {@code null}
-   */
-  void terminate(@Nullable String reason);
-
-  /**
-   * Terminates the activity immediately with options.
-   *
-   * @param reason human-readable reason for termination, may be {@code null}
-   * @param options termination options
-   */
-  void terminate(@Nullable String reason, ActivityTerminateOptions options);
+  static <R> ActivityHandle<R> fromUntyped(
+      UntypedActivityHandle handle, Class<R> resultClass, @Nullable Type resultType) {
+    return new ActivityHandleWrapper<>(handle, resultClass, resultType);
+  }
 }

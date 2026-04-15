@@ -4,25 +4,27 @@ import io.temporal.client.ActivityCancelOptions;
 import io.temporal.client.ActivityDescribeOptions;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityFailedException;
-import io.temporal.client.ActivityHandle;
 import io.temporal.client.ActivityTerminateOptions;
-import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
+import io.temporal.client.UntypedActivityHandle;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import java.lang.reflect.Type;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 
 /**
- * Implementation of {@link ActivityHandle} that delegates lifecycle operations through the
+ * Implementation of {@link UntypedActivityHandle} that delegates lifecycle operations through the
  * interceptor chain.
  */
-public final class ActivityHandleImpl implements ActivityHandle {
+public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   private final String activityId;
   private final @Nullable String activityRunId;
-  private final WorkflowClientCallsInterceptor clientCallsInterceptor;
+  private final ActivityClientCallsInterceptor clientCallsInterceptor;
 
   public ActivityHandleImpl(
       String activityId,
       @Nullable String activityRunId,
-      WorkflowClientCallsInterceptor clientCallsInterceptor) {
+      ActivityClientCallsInterceptor clientCallsInterceptor) {
     this.activityId = activityId;
     this.activityRunId = activityRunId;
     this.clientCallsInterceptor = clientCallsInterceptor;
@@ -39,18 +41,35 @@ public final class ActivityHandleImpl implements ActivityHandle {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public void getResult() throws ActivityFailedException {
-    getResult((Class<Void>) Void.class);
+  public <R> R getResult(Class<R> resultClass) throws ActivityFailedException {
+    return getResult(resultClass, null);
   }
 
   @Override
-  public <R> R getResult(Class<R> resultClass) throws ActivityFailedException {
+  public <R> R getResult(Class<R> resultClass, @Nullable Type resultType)
+      throws ActivityFailedException {
     return clientCallsInterceptor
         .getActivityResult(
-            new WorkflowClientCallsInterceptor.GetActivityResultInput<>(
-                activityId, activityRunId, resultClass))
+            new ActivityClientCallsInterceptor.GetActivityResultInput<>(
+                activityId, activityRunId, resultClass, resultType))
         .getResult();
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass) {
+    return getResultAsync(resultClass, null);
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, @Nullable Type resultType) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            return getResult(resultClass, resultType);
+          } catch (ActivityFailedException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   @Override
@@ -62,7 +81,7 @@ public final class ActivityHandleImpl implements ActivityHandle {
   public ActivityExecutionDescription describe(ActivityDescribeOptions options) {
     return clientCallsInterceptor
         .describeActivity(
-            new WorkflowClientCallsInterceptor.DescribeActivityInput(
+            new ActivityClientCallsInterceptor.DescribeActivityInput(
                 activityId, activityRunId, options))
         .getDescription();
   }
@@ -75,7 +94,7 @@ public final class ActivityHandleImpl implements ActivityHandle {
   @Override
   public void cancel(ActivityCancelOptions options) {
     clientCallsInterceptor.cancelActivity(
-        new WorkflowClientCallsInterceptor.CancelActivityInput(activityId, activityRunId, options));
+        new ActivityClientCallsInterceptor.CancelActivityInput(activityId, activityRunId, options));
   }
 
   @Override
@@ -86,7 +105,7 @@ public final class ActivityHandleImpl implements ActivityHandle {
   @Override
   public void terminate(@Nullable String reason, ActivityTerminateOptions options) {
     clientCallsInterceptor.terminateActivity(
-        new WorkflowClientCallsInterceptor.TerminateActivityInput(
+        new ActivityClientCallsInterceptor.TerminateActivityInput(
             activityId, activityRunId, reason, options));
   }
 }

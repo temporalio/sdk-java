@@ -4,7 +4,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import io.temporal.client.*;
-import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.*;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.stream.Stream;
@@ -12,19 +12,19 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests that {@link WorkflowClientCallsInterceptorBase} correctly delegates all activity-related
+ * Tests that {@link ActivityClientCallsInterceptorBase} correctly delegates all activity-related
  * methods to the next interceptor in the chain.
  */
 public class WorkflowClientCallsInterceptorActivityTest {
 
-  private WorkflowClientCallsInterceptor next;
-  private WorkflowClientCallsInterceptorBase base;
+  private ActivityClientCallsInterceptor next;
+  private ActivityClientCallsInterceptorBase base;
 
   @Before
   public void setUp() {
-    next = mock(WorkflowClientCallsInterceptor.class);
+    next = mock(ActivityClientCallsInterceptor.class);
     base =
-        new WorkflowClientCallsInterceptorBase(next) {
+        new ActivityClientCallsInterceptorBase(next) {
           // concrete subclass for testing
         };
   }

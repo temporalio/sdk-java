@@ -38,6 +38,20 @@ public interface ActivityCompletionClient {
       throws ActivityCompletionException;
 
   /**
+   * Completes a standalone activity execution successfully.
+   *
+   * <p>Use this overload for standalone activities (not started from a workflow). For
+   * workflow-scheduled activities, use {@link #complete(String, Optional, String, Object)}.
+   *
+   * @param activityId id of the standalone activity
+   * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
+   * @param result of the activity execution
+   */
+  @Experimental
+  <R> void complete(String activityId, Optional<String> activityRunId, R result)
+      throws ActivityCompletionException;
+
+  /**
    * Completes the activity execution with failure.
    *
    * @param taskToken token of the activity attempt to complete
@@ -55,6 +69,21 @@ public interface ActivityCompletionClient {
    */
   void completeExceptionally(
       String workflowId, Optional<String> runId, String activityId, Exception result)
+      throws ActivityCompletionException;
+
+  /**
+   * Completes a standalone activity execution with failure.
+   *
+   * <p>Use this overload for standalone activities (not started from a workflow). For
+   * workflow-scheduled activities, use {@link #completeExceptionally(String, Optional, String,
+   * Exception)}.
+   *
+   * @param activityId id of the standalone activity
+   * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
+   * @param result the exception to be used as a failure details object
+   */
+  @Experimental
+  void completeExceptionally(String activityId, Optional<String> activityRunId, Exception result)
       throws ActivityCompletionException;
 
   /**
@@ -78,6 +107,21 @@ public interface ActivityCompletionClient {
       throws ActivityCompletionException;
 
   /**
+   * Confirms successful cancellation of a standalone activity to the server.
+   *
+   * <p>Use this overload for standalone activities (not started from a workflow). For
+   * workflow-scheduled activities, use {@link #reportCancellation(String, Optional, String,
+   * Object)}.
+   *
+   * @param activityId id of the standalone activity
+   * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
+   * @param details details to record with the cancellation
+   */
+  @Experimental
+  <V> void reportCancellation(String activityId, Optional<String> activityRunId, V details)
+      throws ActivityCompletionException;
+
+  /**
    * Records a heartbeat for an activity.
    *
    * @param taskToken token of the activity attempt
@@ -96,6 +140,21 @@ public interface ActivityCompletionClient {
    * @throws ActivityCompletionException if activity should stop executing
    */
   <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
+      throws ActivityCompletionException;
+
+  /**
+   * Records a heartbeat for a standalone activity.
+   *
+   * <p>Use this overload for standalone activities (not started from a workflow). For
+   * workflow-scheduled activities, use {@link #heartbeat(String, Optional, String, Object)}.
+   *
+   * @param activityId id of the standalone activity
+   * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
+   * @param details details to record with the heartbeat
+   * @throws ActivityCompletionException if activity should stop executing
+   */
+  @Experimental
+  <V> void heartbeat(String activityId, Optional<String> activityRunId, V details)
       throws ActivityCompletionException;
 
   /**
