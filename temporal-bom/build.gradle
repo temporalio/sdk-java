@@ -12,9 +12,7 @@ dependencies {
         api project(':temporal-sdk')
         api project(':temporal-serviceclient')
         api project(':temporal-shaded')
-        if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-            api project(':temporal-spring-ai')
-        }
+        api project(':temporal-spring-ai')
         api project(':temporal-spring-boot-autoconfigure')
         api project(':temporal-spring-boot-starter')
         api project(':temporal-test-server')

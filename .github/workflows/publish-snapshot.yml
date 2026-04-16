@@ -38,7 +38,11 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          java-version: '11'
+          # JDK 17 is required for temporal-spring-ai's Gradle toolchain (Spring AI requires Java 17+).
+          # The primary publish JVM remains JDK 11 (listed last so it's the default JAVA_HOME).
+          java-version: |
+            17
+            11
           distribution: 'temurin'
           
       - name: Set up Gradle

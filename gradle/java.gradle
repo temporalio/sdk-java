@@ -34,14 +34,19 @@ subprojects {
         options.encoding = 'UTF-8'
         options.addStringOption('Xdoclint:reference', '-quiet')
         options.addBooleanOption('Werror', true)
-        if (JavaVersion.current().isJava9Compatible()) {
-            options.addBooleanOption('html5', true)
-        }
-        if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_1_9) &&
-                !JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_13)) {
-            //https://stackoverflow.com/questions/53732632/gradle-javadoc-search-redirects-to-undefined-url
-            //the flag is removed in java13: https://bugs.openjdk.java.net/browse/JDK-8215582
-            options.addBooleanOption('-no-module-directories', true)
+        // Base flag decisions on the javadoc tool that will actually run, not the Gradle JVM.
+        // Modules that override javadocTool via toolchains (e.g. temporal-spring-ai on JDK 11)
+        // would otherwise get flags that don't apply to the tool being invoked.
+        doFirst {
+            int toolVersion = javadocTool.get().metadata.languageVersion.asInt()
+            if (toolVersion >= 9) {
+                options.addBooleanOption('html5', true)
+            }
+            if (toolVersion >= 9 && toolVersion < 13) {
+                //https://stackoverflow.com/questions/53732632/gradle-javadoc-search-redirects-to-undefined-url
+                //the flag is removed in java13: https://bugs.openjdk.java.net/browse/JDK-8215582
+                options.addBooleanOption('-no-module-directories', true)
+            }
         }
     }
 
