@@ -119,12 +119,20 @@ public class WorkflowRunTokenTest {
             OperationTokenUtil.loadOperationToken(
                 encoder.encodeToString(badTokenUnknownVersion.getBytes())));
 
-    // Bad token, unknown version
+    // Bad token, unknown type (also has bad version, so loadOperationToken rejects on version)
     String badTokenUnknownType = "{\"t\":4,\"ns\":\"namespace\", \"wid\":\"workflowId\", \"v\":1}";
     Assert.assertThrows(
         IllegalArgumentException.class,
         () ->
             OperationTokenUtil.loadOperationToken(
                 encoder.encodeToString(badTokenUnknownType.getBytes())));
+
+    // Bad token, unknown type with valid version — loadWorkflowRunOperationToken rejects on type
+    String badTokenWrongType = "{\"t\":4,\"ns\":\"namespace\", \"wid\":\"workflowId\"}";
+    Assert.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            OperationTokenUtil.loadWorkflowRunOperationToken(
+                encoder.encodeToString(badTokenWrongType.getBytes())));
   }
 }

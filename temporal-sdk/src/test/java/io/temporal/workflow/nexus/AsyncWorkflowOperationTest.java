@@ -75,7 +75,7 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
       // Result should only be completed if the operation is completed
       Assert.assertFalse("Result should not be completed", asyncOpHandle.getResult().isCompleted());
       OperationToken token =
-          OperationTokenUtil.loadOperationToken(asyncExec.getOperationToken().get());
+          OperationTokenUtil.loadWorkflowRunOperationToken(asyncExec.getOperationToken().get());
       Assert.assertTrue(token.getWorkflowId().startsWith(WORKFLOW_ID_PREFIX));
       // Unblock the operation
       Workflow.newExternalWorkflowStub(OperationWorkflow.class, token.getWorkflowId()).unblock();
@@ -87,7 +87,7 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
       } catch (NexusOperationFailure e) {
         Assert.assertEquals("TestNexusService1", e.getService());
         Assert.assertEquals("operation", e.getOperation());
-        token = OperationTokenUtil.loadOperationToken(e.getOperationToken());
+        token = OperationTokenUtil.loadWorkflowRunOperationToken(e.getOperationToken());
         Assert.assertTrue(token.getWorkflowId().startsWith(WORKFLOW_ID_PREFIX));
         Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
         ApplicationFailure applicationFailure = (ApplicationFailure) e.getCause();
