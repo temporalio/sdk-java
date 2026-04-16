@@ -33,7 +33,11 @@ subprojects {
     javadoc {
         options.encoding = 'UTF-8'
         options.addStringOption('Xdoclint:reference', '-quiet')
-        options.addBooleanOption('Werror', true)
+        // -Werror for javadoc was added in JDK 15 (JDK-8232513). Skip on older JDKs
+        // otherwise the javadoc task rejects the flag (breaks the JDK 11 publish job).
+        if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_15)) {
+            options.addBooleanOption('Werror', true)
+        }
         if (JavaVersion.current().isJava9Compatible()) {
             options.addBooleanOption('html5', true)
         }
