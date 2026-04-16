@@ -30,7 +30,7 @@ public class GenericHandlerTypedStartWorkflowTest {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("funcinputinput2", result);
+    Assert.assertEquals("funcinputinput2input23input234input2345", result);
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
@@ -46,7 +46,7 @@ public class GenericHandlerTypedStartWorkflowTest {
       TestNexusServiceGeneric serviceStub =
           Workflow.newNexusServiceStub(TestNexusServiceGeneric.class, serviceOptions);
       StringBuilder result = new StringBuilder();
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 6; i++) {
         result.append(serviceStub.operation(i));
       }
       return result.toString();
@@ -65,40 +65,56 @@ public class GenericHandlerTypedStartWorkflowTest {
     public OperationHandler<Integer, String> operation() {
       return TemporalOperationHandler.from(
           (context, client, input) -> {
+            String prefix = "generic-handler-test-func" + input + "-";
+            String workflowId = prefix + context.getService() + "-" + context.getOperation();
+            WorkflowOptions options =
+                WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
             switch (input) {
               case 0:
                 return client.startWorkflow(
                     TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc.class,
-                    wf -> wf.func(),
-                    WorkflowOptions.newBuilder()
-                        .setWorkflowId(
-                            "generic-handler-test-func0-"
-                                + context.getService()
-                                + "-"
-                                + context.getOperation())
-                        .build());
+                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc::func,
+                    options);
               case 1:
                 return client.startWorkflow(
                     TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class,
-                    wf -> wf.func1("input"),
-                    WorkflowOptions.newBuilder()
-                        .setWorkflowId(
-                            "generic-handler-test-func1-"
-                                + context.getService()
-                                + "-"
-                                + context.getOperation())
-                        .build());
+                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc::func1,
+                    "input",
+                    options);
               case 2:
                 return client.startWorkflow(
                     TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc.class,
-                    wf -> wf.func2("input", 2),
-                    WorkflowOptions.newBuilder()
-                        .setWorkflowId(
-                            "generic-handler-test-func2-"
-                                + context.getService()
-                                + "-"
-                                + context.getOperation())
-                        .build());
+                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc::func2,
+                    "input",
+                    2,
+                    options);
+              case 3:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc.class,
+                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc::func3,
+                    "input",
+                    2,
+                    3,
+                    options);
+              case 4:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc.class,
+                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc::func4,
+                    "input",
+                    2,
+                    3,
+                    4,
+                    options);
+              case 5:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc.class,
+                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc::func5,
+                    "input",
+                    2,
+                    3,
+                    4,
+                    5,
+                    options);
               default:
                 throw new IllegalArgumentException("unexpected input: " + input);
             }

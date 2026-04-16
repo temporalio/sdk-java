@@ -127,7 +127,8 @@ public class GenericHandlerCancelTest extends BaseNexusTest {
           (context, client, input) ->
               client.startWorkflow(
                   WaitForCancelWorkflowInterface.class,
-                  wf -> wf.execute(input),
+                  WaitForCancelWorkflowInterface::execute,
+                  input,
                   WorkflowOptions.newBuilder()
                       .setWorkflowId("generic-cancel-test-" + context.getService())
                       .build()));

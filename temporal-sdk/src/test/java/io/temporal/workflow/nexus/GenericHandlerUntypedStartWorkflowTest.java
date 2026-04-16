@@ -64,14 +64,14 @@ public class GenericHandlerUntypedStartWorkflowTest {
               client.startWorkflow(
                   "func1",
                   String.class,
-                  new Object[] {input},
                   WorkflowOptions.newBuilder()
                       .setWorkflowId(
                           "generic-handler-untyped-"
                               + context.getService()
                               + "-"
                               + context.getOperation())
-                      .build()));
+                      .build(),
+                  input));
     }
   }
 }
