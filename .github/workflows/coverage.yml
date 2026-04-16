@@ -19,14 +19,14 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          java-version: '11'
-          distribution: 'temurin'
+          java-version: "23"
+          distribution: "temurin"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
       - name: Run Tests
-        run: ./gradlew test -x spotlessCheck -x spotlessApply -Pjacoco
+        run: ./gradlew test -x spotlessCheck -x spotlessApply -Pjacoco -PtestJavaVersion=23
         continue-on-error: true
 
       - name: Run Test Coverage

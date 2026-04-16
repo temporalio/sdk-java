@@ -1,0 +1,15 @@
+# TIP 
+# 
+# For the best SDK development experience, make to hava all of the following
+# JDKs installed on your machine (`mise install java@[version]`):
+#   - `java@temurin-11`
+#   - `java@temurin-17`
+#   - `java@temurin-23`
+# 
+# Java 21+ is required for anything that requires gradle.
+# 
+# If you find out that gradle isn't automatically picking it up older JDKs as
+# toolchains, see https://mise.jdx.dev/lang/java.html#gradle-toolchains-detection.
+
+[tools]
+java = "temurin-23"
