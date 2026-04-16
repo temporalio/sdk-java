@@ -1,33 +1,27 @@
 package io.temporal.nexus;
 
-import io.nexusrpc.handler.OperationContext;
-import io.nexusrpc.handler.OperationStartDetails;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
 import io.temporal.common.Experimental;
-import io.temporal.internal.client.NexusStartWorkflowResponse;
-import io.temporal.internal.nexus.NexusStartWorkflowHelper;
 import io.temporal.workflow.Functions;
-import java.util.Objects;
 
 /**
  * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
- * Temporal workflows from within a Nexus operation handler.
+ * Temporal from within a Nexus operation handler.
  *
  * <p>Obtained via the {@link TemporalOperationHandler.StartFunction} parameter.
  *
- * <p>Usage example:
+ * <p>Example usage to start a workflow from an operation handler:
  *
  * <pre>{@code
  * @OperationImpl
- * public OperationHandler<OrderInput, OrderResult> createOrder() {
+ * public OperationHandler<TransferInput, TransferResult> startTransfer() {
  *   return TemporalOperationHandler.from((context, client, input) -> {
  *     return client.startWorkflow(
- *         OrderWorkflow.class,
- *         wf -> wf.processOrder(input),
+ *         TransferWorkflow.class,
+ *         TransferWorkflow::transfer, input.getFromAccount(), input.getToAccount(),
  *         WorkflowOptions.newBuilder()
- *             .setWorkflowId("order-" + input.getOrderId())
+ *             .setWorkflowId("transfer-" + input.getTransferId())
  *             .build());
  *   });
  * }
@@ -49,80 +43,359 @@ import java.util.Objects;
  * }</pre>
  */
 @Experimental
-public final class TemporalNexusClient {
-
-  private final WorkflowClient client;
-  private final OperationContext operationContext;
-  private final OperationStartDetails operationStartDetails;
-
-  TemporalNexusClient(
-      WorkflowClient client,
-      OperationContext operationContext,
-      OperationStartDetails operationStartDetails) {
-    this.client = Objects.requireNonNull(client);
-    this.operationContext = Objects.requireNonNull(operationContext);
-    this.operationStartDetails = Objects.requireNonNull(operationStartDetails);
-  }
+public interface TemporalNexusClient {
 
   /** Returns the underlying {@link WorkflowClient} for advanced use cases. */
-  public WorkflowClient getWorkflowClient() {
-    return client;
-  }
+  WorkflowClient getWorkflowClient();
 
   /**
-   * Starts a workflow by invoking a returning method on a workflow stub. The client creates the
-   * stub from the given class and options, then invokes the workflow method via the provided
-   * function.
+   * Starts a zero-argument workflow that returns a value.
    *
    * <p>Example:
    *
    * <pre>{@code
-   * client.startWorkflow(MyWorkflow.class, wf -> wf.run(input), options)
-   * }</pre>
-   *
-   * <p>For void-returning workflow methods, use a block lambda that returns null:
-   *
-   * <pre>{@code
-   * client.startWorkflow(MyWorkflow.class, wf -> { wf.execute(input); return null; }, options)
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::run, options)
    * }</pre>
    *
    * @param workflowClass the workflow interface class
-   * @param workflowMethod receives the workflow stub and calls exactly one workflow method
+   * @param workflowMethod unbound method reference to the workflow method
    * @param options workflow start options (must include workflowId)
    * @param <T> the workflow interface type
    * @param <R> the workflow return type
    * @return an async {@link TemporalOperationResult} with the workflow-run operation token
    */
-  public <T, R> TemporalOperationResult<R> startWorkflow(
-      Class<T> workflowClass, Functions.Func1<T, R> workflowMethod, WorkflowOptions options) {
-    T stub = client.newWorkflowStub(workflowClass, options);
-    Functions.Func<R> bound = () -> workflowMethod.apply(stub);
-    return invokeAndReturn(WorkflowHandle.fromWorkflowMethod(bound));
-  }
+  <T, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass, Functions.Func1<T, R> workflowMethod, WorkflowOptions options);
+
+  /**
+   * Starts a one-argument workflow that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::processOrder, input, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func2<T, A1, R> workflowMethod,
+      A1 arg1,
+      WorkflowOptions options);
+
+  /**
+   * Starts a two-argument workflow that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::run, arg1, arg2, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func3<T, A1, A2, R> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      WorkflowOptions options);
+
+  /**
+   * Starts a three-argument workflow that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::run, arg1, arg2, arg3, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func4<T, A1, A2, A3, R> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      WorkflowOptions options);
+
+  /**
+   * Starts a four-argument workflow that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::run, arg1, arg2, arg3, arg4, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <A4> the type of the fourth workflow argument
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, A4, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func5<T, A1, A2, A3, A4, R> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      WorkflowOptions options);
+
+  /**
+   * Starts a five-argument workflow that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::run, arg1, arg2, arg3, arg4, arg5, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param arg5 fifth workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <A4> the type of the fourth workflow argument
+   * @param <A5> the type of the fifth workflow argument
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, A4, A5, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func6<T, A1, A2, A3, A4, A5, R> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      WorkflowOptions options);
+
+  /**
+   * Starts a zero-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass, Functions.Proc1<T> workflowMethod, WorkflowOptions options);
+
+  /**
+   * Starts a one-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, input, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc2<T, A1> workflowMethod,
+      A1 arg1,
+      WorkflowOptions options);
+
+  /**
+   * Starts a two-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, arg1, arg2, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc3<T, A1, A2> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      WorkflowOptions options);
+
+  /**
+   * Starts a three-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, arg1, arg2, arg3, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc4<T, A1, A2, A3> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      WorkflowOptions options);
+
+  /**
+   * Starts a four-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, arg1, arg2, arg3, arg4, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <A4> the type of the fourth workflow argument
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, A4> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc5<T, A1, A2, A3, A4> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      WorkflowOptions options);
+
+  /**
+   * Starts a five-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, arg1, arg2, arg3, arg4, arg5, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param arg5 fifth workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <A4> the type of the fourth workflow argument
+   * @param <A5> the type of the fifth workflow argument
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, A4, A5> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc6<T, A1, A2, A3, A4, A5> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      WorkflowOptions options);
 
   /**
    * Starts a workflow using an untyped workflow type name.
    *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow("MyWorkflow", String.class, options, input)
+   * }</pre>
+   *
    * @param workflowType the workflow type name string
    * @param resultClass the expected result class
-   * @param args workflow arguments
    * @param options workflow start options (must include workflowId)
+   * @param args workflow arguments
    * @param <R> the workflow return type
    * @return an async {@link TemporalOperationResult} with the workflow-run operation token
    */
-  public <R> TemporalOperationResult<R> startWorkflow(
-      String workflowType, Class<R> resultClass, Object[] args, WorkflowOptions options) {
-    WorkflowStub stub = client.newUntypedWorkflowStub(workflowType, options);
-    WorkflowHandle<R> handle = WorkflowHandle.fromWorkflowStub(stub, resultClass, args);
-    return invokeAndReturn(handle);
-  }
-
-  private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<R> handle) {
-    NexusStartWorkflowResponse response =
-        NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
-            operationContext,
-            operationStartDetails,
-            request -> handle.getInvoker().invoke(request));
-    return TemporalOperationResult.async(response.getOperationToken());
-  }
+  <R> TemporalOperationResult<R> startWorkflow(
+      String workflowType, Class<R> resultClass, WorkflowOptions options, Object... args);
 }

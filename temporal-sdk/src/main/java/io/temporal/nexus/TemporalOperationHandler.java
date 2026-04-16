@@ -74,7 +74,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
       OperationContext ctx, OperationStartDetails details, T input) {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
     TemporalNexusClient client =
-        new TemporalNexusClient(nexusCtx.getWorkflowClient(), ctx, details);
+        new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
 
     TemporalOperationStartContext startContext = new TemporalOperationStartContext(ctx, details);
     TemporalOperationResult<R> result = startFunction.apply(startContext, client, input);

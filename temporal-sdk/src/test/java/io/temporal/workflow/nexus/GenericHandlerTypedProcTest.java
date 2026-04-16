@@ -45,7 +45,9 @@ public class GenericHandlerTypedProcTest {
 
       TestNexusServiceProc serviceStub =
           Workflow.newNexusServiceStub(TestNexusServiceProc.class, serviceOptions);
-      serviceStub.operation("input");
+      for (int i = 0; i < 6; i++) {
+        serviceStub.operation(i);
+      }
       return "done";
     }
   }
@@ -53,28 +55,69 @@ public class GenericHandlerTypedProcTest {
   @Service
   public interface TestNexusServiceProc {
     @Operation
-    Void operation(String input);
+    Void operation(Integer input);
   }
 
   @ServiceImpl(service = TestNexusServiceProc.class)
   public class TestNexusServiceImpl {
     @OperationImpl
-    public OperationHandler<String, Void> operation() {
+    public OperationHandler<Integer, Void> operation() {
       return TemporalOperationHandler.from(
-          (context, client, input) ->
-              client.startWorkflow(
-                  TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class,
-                  wf -> {
-                    wf.proc();
-                    return null;
-                  },
-                  WorkflowOptions.newBuilder()
-                      .setWorkflowId(
-                          "generic-handler-proc-"
-                              + context.getService()
-                              + "-"
-                              + context.getOperation())
-                      .build()));
+          (context, client, input) -> {
+            String prefix = "generic-handler-test-proc" + input + "-";
+            String workflowId = prefix + context.getService() + "-" + context.getOperation();
+            WorkflowOptions options =
+                WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
+            switch (input) {
+              case 0:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc::proc,
+                    options);
+              case 1:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc::proc1,
+                    "input",
+                    options);
+              case 2:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc::proc2,
+                    "input",
+                    2,
+                    options);
+              case 3:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc::proc3,
+                    "input",
+                    2,
+                    3,
+                    options);
+              case 4:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc::proc4,
+                    "input",
+                    2,
+                    3,
+                    4,
+                    options);
+              case 5:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc::proc5,
+                    "input",
+                    2,
+                    3,
+                    4,
+                    5,
+                    options);
+              default:
+                throw new IllegalArgumentException("unexpected input: " + input);
+            }
+          });
     }
   }
 }
