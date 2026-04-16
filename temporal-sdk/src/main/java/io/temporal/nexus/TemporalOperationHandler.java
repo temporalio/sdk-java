@@ -18,13 +18,13 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  *
  * <pre>{@code
  * @OperationImpl
- * public OperationHandler<OrderInput, OrderResult> createOrder() {
+ * public OperationHandler<TransferInput, TransferResult> startTransfer() {
  *   return TemporalOperationHandler.from((context, client, input) -> {
  *     return client.startWorkflow(
- *         OrderWorkflow.class,
- *         wf -> wf.processOrder(input),
+ *         TransferWorkflow.class,
+ *         TransferWorkflow::transfer, input.getFromAccount(), input.getToAccount(),
  *         WorkflowOptions.newBuilder()
- *             .setWorkflowId("order-" + input.getOrderId())
+ *             .setWorkflowId("transfer-" + input.getTransferId())
  *             .build());
  *   });
  * }
@@ -70,7 +70,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
   }
 
   @Override
-  public OperationStartResult<R> start(
+  public final OperationStartResult<R> start(
       OperationContext ctx, OperationStartDetails details, T input) {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
     TemporalNexusClient client =
@@ -91,7 +91,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
   }
 
   @Override
-  public void cancel(OperationContext ctx, OperationCancelDetails details) {
+  public final void cancel(OperationContext ctx, OperationCancelDetails details) {
     OperationToken token;
     try {
       token = OperationTokenUtil.loadOperationToken(details.getOperationToken());

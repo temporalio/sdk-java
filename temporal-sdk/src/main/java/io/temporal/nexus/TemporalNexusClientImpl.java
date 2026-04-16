@@ -5,12 +5,14 @@ import io.nexusrpc.handler.OperationStartDetails;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.Experimental;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
 
 /** Package-private implementation of {@link TemporalNexusClient}. */
+@Experimental
 final class TemporalNexusClientImpl implements TemporalNexusClient {
 
   private final WorkflowClient client;

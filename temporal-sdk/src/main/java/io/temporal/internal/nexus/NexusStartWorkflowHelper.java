@@ -16,7 +16,8 @@ import java.util.function.Function;
 
 /**
  * Shared helper for starting a workflow from a Nexus operation and attaching workflow links to the
- * operation context. Used by both {@code WorkflowRunOperationImpl} and {@code TemporalNexusClient}.
+ * operation context. Used by both {@code WorkflowRunOperationImpl} and {@code
+ * TemporalNexusClientImpl}.
  */
 public class NexusStartWorkflowHelper {
 
