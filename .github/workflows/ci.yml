@@ -75,7 +75,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: |
-            8
+            11
             23
           distribution: "temurin"
 
@@ -113,12 +113,16 @@ jobs:
               --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' &
           sleep 10s
 
-      - name: Run unit tests (Java 8)
+      # Can't actually run tests against Java 8 because Mockito 5 requires Java 11+.
+      # We therefore have to rely on the fact that the code has been compiled with
+      # `-release 8` which guarantees that the code is technically (bytecode + API
+      # usage) compatible with Java 8.
+      - name: Run unit tests (Java 11)
         env:
           USER: unittest
           TEMPORAL_SERVICE_ADDRESS: localhost:7233
           USE_DOCKER_SERVICE: true
-        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=8
+        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=11
 
       - name: Run Jackson 3 converter tests (Java 17)
         env:
