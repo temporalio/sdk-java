@@ -59,7 +59,7 @@ public class GenericHandlerUntypedStartWorkflowTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return TemporalOperationHandler.from(
+      return TemporalOperationHandler.create(
           (context, client, input) ->
               client.startWorkflow(
                   "func1",

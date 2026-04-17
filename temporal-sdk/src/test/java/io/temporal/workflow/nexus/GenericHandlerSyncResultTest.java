@@ -57,7 +57,7 @@ public class GenericHandlerSyncResultTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return TemporalOperationHandler.from(
+      return TemporalOperationHandler.create(
           (context, client, input) -> TemporalOperationResult.sync("sync-" + input));
     }
   }

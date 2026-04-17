@@ -62,7 +62,7 @@ public class GenericHandlerTypedProcTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<Integer, Void> operation() {
-      return TemporalOperationHandler.from(
+      return TemporalOperationHandler.create(
           (context, client, input) -> {
             String prefix = "generic-handler-test-proc" + input + "-";
             String workflowId = prefix + context.getService() + "-" + context.getOperation();

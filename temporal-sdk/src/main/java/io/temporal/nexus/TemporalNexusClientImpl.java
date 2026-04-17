@@ -1,5 +1,6 @@
 package io.temporal.nexus;
 
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
 import io.temporal.client.WorkflowClient;
@@ -18,6 +19,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   private final WorkflowClient client;
   private final OperationContext operationContext;
   private final OperationStartDetails operationStartDetails;
+  private boolean asyncOperationStarted;
 
   TemporalNexusClientImpl(
       WorkflowClient client,
@@ -196,11 +198,21 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   }
 
   private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<R> handle) {
+    if (asyncOperationStarted) {
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST,
+          new IllegalStateException(
+              "Only one async operation can be started per operation handler invocation. "
+                  + "Use getWorkflowClient() for additional workflow interactions."));
+    }
     NexusStartWorkflowResponse response =
         NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
             operationContext,
             operationStartDetails,
             request -> handle.getInvoker().invoke(request));
+    // Set after successful start so that if startWorkflowAndAttachLinks throws,
+    // the handler can retry without being blocked by the guard.
+    asyncOperationStarted = true;
     return TemporalOperationResult.async(response.getOperationToken());
   }
 }
