@@ -53,4 +53,11 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // This module's bytecode targets Java 17+, so it can't run on older JVMs.
+    // The unit_test_jdk8 CI job sets -PtestJavaVersion=11 to verify Java 8 bytecode
+    // works on JDK 11 — skip our tests there since the classes won't even load.
+    if (project.hasProperty("testJavaVersion")
+            && (project.property("testJavaVersion") as int) < springAiReleaseInt) {
+        enabled = false
+    }
 }
