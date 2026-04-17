@@ -1,0 +1,34 @@
+description = '''Temporal Java SDK Tool Registry - LLM tool-calling primitives for Temporal activities'''
+
+// Both Anthropic and OpenAI Java SDKs require Java 11+, so this module targets Java 11.
+// The core SDK supports Java 8+, but this contrib module is explicitly Java 11+.
+afterEvaluate {
+    compileJava.options.compilerArgs.removeAll { it == '8' }
+    compileJava.options.compilerArgs.removeAll { it == '--release' }
+    compileJava.options.compilerArgs.addAll(['--release', '11'])
+
+    compileTestJava.options.compilerArgs.removeAll { it == '8' }
+    compileTestJava.options.compilerArgs.removeAll { it == '--release' }
+    compileTestJava.options.compilerArgs.addAll(['--release', '11'])
+}
+
+ext {
+    anthropicVersion = '2.24.0'  // com.anthropic:anthropic-java
+    openaiVersion    = '4.31.0'  // com.openai:openai-java
+}
+
+dependencies {
+    // Not bundled — consumers provide temporal-sdk themselves, just like temporal-opentracing.
+    compileOnly project(':temporal-sdk')
+
+    // LLM providers are optional compile-time deps; users add only what they use.
+    compileOnly "com.anthropic:anthropic-java:$anthropicVersion"
+    compileOnly "com.openai:openai-java:$openaiVersion"
+
+    testImplementation project(':temporal-testing')
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation "com.anthropic:anthropic-java:$anthropicVersion"
+    testImplementation "com.openai:openai-java:$openaiVersion"
+    testRuntimeOnly "ch.qos.logback:logback-classic:${logbackVersion}"
+}
