@@ -7,46 +7,19 @@ ext {
 }
 
 // Spring AI requires Java 17+, override the default Java 8 target from java.gradle.
-// When edgeDepsTest is set, use 21 to match other modules (avoids Gradle JVM compatibility rejection).
+// When edgeDepsTest is set, use 21 to match other modules.
 ext {
-    springAiJavaVersion = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_21 : JavaVersion.VERSION_17
     springAiReleaseInt = project.hasProperty("edgeDepsTest") ? 21 : 17
 }
 
-java {
-    sourceCompatibility = springAiJavaVersion
-    targetCompatibility = springAiJavaVersion
-}
-
-// Use a JDK 17+ compiler/javadoc/launcher via Gradle toolchains when the running JVM is older.
-// This lets the module build and publish from the same JDK 11 release job used for the rest of
-// the SDK, matching the pattern used by temporal-sdk for its Java 17/21 source sets.
 compileJava {
-    if (!JavaVersion.current().isCompatibleWith(springAiJavaVersion)) {
-        javaCompiler = javaToolchains.compilerFor {
-            languageVersion = JavaLanguageVersion.of(springAiReleaseInt)
-        }
-    }
     options.compilerArgs.removeAll(['--release', '8'])
     options.release = springAiReleaseInt
 }
 
 compileTestJava {
-    if (!JavaVersion.current().isCompatibleWith(springAiJavaVersion)) {
-        javaCompiler = javaToolchains.compilerFor {
-            languageVersion = JavaLanguageVersion.of(springAiReleaseInt)
-        }
-    }
     options.compilerArgs.removeAll(['--release', '8'])
     options.release = springAiReleaseInt
-}
-
-javadoc {
-    if (!JavaVersion.current().isCompatibleWith(springAiJavaVersion)) {
-        javadocTool = javaToolchains.javadocToolFor {
-            languageVersion = JavaLanguageVersion.of(springAiReleaseInt)
-        }
-    }
 }
 
 dependencies {
@@ -80,9 +53,4 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    if (!JavaVersion.current().isCompatibleWith(springAiJavaVersion)) {
-        javaLauncher = javaToolchains.launcherFor {
-            languageVersion = JavaLanguageVersion.of(springAiReleaseInt)
-        }
-    }
 }

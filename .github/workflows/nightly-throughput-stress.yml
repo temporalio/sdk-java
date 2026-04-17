@@ -89,14 +89,14 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          java-version: "11"
+          java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build SDK
-        run: ./gradlew build -x test -x virtualThreadTests
+        run: ./gradlew build -x test -x virtualThreadTests -PtestJavaVersion=23
 
       - name: Install Temporal CLI
         uses: temporalio/setup-temporal@v0
