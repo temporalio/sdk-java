@@ -123,7 +123,7 @@ public class GenericHandlerCancelTest extends BaseNexusTest {
   public class TestNexusServiceImpl {
     @OperationImpl
     public OperationHandler<String, Void> operation() {
-      return TemporalOperationHandler.from(
+      return TemporalOperationHandler.create(
           (context, client, input) ->
               client.startWorkflow(
                   WaitForCancelWorkflowInterface.class,

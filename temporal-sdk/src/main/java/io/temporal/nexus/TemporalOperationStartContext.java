@@ -7,7 +7,7 @@ import java.util.Objects;
 
 /**
  * Context for a Nexus start operation request, passed to {@link
- * TemporalOperationHandler.StartFunction} alongside the {@link TemporalNexusClient} and input.
+ * TemporalOperationHandler.StartHandler} alongside the {@link TemporalNexusClient} and input.
  */
 @Experimental
 public final class TemporalOperationStartContext {

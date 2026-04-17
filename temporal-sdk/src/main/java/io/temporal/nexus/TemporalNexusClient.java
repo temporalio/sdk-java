@@ -9,14 +9,14 @@ import io.temporal.workflow.Functions;
  * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
  * Temporal from within a Nexus operation handler.
  *
- * <p>Obtained via the {@link TemporalOperationHandler.StartFunction} parameter.
+ * <p>Obtained via the {@link TemporalOperationHandler.StartHandler} parameter.
  *
  * <p>Example usage to start a workflow from an operation handler:
  *
  * <pre>{@code
  * @OperationImpl
  * public OperationHandler<TransferInput, TransferResult> startTransfer() {
- *   return TemporalOperationHandler.from((context, client, input) -> {
+ *   return TemporalOperationHandler.create((context, client, input) -> {
  *     return client.startWorkflow(
  *         TransferWorkflow.class,
  *         TransferWorkflow::transfer, input.getFromAccount(), input.getToAccount(),
@@ -27,13 +27,13 @@ import io.temporal.workflow.Functions;
  * }
  * }</pre>
  *
- * <p>For advanced use cases, the underlying {@link WorkflowClient} can be accessed via {@link
- * #getWorkflowClient()}. For example, to send a signal and return a synchronous result:
+ * <p>For synchronous operations, use {@link #getWorkflowClient()} directly and return a {@link
+ * TemporalOperationResult#sync} result. For example, to send a signal:
  *
  * <pre>{@code
  * @OperationImpl
  * public OperationHandler<CancelOrderInput, Void> cancelOrder() {
- *   return TemporalOperationHandler.from((context, client, input) -> {
+ *   return TemporalOperationHandler.create((context, client, input) -> {
  *     client.getWorkflowClient()
  *         .newUntypedWorkflowStub("order-" + input.getOrderId())
  *         .signal("requestCancellation", input);

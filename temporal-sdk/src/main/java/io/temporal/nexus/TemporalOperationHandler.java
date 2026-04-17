@@ -19,7 +19,7 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  * <pre>{@code
  * @OperationImpl
  * public OperationHandler<TransferInput, TransferResult> startTransfer() {
- *   return TemporalOperationHandler.from((context, client, input) -> {
+ *   return TemporalOperationHandler.create((context, client, input) -> {
  *     return client.startWorkflow(
  *         TransferWorkflow.class,
  *         TransferWorkflow::transfer, input.getFromAccount(), input.getToAccount(),
@@ -41,32 +41,32 @@ import io.temporal.internal.nexus.OperationTokenUtil;
 public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
   /**
-   * Function invoked when a Nexus start operation request is received.
+   * Handler invoked when a Nexus start operation request is received.
    *
    * @param <T> the input type
    * @param <R> the result type
    */
   @FunctionalInterface
-  public interface StartFunction<T, R> {
+  public interface StartHandler<T, R> {
     TemporalOperationResult<R> apply(
         TemporalOperationStartContext context, TemporalNexusClient client, T input);
   }
 
-  private final StartFunction<T, R> startFunction;
+  private final StartHandler<T, R> startHandler;
 
-  protected TemporalOperationHandler(StartFunction<T, R> startFunction) {
-    this.startFunction = startFunction;
+  protected TemporalOperationHandler(StartHandler<T, R> startHandler) {
+    this.startHandler = startHandler;
   }
 
   /**
-   * Creates a {@link TemporalOperationHandler} from a start function. Subclass and override {@link
+   * Creates a {@link TemporalOperationHandler} from a start handler. Subclass and override {@link
    * #cancelWorkflowRun} to customize cancel behavior.
    *
-   * @param startFunction the function to invoke on start operation requests
-   * @return an operation handler backed by the given start function
+   * @param startHandler the handler to invoke on start operation requests
+   * @return an operation handler backed by the given start handler
    */
-  public static <T, R> TemporalOperationHandler<T, R> from(StartFunction<T, R> startFunction) {
-    return new TemporalOperationHandler<>(startFunction);
+  public static <T, R> TemporalOperationHandler<T, R> create(StartHandler<T, R> startHandler) {
+    return new TemporalOperationHandler<>(startHandler);
   }
 
   @Override
@@ -77,7 +77,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
 
     TemporalOperationStartContext startContext = new TemporalOperationStartContext(ctx, details);
-    TemporalOperationResult<R> result = startFunction.apply(startContext, client, input);
+    TemporalOperationResult<R> result = startHandler.apply(startContext, client, input);
 
     if (result.isSync()) {
       return OperationStartResult.newSyncBuilder(result.getSyncResult()).build();
