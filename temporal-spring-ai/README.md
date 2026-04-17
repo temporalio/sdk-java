@@ -4,12 +4,12 @@ Integrates [Spring AI](https://docs.spring.io/spring-ai/reference/) with [Tempor
 
 ## Compatibility
 
-| Dependency | Minimum Version |
-|---|---|
-| Java | 17 |
-| Spring Boot | 3.x |
-| Spring AI | 1.1.0 |
-| Temporal Java SDK | 1.33.0 |
+| Dependency        | Minimum Version |
+|-------------------|-----------------|
+| Java              | 17              |
+| Spring Boot       | 3.x             |
+| Spring AI         | 1.1.0           |
+| Temporal Java SDK | 1.33.0          |
 
 ## Quick Start
 
@@ -96,11 +96,11 @@ Auto-detected and executed as Nexus operations, similar to activity stubs.
 
 Auto-configured when their dependencies are on the classpath:
 
-| Feature | Dependency | What it registers |
-|---|---|---|
-| Vector Store | `spring-ai-rag` | `VectorStoreActivity` |
-| Embeddings | `spring-ai-rag` | `EmbeddingModelActivity` |
-| MCP | `spring-ai-mcp` | `McpClientActivity` |
+| Feature      | Dependency      | What it registers        |
+|--------------|-----------------|--------------------------|
+| Vector Store | `spring-ai-rag` | `VectorStoreActivity`    |
+| Embeddings   | `spring-ai-rag` | `EmbeddingModelActivity` |
+| MCP          | `spring-ai-mcp` | `McpClientActivity`      |
 
 These can also be set up programmatically without auto-configuration:
 
