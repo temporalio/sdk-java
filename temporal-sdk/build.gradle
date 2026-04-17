@@ -66,28 +66,10 @@ dependencies {
 }
 
 tasks.named('compileJava17Java') {
-    // Gradle toolchains are too strict and require the JDK to match the specified version exactly.
-    // This is a workaround to use a JDK 17+ compiler.
-    //
-    // See also: https://github.com/gradle/gradle/issues/16256
-    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-        javaCompiler = javaToolchains.compilerFor {
-            languageVersion = JavaLanguageVersion.of(17)
-        }
-    }
     options.release = 17
 }
 
 tasks.named('compileJava21Java') {
-    // Gradle toolchains are too strict and require the JDK to match the specified version exactly.
-    // This is a workaround to use a JDK 21+ compiler.
-    //
-    // See also: https://github.com/gradle/gradle/issues/16256
-    if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
-        javaCompiler = javaToolchains.compilerFor {
-            languageVersion = JavaLanguageVersion.of(21)
-        }
-    }
     options.release = 21
 }
 
@@ -142,9 +124,7 @@ test {
 // the present-java17-but-absent-jackson3 behavior (NoClassDefFoundError) in the same
 // test that tests the Java 8 stub behavior (UnsupportedOperationException).
 tasks.withType(Test).configureEach {
-    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-        dependsOn compileJava17Java
-    }
+    dependsOn compileJava17Java
     doFirst {
         int launcherMajorVersion = javaLauncher.get().metadata.languageVersion.asInt()
         if (launcherMajorVersion >= 17) {
