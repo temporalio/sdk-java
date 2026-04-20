@@ -9,7 +9,7 @@ Integrates [Spring AI](https://docs.spring.io/spring-ai/reference/) with [Tempor
 | Java              | 17              |
 | Spring Boot       | 3.x             |
 | Spring AI         | 1.1.0           |
-| Temporal Java SDK | 1.33.0          |
+| Temporal Java SDK | 1.35.0          |
 
 ## Quick Start
 
