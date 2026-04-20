@@ -132,4 +132,49 @@ public class ActivityHandleImplTest {
     ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class);
     assertEquals("typed-result", typed.getResult());
   }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testFromUntypedWithExplicitTypePassesTypeToInterceptor()
+      throws ActivityFailedException {
+    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
+    when(output.getResult()).thenReturn("generic-result");
+    when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
+
+    java.lang.reflect.Type explicitType = String.class;
+    UntypedActivityHandle untyped = new ActivityHandleImpl("id", "run", interceptor);
+    ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class, explicitType);
+    assertEquals("generic-result", typed.getResult());
+    verify(interceptor).getActivityResult(argThat(i -> explicitType.equals(i.getResultType())));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testFromUntypedGetResultAsyncNoArg() throws Exception {
+    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
+    when(output.getResult()).thenReturn("async-typed");
+    when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
+
+    UntypedActivityHandle untyped = new ActivityHandleImpl("id", "run", interceptor);
+    ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class);
+    CompletableFuture<String> future = typed.getResultAsync();
+    assertEquals("async-typed", future.get());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testGetResultAsyncWrapsActivityFailedExceptionInRuntimeException() throws Exception {
+    ActivityFailedException failure =
+        new ActivityFailedException("activity failed", new RuntimeException("root cause"));
+    when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenThrow(failure);
+
+    UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
+    CompletableFuture<String> future = handle.getResultAsync(String.class);
+    try {
+      future.get();
+      fail("expected ExecutionException");
+    } catch (java.util.concurrent.ExecutionException e) {
+      assertSame(failure, e.getCause().getCause());
+    }
+  }
 }
