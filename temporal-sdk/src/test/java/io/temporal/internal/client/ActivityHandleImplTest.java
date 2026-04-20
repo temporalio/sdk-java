@@ -3,12 +3,9 @@ package io.temporal.internal.client;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import io.temporal.client.ActivityCancelOptions;
-import io.temporal.client.ActivityDescribeOptions;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.ActivityHandle;
-import io.temporal.client.ActivityTerminateOptions;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
@@ -80,66 +77,48 @@ public class ActivityHandleImplTest {
   }
 
   @Test
-  public void testDescribeWithOptions() {
-    ActivityExecutionDescription desc = mock(ActivityExecutionDescription.class);
-    DescribeActivityOutput output = new DescribeActivityOutput(desc);
-    when(interceptor.describeActivity(any(DescribeActivityInput.class))).thenReturn(output);
-
-    UntypedActivityHandle handle = new ActivityHandleImpl("id", null, interceptor);
-    ActivityDescribeOptions opts = ActivityDescribeOptions.newBuilder().build();
-    handle.describe(opts);
-    verify(interceptor)
-        .describeActivity(argThat(i -> "id".equals(i.getId()) && opts.equals(i.getOptions())));
-  }
-
-  @Test
-  public void testCancelNoOptions() {
+  public void testCancelNoReason() {
     when(interceptor.cancelActivity(any(CancelActivityInput.class)))
         .thenReturn(new CancelActivityOutput());
 
     UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
     handle.cancel();
-    verify(interceptor).cancelActivity(argThat(i -> "id".equals(i.getId())));
+    verify(interceptor)
+        .cancelActivity(argThat(i -> "id".equals(i.getId()) && i.getReason() == null));
   }
 
   @Test
-  public void testCancelWithOptions() {
+  public void testCancelWithReason() {
     when(interceptor.cancelActivity(any(CancelActivityInput.class)))
         .thenReturn(new CancelActivityOutput());
 
     UntypedActivityHandle handle = new ActivityHandleImpl("id", null, interceptor);
-    ActivityCancelOptions opts = ActivityCancelOptions.newBuilder().build();
-    handle.cancel(opts);
+    handle.cancel("cancel-reason");
     verify(interceptor)
-        .cancelActivity(argThat(i -> "id".equals(i.getId()) && opts.equals(i.getOptions())));
+        .cancelActivity(
+            argThat(i -> "id".equals(i.getId()) && "cancel-reason".equals(i.getReason())));
   }
 
   @Test
-  public void testTerminateNoOptions() {
+  public void testTerminateNoReason() {
     when(interceptor.terminateActivity(any(TerminateActivityInput.class)))
         .thenReturn(new TerminateActivityOutput());
 
     UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
-    handle.terminate("reason");
+    handle.terminate();
     verify(interceptor)
-        .terminateActivity(argThat(i -> "id".equals(i.getId()) && "reason".equals(i.getReason())));
+        .terminateActivity(argThat(i -> "id".equals(i.getId()) && i.getReason() == null));
   }
 
   @Test
-  public void testTerminateWithOptions() {
+  public void testTerminateWithReason() {
     when(interceptor.terminateActivity(any(TerminateActivityInput.class)))
         .thenReturn(new TerminateActivityOutput());
 
     UntypedActivityHandle handle = new ActivityHandleImpl("id", null, interceptor);
-    ActivityTerminateOptions opts = ActivityTerminateOptions.newBuilder().build();
-    handle.terminate("done", opts);
+    handle.terminate("done");
     verify(interceptor)
-        .terminateActivity(
-            argThat(
-                i ->
-                    "id".equals(i.getId())
-                        && "done".equals(i.getReason())
-                        && opts.equals(i.getOptions())));
+        .terminateActivity(argThat(i -> "id".equals(i.getId()) && "done".equals(i.getReason())));
   }
 
   @Test

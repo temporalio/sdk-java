@@ -69,27 +69,22 @@ final class ActivityHandleWrapper<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public ActivityExecutionDescription describe(ActivityDescribeOptions options) {
-    return delegate.describe(options);
-  }
-
-  @Override
   public void cancel() {
     delegate.cancel();
   }
 
   @Override
-  public void cancel(ActivityCancelOptions options) {
-    delegate.cancel(options);
+  public void cancel(@Nullable String reason) {
+    delegate.cancel(reason);
+  }
+
+  @Override
+  public void terminate() {
+    delegate.terminate();
   }
 
   @Override
   public void terminate(@Nullable String reason) {
     delegate.terminate(reason);
-  }
-
-  @Override
-  public void terminate(@Nullable String reason, ActivityTerminateOptions options) {
-    delegate.terminate(reason, options);
   }
 }

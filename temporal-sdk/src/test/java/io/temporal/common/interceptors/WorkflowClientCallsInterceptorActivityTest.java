@@ -3,7 +3,15 @@ package io.temporal.common.interceptors;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import io.temporal.client.*;
+import io.temporal.client.ActivityCountOptions;
+import io.temporal.client.ActivityExecution;
+import io.temporal.client.ActivityExecutionCount;
+import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityFailedException;
+import io.temporal.client.ActivityListOptions;
+import io.temporal.client.ActivityListPage;
+import io.temporal.client.ActivityListPaginatedOptions;
+import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import java.time.Duration;
 import java.util.Collections;
@@ -70,8 +78,7 @@ public class WorkflowClientCallsInterceptorActivityTest {
     DescribeActivityOutput output = new DescribeActivityOutput(desc);
     when(next.describeActivity(any(DescribeActivityInput.class))).thenReturn(output);
 
-    DescribeActivityInput input =
-        new DescribeActivityInput("id", null, ActivityDescribeOptions.newBuilder().build());
+    DescribeActivityInput input = new DescribeActivityInput("id", null);
     DescribeActivityOutput result = base.describeActivity(input);
 
     assertSame(output, result);
@@ -83,8 +90,7 @@ public class WorkflowClientCallsInterceptorActivityTest {
     CancelActivityOutput output = new CancelActivityOutput();
     when(next.cancelActivity(any(CancelActivityInput.class))).thenReturn(output);
 
-    CancelActivityInput input =
-        new CancelActivityInput("id", null, ActivityCancelOptions.newBuilder().build());
+    CancelActivityInput input = new CancelActivityInput("id", null, "cancel-reason");
     CancelActivityOutput result = base.cancelActivity(input);
 
     assertSame(output, result);
@@ -96,9 +102,7 @@ public class WorkflowClientCallsInterceptorActivityTest {
     TerminateActivityOutput output = new TerminateActivityOutput();
     when(next.terminateActivity(any(TerminateActivityInput.class))).thenReturn(output);
 
-    TerminateActivityInput input =
-        new TerminateActivityInput(
-            "id", null, "reason", ActivityTerminateOptions.newBuilder().build());
+    TerminateActivityInput input = new TerminateActivityInput("id", null, "reason");
     TerminateActivityOutput result = base.terminateActivity(input);
 
     assertSame(output, result);

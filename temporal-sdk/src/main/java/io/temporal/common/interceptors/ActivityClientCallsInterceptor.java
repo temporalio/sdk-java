@@ -1,6 +1,15 @@
 package io.temporal.common.interceptors;
 
-import io.temporal.client.*;
+import io.temporal.client.ActivityAlreadyStartedException;
+import io.temporal.client.ActivityCountOptions;
+import io.temporal.client.ActivityExecution;
+import io.temporal.client.ActivityExecutionCount;
+import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityFailedException;
+import io.temporal.client.ActivityListOptions;
+import io.temporal.client.ActivityListPage;
+import io.temporal.client.ActivityListPaginatedOptions;
+import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -150,13 +159,10 @@ public interface ActivityClientCallsInterceptor {
   final class DescribeActivityInput {
     private final String id;
     private final @Nullable String runId;
-    private final ActivityDescribeOptions options;
 
-    public DescribeActivityInput(
-        String id, @Nullable String runId, ActivityDescribeOptions options) {
+    public DescribeActivityInput(String id, @Nullable String runId) {
       this.id = id;
       this.runId = runId;
-      this.options = options;
     }
 
     public String getId() {
@@ -166,10 +172,6 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getRunId() {
       return runId;
-    }
-
-    public ActivityDescribeOptions getOptions() {
-      return options;
     }
   }
 
@@ -190,47 +192,12 @@ public interface ActivityClientCallsInterceptor {
   final class CancelActivityInput {
     private final String id;
     private final @Nullable String runId;
-    private final ActivityCancelOptions options;
-
-    public CancelActivityInput(String id, @Nullable String runId, ActivityCancelOptions options) {
-      this.id = id;
-      this.runId = runId;
-      this.options = options;
-    }
-
-    public String getId() {
-      return id;
-    }
-
-    @Nullable
-    public String getRunId() {
-      return runId;
-    }
-
-    public ActivityCancelOptions getOptions() {
-      return options;
-    }
-  }
-
-  @Experimental
-  final class CancelActivityOutput {}
-
-  @Experimental
-  final class TerminateActivityInput {
-    private final String id;
-    private final @Nullable String runId;
     private final @Nullable String reason;
-    private final ActivityTerminateOptions options;
 
-    public TerminateActivityInput(
-        String id,
-        @Nullable String runId,
-        @Nullable String reason,
-        ActivityTerminateOptions options) {
+    public CancelActivityInput(String id, @Nullable String runId, @Nullable String reason) {
       this.id = id;
       this.runId = runId;
       this.reason = reason;
-      this.options = options;
     }
 
     public String getId() {
@@ -246,9 +213,35 @@ public interface ActivityClientCallsInterceptor {
     public String getReason() {
       return reason;
     }
+  }
 
-    public ActivityTerminateOptions getOptions() {
-      return options;
+  @Experimental
+  final class CancelActivityOutput {}
+
+  @Experimental
+  final class TerminateActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final @Nullable String reason;
+
+    public TerminateActivityInput(String id, @Nullable String runId, @Nullable String reason) {
+      this.id = id;
+      this.runId = runId;
+      this.reason = reason;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
     }
   }
 

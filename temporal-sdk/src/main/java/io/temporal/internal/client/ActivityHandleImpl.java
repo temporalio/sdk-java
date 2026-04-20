@@ -1,10 +1,7 @@
 package io.temporal.internal.client;
 
-import io.temporal.client.ActivityCancelOptions;
-import io.temporal.client.ActivityDescribeOptions;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityFailedException;
-import io.temporal.client.ActivityTerminateOptions;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
@@ -74,38 +71,32 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public ActivityExecutionDescription describe() {
-    return describe(ActivityDescribeOptions.newBuilder().build());
-  }
-
-  @Override
-  public ActivityExecutionDescription describe(ActivityDescribeOptions options) {
     return clientCallsInterceptor
         .describeActivity(
-            new ActivityClientCallsInterceptor.DescribeActivityInput(
-                activityId, activityRunId, options))
+            new ActivityClientCallsInterceptor.DescribeActivityInput(activityId, activityRunId))
         .getDescription();
   }
 
   @Override
   public void cancel() {
-    cancel(ActivityCancelOptions.newBuilder().build());
+    cancel(null);
   }
 
   @Override
-  public void cancel(ActivityCancelOptions options) {
+  public void cancel(@Nullable String reason) {
     clientCallsInterceptor.cancelActivity(
-        new ActivityClientCallsInterceptor.CancelActivityInput(activityId, activityRunId, options));
+        new ActivityClientCallsInterceptor.CancelActivityInput(activityId, activityRunId, reason));
+  }
+
+  @Override
+  public void terminate() {
+    terminate(null);
   }
 
   @Override
   public void terminate(@Nullable String reason) {
-    terminate(reason, ActivityTerminateOptions.newBuilder().build());
-  }
-
-  @Override
-  public void terminate(@Nullable String reason, ActivityTerminateOptions options) {
     clientCallsInterceptor.terminateActivity(
         new ActivityClientCallsInterceptor.TerminateActivityInput(
-            activityId, activityRunId, reason, options));
+            activityId, activityRunId, reason));
   }
 }

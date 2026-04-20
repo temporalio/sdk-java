@@ -72,38 +72,25 @@ public interface UntypedActivityHandle {
   ActivityExecutionDescription describe();
 
   /**
-   * Describes the current state of the activity execution, with options.
-   *
-   * @param options describe options (e.g. long-poll token for change notification)
-   * @return detailed information about the activity
-   */
-  ActivityExecutionDescription describe(ActivityDescribeOptions options);
-
-  /**
    * Requests cancellation of the activity. The activity will receive a cancellation via {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)}.
    */
   void cancel();
 
   /**
-   * Requests cancellation of the activity with options.
+   * Requests cancellation of the activity with an optional reason.
    *
-   * @param options cancellation options such as a reason string
+   * @param reason human-readable reason for cancellation, may be {@code null}
    */
-  void cancel(ActivityCancelOptions options);
+  void cancel(@Nullable String reason);
+
+  /** Terminates the activity immediately, regardless of its current state. */
+  void terminate();
 
   /**
-   * Terminates the activity immediately, regardless of its current state.
+   * Terminates the activity immediately with a reason.
    *
    * @param reason human-readable reason for termination, may be {@code null}
    */
   void terminate(@Nullable String reason);
-
-  /**
-   * Terminates the activity immediately with options.
-   *
-   * @param reason human-readable reason for termination, may be {@code null}
-   * @param options termination options
-   */
-  void terminate(@Nullable String reason, ActivityTerminateOptions options);
 }

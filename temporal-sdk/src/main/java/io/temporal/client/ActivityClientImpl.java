@@ -1,9 +1,11 @@
 package io.temporal.client;
 
+import com.google.common.base.Defaults;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
+import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.internal.client.ActivityHandleImpl;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
@@ -11,6 +13,8 @@ import io.temporal.internal.client.external.ManualActivityCompletionClientFactor
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
@@ -52,6 +56,351 @@ class ActivityClientImpl implements ActivityClient {
     return invoker;
   }
 
+  // ---- Type-sniffing helpers ----
+
+  /**
+   * Creates a dynamic proxy of {@code activityInterface} that records the invoked {@link Method} in
+   * {@code captured[0]} when any method is called on it.
+   */
+  @SuppressWarnings("unchecked")
+  private static <I> I createTypeProbe(Class<I> activityInterface, Method[] captured) {
+    return (I)
+        Proxy.newProxyInstance(
+            activityInterface.getClassLoader(),
+            new Class<?>[] {activityInterface},
+            (proxy, method, args) -> {
+              captured[0] = method;
+              return Defaults.defaultValue(method.getReturnType());
+            });
+  }
+
+  /**
+   * Derives the Temporal activity type name from the {@link Method} that was captured by {@link
+   * #createTypeProbe}.
+   */
+  private static String extractActivityType(Class<?> activityInterface, Method method) {
+    POJOActivityInterfaceMetadata metadata =
+        POJOActivityInterfaceMetadata.newInstance(activityInterface);
+    return metadata.getMethodMetadata(method).getActivityTypeName();
+  }
+
+  // ---- Interface-based start (Proc variants) ----
+
+  @Override
+  public <I> ActivityHandle<Void> start(
+      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(extractActivityType(activityInterface, captured[0]), options, new Object[0]);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  @Override
+  public <I, A1> ActivityHandle<Void> start(
+      Class<I> activityInterface,
+      Functions.Proc2<I, A1> activity,
+      StartActivityOptions options,
+      A1 arg1)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(extractActivityType(activityInterface, captured[0]), options, arg1);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  @Override
+  public <I, A1, A2> ActivityHandle<Void> start(
+      Class<I> activityInterface,
+      Functions.Proc3<I, A1, A2> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(extractActivityType(activityInterface, captured[0]), options, arg1, arg2);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  @Override
+  public <I, A1, A2, A3> ActivityHandle<Void> start(
+      Class<I> activityInterface,
+      Functions.Proc4<I, A1, A2, A3> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(extractActivityType(activityInterface, captured[0]), options, arg1, arg2, arg3);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4> ActivityHandle<Void> start(
+      Class<I> activityInterface,
+      Functions.Proc5<I, A1, A2, A3, A4> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3, arg4);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(extractActivityType(activityInterface, captured[0]), options, arg1, arg2, arg3, arg4);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5> ActivityHandle<Void> start(
+      Class<I> activityInterface,
+      Functions.Proc6<I, A1, A2, A3, A4, A5> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3, arg4, arg5);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(
+            extractActivityType(activityInterface, captured[0]),
+            options,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5, A6> ActivityHandle<Void> start(
+      Class<I> activityInterface,
+      Functions.Proc7<I, A1, A2, A3, A4, A5, A6> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3, arg4, arg5, arg6);
+    } catch (Throwable ignored) {
+    }
+    UntypedActivityHandle untyped =
+        start(
+            extractActivityType(activityInterface, captured[0]),
+            options,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6);
+    return ActivityHandle.fromUntyped(untyped, Void.class, null);
+  }
+
+  // ---- Interface-based start (Func variants) ----
+
+  @Override
+  public <I, R> ActivityHandle<R> start(
+      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped = start(activityType, options, new Object[0]);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  @Override
+  public <I, A1, R> ActivityHandle<R> start(
+      Class<I> activityInterface,
+      Functions.Func2<I, A1, R> activity,
+      StartActivityOptions options,
+      A1 arg1)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped = start(activityType, options, arg1);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  @Override
+  public <I, A1, A2, R> ActivityHandle<R> start(
+      Class<I> activityInterface,
+      Functions.Func3<I, A1, A2, R> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  @Override
+  public <I, A1, A2, A3, R> ActivityHandle<R> start(
+      Class<I> activityInterface,
+      Functions.Func4<I, A1, A2, A3, R> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, R> ActivityHandle<R> start(
+      Class<I> activityInterface,
+      Functions.Func5<I, A1, A2, A3, A4, R> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3, arg4);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5, R> ActivityHandle<R> start(
+      Class<I> activityInterface,
+      Functions.Func6<I, A1, A2, A3, A4, A5, R> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3, arg4, arg5);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4, arg5);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5, A6, R> ActivityHandle<R> start(
+      Class<I> activityInterface,
+      Functions.Func7<I, A1, A2, A3, A4, A5, A6, R> activity,
+      StartActivityOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6)
+      throws ActivityAlreadyStartedException {
+    Method[] captured = {null};
+    I probe = createTypeProbe(activityInterface, captured);
+    try {
+      activity.apply(probe, arg1, arg2, arg3, arg4, arg5, arg6);
+    } catch (Throwable ignored) {
+    }
+    String activityType = extractActivityType(activityInterface, captured[0]);
+    @SuppressWarnings("unchecked")
+    Class<R> resultClass = (Class<R>) captured[0].getReturnType();
+    Type resultType = captured[0].getGenericReturnType();
+    UntypedActivityHandle untyped =
+        start(activityType, options, arg1, arg2, arg3, arg4, arg5, arg6);
+    return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
   // ---- String-based start ----
 
   @Override
@@ -90,158 +439,6 @@ class ActivityClientImpl implements ActivityClient {
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
-  // ---- Typed-stub start (lambda overloads) ----
-
-  @Override
-  public <A1> ActivityHandle<Void> start(
-      Class<A1> activityInterface, Functions.Proc1<A1> activity, StartActivityOptions options) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2> ActivityHandle<Void> start(
-      Class<A1> activityInterface,
-      Functions.Proc2<A1, A2> activity,
-      StartActivityOptions options,
-      A2 arg2) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3> ActivityHandle<Void> start(
-      Class<A1> activityInterface,
-      Functions.Proc3<A1, A2, A3> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4> ActivityHandle<Void> start(
-      Class<A1> activityInterface,
-      Functions.Proc4<A1, A2, A3, A4> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5> ActivityHandle<Void> start(
-      Class<A1> activityInterface,
-      Functions.Proc5<A1, A2, A3, A4, A5> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6> ActivityHandle<Void> start(
-      Class<A1> activityInterface,
-      Functions.Proc6<A1, A2, A3, A4, A5, A6> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, A7> ActivityHandle<Void> start(
-      Class<A1> activityInterface,
-      Functions.Proc7<A1, A2, A3, A4, A5, A6, A7> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6,
-      A7 arg7) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, R> ActivityHandle<R> start(
-      Class<A1> activityInterface, Functions.Func1<A1, R> activity, StartActivityOptions options) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, R> ActivityHandle<R> start(
-      Class<A1> activityInterface,
-      Functions.Func2<A1, A2, R> activity,
-      StartActivityOptions options,
-      A2 arg2) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, R> ActivityHandle<R> start(
-      Class<A1> activityInterface,
-      Functions.Func3<A1, A2, A3, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, R> ActivityHandle<R> start(
-      Class<A1> activityInterface,
-      Functions.Func4<A1, A2, A3, A4, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, R> ActivityHandle<R> start(
-      Class<A1> activityInterface,
-      Functions.Func5<A1, A2, A3, A4, A5, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, R> ActivityHandle<R> start(
-      Class<A1> activityInterface,
-      Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, A7, R> ActivityHandle<R> start(
-      Class<A1> activityInterface,
-      Functions.Func7<A1, A2, A3, A4, A5, A6, A7, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6,
-      A7 arg7) {
-    throw new UnsupportedOperationException("Lambda-based start overloads are not yet implemented");
-  }
-
   // ---- String-based execute ----
 
   @Override
@@ -272,172 +469,6 @@ class ActivityClientImpl implements ActivityClient {
     return start(activityType, resultClass, resultType, options, args).getResult();
   }
 
-  // ---- Typed-stub execute ----
-
-  @Override
-  public <A1> void execute(
-      Class<A1> activityInterface, Functions.Proc1<A1> activity, StartActivityOptions options) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2> void execute(
-      Class<A1> activityInterface,
-      Functions.Proc2<A1, A2> activity,
-      StartActivityOptions options,
-      A2 arg2) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3> void execute(
-      Class<A1> activityInterface,
-      Functions.Proc3<A1, A2, A3> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4> void execute(
-      Class<A1> activityInterface,
-      Functions.Proc4<A1, A2, A3, A4> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5> void execute(
-      Class<A1> activityInterface,
-      Functions.Proc5<A1, A2, A3, A4, A5> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6> void execute(
-      Class<A1> activityInterface,
-      Functions.Proc6<A1, A2, A3, A4, A5, A6> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, A7> void execute(
-      Class<A1> activityInterface,
-      Functions.Proc7<A1, A2, A3, A4, A5, A6, A7> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6,
-      A7 arg7) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, R> R execute(
-      Class<A1> activityInterface, Functions.Func1<A1, R> activity, StartActivityOptions options) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, R> R execute(
-      Class<A1> activityInterface,
-      Functions.Func2<A1, A2, R> activity,
-      StartActivityOptions options,
-      A2 arg2) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, R> R execute(
-      Class<A1> activityInterface,
-      Functions.Func3<A1, A2, A3, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, R> R execute(
-      Class<A1> activityInterface,
-      Functions.Func4<A1, A2, A3, A4, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, R> R execute(
-      Class<A1> activityInterface,
-      Functions.Func5<A1, A2, A3, A4, A5, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, R> R execute(
-      Class<A1> activityInterface,
-      Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, A7, R> R execute(
-      Class<A1> activityInterface,
-      Functions.Func7<A1, A2, A3, A4, A5, A6, A7, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6,
-      A7 arg7) {
-    throw new UnsupportedOperationException(
-        "Lambda-based execute overloads are not yet implemented");
-  }
-
   // ---- String-based executeAsync ----
 
   @Override
@@ -463,172 +494,6 @@ class ActivityClientImpl implements ActivityClient {
       StartActivityOptions options,
       @Nullable Object... args) {
     return start(activityType, resultClass, resultType, options, args).getResultAsync();
-  }
-
-  // ---- Typed-stub executeAsync ----
-
-  @Override
-  public <A1> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface, Functions.Proc1<A1> activity, StartActivityOptions options) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Proc2<A1, A2> activity,
-      StartActivityOptions options,
-      A2 arg2) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Proc3<A1, A2, A3> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Proc4<A1, A2, A3, A4> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Proc5<A1, A2, A3, A4, A5> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Proc6<A1, A2, A3, A4, A5, A6> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, A7> CompletableFuture<Void> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Proc7<A1, A2, A3, A4, A5, A6, A7> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6,
-      A7 arg7) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface, Functions.Func1<A1, R> activity, StartActivityOptions options) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Func2<A1, A2, R> activity,
-      StartActivityOptions options,
-      A2 arg2) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Func3<A1, A2, A3, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Func4<A1, A2, A3, A4, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Func5<A1, A2, A3, A4, A5, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
-  }
-
-  @Override
-  public <A1, A2, A3, A4, A5, A6, A7, R> CompletableFuture<R> executeAsync(
-      Class<A1> activityInterface,
-      Functions.Func7<A1, A2, A3, A4, A5, A6, A7, R> activity,
-      StartActivityOptions options,
-      A2 arg2,
-      A3 arg3,
-      A4 arg4,
-      A5 arg5,
-      A6 arg6,
-      A7 arg7) {
-    throw new UnsupportedOperationException(
-        "Lambda-based executeAsync overloads are not yet implemented");
   }
 
   // ---- Handle lookup ----
