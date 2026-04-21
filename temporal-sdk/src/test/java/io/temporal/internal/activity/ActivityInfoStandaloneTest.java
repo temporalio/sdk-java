@@ -69,6 +69,13 @@ public class ActivityInfoStandaloneTest {
   }
 
   @Test
+  public void testEmptyActivityRunIdTreatedAsNull() {
+    PollActivityTaskQueueResponse response = baseResponse().setActivityRunId("").build();
+    ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
+    assertNull(info.getActivityRunId());
+  }
+
+  @Test
   public void testEmptyWorkflowTypeTreatedAsNull() {
     PollActivityTaskQueueResponse response =
         baseResponse()

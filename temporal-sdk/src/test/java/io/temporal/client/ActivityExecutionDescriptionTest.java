@@ -2,6 +2,7 @@ package io.temporal.client;
 
 import static org.junit.Assert.*;
 
+import com.google.common.reflect.TypeToken;
 import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
@@ -11,7 +12,10 @@ import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import java.lang.reflect.Type;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.junit.Test;
 
@@ -110,6 +114,22 @@ public class ActivityExecutionDescriptionTest {
     Optional<String> result = desc.getHeartbeatDetails(String.class);
     assertTrue(result.isPresent());
     assertEquals("hello-heartbeat", result.get());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testGetHeartbeatDetailsWithExplicitGenericType() {
+    List<String> original = Arrays.asList("one", "two", "three");
+    Payloads encoded = CONVERTER.toPayloads(original).get();
+    ActivityExecutionInfo info =
+        buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
+    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+
+    Type genericType = new TypeToken<List<String>>() {}.getType();
+    Class<List<String>> listClass = (Class<List<String>>) (Class<?>) List.class;
+    Optional<List<String>> result = desc.getHeartbeatDetails(listClass, genericType);
+    assertTrue(result.isPresent());
+    assertEquals(Arrays.asList("one", "two", "three"), result.get());
   }
 
   @Test

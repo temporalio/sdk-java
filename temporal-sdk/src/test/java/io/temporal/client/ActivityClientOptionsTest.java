@@ -1,12 +1,17 @@
 package io.temporal.client;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -185,5 +190,18 @@ public class ActivityClientOptionsTest {
     assertEquals(2, opts.getInterceptors().size());
     assertSame(i1, opts.getInterceptors().get(0));
     assertSame(i2, opts.getInterceptors().get(1));
+  }
+
+  @Test
+  public void testNewActivityCompletionClientIsNotNull() {
+    WorkflowServiceStubs stubs = mock(WorkflowServiceStubs.class);
+    WorkflowServiceStubsOptions stubsOptions = mock(WorkflowServiceStubsOptions.class);
+    Scope scope = mock(Scope.class);
+    when(stubs.getOptions()).thenReturn(stubsOptions);
+    when(stubsOptions.getMetricsScope()).thenReturn(scope);
+    when(scope.tagged(any())).thenReturn(scope);
+
+    ActivityClient client = ActivityClient.newInstance(stubs);
+    assertNotNull(client.newActivityCompletionClient());
   }
 }
