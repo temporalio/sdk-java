@@ -39,7 +39,7 @@ public class ActivityInfoStandaloneTest {
     assertEquals("wf-id", info.getWorkflowId());
     assertEquals("run-id", info.getWorkflowRunId());
     assertEquals("MyWorkflow", info.getWorkflowType());
-    assertTrue(info.isInWorkflow());
+    assertTrue(info.isWorkflowActivity());
   }
 
   @Test
@@ -51,7 +51,7 @@ public class ActivityInfoStandaloneTest {
     assertNull(info.getWorkflowId());
     assertNull(info.getWorkflowRunId());
     assertNull(info.getWorkflowType());
-    assertFalse(info.isInWorkflow());
+    assertFalse(info.isWorkflowActivity());
   }
 
   @Test
@@ -65,7 +65,7 @@ public class ActivityInfoStandaloneTest {
     ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
     assertNull(info.getWorkflowId());
     assertNull(info.getWorkflowRunId());
-    assertFalse(info.isInWorkflow());
+    assertFalse(info.isWorkflowActivity());
   }
 
   @Test

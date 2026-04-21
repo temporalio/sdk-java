@@ -142,7 +142,7 @@ public interface ActivityInfo {
    * @return {@code true} if this activity was scheduled by a workflow execution; {@code false} for
    *     standalone activities started via {@link io.temporal.client.ActivityClient#start}.
    */
-  default boolean isInWorkflow() {
+  default boolean isWorkflowActivity() {
     return getWorkflowId() != null;
   }
 
