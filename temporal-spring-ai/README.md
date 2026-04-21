@@ -1,6 +1,11 @@
-# temporal-spring-ai
+# `temporal-spring-ai`: Temporal + Spring AI Integration
 
 Integrates [Spring AI](https://docs.spring.io/spring-ai/reference/) with [Temporal](https://temporal.io/) workflows, making AI model calls, tool execution, vector store operations, embeddings, and MCP tool calls durable Temporal primitives.
+
+> [!WARNING]
+> `temporal-spring-ai` is currently in Public Preview, and will continue to evolve and improve.
+> We would love to hear your feedback - positive or negative - over in the [Community Slack](https://t.mp/slack), in the [#topic-ai channel](https://temporalio.slack.com/archives/C0818FQPYKY)
+
 
 ## Compatibility
 
