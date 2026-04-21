@@ -80,6 +80,35 @@ class ActivitySummaryTest {
         "Summary must not include user prompt content, got: " + summary);
   }
 
+  /**
+   * Regression guard: `forDefault(ActivityOptions)` must thread its options through the
+   * summary-bearing constructor so custom-options users still get UI labels.
+   */
+  @Test
+  void chatActivity_customOptions_stillCarriesSummary() {
+    Worker worker = testEnv.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(CustomOptionsChatWorkflowImpl.class);
+    worker.registerActivitiesImplementations(
+        new ChatModelActivityImpl(new StubChatModel("Bonjour!")));
+    testEnv.start();
+
+    SummaryTestWorkflow workflow =
+        client.newWorkflowStub(
+            SummaryTestWorkflow.class,
+            WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
+    workflow.chat("Parlez-vous francais?");
+
+    String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
+    List<HistoryEvent> events = client.fetchHistory(workflowId).getHistory().getEventsList();
+
+    String summary = findChatActivitySummary(events);
+    assertNotNull(
+        summary, "forDefault(ActivityOptions) should still attach a Summary to the chat activity");
+    assertTrue(
+        summary.startsWith("chat: default"),
+        "Summary should start with 'chat: default' but was: " + summary);
+  }
+
   private static String findChatActivitySummary(List<HistoryEvent> events) {
     for (HistoryEvent event : events) {
       if (!event.hasActivityTaskScheduledEventAttributes()) {
@@ -109,6 +138,20 @@ class ActivitySummaryTest {
     @Override
     public String chat(String message) {
       ActivityChatModel chatModel = ActivityChatModel.forDefault();
+      ChatClient chatClient = TemporalChatClient.builder(chatModel).build();
+      return chatClient.prompt().user(message).call().content();
+    }
+  }
+
+  public static class CustomOptionsChatWorkflowImpl implements SummaryTestWorkflow {
+    @Override
+    public String chat(String message) {
+      io.temporal.activity.ActivityOptions options =
+          io.temporal.activity.ActivityOptions.newBuilder(
+                  ActivityChatModel.defaultActivityOptions())
+              .setStartToCloseTimeout(java.time.Duration.ofMinutes(5))
+              .build();
+      ActivityChatModel chatModel = ActivityChatModel.forDefault(options);
       ChatClient chatClient = TemporalChatClient.builder(chatModel).build();
       return chatClient.prompt().user(message).call().content();
     }

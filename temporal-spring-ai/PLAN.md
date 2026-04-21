@@ -35,10 +35,10 @@ summaries while still customizing the stub. This branch should therefore:
   javadocs, and the README) that Summary labels appear only when the stub
   is built via one of the factories, and point at the new overloads as the
   recommended path for customization.
-- Leave the public constructors in place for backward compatibility, but
-  mark them `@Deprecated` or, at minimum, add a javadoc note that they
-  skip UI summaries. Decision: ship the deprecation alongside the new
-  factory so the doc and the warning point to the same replacement.
+- Remove the public constructors outright rather than marking them
+  `@Deprecated`. This module is still pre-release (public preview, no
+  released artifact), so there are no pinned callers to migrate — the
+  deprecate-then-remove dance is pure noise.
 
 ## Files to change
 
@@ -56,8 +56,8 @@ summaries while still customizing the stub. This branch should therefore:
   - Javadoc on the public `ActivityChatModel(ChatModelActivity[, String])`
     constructors: add a note that callers who want UI Summaries should
     prefer the new `forDefault(ActivityOptions)` / `forModel(String,
-    ActivityOptions)` factories. Mark the constructors `@Deprecated` with
-    a message pointing at the factory replacement.
+    ActivityOptions)` factories. Remove them outright (this module has not cut a public release yet, so
+    there are no users pinned to those signatures to accommodate).
   - Keep all existing overloads working at runtime — purely additive API.
 
 - `src/main/java/io/temporal/springai/mcp/ActivityMcpClient.java`
@@ -66,8 +66,8 @@ summaries while still customizing the stub. This branch should therefore:
   - Thread the passed `ActivityOptions` through the private
     `(activity, baseOptions)` constructor added by the summaries branch so
     `callTool(..., summary)` overlays work.
-  - `@Deprecated` the public `new ActivityMcpClient(activity)` constructor
-    with a javadoc note recommending the factory for Summary support.
+  - Remove the public `new ActivityMcpClient(activity)` constructor
+    outright for the same reason.
 
 - `README.md`
   - Brief note in the quick-start and the "Tool Types" section that chat
@@ -120,10 +120,9 @@ own, so no extra entries strictly required).
 - Default RetryOptions for chat and MCP activities now include
   `doNotRetry` entries for clearly non-transient Spring AI failures
   (`NonTransientAiException`, `IllegalArgumentException`).
-- Public `new ActivityChatModel(...)` and `new ActivityMcpClient(...)`
-  constructors are `@Deprecated` with javadoc pointing at the factory
-  replacement. They still work at runtime but skip UI Summaries, which is
-  now called out explicitly.
+- The public `new ActivityChatModel(...)` and `new ActivityMcpClient(...)`
+  constructors are removed. The module is pre-release so there are no
+  pinned callers to migrate; the factories are the single entry point.
 - Existing factory signatures are preserved; they delegate to the new
   `ActivityOptions` overloads.
 
