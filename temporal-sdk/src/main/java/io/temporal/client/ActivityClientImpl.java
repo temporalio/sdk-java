@@ -3,7 +3,6 @@ package io.temporal.client;
 import com.google.common.base.Defaults;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
-import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.internal.client.ActivityHandleImpl;
@@ -49,7 +48,7 @@ class ActivityClientImpl implements ActivityClient {
   private static ActivityClientCallsInterceptor initializeInvoker(
       GenericWorkflowClientImpl genericClient, ActivityClientOptions options) {
     ActivityClientCallsInterceptor invoker = new RootActivityClientInvoker(genericClient, options);
-    List<ActivityClientInterceptor> interceptors = options.getInterceptors();
+    List<ActivityClientCallsInterceptor> interceptors = options.getInterceptors();
     for (int i = interceptors.size() - 1; i >= 0; i--) {
       invoker = interceptors.get(i).activityClientCallsInterceptor(invoker);
     }

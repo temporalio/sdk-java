@@ -28,6 +28,18 @@ import javax.annotation.Nullable;
 @Experimental
 public interface ActivityClientCallsInterceptor {
 
+  /**
+   * Called once during creation of an {@link io.temporal.client.ActivityClient} to create a chain
+   * of {@link ActivityClientCallsInterceptor} instances.
+   *
+   * @param next next interceptor in the chain
+   * @return new interceptor that should decorate calls to {@code next}
+   */
+  default ActivityClientCallsInterceptor activityClientCallsInterceptor(
+      ActivityClientCallsInterceptor next) {
+    return next;
+  }
+
   StartActivityOutput startActivity(StartActivityInput input)
       throws ActivityAlreadyStartedException;
 
