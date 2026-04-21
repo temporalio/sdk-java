@@ -51,11 +51,23 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   }
 
   @Override
+  @Deprecated
   public String getRunId() {
+    return getWorkflowRunId();
+  }
+
+  @Override
+  public String getWorkflowRunId() {
     if (!response.hasWorkflowExecution()) {
       return null;
     }
     String rid = response.getWorkflowExecution().getRunId();
+    return rid.isEmpty() ? null : rid;
+  }
+
+  @Override
+  public String getActivityRunId() {
+    String rid = response.getActivityRunId();
     return rid.isEmpty() ? null : rid;
   }
 

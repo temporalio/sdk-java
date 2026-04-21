@@ -137,9 +137,9 @@ public class StandaloneActivityTest {
       snapshot.namespace = info.getNamespace();
       snapshot.taskQueue = info.getActivityTaskQueue();
       snapshot.isLocal = info.isLocal();
-      snapshot.isWorkflowActivity = info.isWorkflowActivity();
+      snapshot.isWorkflowActivity = info.isInWorkflow();
       snapshot.workflowId = info.getWorkflowId();
-      snapshot.workflowRunId = info.getRunId();
+      snapshot.workflowRunId = info.getWorkflowRunId();
       snapshot.workflowType = info.getWorkflowType();
       return snapshot;
     }

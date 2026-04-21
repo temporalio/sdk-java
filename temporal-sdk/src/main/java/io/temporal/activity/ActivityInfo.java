@@ -31,9 +31,25 @@ public interface ActivityInfo {
   /**
    * @return RunId of the Workflow Execution that scheduled the Activity Execution, or {@code null}
    *     for standalone activities not scheduled by a workflow.
+   * @deprecated use {@link #getWorkflowRunId()}
    */
+  @Deprecated
   @Nullable
   String getRunId();
+
+  /**
+   * @return RunId of the Workflow Execution that scheduled the Activity Execution, or {@code null}
+   *     for standalone activities not scheduled by a workflow.
+   */
+  @Nullable
+  String getWorkflowRunId();
+
+  /**
+   * @return the run ID of this standalone Activity Execution, or {@code null} for activities
+   *     scheduled by a workflow.
+   */
+  @Nullable
+  String getActivityRunId();
 
   /**
    * ID of the Activity Execution. This ID can be used to complete the Activity Execution
@@ -126,8 +142,7 @@ public interface ActivityInfo {
    * @return {@code true} if this activity was scheduled by a workflow execution; {@code false} for
    *     standalone activities started via {@link io.temporal.client.ActivityClient#start}.
    */
-  @Experimental
-  default boolean isWorkflowActivity() {
+  default boolean isInWorkflow() {
     return getWorkflowId() != null;
   }
 

@@ -25,7 +25,7 @@ public class ActivityCompletionException extends TemporalException {
             ? "WorkflowId="
                 + info.getWorkflowId()
                 + ", RunId="
-                + info.getRunId()
+                + info.getWorkflowRunId()
                 + ", ActivityType="
                 + info.getActivityType()
                 + ", ActivityId="
@@ -34,7 +34,7 @@ public class ActivityCompletionException extends TemporalException {
         cause);
     if (info != null) {
       workflowId = info.getWorkflowId();
-      runId = info.getRunId();
+      runId = info.getWorkflowRunId();
       activityType = info.getActivityType();
       activityId = info.getActivityId();
     } else {
