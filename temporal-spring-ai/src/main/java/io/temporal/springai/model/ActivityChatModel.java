@@ -85,6 +85,7 @@ public class ActivityChatModel implements ChatModel {
 
   private final ChatModelActivity chatModelActivity;
   private final String modelName;
+  private final ActivityOptions baseOptions;
   private final ToolCallingManager toolCallingManager;
   private final ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate;
 
@@ -94,7 +95,7 @@ public class ActivityChatModel implements ChatModel {
    * @param chatModelActivity the activity stub for calling the chat model
    */
   public ActivityChatModel(ChatModelActivity chatModelActivity) {
-    this(chatModelActivity, null);
+    this(chatModelActivity, null, null);
   }
 
   /**
@@ -104,8 +105,19 @@ public class ActivityChatModel implements ChatModel {
    * @param modelName the name of the chat model to use, or null for default
    */
   public ActivityChatModel(ChatModelActivity chatModelActivity, String modelName) {
+    this(chatModelActivity, modelName, null);
+  }
+
+  /**
+   * Internal constructor used by {@link #forModel(String, Duration, int)} and friends. When {@code
+   * baseOptions} is non-null, each call rebuilds the activity stub with a per-call Summary on top
+   * of those options so the Temporal UI can label the chat activity meaningfully.
+   */
+  private ActivityChatModel(
+      ChatModelActivity chatModelActivity, String modelName, ActivityOptions baseOptions) {
     this.chatModelActivity = chatModelActivity;
     this.modelName = modelName;
+    this.baseOptions = baseOptions;
     this.toolCallingManager = ToolCallingManager.builder().build();
     this.toolExecutionEligibilityPredicate = new DefaultToolExecutionEligibilityPredicate();
   }
@@ -151,14 +163,13 @@ public class ActivityChatModel implements ChatModel {
    * @return an ActivityChatModel for the specified chat model
    */
   public static ActivityChatModel forModel(String modelName, Duration timeout, int maxAttempts) {
-    ChatModelActivity activity =
-        Workflow.newActivityStub(
-            ChatModelActivity.class,
-            ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(timeout)
-                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
-                .build());
-    return new ActivityChatModel(activity, modelName);
+    ActivityOptions options =
+        ActivityOptions.newBuilder()
+            .setStartToCloseTimeout(timeout)
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
+            .build();
+    ChatModelActivity activity = Workflow.newActivityStub(ChatModelActivity.class, options);
+    return new ActivityChatModel(activity, modelName, options);
   }
 
   /**
@@ -193,7 +204,8 @@ public class ActivityChatModel implements ChatModel {
   private ChatResponse internalCall(Prompt prompt) {
     // Convert prompt to activity input and call the activity
     ChatModelTypes.ChatModelActivityInput input = createActivityInput(prompt);
-    ChatModelTypes.ChatModelActivityOutput output = chatModelActivity.callChatModel(input);
+    ChatModelActivity stub = stubForCall(prompt);
+    ChatModelTypes.ChatModelActivityOutput output = stub.callChatModel(input);
 
     // Convert activity output to ChatResponse
     ChatResponse response = toResponse(output);
@@ -217,6 +229,36 @@ public class ActivityChatModel implements ChatModel {
     }
 
     return response;
+  }
+
+  private ChatModelActivity stubForCall(Prompt prompt) {
+    if (baseOptions == null) {
+      return chatModelActivity;
+    }
+    ActivityOptions withSummary =
+        ActivityOptions.newBuilder(baseOptions).setSummary(buildSummary(prompt)).build();
+    return Workflow.newActivityStub(ChatModelActivity.class, withSummary);
+  }
+
+  private String buildSummary(Prompt prompt) {
+    String label = modelName != null ? modelName : "default";
+    String userText = lastUserText(prompt);
+    if (userText == null || userText.isEmpty()) {
+      return "chat: " + label;
+    }
+    String truncated = userText.length() > 60 ? userText.substring(0, 60) + "…" : userText;
+    return "chat: " + label + " · " + truncated.replace('\n', ' ');
+  }
+
+  private String lastUserText(Prompt prompt) {
+    List<Message> instructions = prompt.getInstructions();
+    for (int i = instructions.size() - 1; i >= 0; i--) {
+      Message m = instructions.get(i);
+      if (m.getMessageType() == MessageType.USER) {
+        return m.getText();
+      }
+    }
+    return null;
   }
 
   private ChatModelTypes.ChatModelActivityInput createActivityInput(Prompt prompt) {

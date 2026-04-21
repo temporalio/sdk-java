@@ -63,8 +63,7 @@ class ActivitySummaryTest {
     workflow.chat("What is the capital of France?");
 
     String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
-    List<HistoryEvent> events =
-        client.fetchHistory(workflowId).getHistory().getEventsList();
+    List<HistoryEvent> events = client.fetchHistory(workflowId).getHistory().getEventsList();
 
     String summary = findChatActivitySummary(events);
     assertNotNull(summary, "ActivityTaskScheduled event for callChatModel should have a Summary");
@@ -83,7 +82,7 @@ class ActivitySummaryTest {
       }
       String activityType =
           event.getActivityTaskScheduledEventAttributes().getActivityType().getName();
-      if (!"callChatModel".equals(activityType)) {
+      if (!"CallChatModel".equals(activityType)) {
         continue;
       }
       if (!event.hasUserMetadata() || !event.getUserMetadata().hasSummary()) {
