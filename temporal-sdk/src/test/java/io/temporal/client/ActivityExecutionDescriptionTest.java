@@ -64,7 +64,7 @@ public class ActivityExecutionDescriptionTest {
     assertNull(desc.getLastStartedTime());
     assertNull(desc.getLastWorkerIdentity());
     assertNull(desc.getNextAttemptScheduleTime());
-    assertNull(desc.getRetryPolicy());
+    assertNull(desc.getRetryOptions());
     assertNull(desc.getStaticSummary());
     assertNull(desc.getStaticDetails());
   }

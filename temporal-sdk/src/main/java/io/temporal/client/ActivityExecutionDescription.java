@@ -137,7 +137,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
 
   /** Retry policy for this activity. */
   @Nullable
-  public RetryOptions getRetryPolicy() {
+  public RetryOptions getRetryOptions() {
     return info().hasRetryPolicy()
         ? RetryOptionsUtils.toRetryOptions(info().getRetryPolicy())
         : null;
