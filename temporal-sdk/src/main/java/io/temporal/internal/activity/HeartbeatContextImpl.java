@@ -112,14 +112,12 @@ class HeartbeatContextImpl implements HeartbeatContext {
     this.service = service;
     this.metricsScope = metricsScope;
     this.dataConverter = dataConverter;
-    String workflowId = info.getWorkflowId();
-    String workflowType = info.getWorkflowType();
     this.dataConverterWithActivityContext =
         dataConverter.withContext(
             new ActivitySerializationContext(
                 namespace,
-                workflowId != null ? workflowId : "",
-                workflowType != null ? workflowType : "",
+                info.getWorkflowId(),
+                info.getWorkflowType(),
                 info.getActivityType(),
                 info.getActivityTaskQueue(),
                 info.isLocal()));

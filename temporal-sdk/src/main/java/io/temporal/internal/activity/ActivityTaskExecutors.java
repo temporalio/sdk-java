@@ -59,13 +59,11 @@ final class ActivityTaskExecutors {
       InternalActivityExecutionContext context =
           executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
-      String workflowId = activityInfo.getWorkflowId();
-      String workflowType = activityInfo.getWorkflowType();
       ActivitySerializationContext serializationContext =
           new ActivitySerializationContext(
               activityInfo.getNamespace(),
-              workflowId != null ? workflowId : "",
-              workflowType != null ? workflowType : "",
+              activityInfo.getWorkflowId(),
+              activityInfo.getWorkflowType(),
               activityInfo.getActivityType(),
               activityInfo.getActivityTaskQueue(),
               activityInfo.isLocal());
