@@ -3,7 +3,6 @@ package io.temporal.client;
 import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.PendingActivityState;
-import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.common.Experimental;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
@@ -23,29 +22,26 @@ import javax.annotation.Nullable;
 @Experimental
 public final class ActivityExecutionDescription extends ActivityExecutionMetadata {
 
-  private final DescribeActivityExecutionResponse response;
+  private final ActivityExecutionInfo info;
   private final DataConverter dataConverter;
 
-  public ActivityExecutionDescription(
-      DescribeActivityExecutionResponse response, DataConverter dataConverter) {
+  public ActivityExecutionDescription(ActivityExecutionInfo info, DataConverter dataConverter) {
     super(
         null,
-        response.getInfo().getActivityId(),
-        nullIfEmpty(response.getRunId()),
-        response.getInfo().getActivityType().getName(),
-        response.getInfo().hasCloseTime()
-            ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getCloseTime())
+        info.getActivityId(),
+        nullIfEmpty(info.getRunId()),
+        info.getActivityType().getName(),
+        info.hasCloseTime() ? ProtobufTimeUtils.toJavaInstant(info.getCloseTime()) : null,
+        info.hasExecutionDuration()
+            ? ProtobufTimeUtils.toJavaDuration(info.getExecutionDuration())
             : null,
-        response.getInfo().hasExecutionDuration()
-            ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getExecutionDuration())
-            : null,
-        response.getInfo().hasScheduleTime()
-            ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getScheduleTime())
+        info.hasScheduleTime()
+            ? ProtobufTimeUtils.toJavaInstant(info.getScheduleTime())
             : Instant.EPOCH,
-        response.getInfo().getStatus(),
-        response.getInfo().getTaskQueue(),
-        SearchAttributesUtil.decodeTyped(response.getInfo().getSearchAttributes()));
-    this.response = response;
+        info.getStatus(),
+        info.getTaskQueue(),
+        SearchAttributesUtil.decodeTyped(info.getSearchAttributes()));
+    this.info = info;
     this.dataConverter = dataConverter;
   }
 
@@ -54,7 +50,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   }
 
   private ActivityExecutionInfo info() {
-    return response.getInfo();
+    return info;
   }
 
   /** Current attempt number (starts at 1). */
@@ -129,17 +125,6 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   public String getLastWorkerIdentity() {
     String w = info().getLastWorkerIdentity();
     return w.isEmpty() ? null : w;
-  }
-
-  /**
-   * Long-poll token for the next describe call. {@code null} if the activity is complete.
-   *
-   * @see ActivityDescribeOptions#getLongPollToken()
-   */
-  @Nullable
-  public byte[] getLongPollToken() {
-    com.google.protobuf.ByteString bs = response.getLongPollToken();
-    return (bs == null || bs.isEmpty()) ? null : bs.toByteArray();
   }
 
   /** Time when the next retry attempt will be scheduled. */
@@ -219,11 +204,5 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         .withContext(
             new ActivitySerializationContext("", "", "", getActivityType(), getTaskQueue(), false))
         .fromPayload(info().getUserMetadata().getDetails(), String.class, String.class);
-  }
-
-  /** Returns the raw response from the Temporal service. */
-  @Nonnull
-  public DescribeActivityExecutionResponse getRawDescription() {
-    return response;
   }
 }

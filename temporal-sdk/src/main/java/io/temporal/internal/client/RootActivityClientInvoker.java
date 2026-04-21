@@ -188,7 +188,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
     return new DescribeActivityOutput(
-        new ActivityExecutionDescription(response, clientOptions.getDataConverter()));
+        new ActivityExecutionDescription(response.getInfo(), clientOptions.getDataConverter()));
   }
 
   @Override
