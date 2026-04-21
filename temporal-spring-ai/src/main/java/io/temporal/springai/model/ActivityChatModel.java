@@ -1,5 +1,7 @@
 package io.temporal.springai.model;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.springai.activity.ChatModelActivity;
@@ -76,6 +78,32 @@ import reactor.core.publisher.Flux;
  * @see #forModel(String)
  */
 public class ActivityChatModel implements ChatModel {
+
+  private static final org.slf4j.Logger log =
+      org.slf4j.LoggerFactory.getLogger(ActivityChatModel.class);
+
+  /**
+   * Used to serialize the caller's {@link ChatOptions} into a string so the activity side can
+   * rehydrate the exact subclass. Plain Jackson with no Temporal-specific configuration — the
+   * output goes into a {@code String} field of {@link ChatModelTypes.ModelOptions}, which
+   * Temporal's own data converter then handles as normal.
+   */
+  private static final ObjectMapper OPTIONS_MAPPER =
+      new ObjectMapper().addMixIn(ToolCallingChatOptions.class, ToolCallingChatOptionsMixin.class);
+
+  /**
+   * Jackson mixin that skips {@link ToolCallingChatOptions}'s tool-callback bag on serialization.
+   * Tool definitions cross the activity boundary via {@link ChatModelTypes.FunctionTool} — the
+   * actual callbacks are re-stubbed on the activity side — so we don't need to ship them, and their
+   * concrete implementations (method tool callbacks, activity proxies, etc.) are not
+   * Jackson-friendly.
+   */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties({
+    "toolCallbacks",
+    "toolNames",
+    "toolContext"
+  })
+  private abstract static class ToolCallingChatOptionsMixin {}
 
   /** Default timeout for chat model activity calls (2 minutes). */
   public static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(2);
@@ -226,10 +254,24 @@ public class ActivityChatModel implements ChatModel {
             .flatMap(msg -> toActivityMessages(msg).stream())
             .collect(Collectors.toList());
 
-    // Convert options
+    // Convert options — carry both the common scalars (fallback path) and a serialized blob of
+    // the caller's exact ChatOptions subclass (primary path on the activity side, which
+    // preserves provider-specific fields like OpenAI reasoning_effort).
     ChatModelTypes.ModelOptions modelOptions = null;
     if (prompt.getOptions() != null) {
       ChatOptions opts = prompt.getOptions();
+      String chatOptionsClass = null;
+      String chatOptionsJson = null;
+      try {
+        chatOptionsJson = OPTIONS_MAPPER.writeValueAsString(opts);
+        chatOptionsClass = opts.getClass().getName();
+      } catch (JsonProcessingException e) {
+        log.debug(
+            "Could not JSON-serialize ChatOptions of type {}; activity will fall back to"
+                + " common-field path. Cause: {}",
+            opts.getClass().getName(),
+            e.getMessage());
+      }
       modelOptions =
           new ChatModelTypes.ModelOptions(
               opts.getModel(),
@@ -239,7 +281,9 @@ public class ActivityChatModel implements ChatModel {
               opts.getStopSequences(),
               opts.getTemperature(),
               opts.getTopK(),
-              opts.getTopP());
+              opts.getTopP(),
+              chatOptionsClass,
+              chatOptionsJson);
     }
 
     // Convert tool definitions
