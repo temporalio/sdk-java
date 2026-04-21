@@ -18,7 +18,7 @@ public class ActivityExecutionCount {
     private final List<List<?>> groupValues;
     private final long count;
 
-    AggregationGroup(List<io.temporal.api.common.v1.Payload> groupValues, long count) {
+    AggregationGroup(long count, List<io.temporal.api.common.v1.Payload> groupValues) {
       this.groupValues =
           groupValues.stream().map(SearchAttributesUtil::decode).collect(Collectors.toList());
       this.count = count;
@@ -60,7 +60,7 @@ public class ActivityExecutionCount {
     this.count = response.getCount();
     this.groups =
         response.getGroupsList().stream()
-            .map(g -> new AggregationGroup(g.getGroupValuesList(), g.getCount()))
+            .map(g -> new AggregationGroup(g.getCount(), g.getGroupValuesList()))
             .collect(Collectors.toList());
   }
 
