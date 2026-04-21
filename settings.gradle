@@ -7,6 +7,7 @@ include 'temporal-test-server'
 include 'temporal-opentracing'
 include 'temporal-kotlin'
 include 'temporal-spring-ai'
+project(':temporal-spring-ai').projectDir = new File(settingsDir, 'temporal-plugins/temporal-spring-ai')
 include 'temporal-spring-boot-autoconfigure'
 include 'temporal-spring-boot-starter'
 include 'temporal-remote-data-encoder'
