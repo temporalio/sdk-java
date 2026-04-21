@@ -4,11 +4,15 @@ import static org.junit.Assert.*;
 
 import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
+import io.temporal.common.Priority;
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.Test;
 
 public class ActivityExecutionDescriptionTest {
@@ -67,6 +71,9 @@ public class ActivityExecutionDescriptionTest {
     assertNull(desc.getRetryOptions());
     assertNull(desc.getStaticSummary());
     assertNull(desc.getStaticDetails());
+    assertFalse(desc.hasHeartbeatDetails());
+    assertNull(desc.getWorkerDeploymentVersion());
+    assertNull(desc.getPriority());
   }
 
   @Test
@@ -82,5 +89,70 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionDescription desc =
         new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
     assertTrue(desc instanceof ActivityExecutionMetadata);
+  }
+
+  @Test
+  public void testHasHeartbeatDetailsAbsent() {
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+    assertFalse(desc.hasHeartbeatDetails());
+    assertFalse(desc.getHeartbeatDetails(String.class).isPresent());
+  }
+
+  @Test
+  public void testGetHeartbeatDetailsPresent() {
+    Payloads encoded = CONVERTER.toPayloads("hello-heartbeat").get();
+    ActivityExecutionInfo info =
+        buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
+    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+
+    assertTrue(desc.hasHeartbeatDetails());
+    Optional<String> result = desc.getHeartbeatDetails(String.class);
+    assertTrue(result.isPresent());
+    assertEquals("hello-heartbeat", result.get());
+  }
+
+  @Test
+  public void testGetWorkerDeploymentVersionAbsent() {
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+    assertNull(desc.getWorkerDeploymentVersion());
+  }
+
+  @Test
+  public void testGetWorkerDeploymentVersionPresent() {
+    io.temporal.api.deployment.v1.WorkerDeploymentVersion protoVersion =
+        io.temporal.api.deployment.v1.WorkerDeploymentVersion.newBuilder()
+            .setDeploymentName("my-deployment")
+            .setBuildId("build-42")
+            .build();
+    ActivityExecutionInfo info =
+        buildInfo("id", "run").toBuilder().setLastDeploymentVersion(protoVersion).build();
+    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+
+    WorkerDeploymentVersion version = desc.getWorkerDeploymentVersion();
+    assertNotNull(version);
+    assertEquals("my-deployment", version.getDeploymentName());
+    assertEquals("build-42", version.getBuildId());
+  }
+
+  @Test
+  public void testGetPriorityAbsent() {
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+    assertNull(desc.getPriority());
+  }
+
+  @Test
+  public void testGetPriorityPresent() {
+    io.temporal.api.common.v1.Priority protoPriority =
+        io.temporal.api.common.v1.Priority.newBuilder().setPriorityKey(3).build();
+    ActivityExecutionInfo info =
+        buildInfo("id", "run").toBuilder().setPriority(protoPriority).build();
+    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+
+    Priority priority = desc.getPriority();
+    assertNotNull(priority);
+    assertEquals(3, priority.getPriorityKey());
   }
 }

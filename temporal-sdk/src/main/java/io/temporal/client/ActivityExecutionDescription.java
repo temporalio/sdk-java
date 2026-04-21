@@ -4,14 +4,19 @@ import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.PendingActivityState;
 import io.temporal.common.Experimental;
+import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.payload.context.ActivitySerializationContext;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -174,6 +179,59 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     return info().hasStartToCloseTimeout()
         ? ProtobufTimeUtils.toJavaDuration(info().getStartToCloseTimeout())
         : null;
+  }
+
+  /** Whether heartbeat details were recorded for the last attempt. */
+  public boolean hasHeartbeatDetails() {
+    return info().hasHeartbeatDetails();
+  }
+
+  /**
+   * Deserializes the last heartbeat details into the given type. Returns {@link Optional#empty()}
+   * if no heartbeat details are present.
+   *
+   * @param valueType the class to deserialize the heartbeat details into
+   */
+  public <V> Optional<V> getHeartbeatDetails(Class<V> valueType) {
+    return getHeartbeatDetails(valueType, valueType);
+  }
+
+  /**
+   * Deserializes the last heartbeat details into the given generic type. Returns {@link
+   * Optional#empty()} if no heartbeat details are present.
+   *
+   * @param valueType the class to deserialize the heartbeat details into
+   * @param genericType the generic type for deserialization; may equal {@code valueType}
+   */
+  public <V> Optional<V> getHeartbeatDetails(Class<V> valueType, Type genericType) {
+    if (!info().hasHeartbeatDetails()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(
+        dataConverter.fromPayloads(
+            0, Optional.of(info().getHeartbeatDetails()), valueType, genericType));
+  }
+
+  /**
+   * The deployment version of the worker that last processed this activity. {@code null} if not
+   * available.
+   */
+  @Nullable
+  public WorkerDeploymentVersion getWorkerDeploymentVersion() {
+    if (!info().hasLastDeploymentVersion()) {
+      return null;
+    }
+    io.temporal.api.deployment.v1.WorkerDeploymentVersion proto = info().getLastDeploymentVersion();
+    return new WorkerDeploymentVersion(proto.getDeploymentName(), proto.getBuildId());
+  }
+
+  /** Priority hint for this activity. {@code null} if not set. */
+  @Nullable
+  public Priority getPriority() {
+    if (!info().hasPriority()) {
+      return null;
+    }
+    return ProtoConverters.fromProto(info().getPriority());
   }
 
   /**
