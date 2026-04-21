@@ -1,5 +1,6 @@
 package io.temporal.springai.plugin;
 
+import io.temporal.activity.ActivityOptions;
 import io.temporal.common.SimplePlugin;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.worker.Worker;
@@ -55,9 +56,7 @@ public class SpringAiPlugin extends SimplePlugin {
    * @param chatModel the Spring AI chat model to wrap as an activity
    */
   public SpringAiPlugin(ChatModel chatModel) {
-    super("io.temporal.spring-ai");
-    this.chatModels = Map.of(DEFAULT_MODEL_NAME, chatModel);
-    this.defaultModelName = DEFAULT_MODEL_NAME;
+    this(Map.of(DEFAULT_MODEL_NAME, chatModel), null, Map.of());
   }
 
   /**
@@ -67,6 +66,25 @@ public class SpringAiPlugin extends SimplePlugin {
    * @param primaryChatModel the primary chat model (used to determine default), or null
    */
   public SpringAiPlugin(Map<String, ChatModel> chatModels, @Nullable ChatModel primaryChatModel) {
+    this(chatModels, primaryChatModel, Map.of());
+  }
+
+  /**
+   * Creates a new SpringAiPlugin with multiple ChatModels and per-model {@link ActivityOptions}.
+   *
+   * <p>Entries in {@code perModelOptions} are keyed by chat-model bean name and consulted by {@link
+   * io.temporal.springai.model.ActivityChatModel#forModel(String)} (and by {@link
+   * io.temporal.springai.model.ActivityChatModel#forDefault()} via {@link #DEFAULT_MODEL_NAME}).
+   * Callers who pass explicit {@code ActivityOptions} to a factory bypass this map entirely.
+   *
+   * @param chatModels map of bean names to ChatModel instances
+   * @param primaryChatModel the primary chat model (used to determine default), or null
+   * @param perModelOptions per-model-name ActivityOptions overrides; may be empty
+   */
+  public SpringAiPlugin(
+      Map<String, ChatModel> chatModels,
+      @Nullable ChatModel primaryChatModel,
+      Map<String, ActivityOptions> perModelOptions) {
     super("io.temporal.spring-ai");
 
     if (chatModels == null || chatModels.isEmpty()) {
@@ -87,12 +105,20 @@ public class SpringAiPlugin extends SimplePlugin {
       this.defaultModelName = chatModels.keySet().iterator().next();
     }
 
+    SpringAiPluginOptions.register(perModelOptions);
+
     if (chatModels.size() > 1) {
       log.info(
           "Registered {} chat models: {} (default: {})",
           chatModels.size(),
           chatModels.keySet(),
           defaultModelName);
+    }
+    if (perModelOptions != null && !perModelOptions.isEmpty()) {
+      log.info(
+          "Registered per-model ActivityOptions overrides for {} model(s): {}",
+          perModelOptions.size(),
+          perModelOptions.keySet());
     }
   }
 

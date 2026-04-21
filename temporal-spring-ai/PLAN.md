@@ -50,23 +50,31 @@ worker, so the registry is populated in time.
   - Caller-supplied `ActivityOptions` (from the overload added in the
     `spring-ai/retry-and-options` branch) always wins over the registry.
 
+- `src/main/java/io/temporal/springai/autoconfigure/ChatModelActivityOptions.java`
+  (new) — small record wrapper holding `Map<String, ActivityOptions>`. The
+  wrapper exists so `SpringAiTemporalAutoConfiguration` can inject user
+  options by type instead of by bean name; a raw `Map<String, ActivityOptions>`
+  injection would trigger Spring's collection-of-beans autowiring and sweep
+  in any unrelated `ActivityOptions` beans. This keeps the design in line
+  with `spring-ai/mcp-bean-lookup` (type-based discovery, no magic names).
+
 - `src/main/java/io/temporal/springai/autoconfigure/SpringAiTemporalAutoConfiguration.java`
-  - Accept a `Map<String, ActivityOptions>` bean if present
-    (`ObjectProvider`) and forward it to the plugin constructor.
+  - Accept an optional `ChatModelActivityOptions` bean via
+    `ObjectProvider` and forward its map to the plugin constructor.
 
 ## Config example (documented in the PR body)
 
 ```java
 @Bean
-Map<String, ActivityOptions> springAiActivityOptions() {
-    return Map.of(
-        "reasoning", ActivityOptions.newBuilder()
+ChatModelActivityOptions chatModelActivityOptions() {
+    return new ChatModelActivityOptions(Map.of(
+        "reasoning", ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
             .setStartToCloseTimeout(Duration.ofMinutes(15))
             .setHeartbeatTimeout(Duration.ofMinutes(1))
             .build(),
-        "fast", ActivityOptions.newBuilder()
+        "fast", ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
             .setStartToCloseTimeout(Duration.ofSeconds(20))
-            .build());
+            .build()));
 }
 ```
 
