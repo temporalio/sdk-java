@@ -234,8 +234,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         new ListActivityExecutionIterator(
             input.getQuery(), clientOptions.getNamespace(), limit, genericClient);
     iterator.init();
-    Iterator<ActivityExecution> wrappedIterator =
-        Iterators.transform(iterator, ActivityExecution::fromListInfo);
+    Iterator<ActivityExecutionMetadata> wrappedIterator =
+        Iterators.transform(iterator, ActivityExecutionMetadata::fromListInfo);
 
     final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
     return new ListActivitiesOutput(
@@ -257,10 +257,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       req.setPageSize(input.getOptions().getPageSize());
     }
     ListActivityExecutionsResponse response = genericClient.listActivities(req.build());
-    List<ActivityExecution> activities = new ArrayList<>();
+    List<ActivityExecutionMetadata> activities = new ArrayList<>();
     for (io.temporal.api.activity.v1.ActivityExecutionListInfo info :
         response.getExecutionsList()) {
-      activities.add(ActivityExecution.fromListInfo(info));
+      activities.add(ActivityExecutionMetadata.fromListInfo(info));
     }
     byte[] nextToken =
         response.getNextPageToken().isEmpty() ? null : response.getNextPageToken().toByteArray();

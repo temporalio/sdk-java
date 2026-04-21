@@ -86,7 +86,7 @@ public class ActivityExecutionDescriptionTest {
   public void testIsInstanceOfActivityExecution() {
     DescribeActivityExecutionResponse response = buildResponse("id", "run");
     ActivityExecutionDescription desc = new ActivityExecutionDescription(response, CONVERTER);
-    assertTrue(desc instanceof ActivityExecution);
+    assertTrue(desc instanceof ActivityExecutionMetadata);
   }
 
   @Test

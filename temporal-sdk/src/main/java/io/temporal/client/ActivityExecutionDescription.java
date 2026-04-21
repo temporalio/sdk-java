@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
  * ActivityHandle#describe()}.
  */
 @Experimental
-public final class ActivityExecutionDescription extends ActivityExecution {
+public final class ActivityExecutionDescription extends ActivityExecutionMetadata {
 
   private final DescribeActivityExecutionResponse response;
   private final DataConverter dataConverter;
@@ -29,6 +29,7 @@ public final class ActivityExecutionDescription extends ActivityExecution {
   public ActivityExecutionDescription(
       DescribeActivityExecutionResponse response, DataConverter dataConverter) {
     super(
+        null,
         response.getInfo().getActivityId(),
         nullIfEmpty(response.getRunId()),
         response.getInfo().getActivityType().getName(),
@@ -41,7 +42,6 @@ public final class ActivityExecutionDescription extends ActivityExecution {
         response.getInfo().hasScheduleTime()
             ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getScheduleTime())
             : Instant.EPOCH,
-        response.getInfo().getStateTransitionCount(),
         response.getInfo().getStatus(),
         response.getInfo().getTaskQueue(),
         SearchAttributesUtil.decodeTyped(response.getInfo().getSearchAttributes()));

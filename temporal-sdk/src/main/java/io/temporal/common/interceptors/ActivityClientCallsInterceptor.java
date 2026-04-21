@@ -2,9 +2,9 @@ package io.temporal.common.interceptors;
 
 import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityCountOptions;
-import io.temporal.client.ActivityExecution;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.ActivityListOptions;
 import io.temporal.client.ActivityListPage;
@@ -269,13 +269,13 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class ListActivitiesOutput {
-    private final Stream<ActivityExecution> stream;
+    private final Stream<ActivityExecutionMetadata> stream;
 
-    public ListActivitiesOutput(Stream<ActivityExecution> stream) {
+    public ListActivitiesOutput(Stream<ActivityExecutionMetadata> stream) {
       this.stream = stream;
     }
 
-    public Stream<ActivityExecution> getStream() {
+    public Stream<ActivityExecutionMetadata> getStream() {
       return stream;
     }
   }

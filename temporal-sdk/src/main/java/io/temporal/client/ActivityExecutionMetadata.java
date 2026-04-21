@@ -17,45 +17,46 @@ import javax.annotation.Nullable;
  * ActivityClient#listExecutions}.
  */
 @Experimental
-public class ActivityExecution {
+public class ActivityExecutionMetadata {
 
+  private final @Nullable ActivityExecutionListInfo rawListInfo;
   private final String activityId;
   private final @Nullable String activityRunId;
   private final String activityType;
   private final @Nullable Instant closeTime;
   private final @Nullable Duration executionDuration;
   private final Instant scheduledTime;
-  private final long stateTransitionCount;
   private final ActivityExecutionStatus status;
   private final String taskQueue;
-  private final SearchAttributes typedSearchAttributes;
+  private final SearchAttributes searchAttributes;
 
-  ActivityExecution(
+  ActivityExecutionMetadata(
+      @Nullable ActivityExecutionListInfo rawListInfo,
       String activityId,
       @Nullable String activityRunId,
       String activityType,
       @Nullable Instant closeTime,
       @Nullable Duration executionDuration,
       Instant scheduledTime,
-      long stateTransitionCount,
       ActivityExecutionStatus status,
       String taskQueue,
-      SearchAttributes typedSearchAttributes) {
+      SearchAttributes searchAttributes) {
+    this.rawListInfo = rawListInfo;
     this.activityId = activityId;
     this.activityRunId = activityRunId;
     this.activityType = activityType;
     this.closeTime = closeTime;
     this.executionDuration = executionDuration;
     this.scheduledTime = scheduledTime;
-    this.stateTransitionCount = stateTransitionCount;
     this.status = status;
     this.taskQueue = taskQueue;
-    this.typedSearchAttributes = typedSearchAttributes;
+    this.searchAttributes = searchAttributes;
   }
 
-  public static ActivityExecution fromListInfo(ActivityExecutionListInfo info) {
+  public static ActivityExecutionMetadata fromListInfo(ActivityExecutionListInfo info) {
     String runId = info.getRunId();
-    return new ActivityExecution(
+    return new ActivityExecutionMetadata(
+        info,
         info.getActivityId(),
         runId.isEmpty() ? null : runId,
         info.getActivityType().getName(),
@@ -64,10 +65,18 @@ public class ActivityExecution {
             ? ProtobufTimeUtils.toJavaDuration(info.getExecutionDuration())
             : null,
         ProtobufTimeUtils.toJavaInstant(info.getScheduleTime()),
-        info.getStateTransitionCount(),
         info.getStatus(),
         info.getTaskQueue(),
         SearchAttributesUtil.decodeTyped(info.getSearchAttributes()));
+  }
+
+  /**
+   * The raw protobuf list info from the server. Only present when this instance was created via
+   * {@link #fromListInfo}; {@code null} for subclasses like {@link ActivityExecutionDescription}.
+   */
+  @Nullable
+  public ActivityExecutionListInfo getRawListInfo() {
+    return rawListInfo;
   }
 
   /** The user-assigned identifier for this activity. */
@@ -115,11 +124,6 @@ public class ActivityExecution {
     return scheduledTime;
   }
 
-  /** Number of state transitions for this activity execution. */
-  public long getStateTransitionCount() {
-    return stateTransitionCount;
-  }
-
   /** General status of the activity execution. */
   @Nonnull
   public ActivityExecutionStatus getStatus() {
@@ -132,19 +136,18 @@ public class ActivityExecution {
     return taskQueue;
   }
 
-  /** Typed search attributes attached to this activity execution. */
+  /** Search attributes attached to this activity execution. */
   @Nonnull
-  public SearchAttributes getTypedSearchAttributes() {
-    return typedSearchAttributes;
+  public SearchAttributes getSearchAttributes() {
+    return searchAttributes;
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    ActivityExecution that = (ActivityExecution) o;
-    return stateTransitionCount == that.stateTransitionCount
-        && Objects.equals(activityId, that.activityId)
+    ActivityExecutionMetadata that = (ActivityExecutionMetadata) o;
+    return Objects.equals(activityId, that.activityId)
         && Objects.equals(activityRunId, that.activityRunId)
         && Objects.equals(activityType, that.activityType)
         && Objects.equals(closeTime, that.closeTime)
@@ -152,7 +155,7 @@ public class ActivityExecution {
         && Objects.equals(scheduledTime, that.scheduledTime)
         && status == that.status
         && Objects.equals(taskQueue, that.taskQueue)
-        && Objects.equals(typedSearchAttributes, that.typedSearchAttributes);
+        && Objects.equals(searchAttributes, that.searchAttributes);
   }
 
   @Override
@@ -164,15 +167,14 @@ public class ActivityExecution {
         closeTime,
         executionDuration,
         scheduledTime,
-        stateTransitionCount,
         status,
         taskQueue,
-        typedSearchAttributes);
+        searchAttributes);
   }
 
   @Override
   public String toString() {
-    return "ActivityExecution{"
+    return "ActivityExecutionMetadata{"
         + "activityId='"
         + activityId
         + "', activityRunId='"
@@ -189,10 +191,8 @@ public class ActivityExecution {
         + executionDuration
         + ", taskQueue='"
         + taskQueue
-        + "', stateTransitionCount="
-        + stateTransitionCount
-        + ", typedSearchAttributes="
-        + typedSearchAttributes
+        + "', searchAttributes="
+        + searchAttributes
         + '}';
   }
 }

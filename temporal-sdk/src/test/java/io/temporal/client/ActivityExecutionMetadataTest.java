@@ -7,7 +7,7 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import org.junit.Test;
 
-public class ActivityExecutionTest {
+public class ActivityExecutionMetadataTest {
 
   private static ActivityExecutionListInfo buildListInfo(
       String activityId,
@@ -33,7 +33,7 @@ public class ActivityExecutionTest {
             "MyActivity",
             ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_RUNNING,
             "tq");
-    ActivityExecution exec = ActivityExecution.fromListInfo(proto);
+    ActivityExecutionMetadata exec = ActivityExecutionMetadata.fromListInfo(proto);
 
     assertEquals("act-id", exec.getActivityId());
     assertEquals("run-id", exec.getActivityRunId());
@@ -53,7 +53,7 @@ public class ActivityExecutionTest {
             "MyActivity",
             ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_COMPLETED,
             "tq");
-    ActivityExecution exec = ActivityExecution.fromListInfo(proto);
+    ActivityExecutionMetadata exec = ActivityExecutionMetadata.fromListInfo(proto);
     assertNull(exec.getActivityRunId());
   }
 
@@ -66,21 +66,20 @@ public class ActivityExecutionTest {
             "MyActivity",
             ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_COMPLETED,
             "tq");
-    ActivityExecution exec = ActivityExecution.fromListInfo(proto);
+    ActivityExecutionMetadata exec = ActivityExecutionMetadata.fromListInfo(proto);
     assertEquals("some-run", exec.getActivityRunId());
   }
 
   @Test
-  public void testStateTransitionCount() {
+  public void testGetRawListInfo() {
     ActivityExecutionListInfo proto =
-        ActivityExecutionListInfo.newBuilder()
-            .setActivityId("id")
-            .setActivityType(ActivityType.newBuilder().setName("T"))
-            .setStatus(ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_RUNNING)
-            .setTaskQueue("tq")
-            .setStateTransitionCount(42)
-            .build();
-    ActivityExecution exec = ActivityExecution.fromListInfo(proto);
-    assertEquals(42, exec.getStateTransitionCount());
+        buildListInfo(
+            "act-id",
+            "run-id",
+            "MyActivity",
+            ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_RUNNING,
+            "tq");
+    ActivityExecutionMetadata exec = ActivityExecutionMetadata.fromListInfo(proto);
+    assertSame(proto, exec.getRawListInfo());
   }
 }

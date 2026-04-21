@@ -4,9 +4,9 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import io.temporal.client.ActivityCountOptions;
-import io.temporal.client.ActivityExecution;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.ActivityListOptions;
 import io.temporal.client.ActivityListPage;
@@ -111,7 +111,7 @@ public class WorkflowClientCallsInterceptorActivityTest {
 
   @Test
   public void testListActivitiesDelegatesToNext() {
-    Stream<ActivityExecution> stream = Stream.empty();
+    Stream<ActivityExecutionMetadata> stream = Stream.empty();
     ListActivitiesOutput output = new ListActivitiesOutput(stream);
     when(next.listActivities(any(ListActivitiesInput.class))).thenReturn(output);
 

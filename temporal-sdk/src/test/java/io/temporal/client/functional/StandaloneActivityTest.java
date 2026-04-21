@@ -476,10 +476,10 @@ public class StandaloneActivityTest {
     assertEventually(
         Duration.ofSeconds(30),
         () -> {
-          List<ActivityExecution> activities =
+          List<ActivityExecutionMetadata> activities =
               client.listExecutions(query).collect(Collectors.toList());
           assertEquals(5, activities.size());
-          for (ActivityExecution act : activities) {
+          for (ActivityExecutionMetadata act : activities) {
             assertEquals("SimpleActivity", act.getActivityType());
             assertEquals(taskQueue, act.getTaskQueue());
             assertEquals(

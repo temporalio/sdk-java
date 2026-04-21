@@ -14,17 +14,18 @@ import javax.annotation.Nullable;
 @Experimental
 public final class ActivityListPage {
 
-  private final List<ActivityExecution> activities;
+  private final List<ActivityExecutionMetadata> activities;
   private final @Nullable byte[] nextPageToken;
 
-  public ActivityListPage(List<ActivityExecution> activities, @Nullable byte[] nextPageToken) {
+  public ActivityListPage(
+      List<ActivityExecutionMetadata> activities, @Nullable byte[] nextPageToken) {
     this.activities = activities;
     this.nextPageToken = nextPageToken;
   }
 
   /** Activities on this page. */
   @Nonnull
-  public List<ActivityExecution> getActivities() {
+  public List<ActivityExecutionMetadata> getActivities() {
     return activities;
   }
 
