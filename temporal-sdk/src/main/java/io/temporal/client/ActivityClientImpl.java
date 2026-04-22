@@ -39,13 +39,13 @@ class ActivityClientImpl implements ActivityClient {
     this.metricsScope =
         stubs.getOptions().getMetricsScope().tagged(MetricsTag.defaultTags(options.getNamespace()));
     GenericWorkflowClientImpl genericClient = new GenericWorkflowClientImpl(stubs, metricsScope);
-    this.invoker = initializeInvoker(genericClient, options);
+    this.invoker = initializeClientInvoker(genericClient, options);
     this.manualActivityCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
             stubs, options.getNamespace(), options.getIdentity(), options.getDataConverter());
   }
 
-  private static ActivityClientCallsInterceptor initializeInvoker(
+  private static ActivityClientCallsInterceptor initializeClientInvoker(
       GenericWorkflowClientImpl genericClient, ActivityClientOptions options) {
     ActivityClientCallsInterceptor invoker = new RootActivityClientInvoker(genericClient, options);
     for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
