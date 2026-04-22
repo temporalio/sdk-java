@@ -46,8 +46,6 @@ public interface ActivityClientCallsInterceptor {
 
   CountActivitiesOutput countActivities(CountActivitiesInput input);
 
-  // ---- Input/Output classes ----
-
   @Experimental
   final class StartActivityInput {
     private final String activityType;

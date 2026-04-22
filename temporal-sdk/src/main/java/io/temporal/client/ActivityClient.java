@@ -36,8 +36,6 @@ import javax.annotation.Nullable;
 @Experimental
 public interface ActivityClient {
 
-  // ---- Static factories ----
-
   /** Creates a new {@code ActivityClient} with default options. */
   static ActivityClient newInstance(WorkflowServiceStubs stubs) {
     return newInstance(stubs, ActivityClientOptions.getDefaultInstance());
@@ -47,8 +45,6 @@ public interface ActivityClient {
   static ActivityClient newInstance(WorkflowServiceStubs stubs, ActivityClientOptions options) {
     return new ActivityClientImpl(stubs, options);
   }
-
-  // ---- Interface-based start (abstract) ----
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference, and
@@ -424,8 +420,6 @@ public interface ActivityClient {
       A5 arg5,
       A6 arg6)
       throws ActivityAlreadyStartedException;
-
-  // ---- Interface-based execute (default) ----
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with no
@@ -816,8 +810,6 @@ public interface ActivityClient {
         .getResult();
   }
 
-  // ---- Interface-based executeAsync (default) ----
-
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with no
    * activity arguments, and returns a future that completes when the activity does.
@@ -1189,8 +1181,6 @@ public interface ActivityClient {
         .getResultAsync();
   }
 
-  // ---- String-based start ----
-
   /**
    * Starts a standalone activity by type name and returns an untyped handle to it.
    *
@@ -1242,8 +1232,6 @@ public interface ActivityClient {
       @Nullable Object... args)
       throws ActivityAlreadyStartedException;
 
-  // ---- String-based execute (synchronous) ----
-
   /**
    * Starts a standalone activity and blocks until it completes, discarding the result.
    *
@@ -1293,8 +1281,6 @@ public interface ActivityClient {
       @Nullable Object... args)
       throws ActivityFailedException;
 
-  // ---- String-based executeAsync ----
-
   /**
    * Starts a standalone activity and returns a future that completes when the activity does,
    * discarding the result.
@@ -1341,8 +1327,6 @@ public interface ActivityClient {
       StartActivityOptions options,
       @Nullable Object... args);
 
-  // ---- Handle lookup ----
-
   /**
    * Returns an untyped handle to an existing standalone activity execution.
    *
@@ -1379,8 +1363,6 @@ public interface ActivityClient {
       @Nullable String activityRunId,
       Class<R> resultClass,
       @Nullable Type resultType);
-
-  // ---- List / count ----
 
   /**
    * Returns a stream of activity executions matching the given query.
