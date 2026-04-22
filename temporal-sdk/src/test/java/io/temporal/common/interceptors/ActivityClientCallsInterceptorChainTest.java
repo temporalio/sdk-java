@@ -33,8 +33,8 @@ public class ActivityClientCallsInterceptorChainTest {
   private static ActivityClientCallsInterceptor buildChain(
       List<ActivityClientInterceptor> interceptors, ActivityClientCallsInterceptor root) {
     ActivityClientCallsInterceptor invoker = root;
-    for (int i = interceptors.size() - 1; i >= 0; i--) {
-      invoker = interceptors.get(i).activityClientCallsInterceptor(invoker);
+    for (ActivityClientInterceptor interceptor : interceptors) {
+      invoker = interceptor.activityClientCallsInterceptor(invoker);
     }
     return invoker;
   }
@@ -74,7 +74,7 @@ public class ActivityClientCallsInterceptorChainTest {
   }
 
   @Test
-  public void testTwoInterceptorsExecuteInListOrder() {
+  public void testTwoInterceptorsLastIsOutermost() {
     List<String> events = new ArrayList<>();
     ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
     when(root.startActivity(any()))
@@ -90,11 +90,11 @@ public class ActivityClientCallsInterceptorChainTest {
     ActivityClientCallsInterceptor chain = buildChain(Arrays.asList(first, second), root);
     chain.startActivity(minimalInput());
 
-    assertEquals(Arrays.asList("A", "B", "root"), events);
+    assertEquals(Arrays.asList("B", "A", "root"), events);
   }
 
   @Test
-  public void testThreeInterceptorsExecuteInListOrder() {
+  public void testThreeInterceptorsLastIsOutermost() {
     List<String> events = new ArrayList<>();
     ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
     when(root.startActivity(any()))
@@ -113,7 +113,7 @@ public class ActivityClientCallsInterceptorChainTest {
             root);
     chain.startActivity(minimalInput());
 
-    assertEquals(Arrays.asList("A", "B", "C", "root"), events);
+    assertEquals(Arrays.asList("C", "B", "A", "root"), events);
   }
 
   // ---- ActivityClientInterceptorBase defaults ----

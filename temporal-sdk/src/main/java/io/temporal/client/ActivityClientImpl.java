@@ -17,7 +17,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -49,9 +48,8 @@ class ActivityClientImpl implements ActivityClient {
   private static ActivityClientCallsInterceptor initializeInvoker(
       GenericWorkflowClientImpl genericClient, ActivityClientOptions options) {
     ActivityClientCallsInterceptor invoker = new RootActivityClientInvoker(genericClient, options);
-    List<ActivityClientInterceptor> interceptors = options.getInterceptors();
-    for (int i = interceptors.size() - 1; i >= 0; i--) {
-      invoker = interceptors.get(i).activityClientCallsInterceptor(invoker);
+    for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
+      invoker = interceptor.activityClientCallsInterceptor(invoker);
     }
     return invoker;
   }
