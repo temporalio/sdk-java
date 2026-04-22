@@ -85,20 +85,6 @@ public class ActivityMcpClient {
   }
 
   /**
-   * Creates an ActivityMcpClient with a custom timeout and attempt count. Other defaults
-   * (non-retryable error classification) are preserved.
-   *
-   * <p><strong>Must be called from workflow code.</strong>
-   *
-   * @param timeout the activity start-to-close timeout
-   * @param maxAttempts the maximum number of retry attempts
-   * @return a new ActivityMcpClient
-   */
-  public static ActivityMcpClient create(Duration timeout, int maxAttempts) {
-    return create(defaultActivityOptions(timeout, maxAttempts));
-  }
-
-  /**
    * Creates an ActivityMcpClient using the supplied {@link ActivityOptions}. Pass this when you
    * need a specific task queue, heartbeat, priority, or custom {@link RetryOptions}. The provided
    * options are used verbatim — the plugin does not augment the caller's {@link RetryOptions}.

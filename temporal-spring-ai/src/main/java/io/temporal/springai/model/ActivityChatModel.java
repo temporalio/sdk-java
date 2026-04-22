@@ -113,9 +113,9 @@ public class ActivityChatModel implements ChatModel {
 
   /**
    * Creates an ActivityChatModel for the default chat model using the supplied {@link
-   * ActivityOptions}. Pass this when you need a specific task queue, heartbeat, priority, or a
-   * custom {@link RetryOptions} — anything the {@code (timeout, maxAttempts)} convenience factory
-   * can't express.
+   * ActivityOptions}. Pass this when you need to customize any field on the chat activity stub —
+   * timeouts, retry policy, task queue, heartbeat, priority, etc. Build on top of {@link
+   * #defaultActivityOptions()} to inherit the plugin's non-retryable-AI-error classification.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
@@ -138,21 +138,6 @@ public class ActivityChatModel implements ChatModel {
    */
   public static ActivityChatModel forModel(String modelName) {
     return forModel(modelName, defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
-  }
-
-  /**
-   * Creates an ActivityChatModel for a specific chat model with a custom timeout and attempt count.
-   * The remaining defaults (non-retryable error classification) are preserved.
-   *
-   * <p><strong>Must be called from workflow code.</strong>
-   *
-   * @param modelName the bean name of the chat model, or null for default
-   * @param timeout the activity start-to-close timeout
-   * @param maxAttempts the maximum number of retry attempts
-   * @return an ActivityChatModel for the specified chat model
-   */
-  public static ActivityChatModel forModel(String modelName, Duration timeout, int maxAttempts) {
-    return forModel(modelName, defaultActivityOptions(timeout, maxAttempts));
   }
 
   /**
