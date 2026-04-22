@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.temporal.failure.ApplicationFailure;
 import java.time.Duration;
 import java.util.List;
 
@@ -14,6 +15,50 @@ import java.util.List;
  * workflows and activities.
  */
 public final class ChatModelTypes {
+
+  /**
+   * Maximum size, in bytes, of a single {@link MediaContent#data()} byte array carried across the
+   * chat activity boundary. Bytes above this threshold land inside workflow history events, which
+   * have a fixed 2 MiB per-event limit on the Temporal server. 1 MiB leaves headroom for the rest
+   * of a chat payload (messages, tool definitions, options).
+   *
+   * <p>Users who want to raise or lower the cap can set the system property {@code
+   * io.temporal.springai.maxMediaBytes} to a positive integer before the chat activity runs; values
+   * &lt;= 0 disable the guard entirely. For most workloads, pass media by URI instead — write the
+   * bytes to a binary store from an activity, and pass only the URL across the conversation.
+   */
+  public static final long MAX_MEDIA_BYTES_IN_HISTORY =
+      Long.getLong("io.temporal.springai.maxMediaBytes", 1L * 1024 * 1024);
+
+  /** Failure type on the {@link ApplicationFailure} thrown by {@link #checkMediaSize(byte[])}. */
+  public static final String MEDIA_SIZE_EXCEEDED_FAILURE_TYPE = "MediaSizeExceeded";
+
+  /**
+   * Throws a non-retryable {@link ApplicationFailure} if {@code data} exceeds {@link
+   * #MAX_MEDIA_BYTES_IN_HISTORY}. Non-retryable because this is a permanent, programmer-level error
+   * — retrying the same oversized payload will never succeed, and using a plain {@link
+   * RuntimeException} here would cause the workflow task to be retried forever (or the activity to
+   * churn through its {@code maxAttempts}) rather than surfacing the real problem. The failure
+   * message points the caller at the URI-based {@code Media} constructor. Pass-through otherwise.
+   */
+  public static void checkMediaSize(byte[] data) {
+    if (data == null) {
+      return;
+    }
+    long limit = MAX_MEDIA_BYTES_IN_HISTORY;
+    if (limit > 0 && data.length > limit) {
+      throw ApplicationFailure.newNonRetryableFailure(
+          "Media byte[] is "
+              + data.length
+              + " bytes, which exceeds the "
+              + limit
+              + "-byte limit for inline media in Temporal workflow history. Pass the media by "
+              + "URI instead: store the bytes outside the workflow (e.g. S3) and construct "
+              + "Media(mimeType, URI). Set the system property "
+              + "'io.temporal.springai.maxMediaBytes' to override this limit (or 0 to disable).",
+          MEDIA_SIZE_EXCEEDED_FAILURE_TYPE);
+    }
+  }
 
   private ChatModelTypes() {}
 
