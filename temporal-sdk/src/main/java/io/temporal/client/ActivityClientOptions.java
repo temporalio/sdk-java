@@ -4,7 +4,7 @@ import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
-import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
@@ -40,14 +40,14 @@ public final class ActivityClientOptions {
     private static final String DEFAULT_NAMESPACE = "default";
     private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS =
         Collections.emptyList();
-    private static final List<ActivityClientCallsInterceptor> EMPTY_INTERCEPTORS =
+    private static final List<ActivityClientInterceptor> EMPTY_INTERCEPTORS =
         Collections.emptyList();
 
     private String namespace;
     private DataConverter dataConverter;
     private String identity;
     private List<ContextPropagator> contextPropagators;
-    private List<ActivityClientCallsInterceptor> interceptors;
+    private List<ActivityClientInterceptor> interceptors;
 
     private Builder() {}
 
@@ -99,7 +99,7 @@ public final class ActivityClientOptions {
      *
      * @param interceptors specifies the list of interceptors to use with the client.
      */
-    public Builder setInterceptors(List<ActivityClientCallsInterceptor> interceptors) {
+    public Builder setInterceptors(List<ActivityClientInterceptor> interceptors) {
       this.interceptors = interceptors;
       return this;
     }
@@ -119,14 +119,14 @@ public final class ActivityClientOptions {
   private final DataConverter dataConverter;
   private final String identity;
   private final List<ContextPropagator> contextPropagators;
-  private final List<ActivityClientCallsInterceptor> interceptors;
+  private final List<ActivityClientInterceptor> interceptors;
 
   private ActivityClientOptions(
       String namespace,
       DataConverter dataConverter,
       String identity,
       List<ContextPropagator> contextPropagators,
-      List<ActivityClientCallsInterceptor> interceptors) {
+      List<ActivityClientInterceptor> interceptors) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
@@ -175,7 +175,7 @@ public final class ActivityClientOptions {
    *
    * @return The list of interceptors to use with the client.
    */
-  public List<ActivityClientCallsInterceptor> getInterceptors() {
+  public List<ActivityClientInterceptor> getInterceptors() {
     return interceptors;
   }
 

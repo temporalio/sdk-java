@@ -17,6 +17,7 @@ import io.temporal.client.*;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
+import io.temporal.common.interceptors.ActivityClientInterceptorBase;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
@@ -826,12 +827,8 @@ public class StandaloneActivityTest {
   // Interceptor helpers
   // ---------------------------------------------------------------------------
 
-  static class ActivityTracingInterceptor extends ActivityClientCallsInterceptorBase {
+  static class ActivityTracingInterceptor extends ActivityClientInterceptorBase {
     final List<String> events = Collections.synchronizedList(new ArrayList<>());
-
-    ActivityTracingInterceptor() {
-      super(null);
-    }
 
     @Override
     public ActivityClientCallsInterceptor activityClientCallsInterceptor(

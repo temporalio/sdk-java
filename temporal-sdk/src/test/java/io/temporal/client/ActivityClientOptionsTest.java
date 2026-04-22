@@ -9,7 +9,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
-import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.util.Arrays;
@@ -73,8 +73,8 @@ public class ActivityClientOptionsTest {
 
   @Test
   public void testSetInterceptors() {
-    ActivityClientCallsInterceptor interceptor = mock(ActivityClientCallsInterceptor.class);
-    List<ActivityClientCallsInterceptor> interceptors = Collections.singletonList(interceptor);
+    ActivityClientInterceptor interceptor = mock(ActivityClientInterceptor.class);
+    List<ActivityClientInterceptor> interceptors = Collections.singletonList(interceptor);
     ActivityClientOptions opts =
         ActivityClientOptions.newBuilder().setInterceptors(interceptors).build();
     assertEquals(interceptors, opts.getInterceptors());
@@ -91,7 +91,7 @@ public class ActivityClientOptionsTest {
 
   @Test
   public void testToBuilderCopiesAllFields() {
-    ActivityClientCallsInterceptor interceptor = mock(ActivityClientCallsInterceptor.class);
+    ActivityClientInterceptor interceptor = mock(ActivityClientInterceptor.class);
     ContextPropagator propagator = mock(ContextPropagator.class);
     DataConverter dc = mock(DataConverter.class);
 
@@ -115,7 +115,7 @@ public class ActivityClientOptionsTest {
 
   @Test
   public void testNewBuilderFromOptionsCopiesAllFields() {
-    ActivityClientCallsInterceptor interceptor = mock(ActivityClientCallsInterceptor.class);
+    ActivityClientInterceptor interceptor = mock(ActivityClientInterceptor.class);
     DataConverter dc = mock(DataConverter.class);
 
     ActivityClientOptions original =
@@ -137,7 +137,7 @@ public class ActivityClientOptionsTest {
   @Test
   public void testEqualsAndHashCode() {
     DataConverter dc = mock(DataConverter.class);
-    ActivityClientCallsInterceptor interceptor = mock(ActivityClientCallsInterceptor.class);
+    ActivityClientInterceptor interceptor = mock(ActivityClientInterceptor.class);
 
     ActivityClientOptions a =
         ActivityClientOptions.newBuilder()
@@ -182,9 +182,9 @@ public class ActivityClientOptionsTest {
 
   @Test
   public void testMultipleInterceptors() {
-    ActivityClientCallsInterceptor i1 = mock(ActivityClientCallsInterceptor.class);
-    ActivityClientCallsInterceptor i2 = mock(ActivityClientCallsInterceptor.class);
-    List<ActivityClientCallsInterceptor> interceptors = Arrays.asList(i1, i2);
+    ActivityClientInterceptor i1 = mock(ActivityClientInterceptor.class);
+    ActivityClientInterceptor i2 = mock(ActivityClientInterceptor.class);
+    List<ActivityClientInterceptor> interceptors = Arrays.asList(i1, i2);
     ActivityClientOptions opts =
         ActivityClientOptions.newBuilder().setInterceptors(interceptors).build();
     assertEquals(2, opts.getInterceptors().size());

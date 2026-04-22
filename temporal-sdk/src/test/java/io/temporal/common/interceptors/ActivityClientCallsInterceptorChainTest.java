@@ -12,9 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 
-/**
- * Tests for the {@link ActivityClientCallsInterceptor} factory pattern and chain-building behavior.
- */
+/** Tests for the {@link ActivityClientInterceptor} factory pattern and chain-building behavior. */
 public class ActivityClientCallsInterceptorChainTest {
 
   private static StartActivityInput minimalInput() {
@@ -33,7 +31,7 @@ public class ActivityClientCallsInterceptorChainTest {
    * Builds a chain from a list of interceptors and a root, replicating ActivityClientImpl logic.
    */
   private static ActivityClientCallsInterceptor buildChain(
-      List<ActivityClientCallsInterceptor> interceptors, ActivityClientCallsInterceptor root) {
+      List<ActivityClientInterceptor> interceptors, ActivityClientCallsInterceptor root) {
     ActivityClientCallsInterceptor invoker = root;
     for (int i = interceptors.size() - 1; i >= 0; i--) {
       invoker = interceptors.get(i).activityClientCallsInterceptor(invoker);
@@ -54,8 +52,8 @@ public class ActivityClientCallsInterceptorChainTest {
               return new StartActivityOutput("id", null);
             });
 
-    ActivityClientCallsInterceptor interceptor =
-        new ActivityClientCallsInterceptorBase(null) {
+    ActivityClientInterceptor interceptor =
+        new ActivityClientInterceptorBase() {
           @Override
           public ActivityClientCallsInterceptor activityClientCallsInterceptor(
               ActivityClientCallsInterceptor next) {
@@ -86,8 +84,8 @@ public class ActivityClientCallsInterceptorChainTest {
               return new StartActivityOutput("id", null);
             });
 
-    ActivityClientCallsInterceptor first = factoryInterceptor("A", events);
-    ActivityClientCallsInterceptor second = factoryInterceptor("B", events);
+    ActivityClientInterceptor first = factoryInterceptor("A", events);
+    ActivityClientInterceptor second = factoryInterceptor("B", events);
 
     ActivityClientCallsInterceptor chain = buildChain(Arrays.asList(first, second), root);
     chain.startActivity(minimalInput());
@@ -118,26 +116,17 @@ public class ActivityClientCallsInterceptorChainTest {
     assertEquals(Arrays.asList("A", "B", "C", "root"), events);
   }
 
-  // ---- Factory-only base pattern ----
+  // ---- ActivityClientInterceptorBase defaults ----
 
   @Test
-  public void testFactoryOnlyBaseDoesNotNPEOnConstruction() {
-    // The factory-only pattern: extends Base with super(null), only overrides the factory method.
-    // The null next is never called on the factory object itself — only the produced interceptor
-    // (which has a real next) is ever invoked.
+  public void testActivityClientInterceptorBaseDefaultPassesThrough() {
+    // ActivityClientInterceptorBase.activityClientCallsInterceptor returns next unchanged.
     ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
     when(root.startActivity(any())).thenReturn(new StartActivityOutput("id", null));
 
-    ActivityClientCallsInterceptor factory =
-        new ActivityClientCallsInterceptorBase(null) {
-          @Override
-          public ActivityClientCallsInterceptor activityClientCallsInterceptor(
-              ActivityClientCallsInterceptor next) {
-            return new ActivityClientCallsInterceptorBase(next) {};
-          }
-        };
+    ActivityClientInterceptor passthrough = new ActivityClientInterceptorBase() {};
 
-    ActivityClientCallsInterceptor chain = buildChain(Collections.singletonList(factory), root);
+    ActivityClientCallsInterceptor chain = buildChain(Collections.singletonList(passthrough), root);
     StartActivityOutput output = chain.startActivity(minimalInput());
 
     assertNotNull(output);
@@ -145,7 +134,7 @@ public class ActivityClientCallsInterceptorChainTest {
   }
 
   @Test
-  public void testFactoryOnlyBaseCanWrapAndInterceptCalls() {
+  public void testInterceptorBaseCanWrapAndInterceptCalls() {
     List<String> events = new ArrayList<>();
     ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
     when(root.startActivity(any()))
@@ -155,8 +144,8 @@ public class ActivityClientCallsInterceptorChainTest {
               return new StartActivityOutput("id", null);
             });
 
-    ActivityClientCallsInterceptor factory =
-        new ActivityClientCallsInterceptorBase(null) {
+    ActivityClientInterceptor factory =
+        new ActivityClientInterceptorBase() {
           @Override
           public ActivityClientCallsInterceptor activityClientCallsInterceptor(
               ActivityClientCallsInterceptor next) {
@@ -177,9 +166,8 @@ public class ActivityClientCallsInterceptorChainTest {
 
   // ---- Helper ----
 
-  private static ActivityClientCallsInterceptor factoryInterceptor(
-      String name, List<String> events) {
-    return new ActivityClientCallsInterceptorBase(null) {
+  private static ActivityClientInterceptor factoryInterceptor(String name, List<String> events) {
+    return new ActivityClientInterceptorBase() {
       @Override
       public ActivityClientCallsInterceptor activityClientCallsInterceptor(
           ActivityClientCallsInterceptor next) {

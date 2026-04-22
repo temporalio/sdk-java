@@ -47,22 +47,4 @@ public interface WorkflowClientInterceptor {
    */
   WorkflowClientCallsInterceptor workflowClientCallsInterceptor(
       WorkflowClientCallsInterceptor next);
-
-  /**
-   * Called once during creation of an {@link io.temporal.client.ActivityClient} to allow a
-   * WorkflowClientInterceptor to also intercept activity client calls. This enables users who
-   * maintain both a {@link io.temporal.client.WorkflowClient} and an {@link
-   * io.temporal.client.ActivityClient} to share a single interceptor implementation.
-   *
-   * <p>The primary registration path for activity interceptors is {@link
-   * io.temporal.client.ActivityClientOptions#getInterceptors()}.
-   *
-   * @param next next activity client calls interceptor in the chain
-   * @return new interceptor that should decorate calls to {@code next}
-   */
-  @Experimental
-  default ActivityClientCallsInterceptor activityClientCallsInterceptor(
-      ActivityClientCallsInterceptor next) {
-    return next;
-  }
 }
