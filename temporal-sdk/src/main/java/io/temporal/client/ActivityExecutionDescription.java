@@ -29,8 +29,10 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
 
   private final ActivityExecutionInfo info;
   private final DataConverter dataConverter;
+  private final String namespace;
 
-  public ActivityExecutionDescription(ActivityExecutionInfo info, DataConverter dataConverter) {
+  public ActivityExecutionDescription(
+      ActivityExecutionInfo info, DataConverter dataConverter, String namespace) {
     super(
         null,
         info.getActivityId(),
@@ -48,6 +50,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         SearchAttributesUtil.decodeTyped(info.getSearchAttributes()));
     this.info = info;
     this.dataConverter = dataConverter;
+    this.namespace = namespace;
   }
 
   private static @Nullable String nullIfEmpty(String s) {
@@ -241,7 +244,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     }
     return dataConverter
         .withContext(
-            new ActivitySerializationContext("", "", "", getActivityType(), getTaskQueue(), false))
+            new ActivitySerializationContext(
+                namespace, null, null, getActivityType(), getTaskQueue(), false))
         .fromPayload(info().getUserMetadata().getSummary(), String.class, String.class);
   }
 
@@ -256,7 +260,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     }
     return dataConverter
         .withContext(
-            new ActivitySerializationContext("", "", "", getActivityType(), getTaskQueue(), false))
+            new ActivitySerializationContext(
+                namespace, null, null, getActivityType(), getTaskQueue(), false))
         .fromPayload(info().getUserMetadata().getDetails(), String.class, String.class);
   }
 }

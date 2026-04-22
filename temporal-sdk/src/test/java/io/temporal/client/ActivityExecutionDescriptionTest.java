@@ -38,7 +38,7 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testBasicFields() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", "run-123"), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("act-id", "run-123"), CONVERTER, "test-ns");
 
     assertEquals("act-id", desc.getActivityId());
     assertEquals("run-123", desc.getActivityRunId());
@@ -51,14 +51,14 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testNullRunIdWhenEmpty() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
     assertNull(desc.getActivityRunId());
   }
 
   @Test
   public void testNullableFieldsAbsentByDefault() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
 
     // These are all absent in the minimal response
     assertNull(desc.getCloseTime());
@@ -83,7 +83,7 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testScheduledTime() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
     assertNotNull(desc.getScheduledTime());
     assertEquals(Instant.ofEpochMilli(1000), desc.getScheduledTime());
   }
@@ -91,14 +91,14 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testIsInstanceOfActivityExecution() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
     assertTrue(desc instanceof ActivityExecutionMetadata);
   }
 
   @Test
   public void testHasHeartbeatDetailsAbsent() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
     assertFalse(desc.hasHeartbeatDetails());
     assertFalse(desc.getHeartbeatDetails(String.class).isPresent());
   }
@@ -108,7 +108,8 @@ public class ActivityExecutionDescriptionTest {
     Payloads encoded = CONVERTER.toPayloads("hello-heartbeat").get();
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
-    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     assertTrue(desc.hasHeartbeatDetails());
     Optional<String> result = desc.getHeartbeatDetails(String.class);
@@ -123,7 +124,8 @@ public class ActivityExecutionDescriptionTest {
     Payloads encoded = CONVERTER.toPayloads(original).get();
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
-    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     Type genericType = new TypeToken<List<String>>() {}.getType();
     Class<List<String>> listClass = (Class<List<String>>) (Class<?>) List.class;
@@ -135,7 +137,7 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testGetWorkerDeploymentVersionAbsent() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
     assertNull(desc.getWorkerDeploymentVersion());
   }
 
@@ -148,7 +150,8 @@ public class ActivityExecutionDescriptionTest {
             .build();
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setLastDeploymentVersion(protoVersion).build();
-    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     WorkerDeploymentVersion version = desc.getWorkerDeploymentVersion();
     assertNotNull(version);
@@ -159,7 +162,7 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testGetPriorityAbsent() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER);
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
     assertNull(desc.getPriority());
   }
 
@@ -169,7 +172,8 @@ public class ActivityExecutionDescriptionTest {
         io.temporal.api.common.v1.Priority.newBuilder().setPriorityKey(3).build();
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setPriority(protoPriority).build();
-    ActivityExecutionDescription desc = new ActivityExecutionDescription(info, CONVERTER);
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     Priority priority = desc.getPriority();
     assertNotNull(priority);
