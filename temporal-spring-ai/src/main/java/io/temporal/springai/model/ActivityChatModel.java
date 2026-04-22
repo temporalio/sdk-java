@@ -236,29 +236,19 @@ public class ActivityChatModel implements ChatModel {
       return chatModelActivity;
     }
     ActivityOptions withSummary =
-        ActivityOptions.newBuilder(baseOptions).setSummary(buildSummary(prompt)).build();
+        ActivityOptions.newBuilder(baseOptions).setSummary(buildSummary()).build();
     return Workflow.newActivityStub(ChatModelActivity.class, withSummary);
   }
 
-  private String buildSummary(Prompt prompt) {
+  /**
+   * Builds the activity Summary. Intentionally omits the user prompt — including even a truncated
+   * slice would leak whatever the prompt contains (PII, secrets, internal identifiers) into
+   * workflow history, server logs, and the Temporal UI, which is a surprising default for a plain
+   * observability label.
+   */
+  private String buildSummary() {
     String label = modelName != null ? modelName : "default";
-    String userText = lastUserText(prompt);
-    if (userText == null || userText.isEmpty()) {
-      return "chat: " + label;
-    }
-    String truncated = userText.length() > 60 ? userText.substring(0, 60) + "…" : userText;
-    return "chat: " + label + " · " + truncated.replace('\n', ' ');
-  }
-
-  private String lastUserText(Prompt prompt) {
-    List<Message> instructions = prompt.getInstructions();
-    for (int i = instructions.size() - 1; i >= 0; i--) {
-      Message m = instructions.get(i);
-      if (m.getMessageType() == MessageType.USER) {
-        return m.getText();
-      }
-    }
-    return null;
+    return "chat: " + label;
   }
 
   private ChatModelTypes.ChatModelActivityInput createActivityInput(Prompt prompt) {

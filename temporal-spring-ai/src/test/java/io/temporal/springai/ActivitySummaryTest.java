@@ -1,5 +1,6 @@
 package io.temporal.springai;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,7 +50,7 @@ class ActivitySummaryTest {
   }
 
   @Test
-  void chatActivity_carriesSummaryWithModelAndUserPrompt() {
+  void chatActivity_carriesModelOnlySummary_neverLeaksUserPrompt() {
     Worker worker = testEnv.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ChatWorkflowImpl.class);
     worker.registerActivitiesImplementations(
@@ -60,19 +61,23 @@ class ActivitySummaryTest {
         client.newWorkflowStub(
             SummaryTestWorkflow.class,
             WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
-    workflow.chat("What is the capital of France?");
+    String prompt = "What is the capital of France?";
+    workflow.chat(prompt);
 
     String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
     List<HistoryEvent> events = client.fetchHistory(workflowId).getHistory().getEventsList();
 
     String summary = findChatActivitySummary(events);
     assertNotNull(summary, "ActivityTaskScheduled event for callChatModel should have a Summary");
+    assertEquals(
+        "chat: default",
+        summary,
+        "Summary must be just the model label — user prompts can contain PII and must not"
+            + " appear in history/logs/UI by default.");
+    // Defense in depth: explicitly confirm no part of the prompt leaked into the summary.
     assertTrue(
-        summary.startsWith("chat: default"),
-        "Summary should start with 'chat: default' but was: " + summary);
-    assertTrue(
-        summary.contains("What is the capital of France?"),
-        "Summary should contain the user prompt but was: " + summary);
+        !summary.contains(prompt) && !summary.contains("France"),
+        "Summary must not include user prompt content, got: " + summary);
   }
 
   private static String findChatActivitySummary(List<HistoryEvent> events) {
