@@ -62,7 +62,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
@@ -70,14 +70,14 @@ jobs:
 
       - name: Set up Java
         if: matrix.os_family != 'linux'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: 23
           distribution: "graalvm"
 
       - name: Set up Gradle
         if: matrix.os_family != 'linux'
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'linux'
@@ -105,7 +105,7 @@ jobs:
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
         if: ${{ inputs.upload_artifact }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)}}
           path: |
