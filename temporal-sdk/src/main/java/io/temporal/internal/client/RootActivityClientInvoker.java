@@ -9,12 +9,14 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.errordetails.v1.ActivityExecutionAlreadyStartedFailure;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -96,7 +98,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
 
-    io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
+    io.temporal.api.common.v1.Header grpcHeader =
+        HeaderUtils.toHeaderGrpc(input.getHeader(), extractContextHeaders());
     request.setHeader(grpcHeader);
 
     StartActivityExecutionResponse response;
@@ -265,6 +268,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     byte[] nextToken =
         response.getNextPageToken().isEmpty() ? null : response.getNextPageToken().toByteArray();
     return new ListActivitiesPaginatedOutput(new ActivityListPage(activities, nextToken));
+  }
+
+  private io.temporal.common.interceptors.Header extractContextHeaders() {
+    List<ContextPropagator> propagators = clientOptions.getContextPropagators();
+    if (propagators.isEmpty()) {
+      return null;
+    }
+    Map<String, Payload> result = new HashMap<>();
+    for (ContextPropagator propagator : propagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
+    return new io.temporal.common.interceptors.Header(result);
   }
 
   @Override
