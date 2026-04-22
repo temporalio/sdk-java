@@ -30,8 +30,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Integration tests for standalone activities started via {@link ActivityClient}. These tests are a
- * parallel to the .NET SDK's {@code TemporalClientActivityTests}.
+ * Integration tests for standalone activities started via {@link ActivityClient}.
  *
  * <p>All tests are gated behind {@link SDKTestWorkflowRule#useExternalService} because the embedded
  * test server may not support the standalone activity APIs.
@@ -199,11 +198,6 @@ public class StandaloneActivityTest {
         ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 1: execute simple activity by interface + method ref — typed result
-  // (.NET: ExecuteActivityAsync_SimpleWithResult_Succeeds)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteActivitySimpleWithResult() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -214,21 +208,11 @@ public class StandaloneActivityTest {
     assertEquals("echo:hello", result);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 2: execute void activity by interface + method ref
-  // (.NET: ExecuteActivityAsync_VoidResult_Succeeds)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteActivityVoidResult() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     newActivityClient().execute(VoidActivity.class, VoidActivity::execute, simpleOpts(uniqueId()));
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 3: execute activity by string type name
-  // (.NET: ExecuteActivityAsync_ByName_Succeeds)
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testExecuteActivityByName() {
@@ -238,11 +222,6 @@ public class StandaloneActivityTest {
             .execute("SimpleActivity", String.class, simpleOpts(uniqueId()), "world");
     assertEquals("echo:world", result);
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 4: starting an already-running activity with conflict policy Fail throws
-  // (.NET: StartActivityAsync_AlreadyStarted_Throws)
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testStartActivityAlreadyStartedThrows() {
@@ -277,11 +256,6 @@ public class StandaloneActivityTest {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 5: reject-duplicate ID reuse policy throws on re-start after completion
-  // (.NET: StartActivityAsync_IdReusePolicyRejectDuplicate_Throws)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testStartActivityIdReusePolicyRejectDuplicateThrows() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -306,11 +280,6 @@ public class StandaloneActivityTest {
     assertEquals(activityId, err.getActivityId());
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 6: get handle for a completed activity and read its result
-  // (.NET: GetActivityHandle_ExistingActivity_Succeeds)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testGetActivityHandleExistingActivitySucceeds() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -326,11 +295,6 @@ public class StandaloneActivityTest {
     assertEquals(handle.getActivityRunId(), handle2.getActivityRunId());
     assertEquals("echo:test", handle2.getResult(String.class));
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 7: describe while running and after termination
-  // (.NET: DescribeAsync_RunningAndTerminated_IsAccurate)
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testDescribeRunningAndTerminatedIsAccurate() {
@@ -382,11 +346,6 @@ public class StandaloneActivityTest {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 8: user metadata (staticSummary / staticDetails) is preserved in describe
-  // (.NET: DescribeAsync_UserMetadata_IsAccurate)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testDescribeUserMetadataIsAccurate() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -408,11 +367,6 @@ public class StandaloneActivityTest {
     assertEquals("Test summary", desc.getStaticSummary());
     assertEquals("Test details\nLine 2", desc.getStaticDetails());
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 9: cancel a running activity; getResult throws ActivityFailedException(CanceledFailure)
-  // (.NET: CancelAsync_RunningActivity_Succeeds)
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testCancelRunningActivitySucceeds() throws InterruptedException {
@@ -449,11 +403,6 @@ public class StandaloneActivityTest {
       cancelLatch = null;
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 10: list, count, and paginate activities
-  // (.NET: ListActivitiesAsync_SimpleList_IsAccurate)
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testListActivitiesSimpleListIsAccurate() {
@@ -516,11 +465,6 @@ public class StandaloneActivityTest {
         });
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 11: interceptors are invoked for all activity operations
-  // (.NET: StartActivityAsync_Interceptors_AreCalledProperly)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testStartActivityInterceptorsAreCalledProperly() throws InterruptedException {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -572,11 +516,6 @@ public class StandaloneActivityTest {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 12: ActivityInfo inside the activity body reflects standalone context
-  // (.NET: ExecuteActivityAsync_WorkerActivityInfo_IsAccurate)
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteActivityWorkerActivityInfoIsAccurate() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -599,10 +538,6 @@ public class StandaloneActivityTest {
     assertNull(info.workflowType);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 13: executeAsync via interface + method ref
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteAsyncReturnsResult() throws Exception {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -613,10 +548,6 @@ public class StandaloneActivityTest {
     assertEquals("echo:hello", future.get());
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 14: getResultAsync on an UntypedActivityHandle returns a resolved future
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testGetResultAsyncOnHandle() throws Exception {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -626,10 +557,6 @@ public class StandaloneActivityTest {
     assertEquals("echo:world", future.get());
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 15: typed ActivityHandle<R>.getResult() no-arg path via fromUntyped
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testTypedHandleGetResultNoArg() throws ActivityFailedException {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -638,10 +565,6 @@ public class StandaloneActivityTest {
     ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class);
     assertEquals("echo:typed", typed.getResult());
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 16: client.getHandle(id, runId, Class<R>) returns a typed ActivityHandle<R>
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testGetHandleTypedReturnsActivityHandleR() throws ActivityFailedException {
@@ -658,19 +581,11 @@ public class StandaloneActivityTest {
     assertEquals("echo:typed", typed.getResult());
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 17: Proc1 (void, 0 args) — execute
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteVoidActivity() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     newActivityClient().execute(VoidActivity.class, VoidActivity::execute, simpleOpts(uniqueId()));
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 18: Proc2 (void, 1 arg) — execute
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testExecuteVoidActivity1Arg() {
@@ -679,20 +594,12 @@ public class StandaloneActivityTest {
         .execute(EchoVoidActivity.class, EchoVoidActivity::echo1, simpleOpts(uniqueId()), "hello");
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 19: Proc3 (void, 2 args) — execute
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteVoidActivity2Args() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     newActivityClient()
         .execute(EchoVoidActivity.class, EchoVoidActivity::echo2, simpleOpts(uniqueId()), "a", "b");
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 20: Func1 (returning, 0 args) — execute
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testExecuteReturningActivity0Args() {
@@ -708,10 +615,6 @@ public class StandaloneActivityTest {
     assertFalse(info.isWorkflowActivity);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 21: Func2 (returning, 1 arg) — execute
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testExecuteReturningActivity1Arg() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -721,10 +624,6 @@ public class StandaloneActivityTest {
                 SimpleActivity.class, SimpleActivity::execute, simpleOpts(uniqueId()), "hello");
     assertEquals("echo:hello", result);
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 22: Func3 (returning, 2 args) — execute
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testExecuteReturningActivity2Args() {
@@ -736,10 +635,6 @@ public class StandaloneActivityTest {
     assertEquals("foo+bar", result);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 23: Proc1 — start returns ActivityHandle<Void>
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testStartVoidActivity0Args() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -748,10 +643,6 @@ public class StandaloneActivityTest {
             .start(VoidActivity.class, VoidActivity::execute, simpleOpts(uniqueId()));
     handle.getResult();
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 24: Proc2 — start with 1 arg returns ActivityHandle<Void>
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testStartVoidActivity1Arg() {
@@ -762,10 +653,6 @@ public class StandaloneActivityTest {
                 EchoVoidActivity.class, EchoVoidActivity::echo1, simpleOpts(uniqueId()), "hello");
     handle.getResult();
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 25: Func1 — start with 0 args returns ActivityHandle<R>
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testStartReturningActivity0Args() {
@@ -782,10 +669,6 @@ public class StandaloneActivityTest {
     assertFalse(info.isWorkflowActivity);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 26: Func2 — start with 1 arg returns ActivityHandle<R>
-  // ---------------------------------------------------------------------------
-
   @Test
   public void testStartReturningActivity1Arg() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -794,10 +677,6 @@ public class StandaloneActivityTest {
             .start(SimpleActivity.class, SimpleActivity::execute, simpleOpts(uniqueId()), "hello");
     assertEquals("echo:hello", handle.getResult());
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 27: Func3 — start with 2 args returns ActivityHandle<R>
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testStartReturningActivity2Args() {
@@ -808,10 +687,6 @@ public class StandaloneActivityTest {
                 ConcatActivity.class, ConcatActivity::concat, simpleOpts(uniqueId()), "foo", "bar");
     assertEquals("foo+bar", handle.getResult());
   }
-
-  // ---------------------------------------------------------------------------
-  // Test 28: executeAsync via interface + method ref
-  // ---------------------------------------------------------------------------
 
   @Test
   public void testExecuteAsyncWithMethodRef() throws Exception {
