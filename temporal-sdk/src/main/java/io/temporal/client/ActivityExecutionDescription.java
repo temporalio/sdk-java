@@ -73,11 +73,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     return r.isEmpty() ? null : r;
   }
 
-  /**
-   * Current or next retry interval. {@code null} if no retries are configured or allowed.
-   *
-   * @see ActivityExecutionInfoOrBuilder#getCurrentRetryInterval()
-   */
+  /** Current or next retry interval. {@code null} if no retries are configured or allowed. */
   @Nullable
   public Duration getCurrentRetryInterval() {
     return info().hasCurrentRetryInterval()
