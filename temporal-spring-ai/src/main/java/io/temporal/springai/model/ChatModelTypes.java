@@ -15,6 +15,14 @@ import java.util.List;
  */
 public final class ChatModelTypes {
 
+  /**
+   * The name used for the default chat model when no {@code modelName} is specified on an activity
+   * input or when {@link io.temporal.springai.model.ActivityChatModel#forDefault()} is called.
+   * Lives here rather than on {@code SpringAiPlugin} so both the activity impl and the plugin can
+   * reference it without the activity package importing the plugin package.
+   */
+  public static final String DEFAULT_MODEL_NAME = "default";
+
   private ChatModelTypes() {}
 
   /**
