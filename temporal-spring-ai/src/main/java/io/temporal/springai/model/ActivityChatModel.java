@@ -9,6 +9,7 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
@@ -84,8 +85,8 @@ public class ActivityChatModel implements ChatModel {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final ChatModelActivity chatModelActivity;
-  private final String modelName;
-  private final ActivityOptions baseOptions;
+  private final Optional<String> modelName;
+  private final Optional<ActivityOptions> baseOptions;
   private final ToolCallingManager toolCallingManager;
   private final ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate;
 
@@ -95,7 +96,7 @@ public class ActivityChatModel implements ChatModel {
    * @param chatModelActivity the activity stub for calling the chat model
    */
   public ActivityChatModel(ChatModelActivity chatModelActivity) {
-    this(chatModelActivity, null, null);
+    this(chatModelActivity, Optional.empty(), Optional.empty());
   }
 
   /**
@@ -105,16 +106,20 @@ public class ActivityChatModel implements ChatModel {
    * @param modelName the name of the chat model to use, or null for default
    */
   public ActivityChatModel(ChatModelActivity chatModelActivity, String modelName) {
-    this(chatModelActivity, modelName, null);
+    this(chatModelActivity, Optional.ofNullable(modelName), Optional.empty());
   }
 
   /**
    * Internal constructor used by {@link #forModel(String, Duration, int)} and friends. When {@code
-   * baseOptions} is non-null, each call rebuilds the activity stub with a per-call Summary on top
-   * of those options so the Temporal UI can label the chat activity meaningfully.
+   * baseOptions} is present, each call rebuilds the activity stub with a per-call Summary on top of
+   * those options so the Temporal UI can label the chat activity meaningfully. When empty, the
+   * caller supplied a pre-built stub whose options we don't know, so we call through it as-is
+   * without a summary.
    */
   private ActivityChatModel(
-      ChatModelActivity chatModelActivity, String modelName, ActivityOptions baseOptions) {
+      ChatModelActivity chatModelActivity,
+      Optional<String> modelName,
+      Optional<ActivityOptions> baseOptions) {
     this.chatModelActivity = chatModelActivity;
     this.modelName = modelName;
     this.baseOptions = baseOptions;
@@ -169,15 +174,14 @@ public class ActivityChatModel implements ChatModel {
             .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
             .build();
     ChatModelActivity activity = Workflow.newActivityStub(ChatModelActivity.class, options);
-    return new ActivityChatModel(activity, modelName, options);
+    return new ActivityChatModel(activity, Optional.ofNullable(modelName), Optional.of(options));
   }
 
   /**
-   * Returns the name of the chat model this instance uses.
-   *
-   * @return the model name, or null if using the default model
+   * Returns the name of the chat model this instance uses, or empty if it uses the plugin default
+   * (the {@code @Primary} {@code ChatModel} bean or the first one registered).
    */
-  public String getModelName() {
+  public Optional<String> getModelName() {
     return modelName;
   }
 
@@ -232,12 +236,14 @@ public class ActivityChatModel implements ChatModel {
   }
 
   private ChatModelActivity stubForCall(Prompt prompt) {
-    if (baseOptions == null) {
-      return chatModelActivity;
-    }
-    ActivityOptions withSummary =
-        ActivityOptions.newBuilder(baseOptions).setSummary(buildSummary()).build();
-    return Workflow.newActivityStub(ChatModelActivity.class, withSummary);
+    return baseOptions
+        .map(
+            base -> {
+              ActivityOptions withSummary =
+                  ActivityOptions.newBuilder(base).setSummary(buildSummary()).build();
+              return Workflow.newActivityStub(ChatModelActivity.class, withSummary);
+            })
+        .orElse(chatModelActivity);
   }
 
   /**
@@ -247,8 +253,7 @@ public class ActivityChatModel implements ChatModel {
    * observability label.
    */
   private String buildSummary() {
-    String label = modelName != null ? modelName : "default";
-    return "chat: " + label;
+    return "chat: " + modelName.orElse("default");
   }
 
   private ChatModelTypes.ChatModelActivityInput createActivityInput(Prompt prompt) {
@@ -290,7 +295,10 @@ public class ActivityChatModel implements ChatModel {
       }
     }
 
-    return new ChatModelTypes.ChatModelActivityInput(modelName, messages, modelOptions, tools);
+    // The serialized record field is String (null = use activity-side default model), so unwrap
+    // at the serialization boundary. Within this class we keep modelName as Optional<String>.
+    return new ChatModelTypes.ChatModelActivityInput(
+        modelName.orElse(null), messages, modelOptions, tools);
   }
 
   private List<ChatModelTypes.Message> toActivityMessages(Message message) {
