@@ -59,14 +59,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, @Nullable Type resultType) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          try {
-            return getResult(resultClass, resultType);
-          } catch (ActivityFailedException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    return CompletableFuture.supplyAsync(() -> getResult(resultClass, resultType));
   }
 
   @Override

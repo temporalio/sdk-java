@@ -174,7 +174,7 @@ public class ActivityHandleImplTest {
       future.get();
       fail("expected ExecutionException");
     } catch (java.util.concurrent.ExecutionException e) {
-      assertSame(failure, e.getCause().getCause());
+      assertSame(failure, e.getCause());
     }
   }
 }
