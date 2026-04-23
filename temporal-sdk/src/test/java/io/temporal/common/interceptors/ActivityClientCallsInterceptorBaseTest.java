@@ -23,7 +23,7 @@ import org.junit.Test;
  * Tests that {@link ActivityClientCallsInterceptorBase} correctly delegates all activity-related
  * methods to the next interceptor in the chain.
  */
-public class WorkflowClientCallsInterceptorActivityTest {
+public class ActivityClientCallsInterceptorBaseTest {
 
   private ActivityClientCallsInterceptor next;
   private ActivityClientCallsInterceptorBase base;
