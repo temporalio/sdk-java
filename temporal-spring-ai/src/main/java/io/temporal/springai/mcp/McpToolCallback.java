@@ -3,7 +3,6 @@ package io.temporal.springai.mcp;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.ai.mcp.McpToolUtils;
 import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.tool.ToolCallback;
@@ -107,7 +106,7 @@ public class McpToolCallback implements ToolCallback {
 
     // Use the original tool name (not prefixed) when calling the MCP server
     McpSchema.CallToolRequest request = new McpSchema.CallToolRequest(tool.name(), arguments);
-    Optional<String> summary = Optional.of("mcp: " + clientName + "." + tool.name());
+    String summary = "mcp: " + clientName + "." + tool.name();
     McpSchema.CallToolResult result = client.callTool(clientName, request, summary);
 
     // Return the result as-is (including errors) so the AI can handle them.
