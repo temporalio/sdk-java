@@ -37,25 +37,7 @@ import reactor.core.publisher.Flux;
  *
  * <h2>Usage</h2>
  *
- * <p>For a single chat model, use the constructor directly:
- *
- * <pre>{@code
- * @WorkflowInit
- * public MyWorkflowImpl() {
- *     ChatModelActivity chatModelActivity = Workflow.newActivityStub(
- *         ChatModelActivity.class,
- *         ActivityOptions.newBuilder()
- *             .setStartToCloseTimeout(Duration.ofMinutes(2))
- *             .build());
- *
- *     ActivityChatModel chatModel = new ActivityChatModel(chatModelActivity);
- *     this.chatClient = ChatClient.builder(chatModel).build();
- * }
- * }</pre>
- *
- * <h2>Multiple Chat Models</h2>
- *
- * <p>For applications with multiple chat models, use the static factory methods:
+ * <p>Build instances via the static factory methods:
  *
  * <pre>{@code
  * @WorkflowInit
@@ -84,42 +66,31 @@ public class ActivityChatModel implements ChatModel {
   /** Default maximum retry attempts for chat model activity calls. */
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
+  /**
+   * Error types that the default retry policy treats as non-retryable. These represent clearly
+   * permanent failures — a bad API key, an invalid prompt, an unknown model name — where retrying
+   * wastes time and money.
+   *
+   * <p>Applied only to the factories that build {@link ActivityOptions} internally. When callers
+   * pass their own {@link ActivityOptions} (via {@link #forDefault(ActivityOptions)} or {@link
+   * #forModel(String, ActivityOptions)}), their {@link RetryOptions} are used verbatim.
+   */
+  public static final List<String> DEFAULT_NON_RETRYABLE_ERROR_TYPES =
+      List.of(
+          "org.springframework.ai.retry.NonTransientAiException",
+          "java.lang.IllegalArgumentException");
+
   private final ChatModelActivity chatModelActivity;
   @Nullable private final String modelName;
-  @Nullable private final ActivityOptions baseOptions;
+  private final ActivityOptions baseOptions;
   private final ToolCallingManager toolCallingManager;
   private final ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate;
 
-  /**
-   * Creates a new ActivityChatModel that uses the default chat model.
-   *
-   * @param chatModelActivity the activity stub for calling the chat model
-   */
-  public ActivityChatModel(ChatModelActivity chatModelActivity) {
-    this(chatModelActivity, null, null);
-  }
-
-  /**
-   * Creates a new ActivityChatModel that uses a specific chat model.
-   *
-   * @param chatModelActivity the activity stub for calling the chat model
-   * @param modelName the name of the chat model to use, or null for default
-   */
-  public ActivityChatModel(ChatModelActivity chatModelActivity, @Nullable String modelName) {
-    this(chatModelActivity, modelName, null);
-  }
-
-  /**
-   * Internal constructor used by {@link #forModel(String, Duration, int)} and friends. When {@code
-   * baseOptions} is non-null, each call rebuilds the activity stub with a per-call Summary on top
-   * of those options so the Temporal UI can label the chat activity meaningfully. When null, the
-   * caller supplied a pre-built stub whose options we don't know, so we call through it as-is
-   * without a summary.
-   */
+  /** Use one of the {@link #forDefault()} / {@link #forModel(String)} factories. */
   private ActivityChatModel(
       ChatModelActivity chatModelActivity,
       @Nullable String modelName,
-      @Nullable ActivityOptions baseOptions) {
+      ActivityOptions baseOptions) {
     this.chatModelActivity = chatModelActivity;
     this.modelName = modelName;
     this.baseOptions = baseOptions;
@@ -128,24 +99,36 @@ public class ActivityChatModel implements ChatModel {
   }
 
   /**
-   * Creates an ActivityChatModel for the default chat model.
-   *
-   * <p>This factory method creates the activity stub internally with default timeout and retry
-   * options.
+   * Creates an ActivityChatModel for the default chat model with the plugin's default {@link
+   * ActivityOptions} (2-minute start-to-close timeout, 3 attempts, clearly permanent AI errors
+   * marked non-retryable).
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
    * @return an ActivityChatModel for the default chat model
    */
   public static ActivityChatModel forDefault() {
-    return forModel(null, DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS);
+    return forDefault(defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
   }
 
   /**
-   * Creates an ActivityChatModel for a specific chat model by bean name.
+   * Creates an ActivityChatModel for the default chat model using the supplied {@link
+   * ActivityOptions}. Pass this when you need to customize any field on the chat activity stub —
+   * timeouts, retry policy, task queue, heartbeat, priority, etc. Build on top of {@link
+   * #defaultActivityOptions()} to inherit the plugin's non-retryable-AI-error classification.
    *
-   * <p>This factory method creates the activity stub internally with default timeout and retry
-   * options.
+   * <p><strong>Must be called from workflow code.</strong>
+   *
+   * @param options the activity options to use for each chat call
+   * @return an ActivityChatModel for the default chat model
+   */
+  public static ActivityChatModel forDefault(ActivityOptions options) {
+    return forModel(null, options);
+  }
+
+  /**
+   * Creates an ActivityChatModel for a specific chat model by bean name with the plugin's default
+   * {@link ActivityOptions}.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
@@ -154,28 +137,51 @@ public class ActivityChatModel implements ChatModel {
    * @throws IllegalArgumentException if no model with that name exists (at activity runtime)
    */
   public static ActivityChatModel forModel(String modelName) {
-    return forModel(modelName, DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS);
+    return forModel(modelName, defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
   }
 
   /**
-   * Creates an ActivityChatModel for a specific chat model with custom options.
+   * Creates an ActivityChatModel for a specific chat model using the supplied {@link
+   * ActivityOptions}. The provided options are used verbatim — the plugin does not augment the
+   * caller's {@link RetryOptions} or merge in its defaults. If you want the plugin-default
+   * non-retryable error classification, copy {@link #DEFAULT_NON_RETRYABLE_ERROR_TYPES} into your
+   * own {@link RetryOptions}.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
    * @param modelName the bean name of the chat model, or null for default
-   * @param timeout the activity start-to-close timeout
-   * @param maxAttempts the maximum number of retry attempts
+   * @param options the activity options to use for each chat call
    * @return an ActivityChatModel for the specified chat model
    */
-  public static ActivityChatModel forModel(
-      @Nullable String modelName, Duration timeout, int maxAttempts) {
-    ActivityOptions options =
-        ActivityOptions.newBuilder()
-            .setStartToCloseTimeout(timeout)
-            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
-            .build();
+  public static ActivityChatModel forModel(@Nullable String modelName, ActivityOptions options) {
     ChatModelActivity activity = Workflow.newActivityStub(ChatModelActivity.class, options);
     return new ActivityChatModel(activity, modelName, options);
+  }
+
+  /**
+   * Returns the plugin's default {@link ActivityOptions} for chat model calls. Useful as a starting
+   * point when you want to customize one or two fields without losing the sensible defaults:
+   *
+   * <pre>{@code
+   * ActivityChatModel.forDefault(
+   *     ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+   *         .setTaskQueue("chat-heavy")
+   *         .build());
+   * }</pre>
+   */
+  public static ActivityOptions defaultActivityOptions() {
+    return defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS);
+  }
+
+  private static ActivityOptions defaultActivityOptions(Duration timeout, int maxAttempts) {
+    return ActivityOptions.newBuilder()
+        .setStartToCloseTimeout(timeout)
+        .setRetryOptions(
+            RetryOptions.newBuilder()
+                .setMaximumAttempts(maxAttempts)
+                .setDoNotRetry(DEFAULT_NON_RETRYABLE_ERROR_TYPES.toArray(new String[0]))
+                .build())
+        .build();
   }
 
   /**
@@ -238,9 +244,6 @@ public class ActivityChatModel implements ChatModel {
   }
 
   private ChatModelActivity stubForCall(Prompt prompt) {
-    if (baseOptions == null) {
-      return chatModelActivity;
-    }
     ActivityOptions withSummary =
         ActivityOptions.newBuilder(baseOptions).setSummary(buildSummary()).build();
     return Workflow.newActivityStub(ChatModelActivity.class, withSummary);
