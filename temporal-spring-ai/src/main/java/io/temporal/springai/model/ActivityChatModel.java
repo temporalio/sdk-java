@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.model.ChatModel;
@@ -84,7 +85,8 @@ public class ActivityChatModel implements ChatModel {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final ChatModelActivity chatModelActivity;
-  private final String modelName;
+  @Nullable private final String modelName;
+  @Nullable private final ActivityOptions baseOptions;
   private final ToolCallingManager toolCallingManager;
   private final ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate;
 
@@ -94,7 +96,7 @@ public class ActivityChatModel implements ChatModel {
    * @param chatModelActivity the activity stub for calling the chat model
    */
   public ActivityChatModel(ChatModelActivity chatModelActivity) {
-    this(chatModelActivity, null);
+    this(chatModelActivity, null, null);
   }
 
   /**
@@ -103,9 +105,24 @@ public class ActivityChatModel implements ChatModel {
    * @param chatModelActivity the activity stub for calling the chat model
    * @param modelName the name of the chat model to use, or null for default
    */
-  public ActivityChatModel(ChatModelActivity chatModelActivity, String modelName) {
+  public ActivityChatModel(ChatModelActivity chatModelActivity, @Nullable String modelName) {
+    this(chatModelActivity, modelName, null);
+  }
+
+  /**
+   * Internal constructor used by {@link #forModel(String, Duration, int)} and friends. When {@code
+   * baseOptions} is non-null, each call rebuilds the activity stub with a per-call Summary on top
+   * of those options so the Temporal UI can label the chat activity meaningfully. When null, the
+   * caller supplied a pre-built stub whose options we don't know, so we call through it as-is
+   * without a summary.
+   */
+  private ActivityChatModel(
+      ChatModelActivity chatModelActivity,
+      @Nullable String modelName,
+      @Nullable ActivityOptions baseOptions) {
     this.chatModelActivity = chatModelActivity;
     this.modelName = modelName;
+    this.baseOptions = baseOptions;
     this.toolCallingManager = ToolCallingManager.builder().build();
     this.toolExecutionEligibilityPredicate = new DefaultToolExecutionEligibilityPredicate();
   }
@@ -150,22 +167,22 @@ public class ActivityChatModel implements ChatModel {
    * @param maxAttempts the maximum number of retry attempts
    * @return an ActivityChatModel for the specified chat model
    */
-  public static ActivityChatModel forModel(String modelName, Duration timeout, int maxAttempts) {
-    ChatModelActivity activity =
-        Workflow.newActivityStub(
-            ChatModelActivity.class,
-            ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(timeout)
-                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
-                .build());
-    return new ActivityChatModel(activity, modelName);
+  public static ActivityChatModel forModel(
+      @Nullable String modelName, Duration timeout, int maxAttempts) {
+    ActivityOptions options =
+        ActivityOptions.newBuilder()
+            .setStartToCloseTimeout(timeout)
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
+            .build();
+    ChatModelActivity activity = Workflow.newActivityStub(ChatModelActivity.class, options);
+    return new ActivityChatModel(activity, modelName, options);
   }
 
   /**
-   * Returns the name of the chat model this instance uses.
-   *
-   * @return the model name, or null if using the default model
+   * Returns the name of the chat model this instance uses, or null if it uses the plugin default
+   * (the {@code @Primary} {@code ChatModel} bean or the first one registered).
    */
+  @Nullable
   public String getModelName() {
     return modelName;
   }
@@ -193,7 +210,8 @@ public class ActivityChatModel implements ChatModel {
   private ChatResponse internalCall(Prompt prompt) {
     // Convert prompt to activity input and call the activity
     ChatModelTypes.ChatModelActivityInput input = createActivityInput(prompt);
-    ChatModelTypes.ChatModelActivityOutput output = chatModelActivity.callChatModel(input);
+    ChatModelActivity stub = stubForCall(prompt);
+    ChatModelTypes.ChatModelActivityOutput output = stub.callChatModel(input);
 
     // Convert activity output to ChatResponse
     ChatResponse response = toResponse(output);
@@ -217,6 +235,25 @@ public class ActivityChatModel implements ChatModel {
     }
 
     return response;
+  }
+
+  private ChatModelActivity stubForCall(Prompt prompt) {
+    if (baseOptions == null) {
+      return chatModelActivity;
+    }
+    ActivityOptions withSummary =
+        ActivityOptions.newBuilder(baseOptions).setSummary(buildSummary()).build();
+    return Workflow.newActivityStub(ChatModelActivity.class, withSummary);
+  }
+
+  /**
+   * Builds the activity Summary. Intentionally omits the user prompt — including even a truncated
+   * slice would leak whatever the prompt contains (PII, secrets, internal identifiers) into
+   * workflow history, server logs, and the Temporal UI, which is a surprising default for a plain
+   * observability label.
+   */
+  private String buildSummary() {
+    return "chat: " + (modelName != null ? modelName : "default");
   }
 
   private ChatModelTypes.ChatModelActivityInput createActivityInput(Prompt prompt) {
