@@ -1,6 +1,8 @@
 package io.temporal.springai.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -43,9 +45,32 @@ class McpPluginTest {
     verify(worker, atLeastOnce()).registerActivitiesImplementations(captor.capture());
     Object registered = captor.getValue();
     assertEquals(McpClientActivityImpl.class, registered.getClass());
+  }
 
-    // Duplicate-name protection in McpClientActivityImpl still fires if two clients share a
-    // clientInfo().name(); here they differ ("alpha" vs "beta") so construction succeeds.
+  @Test
+  void twoMcpBeans_duplicateClientInfoNames_throws() {
+    // Two distinct beans that both report the same clientInfo().name() — the activity impl
+    // has to reject this because it keys its internal client map by that name.
+    McpSyncClient clientA = mockClientNamed("shared");
+    McpSyncClient clientB = mockClientNamed("shared");
+
+    Map<String, McpSyncClient> beans = new LinkedHashMap<>();
+    beans.put("mcpClientA", clientA);
+    beans.put("mcpClientB", clientB);
+
+    ApplicationContext ctx = mock(ApplicationContext.class);
+    when(ctx.getBeansOfType(McpSyncClient.class)).thenReturn(beans);
+
+    McpPlugin plugin = new McpPlugin();
+    plugin.setApplicationContext(ctx);
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> plugin.initializeWorker("mcp-tq", mock(Worker.class)));
+    assertTrue(
+        thrown.getMessage().contains("shared"),
+        "expected duplicate name in message, got: " + thrown.getMessage());
   }
 
   @Test
