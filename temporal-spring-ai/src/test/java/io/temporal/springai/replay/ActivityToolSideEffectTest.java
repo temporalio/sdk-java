@@ -35,10 +35,15 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 
 /**
- * Asserts that a workflow replay does not re-invoke activity-backed tools. The {@link AddActivity}
- * impl holds a counter that increments on each tool call. After the initial run the counter is 1;
- * after replaying the captured history, it must still be 1 — activity results for the tool call
- * come from history, not from re-invoking the activity impl.
+ * Asserts that {@link TemporalChatClient#defaultTools} routes activity-stub tools through the
+ * activity boundary the user already set up (via {@code Workflow.newActivityStub}) rather than
+ * invoking the underlying impl directly from workflow code. This is a plugin property: the plugin
+ * must recognize the stub as an activity-backed tool and invoke it as such, not unwrap it into a
+ * plain in-workflow Java method call. Temporal's replay semantics for activities are assumed
+ * correct.
+ *
+ * <p>If the plugin regressed to invoking a stub's backing impl directly, replay would re-run that
+ * call and the counter would exceed 1.
  */
 class ActivityToolSideEffectTest {
 
@@ -82,7 +87,9 @@ class ActivityToolSideEffectTest {
             WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     assertEquals("The answer is 5", workflow.chat("What is 2+3?"));
     assertEquals(
-        1, addActivity.callCount.get(), "Tool activity should run once during the initial run");
+        1,
+        addActivity.callCount.get(),
+        "sanity check: the tool activity impl ran exactly once for one workflow invocation");
 
     WorkflowExecutionHistory history =
         client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
@@ -91,7 +98,9 @@ class ActivityToolSideEffectTest {
     assertEquals(
         1,
         addActivity.callCount.get(),
-        "Tool activity must not be re-invoked during replay — results come from history");
+        "TemporalChatClient must invoke activity-stub tools as activities; a counter above 1"
+            + " means the plugin unwrapped the stub and called the impl directly from workflow"
+            + " code");
   }
 
   @WorkflowInterface

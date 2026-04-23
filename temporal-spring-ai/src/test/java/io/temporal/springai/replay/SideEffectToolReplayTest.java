@@ -31,14 +31,15 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 
 /**
- * Asserts that {@code Workflow.sideEffect(...)} memoization works for {@link SideEffectTool}
- * bodies. Unlike activity-backed tools, the {@code SideEffectToolCallback} wrapper runs on the
- * workflow side, so <em>every</em> workflow statement re-runs during replay — including the call
- * into {@code SideEffectToolCallback.call()}. What must NOT re-run is the inner tool body (the
- * lambda passed to {@code Workflow.sideEffect}); that result is fetched from the recorded marker.
+ * Asserts that the plugin's {@link SideEffectTool} callback actually wraps the user's {@code @Tool}
+ * method body in {@code Workflow.sideEffect(...)}. This is a plugin property: the {@code
+ * SideEffectToolCallback} itself runs on the workflow side and gets re-entered on every replay, so
+ * if the callback were to invoke the tool body directly instead of via {@code Workflow.sideEffect},
+ * the body would run again on each replay. Temporal's memoization of {@code sideEffect} markers is
+ * assumed correct.
  *
- * <p>A regression that dropped the sideEffect wrapper (e.g., directly invoking the delegate) would
- * bump this counter to 2 on replay.
+ * <p>A regression that drops the {@code Workflow.sideEffect} wrap (calling the delegate directly)
+ * would bump this counter past 1.
  */
 class SideEffectToolReplayTest {
 
@@ -83,7 +84,9 @@ class SideEffectToolReplayTest {
             TimestampWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     assertEquals("got: 2026-04-21T00:00:00Z", workflow.chat("what time is it?"));
     assertEquals(
-        1, CALL_COUNT.get(), "@SideEffectTool body should run once during the initial run");
+        1,
+        CALL_COUNT.get(),
+        "sanity check: the @SideEffectTool body ran exactly once for one workflow invocation");
 
     WorkflowExecutionHistory history =
         client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
@@ -92,8 +95,8 @@ class SideEffectToolReplayTest {
     assertEquals(
         1,
         CALL_COUNT.get(),
-        "@SideEffectTool body must not re-run on replay — result comes from the recorded"
-            + " sideEffect marker");
+        "SideEffectToolCallback must wrap the @Tool body in Workflow.sideEffect; a counter above"
+            + " 1 means the plugin invoked the tool body directly and replay re-ran it");
   }
 
   @WorkflowInterface

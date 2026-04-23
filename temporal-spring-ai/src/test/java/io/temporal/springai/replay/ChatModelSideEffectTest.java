@@ -28,12 +28,17 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 
 /**
- * Asserts that a workflow replay does not re-invoke the underlying {@link ChatModel}. The counter
- * lives on the activity's backing ChatModel, which is only reached when the {@code CallChatModel}
- * activity is scheduled by the workflow. On replay, the activity result is fetched from history;
- * the impl is not re-invoked. If we ever regress by dropping that guarantee — say by adding an
- * in-workflow cache that falls back to invoking the model directly — the counter will advance to 2
- * and this test will fail.
+ * Asserts that {@link ActivityChatModel} routes every {@link ChatModel} invocation through an
+ * activity boundary rather than calling the underlying {@code ChatModel} directly from workflow
+ * code. This is a property of the plugin, not of Temporal: Temporal guarantees activity results are
+ * replayed from history, but that only helps if the plugin actually scheduled an activity in the
+ * first place.
+ *
+ * <p>Concretely, if a regression routed chat calls directly (e.g. an in-workflow cache whose miss
+ * path invokes the {@code ChatModel} inline), replay would re-run that inline call and the counter
+ * would advance past 1. Caching is disabled in {@link #setUp()} so the worker replays on every
+ * workflow task — making this failure mode observable during the initial run, not only via the
+ * explicit {@code WorkflowReplayer} pass.
  */
 class ChatModelSideEffectTest {
 
@@ -76,7 +81,9 @@ class ChatModelSideEffectTest {
             ChatWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     assertEquals("pong", workflow.chat("ping"));
     assertEquals(
-        1, model.callCount.get(), "ChatModel should be called once during the initial run");
+        1,
+        model.callCount.get(),
+        "sanity check: the ChatModel ran exactly once for one workflow invocation");
 
     WorkflowExecutionHistory history =
         client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
@@ -85,7 +92,9 @@ class ChatModelSideEffectTest {
     assertEquals(
         1,
         model.callCount.get(),
-        "ChatModel must not be re-invoked during replay — activity results come from history");
+        "ActivityChatModel must place ChatModel calls behind an activity boundary; a counter"
+            + " above 1 means the plugin invoked the ChatModel directly from workflow code"
+            + " and replay re-ran it");
   }
 
   @WorkflowInterface
