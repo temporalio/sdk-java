@@ -740,6 +740,7 @@ class StateMachines {
             .setTaskToken(taskToken.toBytes())
             .setRequest(
                 io.temporal.api.nexus.v1.Request.newBuilder()
+                    .setEndpoint(attr.getEndpoint())
                     .setScheduledTime(ctx.currentTime())
                     .setCapabilities(
                         io.temporal.api.nexus.v1.Request.Capabilities.newBuilder()
@@ -998,6 +999,7 @@ class StateMachines {
             .setTaskToken(taskToken.toBytes())
             .setRequest(
                 io.temporal.api.nexus.v1.Request.newBuilder()
+                    .setEndpoint(data.scheduledEvent.getEndpoint())
                     .putAllHeader(data.scheduledEvent.getNexusHeaderMap())
                     .setCancelOperation(
                         CancelOperationRequest.newBuilder()
