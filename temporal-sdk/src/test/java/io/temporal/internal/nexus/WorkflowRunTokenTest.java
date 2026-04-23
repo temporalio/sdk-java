@@ -17,7 +17,8 @@ public class WorkflowRunTokenTest {
 
   @Test
   public void serializeWorkflowRunToken() throws JsonProcessingException {
-    WorkflowRunOperationToken token = new WorkflowRunOperationToken("namespace", "workflowId");
+    OperationToken token =
+        new OperationToken(OperationTokenType.WORKFLOW_RUN, "namespace", "workflowId");
     String json = ow.writeValueAsString(token);
     final JsonNode node = new ObjectMapper().readTree(json);
     System.out.println(json);
@@ -32,9 +33,8 @@ public class WorkflowRunTokenTest {
   @Test
   public void deserializeWorkflowRunTokenWithVersion() throws IOException {
     String json = "{\"t\":1,\"ns\":\"namespace\",\"wid\":\"workflowId\",\"v\":1}";
-    JavaType reference =
-        new ObjectMapper().getTypeFactory().constructType(WorkflowRunOperationToken.class);
-    WorkflowRunOperationToken token = new ObjectMapper().readValue(json.getBytes(), reference);
+    JavaType reference = new ObjectMapper().getTypeFactory().constructType(OperationToken.class);
+    OperationToken token = new ObjectMapper().readValue(json.getBytes(), reference);
     // Assert that the serialized JSON is as expected
     Assert.assertEquals(OperationTokenType.WORKFLOW_RUN, token.getType());
     Assert.assertEquals(new Integer(1), token.getVersion());
@@ -45,9 +45,8 @@ public class WorkflowRunTokenTest {
   @Test
   public void deserializeWorkflowRunToken() throws IOException {
     String json = "{\"t\":1,\"ns\":\"namespace\",\"wid\":\"workflowId\"}";
-    JavaType reference =
-        new ObjectMapper().getTypeFactory().constructType(WorkflowRunOperationToken.class);
-    WorkflowRunOperationToken token = new ObjectMapper().readValue(json.getBytes(), reference);
+    JavaType reference = new ObjectMapper().getTypeFactory().constructType(OperationToken.class);
+    OperationToken token = new ObjectMapper().readValue(json.getBytes(), reference);
     // Assert that the serialized JSON is as expected
     Assert.assertEquals(OperationTokenType.WORKFLOW_RUN, token.getType());
     Assert.assertNull(null, token.getVersion());
@@ -67,8 +66,8 @@ public class WorkflowRunTokenTest {
   public void loadWorkflowIdFromOperationToken() {
     String json = "{\"t\":1,\"ns\":\"namespace\",\"wid\":\"workflowId\"}";
 
-    WorkflowRunOperationToken token =
-        OperationTokenUtil.loadWorkflowRunOperationToken(encoder.encodeToString(json.getBytes()));
+    OperationToken token =
+        OperationTokenUtil.loadOperationToken(encoder.encodeToString(json.getBytes()));
     Assert.assertEquals("workflowId", token.getWorkflowId());
     Assert.assertEquals("namespace", token.getNamespace());
     Assert.assertNull(token.getVersion());
@@ -86,8 +85,7 @@ public class WorkflowRunTokenTest {
     // across SDKs.
     String goOperationToken = "eyJ2IjowLCJ0IjoxLCJucyI6Im5zIiwid2lkIjoidyJ9";
 
-    WorkflowRunOperationToken token =
-        OperationTokenUtil.loadWorkflowRunOperationToken(goOperationToken);
+    OperationToken token = OperationTokenUtil.loadOperationToken(goOperationToken);
     Assert.assertEquals("w", token.getWorkflowId());
     Assert.assertEquals("ns", token.getNamespace());
     Assert.assertEquals(Integer.valueOf(0), token.getVersion());
@@ -101,7 +99,7 @@ public class WorkflowRunTokenTest {
     Assert.assertThrows(
         IllegalArgumentException.class,
         () ->
-            OperationTokenUtil.loadWorkflowRunOperationToken(
+            OperationTokenUtil.loadOperationToken(
                 encoder.encodeToString(badTokenEmptyJson.getBytes())));
 
     // Bad token, missing the "wid" field
@@ -109,7 +107,7 @@ public class WorkflowRunTokenTest {
     Assert.assertThrows(
         IllegalArgumentException.class,
         () ->
-            OperationTokenUtil.loadWorkflowRunOperationToken(
+            OperationTokenUtil.loadOperationToken(
                 encoder.encodeToString(badTokenMissingWorkflow.getBytes())));
 
     // Bad token, unknown version
@@ -118,15 +116,23 @@ public class WorkflowRunTokenTest {
     Assert.assertThrows(
         IllegalArgumentException.class,
         () ->
-            OperationTokenUtil.loadWorkflowRunOperationToken(
+            OperationTokenUtil.loadOperationToken(
                 encoder.encodeToString(badTokenUnknownVersion.getBytes())));
 
-    // Bad token, unknown version
+    // Bad token, unknown type (also has bad version, so loadOperationToken rejects on version)
     String badTokenUnknownType = "{\"t\":4,\"ns\":\"namespace\", \"wid\":\"workflowId\", \"v\":1}";
     Assert.assertThrows(
         IllegalArgumentException.class,
         () ->
-            OperationTokenUtil.loadWorkflowRunOperationToken(
+            OperationTokenUtil.loadOperationToken(
                 encoder.encodeToString(badTokenUnknownType.getBytes())));
+
+    // Bad token, unknown type with valid version — loadWorkflowRunOperationToken rejects on type
+    String badTokenWrongType = "{\"t\":4,\"ns\":\"namespace\", \"wid\":\"workflowId\"}";
+    Assert.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            OperationTokenUtil.loadWorkflowRunOperationToken(
+                encoder.encodeToString(badTokenWrongType.getBytes())));
   }
 }
