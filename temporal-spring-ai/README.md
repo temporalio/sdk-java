@@ -51,6 +51,23 @@ public String run(String goal) {
 }
 ```
 
+## Activity options and retry behavior
+
+`ActivityChatModel.forDefault()` / `forModel(name)` build the chat activity stub with sensible defaults: a 2-minute start-to-close timeout, 3 attempts, and `org.springframework.ai.retry.NonTransientAiException` + `java.lang.IllegalArgumentException` marked non-retryable so a bad API key or invalid prompt fails fast instead of churning through retries.
+
+When you need finer control — a specific task queue, heartbeats, priority, or a custom `RetryOptions` — pass an `ActivityOptions` directly:
+
+```java
+ActivityChatModel chatModel = ActivityChatModel.forDefault(
+        ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+                .setTaskQueue("chat-heavy")
+                .build());
+```
+
+`ActivityMcpClient.create()` / `create(ActivityOptions)` work the same way with a 30-second default timeout.
+
+The Temporal UI labels chat and MCP rows with a short Summary (`chat: <model>`, `mcp: <client>.<tool>`). `ActivityChatModel` and `ActivityMcpClient` are constructed only via these factories — there is no public constructor, so users can't accidentally end up in a code path that skips UI labels. Prompt text is deliberately not included in chat summaries to avoid leaking user input (which may contain PII, credentials, or other sensitive data) into workflow history and server logs.
+
 ## Tool Types
 
 Tools passed to `defaultTools()` are handled based on their type:

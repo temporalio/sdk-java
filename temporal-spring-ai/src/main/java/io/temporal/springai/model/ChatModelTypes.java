@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Duration;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Serializable types for chat model activity requests and responses.
@@ -20,21 +21,23 @@ public final class ChatModelTypes {
   /**
    * Input to the chat model activity.
    *
-   * @param modelName the name of the chat model bean to use (null for default)
+   * @param modelName the name of the chat model bean to use, or null for the activity-side default
+   *     model
    * @param messages the conversation messages
-   * @param modelOptions options for the chat model (temperature, max tokens, etc.)
+   * @param modelOptions options for the chat model (temperature, max tokens, etc.), or null to use
+   *     the chat model's own defaults
    * @param tools tool definitions the model may call
    */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record ChatModelActivityInput(
-      @JsonProperty("model_name") String modelName,
+      @JsonProperty("model_name") @Nullable String modelName,
       @JsonProperty("messages") List<Message> messages,
-      @JsonProperty("model_options") ModelOptions modelOptions,
+      @JsonProperty("model_options") @Nullable ModelOptions modelOptions,
       @JsonProperty("tools") List<FunctionTool> tools) {
     /** Creates input for the default chat model. */
     public ChatModelActivityInput(
-        List<Message> messages, ModelOptions modelOptions, List<FunctionTool> tools) {
+        List<Message> messages, @Nullable ModelOptions modelOptions, List<FunctionTool> tools) {
       this(null, messages, modelOptions, tools);
     }
   }

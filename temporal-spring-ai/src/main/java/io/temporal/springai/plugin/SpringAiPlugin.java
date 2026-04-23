@@ -7,10 +7,10 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.lang.Nullable;
 
 /**
  * Core Temporal plugin that registers {@link io.temporal.springai.activity.ChatModelActivity} with
