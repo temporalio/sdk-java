@@ -119,7 +119,7 @@ class AssistantService {
 }
 ```
 
-Inside a workflow it becomes:
+Inside a Temporal Workflow it becomes:
 
 ```java
 @WorkflowInterface
