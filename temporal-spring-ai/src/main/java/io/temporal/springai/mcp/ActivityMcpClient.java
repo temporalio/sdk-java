@@ -6,7 +6,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Map;
-import org.springframework.lang.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * A workflow-safe wrapper for MCP (Model Context Protocol) client operations.

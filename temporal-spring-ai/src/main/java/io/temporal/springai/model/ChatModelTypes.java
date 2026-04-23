@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Duration;
 import java.util.List;
-import org.springframework.lang.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Serializable types for chat model activity requests and responses.
