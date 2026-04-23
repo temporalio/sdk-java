@@ -66,6 +66,12 @@ public class StandaloneActivityTest {
   }
 
   @ActivityInterface
+  public interface AsyncCompletionActivity {
+    @ActivityMethod(name = "AsyncCompletion")
+    String complete();
+  }
+
+  @ActivityInterface
   public interface EchoVoidActivity {
     @ActivityMethod(name = "Echo1")
     void echo1(String a);
@@ -110,6 +116,10 @@ public class StandaloneActivityTest {
    */
   private static volatile CountDownLatch cancelLatch;
 
+  private static volatile CountDownLatch asyncStartLatch;
+  private static volatile String asyncActivityId;
+  private static volatile String asyncActivityRunId;
+
   public static class WaitForCancelActivityImpl implements WaitForCancelActivity {
     @Override
     public void waitForCancel() {
@@ -124,6 +134,19 @@ public class StandaloneActivityTest {
         }
         Activity.getExecutionContext().heartbeat(null);
       }
+    }
+  }
+
+  public static class AsyncCompletionActivityImpl implements AsyncCompletionActivity {
+    @Override
+    public String complete() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      asyncActivityId = info.getActivityId();
+      asyncActivityRunId = info.getActivityRunId();
+      Activity.getExecutionContext().doNotCompleteOnReturn();
+      CountDownLatch latch = asyncStartLatch;
+      if (latch != null) latch.countDown();
+      return null;
     }
   }
 
@@ -171,6 +194,7 @@ public class StandaloneActivityTest {
               new SimpleActivityImpl(),
               new VoidActivityImpl(),
               new WaitForCancelActivityImpl(),
+              new AsyncCompletionActivityImpl(),
               new InspectInfoActivityImpl(),
               new EchoVoidActivityImpl(),
               new ConcatActivityImpl())
@@ -696,6 +720,58 @@ public class StandaloneActivityTest {
             .executeAsync(
                 SimpleActivity.class, SimpleActivity::execute, simpleOpts(uniqueId()), "async");
     assertEquals("echo:async", fut.get());
+  }
+
+  @Test
+  public void testCompletionClientStandaloneCompleteByActivityId() throws InterruptedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    asyncStartLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      ActivityHandle<String> handle =
+          client.start(
+              AsyncCompletionActivity.class,
+              AsyncCompletionActivity::complete,
+              simpleOpts(uniqueId()));
+
+      assertTrue("Activity did not start within 30s", asyncStartLatch.await(30, TimeUnit.SECONDS));
+
+      client
+          .newActivityCompletionClient()
+          .complete(asyncActivityId, Optional.empty(), "ext-result");
+
+      assertEquals("ext-result", handle.getResult());
+    } finally {
+      asyncStartLatch = null;
+      asyncActivityId = null;
+      asyncActivityRunId = null;
+    }
+  }
+
+  @Test
+  public void testCompletionClientStandaloneCompleteWithRunId() throws InterruptedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    asyncStartLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      ActivityHandle<String> handle =
+          client.start(
+              AsyncCompletionActivity.class,
+              AsyncCompletionActivity::complete,
+              simpleOpts(uniqueId()));
+
+      assertTrue("Activity did not start within 30s", asyncStartLatch.await(30, TimeUnit.SECONDS));
+
+      client
+          .newActivityCompletionClient()
+          .complete(asyncActivityId, Optional.of(asyncActivityRunId), "ext-result-with-run");
+
+      assertEquals("ext-result-with-run", handle.getResult());
+    } finally {
+      asyncStartLatch = null;
+      asyncActivityId = null;
+      asyncActivityRunId = null;
+    }
   }
 
   // ---------------------------------------------------------------------------
