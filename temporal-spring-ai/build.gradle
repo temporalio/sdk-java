@@ -46,14 +46,11 @@ dependencies {
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.ai:spring-ai-rag'
-<<<<<<< spring-ai/mcp-bean-lookup
     // Needed only so McpPluginTest can mock/reference McpSyncClient directly.
     testImplementation 'org.springframework.ai:spring-ai-mcp'
-=======
     // Needed only so tests can reference Spring AI's NonTransientAiException to
     // verify the plugin's default retry classification.
     testImplementation 'org.springframework.ai:spring-ai-retry'
->>>>>>> master
 
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
