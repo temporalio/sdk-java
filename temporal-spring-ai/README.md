@@ -51,6 +51,23 @@ public String run(String goal) {
 }
 ```
 
+## Activity options and retry behavior
+
+`ActivityChatModel.forDefault()` / `forModel(name)` build the chat activity stub with sensible defaults: a 2-minute start-to-close timeout, 3 attempts, and `org.springframework.ai.retry.NonTransientAiException` + `java.lang.IllegalArgumentException` marked non-retryable so a bad API key or invalid prompt fails fast instead of churning through retries.
+
+When you need finer control — a specific task queue, heartbeats, priority, or a custom `RetryOptions` — pass an `ActivityOptions` directly:
+
+```java
+ActivityChatModel chatModel = ActivityChatModel.forDefault(
+        ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+                .setTaskQueue("chat-heavy")
+                .build());
+```
+
+`ActivityMcpClient.create()` / `create(ActivityOptions)` work the same way with a 30-second default timeout.
+
+The Temporal UI labels chat and MCP rows with a short Summary (`chat: <model>`, `mcp: <client>.<tool>`). `ActivityChatModel` and `ActivityMcpClient` are constructed only via these factories — there is no public constructor, so users can't accidentally end up in a code path that skips UI labels. Prompt text is deliberately not included in chat summaries to avoid leaking user input (which may contain PII, credentials, or other sensitive data) into workflow history and server logs.
+
 ## Tool Types
 
 Tools passed to `defaultTools()` are handled based on their type:
@@ -153,6 +170,22 @@ Three substitutions:
 | `new WeatherTools()` for a plain POJO tool | `Workflow.newActivityStub(WeatherActivity.class, ...)` for a durable tool |
 
 Plain `@Tool` POJOs, `@SideEffectTool`-annotated classes, and Nexus service stubs all work the same way — see **Tool Types** above.
+
+## Media in messages
+
+If you attach media (images, audio, etc.) to a `UserMessage` or an `AssistantMessage`, prefer passing it by URI rather than raw bytes:
+
+```java
+// Good — only the URL crosses the activity boundary.
+Media image = new Media(MimeTypeUtils.IMAGE_PNG, URI.create("https://cdn.example.com/pic.png"));
+
+// Works, but size-limited — see below.
+Media image = new Media(MimeTypeUtils.IMAGE_PNG, new ByteArrayResource(bytes));
+```
+
+Raw `byte[]` media gets serialized into every chat activity's input *and* result payload, which end up inside Temporal workflow history events. Server-side history events have a fixed 2 MiB size limit; to leave headroom for messages, tool definitions, and options, the plugin enforces a **1 MiB default cap** on inline media bytes and fails fast with an `IllegalArgumentException` pointing you at the URI alternative.
+
+Override the cap by setting the system property `io.temporal.springai.maxMediaBytes` before your worker starts (pass a positive integer; `0` disables the check). For anything larger than a small thumbnail, the URI route is the right answer — have an activity write the bytes to blob storage, then pass only the URL into the conversation.
 
 ## Activity options and retry behavior
 

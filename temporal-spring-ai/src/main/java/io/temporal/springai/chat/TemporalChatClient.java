@@ -3,12 +3,12 @@ package io.temporal.springai.chat;
 import io.micrometer.observation.ObservationRegistry;
 import io.temporal.springai.util.TemporalToolUtil;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.DefaultChatClient;
 import org.springframework.ai.chat.client.DefaultChatClientBuilder;
 import org.springframework.ai.chat.client.observation.ChatClientObservationConvention;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -29,9 +29,7 @@ import org.springframework.util.Assert;
  * @WorkflowInit
  * public MyWorkflowImpl() {
  *     // Create the activity-backed chat model
- *     ChatModelActivity chatModelActivity = Workflow.newActivityStub(
- *             ChatModelActivity.class, activityOptions);
- *     ActivityChatModel activityChatModel = new ActivityChatModel(chatModelActivity);
+ *     ActivityChatModel activityChatModel = ActivityChatModel.forDefault();
  *
  *     // Create tools
  *     WeatherActivity weatherTool = Workflow.newActivityStub(WeatherActivity.class, opts);
