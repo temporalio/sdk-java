@@ -69,7 +69,7 @@ public final class ActivityClientOptions {
     }
 
     /**
-     * Overrides a data converter implementation used serialize workflow arguments and results.
+     * Overrides a data converter implementation used to serialize workflow arguments and results.
      *
      * <p>Default is {@link DataConverter#getDefaultInstance()}.
      */
