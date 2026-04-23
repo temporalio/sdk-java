@@ -2,21 +2,19 @@ package io.temporal.springai.replay;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.model.ActivityChatModel;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,11 +32,11 @@ import org.springframework.ai.chat.prompt.Prompt;
  * replayed from history, but that only helps if the plugin actually scheduled an activity in the
  * first place.
  *
- * <p>Concretely, if a regression routed chat calls directly (e.g. an in-workflow cache whose miss
- * path invokes the {@code ChatModel} inline), replay would re-run that inline call and the counter
- * would advance past 1. Caching is disabled in {@link #setUp()} so the worker replays on every
- * workflow task — making this failure mode observable during the initial run, not only via the
- * explicit {@code WorkflowReplayer} pass.
+ * <p>We verify by scanning history for {@code ActivityTaskScheduled} events. Counting invocations
+ * of the backing {@code ChatModel} would conflate two different signals: the plugin inlining the
+ * call (what we want to catch) vs. Temporal re-delivering an activity task to the worker (which can
+ * legitimately happen with {@code maxAttempts > 1}). The scheduled-event count is invariant under
+ * activity-task redelivery.
  */
 class ChatModelSideEffectTest {
 
@@ -46,14 +44,13 @@ class ChatModelSideEffectTest {
 
   private TestWorkflowEnvironment testEnv;
   private WorkflowClient client;
-  private CountingChatModel model;
 
   @BeforeEach
   void setUp() {
     // WorkflowCacheSize(0) forces the worker to replay from history on every workflow task
     // instead of resuming from in-memory cached state, which is what we actually need to
     // assert side-effect safety: any un-wrapped side effect in workflow code would run on
-    // each replay and bump the counter.
+    // each replay.
     testEnv =
         TestWorkflowEnvironment.newInstance(
             TestEnvironmentOptions.newBuilder()
@@ -61,7 +58,6 @@ class ChatModelSideEffectTest {
                     WorkerFactoryOptions.newBuilder().setWorkflowCacheSize(0).build())
                 .build());
     client = testEnv.getWorkflowClient();
-    model = new CountingChatModel("pong");
   }
 
   @AfterEach
@@ -70,31 +66,38 @@ class ChatModelSideEffectTest {
   }
 
   @Test
-  void chatModel_notReInvokedOnReplay() throws Exception {
+  void chatCall_schedulesExactlyOneActivity() {
     Worker worker = testEnv.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ChatWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new ChatModelActivityImpl(model));
+    worker.registerActivitiesImplementations(new ChatModelActivityImpl(new StubChatModel("pong")));
     testEnv.start();
 
     ChatWorkflow workflow =
         client.newWorkflowStub(
             ChatWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     assertEquals("pong", workflow.chat("ping"));
+
+    List<HistoryEvent> events =
+        client
+            .fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId())
+            .getHistory()
+            .getEventsList();
+    long scheduled =
+        events.stream()
+            .filter(HistoryEvent::hasActivityTaskScheduledEventAttributes)
+            .filter(
+                e ->
+                    "CallChatModel"
+                        .equals(
+                            e.getActivityTaskScheduledEventAttributes()
+                                .getActivityType()
+                                .getName()))
+            .count();
     assertEquals(
         1,
-        model.callCount.get(),
-        "sanity check: the ChatModel ran exactly once for one workflow invocation");
-
-    WorkflowExecutionHistory history =
-        client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
-    WorkflowReplayer.replayWorkflowExecution(history, ChatWorkflowImpl.class);
-
-    assertEquals(
-        1,
-        model.callCount.get(),
-        "ActivityChatModel must place ChatModel calls behind an activity boundary; a counter"
-            + " above 1 means the plugin invoked the ChatModel directly from workflow code"
-            + " and replay re-ran it");
+        scheduled,
+        "ActivityChatModel must place ChatModel calls behind an activity boundary; expected"
+            + " exactly one CallChatModel ActivityTaskScheduled event");
   }
 
   @WorkflowInterface
@@ -112,17 +115,15 @@ class ChatModelSideEffectTest {
     }
   }
 
-  private static class CountingChatModel implements ChatModel {
-    final AtomicInteger callCount = new AtomicInteger(0);
+  private static class StubChatModel implements ChatModel {
     private final String response;
 
-    CountingChatModel(String response) {
+    StubChatModel(String response) {
       this.response = response;
     }
 
     @Override
     public ChatResponse call(Prompt prompt) {
-      callCount.incrementAndGet();
       return ChatResponse.builder()
           .generations(List.of(new Generation(new AssistantMessage(response))))
           .build();

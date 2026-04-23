@@ -5,16 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.chat.TemporalChatClient;
 import io.temporal.springai.model.ActivityChatModel;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
@@ -42,8 +41,10 @@ import org.springframework.ai.tool.annotation.Tool;
  * plain in-workflow Java method call. Temporal's replay semantics for activities are assumed
  * correct.
  *
- * <p>If the plugin regressed to invoking a stub's backing impl directly, replay would re-run that
- * call and the counter would exceed 1.
+ * <p>We verify by scanning history for {@code ActivityTaskScheduled} events. Counting invocations
+ * of the backing activity impl would conflate two different signals: the plugin inlining the tool
+ * call (what we want to catch) vs. Temporal re-delivering the activity task to the worker (which
+ * can legitimately happen with {@code maxAttempts > 1}).
  */
 class ActivityToolSideEffectTest {
 
@@ -51,13 +52,9 @@ class ActivityToolSideEffectTest {
 
   private TestWorkflowEnvironment testEnv;
   private WorkflowClient client;
-  private AddActivityImpl addActivity;
 
   @BeforeEach
   void setUp() {
-    // WorkflowCacheSize(0) forces the worker to replay from history on every workflow task
-    // instead of resuming from in-memory cached state — the regime in which a missing
-    // Workflow.sideEffect wrap or an un-guarded in-workflow mutation would actually bite.
     testEnv =
         TestWorkflowEnvironment.newInstance(
             TestEnvironmentOptions.newBuilder()
@@ -65,7 +62,6 @@ class ActivityToolSideEffectTest {
                     WorkerFactoryOptions.newBuilder().setWorkflowCacheSize(0).build())
                 .build());
     client = testEnv.getWorkflowClient();
-    addActivity = new AddActivityImpl();
   }
 
   @AfterEach
@@ -74,11 +70,11 @@ class ActivityToolSideEffectTest {
   }
 
   @Test
-  void activityTool_notReInvokedOnReplay() throws Exception {
+  void activityTool_schedulesExactlyOneActivity() {
     Worker worker = testEnv.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ChatWithToolsWorkflowImpl.class);
     worker.registerActivitiesImplementations(
-        new ChatModelActivityImpl(new ToolCallingStubChatModel()), addActivity);
+        new ChatModelActivityImpl(new ToolCallingStubChatModel()), new AddActivityImpl());
     testEnv.start();
 
     ChatWithToolsWorkflow workflow =
@@ -86,21 +82,28 @@ class ActivityToolSideEffectTest {
             ChatWithToolsWorkflow.class,
             WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
     assertEquals("The answer is 5", workflow.chat("What is 2+3?"));
+
+    List<HistoryEvent> events =
+        client
+            .fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId())
+            .getHistory()
+            .getEventsList();
+    long scheduled =
+        events.stream()
+            .filter(HistoryEvent::hasActivityTaskScheduledEventAttributes)
+            .filter(
+                e ->
+                    "Add"
+                        .equals(
+                            e.getActivityTaskScheduledEventAttributes()
+                                .getActivityType()
+                                .getName()))
+            .count();
     assertEquals(
         1,
-        addActivity.callCount.get(),
-        "sanity check: the tool activity impl ran exactly once for one workflow invocation");
-
-    WorkflowExecutionHistory history =
-        client.fetchHistory(WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId());
-    WorkflowReplayer.replayWorkflowExecution(history, ChatWithToolsWorkflowImpl.class);
-
-    assertEquals(
-        1,
-        addActivity.callCount.get(),
-        "TemporalChatClient must invoke activity-stub tools as activities; a counter above 1"
-            + " means the plugin unwrapped the stub and called the impl directly from workflow"
-            + " code");
+        scheduled,
+        "TemporalChatClient must invoke activity-stub tools as activities; expected exactly one"
+            + " Add ActivityTaskScheduled event");
   }
 
   @WorkflowInterface
@@ -117,11 +120,8 @@ class ActivityToolSideEffectTest {
   }
 
   public static class AddActivityImpl implements AddActivity {
-    final AtomicInteger callCount = new AtomicInteger(0);
-
     @Override
     public int add(int a, int b) {
-      callCount.incrementAndGet();
       return a + b;
     }
   }
