@@ -29,9 +29,7 @@ import org.springframework.util.Assert;
  * @WorkflowInit
  * public MyWorkflowImpl() {
  *     // Create the activity-backed chat model
- *     ChatModelActivity chatModelActivity = Workflow.newActivityStub(
- *             ChatModelActivity.class, activityOptions);
- *     ActivityChatModel activityChatModel = new ActivityChatModel(chatModelActivity);
+ *     ActivityChatModel activityChatModel = ActivityChatModel.forDefault();
  *
  *     // Create tools
  *     WeatherActivity weatherTool = Workflow.newActivityStub(WeatherActivity.class, opts);
