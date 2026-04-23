@@ -288,7 +288,7 @@ public class StandaloneActivityTest {
 
     ActivityHandle<String> handle =
         client.start(SimpleActivity.class, SimpleActivity::execute, simpleOpts(activityId), "test");
-    handle.getResult();
+    assertEquals("echo:test", handle.getResult());
 
     UntypedActivityHandle handle2 = client.getHandle(activityId, handle.getActivityRunId());
     assertEquals(activityId, handle2.getActivityId());
@@ -567,7 +567,7 @@ public class StandaloneActivityTest {
   }
 
   @Test
-  public void testGetHandleTypedReturnsActivityHandleR() throws ActivityFailedException {
+  public void testGetHandleTypedReturnsActivityHandleTyped() throws ActivityFailedException {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityClient client = newActivityClient();
     String activityId = uniqueId();
