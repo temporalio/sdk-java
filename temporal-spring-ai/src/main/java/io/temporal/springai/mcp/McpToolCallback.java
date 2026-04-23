@@ -106,7 +106,8 @@ public class McpToolCallback implements ToolCallback {
 
     // Use the original tool name (not prefixed) when calling the MCP server
     McpSchema.CallToolRequest request = new McpSchema.CallToolRequest(tool.name(), arguments);
-    McpSchema.CallToolResult result = client.callTool(clientName, request);
+    String summary = "mcp: " + clientName + "." + tool.name();
+    McpSchema.CallToolResult result = client.callTool(clientName, request, summary);
 
     // Return the result as-is (including errors) so the AI can handle them.
     // For example, an "access denied" error lets the AI suggest a valid path.

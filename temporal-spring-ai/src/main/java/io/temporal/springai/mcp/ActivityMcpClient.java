@@ -6,6 +6,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * A workflow-safe wrapper for MCP (Model Context Protocol) client operations.
@@ -48,6 +49,7 @@ public class ActivityMcpClient {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final McpClientActivity activity;
+  @Nullable private final ActivityOptions baseOptions;
   private Map<String, McpSchema.ServerCapabilities> serverCapabilities;
   private Map<String, McpSchema.Implementation> clientInfo;
 
@@ -57,7 +59,18 @@ public class ActivityMcpClient {
    * @param activity the activity stub for MCP operations
    */
   public ActivityMcpClient(McpClientActivity activity) {
+    this(activity, null);
+  }
+
+  /**
+   * Creates a new ActivityMcpClient. When {@code baseOptions} is non-null, {@link #callTool(String,
+   * McpSchema.CallToolRequest, String)} rebuilds the activity stub with a per-call Summary on top
+   * of those options. When null, the caller supplied a pre-built stub whose options we don't know,
+   * so we call through it as-is and drop any requested summary.
+   */
+  private ActivityMcpClient(McpClientActivity activity, @Nullable ActivityOptions baseOptions) {
     this.activity = activity;
+    this.baseOptions = baseOptions;
   }
 
   /**
@@ -81,14 +94,13 @@ public class ActivityMcpClient {
    * @return a new ActivityMcpClient
    */
   public static ActivityMcpClient create(Duration timeout, int maxAttempts) {
-    McpClientActivity activity =
-        Workflow.newActivityStub(
-            McpClientActivity.class,
-            ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(timeout)
-                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
-                .build());
-    return new ActivityMcpClient(activity);
+    ActivityOptions options =
+        ActivityOptions.newBuilder()
+            .setStartToCloseTimeout(timeout)
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(maxAttempts).build())
+            .build();
+    McpClientActivity activity = Workflow.newActivityStub(McpClientActivity.class, options);
+    return new ActivityMcpClient(activity, options);
   }
 
   /**
@@ -127,6 +139,32 @@ public class ActivityMcpClient {
    * @return the tool call result
    */
   public McpSchema.CallToolResult callTool(String clientName, McpSchema.CallToolRequest request) {
+    return callTool(clientName, request, null);
+  }
+
+  /**
+   * Calls a tool on a specific MCP client, attaching the given activity Summary to the scheduled
+   * activity so it renders meaningfully in the Temporal UI. Falls back to the base stub when no
+   * {@link ActivityOptions} are known (e.g. when this client was constructed from a user-supplied
+   * stub rather than one of the {@link #create} factories).
+   *
+   * @param clientName the name of the MCP client
+   * @param request the tool call request
+   * @param summary the activity Summary, or null to omit
+   * @return the tool call result
+   */
+  public McpSchema.CallToolResult callTool(
+      String clientName, McpSchema.CallToolRequest request, @Nullable String summary) {
+    // Overlay the summary onto a fresh stub only when both a summary is requested AND we have
+    // a recipe to rebuild the stub from (baseOptions). If either is missing, fall through to
+    // the cached activity — it already has baseOptions baked in if we knew them at construction.
+    if (summary != null && baseOptions != null) {
+      McpClientActivity stub =
+          Workflow.newActivityStub(
+              McpClientActivity.class,
+              ActivityOptions.newBuilder(baseOptions).setSummary(summary).build());
+      return stub.callTool(clientName, request);
+    }
     return activity.callTool(clientName, request);
   }
 
