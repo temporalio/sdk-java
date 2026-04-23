@@ -174,7 +174,7 @@ For repeated per-model overrides, declare a `ChatModelActivityOptions` bean and 
 
 ## Known limitations
 
-- **Streaming (`chatClient.stream(...)`)** — not supported. Activity results are unary; a streaming API doesn't fit Temporal's durability model without buffering. Use `.call()` instead.
+- **Streaming (`chatClient.stream(...)`)** — not currently supported. Use `.call()` instead.
 - **`defaultToolContext(Map<String, Object>)`** — not supported; tool context holds mutable state that can't safely cross the activity boundary. Pass required context as activity parameters or workflow state.
 - **Child workflow stubs as tools** — not supported. Wrap a plain `@Tool` method that starts the child workflow via `Workflow.newChildWorkflowStub(...)` and call through to it yourself.
 - **Media `byte[]` size** — inline bytes are capped at 1 MiB per payload (see "Media in messages" above). Prefer URI-based media.
