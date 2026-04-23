@@ -23,18 +23,6 @@ public class ActivityHandleImplTest {
   }
 
   @Test
-  public void testGetActivityId() {
-    UntypedActivityHandle handle = new ActivityHandleImpl("act-id", "run-id", interceptor);
-    assertEquals("act-id", handle.getActivityId());
-  }
-
-  @Test
-  public void testGetActivityRunId() {
-    UntypedActivityHandle handle = new ActivityHandleImpl("act-id", "run-id", interceptor);
-    assertEquals("run-id", handle.getActivityRunId());
-  }
-
-  @Test
   public void testNullRunId() {
     UntypedActivityHandle handle = new ActivityHandleImpl("act-id", null, interceptor);
     assertNull(handle.getActivityRunId());

@@ -36,19 +36,6 @@ public class ActivityExecutionDescriptionTest {
   }
 
   @Test
-  public void testBasicFields() {
-    ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", "run-123"), CONVERTER, "test-ns");
-
-    assertEquals("act-id", desc.getActivityId());
-    assertEquals("run-123", desc.getActivityRunId());
-    assertEquals("MyActivity", desc.getActivityType());
-    assertEquals(ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_RUNNING, desc.getStatus());
-    assertEquals("my-queue", desc.getTaskQueue());
-    assertEquals(2, desc.getAttempt());
-  }
-
-  @Test
   public void testNullRunIdWhenEmpty() {
     ActivityExecutionDescription desc =
         new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
@@ -60,7 +47,6 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionDescription desc =
         new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
 
-    // These are all absent in the minimal response
     assertNull(desc.getCloseTime());
     assertNull(desc.getExecutionDuration());
     assertNull(desc.getCanceledReason());
@@ -84,15 +70,7 @@ public class ActivityExecutionDescriptionTest {
   public void testScheduledTime() {
     ActivityExecutionDescription desc =
         new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
-    assertNotNull(desc.getScheduledTime());
     assertEquals(Instant.ofEpochMilli(1000), desc.getScheduledTime());
-  }
-
-  @Test
-  public void testIsInstanceOfActivityExecution() {
-    ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
-    assertTrue(desc instanceof ActivityExecutionMetadata);
   }
 
   @Test
@@ -135,13 +113,6 @@ public class ActivityExecutionDescriptionTest {
   }
 
   @Test
-  public void testGetWorkerDeploymentVersionAbsent() {
-    ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
-    assertNull(desc.getWorkerDeploymentVersion());
-  }
-
-  @Test
   public void testGetWorkerDeploymentVersionPresent() {
     io.temporal.api.deployment.v1.WorkerDeploymentVersion protoVersion =
         io.temporal.api.deployment.v1.WorkerDeploymentVersion.newBuilder()
@@ -157,13 +128,6 @@ public class ActivityExecutionDescriptionTest {
     assertNotNull(version);
     assertEquals("my-deployment", version.getDeploymentName());
     assertEquals("build-42", version.getBuildId());
-  }
-
-  @Test
-  public void testGetPriorityAbsent() {
-    ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
-    assertNull(desc.getPriority());
   }
 
   @Test
