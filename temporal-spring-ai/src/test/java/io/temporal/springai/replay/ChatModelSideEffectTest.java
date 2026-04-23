@@ -8,9 +8,11 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.model.ActivityChatModel;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.List;
@@ -43,7 +45,16 @@ class ChatModelSideEffectTest {
 
   @BeforeEach
   void setUp() {
-    testEnv = TestWorkflowEnvironment.newInstance();
+    // WorkflowCacheSize(0) forces the worker to replay from history on every workflow task
+    // instead of resuming from in-memory cached state, which is what we actually need to
+    // assert side-effect safety: any un-wrapped side effect in workflow code would run on
+    // each replay and bump the counter.
+    testEnv =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setWorkerFactoryOptions(
+                    WorkerFactoryOptions.newBuilder().setWorkflowCacheSize(0).build())
+                .build());
     client = testEnv.getWorkflowClient();
     model = new CountingChatModel("pong");
   }

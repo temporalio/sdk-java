@@ -10,9 +10,11 @@ import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.chat.TemporalChatClient;
 import io.temporal.springai.model.ActivityChatModel;
 import io.temporal.springai.tool.SideEffectTool;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.List;
@@ -51,7 +53,15 @@ class SideEffectToolReplayTest {
   @BeforeEach
   void setUp() {
     CALL_COUNT.set(0);
-    testEnv = TestWorkflowEnvironment.newInstance();
+    // WorkflowCacheSize(0) forces the worker to replay from history on every workflow task.
+    // This is exactly the regime a missing Workflow.sideEffect wrap would fail in: every
+    // tick the @Tool body would run again and bump the counter past 1.
+    testEnv =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setWorkerFactoryOptions(
+                    WorkerFactoryOptions.newBuilder().setWorkflowCacheSize(0).build())
+                .build());
     client = testEnv.getWorkflowClient();
   }
 

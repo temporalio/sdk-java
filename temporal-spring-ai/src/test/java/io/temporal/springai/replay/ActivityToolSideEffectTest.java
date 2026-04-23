@@ -12,9 +12,11 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.chat.TemporalChatClient;
 import io.temporal.springai.model.ActivityChatModel;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
@@ -48,7 +50,15 @@ class ActivityToolSideEffectTest {
 
   @BeforeEach
   void setUp() {
-    testEnv = TestWorkflowEnvironment.newInstance();
+    // WorkflowCacheSize(0) forces the worker to replay from history on every workflow task
+    // instead of resuming from in-memory cached state — the regime in which a missing
+    // Workflow.sideEffect wrap or an un-guarded in-workflow mutation would actually bite.
+    testEnv =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setWorkerFactoryOptions(
+                    WorkerFactoryOptions.newBuilder().setWorkflowCacheSize(0).build())
+                .build());
     client = testEnv.getWorkflowClient();
     addActivity = new AddActivityImpl();
   }
