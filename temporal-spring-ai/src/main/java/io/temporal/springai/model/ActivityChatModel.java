@@ -375,6 +375,7 @@ public class ActivityChatModel implements ChatModel {
     if (media.getData() instanceof String uri) {
       return new ChatModelTypes.MediaContent(mimeType, uri);
     } else if (media.getData() instanceof byte[] data) {
+      ChatModelTypes.checkMediaSize(data);
       return new ChatModelTypes.MediaContent(mimeType, data);
     }
     throw new IllegalArgumentException(
