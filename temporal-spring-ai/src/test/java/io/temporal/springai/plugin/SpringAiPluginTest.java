@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.activity.EmbeddingModelActivityImpl;
 import io.temporal.springai.activity.VectorStoreActivityImpl;
+import io.temporal.springai.model.ChatModelTypes;
 import io.temporal.worker.Worker;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,7 +93,7 @@ class SpringAiPluginTest {
     ChatModel chatModel = mock(ChatModel.class);
     SpringAiPlugin plugin = new SpringAiPlugin(chatModel);
 
-    assertEquals(SpringAiPlugin.DEFAULT_MODEL_NAME, plugin.getDefaultModelName());
+    assertEquals(ChatModelTypes.DEFAULT_MODEL_NAME, plugin.getDefaultModelName());
     assertSame(chatModel, plugin.getChatModel());
   }
 
