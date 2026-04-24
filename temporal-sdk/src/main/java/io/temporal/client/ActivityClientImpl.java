@@ -11,6 +11,7 @@ import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.util.Box;
+import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
@@ -107,14 +108,8 @@ class ActivityClientImpl implements ActivityClient {
       StartActivityOptions options,
       A1 arg1)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1);
-    } catch (Throwable ignored) {
-    }
-    UntypedActivityHandle untyped =
-        start(extractActivityType(activityInterface, captured.get()), options, arg1);
+    String activityType = MethodExtractor.extract(activityInterface, activity);
+    UntypedActivityHandle untyped = start(activityType, options, arg1);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
