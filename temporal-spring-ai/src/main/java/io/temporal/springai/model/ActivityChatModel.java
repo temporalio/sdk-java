@@ -13,6 +13,9 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.DefaultUsage;
+import org.springframework.ai.chat.metadata.RateLimit;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
@@ -387,9 +390,68 @@ public class ActivityChatModel implements ChatModel {
 
     var builder = ChatResponse.builder().generations(generations);
     if (output.metadata() != null) {
-      builder.metadata(ChatResponseMetadata.builder().model(output.metadata().model()).build());
+      builder.metadata(toResponseMetadata(output.metadata()));
     }
     return builder.build();
+  }
+
+  private ChatResponseMetadata toResponseMetadata(
+      ChatModelTypes.ChatModelActivityOutput.ChatResponseMetadata md) {
+    ChatResponseMetadata.Builder b = ChatResponseMetadata.builder().model(md.model());
+    Usage usage = toUsage(md.usage());
+    if (usage != null) {
+      b.usage(usage);
+    }
+    RateLimit rateLimit = toRateLimit(md.rateLimit());
+    if (rateLimit != null) {
+      b.rateLimit(rateLimit);
+    }
+    return b.build();
+  }
+
+  private Usage toUsage(ChatModelTypes.ChatModelActivityOutput.ChatResponseMetadata.Usage u) {
+    if (u == null) {
+      return null;
+    }
+    return new DefaultUsage(u.promptTokens(), u.completionTokens(), u.totalTokens());
+  }
+
+  private RateLimit toRateLimit(
+      ChatModelTypes.ChatModelActivityOutput.ChatResponseMetadata.RateLimit r) {
+    if (r == null) {
+      return null;
+    }
+    return new RateLimit() {
+      @Override
+      public Long getRequestsLimit() {
+        return r.requestLimit();
+      }
+
+      @Override
+      public Long getRequestsRemaining() {
+        return r.requestRemaining();
+      }
+
+      @Override
+      public java.time.Duration getRequestsReset() {
+        return r.requestReset();
+      }
+
+      @Override
+      public Long getTokensLimit() {
+        return r.tokenLimit();
+      }
+
+      @Override
+      public Long getTokensRemaining() {
+        return r.tokenRemaining();
+      }
+
+      @Override
+      public java.time.Duration getTokensReset() {
+        return r.tokenReset();
+      }
+    };
   }
 
   private AssistantMessage toAssistantMessage(ChatModelTypes.Message message) {
