@@ -6,6 +6,7 @@ import io.temporal.springai.mcp.McpClientActivityImpl;
 import io.temporal.worker.Worker;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,22 +40,22 @@ public class McpPlugin extends SimplePlugin
     this.applicationContext = applicationContext;
   }
 
-  @SuppressWarnings("unchecked")
   private List<McpSyncClient> getMcpClients() {
     if (!mcpClients.isEmpty()) {
       return mcpClients;
     }
+    if (applicationContext == null) {
+      return mcpClients;
+    }
 
-    if (applicationContext != null && applicationContext.containsBean("mcpSyncClients")) {
-      try {
-        Object bean = applicationContext.getBean("mcpSyncClients");
-        if (bean instanceof List<?> clientList && !clientList.isEmpty()) {
-          mcpClients = (List<McpSyncClient>) clientList;
-          log.info("Found {} MCP client(s) in ApplicationContext", mcpClients.size());
-        }
-      } catch (Exception e) {
-        log.debug("Failed to get mcpSyncClients bean: {}", e.getMessage());
+    try {
+      Map<String, McpSyncClient> beans = applicationContext.getBeansOfType(McpSyncClient.class);
+      if (!beans.isEmpty()) {
+        mcpClients = List.copyOf(beans.values());
+        log.info("Discovered {} MCP client bean(s): {}", beans.size(), beans.keySet());
       }
+    } catch (Exception e) {
+      log.debug("Failed to look up McpSyncClient beans: {}", e.getMessage());
     }
 
     return mcpClients;
