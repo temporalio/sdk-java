@@ -62,8 +62,8 @@ public class ChatModelActivityImpl implements ChatModelActivity {
    * @param chatModel the chat model to use
    */
   public ChatModelActivityImpl(ChatModel chatModel) {
-    this.chatModels = Map.of("default", chatModel);
-    this.defaultModelName = "default";
+    this.chatModels = Map.of(ChatModelTypes.DEFAULT_MODEL_NAME, chatModel);
+    this.defaultModelName = ChatModelTypes.DEFAULT_MODEL_NAME;
   }
 
   /**
@@ -327,6 +327,7 @@ public class ChatModelActivityImpl implements ChatModelActivity {
     if (media.getData() instanceof String uri) {
       return new ChatModelTypes.MediaContent(mimeType, uri);
     } else if (media.getData() instanceof byte[] data) {
+      ChatModelTypes.checkMediaSize(data);
       return new ChatModelTypes.MediaContent(mimeType, data);
     }
     throw new IllegalArgumentException(
