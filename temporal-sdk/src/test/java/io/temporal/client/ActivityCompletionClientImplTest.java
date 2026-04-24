@@ -37,7 +37,7 @@ public class ActivityCompletionClientImplTest {
 
   @Test
   public void testCompleteStandaloneWithRunId() {
-    client.complete("my-act", Optional.of("run-123"), "result");
+    client.completeStandalone("my-act", Optional.of("run-123"), "result");
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("run-123").build();
@@ -48,7 +48,7 @@ public class ActivityCompletionClientImplTest {
 
   @Test
   public void testCompleteStandaloneWithoutRunId() {
-    client.complete("my-act", Optional.empty(), "result");
+    client.completeStandalone("my-act", Optional.empty(), "result");
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("").build();
@@ -62,7 +62,7 @@ public class ActivityCompletionClientImplTest {
     doThrow(new RuntimeException("boom")).when(manualClient).complete(any());
 
     try {
-      client.complete("my-act", Optional.empty(), "result");
+      client.completeStandalone("my-act", Optional.empty(), "result");
     } catch (RuntimeException ignored) {
     }
 
@@ -74,7 +74,7 @@ public class ActivityCompletionClientImplTest {
   @Test
   public void testCompleteExceptionallyStandaloneWithRunId() {
     Exception ex = new RuntimeException("fail");
-    client.completeExceptionally("my-act", Optional.of("run-456"), ex);
+    client.completeExceptionallyStandalone("my-act", Optional.of("run-456"), ex);
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("run-456").build();
@@ -86,7 +86,7 @@ public class ActivityCompletionClientImplTest {
   @Test
   public void testCompleteExceptionallyStandaloneWithoutRunId() {
     Exception ex = new RuntimeException("fail");
-    client.completeExceptionally("my-act", Optional.empty(), ex);
+    client.completeExceptionallyStandalone("my-act", Optional.empty(), ex);
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("").build();
@@ -100,7 +100,7 @@ public class ActivityCompletionClientImplTest {
     doThrow(new RuntimeException("boom")).when(manualClient).fail(any());
 
     try {
-      client.completeExceptionally("my-act", Optional.empty(), new Exception("ex"));
+      client.completeExceptionallyStandalone("my-act", Optional.empty(), new Exception("ex"));
     } catch (RuntimeException ignored) {
     }
 
@@ -111,7 +111,7 @@ public class ActivityCompletionClientImplTest {
 
   @Test
   public void testReportCancellationStandaloneWithRunId() {
-    client.reportCancellation("my-act", Optional.of("run-789"), "details");
+    client.reportCancellationStandalone("my-act", Optional.of("run-789"), "details");
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("run-789").build();
@@ -122,7 +122,7 @@ public class ActivityCompletionClientImplTest {
 
   @Test
   public void testReportCancellationStandaloneWithoutRunId() {
-    client.reportCancellation("my-act", Optional.empty(), null);
+    client.reportCancellationStandalone("my-act", Optional.empty(), null);
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("").build();
@@ -136,7 +136,7 @@ public class ActivityCompletionClientImplTest {
     doThrow(new RuntimeException("boom")).when(manualClient).reportCancellation(any());
 
     try {
-      client.reportCancellation("my-act", Optional.empty(), null);
+      client.reportCancellationStandalone("my-act", Optional.empty(), null);
     } catch (RuntimeException ignored) {
     }
 
@@ -147,7 +147,7 @@ public class ActivityCompletionClientImplTest {
 
   @Test
   public void testHeartbeatStandaloneWithRunId() throws ActivityCompletionException {
-    client.heartbeat("my-act", Optional.of("run-abc"), "ping");
+    client.heartbeatStandalone("my-act", Optional.of("run-abc"), "ping");
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("run-abc").build();
@@ -157,7 +157,7 @@ public class ActivityCompletionClientImplTest {
 
   @Test
   public void testHeartbeatStandaloneWithoutRunId() throws ActivityCompletionException {
-    client.heartbeat("my-act", Optional.empty(), null);
+    client.heartbeatStandalone("my-act", Optional.empty(), null);
 
     WorkflowExecution expected =
         WorkflowExecution.newBuilder().setWorkflowId("").setRunId("").build();
@@ -168,7 +168,7 @@ public class ActivityCompletionClientImplTest {
   @Test
   public void testHeartbeatStandaloneDoesNotCallCompletionHandle()
       throws ActivityCompletionException {
-    client.heartbeat("my-act", Optional.empty(), null);
+    client.heartbeatStandalone("my-act", Optional.empty(), null);
     verify(completionHandle, never()).apply();
   }
 }

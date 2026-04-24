@@ -738,7 +738,7 @@ public class StandaloneActivityTest {
 
       client
           .newActivityCompletionClient()
-          .complete(asyncActivityId, Optional.empty(), "ext-result");
+          .completeStandalone(asyncActivityId, Optional.empty(), "ext-result");
 
       assertEquals("ext-result", handle.getResult());
     } finally {
@@ -764,7 +764,8 @@ public class StandaloneActivityTest {
 
       client
           .newActivityCompletionClient()
-          .complete(asyncActivityId, Optional.of(asyncActivityRunId), "ext-result-with-run");
+          .completeStandalone(
+              asyncActivityId, Optional.of(asyncActivityRunId), "ext-result-with-run");
 
       assertEquals("ext-result-with-run", handle.getResult());
     } finally {

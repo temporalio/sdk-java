@@ -48,7 +48,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public <R> void complete(String activityId, Optional<String> activityRunId, R result) {
+  public <R> void completeStandalone(String activityId, Optional<String> activityRunId, R result) {
     try {
       factory
           .getClient(
@@ -81,7 +81,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public void completeExceptionally(
+  public void completeExceptionallyStandalone(
       String activityId, Optional<String> activityRunId, Exception result) {
     try {
       factory
@@ -115,7 +115,8 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public <V> void reportCancellation(String activityId, Optional<String> activityRunId, V details) {
+  public <V> void reportCancellationStandalone(
+      String activityId, Optional<String> activityRunId, V details) {
     try {
       factory
           .getClient(
@@ -146,7 +147,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public <V> void heartbeat(String activityId, Optional<String> activityRunId, V details)
+  public <V> void heartbeatStandalone(String activityId, Optional<String> activityRunId, V details)
       throws ActivityCompletionException {
     factory
         .getClient(
