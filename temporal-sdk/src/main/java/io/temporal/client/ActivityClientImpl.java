@@ -1,6 +1,8 @@
 package io.temporal.client;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
@@ -15,6 +17,9 @@ import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -304,7 +309,7 @@ class ActivityClientImpl implements ActivityClient {
                 activityType,
                 Arrays.asList(args != null ? args : new Object[0]),
                 options,
-                Header.empty()));
+                propagatedHeader()));
     return new ActivityHandleImpl(output.getActivityId(), output.getActivityRunId(), invoker);
   }
 
@@ -408,6 +413,18 @@ class ActivityClientImpl implements ActivityClient {
       @Nullable Type resultType) {
     UntypedActivityHandle untyped = getHandle(activityId, activityRunId);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
+  }
+
+  private Header propagatedHeader() {
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators.isEmpty()) {
+      return Header.empty();
+    }
+    Map<String, Payload> result = new HashMap<>();
+    for (ContextPropagator propagator : propagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
+    return new Header(result);
   }
 
   // ---- List / count ----
