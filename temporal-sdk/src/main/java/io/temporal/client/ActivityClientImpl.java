@@ -1,22 +1,18 @@
 package io.temporal.client;
 
-import com.google.common.base.Defaults;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
-import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.internal.client.ActivityHandleImpl;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.util.Box;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -56,48 +52,14 @@ class ActivityClientImpl implements ActivityClient {
     return invoker;
   }
 
-  // ---- Type-sniffing helpers ----
-
-  /**
-   * Creates a dynamic proxy of {@code activityInterface} that records the invoked {@link Method} in
-   * {@code captured} when any method is called on it.
-   */
-  @SuppressWarnings("unchecked")
-  private static <I> I createTypeProbe(Class<I> activityInterface, Box<Method> captured) {
-    return (I)
-        Proxy.newProxyInstance(
-            activityInterface.getClassLoader(),
-            new Class<?>[] {activityInterface},
-            (proxy, method, args) -> {
-              captured.set(method);
-              return Defaults.defaultValue(method.getReturnType());
-            });
-  }
-
-  /**
-   * Derives the Temporal activity type name from the {@link Method} that was captured by {@link
-   * #createTypeProbe}.
-   */
-  private static String extractActivityType(Class<?> activityInterface, Method method) {
-    POJOActivityInterfaceMetadata metadata =
-        POJOActivityInterfaceMetadata.newInstance(activityInterface);
-    return metadata.getMethodMetadata(method).getActivityTypeName();
-  }
-
   // ---- Interface-based start (Proc variants) ----
 
   @Override
   public <I> ActivityHandle<Void> start(
       Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe);
-    } catch (Throwable ignored) {
-    }
-    UntypedActivityHandle untyped =
-        start(extractActivityType(activityInterface, captured.get()), options, new Object[0]);
+    String activityType = MethodExtractor.extract(activityInterface, activity);
+    UntypedActivityHandle untyped = start(activityType, options, new Object[0]);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -121,14 +83,8 @@ class ActivityClientImpl implements ActivityClient {
       A1 arg1,
       A2 arg2)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2);
-    } catch (Throwable ignored) {
-    }
-    UntypedActivityHandle untyped =
-        start(extractActivityType(activityInterface, captured.get()), options, arg1, arg2);
+    String activityType = MethodExtractor.extract(activityInterface, activity);
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -141,14 +97,8 @@ class ActivityClientImpl implements ActivityClient {
       A2 arg2,
       A3 arg3)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3);
-    } catch (Throwable ignored) {
-    }
-    UntypedActivityHandle untyped =
-        start(extractActivityType(activityInterface, captured.get()), options, arg1, arg2, arg3);
+    String activityType = MethodExtractor.extract(activityInterface, activity);
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -162,20 +112,8 @@ class ActivityClientImpl implements ActivityClient {
       A3 arg3,
       A4 arg4)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3, arg4);
-    } catch (Throwable ignored) {
-    }
-    UntypedActivityHandle untyped =
-        start(
-            extractActivityType(activityInterface, captured.get()),
-            options,
-            arg1,
-            arg2,
-            arg3,
-            arg4);
+    String activityType = MethodExtractor.extract(activityInterface, activity);
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -190,21 +128,8 @@ class ActivityClientImpl implements ActivityClient {
       A4 arg4,
       A5 arg5)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3, arg4, arg5);
-    } catch (Throwable ignored) {
-    }
-    UntypedActivityHandle untyped =
-        start(
-            extractActivityType(activityInterface, captured.get()),
-            options,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5);
+    String activityType = MethodExtractor.extract(activityInterface, activity);
+    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4, arg5);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -220,22 +145,9 @@ class ActivityClientImpl implements ActivityClient {
       A5 arg5,
       A6 arg6)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3, arg4, arg5, arg6);
-    } catch (Throwable ignored) {
-    }
+    String activityType = MethodExtractor.extract(activityInterface, activity);
     UntypedActivityHandle untyped =
-        start(
-            extractActivityType(activityInterface, captured.get()),
-            options,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-            arg6);
+        start(activityType, options, arg1, arg2, arg3, arg4, arg5, arg6);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -245,16 +157,11 @@ class ActivityClientImpl implements ActivityClient {
   public <I, R> ActivityHandle<R> start(
       Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped = start(activityType, options, new Object[0]);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -266,16 +173,11 @@ class ActivityClientImpl implements ActivityClient {
       StartActivityOptions options,
       A1 arg1)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped = start(activityType, options, arg1);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -288,16 +190,11 @@ class ActivityClientImpl implements ActivityClient {
       A1 arg1,
       A2 arg2)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped = start(activityType, options, arg1, arg2);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -311,16 +208,11 @@ class ActivityClientImpl implements ActivityClient {
       A2 arg2,
       A3 arg3)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -335,16 +227,11 @@ class ActivityClientImpl implements ActivityClient {
       A3 arg3,
       A4 arg4)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3, arg4);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -360,16 +247,11 @@ class ActivityClientImpl implements ActivityClient {
       A4 arg4,
       A5 arg5)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3, arg4, arg5);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4, arg5);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -386,16 +268,11 @@ class ActivityClientImpl implements ActivityClient {
       A5 arg5,
       A6 arg6)
       throws ActivityAlreadyStartedException {
-    Box<Method> captured = new Box<>();
-    I probe = createTypeProbe(activityInterface, captured);
-    try {
-      activity.apply(probe, arg1, arg2, arg3, arg4, arg5, arg6);
-    } catch (Throwable ignored) {
-    }
-    String activityType = extractActivityType(activityInterface, captured.get());
+    Method method = MethodExtractor.extractMethod(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
-    Class<R> resultClass = (Class<R>) captured.get().getReturnType();
-    Type resultType = captured.get().getGenericReturnType();
+    Class<R> resultClass = (Class<R>) method.getReturnType();
+    Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped =
         start(activityType, options, arg1, arg2, arg3, arg4, arg5, arg6);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
