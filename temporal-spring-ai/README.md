@@ -114,6 +114,22 @@ public class MyTools {
 
 Auto-detected and executed as Nexus operations, similar to activity stubs.
 
+## Media in messages
+
+If you attach media (images, audio, etc.) to a `UserMessage` or an `AssistantMessage`, prefer passing it by URI rather than raw bytes:
+
+```java
+// Good — only the URL crosses the activity boundary.
+Media image = new Media(MimeTypeUtils.IMAGE_PNG, URI.create("https://cdn.example.com/pic.png"));
+
+// Works, but size-limited — see below.
+Media image = new Media(MimeTypeUtils.IMAGE_PNG, new ByteArrayResource(bytes));
+```
+
+Raw `byte[]` media gets serialized into every chat activity's input *and* result payload, which end up inside Temporal workflow history events. Server-side history events have a fixed 2 MiB size limit; to leave headroom for messages, tool definitions, and options, the plugin enforces a **1 MiB default cap** on inline media bytes and fails fast with an `IllegalArgumentException` pointing you at the URI alternative.
+
+Override the cap by setting the system property `io.temporal.springai.maxMediaBytes` before your worker starts (pass a positive integer; `0` disables the check). For anything larger than a small thumbnail, the URI route is the right answer — have an activity write the bytes to blob storage, then pass only the URL into the conversation.
+
 ## Optional Integrations
 
 Auto-configured when their dependencies are on the classpath:
