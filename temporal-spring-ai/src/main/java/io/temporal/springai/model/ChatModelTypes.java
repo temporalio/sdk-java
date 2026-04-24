@@ -18,6 +18,14 @@ import javax.annotation.Nullable;
 public final class ChatModelTypes {
 
   /**
+   * The name used for the default chat model when no {@code modelName} is specified on an activity
+   * input or when {@link io.temporal.springai.model.ActivityChatModel#forDefault()} is called.
+   * Lives here rather than on {@code SpringAiPlugin} so both the activity impl and the plugin can
+   * reference it without the activity package importing the plugin package.
+   */
+  public static final String DEFAULT_MODEL_NAME = "default";
+
+  /**
    * Maximum size, in bytes, of a single {@link MediaContent#data()} byte array carried across the
    * chat activity boundary. Bytes above this threshold land inside workflow history events, which
    * have a fixed 2 MiB per-event limit on the Temporal server. 1 MiB leaves headroom for the rest

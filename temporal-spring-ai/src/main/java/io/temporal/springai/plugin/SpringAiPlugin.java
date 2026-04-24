@@ -3,6 +3,7 @@ package io.temporal.springai.plugin;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.SimplePlugin;
 import io.temporal.springai.activity.ChatModelActivityImpl;
+import io.temporal.springai.model.ChatModelTypes;
 import io.temporal.worker.Worker;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -44,9 +45,6 @@ public class SpringAiPlugin extends SimplePlugin {
 
   private static final Logger log = LoggerFactory.getLogger(SpringAiPlugin.class);
 
-  /** The name used for the default chat model when none is specified. */
-  public static final String DEFAULT_MODEL_NAME = "default";
-
   private final Map<String, ChatModel> chatModels;
   private final String defaultModelName;
 
@@ -56,7 +54,7 @@ public class SpringAiPlugin extends SimplePlugin {
    * @param chatModel the Spring AI chat model to wrap as an activity
    */
   public SpringAiPlugin(ChatModel chatModel) {
-    this(Map.of(DEFAULT_MODEL_NAME, chatModel), null, Map.of());
+    this(Map.of(ChatModelTypes.DEFAULT_MODEL_NAME, chatModel), null, Map.of());
   }
 
   /**
@@ -74,8 +72,9 @@ public class SpringAiPlugin extends SimplePlugin {
    *
    * <p>Entries in {@code perModelOptions} are keyed by chat-model bean name and consulted by {@link
    * io.temporal.springai.model.ActivityChatModel#forModel(String)} (and by {@link
-   * io.temporal.springai.model.ActivityChatModel#forDefault()} via {@link #DEFAULT_MODEL_NAME}).
-   * Callers who pass explicit {@code ActivityOptions} to a factory bypass this map entirely.
+   * io.temporal.springai.model.ActivityChatModel#forDefault()} via {@link
+   * ChatModelTypes#DEFAULT_MODEL_NAME}). Callers who pass explicit {@code ActivityOptions} to a
+   * factory bypass this map entirely.
    *
    * @param chatModels map of bean names to ChatModel instances
    * @param primaryChatModel the primary chat model (used to determine default), or null
