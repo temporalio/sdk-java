@@ -152,6 +152,8 @@ public class ActivityChatModel implements ChatModel {
    * <ol>
    *   <li>An entry registered on {@link SpringAiPlugin} under {@code modelName} in the per-model
    *       {@code ActivityOptions} map, if any.
+   *   <li>An entry registered under {@link ChatModelTypes#DEFAULT_MODEL_NAME} in the per-model map,
+   *       which acts as a user-declared catch-all for models without a specific entry.
    *   <li>The plugin's default {@link ActivityOptions} (2-minute start-to-close, 3 attempts,
    *       clearly permanent AI errors marked non-retryable).
    * </ol>
@@ -168,6 +170,7 @@ public class ActivityChatModel implements ChatModel {
   public static ActivityChatModel forModel(String modelName) {
     ActivityOptions options =
         SpringAiPluginOptions.optionsFor(modelName)
+            .or(() -> SpringAiPluginOptions.optionsFor(ChatModelTypes.DEFAULT_MODEL_NAME))
             .orElseGet(ActivityChatModel::defaultActivityOptions);
     return forModel(modelName, options);
   }

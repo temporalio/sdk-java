@@ -3,9 +3,11 @@ package io.temporal.springai.plugin;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.temporal.activity.ActivityOptions;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.activity.EmbeddingModelActivityImpl;
 import io.temporal.springai.activity.VectorStoreActivityImpl;
+import io.temporal.springai.model.ActivityChatModel;
 import io.temporal.springai.model.ChatModelTypes;
 import io.temporal.worker.Worker;
 import java.util.*;
@@ -106,6 +108,53 @@ class SpringAiPluginTest {
   void emptyChatModelsMap_throwsIllegalArgument() {
     assertThrows(
         IllegalArgumentException.class, () -> new SpringAiPlugin(new LinkedHashMap<>(), null));
+  }
+
+  @Test
+  void perModelOptions_keyMatchingBean_accepts() {
+    ChatModel openai = mock(ChatModel.class);
+    ChatModel anthropic = mock(ChatModel.class);
+    Map<String, ChatModel> models = new LinkedHashMap<>();
+    models.put("openai", openai);
+    models.put("anthropic", anthropic);
+
+    // Should not throw — both keys match registered bean names.
+    new SpringAiPlugin(
+        models,
+        null,
+        Map.of(
+            "openai", ActivityChatModel.defaultActivityOptions(),
+            "anthropic", ActivityChatModel.defaultActivityOptions()));
+  }
+
+  @Test
+  void perModelOptions_catchAllKey_accepts() {
+    ChatModel openai = mock(ChatModel.class);
+    Map<String, ChatModel> models = Map.of("openai", openai);
+
+    // DEFAULT_MODEL_NAME is a valid key even when no bean is named "default" — it acts as the
+    // catch-all for models that don't have a specific entry, including third-party additions.
+    new SpringAiPlugin(
+        models,
+        null,
+        Map.of(ChatModelTypes.DEFAULT_MODEL_NAME, ActivityChatModel.defaultActivityOptions()));
+  }
+
+  @Test
+  void perModelOptions_typoKey_throws() {
+    ChatModel openai = mock(ChatModel.class);
+    Map<String, ChatModel> models = Map.of("openai", openai);
+    Map<String, ActivityOptions> typo =
+        Map.of("openia", ActivityChatModel.defaultActivityOptions());
+
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> new SpringAiPlugin(models, null, typo));
+    assertTrue(
+        ex.getMessage().contains("openia"),
+        "message should name the offending key; got: " + ex.getMessage());
+    assertTrue(
+        ex.getMessage().contains(ChatModelTypes.DEFAULT_MODEL_NAME),
+        "message should point users at the catch-all key; got: " + ex.getMessage());
   }
 
   // --- Optional plugin tests ---

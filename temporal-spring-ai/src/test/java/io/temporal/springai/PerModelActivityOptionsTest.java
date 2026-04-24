@@ -10,6 +10,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.springai.activity.ChatModelActivityImpl;
 import io.temporal.springai.chat.TemporalChatClient;
 import io.temporal.springai.model.ActivityChatModel;
+import io.temporal.springai.model.ChatModelTypes;
 import io.temporal.springai.plugin.SpringAiPluginOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -37,6 +38,7 @@ class PerModelActivityOptionsTest {
   private static final String TASK_QUEUE = "test-spring-ai-per-model-options";
   private static final Duration SLOW_TIMEOUT = Duration.ofMinutes(10);
   private static final Duration EXPLICIT_TIMEOUT = Duration.ofMinutes(7);
+  private static final Duration CATCH_ALL_TIMEOUT = Duration.ofMinutes(4);
   private static final Duration DEFAULT_TIMEOUT = ActivityChatModel.DEFAULT_TIMEOUT;
 
   private TestWorkflowEnvironment testEnv;
@@ -90,6 +92,48 @@ class PerModelActivityOptionsTest {
     testEnv.start();
 
     runAndAssertScheduledTimeout(UnknownModelWorkflow.class, DEFAULT_TIMEOUT);
+  }
+
+  @Test
+  void catchAllKey_appliesToUnknownModel() {
+    // Only the DEFAULT_MODEL_NAME catch-all is registered; a lookup for a model without its own
+    // entry should fall through to it (not to the library defaults).
+    SpringAiPluginOptions.register(
+        Map.of(
+            ChatModelTypes.DEFAULT_MODEL_NAME,
+            ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+                .setStartToCloseTimeout(CATCH_ALL_TIMEOUT)
+                .build()));
+
+    Worker worker = testEnv.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(UnknownModelWorkflowImpl.class);
+    worker.registerActivitiesImplementations(stubActivityImpl());
+    testEnv.start();
+
+    runAndAssertScheduledTimeout(UnknownModelWorkflow.class, CATCH_ALL_TIMEOUT);
+  }
+
+  @Test
+  void specificEntry_winsOverCatchAll() {
+    // Both the catch-all and a model-specific entry are registered; the model-specific one
+    // must win for that model.
+    SpringAiPluginOptions.register(
+        Map.of(
+            ChatModelTypes.DEFAULT_MODEL_NAME,
+            ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+                .setStartToCloseTimeout(CATCH_ALL_TIMEOUT)
+                .build(),
+            "slow",
+            ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+                .setStartToCloseTimeout(SLOW_TIMEOUT)
+                .build()));
+
+    Worker worker = testEnv.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(SlowModelWorkflowImpl.class);
+    worker.registerActivitiesImplementations(stubActivityImpl());
+    testEnv.start();
+
+    runAndAssertScheduledTimeout(SlowModelWorkflow.class, SLOW_TIMEOUT);
   }
 
   @Test

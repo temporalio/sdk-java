@@ -31,6 +31,12 @@ import java.util.Map;
  * that model. Use {@link ActivityChatModel#defaultActivityOptions()} as the baseline so the
  * plugin's non-retryable-error classification is preserved.
  *
+ * <p>A key equal to {@link io.temporal.springai.model.ChatModelTypes#DEFAULT_MODEL_NAME} (the
+ * literal {@code "default"}) acts as a global catch-all: any chat model that lacks a
+ * bean-name-specific entry — including models contributed by third-party starters that your
+ * application did not declare directly — picks up the {@code "default"} entry. Keys that neither
+ * match a registered ChatModel bean nor equal {@code "default"} cause plugin construction to fail.
+ *
  * @param byModelName per-model-bean-name {@link ActivityOptions} overrides; may be empty
  */
 public record ChatModelActivityOptions(Map<String, ActivityOptions> byModelName) {

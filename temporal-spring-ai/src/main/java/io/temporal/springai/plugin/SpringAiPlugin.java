@@ -71,14 +71,19 @@ public class SpringAiPlugin extends SimplePlugin {
    * Creates a new SpringAiPlugin with multiple ChatModels and per-model {@link ActivityOptions}.
    *
    * <p>Entries in {@code perModelOptions} are keyed by chat-model bean name and consulted by {@link
-   * io.temporal.springai.model.ActivityChatModel#forModel(String)} (and by {@link
-   * io.temporal.springai.model.ActivityChatModel#forDefault()} via {@link
-   * ChatModelTypes#DEFAULT_MODEL_NAME}). Callers who pass explicit {@code ActivityOptions} to a
-   * factory bypass this map entirely.
+   * io.temporal.springai.model.ActivityChatModel#forModel(String)} and {@link
+   * io.temporal.springai.model.ActivityChatModel#forDefault()}. An entry whose key equals {@link
+   * ChatModelTypes#DEFAULT_MODEL_NAME} acts as a global catch-all: models without a
+   * bean-name-specific entry pick it up, including models contributed by third-party starters that
+   * the application did not declare directly. Keys that neither match a bean nor equal the
+   * catch-all name cause plugin construction to fail, so a typo'd model name surfaces early.
+   * Callers who pass explicit {@code ActivityOptions} to a factory bypass this map entirely.
    *
    * @param chatModels map of bean names to ChatModel instances
    * @param primaryChatModel the primary chat model (used to determine default), or null
    * @param perModelOptions per-model-name ActivityOptions overrides; may be empty
+   * @throws IllegalArgumentException if a key in {@code perModelOptions} neither matches a
+   *     registered ChatModel bean name nor equals {@link ChatModelTypes#DEFAULT_MODEL_NAME}
    */
   public SpringAiPlugin(
       Map<String, ChatModel> chatModels,
@@ -104,6 +109,20 @@ public class SpringAiPlugin extends SimplePlugin {
       this.defaultModelName = chatModels.keySet().iterator().next();
     }
 
+    if (perModelOptions != null) {
+      for (String key : perModelOptions.keySet()) {
+        if (!ChatModelTypes.DEFAULT_MODEL_NAME.equals(key) && !this.chatModels.containsKey(key)) {
+          throw new IllegalArgumentException(
+              "perModelOptions key '"
+                  + key
+                  + "' does not match any ChatModel bean. Registered models: "
+                  + this.chatModels.keySet()
+                  + ". Use '"
+                  + ChatModelTypes.DEFAULT_MODEL_NAME
+                  + "' as a catch-all for models without a specific entry.");
+        }
+      }
+    }
     SpringAiPluginOptions.register(perModelOptions);
 
     if (chatModels.size() > 1) {
