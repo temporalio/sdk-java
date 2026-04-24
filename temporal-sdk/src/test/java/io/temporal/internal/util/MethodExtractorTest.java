@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Method;
 import org.junit.Test;
 
 public class MethodExtractorTest {
@@ -23,7 +24,8 @@ public class MethodExtractorTest {
 
   @Test
   public void testExtractReturnsCorrectActivityTypeName() {
-    String typeName = MethodExtractor.extract(GreetActivity.class, GreetActivity::greet);
+    Method method = MethodExtractor.extract(GreetActivity.class, GreetActivity::greet);
+    String typeName = MethodExtractor.activityTypeName(GreetActivity.class, method);
     assertEquals("Greet", typeName);
   }
 

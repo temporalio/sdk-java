@@ -37,74 +37,70 @@ public class MethodExtractor {
         .getActivityTypeName();
   }
 
-  // --- Proc overloads (return activity type name) ---
+  // --- Proc overloads ---
 
-  public static <I> String extract(Class<I> interfac, Functions.Proc1<I> m) {
-    return activityTypeName(interfac, probeMethod(interfac, m, i -> m.apply(i)));
+  public static <I> Method extract(Class<I> interfac, Functions.Proc1<I> m) {
+    return probeMethod(interfac, m, i -> m.apply(i));
   }
 
-  public static <I, A1> String extract(Class<I> interfac, Functions.Proc2<I, A1> m) {
-    return activityTypeName(interfac, probeMethod(interfac, m, i -> m.apply(i, null)));
+  public static <I, A1> Method extract(Class<I> interfac, Functions.Proc2<I, A1> m) {
+    return probeMethod(interfac, m, i -> m.apply(i, null));
   }
 
-  public static <I, A1, A2> String extract(Class<I> interfac, Functions.Proc3<I, A1, A2> m) {
-    return activityTypeName(interfac, probeMethod(interfac, m, i -> m.apply(i, null, null)));
+  public static <I, A1, A2> Method extract(Class<I> interfac, Functions.Proc3<I, A1, A2> m) {
+    return probeMethod(interfac, m, i -> m.apply(i, null, null));
   }
 
-  public static <I, A1, A2, A3> String extract(
+  public static <I, A1, A2, A3> Method extract(
       Class<I> interfac, Functions.Proc4<I, A1, A2, A3> m) {
-    return activityTypeName(interfac, probeMethod(interfac, m, i -> m.apply(i, null, null, null)));
+    return probeMethod(interfac, m, i -> m.apply(i, null, null, null));
   }
 
-  public static <I, A1, A2, A3, A4> String extract(
+  public static <I, A1, A2, A3, A4> Method extract(
       Class<I> interfac, Functions.Proc5<I, A1, A2, A3, A4> m) {
-    return activityTypeName(
-        interfac, probeMethod(interfac, m, i -> m.apply(i, null, null, null, null)));
+    return probeMethod(interfac, m, i -> m.apply(i, null, null, null, null));
   }
 
-  public static <I, A1, A2, A3, A4, A5> String extract(
+  public static <I, A1, A2, A3, A4, A5> Method extract(
       Class<I> interfac, Functions.Proc6<I, A1, A2, A3, A4, A5> m) {
-    return activityTypeName(
-        interfac, probeMethod(interfac, m, i -> m.apply(i, null, null, null, null, null)));
+    return probeMethod(interfac, m, i -> m.apply(i, null, null, null, null, null));
   }
 
-  public static <I, A1, A2, A3, A4, A5, A6> String extract(
+  public static <I, A1, A2, A3, A4, A5, A6> Method extract(
       Class<I> interfac, Functions.Proc7<I, A1, A2, A3, A4, A5, A6> m) {
-    return activityTypeName(
-        interfac, probeMethod(interfac, m, i -> m.apply(i, null, null, null, null, null, null)));
+    return probeMethod(interfac, m, i -> m.apply(i, null, null, null, null, null, null));
   }
 
   // --- Func overloads (return Method for return-type extraction) ---
 
-  public static <I, R> Method extractMethod(Class<I> interfac, Functions.Func1<I, R> m) {
+  public static <I, R> Method extract(Class<I> interfac, Functions.Func1<I, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i));
   }
 
-  public static <I, A1, R> Method extractMethod(Class<I> interfac, Functions.Func2<I, A1, R> m) {
+  public static <I, A1, R> Method extract(Class<I> interfac, Functions.Func2<I, A1, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i, null));
   }
 
-  public static <I, A1, A2, R> Method extractMethod(
-      Class<I> interfac, Functions.Func3<I, A1, A2, R> m) {
+  public static <I, A1, A2, R> Method extract(Class<I> interfac, Functions.Func3<I, A1, A2, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i, null, null));
   }
 
-  public static <I, A1, A2, A3, R> Method extractMethod(
+  public static <I, A1, A2, A3, R> Method extract(
       Class<I> interfac, Functions.Func4<I, A1, A2, A3, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i, null, null, null));
   }
 
-  public static <I, A1, A2, A3, A4, R> Method extractMethod(
+  public static <I, A1, A2, A3, A4, R> Method extract(
       Class<I> interfac, Functions.Func5<I, A1, A2, A3, A4, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i, null, null, null, null));
   }
 
-  public static <I, A1, A2, A3, A4, A5, R> Method extractMethod(
+  public static <I, A1, A2, A3, A4, A5, R> Method extract(
       Class<I> interfac, Functions.Func6<I, A1, A2, A3, A4, A5, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i, null, null, null, null, null));
   }
 
-  public static <I, A1, A2, A3, A4, A5, A6, R> Method extractMethod(
+  public static <I, A1, A2, A3, A4, A5, A6, R> Method extract(
       Class<I> interfac, Functions.Func7<I, A1, A2, A3, A4, A5, A6, R> m) {
     return probeMethod(interfac, m, i -> m.apply(i, null, null, null, null, null, null));
   }
