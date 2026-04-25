@@ -353,9 +353,9 @@ public class TestActivities {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
       assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getNamespace());
       assertNotNull(info.getWorkflowId());
-      assertNotNull(info.getRunId());
+      assertNotNull(info.getWorkflowRunId());
       assertFalse(info.getWorkflowId().isEmpty());
-      assertFalse(info.getRunId().isEmpty());
+      assertFalse(info.getWorkflowRunId().isEmpty());
       lastAttempt = info.getAttempt();
       invocations.add("throwIO");
       try {

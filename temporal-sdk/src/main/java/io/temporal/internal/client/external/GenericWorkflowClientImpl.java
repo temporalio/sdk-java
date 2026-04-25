@@ -426,4 +426,115 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .executeMultiOperation(req),
         grpcRetryerOptions);
   }
+
+  // ---- Standalone Activity RPC implementations ----
+
+  @Override
+  public StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .startActivityExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                .pollActivityExecution(request),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, null));
+  }
+
+  @Override
+  public CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
+      PollActivityExecutionRequest request, @Nonnull Deadline deadline) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                    .withDeadline(deadline)
+                    .pollActivityExecution(request)),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  @Override
+  public DescribeActivityExecutionResponse describeActivity(
+      DescribeActivityExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .describeActivityExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public void cancelActivity(RequestCancelActivityExecutionRequest request) {
+    grpcRetryer.retry(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .requestCancelActivityExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public void terminateActivity(TerminateActivityExecutionRequest request) {
+    grpcRetryer.retry(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .terminateActivityExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .listActivityExecutions(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(
+      ListActivityExecutionsRequest request) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .listActivityExecutions(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CountActivityExecutionsResponse countActivities(CountActivityExecutionsRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .countActivityExecutions(request),
+        grpcRetryerOptions);
+  }
 }

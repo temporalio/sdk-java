@@ -43,12 +43,32 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
 
   @Override
   public String getWorkflowId() {
-    return response.getWorkflowExecution().getWorkflowId();
+    if (!response.hasWorkflowExecution()) {
+      return null;
+    }
+    String wid = response.getWorkflowExecution().getWorkflowId();
+    return wid.isEmpty() ? null : wid;
   }
 
   @Override
+  @Deprecated
   public String getRunId() {
-    return response.getWorkflowExecution().getRunId();
+    return getWorkflowRunId();
+  }
+
+  @Override
+  public String getWorkflowRunId() {
+    if (!response.hasWorkflowExecution()) {
+      return null;
+    }
+    String rid = response.getWorkflowExecution().getRunId();
+    return rid.isEmpty() ? null : rid;
+  }
+
+  @Override
+  public String getActivityRunId() {
+    String rid = response.getActivityRunId();
+    return rid.isEmpty() ? null : rid;
   }
 
   @Override
@@ -73,6 +93,13 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
 
   @Override
   public long getCurrentAttemptScheduledTimestamp() {
+    // getCurrentAttemptScheduledTime may be absent for standalone activities; fall back to
+    // scheduled time in that case.
+    if (!response.hasCurrentAttemptScheduledTime()
+        || (response.getCurrentAttemptScheduledTime().getSeconds() == 0
+            && response.getCurrentAttemptScheduledTime().getNanos() == 0)) {
+      return getScheduledTimestamp();
+    }
     return Timestamps.toMillis(response.getCurrentAttemptScheduledTime());
   }
 
@@ -103,7 +130,11 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
 
   @Override
   public String getWorkflowType() {
-    return response.getWorkflowType().getName();
+    if (!response.hasWorkflowType()) {
+      return null;
+    }
+    String wt = response.getWorkflowType().getName();
+    return wt.isEmpty() ? null : wt;
   }
 
   @Override
@@ -172,7 +203,7 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
 
   @Override
   public String toString() {
-    return "WorkflowInfo{"
+    return "ActivityInfo{"
         + "workflowId="
         + getWorkflowId()
         + ", runId="

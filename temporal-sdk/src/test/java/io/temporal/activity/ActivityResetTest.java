@@ -84,7 +84,7 @@ public class ActivityResetTest {
                   .setExecution(
                       WorkflowExecution.newBuilder()
                           .setWorkflowId(info.getWorkflowId())
-                          .setRunId(info.getRunId())
+                          .setRunId(info.getWorkflowRunId())
                           .build())
                   .setId(info.getActivityId())
                   .build());
