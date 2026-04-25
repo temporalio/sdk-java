@@ -7,6 +7,7 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 /**
@@ -18,6 +19,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   private final String activityId;
   private final @Nullable String activityRunId;
   private final ActivityClientCallsInterceptor clientCallsInterceptor;
+  private final AtomicReference<CompletableFuture<?>> noTimeoutResult = new AtomicReference<>();
 
   public ActivityHandleImpl(
       String activityId,
@@ -72,11 +74,43 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   @Override
   public <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType) {
-    return clientCallsInterceptor
-        .getActivityResultAsync(
-            new ActivityClientCallsInterceptor.GetActivityResultInput<>(
-                activityId, activityRunId, resultClass, resultType, timeout, unit))
-        .thenApply(ActivityClientCallsInterceptor.GetActivityResultOutput::getResult);
+    boolean noTimeout = timeout == Long.MAX_VALUE && unit == TimeUnit.MILLISECONDS;
+
+    CompletableFuture<?> cached = noTimeoutResult.get();
+    if (cached != null && (noTimeout || cached.isDone())) {
+      @SuppressWarnings("unchecked")
+      CompletableFuture<R> typed = (CompletableFuture<R>) cached;
+      return typed;
+    }
+
+    CompletableFuture<R> newFuture =
+        clientCallsInterceptor
+            .getActivityResultAsync(
+                new ActivityClientCallsInterceptor.GetActivityResultInput<>(
+                    activityId, activityRunId, resultClass, resultType, timeout, unit))
+            .thenApply(ActivityClientCallsInterceptor.GetActivityResultOutput::getResult);
+
+    // When a timed call succeeds the activity is done; populate cache so future calls skip polling.
+    newFuture.whenComplete(
+        (r, ex) -> {
+          if (ex == null) {
+            noTimeoutResult.compareAndSet(null, newFuture);
+          }
+        });
+
+    if (noTimeout && noTimeoutResult.compareAndSet(null, newFuture)) {
+      return newFuture;
+    }
+
+    // Another thread raced us on the first no-timeout call; return the winner
+    cached = noTimeoutResult.get();
+    if (cached != null && (noTimeout || cached.isDone())) {
+      @SuppressWarnings("unchecked")
+      CompletableFuture<R> typed = (CompletableFuture<R>) cached;
+      return typed;
+    }
+
+    return newFuture;
   }
 
   @Override
