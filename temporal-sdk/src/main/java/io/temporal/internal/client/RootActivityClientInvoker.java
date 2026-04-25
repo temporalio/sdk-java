@@ -186,10 +186,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }
+    if (input.getLongPollToken() != null) {
+      req.setLongPollToken(ByteString.copyFrom(input.getLongPollToken()));
+    }
     DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
+    byte[] token =
+        response.getLongPollToken().isEmpty() ? null : response.getLongPollToken().toByteArray();
     return new DescribeActivityOutput(
         new ActivityExecutionDescription(
-            response.getInfo(), clientOptions.getDataConverter(), clientOptions.getNamespace()));
+            response.getInfo(),
+            clientOptions.getDataConverter(),
+            clientOptions.getNamespace(),
+            token));
   }
 
   @Override

@@ -64,9 +64,15 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public ActivityExecutionDescription describe() {
+    return describe(null);
+  }
+
+  @Override
+  public ActivityExecutionDescription describe(@Nullable byte[] longPollToken) {
     return clientCallsInterceptor
         .describeActivity(
-            new ActivityClientCallsInterceptor.DescribeActivityInput(activityId, activityRunId))
+            new ActivityClientCallsInterceptor.DescribeActivityInput(
+                activityId, activityRunId, longPollToken))
         .getDescription();
   }
 

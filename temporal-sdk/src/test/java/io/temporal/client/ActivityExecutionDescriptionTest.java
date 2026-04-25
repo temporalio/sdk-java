@@ -38,14 +38,14 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testNullRunIdWhenEmpty() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns", null);
     assertNull(desc.getActivityRunId());
   }
 
   @Test
   public void testNullableFieldsAbsentByDefault() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns", null);
 
     assertNull(desc.getCloseTime());
     assertNull(desc.getExecutionDuration());
@@ -69,14 +69,14 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testScheduledTime() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns", null);
     assertEquals(Instant.ofEpochMilli(1000), desc.getScheduledTime());
   }
 
   @Test
   public void testHasHeartbeatDetailsAbsent() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns", null);
     assertFalse(desc.hasHeartbeatDetails());
     assertFalse(desc.getHeartbeatDetails(String.class).isPresent());
   }
@@ -87,7 +87,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
 
     assertTrue(desc.hasHeartbeatDetails());
     Optional<String> result = desc.getHeartbeatDetails(String.class);
@@ -103,7 +103,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
 
     Type genericType = new TypeToken<List<String>>() {}.getType();
     Class<List<String>> listClass = (Class<List<String>>) (Class<?>) List.class;
@@ -122,7 +122,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setLastDeploymentVersion(protoVersion).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
 
     WorkerDeploymentVersion version = desc.getWorkerDeploymentVersion();
     assertNotNull(version);
@@ -137,7 +137,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setPriority(protoPriority).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
 
     Priority priority = desc.getPriority();
     assertNotNull(priority);

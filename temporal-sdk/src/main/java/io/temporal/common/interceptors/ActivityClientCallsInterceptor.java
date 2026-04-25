@@ -157,10 +157,17 @@ public interface ActivityClientCallsInterceptor {
   final class DescribeActivityInput {
     private final String id;
     private final @Nullable String runId;
+    private final @Nullable byte[] longPollToken;
 
     public DescribeActivityInput(String id, @Nullable String runId) {
+      this(id, runId, null);
+    }
+
+    public DescribeActivityInput(
+        String id, @Nullable String runId, @Nullable byte[] longPollToken) {
       this.id = id;
       this.runId = runId;
+      this.longPollToken = longPollToken;
     }
 
     public String getId() {
@@ -170,6 +177,11 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getRunId() {
       return runId;
+    }
+
+    @Nullable
+    public byte[] getLongPollToken() {
+      return longPollToken;
     }
   }
 
