@@ -2,6 +2,7 @@ package io.temporal.common.interceptors;
 
 import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityFailedException;
+import java.util.concurrent.CompletableFuture;
 
 /** Convenience base class for {@link ActivityClientCallsInterceptor} implementations. */
 public class ActivityClientCallsInterceptorBase implements ActivityClientCallsInterceptor {
@@ -22,6 +23,12 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws ActivityFailedException {
     return next.getActivityResult(input);
+  }
+
+  @Override
+  public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
+      GetActivityResultInput<R> input) {
+    return next.getActivityResultAsync(input);
   }
 
   @Override

@@ -3,6 +3,8 @@ package io.temporal.client;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
@@ -63,6 +65,27 @@ public interface UntypedActivityHandle {
    * @param resultType the generic type to use for deserialization; may be {@code null}
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, @Nullable Type resultType);
+
+  /**
+   * Returns a future that completes when the activity completes, or fails with {@link
+   * TimeoutException} if the activity does not complete within the specified timeout.
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of {@code timeout}
+   * @param resultClass the class to deserialize the result into
+   */
+  <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> resultClass);
+
+  /**
+   * Returns a future for generic return types with a timeout.
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of {@code timeout}
+   * @param resultClass the class to deserialize the result into
+   * @param resultType the generic type to use for deserialization; may be {@code null}
+   */
+  <R> CompletableFuture<R> getResultAsync(
+      long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType);
 
   /**
    * Describes the current state of the activity execution.

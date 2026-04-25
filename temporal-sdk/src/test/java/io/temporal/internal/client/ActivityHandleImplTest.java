@@ -45,7 +45,8 @@ public class ActivityHandleImplTest {
   public void testGetResultAsync() throws Exception {
     GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
     when(output.getResult()).thenReturn("async-result");
-    when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
+    when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class)))
+        .thenReturn(CompletableFuture.completedFuture(output));
 
     UntypedActivityHandle handle = new ActivityHandleImpl("id", null, interceptor);
     CompletableFuture<String> future = handle.getResultAsync(String.class);
@@ -141,7 +142,8 @@ public class ActivityHandleImplTest {
   public void testFromUntypedGetResultAsyncNoArg() throws Exception {
     GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
     when(output.getResult()).thenReturn("async-typed");
-    when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
+    when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class)))
+        .thenReturn(CompletableFuture.completedFuture(output));
 
     UntypedActivityHandle untyped = new ActivityHandleImpl("id", "run", interceptor);
     ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class);
@@ -154,7 +156,9 @@ public class ActivityHandleImplTest {
   public void testGetResultAsyncWrapsActivityFailedExceptionInRuntimeException() throws Exception {
     ActivityFailedException failure =
         new ActivityFailedException("activity failed", new RuntimeException("root cause"));
-    when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenThrow(failure);
+    CompletableFuture<GetActivityResultOutput<String>> failed = new CompletableFuture<>();
+    failed.completeExceptionally(failure);
+    when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class))).thenReturn(failed);
 
     UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
     CompletableFuture<String> future = handle.getResultAsync(String.class);

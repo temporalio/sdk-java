@@ -3,6 +3,7 @@ package io.temporal.client;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -30,6 +31,16 @@ public interface ActivityHandle<R> extends UntypedActivityHandle {
    * Returns a future that completes when the activity completes and resolves to the typed result.
    */
   CompletableFuture<R> getResultAsync();
+
+  /**
+   * Returns a future that completes when the activity completes, or fails with {@link
+   * java.util.concurrent.TimeoutException} if the activity does not complete within the specified
+   * timeout.
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of {@code timeout}
+   */
+  CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit);
 
   /**
    * Wraps an {@link UntypedActivityHandle} with a known result type.

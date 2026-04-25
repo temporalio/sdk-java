@@ -6,6 +6,7 @@ import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -59,7 +60,23 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, @Nullable Type resultType) {
-    return CompletableFuture.supplyAsync(() -> getResult(resultClass, resultType));
+    return getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(
+      long timeout, TimeUnit unit, Class<R> resultClass) {
+    return getResultAsync(timeout, unit, resultClass, null);
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(
+      long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType) {
+    return clientCallsInterceptor
+        .getActivityResultAsync(
+            new ActivityClientCallsInterceptor.GetActivityResultInput<>(
+                activityId, activityRunId, resultClass, resultType, timeout, unit))
+        .thenApply(ActivityClientCallsInterceptor.GetActivityResultOutput::getResult);
   }
 
   @Override

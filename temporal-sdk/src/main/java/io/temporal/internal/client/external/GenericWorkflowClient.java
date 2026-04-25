@@ -79,6 +79,10 @@ public interface GenericWorkflowClient {
   PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request);
 
   @Experimental
+  CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
+      PollActivityExecutionRequest request, @Nonnull Deadline deadline);
+
+  @Experimental
   DescribeActivityExecutionResponse describeActivity(DescribeActivityExecutionRequest request);
 
   @Experimental

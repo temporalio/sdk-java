@@ -5,6 +5,7 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaDat
 
 import com.google.common.collect.Iterators;
 import com.google.protobuf.ByteString;
+import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
@@ -25,6 +26,9 @@ import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
 
 /**
@@ -174,6 +178,87 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
                   + "'",
               null);
       }
+    }
+  }
+
+  @Override
+  public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
+      GetActivityResultInput<R> input) {
+    DataConverter dc = clientOptions.getDataConverter();
+    Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
+    return pollActivityUntilOutcome(input, deadline)
+        .handle(
+            (outcome, e) -> {
+              if (e == null) {
+                return decodeOutcome(outcome, input, dc);
+              }
+              throw handleAsyncException(e, deadline, input.getActivityId());
+            });
+  }
+
+  private CompletableFuture<ActivityExecutionOutcome> pollActivityUntilOutcome(
+      GetActivityResultInput<?> input, Deadline deadline) {
+    PollActivityExecutionRequest.Builder pollRequest =
+        PollActivityExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setActivityId(input.getActivityId());
+    if (input.getRunId() != null) {
+      pollRequest.setRunId(input.getRunId());
+    }
+    return genericClient
+        .pollActivityAsync(pollRequest.build(), deadline)
+        .thenComposeAsync(
+            response -> {
+              if (!response.hasOutcome()) {
+                return pollActivityUntilOutcome(input, deadline);
+              }
+              return CompletableFuture.completedFuture(response.getOutcome());
+            });
+  }
+
+  private static CompletionException handleAsyncException(
+      Throwable e, Deadline deadline, String activityId) {
+    Throwable cause = e instanceof CompletionException ? e.getCause() : e;
+    if (deadline.isExpired()
+        && cause instanceof StatusRuntimeException
+        && Status.Code.DEADLINE_EXCEEDED.equals(
+            ((StatusRuntimeException) cause).getStatus().getCode())) {
+      return new CompletionException(
+          new TimeoutException(
+              "Activity did not complete within timeout: activityId='" + activityId + "'"));
+    }
+    return e instanceof CompletionException ? (CompletionException) e : new CompletionException(e);
+  }
+
+  private <R> GetActivityResultOutput<R> decodeOutcome(
+      ActivityExecutionOutcome outcome, GetActivityResultInput<R> input, DataConverter dc) {
+    switch (outcome.getValueCase()) {
+      case RESULT:
+        Type resultType =
+            input.getResultType() != null ? input.getResultType() : input.getResultClass();
+        @SuppressWarnings("unchecked")
+        R result =
+            (R)
+                dc.fromPayloads(
+                    0,
+                    outcome.hasResult() ? Optional.of(outcome.getResult()) : Optional.empty(),
+                    input.getResultClass(),
+                    resultType);
+        return new GetActivityResultOutput<>(result);
+      case FAILURE:
+        throw new java.util.concurrent.CompletionException(
+            new ActivityFailedException(
+                "Activity failed: activityId='" + input.getActivityId() + "'",
+                dc.failureToException(outcome.getFailure())));
+      default:
+        throw new java.util.concurrent.CompletionException(
+            new ActivityFailedException(
+                "Activity completed with unexpected outcome '"
+                    + outcome.getValueCase()
+                    + "' for activityId='"
+                    + input.getActivityId()
+                    + "'",
+                null));
     }
   }
 

@@ -13,6 +13,8 @@ import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -33,6 +35,18 @@ public interface ActivityClientCallsInterceptor {
 
   <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws ActivityFailedException;
+
+  default <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
+      GetActivityResultInput<R> input) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            return getActivityResult(input);
+          } catch (ActivityFailedException e) {
+            throw new java.util.concurrent.CompletionException(e);
+          }
+        });
+  }
 
   DescribeActivityOutput describeActivity(DescribeActivityInput input);
 
@@ -104,16 +118,31 @@ public interface ActivityClientCallsInterceptor {
     private final @Nullable String runId;
     private final Class<R> resultClass;
     private final @Nullable Type resultType;
+    private final long timeout;
+    private final TimeUnit timeoutUnit;
 
     public GetActivityResultInput(
         String activityId,
         @Nullable String runId,
         Class<R> resultClass,
-        @Nullable Type resultType) {
+        @Nullable Type resultType,
+        long timeout,
+        TimeUnit timeoutUnit) {
       this.activityId = activityId;
       this.runId = runId;
       this.resultClass = resultClass;
       this.resultType = resultType;
+      this.timeout = timeout;
+      this.timeoutUnit = timeoutUnit;
+    }
+
+    /** No-timeout constructor: waits indefinitely. */
+    public GetActivityResultInput(
+        String activityId,
+        @Nullable String runId,
+        Class<R> resultClass,
+        @Nullable Type resultType) {
+      this(activityId, runId, resultClass, resultType, Long.MAX_VALUE, TimeUnit.MILLISECONDS);
     }
 
     /** Backward-compatible constructor that passes {@code null} for {@code resultType}. */
@@ -137,6 +166,14 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public Type getResultType() {
       return resultType;
+    }
+
+    public long getTimeout() {
+      return timeout;
+    }
+
+    public TimeUnit getTimeoutUnit() {
+      return timeoutUnit;
     }
   }
 

@@ -453,6 +453,22 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
+  public CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
+      PollActivityExecutionRequest request, @Nonnull Deadline deadline) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                    .withDeadline(deadline)
+                    .pollActivityExecution(request)),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  @Override
   public DescribeActivityExecutionResponse describeActivity(
       DescribeActivityExecutionRequest request) {
     return grpcRetryer.retryWithResult(

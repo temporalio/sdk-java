@@ -2,6 +2,7 @@ package io.temporal.client;
 
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -31,6 +32,22 @@ final class ActivityHandleWrapper<R> implements ActivityHandle<R> {
   @Override
   public CompletableFuture<R> getResultAsync() {
     return delegate.getResultAsync(resultClass, resultType);
+  }
+
+  @Override
+  public CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit) {
+    return delegate.getResultAsync(timeout, unit, resultClass, resultType);
+  }
+
+  @Override
+  public <T> CompletableFuture<T> getResultAsync(long timeout, TimeUnit unit, Class<T> clazz) {
+    return delegate.getResultAsync(timeout, unit, clazz, null);
+  }
+
+  @Override
+  public <T> CompletableFuture<T> getResultAsync(
+      long timeout, TimeUnit unit, Class<T> clazz, @Nullable Type type) {
+    return delegate.getResultAsync(timeout, unit, clazz, type);
   }
 
   @Override
