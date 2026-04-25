@@ -10,14 +10,18 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
+import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.client.*;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
 import io.temporal.common.interceptors.ActivityClientInterceptorBase;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
@@ -84,6 +88,12 @@ public class StandaloneActivityTest {
   public interface ConcatActivity {
     @ActivityMethod(name = "Concat")
     String concat(String a, String b);
+  }
+
+  @ActivityInterface
+  public interface AlwaysFailActivity {
+    @ActivityMethod(name = "AlwaysFail")
+    void alwaysFail();
   }
 
   /** Snapshot of {@link ActivityInfo} fields captured inside an activity body. */
@@ -183,6 +193,13 @@ public class StandaloneActivityTest {
     }
   }
 
+  public static class AlwaysFailActivityImpl implements AlwaysFailActivity {
+    @Override
+    public void alwaysFail() {
+      throw ApplicationFailure.newFailure("deliberate failure", "test-type");
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Test rule
   // ---------------------------------------------------------------------------
@@ -197,7 +214,8 @@ public class StandaloneActivityTest {
               new AsyncCompletionActivityImpl(),
               new InspectInfoActivityImpl(),
               new EchoVoidActivityImpl(),
-              new ConcatActivityImpl())
+              new ConcatActivityImpl(),
+              new AlwaysFailActivityImpl())
           .build();
 
   // ---------------------------------------------------------------------------
@@ -809,6 +827,65 @@ public class StandaloneActivityTest {
       asyncStartLatch = null;
       asyncActivityId = null;
       asyncActivityRunId = null;
+    }
+  }
+
+  @Test
+  public void testDescribeRawInfoMatchesTypedAccessors() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityClient client = newActivityClient();
+    String activityId = uniqueId();
+
+    ActivityHandle<String> handle =
+        client.start(SimpleActivity.class, SimpleActivity::execute, simpleOpts(activityId), "raw");
+    handle.getResult();
+
+    ActivityExecutionDescription desc = handle.describe();
+    ActivityExecutionInfo rawInfo = desc.getRawInfo();
+
+    assertEquals(desc.getActivityId(), rawInfo.getActivityId());
+    assertEquals(desc.getActivityType(), rawInfo.getActivityType().getName());
+    assertEquals(desc.getTaskQueue(), rawInfo.getTaskQueue());
+    assertEquals(desc.getStatus(), rawInfo.getStatus());
+    assertEquals(desc.getAttempt(), rawInfo.getAttempt());
+  }
+
+  @Test
+  public void testDescribeLastFailureIsPopulatedDuringRetryBackoff() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityClient client = newActivityClient();
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .setRetryOptions(
+                RetryOptions.newBuilder()
+                    .setMaximumAttempts(10)
+                    .setInitialInterval(Duration.ofSeconds(15))
+                    .build())
+            .build();
+
+    ActivityHandle<Void> handle =
+        client.start(AlwaysFailActivity.class, AlwaysFailActivity::alwaysFail, opts);
+    try {
+      assertEventually(
+          Duration.ofSeconds(60),
+          () -> {
+            ActivityExecutionDescription desc = handle.describe();
+            Failure lastFailure = desc.getLastFailure();
+            assertNotNull("last_failure should be set after a failed attempt", lastFailure);
+            assertEquals("deliberate failure", lastFailure.getMessage());
+            // raw info must agree with the typed accessor
+            assertTrue(desc.getRawInfo().hasLastFailure());
+            assertEquals(lastFailure, desc.getRawInfo().getLastFailure());
+          });
+    } finally {
+      try {
+        handle.terminate("test cleanup");
+      } catch (Exception ignored) {
+      }
     }
   }
 

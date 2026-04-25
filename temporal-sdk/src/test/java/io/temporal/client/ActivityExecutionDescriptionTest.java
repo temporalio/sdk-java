@@ -7,6 +7,7 @@ import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.Priority;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.DataConverter;
@@ -64,6 +65,7 @@ public class ActivityExecutionDescriptionTest {
     assertFalse(desc.hasHeartbeatDetails());
     assertNull(desc.getWorkerDeploymentVersion());
     assertNull(desc.getPriority());
+    assertNull(desc.getLastFailure());
   }
 
   @Test
@@ -128,6 +130,33 @@ public class ActivityExecutionDescriptionTest {
     assertNotNull(version);
     assertEquals("my-deployment", version.getDeploymentName());
     assertEquals("build-42", version.getBuildId());
+  }
+
+  @Test
+  public void testGetLastFailureAbsent() {
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns", null);
+    assertNull(desc.getLastFailure());
+  }
+
+  @Test
+  public void testGetLastFailurePresent() {
+    Failure failure = Failure.newBuilder().setMessage("boom").build();
+    ActivityExecutionInfo info = buildInfo("id", "run").toBuilder().setLastFailure(failure).build();
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
+
+    Failure result = desc.getLastFailure();
+    assertNotNull(result);
+    assertEquals("boom", result.getMessage());
+  }
+
+  @Test
+  public void testGetRawInfo() {
+    ActivityExecutionInfo info = buildInfo("id", "run");
+    ActivityExecutionDescription desc =
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
+    assertSame(info, desc.getRawInfo());
   }
 
   @Test

@@ -66,6 +66,12 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     return info;
   }
 
+  /** The raw protobuf info returned by the server for this activity execution. */
+  @Nonnull
+  public ActivityExecutionInfo getRawInfo() {
+    return info;
+  }
+
   /** Current attempt number (starts at 1). */
   public int getAttempt() {
     return info().getAttempt();
@@ -127,6 +133,12 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     return info().hasLastStartedTime()
         ? ProtobufTimeUtils.toJavaInstant(info().getLastStartedTime())
         : null;
+  }
+
+  /** Failure details from the last failed attempt. {@code null} if no failure has occurred. */
+  @Nullable
+  public io.temporal.api.failure.v1.Failure getLastFailure() {
+    return info().hasLastFailure() ? info().getLastFailure() : null;
   }
 
   /** Identity of the worker that last processed this activity. */
