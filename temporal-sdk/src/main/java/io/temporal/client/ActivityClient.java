@@ -55,7 +55,6 @@ public interface ActivityClient {
    *
    * <pre>{@code
    * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options);
-   * ActivityHandle<String> handle2 = client.start(MyActivity.class, MyActivity::greet, options, "Alice");
    * }</pre>
    *
    * @param activityInterface the activity interface class
@@ -71,6 +70,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
    * activity argument.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options, "arg1");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with one activity argument
@@ -90,6 +95,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
    * activity arguments.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with two activity arguments
@@ -112,6 +123,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
    * activity arguments.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with three activity arguments
@@ -137,6 +154,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
    * activity arguments.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with four activity arguments
@@ -165,6 +188,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
    * activity arguments.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4", "arg5");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with five activity arguments
@@ -196,6 +225,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
    * activity arguments.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<Void> handle = client.start(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with six activity arguments
@@ -231,6 +266,12 @@ public interface ActivityClient {
    * Starts a standalone activity using a typed interface and an unbound method reference with no
    * activity arguments, returning a typed result.
    *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options);
+   * }</pre>
+   *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with no activity arguments
    * @param options scheduling options
@@ -245,6 +286,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
    * activity argument, returning a typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options, "arg1");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with one activity argument
@@ -265,6 +312,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
    * activity arguments, returning a typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options, "arg1", "arg2");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with two activity arguments
@@ -288,6 +341,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
    * activity arguments, returning a typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with three activity arguments
@@ -314,6 +373,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
    * activity arguments, returning a typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with four activity arguments
@@ -343,6 +408,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
    * activity arguments, returning a typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4", "arg5");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with five activity arguments
@@ -375,6 +446,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
    * activity arguments, returning a typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * ActivityHandle<String> handle = client.start(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with six activity arguments
@@ -411,6 +488,12 @@ public interface ActivityClient {
    * Starts a standalone activity using a typed interface and an unbound method reference with no
    * activity arguments, and blocks until it completes.
    *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options);
+   * }</pre>
+   *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with no activity arguments
    * @param options scheduling options
@@ -425,6 +508,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
    * activity argument, and blocks until it completes.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options, "arg1");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with one activity argument
@@ -445,6 +534,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
    * activity arguments, and blocks until it completes.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with two activity arguments
@@ -468,6 +563,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
    * activity arguments, and blocks until it completes.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with three activity arguments
@@ -494,6 +595,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
    * activity arguments, and blocks until it completes.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with four activity arguments
@@ -523,6 +630,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
    * activity arguments, and blocks until it completes.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4", "arg5");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with five activity arguments
@@ -555,6 +668,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
    * activity arguments, and blocks until it completes.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.execute(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with six activity arguments
@@ -591,6 +710,12 @@ public interface ActivityClient {
    * Starts a standalone activity using a typed interface and an unbound method reference with no
    * activity arguments, blocks until it completes, and returns the typed result.
    *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options);
+   * }</pre>
+   *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with no activity arguments
    * @param options scheduling options
@@ -607,6 +732,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
    * activity argument, blocks until it completes, and returns the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options, "arg1");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with one activity argument
@@ -629,6 +760,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
    * activity arguments, blocks until it completes, and returns the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options, "arg1", "arg2");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with two activity arguments
@@ -654,6 +791,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
    * activity arguments, blocks until it completes, and returns the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with three activity arguments
@@ -682,6 +825,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
    * activity arguments, blocks until it completes, and returns the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with four activity arguments
@@ -713,6 +862,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
    * activity arguments, blocks until it completes, and returns the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4", "arg5");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with five activity arguments
@@ -747,6 +902,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
    * activity arguments, blocks until it completes, and returns the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * String result = client.execute(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with six activity arguments
@@ -786,6 +947,12 @@ public interface ActivityClient {
    * Starts a standalone activity using a typed interface and an unbound method reference with no
    * activity arguments, and returns a future that completes when the activity does.
    *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options);
+   * }</pre>
+   *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with no activity arguments
    * @param options scheduling options
@@ -800,6 +967,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
    * activity argument, and returns a future that completes when the activity does.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options, "arg1");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with one activity argument
@@ -820,6 +993,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
    * activity arguments, and returns a future that completes when the activity does.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with two activity arguments
@@ -843,6 +1022,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
    * activity arguments, and returns a future that completes when the activity does.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with three activity arguments
@@ -869,6 +1054,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
    * activity arguments, and returns a future that completes when the activity does.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with four activity arguments
@@ -898,6 +1089,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
    * activity arguments, and returns a future that completes when the activity does.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4", "arg5");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with five activity arguments
@@ -931,6 +1128,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
    * activity arguments, and returns a future that completes when the activity does.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<Void> future = client.executeAsync(MyActivity.class, MyActivity::doWork, options, "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with six activity arguments
@@ -968,6 +1171,12 @@ public interface ActivityClient {
    * Starts a standalone activity using a typed interface and an unbound method reference with no
    * activity arguments, and returns a future that resolves to the typed result.
    *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options);
+   * }</pre>
+   *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with no activity arguments
    * @param options scheduling options
@@ -983,6 +1192,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
    * activity argument, and returns a future that resolves to the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options, "arg1");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with one activity argument
@@ -1004,6 +1219,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
    * activity arguments, and returns a future that resolves to the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options, "arg1", "arg2");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with two activity arguments
@@ -1028,6 +1249,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
    * activity arguments, and returns a future that resolves to the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with three activity arguments
@@ -1055,6 +1282,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
    * activity arguments, and returns a future that resolves to the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with four activity arguments
@@ -1085,6 +1318,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
    * activity arguments, and returns a future that resolves to the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4", "arg5");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with five activity arguments
@@ -1119,6 +1358,12 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
    * activity arguments, and returns a future that resolves to the typed result.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * CompletableFuture<String> future = client.executeAsync(MyActivity.class, MyActivity::greet, options, "arg1", "arg2", "arg3", "arg4", "arg5", "arg6");
+   * }</pre>
    *
    * @param activityInterface the activity interface class
    * @param activity unbound method reference with six activity arguments
