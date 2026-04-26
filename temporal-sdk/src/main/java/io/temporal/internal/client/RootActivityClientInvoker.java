@@ -47,8 +47,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   @Override
-  public StartActivityOutput startActivity(StartActivityInput input)
-      throws ActivityAlreadyStartedException {
+  public StartActivityOutput startActivity(StartActivityInput input) {
     StartActivityOptions options = input.getOptions();
     DataConverter dc = clientOptions.getDataConverter();
 
@@ -124,8 +123,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   @Override
-  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
-      throws ActivityFailedException {
+  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input) {
     String namespace = clientOptions.getNamespace();
     DataConverter dc = clientOptions.getDataConverter();
 

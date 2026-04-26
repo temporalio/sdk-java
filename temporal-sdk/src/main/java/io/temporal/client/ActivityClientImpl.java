@@ -61,8 +61,7 @@ class ActivityClientImpl implements ActivityClient {
 
   @Override
   public <I> ActivityHandle<Void> start(
-      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options)
-      throws ActivityAlreadyStartedException {
+      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -75,8 +74,7 @@ class ActivityClientImpl implements ActivityClient {
       Class<I> activityInterface,
       Functions.Proc2<I, A1> activity,
       StartActivityOptions options,
-      A1 arg1)
-      throws ActivityAlreadyStartedException {
+      A1 arg1) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -90,8 +88,7 @@ class ActivityClientImpl implements ActivityClient {
       Functions.Proc3<I, A1, A2> activity,
       StartActivityOptions options,
       A1 arg1,
-      A2 arg2)
-      throws ActivityAlreadyStartedException {
+      A2 arg2) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -106,8 +103,7 @@ class ActivityClientImpl implements ActivityClient {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2,
-      A3 arg3)
-      throws ActivityAlreadyStartedException {
+      A3 arg3) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -123,8 +119,7 @@ class ActivityClientImpl implements ActivityClient {
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      A4 arg4)
-      throws ActivityAlreadyStartedException {
+      A4 arg4) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -141,8 +136,7 @@ class ActivityClientImpl implements ActivityClient {
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      A5 arg5)
-      throws ActivityAlreadyStartedException {
+      A5 arg5) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -160,8 +154,7 @@ class ActivityClientImpl implements ActivityClient {
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      A6 arg6)
-      throws ActivityAlreadyStartedException {
+      A6 arg6) {
     String activityType =
         MethodExtractor.activityTypeName(
             activityInterface, MethodExtractor.extract(activityInterface, activity));
@@ -174,8 +167,7 @@ class ActivityClientImpl implements ActivityClient {
 
   @Override
   public <I, R> ActivityHandle<R> start(
-      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options)
-      throws ActivityAlreadyStartedException {
+      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -190,8 +182,7 @@ class ActivityClientImpl implements ActivityClient {
       Class<I> activityInterface,
       Functions.Func2<I, A1, R> activity,
       StartActivityOptions options,
-      A1 arg1)
-      throws ActivityAlreadyStartedException {
+      A1 arg1) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -207,8 +198,7 @@ class ActivityClientImpl implements ActivityClient {
       Functions.Func3<I, A1, A2, R> activity,
       StartActivityOptions options,
       A1 arg1,
-      A2 arg2)
-      throws ActivityAlreadyStartedException {
+      A2 arg2) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -225,8 +215,7 @@ class ActivityClientImpl implements ActivityClient {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2,
-      A3 arg3)
-      throws ActivityAlreadyStartedException {
+      A3 arg3) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -244,8 +233,7 @@ class ActivityClientImpl implements ActivityClient {
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      A4 arg4)
-      throws ActivityAlreadyStartedException {
+      A4 arg4) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -264,8 +252,7 @@ class ActivityClientImpl implements ActivityClient {
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      A5 arg5)
-      throws ActivityAlreadyStartedException {
+      A5 arg5) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -285,8 +272,7 @@ class ActivityClientImpl implements ActivityClient {
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      A6 arg6)
-      throws ActivityAlreadyStartedException {
+      A6 arg6) {
     Method method = MethodExtractor.extract(activityInterface, activity);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     @SuppressWarnings("unchecked")
@@ -301,8 +287,7 @@ class ActivityClientImpl implements ActivityClient {
 
   @Override
   public UntypedActivityHandle start(
-      String activityType, StartActivityOptions options, @Nullable Object... args)
-      throws ActivityAlreadyStartedException {
+      String activityType, StartActivityOptions options, @Nullable Object... args) {
     ActivityClientCallsInterceptor.StartActivityOutput output =
         invoker.startActivity(
             new ActivityClientCallsInterceptor.StartActivityInput(
@@ -318,8 +303,7 @@ class ActivityClientImpl implements ActivityClient {
       String activityType,
       Class<R> resultClass,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityAlreadyStartedException {
+      @Nullable Object... args) {
     return start(activityType, resultClass, null, options, args);
   }
 
@@ -329,8 +313,7 @@ class ActivityClientImpl implements ActivityClient {
       Class<R> resultClass,
       Type resultType,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityAlreadyStartedException {
+      @Nullable Object... args) {
     UntypedActivityHandle untyped = start(activityType, options, args);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
@@ -339,8 +322,7 @@ class ActivityClientImpl implements ActivityClient {
 
   @Override
   @SuppressWarnings("unchecked")
-  public void execute(String activityType, StartActivityOptions options, @Nullable Object... args)
-      throws ActivityFailedException {
+  public void execute(String activityType, StartActivityOptions options, @Nullable Object... args) {
     start(activityType, options, args).getResult(Void.class);
   }
 
@@ -349,8 +331,7 @@ class ActivityClientImpl implements ActivityClient {
       String activityType,
       Class<R> resultClass,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityFailedException {
+      @Nullable Object... args) {
     return start(activityType, resultClass, options, args).getResult();
   }
 
@@ -360,8 +341,7 @@ class ActivityClientImpl implements ActivityClient {
       Class<R> resultClass,
       Type resultType,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityFailedException {
+      @Nullable Object... args) {
     return start(activityType, resultClass, resultType, options, args).getResult();
   }
 

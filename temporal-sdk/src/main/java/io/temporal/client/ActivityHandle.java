@@ -25,7 +25,7 @@ public interface ActivityHandle<R> extends UntypedActivityHandle {
    *
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  R getResult() throws ActivityFailedException;
+  R getResult();
 
   /**
    * Returns a future that completes when the activity completes and resolves to the typed result.

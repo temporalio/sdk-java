@@ -25,7 +25,7 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public R getResult() throws ActivityFailedException {
+  public R getResult() {
     return delegate.getResult(resultClass, resultType);
   }
 
@@ -61,12 +61,12 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public <T> T getResult(Class<T> clazz) throws ActivityFailedException {
+  public <T> T getResult(Class<T> clazz) {
     return delegate.getResult(clazz);
   }
 
   @Override
-  public <T> T getResult(Class<T> clazz, @Nullable Type type) throws ActivityFailedException {
+  public <T> T getResult(Class<T> clazz, @Nullable Type type) {
     return delegate.getResult(clazz, type);
   }
 

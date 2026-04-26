@@ -1,7 +1,6 @@
 package io.temporal.internal.client;
 
 import io.temporal.client.ActivityExecutionDescription;
-import io.temporal.client.ActivityFailedException;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
@@ -41,13 +40,12 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   }
 
   @Override
-  public <R> R getResult(Class<R> resultClass) throws ActivityFailedException {
+  public <R> R getResult(Class<R> resultClass) {
     return getResult(resultClass, null);
   }
 
   @Override
-  public <R> R getResult(Class<R> resultClass, @Nullable Type resultType)
-      throws ActivityFailedException {
+  public <R> R getResult(Class<R> resultClass, @Nullable Type resultType) {
     return clientCallsInterceptor
         .getActivityResult(
             new ActivityClientCallsInterceptor.GetActivityResultInput<>(

@@ -1,7 +1,5 @@
 package io.temporal.common.interceptors;
 
-import io.temporal.client.ActivityAlreadyStartedException;
-import io.temporal.client.ActivityFailedException;
 import java.util.concurrent.CompletableFuture;
 
 /** Convenience base class for {@link ActivityClientCallsInterceptor} implementations. */
@@ -14,14 +12,12 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   }
 
   @Override
-  public StartActivityOutput startActivity(StartActivityInput input)
-      throws ActivityAlreadyStartedException {
+  public StartActivityOutput startActivity(StartActivityInput input) {
     return next.startActivity(input);
   }
 
   @Override
-  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
-      throws ActivityFailedException {
+  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input) {
     return next.getActivityResult(input);
   }
 

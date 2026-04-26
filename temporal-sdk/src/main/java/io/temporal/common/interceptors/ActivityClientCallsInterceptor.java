@@ -1,6 +1,5 @@
 package io.temporal.common.interceptors;
 
-import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityCountOptions;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
@@ -39,8 +38,7 @@ public interface ActivityClientCallsInterceptor {
    *     (if the server provides one)
    * @throws ActivityAlreadyStartedException if an activity with the same ID is already running
    */
-  StartActivityOutput startActivity(StartActivityInput input)
-      throws ActivityAlreadyStartedException;
+  StartActivityOutput startActivity(StartActivityInput input);
 
   /**
    * Synchronously long-polls the server until the activity completes, then deserializes and returns
@@ -52,8 +50,7 @@ public interface ActivityClientCallsInterceptor {
    * @return output wrapping the deserialized activity result
    * @throws ActivityFailedException if the activity failed or was cancelled
    */
-  <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
-      throws ActivityFailedException;
+  <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input);
 
   /**
    * Returns the current execution description for a standalone activity. If a long-poll token from

@@ -66,8 +66,7 @@ public interface ActivityClient {
    * @throws ActivityAlreadyStartedException if an activity with the same ID is already running
    */
   <I> ActivityHandle<Void> start(
-      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options)
-      throws ActivityAlreadyStartedException;
+      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
@@ -86,8 +85,7 @@ public interface ActivityClient {
       Class<I> activityInterface,
       Functions.Proc2<I, A1> activity,
       StartActivityOptions options,
-      A1 arg1)
-      throws ActivityAlreadyStartedException;
+      A1 arg1);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
@@ -109,8 +107,7 @@ public interface ActivityClient {
       Functions.Proc3<I, A1, A2> activity,
       StartActivityOptions options,
       A1 arg1,
-      A2 arg2)
-      throws ActivityAlreadyStartedException;
+      A2 arg2);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
@@ -135,8 +132,7 @@ public interface ActivityClient {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2,
-      A3 arg3)
-      throws ActivityAlreadyStartedException;
+      A3 arg3);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
@@ -164,8 +160,7 @@ public interface ActivityClient {
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      A4 arg4)
-      throws ActivityAlreadyStartedException;
+      A4 arg4);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
@@ -196,8 +191,7 @@ public interface ActivityClient {
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      A5 arg5)
-      throws ActivityAlreadyStartedException;
+      A5 arg5);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
@@ -231,8 +225,7 @@ public interface ActivityClient {
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      A6 arg6)
-      throws ActivityAlreadyStartedException;
+      A6 arg6);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with no
@@ -247,8 +240,7 @@ public interface ActivityClient {
    * @throws ActivityAlreadyStartedException if an activity with the same ID is already running
    */
   <I, R> ActivityHandle<R> start(
-      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options)
-      throws ActivityAlreadyStartedException;
+      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with one
@@ -268,8 +260,7 @@ public interface ActivityClient {
       Class<I> activityInterface,
       Functions.Func2<I, A1, R> activity,
       StartActivityOptions options,
-      A1 arg1)
-      throws ActivityAlreadyStartedException;
+      A1 arg1);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with two
@@ -292,8 +283,7 @@ public interface ActivityClient {
       Functions.Func3<I, A1, A2, R> activity,
       StartActivityOptions options,
       A1 arg1,
-      A2 arg2)
-      throws ActivityAlreadyStartedException;
+      A2 arg2);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with three
@@ -319,8 +309,7 @@ public interface ActivityClient {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2,
-      A3 arg3)
-      throws ActivityAlreadyStartedException;
+      A3 arg3);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with four
@@ -349,8 +338,7 @@ public interface ActivityClient {
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      A4 arg4)
-      throws ActivityAlreadyStartedException;
+      A4 arg4);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with five
@@ -382,8 +370,7 @@ public interface ActivityClient {
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      A5 arg5)
-      throws ActivityAlreadyStartedException;
+      A5 arg5);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with six
@@ -418,8 +405,7 @@ public interface ActivityClient {
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      A6 arg6)
-      throws ActivityAlreadyStartedException;
+      A6 arg6);
 
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference with no
@@ -432,8 +418,7 @@ public interface ActivityClient {
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
   default <I> void execute(
-      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options)
-      throws ActivityFailedException {
+      Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options) {
     start(activityInterface, activity, options).getResult();
   }
 
@@ -453,8 +438,7 @@ public interface ActivityClient {
       Class<I> activityInterface,
       Functions.Proc2<I, A1> activity,
       StartActivityOptions options,
-      A1 arg1)
-      throws ActivityFailedException {
+      A1 arg1) {
     start(activityInterface, activity, options, arg1).getResult();
   }
 
@@ -477,8 +461,7 @@ public interface ActivityClient {
       Functions.Proc3<I, A1, A2> activity,
       StartActivityOptions options,
       A1 arg1,
-      A2 arg2)
-      throws ActivityFailedException {
+      A2 arg2) {
     start(activityInterface, activity, options, arg1, arg2).getResult();
   }
 
@@ -504,8 +487,7 @@ public interface ActivityClient {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2,
-      A3 arg3)
-      throws ActivityFailedException {
+      A3 arg3) {
     start(activityInterface, activity, options, arg1, arg2, arg3).getResult();
   }
 
@@ -534,8 +516,7 @@ public interface ActivityClient {
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      A4 arg4)
-      throws ActivityFailedException {
+      A4 arg4) {
     start(activityInterface, activity, options, arg1, arg2, arg3, arg4).getResult();
   }
 
@@ -567,8 +548,7 @@ public interface ActivityClient {
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      A5 arg5)
-      throws ActivityFailedException {
+      A5 arg5) {
     start(activityInterface, activity, options, arg1, arg2, arg3, arg4, arg5).getResult();
   }
 
@@ -603,8 +583,7 @@ public interface ActivityClient {
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      A6 arg6)
-      throws ActivityFailedException {
+      A6 arg6) {
     start(activityInterface, activity, options, arg1, arg2, arg3, arg4, arg5, arg6).getResult();
   }
 
@@ -621,8 +600,7 @@ public interface ActivityClient {
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
   default <I, R> R execute(
-      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options)
-      throws ActivityFailedException {
+      Class<I> activityInterface, Functions.Func1<I, R> activity, StartActivityOptions options) {
     return start(activityInterface, activity, options).getResult();
   }
 
@@ -644,8 +622,7 @@ public interface ActivityClient {
       Class<I> activityInterface,
       Functions.Func2<I, A1, R> activity,
       StartActivityOptions options,
-      A1 arg1)
-      throws ActivityFailedException {
+      A1 arg1) {
     return start(activityInterface, activity, options, arg1).getResult();
   }
 
@@ -670,8 +647,7 @@ public interface ActivityClient {
       Functions.Func3<I, A1, A2, R> activity,
       StartActivityOptions options,
       A1 arg1,
-      A2 arg2)
-      throws ActivityFailedException {
+      A2 arg2) {
     return start(activityInterface, activity, options, arg1, arg2).getResult();
   }
 
@@ -699,8 +675,7 @@ public interface ActivityClient {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2,
-      A3 arg3)
-      throws ActivityFailedException {
+      A3 arg3) {
     return start(activityInterface, activity, options, arg1, arg2, arg3).getResult();
   }
 
@@ -731,8 +706,7 @@ public interface ActivityClient {
       A1 arg1,
       A2 arg2,
       A3 arg3,
-      A4 arg4)
-      throws ActivityFailedException {
+      A4 arg4) {
     return start(activityInterface, activity, options, arg1, arg2, arg3, arg4).getResult();
   }
 
@@ -766,8 +740,7 @@ public interface ActivityClient {
       A2 arg2,
       A3 arg3,
       A4 arg4,
-      A5 arg5)
-      throws ActivityFailedException {
+      A5 arg5) {
     return start(activityInterface, activity, options, arg1, arg2, arg3, arg4, arg5).getResult();
   }
 
@@ -804,8 +777,7 @@ public interface ActivityClient {
       A3 arg3,
       A4 arg4,
       A5 arg5,
-      A6 arg6)
-      throws ActivityFailedException {
+      A6 arg6) {
     return start(activityInterface, activity, options, arg1, arg2, arg3, arg4, arg5, arg6)
         .getResult();
   }
@@ -1191,8 +1163,7 @@ public interface ActivityClient {
    * @throws ActivityAlreadyStartedException if an activity with the same ID is already running
    */
   UntypedActivityHandle start(
-      String activityType, StartActivityOptions options, @Nullable Object... args)
-      throws ActivityAlreadyStartedException;
+      String activityType, StartActivityOptions options, @Nullable Object... args);
 
   /**
    * Starts a standalone activity by type name and returns a typed handle.
@@ -1209,8 +1180,7 @@ public interface ActivityClient {
       String activityType,
       Class<R> resultClass,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityAlreadyStartedException;
+      @Nullable Object... args);
 
   /**
    * Starts a standalone activity by type name and returns a typed handle for generic result types.
@@ -1229,8 +1199,7 @@ public interface ActivityClient {
       Class<R> resultClass,
       Type resultType,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityAlreadyStartedException;
+      @Nullable Object... args);
 
   /**
    * Starts a standalone activity and blocks until it completes, discarding the result.
@@ -1240,8 +1209,7 @@ public interface ActivityClient {
    * @param args activity arguments
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  void execute(String activityType, StartActivityOptions options, @Nullable Object... args)
-      throws ActivityFailedException;
+  void execute(String activityType, StartActivityOptions options, @Nullable Object... args);
 
   /**
    * Starts a standalone activity and blocks until it completes, returning the typed result.
@@ -1258,8 +1226,7 @@ public interface ActivityClient {
       String activityType,
       Class<R> resultClass,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityFailedException;
+      @Nullable Object... args);
 
   /**
    * Starts a standalone activity and blocks until it completes, for generic result types.
@@ -1278,8 +1245,7 @@ public interface ActivityClient {
       Class<R> resultClass,
       Type resultType,
       StartActivityOptions options,
-      @Nullable Object... args)
-      throws ActivityFailedException;
+      @Nullable Object... args);
 
   /**
    * Starts a standalone activity and returns a future that completes when the activity does,

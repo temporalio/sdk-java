@@ -39,7 +39,7 @@ public interface UntypedActivityHandle {
    * @param resultClass the class to deserialize the result into
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  <R> R getResult(Class<R> resultClass) throws ActivityFailedException;
+  <R> R getResult(Class<R> resultClass);
 
   /**
    * Blocks until the standalone activity completes and returns the typed result. Use this overload
@@ -49,7 +49,7 @@ public interface UntypedActivityHandle {
    * @param resultType the generic type to use for deserialization; may be {@code null}
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  <R> R getResult(Class<R> resultClass, @Nullable Type resultType) throws ActivityFailedException;
+  <R> R getResult(Class<R> resultClass, @Nullable Type resultType);
 
   /**
    * Returns a future that completes when the activity completes and resolves to the typed result.
