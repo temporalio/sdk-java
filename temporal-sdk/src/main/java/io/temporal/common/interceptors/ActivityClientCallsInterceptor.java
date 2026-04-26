@@ -30,12 +30,103 @@ import javax.annotation.Nullable;
 @Experimental
 public interface ActivityClientCallsInterceptor {
 
+  /**
+   * Schedules a standalone activity for execution. The activity type name, arguments, and
+   * scheduling options are carried in {@code input}.
+   *
+   * @param input activity type, raw arguments, scheduling options, and propagated header
+   * @return output containing the caller-supplied activity ID and the run ID assigned by the server
+   *     (if the server provides one)
+   * @throws ActivityAlreadyStartedException if an activity with the same ID is already running
+   */
   StartActivityOutput startActivity(StartActivityInput input)
       throws ActivityAlreadyStartedException;
 
+  /**
+   * Synchronously long-polls the server until the activity completes, then deserializes and returns
+   * the result. Loops automatically on empty long-poll responses (server-side timeout with no
+   * outcome yet). Blocks the calling thread for the duration.
+   *
+   * @param input activity ID, optional run ID, and result class and generic type
+   * @param <R> the expected result type
+   * @return output wrapping the deserialized activity result
+   * @throws ActivityFailedException if the activity failed or was cancelled
+   */
   <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws ActivityFailedException;
 
+  /**
+   * Returns the current execution description for a standalone activity. If a long-poll token from
+   * a prior call is present in {@code input}, the server blocks until the description changes or
+   * the poll times out, enabling efficient change detection.
+   *
+   * @param input activity ID, optional run ID, and optional long-poll token from a prior call
+   * @return output containing the {@link ActivityExecutionDescription}; the fresh long-poll token
+   *     for the next call is stored inside the returned {@link ActivityExecutionDescription}
+   */
+  DescribeActivityOutput describeActivity(DescribeActivityInput input);
+
+  /**
+   * Requests cooperative cancellation of a running standalone activity. The activity will receive a
+   * cancellation request on its next heartbeat; it may choose to honour or ignore it.
+   *
+   * @param input activity ID, optional run ID, and optional human-readable cancellation reason
+   * @return an empty output object (reserved for future use)
+   */
+  CancelActivityOutput cancelActivity(CancelActivityInput input);
+
+  /**
+   * Forcefully terminates a running standalone activity. Unlike cancellation, termination is
+   * immediate and cannot be caught or suppressed by the activity.
+   *
+   * @param input activity ID, optional run ID, and optional human-readable termination reason
+   * @return an empty output object (reserved for future use)
+   */
+  TerminateActivityOutput terminateActivity(TerminateActivityInput input);
+
+  /**
+   * Returns a lazy {@link java.util.stream.Stream} of activity execution metadata matching the
+   * Visibility query in {@code input}. Pages are fetched from the server on demand as the stream is
+   * consumed.
+   *
+   * @param input Visibility query string and listing options (e.g. page-size limit)
+   * @return output wrapping a stream of {@link ActivityExecutionMetadata}
+   */
+  ListActivitiesOutput listActivities(ListActivitiesInput input);
+
+  /**
+   * Returns a single page of activity execution metadata matching the Visibility query in {@code
+   * input}. The returned {@link ActivityListPage} includes a token that can be passed back in a
+   * subsequent call to retrieve the next page.
+   *
+   * @param input Visibility query string, optional next-page token, and pagination options
+   * @return output containing the page of results and a next-page token ({@code null} if last page)
+   */
+  ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input);
+
+  /**
+   * Returns the count of activity executions matching the Visibility query in {@code input}.
+   *
+   * @param input Visibility query string and count options
+   * @return output wrapping the {@link ActivityExecutionCount}
+   */
+  CountActivitiesOutput countActivities(CountActivitiesInput input);
+
+  /**
+   * Asynchronously polls for the activity result without blocking the calling thread. Returns a
+   * {@link CompletableFuture} that completes with the deserialized result when the activity
+   * succeeds, or completes exceptionally with {@link ActivityFailedException} on failure, or {@link
+   * java.util.concurrent.TimeoutException} if the deadline in {@code input} expires before the
+   * activity completes.
+   *
+   * <p>The default implementation wraps {@link #getActivityResult} in a {@link
+   * CompletableFuture#supplyAsync} call. Interceptors that want true non-blocking behavior should
+   * override this method.
+   *
+   * @param input activity ID, optional run ID, result class and generic type, and timeout
+   * @param <R> the expected result type
+   * @return a future that completes with output wrapping the deserialized activity result
+   */
   default <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
     return CompletableFuture.supplyAsync(
@@ -47,18 +138,6 @@ public interface ActivityClientCallsInterceptor {
           }
         });
   }
-
-  DescribeActivityOutput describeActivity(DescribeActivityInput input);
-
-  CancelActivityOutput cancelActivity(CancelActivityInput input);
-
-  TerminateActivityOutput terminateActivity(TerminateActivityInput input);
-
-  ListActivitiesOutput listActivities(ListActivitiesInput input);
-
-  ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input);
-
-  CountActivitiesOutput countActivities(CountActivitiesInput input);
 
   @Experimental
   final class StartActivityInput {
