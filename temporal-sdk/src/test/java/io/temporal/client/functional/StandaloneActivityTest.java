@@ -521,27 +521,6 @@ public class StandaloneActivityTest {
           ActivityExecutionCount count = client.countExecutions(query);
           assertEquals(5, count.getCount());
         });
-
-    assertEventually(
-        Duration.ofSeconds(30),
-        () -> {
-          ActivityListPaginatedOptions pageOpts =
-              ActivityListPaginatedOptions.newBuilder().setPageSize(2).build();
-
-          ActivityListPage first = client.listExecutionsPaginated(query, null, pageOpts);
-          assertEquals(2, first.getActivities().size());
-          assertNotNull(first.getNextPageToken());
-
-          ActivityListPage second =
-              client.listExecutionsPaginated(query, first.getNextPageToken(), pageOpts);
-          assertEquals(2, second.getActivities().size());
-          assertNotNull(second.getNextPageToken());
-
-          ActivityListPage third =
-              client.listExecutionsPaginated(query, second.getNextPageToken(), pageOpts);
-          assertEquals(1, third.getActivities().size());
-          assertNull(third.getNextPageToken());
-        });
   }
 
   @Test

@@ -3,10 +3,7 @@ package io.temporal.client;
 import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
-/**
- * Options for {@link ActivityClient#listExecutionsPaginated(String, byte[],
- * ActivityListPaginatedOptions)}.
- */
+/** Options for paginated activity execution listing. */
 @Experimental
 public final class ActivityListPaginatedOptions {
 

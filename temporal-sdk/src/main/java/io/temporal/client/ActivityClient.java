@@ -1348,17 +1348,6 @@ public interface ActivityClient {
   Stream<ActivityExecutionMetadata> listExecutions(String query, ActivityListOptions options);
 
   /**
-   * Returns a single page of activity executions matching the given query.
-   *
-   * @param query Temporal visibility query string
-   * @param nextPageToken token from a previous page, or {@code null} for the first page
-   * @param options pagination options such as page size
-   * @return a page of results and a token for the next page
-   */
-  ActivityListPage listExecutionsPaginated(
-      String query, @Nullable byte[] nextPageToken, ActivityListPaginatedOptions options);
-
-  /**
    * Returns the count of activity executions matching the given query.
    *
    * @param query Temporal visibility query string

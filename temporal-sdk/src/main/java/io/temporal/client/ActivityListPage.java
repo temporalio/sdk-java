@@ -8,8 +8,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * A single page of results from {@link ActivityClient#listExecutionsPaginated}. Use {@link
- * #getNextPageToken()} to fetch the next page; when it is {@code null}, there are no more pages.
+ * A single page of activity execution results. Use {@link #getNextPageToken()} to fetch the next
+ * page; when it is {@code null}, there are no more pages.
  */
 @Experimental
 public final class ActivityListPage {
@@ -29,10 +29,7 @@ public final class ActivityListPage {
     return activities;
   }
 
-  /**
-   * Token to pass to the next {@link ActivityClient#listExecutionsPaginated} call, or {@code null}
-   * if this is the last page.
-   */
+  /** Token to pass to the next paginated listing call, or {@code null} if this is the last page. */
   @Nullable
   public byte[] getNextPageToken() {
     return nextPageToken;

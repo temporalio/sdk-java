@@ -423,16 +423,6 @@ class ActivityClientImpl implements ActivityClient {
   }
 
   @Override
-  public ActivityListPage listExecutionsPaginated(
-      String query, @Nullable byte[] nextPageToken, ActivityListPaginatedOptions options) {
-    return invoker
-        .listActivitiesPaginated(
-            new ActivityClientCallsInterceptor.ListActivitiesPaginatedInput(
-                query, nextPageToken, options))
-        .getPage();
-  }
-
-  @Override
   public ActivityExecutionCount countExecutions(String query) {
     return countExecutions(query, ActivityCountOptions.newBuilder().build());
   }
