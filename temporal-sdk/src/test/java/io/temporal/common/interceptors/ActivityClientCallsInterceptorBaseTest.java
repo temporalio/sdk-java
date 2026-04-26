@@ -73,6 +73,22 @@ public class ActivityClientCallsInterceptorBaseTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  public void testGetActivityResultAsyncDelegatesToNext() {
+    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
+    java.util.concurrent.CompletableFuture<GetActivityResultOutput<String>> future =
+        java.util.concurrent.CompletableFuture.completedFuture(output);
+    when(next.getActivityResultAsync(any(GetActivityResultInput.class))).thenReturn(future);
+
+    GetActivityResultInput<String> input = new GetActivityResultInput<>("id", null, String.class);
+    java.util.concurrent.CompletableFuture<GetActivityResultOutput<String>> result =
+        base.getActivityResultAsync(input);
+
+    assertSame(future, result);
+    verify(next).getActivityResultAsync(input);
+  }
+
+  @Test
   public void testDescribeActivityDelegatesToNext() {
     ActivityExecutionDescription desc = mock(ActivityExecutionDescription.class);
     DescribeActivityOutput output = new DescribeActivityOutput(desc);
