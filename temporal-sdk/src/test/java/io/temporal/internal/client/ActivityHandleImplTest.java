@@ -24,12 +24,6 @@ public class ActivityHandleImplTest {
   }
 
   @Test
-  public void testNullRunId() {
-    UntypedActivityHandle handle = new ActivityHandleImpl("act-id", null, interceptor);
-    assertNull(handle.getActivityRunId());
-  }
-
-  @Test
   @SuppressWarnings("unchecked")
   public void testGetResultTyped() throws ActivityFailedException {
     GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);

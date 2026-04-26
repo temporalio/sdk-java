@@ -44,7 +44,7 @@ public interface ActivityCompletionClient {
    *
    * <p>Use this overload for standalone activities (not started from a workflow). For
    * workflow-scheduled activities, use {@link #complete(String, Optional, String, Object)}. To
-   * complete a standalone activity using a task token, use {@Link #complete(byte[], Object)}.
+   * complete a standalone activity using a task token, use {@link #complete(byte[], Object)}.
    *
    * @param activityId id of the standalone activity
    * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
@@ -81,7 +81,7 @@ public interface ActivityCompletionClient {
    *
    * <p>Use this overload for standalone activities (not started from a workflow). For
    * workflow-scheduled activities, use {@link #completeExceptionally(String, Optional, String,
-   * Exception)}. To complete a standalone activity with failure using a task token, use {@Link
+   * Exception)}. To complete a standalone activity with failure using a task token, use {@link
    * #completeExceptionally(byte[], Exception)}.
    *
    * @param activityId id of the standalone activity
@@ -121,7 +121,7 @@ public interface ActivityCompletionClient {
    * <p>Use this overload for standalone activities (not started from a workflow). For
    * workflow-scheduled activities, use {@link #reportCancellation(String, Optional, String,
    * Object)}. To confirm a successful cancellation of a standalone activity using a task token, use
-   * {@Link #reportCancellation(byte[], Object)}.
+   * {@link #reportCancellation(byte[], Object)}.
    *
    * @param activityId id of the standalone activity
    * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
@@ -160,7 +160,7 @@ public interface ActivityCompletionClient {
    *
    * <p>Use this overload for standalone activities (not started from a workflow). For
    * workflow-scheduled activities, use {@link #heartbeat(String, Optional, String, Object)}. To
-   * record a heartbeeat for a standalone activity using a task token, use {@Link #heartbeat(byte[],
+   * record a heartbeeat for a standalone activity using a task token, use {@link #heartbeat(byte[],
    * Object)}.
    *
    * @param activityId id of the standalone activity
