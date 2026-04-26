@@ -1,7 +1,6 @@
 package io.temporal.client;
 
 import io.temporal.common.Experimental;
-import io.temporal.failure.TemporalException;
 import javax.annotation.Nullable;
 
 /**
@@ -11,11 +10,9 @@ import javax.annotation.Nullable;
  * StartActivityOptions#getIdConflictPolicy()}).
  */
 @Experimental
-public final class ActivityAlreadyStartedException extends TemporalException {
+public final class ActivityAlreadyStartedException extends ActivityException {
 
-  private final String activityId;
   private final String activityType;
-  private final @Nullable String runId;
 
   public ActivityAlreadyStartedException(
       String activityId, String activityType, @Nullable String runId, Throwable cause) {
@@ -25,28 +22,14 @@ public final class ActivityAlreadyStartedException extends TemporalException {
             + "', activityType='"
             + activityType
             + (runId != null ? "', runId='" + runId + "'" : "'"),
+        activityId,
+        runId,
         cause);
-    this.activityId = activityId;
     this.activityType = activityType;
-    this.runId = runId;
-  }
-
-  /** The activity ID that was already in use. */
-  public String getActivityId() {
-    return activityId;
   }
 
   /** The activity type that was requested. */
   public String getActivityType() {
     return activityType;
-  }
-
-  /**
-   * The run ID of the existing activity execution, if available. May be null if the server does not
-   * provide it.
-   */
-  @Nullable
-  public String getRunId() {
-    return runId;
   }
 }

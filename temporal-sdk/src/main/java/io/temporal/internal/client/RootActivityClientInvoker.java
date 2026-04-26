@@ -146,6 +146,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
               "Interrupted while waiting for activity result for activityId='"
                   + input.getActivityId()
                   + "'",
+              input.getActivityId(),
+              input.getRunId(),
               new InterruptedException());
         }
         continue;
@@ -168,6 +170,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         case FAILURE:
           throw new ActivityFailedException(
               "Activity failed: activityId='" + input.getActivityId() + "'",
+              input.getActivityId(),
+              input.getRunId(),
               dc.failureToException(outcome.getFailure()));
         default:
           throw new ActivityFailedException(
@@ -176,6 +180,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
                   + "' for activityId='"
                   + input.getActivityId()
                   + "'",
+              input.getActivityId(),
+              input.getRunId(),
               null);
       }
     }
@@ -249,6 +255,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         throw new java.util.concurrent.CompletionException(
             new ActivityFailedException(
                 "Activity failed: activityId='" + input.getActivityId() + "'",
+                input.getActivityId(),
+                input.getRunId(),
                 dc.failureToException(outcome.getFailure())));
       default:
         throw new java.util.concurrent.CompletionException(
@@ -258,6 +266,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
                     + "' for activityId='"
                     + input.getActivityId()
                     + "'",
+                input.getActivityId(),
+                input.getRunId(),
                 null));
     }
   }

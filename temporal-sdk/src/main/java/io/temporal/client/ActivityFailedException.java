@@ -1,16 +1,17 @@
 package io.temporal.client;
 
 import io.temporal.common.Experimental;
-import io.temporal.failure.TemporalException;
+import javax.annotation.Nullable;
 
 /**
  * Thrown by {@link ActivityHandle#getResult()} when the standalone activity fails, times out, or is
  * cancelled. The original cause can be retrieved via {@link #getCause()}.
  */
 @Experimental
-public final class ActivityFailedException extends TemporalException {
+public final class ActivityFailedException extends ActivityException {
 
-  public ActivityFailedException(String message, Throwable cause) {
-    super(message, cause);
+  public ActivityFailedException(
+      String message, String activityId, @Nullable String runId, @Nullable Throwable cause) {
+    super(message, activityId, runId, cause);
   }
 }

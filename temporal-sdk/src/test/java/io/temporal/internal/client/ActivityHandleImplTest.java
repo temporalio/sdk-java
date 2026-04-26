@@ -207,7 +207,8 @@ public class ActivityHandleImplTest {
   @SuppressWarnings("unchecked")
   public void testGetResultAsyncWrapsActivityFailedExceptionInRuntimeException() throws Exception {
     ActivityFailedException failure =
-        new ActivityFailedException("activity failed", new RuntimeException("root cause"));
+        new ActivityFailedException(
+            "activity failed", "id", "run", new RuntimeException("root cause"));
     CompletableFuture<GetActivityResultOutput<String>> failed = new CompletableFuture<>();
     failed.completeExceptionally(failure);
     when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class))).thenReturn(failed);
