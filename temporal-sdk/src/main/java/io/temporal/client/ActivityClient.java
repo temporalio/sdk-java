@@ -49,7 +49,6 @@ public interface ActivityClient {
   /**
    * Starts a standalone activity using a typed interface and an unbound method reference, and
    * returns a typed handle. The activity type name is inferred from the method reference at runtime
-   * via a reflection proxy; the result type is captured from the generic type parameter.
    *
    * <p>Example:
    *
