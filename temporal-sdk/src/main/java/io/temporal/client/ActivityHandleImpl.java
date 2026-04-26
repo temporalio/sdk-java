@@ -11,13 +11,13 @@ import javax.annotation.Nullable;
  * ActivityHandle#fromUntyped(UntypedActivityHandle, Class)} or {@link
  * ActivityHandle#fromUntyped(UntypedActivityHandle, Class, Type)}.
  */
-final class ActivityHandleWrapper<R> implements ActivityHandle<R> {
+final class ActivityHandleImpl<R> implements ActivityHandle<R> {
 
   private final UntypedActivityHandle delegate;
   private final Class<R> resultClass;
   private final @Nullable Type resultType;
 
-  ActivityHandleWrapper(
+  ActivityHandleImpl(
       UntypedActivityHandle delegate, Class<R> resultClass, @Nullable Type resultType) {
     this.delegate = delegate;
     this.resultClass = resultClass;

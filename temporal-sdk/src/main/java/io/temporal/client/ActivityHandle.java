@@ -63,6 +63,6 @@ public interface ActivityHandle<R> extends UntypedActivityHandle {
    */
   static <R> ActivityHandle<R> fromUntyped(
       UntypedActivityHandle handle, Class<R> resultClass, @Nullable Type resultType) {
-    return new ActivityHandleWrapper<>(handle, resultClass, resultType);
+    return new ActivityHandleImpl<>(handle, resultClass, resultType);
   }
 }
