@@ -62,5 +62,4 @@ public class ActivityClientOptionsTest {
     assertSame(original.getDataConverter(), copy.getDataConverter());
     assertEquals(original.getInterceptors(), copy.getInterceptors());
   }
-
 }

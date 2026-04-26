@@ -3,12 +3,16 @@ package io.temporal.internal.client;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import com.google.common.reflect.TypeToken;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.ActivityHandle;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
+import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
@@ -49,7 +53,7 @@ public class ActivityHandleImplTest {
   }
 
   @Test
-  public void testDescribeNoOptions() {
+  public void testDescribeNoToken() {
     ActivityExecutionDescription desc = mock(ActivityExecutionDescription.class);
     DescribeActivityOutput output = new DescribeActivityOutput(desc);
     when(interceptor.describeActivity(any(DescribeActivityInput.class))).thenReturn(output);
@@ -121,14 +125,18 @@ public class ActivityHandleImplTest {
   @SuppressWarnings("unchecked")
   public void testFromUntypedWithExplicitTypePassesTypeToInterceptor()
       throws ActivityFailedException {
-    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
-    when(output.getResult()).thenReturn("generic-result");
+    // explicitType is a parameterized List<String> — distinct from List.class — so the verify
+    // below can only pass if the implementation forwards the Type arg, not the Class arg.
+    Type explicitType = new TypeToken<List<String>>() {}.getType();
+    GetActivityResultOutput<List<String>> output = mock(GetActivityResultOutput.class);
+    when(output.getResult()).thenReturn(Collections.singletonList("item"));
     when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
 
-    java.lang.reflect.Type explicitType = String.class;
     UntypedActivityHandle untyped = new ActivityHandleImpl("id", "run", interceptor);
-    ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class, explicitType);
-    assertEquals("generic-result", typed.getResult());
+    ActivityHandle<List<String>> typed =
+        ActivityHandle.fromUntyped(
+            untyped, (Class<List<String>>) (Class<?>) List.class, explicitType);
+    typed.getResult();
     verify(interceptor).getActivityResult(argThat(i -> explicitType.equals(i.getResultType())));
   }
 
@@ -199,7 +207,7 @@ public class ActivityHandleImplTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testGetResultAsyncWrapsActivityFailedExceptionInRuntimeException() throws Exception {
+  public void testGetResultAsyncPropagatesActivityFailedExceptionAsCause() throws Exception {
     ActivityFailedException failure =
         new ActivityFailedException(
             "activity failed", "id", "run", new RuntimeException("root cause"));
