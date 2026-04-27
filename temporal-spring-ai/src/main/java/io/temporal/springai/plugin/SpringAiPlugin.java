@@ -2,15 +2,16 @@ package io.temporal.springai.plugin;
 
 import io.temporal.common.SimplePlugin;
 import io.temporal.springai.activity.ChatModelActivityImpl;
+import io.temporal.springai.model.ChatModelTypes;
 import io.temporal.worker.Worker;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.lang.Nullable;
 
 /**
  * Core Temporal plugin that registers {@link io.temporal.springai.activity.ChatModelActivity} with
@@ -43,9 +44,6 @@ public class SpringAiPlugin extends SimplePlugin {
 
   private static final Logger log = LoggerFactory.getLogger(SpringAiPlugin.class);
 
-  /** The name used for the default chat model when none is specified. */
-  public static final String DEFAULT_MODEL_NAME = "default";
-
   private final Map<String, ChatModel> chatModels;
   private final String defaultModelName;
 
@@ -56,8 +54,8 @@ public class SpringAiPlugin extends SimplePlugin {
    */
   public SpringAiPlugin(ChatModel chatModel) {
     super("io.temporal.spring-ai");
-    this.chatModels = Map.of(DEFAULT_MODEL_NAME, chatModel);
-    this.defaultModelName = DEFAULT_MODEL_NAME;
+    this.chatModels = Map.of(ChatModelTypes.DEFAULT_MODEL_NAME, chatModel);
+    this.defaultModelName = ChatModelTypes.DEFAULT_MODEL_NAME;
   }
 
   /**
