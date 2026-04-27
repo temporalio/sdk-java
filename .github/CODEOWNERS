@@ -7,9 +7,9 @@
 * @temporalio/sdk
 
 
-# Below are owners for modules in the extensions/ directory
+# Below are owners for modules in the contrib/ directory
 # that are owned by teams other than the SDK team.
 # For each one, we add the owning team, as well as
 # @temporalio/sdk, so the SDK team can continue to
 # manage repo-wide concerns
-/extensions/temporal-spring-ai/ @temporalio/ai-sdk @temporalio/sdk
+/contrib/temporal-spring-ai/ @temporalio/ai-sdk @temporalio/sdk
