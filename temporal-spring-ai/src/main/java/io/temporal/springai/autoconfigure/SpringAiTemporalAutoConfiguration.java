@@ -1,5 +1,6 @@
 package io.temporal.springai.autoconfigure;
 
+import io.temporal.activity.ActivityOptions;
 import io.temporal.springai.plugin.SpringAiPlugin;
 import java.util.Map;
 import org.springframework.ai.chat.model.ChatModel;
@@ -28,9 +29,32 @@ import org.springframework.context.annotation.Bean;
     name = {"org.springframework.ai.chat.model.ChatModel", "io.temporal.worker.Worker"})
 public class SpringAiTemporalAutoConfiguration {
 
+  /**
+   * Builds the {@link SpringAiPlugin}. Picks up an optional {@link ChatModelActivityOptions} bean
+   * and forwards its map to the plugin as per-model {@link ActivityOptions} overrides. The wrapper
+   * type exists so this auto-config can inject user options <em>by type</em> — trying to inject
+   * {@code Map<String, ActivityOptions>} directly would trigger Spring's collection-of-beans
+   * autowiring and sweep in any unrelated {@link ActivityOptions} bean in the context.
+   *
+   * <p>Example user config:
+   *
+   * <pre>{@code
+   * @Bean
+   * ChatModelActivityOptions chatModelActivityOptions() {
+   *     return new ChatModelActivityOptions(Map.of(
+   *         "reasoning", ActivityOptions.newBuilder(ActivityChatModel.defaultActivityOptions())
+   *             .setStartToCloseTimeout(Duration.ofMinutes(15))
+   *             .build()));
+   * }
+   * }</pre>
+   */
   @Bean
   public SpringAiPlugin springAiPlugin(
-      @Autowired Map<String, ChatModel> chatModels, ObjectProvider<ChatModel> primaryChatModel) {
-    return new SpringAiPlugin(chatModels, primaryChatModel.getIfUnique());
+      @Autowired Map<String, ChatModel> chatModels,
+      ObjectProvider<ChatModel> primaryChatModel,
+      ObjectProvider<ChatModelActivityOptions> perModelOptions) {
+    ChatModelActivityOptions options =
+        perModelOptions.getIfAvailable(ChatModelActivityOptions::empty);
+    return new SpringAiPlugin(chatModels, primaryChatModel.getIfUnique(), options.byModelName());
   }
 }

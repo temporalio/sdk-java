@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.springai.activity.ChatModelActivity;
+import io.temporal.springai.plugin.SpringAiPlugin;
+import io.temporal.springai.plugin.SpringAiPluginOptions;
 import io.temporal.workflow.Workflow;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -130,16 +132,29 @@ public class ActivityChatModel implements ChatModel {
   }
 
   /**
-   * Creates an ActivityChatModel for the default chat model with the plugin's default {@link
-   * ActivityOptions} (2-minute start-to-close timeout, 3 attempts, clearly permanent AI errors
-   * marked non-retryable).
+   * Creates an ActivityChatModel for the default chat model.
+   *
+   * <p>Options resolution order:
+   *
+   * <ol>
+   *   <li>An entry registered on {@link SpringAiPlugin} under {@link
+   *       ChatModelTypes#DEFAULT_MODEL_NAME} in the per-model {@code ActivityOptions} map, if any.
+   *   <li>The plugin's default {@link ActivityOptions} (2-minute start-to-close, 3 attempts,
+   *       clearly permanent AI errors marked non-retryable).
+   * </ol>
+   *
+   * <p>Callers who want to set explicit options should use {@link #forDefault(ActivityOptions)} —
+   * explicit options bypass the registry entirely.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
    * @return an ActivityChatModel for the default chat model
    */
   public static ActivityChatModel forDefault() {
-    return forDefault(defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
+    ActivityOptions options =
+        SpringAiPluginOptions.optionsFor(ChatModelTypes.DEFAULT_MODEL_NAME)
+            .orElseGet(ActivityChatModel::defaultActivityOptions);
+    return forDefault(options);
   }
 
   /**
@@ -158,8 +173,21 @@ public class ActivityChatModel implements ChatModel {
   }
 
   /**
-   * Creates an ActivityChatModel for a specific chat model by bean name with the plugin's default
-   * {@link ActivityOptions}.
+   * Creates an ActivityChatModel for a specific chat model by bean name.
+   *
+   * <p>Options resolution order:
+   *
+   * <ol>
+   *   <li>An entry registered on {@link SpringAiPlugin} under {@code modelName} in the per-model
+   *       {@code ActivityOptions} map, if any.
+   *   <li>An entry registered under {@link ChatModelTypes#DEFAULT_MODEL_NAME} in the per-model map,
+   *       which acts as a user-declared catch-all for models without a specific entry.
+   *   <li>The plugin's default {@link ActivityOptions} (2-minute start-to-close, 3 attempts,
+   *       clearly permanent AI errors marked non-retryable).
+   * </ol>
+   *
+   * <p>Callers who want to set explicit options should use {@link #forModel(String,
+   * ActivityOptions)} — explicit options bypass the registry entirely.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
@@ -168,7 +196,11 @@ public class ActivityChatModel implements ChatModel {
    * @throws IllegalArgumentException if no model with that name exists (at activity runtime)
    */
   public static ActivityChatModel forModel(String modelName) {
-    return forModel(modelName, defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
+    ActivityOptions options =
+        SpringAiPluginOptions.optionsFor(modelName)
+            .or(() -> SpringAiPluginOptions.optionsFor(ChatModelTypes.DEFAULT_MODEL_NAME))
+            .orElseGet(ActivityChatModel::defaultActivityOptions);
+    return forModel(modelName, options);
   }
 
   /**
