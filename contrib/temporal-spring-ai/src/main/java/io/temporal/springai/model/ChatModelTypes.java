@@ -233,7 +233,18 @@ public final class ChatModelTypes {
         @JsonProperty("json_schema") String jsonSchema) {}
   }
 
-  /** Model options for the chat request. */
+  /**
+   * Model options for the chat request.
+   *
+   * <p>When {@code chatOptionsClass} and {@code chatOptionsJson} are both non-null, the activity
+   * side attempts to rehydrate the caller's exact {@link
+   * org.springframework.ai.chat.prompt.ChatOptions} subclass by loading the class and
+   * JSON-deserializing the blob. That path carries every field the caller set, including
+   * provider-specific ones like OpenAI {@code reasoning_effort} or Anthropic thinking-budget
+   * settings. If class loading or deserialization fails, or if the workflow side couldn't serialize
+   * the caller's options in the first place, the common scalar fields on this record are used as a
+   * fallback.
+   */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record ModelOptions(
@@ -244,5 +255,34 @@ public final class ChatModelTypes {
       @JsonProperty("stop_sequences") List<String> stopSequences,
       @JsonProperty("temperature") Double temperature,
       @JsonProperty("top_k") Integer topK,
-      @JsonProperty("top_p") Double topP) {}
+      @JsonProperty("top_p") Double topP,
+      @JsonProperty("chat_options_class") String chatOptionsClass,
+      @JsonProperty("chat_options_json") String chatOptionsJson) {
+
+    /**
+     * Convenience constructor for callers that only populate common scalar fields, keeping the
+     * existing call sites (tests and the prior activity impl) working unchanged.
+     */
+    public ModelOptions(
+        String model,
+        Double frequencyPenalty,
+        Integer maxTokens,
+        Double presencePenalty,
+        List<String> stopSequences,
+        Double temperature,
+        Integer topK,
+        Double topP) {
+      this(
+          model,
+          frequencyPenalty,
+          maxTokens,
+          presencePenalty,
+          stopSequences,
+          temperature,
+          topK,
+          topP,
+          null,
+          null);
+    }
+  }
 }
