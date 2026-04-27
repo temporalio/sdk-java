@@ -5,3 +5,11 @@
 # @temporalio/sdk will be requested for review when
 # someone opens a pull request.
 * @temporalio/sdk
+
+
+# Below are owners for modules in the contrib/ directory
+# that are owned by teams other than the SDK team.
+# For each one, we add the owning team, as well as
+# @temporalio/sdk, so the SDK team can continue to
+# manage repo-wide concerns
+/contrib/temporal-spring-ai/ @temporalio/ai-sdk @temporalio/sdk
