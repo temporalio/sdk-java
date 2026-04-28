@@ -1466,11 +1466,13 @@ public interface ActivityClient {
    * @return the activity result
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  <R> R execute(
+  default <R> R execute(
       String activityType,
       Class<R> resultClass,
       StartActivityOptions options,
-      @Nullable Object... args);
+      @Nullable Object... args) {
+    return start(activityType, resultClass, options, args).getResult();
+  }
 
   /**
    * Starts a standalone activity and blocks until it completes, for generic result types.
@@ -1484,12 +1486,14 @@ public interface ActivityClient {
    * @return the activity result
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  <R> R execute(
+  default <R> R execute(
       String activityType,
       Class<R> resultClass,
       Type resultType,
       StartActivityOptions options,
-      @Nullable Object... args);
+      @Nullable Object... args) {
+    return start(activityType, resultClass, resultType, options, args).getResult();
+  }
 
   /**
    * Starts a standalone activity and returns a future that completes when the activity does,
@@ -1513,11 +1517,13 @@ public interface ActivityClient {
    * @param <R> result type
    * @return a future that resolves to the activity result
    */
-  <R> CompletableFuture<R> executeAsync(
+  default <R> CompletableFuture<R> executeAsync(
       String activityType,
       Class<R> resultClass,
       StartActivityOptions options,
-      @Nullable Object... args);
+      @Nullable Object... args) {
+    return start(activityType, resultClass, options, args).getResultAsync();
+  }
 
   /**
    * Starts a standalone activity and returns a future, for generic result types.
@@ -1530,12 +1536,14 @@ public interface ActivityClient {
    * @param <R> result type
    * @return a future that resolves to the activity result
    */
-  <R> CompletableFuture<R> executeAsync(
+  default <R> CompletableFuture<R> executeAsync(
       String activityType,
       Class<R> resultClass,
       Type resultType,
       StartActivityOptions options,
-      @Nullable Object... args);
+      @Nullable Object... args) {
+    return start(activityType, resultClass, resultType, options, args).getResultAsync();
+  }
 
   /**
    * Returns an untyped handle to an existing standalone activity execution.
