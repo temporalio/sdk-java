@@ -38,21 +38,21 @@ public class ActivityExecutionDescriptionTest {
   @Test
   public void testNullRunIdWhenEmpty() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
     assertNull(desc.getActivityRunId());
   }
 
   @Test
   public void testScheduledTime() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
     assertEquals(Instant.ofEpochMilli(1000), desc.getScheduledTime());
   }
 
   @Test
   public void testHasHeartbeatDetailsAbsent() {
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(buildInfo("id", "run"), CONVERTER, "test-ns");
     assertFalse(desc.hasHeartbeatDetails());
     assertFalse(desc.getHeartbeatDetails(String.class).isPresent());
   }
@@ -63,7 +63,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     assertTrue(desc.hasHeartbeatDetails());
     Optional<String> result = desc.getHeartbeatDetails(String.class);
@@ -79,7 +79,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setHeartbeatDetails(encoded).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     Type genericType = new TypeToken<List<String>>() {}.getType();
     Class<List<String>> listClass = (Class<List<String>>) (Class<?>) List.class;
@@ -98,7 +98,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setLastDeploymentVersion(protoVersion).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     WorkerDeploymentVersion version = desc.getWorkerDeploymentVersion();
     assertNotNull(version);
@@ -113,7 +113,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionInfo info =
         buildInfo("id", "run").toBuilder().setPriority(protoPriority).build();
     ActivityExecutionDescription desc =
-        new ActivityExecutionDescription(info, CONVERTER, "test-ns", null);
+        new ActivityExecutionDescription(info, CONVERTER, "test-ns");
 
     Priority priority = desc.getPriority();
     assertNotNull(priority);

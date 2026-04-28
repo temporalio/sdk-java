@@ -86,11 +86,6 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public ActivityExecutionDescription describe(@Nullable byte[] longPollToken) {
-    return delegate.describe(longPollToken);
-  }
-
-  @Override
   public void cancel() {
     delegate.cancel();
   }

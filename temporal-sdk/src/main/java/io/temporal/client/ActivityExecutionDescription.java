@@ -30,13 +30,9 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   private final ActivityExecutionInfo info;
   private final DataConverter dataConverter;
   private final String namespace;
-  private final @Nullable byte[] longPollToken;
 
   public ActivityExecutionDescription(
-      ActivityExecutionInfo info,
-      DataConverter dataConverter,
-      String namespace,
-      @Nullable byte[] longPollToken) {
+      ActivityExecutionInfo info, DataConverter dataConverter, String namespace) {
     super(
         null,
         info.getActivityId(),
@@ -55,7 +51,6 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     this.info = info;
     this.dataConverter = dataConverter;
     this.namespace = namespace;
-    this.longPollToken = longPollToken;
   }
 
   private static @Nullable String nullIfEmpty(String s) {
@@ -146,15 +141,6 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   public String getLastWorkerIdentity() {
     String w = info().getLastWorkerIdentity();
     return w.isEmpty() ? null : w;
-  }
-
-  /**
-   * Token for a follow-on {@link UntypedActivityHandle#describe(byte[])} call. Pass this token to
-   * long-poll until the activity state changes. {@code null} when the activity is complete.
-   */
-  @Nullable
-  public byte[] getLongPollToken() {
-    return longPollToken;
   }
 
   /** Time when the next retry attempt will be scheduled. */

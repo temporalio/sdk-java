@@ -411,43 +411,6 @@ public class StandaloneActivityTest {
   }
 
   @Test
-  public void testDescribeLongPollObservesCompletion() throws Exception {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    asyncStartLatch = new CountDownLatch(1);
-    try {
-      ActivityClient client = newActivityClient();
-      ActivityHandle<String> handle =
-          client.start(
-              AsyncCompletionActivity.class,
-              AsyncCompletionActivity::complete,
-              simpleOpts(uniqueId()));
-
-      assertTrue("Activity did not start within 30s", asyncStartLatch.await(30, TimeUnit.SECONDS));
-
-      ActivityExecutionDescription desc = handle.describe();
-      assertEquals(ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_RUNNING, desc.getStatus());
-      assertNotNull("Running activity must have a long-poll token", desc.getLongPollToken());
-
-      // Long-poll in background — blocks until server detects a state change
-      CompletableFuture<ActivityExecutionDescription> longPollFuture =
-          CompletableFuture.supplyAsync(() -> handle.describe(desc.getLongPollToken()));
-
-      // Complete the activity externally so the server unblocks the poll
-      client
-          .newActivityCompletionClient()
-          .completeStandalone(asyncActivityId, Optional.empty(), "long-poll-result");
-
-      ActivityExecutionDescription updated = longPollFuture.get(30, TimeUnit.SECONDS);
-      assertEquals(
-          ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_COMPLETED, updated.getStatus());
-    } finally {
-      asyncStartLatch = null;
-      asyncActivityId = null;
-      asyncActivityRunId = null;
-    }
-  }
-
-  @Test
   public void testCancelRunningActivitySucceeds() throws InterruptedException {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     cancelLatch = new CountDownLatch(1);

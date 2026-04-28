@@ -95,18 +95,6 @@ public interface UntypedActivityHandle {
   ActivityExecutionDescription describe();
 
   /**
-   * Long-polls until the activity state changes from the state encoded in {@code longPollToken},
-   * then returns the updated description. Pass the token from a previous {@link #describe()} call
-   * via {@link ActivityExecutionDescription#getLongPollToken()}. If {@code longPollToken} is {@code
-   * null}, returns the current state immediately (equivalent to {@link #describe()}).
-   *
-   * @param longPollToken token from a previous describe response, or {@code null} for an immediate
-   *     snapshot
-   * @return updated description of the activity
-   */
-  ActivityExecutionDescription describe(@Nullable byte[] longPollToken);
-
-  /**
    * Requests cancellation of the activity. The activity will receive a cancellation via {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)}.
    */
