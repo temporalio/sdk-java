@@ -1608,15 +1608,6 @@ public interface ActivityClient {
   ActivityExecutionCount countExecutions(String query);
 
   /**
-   * Returns the count of activity executions matching the given query, with options.
-   *
-   * @param query Temporal visibility query string
-   * @param options count options
-   * @return execution count, optionally with aggregation groups
-   */
-  ActivityExecutionCount countExecutions(String query, ActivityCountOptions options);
-
-  /**
    * Creates a new {@link ActivityCompletionClient} for completing activities asynchronously using a
    * task token or activity ID.
    *

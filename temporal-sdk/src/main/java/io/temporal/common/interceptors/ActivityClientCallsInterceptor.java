@@ -1,7 +1,6 @@
 package io.temporal.common.interceptors;
 
 import io.temporal.client.ActivityAlreadyStartedException;
-import io.temporal.client.ActivityCountOptions;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
@@ -435,19 +434,13 @@ public interface ActivityClientCallsInterceptor {
   @Experimental
   final class CountActivitiesInput {
     private final String query;
-    private final ActivityCountOptions options;
 
-    public CountActivitiesInput(String query, ActivityCountOptions options) {
+    public CountActivitiesInput(String query) {
       this.query = query;
-      this.options = options;
     }
 
     public String getQuery() {
       return query;
-    }
-
-    public ActivityCountOptions getOptions() {
-      return options;
     }
   }
 

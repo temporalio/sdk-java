@@ -3,7 +3,6 @@ package io.temporal.common.interceptors;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import io.temporal.client.ActivityCountOptions;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
@@ -145,8 +144,7 @@ public class ActivityClientCallsInterceptorBaseTest {
     CountActivitiesOutput output = new CountActivitiesOutput(count);
     when(next.countActivities(any(CountActivitiesInput.class))).thenReturn(output);
 
-    CountActivitiesInput input =
-        new CountActivitiesInput("query", ActivityCountOptions.newBuilder().build());
+    CountActivitiesInput input = new CountActivitiesInput("query");
     CountActivitiesOutput result = base.countActivities(input);
 
     assertSame(output, result);

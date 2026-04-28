@@ -424,13 +424,8 @@ class ActivityClientImpl implements ActivityClient {
 
   @Override
   public ActivityExecutionCount countExecutions(String query) {
-    return countExecutions(query, ActivityCountOptions.newBuilder().build());
-  }
-
-  @Override
-  public ActivityExecutionCount countExecutions(String query, ActivityCountOptions options) {
     return invoker
-        .countActivities(new ActivityClientCallsInterceptor.CountActivitiesInput(query, options))
+        .countActivities(new ActivityClientCallsInterceptor.CountActivitiesInput(query))
         .getCount();
   }
 
