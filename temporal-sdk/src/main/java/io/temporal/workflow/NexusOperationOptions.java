@@ -5,7 +5,7 @@ import java.time.Duration;
 import java.util.Objects;
 
 /**
- * NexusOperationOptions is used to specify the options for starting a Nexus operation from a
+ * NexusClientOperationOptions is used to specify the options for starting a Nexus operation from a
  * Workflow.
  *
  * <p>Use {@link NexusOperationOptions#newBuilder()} to construct an instance.
@@ -228,7 +228,7 @@ public final class NexusOperationOptions {
 
   @Override
   public String toString() {
-    return "NexusOperationOptions{"
+    return "NexusClientOperationOptions{"
         + "scheduleToCloseTimeout="
         + scheduleToCloseTimeout
         + ", scheduleToStartTimeout="
