@@ -1,5 +1,6 @@
 package io.temporal.common.interceptors;
 
+import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityCountOptions;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
