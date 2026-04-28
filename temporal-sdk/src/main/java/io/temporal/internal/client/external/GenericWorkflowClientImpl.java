@@ -309,6 +309,124 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
+  //TODO -- EVAN -- START
+  @Override
+  public StartNexusOperationExecutionResponse startNexusOperationExecution(
+      @Nonnull StartNexusOperationExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .startNexusOperationExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
+      @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                .withDeadline(deadline)
+                .describeNexusOperationExecution(request),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  @Override
+  public PollNexusOperationExecutionResponse pollNexusOperationExecution(
+      @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                .withDeadline(deadline)
+                .pollNexusOperationExecution(request),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  @Override
+  public CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
+      @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                    .withDeadline(deadline)
+                    .pollNexusOperationExecution(request)),
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+  }
+
+  @Override
+  public ListNexusOperationExecutionsResponse listNexusOperationExecutions(
+      @Nonnull ListNexusOperationExecutionsRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .listNexusOperationExecutions(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CountNexusOperationExecutionsResponse countNexusOperationExecutions(
+      @Nonnull CountNexusOperationExecutionsRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .countNexusOperationExecutions(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public RequestCancelNexusOperationExecutionResponse requestCancelNexusOperationExecution(
+      @Nonnull RequestCancelNexusOperationExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .requestCancelNexusOperationExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public TerminateNexusOperationExecutionResponse terminateNexusOperationExecution(
+      @Nonnull TerminateNexusOperationExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .terminateNexusOperationExecution(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public DeleteNexusOperationExecutionResponse deleteNexusOperationExecution(
+      @Nonnull DeleteNexusOperationExecutionRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .deleteNexusOperationExecution(request),
+        grpcRetryerOptions);
+  }
+
+  //TODO -- EVAN -- END
   private static <T> CompletableFuture<T> toCompletableFuture(
       ListenableFuture<T> listenableFuture) {
     CompletableFuture<T> result = new CompletableFuture<>();
