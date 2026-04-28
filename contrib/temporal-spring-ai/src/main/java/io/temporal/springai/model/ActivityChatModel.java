@@ -1,8 +1,12 @@
 package io.temporal.springai.model;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.springai.activity.ChatModelActivity;
+import io.temporal.springai.plugin.SpringAiPlugin;
+import io.temporal.springai.plugin.SpringAiPluginOptions;
 import io.temporal.workflow.Workflow;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -63,6 +67,32 @@ import reactor.core.publisher.Flux;
  */
 public class ActivityChatModel implements ChatModel {
 
+  private static final org.slf4j.Logger log =
+      org.slf4j.LoggerFactory.getLogger(ActivityChatModel.class);
+
+  /**
+   * Used to serialize the caller's {@link ChatOptions} into a string so the activity side can
+   * rehydrate the exact subclass. Plain Jackson with no Temporal-specific configuration — the
+   * output goes into a {@code String} field of {@link ChatModelTypes.ModelOptions}, which
+   * Temporal's own data converter then handles as normal.
+   */
+  private static final ObjectMapper OPTIONS_MAPPER =
+      new ObjectMapper().addMixIn(ToolCallingChatOptions.class, ToolCallingChatOptionsMixin.class);
+
+  /**
+   * Jackson mixin that skips {@link ToolCallingChatOptions}'s tool-callback bag on serialization.
+   * Tool definitions cross the activity boundary via {@link ChatModelTypes.FunctionTool} — the
+   * actual callbacks are re-stubbed on the activity side — so we don't need to ship them, and their
+   * concrete implementations (method tool callbacks, activity proxies, etc.) are not
+   * Jackson-friendly.
+   */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties({
+    "toolCallbacks",
+    "toolNames",
+    "toolContext"
+  })
+  private abstract static class ToolCallingChatOptionsMixin {}
+
   /** Default timeout for chat model activity calls (2 minutes). */
   public static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(2);
 
@@ -102,16 +132,29 @@ public class ActivityChatModel implements ChatModel {
   }
 
   /**
-   * Creates an ActivityChatModel for the default chat model with the plugin's default {@link
-   * ActivityOptions} (2-minute start-to-close timeout, 3 attempts, clearly permanent AI errors
-   * marked non-retryable).
+   * Creates an ActivityChatModel for the default chat model.
+   *
+   * <p>Options resolution order:
+   *
+   * <ol>
+   *   <li>An entry registered on {@link SpringAiPlugin} under {@link
+   *       ChatModelTypes#DEFAULT_MODEL_NAME} in the per-model {@code ActivityOptions} map, if any.
+   *   <li>The plugin's default {@link ActivityOptions} (2-minute start-to-close, 3 attempts,
+   *       clearly permanent AI errors marked non-retryable).
+   * </ol>
+   *
+   * <p>Callers who want to set explicit options should use {@link #forDefault(ActivityOptions)} —
+   * explicit options bypass the registry entirely.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
    * @return an ActivityChatModel for the default chat model
    */
   public static ActivityChatModel forDefault() {
-    return forDefault(defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
+    ActivityOptions options =
+        SpringAiPluginOptions.optionsFor(ChatModelTypes.DEFAULT_MODEL_NAME)
+            .orElseGet(ActivityChatModel::defaultActivityOptions);
+    return forDefault(options);
   }
 
   /**
@@ -130,8 +173,21 @@ public class ActivityChatModel implements ChatModel {
   }
 
   /**
-   * Creates an ActivityChatModel for a specific chat model by bean name with the plugin's default
-   * {@link ActivityOptions}.
+   * Creates an ActivityChatModel for a specific chat model by bean name.
+   *
+   * <p>Options resolution order:
+   *
+   * <ol>
+   *   <li>An entry registered on {@link SpringAiPlugin} under {@code modelName} in the per-model
+   *       {@code ActivityOptions} map, if any.
+   *   <li>An entry registered under {@link ChatModelTypes#DEFAULT_MODEL_NAME} in the per-model map,
+   *       which acts as a user-declared catch-all for models without a specific entry.
+   *   <li>The plugin's default {@link ActivityOptions} (2-minute start-to-close, 3 attempts,
+   *       clearly permanent AI errors marked non-retryable).
+   * </ol>
+   *
+   * <p>Callers who want to set explicit options should use {@link #forModel(String,
+   * ActivityOptions)} — explicit options bypass the registry entirely.
    *
    * <p><strong>Must be called from workflow code.</strong>
    *
@@ -140,7 +196,11 @@ public class ActivityChatModel implements ChatModel {
    * @throws IllegalArgumentException if no model with that name exists (at activity runtime)
    */
   public static ActivityChatModel forModel(String modelName) {
-    return forModel(modelName, defaultActivityOptions(DEFAULT_TIMEOUT, DEFAULT_MAX_ATTEMPTS));
+    ActivityOptions options =
+        SpringAiPluginOptions.optionsFor(modelName)
+            .or(() -> SpringAiPluginOptions.optionsFor(ChatModelTypes.DEFAULT_MODEL_NAME))
+            .orElseGet(ActivityChatModel::defaultActivityOptions);
+    return forModel(modelName, options);
   }
 
   /**
@@ -269,10 +329,24 @@ public class ActivityChatModel implements ChatModel {
             .flatMap(msg -> toActivityMessages(msg).stream())
             .collect(Collectors.toList());
 
-    // Convert options
+    // Convert options — carry both the common scalars (fallback path) and a serialized blob of
+    // the caller's exact ChatOptions subclass (primary path on the activity side, which
+    // preserves provider-specific fields like OpenAI reasoning_effort).
     ChatModelTypes.ModelOptions modelOptions = null;
     if (prompt.getOptions() != null) {
       ChatOptions opts = prompt.getOptions();
+      String chatOptionsClass = null;
+      String chatOptionsJson = null;
+      try {
+        chatOptionsJson = OPTIONS_MAPPER.writeValueAsString(opts);
+        chatOptionsClass = opts.getClass().getName();
+      } catch (JsonProcessingException e) {
+        log.debug(
+            "Could not JSON-serialize ChatOptions of type {}; activity will fall back to"
+                + " common-field path. Cause: {}",
+            opts.getClass().getName(),
+            e.getMessage());
+      }
       modelOptions =
           new ChatModelTypes.ModelOptions(
               opts.getModel(),
@@ -282,7 +356,9 @@ public class ActivityChatModel implements ChatModel {
               opts.getStopSequences(),
               opts.getTemperature(),
               opts.getTopK(),
-              opts.getTopP());
+              opts.getTopP(),
+              chatOptionsClass,
+              chatOptionsJson);
     }
 
     // Convert tool definitions

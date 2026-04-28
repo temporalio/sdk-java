@@ -1,5 +1,6 @@
 package io.temporal.springai.activity;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.temporal.springai.model.ChatModelTypes;
 import io.temporal.springai.model.ChatModelTypes.Message;
 import java.net.URI;
@@ -7,9 +8,12 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
@@ -29,6 +33,25 @@ import org.springframework.util.MimeType;
  * in the input. If no model name is specified, the default model is used.
  */
 public class ChatModelActivityImpl implements ChatModelActivity {
+
+  private static final Logger log = LoggerFactory.getLogger(ChatModelActivityImpl.class);
+
+  /**
+   * Reads the caller's {@link ChatOptions} back out of the serialized JSON carried on {@link
+   * ChatModelTypes.ModelOptions}. Plain Jackson — the workflow side wrote the blob with a matching
+   * plain {@link ObjectMapper}.
+   */
+  private static final ObjectMapper OPTIONS_MAPPER =
+      new ObjectMapper().addMixIn(ToolCallingChatOptions.class, ToolCallingChatOptionsMixin.class);
+
+  /**
+   * Mirror of the mixin in {@code ActivityChatModel} so deserialization ignores the same tool-bag
+   * properties the workflow side skipped.
+   */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties(
+      value = {"toolCallbacks", "toolNames", "toolContext"},
+      ignoreUnknown = true)
+  private abstract static class ToolCallingChatOptionsMixin {}
 
   private final Map<String, ChatModel> chatModels;
   private final String defaultModelName;
@@ -77,6 +100,32 @@ public class ChatModelActivityImpl implements ChatModelActivity {
     List<org.springframework.ai.chat.messages.Message> messages =
         input.messages().stream().map(this::toSpringMessage).collect(Collectors.toList());
 
+    List<ToolCallback> toolCallbacks = stubToolCallbacks(input);
+
+    // Primary path: rehydrate the caller's exact ChatOptions subclass from the serialized blob.
+    // Preserves provider-specific fields (OpenAI reasoning_effort, Anthropic thinking budget,
+    // etc.) that aren't representable in the common ModelOptions record.
+    ChatOptions rehydrated = tryRehydrateChatOptions(input.modelOptions());
+    if (rehydrated instanceof ToolCallingChatOptions tcOpts) {
+      tcOpts.setInternalToolExecutionEnabled(false);
+      if (!toolCallbacks.isEmpty()) {
+        tcOpts.setToolCallbacks(toolCallbacks);
+      }
+      return Prompt.builder().messages(messages).chatOptions(tcOpts).build();
+    }
+    if (rehydrated != null) {
+      // Caller's ChatOptions isn't a ToolCallingChatOptions. Accept it as-is; tool callbacks
+      // can't be attached via this path, but most provider options in practice are
+      // ToolCallingChatOptions subclasses so this branch is a rare fallback.
+      log.debug(
+          "Rehydrated ChatOptions {} is not a ToolCallingChatOptions; tool callbacks will be"
+              + " omitted for this call.",
+          rehydrated.getClass().getName());
+      return Prompt.builder().messages(messages).chatOptions(rehydrated).build();
+    }
+
+    // Fallback path: no serialized blob, or rehydration failed. Build a ToolCallingChatOptions
+    // from the common scalar fields.
     ToolCallingChatOptions.Builder optionsBuilder =
         ToolCallingChatOptions.builder()
             .internalToolExecutionEnabled(false); // Let workflow handle tool execution
@@ -93,24 +142,63 @@ public class ChatModelActivityImpl implements ChatModelActivity {
       if (opts.stopSequences() != null) optionsBuilder.stopSequences(opts.stopSequences());
     }
 
-    // Add tool callbacks (stubs that provide definitions but won't be executed
-    // since internalToolExecutionEnabled is false)
-    if (!CollectionUtils.isEmpty(input.tools())) {
-      List<ToolCallback> toolCallbacks =
-          input.tools().stream()
-              .map(
-                  tool ->
-                      createStubToolCallback(
-                          tool.function().name(),
-                          tool.function().description(),
-                          tool.function().jsonSchema()))
-              .collect(Collectors.toList());
+    if (!toolCallbacks.isEmpty()) {
       optionsBuilder.toolCallbacks(toolCallbacks);
     }
 
-    ToolCallingChatOptions chatOptions = optionsBuilder.build();
+    return Prompt.builder().messages(messages).chatOptions(optionsBuilder.build()).build();
+  }
 
-    return Prompt.builder().messages(messages).chatOptions(chatOptions).build();
+  private List<ToolCallback> stubToolCallbacks(ChatModelTypes.ChatModelActivityInput input) {
+    if (CollectionUtils.isEmpty(input.tools())) {
+      return List.of();
+    }
+    return input.tools().stream()
+        .map(
+            tool ->
+                createStubToolCallback(
+                    tool.function().name(),
+                    tool.function().description(),
+                    tool.function().jsonSchema()))
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Attempts to rehydrate the caller's exact {@link ChatOptions} subclass from the serialized blob
+   * in {@code modelOptions}. Returns {@code null} if the blob is absent or rehydration fails, in
+   * which case the caller should use the common-field fallback.
+   */
+  private ChatOptions tryRehydrateChatOptions(ChatModelTypes.ModelOptions modelOptions) {
+    if (modelOptions == null
+        || modelOptions.chatOptionsClass() == null
+        || modelOptions.chatOptionsJson() == null) {
+      return null;
+    }
+    String className = modelOptions.chatOptionsClass();
+    try {
+      Class<?> cls = Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+      if (!ChatOptions.class.isAssignableFrom(cls)) {
+        log.warn(
+            "Serialized ChatOptions class {} is not a ChatOptions; falling back to common fields.",
+            className);
+        return null;
+      }
+      return (ChatOptions) OPTIONS_MAPPER.readValue(modelOptions.chatOptionsJson(), cls);
+    } catch (ClassNotFoundException e) {
+      log.warn(
+          "Could not load ChatOptions class {} on the activity side; falling back to common"
+              + " fields. This typically means spring-ai-<provider> is not on this worker's"
+              + " classpath.",
+          className);
+      return null;
+    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+      log.warn(
+          "Could not deserialize ChatOptions of type {} on the activity side; falling back to"
+              + " common fields. Cause: {}",
+          className,
+          e.getMessage());
+      return null;
+    }
   }
 
   private org.springframework.ai.chat.messages.Message toSpringMessage(Message message) {
