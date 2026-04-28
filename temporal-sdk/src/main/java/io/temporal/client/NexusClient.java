@@ -1,14 +1,23 @@
 package io.temporal.client;
 
-import io.grpc.Deadline;
-import io.temporal.api.workflowservice.v1.*;
+import io.temporal.client.NexusClientInterceptor.CountNexusOperationExecutionsInput;
+import io.temporal.client.NexusClientInterceptor.CountNexusOperationExecutionsOutput;
+import io.temporal.client.NexusClientInterceptor.DeleteNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.DescribeNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.DescribeNexusOperationExecutionOutput;
+import io.temporal.client.NexusClientInterceptor.ListNexusOperationExecutionsInput;
+import io.temporal.client.NexusClientInterceptor.ListNexusOperationExecutionsOutput;
+import io.temporal.client.NexusClientInterceptor.PollNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.PollNexusOperationExecutionOutput;
+import io.temporal.client.NexusClientInterceptor.RequestCancelNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.StartNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.StartNexusOperationExecutionOutput;
+import io.temporal.client.NexusClientInterceptor.TerminateNexusOperationExecutionInput;
 import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 
 /**
  * Handle for interacting with a standalone Nexus operation execution.
@@ -18,92 +27,58 @@ import java.util.concurrent.CompletableFuture;
  */
 @Experimental
 public interface NexusClient {
-  public static NexusClient newInstance(WorkflowServiceStubs service) {
+  static NexusClient newInstance(WorkflowServiceStubs service) {
     return NexusClientImpl.newInstance(service, NexusClientOperationOptions.getDefaultInstance());
   }
 
-  //Look at ScheduleClientOptions for an example
-  public static NexusClient newInstance(WorkflowServiceStubs service, NexusClientOperationOptions options) {
-    return NexusClientImpl.newInstance(service, options());
+  static NexusClient newInstance(
+      WorkflowServiceStubs service, NexusClientOperationOptions options) {
+    return NexusClientImpl.newInstance(service, options);
   }
 
+  NexusClientHandle getHandle(String scheduleID);
 
-  public NexusClientHandle getHandle(String scheduleID);
+  UntypedNexusClientHandle getHandle(String operationId, @Nullable String operationRunId);
 
-
-  UntypedNexusClientHandle getHandle(
-          String operationId,
-          @Nullable String operationRunId);
-
-
-  //Handle is a pointer to an already started workflow
-  //I will need to create this handle
-  //Create a NexusOperationHandlerImpl and pass everything needed in
-  //to create this handle
-  //Follow what schedule client does
-  //See it's get handle. etc
-
-  /// Obtains typed handle to existing operations.
+  /** Obtains typed handle to existing operations. */
   <R> NexusClientHandle<R> getHandle(
-          String operationId,
-          @Nullable String operationRunId,
-          Class<R> resultClass);
+      String operationId, @Nullable String operationRunId, Class<R> resultClass);
 
-  /// Obtains typed handle to existing operations.
-  /// For use with generic return types.
+  /** Obtains typed handle to existing operations. For use with generic return types. */
   <R> NexusClientHandle<R> getHandle(
-          String operationId,
-          @Nullable String operationRunId,
-          Class<R> resultClass,
-          @Nullable Type resultType);
+      String operationId,
+      @Nullable String operationRunId,
+      Class<R> resultClass,
+      @Nullable Type resultType);
 
-  //untyped -- see the notion doc
-  //untyped means I don't have the services type, ust the name
   UntypedNexusServiceClient newUntypeNexusServiceClient();
 
   <R> NexusServiceClient<R> newNexusServiceClient();
 
+  StartNexusOperationExecutionOutput startNexusOperationExecution(
+      StartNexusOperationExecutionInput input);
 
+  DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
+      DescribeNexusOperationExecutionInput input);
 
+  CompletableFuture<DescribeNexusOperationExecutionOutput> describeNexusOperationExecutionAsync(
+      DescribeNexusOperationExecutionInput input);
 
-  //ListNexusOperationExecutionsResponse -- look at the go code to see this
-  //It is everything we expose for a list
-  //This should call the nexus list operation
-  //Again, look at schedule client to see or the ListWorkflowExecutionsOutput om WorkflowClientCallsInterceptor
-//  Stream<NexusOperationExecutionMetadata> listNexusOperations(String query);
-//
-//  NexusOperationExecutionCount countNexusOperations(String query);
-//TODO - EVAN
+  PollNexusOperationExecutionOutput pollNexusOperationExecution(
+      PollNexusOperationExecutionInput input);
 
+  CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
+      PollNexusOperationExecutionInput input);
 
-  StartNexusOperationExecutionResponse startNexusOperationExecution(
-          @Nonnull StartNexusOperationExecutionRequest request);
+  ListNexusOperationExecutionsOutput listNexusOperationExecutions(
+      ListNexusOperationExecutionsInput input);
 
-  DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
-          @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+  CountNexusOperationExecutionsOutput countNexusOperationExecutions(
+      CountNexusOperationExecutionsInput input);
 
-  CompletableFuture<DescribeNexusOperationExecutionResponse> describeNexusOperationExecutionAsync(
-          @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+  void requestCancelNexusOperationExecution(RequestCancelNexusOperationExecutionInput input);
 
-  PollNexusOperationExecutionResponse pollNexusOperationExecution(
-          @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+  void terminateNexusOperationExecution(TerminateNexusOperationExecutionInput input);
 
-  CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
-          @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
-
-  ListNexusOperationExecutionsResponse listNexusOperationExecutions(
-          @Nonnull ListNexusOperationExecutionsRequest request);
-
-  CountNexusOperationExecutionsResponse countNexusOperationExecutions(
-          @Nonnull CountNexusOperationExecutionsRequest request);
-
-  RequestCancelNexusOperationExecutionResponse requestCancelNexusOperationExecution(
-          @Nonnull RequestCancelNexusOperationExecutionRequest request);
-
-  TerminateNexusOperationExecutionResponse terminateNexusOperationExecution(
-          @Nonnull TerminateNexusOperationExecutionRequest request);
-
-  DeleteNexusOperationExecutionResponse deleteNexusOperationExecution(
-          @Nonnull DeleteNexusOperationExecutionRequest request);
-
+  void deleteNexusOperationExecution(DeleteNexusOperationExecutionInput input);
 }

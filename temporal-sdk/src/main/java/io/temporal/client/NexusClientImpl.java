@@ -1,31 +1,36 @@
 package io.temporal.client;
 
+import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
+
 import com.uber.m3.tally.Scope;
-import io.grpc.Deadline;
-import io.temporal.api.workflowservice.v1.*;
+import io.temporal.client.NexusClientInterceptor.CountNexusOperationExecutionsInput;
+import io.temporal.client.NexusClientInterceptor.CountNexusOperationExecutionsOutput;
+import io.temporal.client.NexusClientInterceptor.DeleteNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.DescribeNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.DescribeNexusOperationExecutionOutput;
+import io.temporal.client.NexusClientInterceptor.ListNexusOperationExecutionsInput;
+import io.temporal.client.NexusClientInterceptor.ListNexusOperationExecutionsOutput;
+import io.temporal.client.NexusClientInterceptor.PollNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.PollNexusOperationExecutionOutput;
+import io.temporal.client.NexusClientInterceptor.RequestCancelNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.StartNexusOperationExecutionInput;
+import io.temporal.client.NexusClientInterceptor.StartNexusOperationExecutionOutput;
+import io.temporal.client.NexusClientInterceptor.TerminateNexusOperationExecutionInput;
 import io.temporal.common.Experimental;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
+import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import java.lang.reflect.Type;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
-
-/**
- * Handle for interacting with a standalone Nexus operation execution.
- *
- * <p>Returned by {@link WorkflowClient} when starting a Nexus operation, and also constructable
- * from an existing operation ID for operating on an operation that was started elsewhere.
- */
 @Experimental
 public class NexusClientImpl implements NexusClient {
 
@@ -38,122 +43,125 @@ public class NexusClientImpl implements NexusClient {
   private final NexusClientInterceptor nexusClientInterceptor;
   private final List<NexusClientInterceptor> interceptors;
 
+  public static NexusClient newInstance(
+      WorkflowServiceStubs service, NexusClientOperationOptions options) {
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new NexusClientImpl(service, options), NexusClient.class);
+  }
+
+  NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientOperationOptions options) {
+    workflowServiceStubs =
+        new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
+    this.workflowServiceStubs = workflowServiceStubs;
+    this.options = options;
+    this.metricsScope =
+        workflowServiceStubs
+            .getOptions()
+            .getMetricsScope()
+            .tagged(MetricsTag.defaultTags(options.getNamespace()));
+    this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    this.interceptors = options.getInterceptors();
+    this.nexusClientInterceptor = initializeClientInvoker();
+  }
+
+  private NexusClientInterceptor initializeClientInvoker() {
+    NexusClientInterceptor invoker = new RootNexusClientInvoker(genericClient, options);
+    // TODO: chain user-provided interceptors once a wrap factory is defined on
+    // NexusClientInterceptor (mirror ScheduleClientInterceptor.scheduleClientCallsInterceptor).
+    return invoker;
+  }
+
   @Override
   public NexusClientHandle getHandle(String scheduleID) {
     return new NexusClientHandleImpl(nexusClientInterceptor);
   }
 
-
-  public UntypedNexusClientHandle getHandle(
-          String operationId,
-          @Nullable String operationRunId) {
+  @Override
+  public UntypedNexusClientHandle getHandle(String operationId, @Nullable String operationRunId) {
     return new UntypedNexusClientHandleImpl();
   }
 
-//  /// Obtains typed handle to existing operations.
-//  <R> NexusClientHandle<R> getHandle(
-//          String operationId,
-//          @Nullable String operationRunId,
-//          Class<R> resultClass);
-//
-//  /// Obtains typed handle to existing operations.
-//  /// For use with generic return types.
-//  <R> NexusClientHandle<R> getHandle(
-//          String operationId,
-//          @Nullable String operationRunId,
-//          Class<R> resultClass,
-//          @Nullable Type resultType);
-
-  public static NexusClient newInstance(
-          WorkflowServiceStubs service, NexusClientOperationOptions options) {
-    enforceNonWorkflowThread();
-    return WorkflowThreadMarker.protectFromWorkflowThread(
-            new NexusClientImpl(service, options), NexusClient.class);
-  }
-
-  NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientOperationOptions options) {
-    //TODO - EVAN - do we need options.getInterceptors?
-    workflowServiceStubs =
-            new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
-    this.workflowServiceStubs = workflowServiceStubs;
-    this.options = options;
-    this.metricsScope =
-            workflowServiceStubs
-                    .getOptions()
-                    .getMetricsScope()
-                    .tagged(MetricsTag.defaultTags(options.getNamespace()));
-    this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
-    this.interceptors = options.getInterceptors();
-    nexusClientInterceptor = initializeClientInvoker();
-  }
-
-
-
-
-
-
-
-
-
-
-
-  private NexusClientInterceptor initializeClientInvoker() {
-    NexusClientInterceptorBase nexusClientInterceptor =
-            new NexusClientInterceptorBase(genericClient, options);
-    for (NexusClientInterceptor clientInterceptor : interceptors) {
-      nexusClientInterceptor =
-              clientInterceptor.nexusClientInterceptor(nexusClientInterceptor);
-    }
-    return nexusClientInterceptor;
-  }
-
   @Override
-  public StartNexusOperationExecutionResponse startNexusOperationExecution(@NonNull StartNexusOperationExecutionRequest request) {
+  public <R> NexusClientHandle<R> getHandle(
+      String operationId, @Nullable String operationRunId, Class<R> resultClass) {
     return null;
   }
 
   @Override
-  public DescribeNexusOperationExecutionResponse describeNexusOperationExecution(@NonNull DescribeNexusOperationExecutionRequest request, @NonNull Deadline deadline) {
+  public <R> NexusClientHandle<R> getHandle(
+      String operationId,
+      @Nullable String operationRunId,
+      Class<R> resultClass,
+      @Nullable Type resultType) {
     return null;
   }
 
   @Override
-  public CompletableFuture<DescribeNexusOperationExecutionResponse> describeNexusOperationExecutionAsync(@NonNull DescribeNexusOperationExecutionRequest request, @NonNull Deadline deadline) {
+  public UntypedNexusServiceClient newUntypeNexusServiceClient() {
     return null;
   }
 
   @Override
-  public PollNexusOperationExecutionResponse pollNexusOperationExecution(@NonNull PollNexusOperationExecutionRequest request, @NonNull Deadline deadline) {
+  public <R> NexusServiceClient<R> newNexusServiceClient() {
     return null;
   }
 
   @Override
-  public CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(@NonNull PollNexusOperationExecutionRequest request, @NonNull Deadline deadline) {
-    return null;
+  public StartNexusOperationExecutionOutput startNexusOperationExecution(
+      StartNexusOperationExecutionInput input) {
+    return nexusClientInterceptor.startNexusOperationExecution(input);
   }
 
   @Override
-  public ListNexusOperationExecutionsResponse listNexusOperationExecutions(@NonNull ListNexusOperationExecutionsRequest request) {
-    return null;
+  public DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
+      DescribeNexusOperationExecutionInput input) {
+    return nexusClientInterceptor.describeNexusOperationExecution(input);
   }
 
   @Override
-  public CountNexusOperationExecutionsResponse countNexusOperationExecutions(@NonNull CountNexusOperationExecutionsRequest request) {
-    return null;
+  public CompletableFuture<DescribeNexusOperationExecutionOutput>
+      describeNexusOperationExecutionAsync(DescribeNexusOperationExecutionInput input) {
+    return nexusClientInterceptor.describeNexusOperationExecutionAsync(input);
   }
 
   @Override
-  public RequestCancelNexusOperationExecutionResponse requestCancelNexusOperationExecution(@NonNull RequestCancelNexusOperationExecutionRequest request) {
-    return null;
+  public PollNexusOperationExecutionOutput pollNexusOperationExecution(
+      PollNexusOperationExecutionInput input) {
+    return nexusClientInterceptor.pollNexusOperationExecution(input);
   }
 
   @Override
-  public TerminateNexusOperationExecutionResponse terminateNexusOperationExecution(@NonNull TerminateNexusOperationExecutionRequest request) {
-    return null;
+  public CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
+      PollNexusOperationExecutionInput input) {
+    return nexusClientInterceptor.pollNexusOperationExecutionAsync(input);
   }
 
   @Override
-  public DeleteNexusOperationExecutionResponse deleteNexusOperationExecution(@NonNull DeleteNexusOperationExecutionRequest request) {
-    return null;
+  public ListNexusOperationExecutionsOutput listNexusOperationExecutions(
+      ListNexusOperationExecutionsInput input) {
+    return nexusClientInterceptor.listNexusOperationExecutions(input);
+  }
+
+  @Override
+  public CountNexusOperationExecutionsOutput countNexusOperationExecutions(
+      CountNexusOperationExecutionsInput input) {
+    return nexusClientInterceptor.countNexusOperationExecutions(input);
+  }
+
+  @Override
+  public void requestCancelNexusOperationExecution(
+      RequestCancelNexusOperationExecutionInput input) {
+    nexusClientInterceptor.requestCancelNexusOperationExecution(input);
+  }
+
+  @Override
+  public void terminateNexusOperationExecution(TerminateNexusOperationExecutionInput input) {
+    nexusClientInterceptor.terminateNexusOperationExecution(input);
+  }
+
+  @Override
+  public void deleteNexusOperationExecution(DeleteNexusOperationExecutionInput input) {
+    nexusClientInterceptor.deleteNexusOperationExecution(input);
   }
 }

@@ -9,7 +9,8 @@ public final class NexusClientOperationExecutionDescription {
 
   private final DescribeNexusOperationExecutionResponse response;
 
-  public NexusClientOperationExecutionDescription(DescribeNexusOperationExecutionResponse response) {
+  public NexusClientOperationExecutionDescription(
+      DescribeNexusOperationExecutionResponse response) {
     this.response = response;
   }
 

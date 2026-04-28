@@ -309,7 +309,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
-  //TODO -- EVAN -- START
+  // TODO -- EVAN -- START
   @Override
   public StartNexusOperationExecutionResponse startNexusOperationExecution(
       @Nonnull StartNexusOperationExecutionRequest request) {
@@ -426,7 +426,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
-  //TODO -- EVAN -- END
+  // TODO -- EVAN -- END
   private static <T> CompletableFuture<T> toCompletableFuture(
       ListenableFuture<T> listenableFuture) {
     CompletableFuture<T> result = new CompletableFuture<>();
