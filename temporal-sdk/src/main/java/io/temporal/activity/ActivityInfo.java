@@ -133,14 +133,16 @@ public interface ActivityInfo {
    * @deprecated use {@link #getNamespace()}
    */
   @Deprecated
-  @Nullable
   String getActivityNamespace();
 
+  /**
+   * @return the Namespace of this Activity Execution.
+   */
   String getNamespace();
 
   /**
    * @return {@code true} if this activity was scheduled by a workflow execution; {@code false} for
-   *     standalone activities started via {@link io.temporal.client.ActivityClient#start}.
+   *     standalone activities.
    */
   default boolean isWorkflowActivity() {
     return getWorkflowId() != null;
