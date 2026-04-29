@@ -37,7 +37,7 @@ public class GetActivityResultOverLongPollWaitTest {
     @Override
     public void run() {
       try {
-        Thread.sleep(Duration.ofSeconds(3 * LONG_POLL_TIMEOUT_SECONDS / 2).toMillis());
+        Thread.sleep(Duration.ofSeconds(2 * LONG_POLL_TIMEOUT_SECONDS).toMillis());
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -82,13 +82,13 @@ public class GetActivityResultOverLongPollWaitTest {
         .build();
   }
 
-  @Test(timeout = 2 * LONG_POLL_TIMEOUT_SECONDS * 1000)
+  @Test(timeout = 3 * LONG_POLL_TIMEOUT_SECONDS * 1000)
   public void testGetResult() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     activityClient.execute(SlowActivity.class, SlowActivity::run, slowOpts());
   }
 
-  @Test(timeout = 2 * LONG_POLL_TIMEOUT_SECONDS * 1000)
+  @Test(timeout = 3 * LONG_POLL_TIMEOUT_SECONDS * 1000)
   public void testGetResultAsync() throws ExecutionException, InterruptedException {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     activityClient.executeAsync(SlowActivity.class, SlowActivity::run, slowOpts()).get();
