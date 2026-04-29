@@ -5,9 +5,7 @@ import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
-import io.temporal.client.ActivityListOptions;
 import io.temporal.client.ActivityListPage;
-import io.temporal.client.ActivityListPaginatedOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
@@ -362,19 +360,13 @@ public interface ActivityClientCallsInterceptor {
   @Experimental
   final class ListActivitiesInput {
     private final String query;
-    private final ActivityListOptions options;
 
-    public ListActivitiesInput(String query, ActivityListOptions options) {
+    public ListActivitiesInput(String query) {
       this.query = query;
-      this.options = options;
     }
 
     public String getQuery() {
       return query;
-    }
-
-    public ActivityListOptions getOptions() {
-      return options;
     }
   }
 
@@ -395,13 +387,10 @@ public interface ActivityClientCallsInterceptor {
   final class ListActivitiesPaginatedInput {
     private final String query;
     private final @Nullable byte[] nextPageToken;
-    private final ActivityListPaginatedOptions options;
 
-    public ListActivitiesPaginatedInput(
-        String query, @Nullable byte[] nextPageToken, ActivityListPaginatedOptions options) {
+    public ListActivitiesPaginatedInput(String query, @Nullable byte[] nextPageToken) {
       this.query = query;
       this.nextPageToken = nextPageToken;
-      this.options = options;
     }
 
     public String getQuery() {
@@ -411,10 +400,6 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public byte[] getNextPageToken() {
       return nextPageToken;
-    }
-
-    public ActivityListPaginatedOptions getOptions() {
-      return options;
     }
   }
 

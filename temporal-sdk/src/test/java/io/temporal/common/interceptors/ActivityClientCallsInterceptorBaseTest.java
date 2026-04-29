@@ -7,9 +7,7 @@ import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
-import io.temporal.client.ActivityListOptions;
 import io.temporal.client.ActivityListPage;
-import io.temporal.client.ActivityListPaginatedOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import java.time.Duration;
@@ -130,8 +128,7 @@ public class ActivityClientCallsInterceptorBaseTest {
     ListActivitiesOutput output = new ListActivitiesOutput(stream);
     when(next.listActivities(any(ListActivitiesInput.class))).thenReturn(output);
 
-    ListActivitiesInput input =
-        new ListActivitiesInput("query", ActivityListOptions.newBuilder().build());
+    ListActivitiesInput input = new ListActivitiesInput("query");
     ListActivitiesOutput result = base.listActivities(input);
 
     assertSame(output, result);
@@ -157,9 +154,7 @@ public class ActivityClientCallsInterceptorBaseTest {
     ListActivitiesPaginatedOutput output = new ListActivitiesPaginatedOutput(page);
     when(next.listActivitiesPaginated(any(ListActivitiesPaginatedInput.class))).thenReturn(output);
 
-    ListActivitiesPaginatedInput input =
-        new ListActivitiesPaginatedInput(
-            "query", null, ActivityListPaginatedOptions.newBuilder().build());
+    ListActivitiesPaginatedInput input = new ListActivitiesPaginatedInput("query", null);
     ListActivitiesPaginatedOutput result = base.listActivitiesPaginated(input);
 
     assertSame(output, result);

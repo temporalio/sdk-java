@@ -411,14 +411,8 @@ class ActivityClientImpl implements ActivityClient {
 
   @Override
   public Stream<ActivityExecutionMetadata> listExecutions(String query) {
-    return listExecutions(query, ActivityListOptions.newBuilder().build());
-  }
-
-  @Override
-  public Stream<ActivityExecutionMetadata> listExecutions(
-      String query, ActivityListOptions options) {
     return invoker
-        .listActivities(new ActivityClientCallsInterceptor.ListActivitiesInput(query, options))
+        .listActivities(new ActivityClientCallsInterceptor.ListActivitiesInput(query))
         .getStream();
   }
 

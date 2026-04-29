@@ -323,10 +323,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
 
   @Override
   public ListActivitiesOutput listActivities(ListActivitiesInput input) {
-    Integer limit = input.getOptions().getLimit();
     ListActivityExecutionIterator iterator =
         new ListActivityExecutionIterator(
-            input.getQuery(), clientOptions.getNamespace(), limit, genericClient);
+            input.getQuery(), clientOptions.getNamespace(), genericClient);
     iterator.init();
     Iterator<ActivityExecutionMetadata> wrappedIterator =
         Iterators.transform(iterator, ActivityExecutionMetadata::fromListInfo);
@@ -346,9 +345,6 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     if (input.getNextPageToken() != null) {
       req.setNextPageToken(ByteString.copyFrom(input.getNextPageToken()));
-    }
-    if (input.getOptions().getPageSize() != null) {
-      req.setPageSize(input.getOptions().getPageSize());
     }
     ListActivityExecutionsResponse response = genericClient.listActivities(req.build());
     List<ActivityExecutionMetadata> activities = new ArrayList<>();

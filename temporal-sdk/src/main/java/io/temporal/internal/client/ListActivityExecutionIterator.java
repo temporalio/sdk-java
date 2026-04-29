@@ -16,17 +16,14 @@ class ListActivityExecutionIterator
 
   private final @Nullable String query;
   private final @Nonnull String namespace;
-  private final @Nullable Integer pageSize;
   private final @Nonnull GenericWorkflowClient genericClient;
 
   ListActivityExecutionIterator(
       @Nullable String query,
       @Nonnull String namespace,
-      @Nullable Integer pageSize,
       @Nonnull GenericWorkflowClient genericClient) {
     this.query = query;
     this.namespace = Objects.requireNonNull(namespace, "namespace");
-    this.pageSize = pageSize;
     this.genericClient = Objects.requireNonNull(genericClient, "genericClient");
   }
 
@@ -40,10 +37,6 @@ class ListActivityExecutionIterator
 
     if (query != null) {
       request.setQuery(query);
-    }
-
-    if (pageSize != null) {
-      request.setPageSize(pageSize);
     }
 
     return genericClient.listActivitiesAsync(request.build());

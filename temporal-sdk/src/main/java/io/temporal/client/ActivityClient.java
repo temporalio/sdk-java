@@ -1591,15 +1591,6 @@ public interface ActivityClient {
   Stream<ActivityExecutionMetadata> listExecutions(String query);
 
   /**
-   * Returns a stream of activity executions matching the given query, with options.
-   *
-   * @param query Temporal visibility query string
-   * @param options list options such as result limit
-   * @return stream of matching activity executions
-   */
-  Stream<ActivityExecutionMetadata> listExecutions(String query, ActivityListOptions options);
-
-  /**
    * Returns the count of activity executions matching the given query.
    *
    * @param query Temporal visibility query string
