@@ -817,7 +817,9 @@ public class StandaloneActivityTest {
             ActivityExecutionDescription desc = handle.describe();
             Exception lastFailure = desc.getLastFailure();
             assertNotNull("last_failure should be set after a failed attempt", lastFailure);
-            assertEquals("deliberate failure", lastFailure.getMessage());
+            assertThat(lastFailure, instanceOf(ApplicationFailure.class));
+            assertEquals(
+                "deliberate failure", ((ApplicationFailure) lastFailure).getOriginalMessage());
             assertTrue(desc.getRawInfo().hasLastFailure());
           });
     } finally {
@@ -826,6 +828,109 @@ public class StandaloneActivityTest {
       } catch (Exception ignored) {
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Poll loop behaviour
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Verifies that {@code getResult()} loops across multiple server-side poll cycles. The {@link
+   * AsyncCompletionActivity} holds itself open until we externally complete it, so the poll loop
+   * must keep reissuing requests until the activity is done.
+   */
+  @Test
+  public void testGetActivityResultPollsUntilActivityCompletes() throws Exception {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    asyncStartLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      ActivityHandle<String> handle =
+          client.start(
+              AsyncCompletionActivity.class,
+              AsyncCompletionActivity::complete,
+              simpleOpts(uniqueId()));
+
+      assertTrue("Activity did not start within 30s", asyncStartLatch.await(30, TimeUnit.SECONDS));
+
+      CompletableFuture<String> resultFuture = CompletableFuture.supplyAsync(handle::getResult);
+
+      Thread.sleep(500);
+      client
+          .newActivityCompletionClient()
+          .completeStandalone(asyncActivityId, Optional.empty(), "poll-loop-result");
+
+      assertEquals("poll-loop-result", resultFuture.get(30, TimeUnit.SECONDS));
+    } finally {
+      asyncStartLatch = null;
+      asyncActivityId = null;
+      asyncActivityRunId = null;
+    }
+  }
+
+  /**
+   * Verifies that {@code getResultAsync} with a deadline expires and propagates a {@link
+   * java.util.concurrent.TimeoutException} — i.e. the poll loop can be aborted from the client
+   * side.
+   */
+  @Test
+  public void testGetActivityResultAsyncTimeoutAbortsPolling() throws Exception {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    cancelLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+              .setHeartbeatTimeout(Duration.ofSeconds(10))
+              .build();
+      ActivityHandle<Void> handle =
+          client.start(WaitForCancelActivity.class, WaitForCancelActivity::waitForCancel, opts);
+
+      assertTrue("Activity did not start within 30s", cancelLatch.await(30, TimeUnit.SECONDS));
+
+      CompletableFuture<Void> future = handle.getResultAsync(2, TimeUnit.SECONDS);
+
+      java.util.concurrent.ExecutionException ex =
+          assertThrows(
+              java.util.concurrent.ExecutionException.class,
+              () -> future.get(30, TimeUnit.SECONDS));
+      assertThat(ex.getCause(), instanceOf(java.util.concurrent.TimeoutException.class));
+    } finally {
+      cancelLatch = null;
+    }
+  }
+
+  /**
+   * Verifies that when the activity fails on the server, {@code getResult()} surfaces the failure
+   * as an {@link ActivityFailedException} wrapping an {@link
+   * io.temporal.failure.ApplicationFailure}.
+   */
+  @Test
+  public void testGetActivityResultFailureThrowsActivityFailedException() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityClient client = newActivityClient();
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+            .build();
+    ActivityHandle<Void> handle =
+        client.start(AlwaysFailActivity.class, AlwaysFailActivity::alwaysFail, opts);
+
+    ActivityFailedException ex =
+        assertThrows(ActivityFailedException.class, () -> handle.getResult(Void.class));
+
+    assertThat(ex.getCause(), instanceOf(io.temporal.failure.ApplicationFailure.class));
+    io.temporal.failure.ApplicationFailure appFailure =
+        (io.temporal.failure.ApplicationFailure) ex.getCause();
+    assertEquals("deliberate failure", appFailure.getOriginalMessage());
+    assertEquals("test-type", appFailure.getType());
   }
 
   // ---------------------------------------------------------------------------
