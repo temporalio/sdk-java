@@ -14,7 +14,6 @@ import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.client.*;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
@@ -816,12 +815,10 @@ public class StandaloneActivityTest {
           Duration.ofSeconds(60),
           () -> {
             ActivityExecutionDescription desc = handle.describe();
-            Failure lastFailure = desc.getLastFailure();
+            Exception lastFailure = desc.getLastFailure();
             assertNotNull("last_failure should be set after a failed attempt", lastFailure);
             assertEquals("deliberate failure", lastFailure.getMessage());
-            // raw info must agree with the typed accessor
             assertTrue(desc.getRawInfo().hasLastFailure());
-            assertEquals(lastFailure, desc.getRawInfo().getLastFailure());
           });
     } finally {
       try {

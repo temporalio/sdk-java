@@ -132,8 +132,10 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
 
   /** Failure details from the last failed attempt. {@code null} if no failure has occurred. */
   @Nullable
-  public io.temporal.api.failure.v1.Failure getLastFailure() {
-    return info().hasLastFailure() ? info().getLastFailure() : null;
+  public Exception getLastFailure() {
+    return info().hasLastFailure()
+        ? dataConverter.failureToException(info().getLastFailure())
+        : null;
   }
 
   /** Identity of the worker that last processed this activity. */
