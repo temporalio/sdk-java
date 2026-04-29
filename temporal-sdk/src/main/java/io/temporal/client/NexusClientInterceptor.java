@@ -4,8 +4,6 @@ import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.enums.v1.NexusOperationIdConflictPolicy;
-import io.temporal.api.enums.v1.NexusOperationIdReusePolicy;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
