@@ -11,7 +11,7 @@ import java.time.Instant;
 import org.junit.Test;
 
 /** Verifies that {@link ActivityInfoImpl} correctly handles standalone vs workflow-hosted tasks. */
-public class ActivityInfoStandaloneTest {
+public class ActivityInfoImplTest {
 
   private static final String NAMESPACE = "test-ns";
 

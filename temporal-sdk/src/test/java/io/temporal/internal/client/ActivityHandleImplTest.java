@@ -52,7 +52,7 @@ public class ActivityHandleImplTest {
   }
 
   @Test
-  public void testDescribeNoToken() {
+  public void testDescribe() {
     ActivityExecutionDescription desc = mock(ActivityExecutionDescription.class);
     DescribeActivityOutput output = new DescribeActivityOutput(desc);
     when(interceptor.describeActivity(any(DescribeActivityInput.class))).thenReturn(output);

@@ -603,6 +603,25 @@ public class StandaloneActivityTest {
   }
 
   @Test
+  public void testGetHandleWithNullRunId() throws ActivityFailedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityClient client = newActivityClient();
+    String activityId = uniqueId();
+    client.start(SimpleActivity.class, SimpleActivity::execute, simpleOpts(activityId), "nullrun");
+
+    ActivityHandle<String> handle = client.getHandle(activityId, null, String.class);
+    assertEquals("echo:nullrun", handle.getResult());
+  }
+
+  @Test
+  public void testVoidExecuteOverloadDiscardsNonVoidResult() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    // SimpleActivity.execute returns a non-void String; the void string-based overload must
+    // complete successfully and silently discard the return value.
+    newActivityClient().execute("SimpleActivity", simpleOpts(uniqueId()), "discard");
+  }
+
+  @Test
   public void testExecuteVoidActivity() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     newActivityClient().execute(VoidActivity.class, VoidActivity::execute, simpleOpts(uniqueId()));
