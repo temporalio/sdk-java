@@ -110,7 +110,11 @@ jobs:
               --dynamic-config-value history.enableRequestIdRefLinks=true \
               --dynamic-config-value frontend.WorkerHeartbeatsEnabled=true \
               --dynamic-config-value frontend.ListWorkersEnabled=true \
-              --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' &
+              --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
+              --dynamic-config-value frontend.activityAPIsEnabled=true \
+              --dynamic-config-value activity.enableStandalone=true \
+              --dynamic-config-value history.enableChasm=true \
+              --dynamic-config-value history.enableTransitionHistory=true &
           sleep 10s
 
       # Can't actually run tests against Java 8 because Mockito 5 requires Java 11+.
