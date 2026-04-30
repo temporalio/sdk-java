@@ -140,7 +140,11 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   @Override
   @Deprecated
   public String getWorkflowNamespace() {
-    return getNamespace();
+    if (!response.hasWorkflowExecution()) {
+      return null;
+    } else {
+      return getNamespace();
+    }
   }
 
   @Override
