@@ -7,7 +7,6 @@ import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
-import io.temporal.client.ActivityListPage;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import java.time.Duration;
@@ -146,18 +145,5 @@ public class ActivityClientCallsInterceptorBaseTest {
 
     assertSame(output, result);
     verify(next).countActivities(input);
-  }
-
-  @Test
-  public void testListActivitiesPaginatedDelegatesToNext() {
-    ActivityListPage page = new ActivityListPage(Collections.emptyList(), null);
-    ListActivitiesPaginatedOutput output = new ListActivitiesPaginatedOutput(page);
-    when(next.listActivitiesPaginated(any(ListActivitiesPaginatedInput.class))).thenReturn(output);
-
-    ListActivitiesPaginatedInput input = new ListActivitiesPaginatedInput("query", null);
-    ListActivitiesPaginatedOutput result = base.listActivitiesPaginated(input);
-
-    assertSame(output, result);
-    verify(next).listActivitiesPaginated(input);
   }
 }

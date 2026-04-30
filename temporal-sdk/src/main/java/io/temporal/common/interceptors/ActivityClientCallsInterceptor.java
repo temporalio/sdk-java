@@ -5,7 +5,6 @@ import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
-import io.temporal.client.ActivityListPage;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
@@ -88,16 +87,6 @@ public interface ActivityClientCallsInterceptor {
    * @return output wrapping a stream of {@link ActivityExecutionMetadata}
    */
   ListActivitiesOutput listActivities(ListActivitiesInput input);
-
-  /**
-   * Returns a single page of activity execution metadata matching the Visibility query in {@code
-   * input}. The returned {@link ActivityListPage} includes a token that can be passed back in a
-   * subsequent call to retrieve the next page.
-   *
-   * @param input Visibility query string, optional next-page token, and pagination options
-   * @return output containing the page of results and a next-page token ({@code null} if last page)
-   */
-  ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input);
 
   /**
    * Returns the count of activity executions matching the Visibility query in {@code input}.
@@ -380,39 +369,6 @@ public interface ActivityClientCallsInterceptor {
 
     public Stream<ActivityExecutionMetadata> getStream() {
       return stream;
-    }
-  }
-
-  @Experimental
-  final class ListActivitiesPaginatedInput {
-    private final String query;
-    private final @Nullable byte[] nextPageToken;
-
-    public ListActivitiesPaginatedInput(String query, @Nullable byte[] nextPageToken) {
-      this.query = query;
-      this.nextPageToken = nextPageToken;
-    }
-
-    public String getQuery() {
-      return query;
-    }
-
-    @Nullable
-    public byte[] getNextPageToken() {
-      return nextPageToken;
-    }
-  }
-
-  @Experimental
-  final class ListActivitiesPaginatedOutput {
-    private final ActivityListPage page;
-
-    public ListActivitiesPaginatedOutput(ActivityListPage page) {
-      this.page = page;
-    }
-
-    public ActivityListPage getPage() {
-      return page;
     }
   }
 

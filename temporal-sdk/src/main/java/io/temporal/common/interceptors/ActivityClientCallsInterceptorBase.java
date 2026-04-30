@@ -48,11 +48,6 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   }
 
   @Override
-  public ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input) {
-    return next.listActivitiesPaginated(input);
-  }
-
-  @Override
   public CountActivitiesOutput countActivities(CountActivitiesInput input) {
     return next.countActivities(input);
   }

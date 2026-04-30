@@ -4,7 +4,6 @@ import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
 import com.google.common.collect.Iterators;
-import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -334,27 +333,6 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     return new ListActivitiesOutput(
         StreamSupport.stream(
             Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false));
-  }
-
-  @Override
-  public ListActivitiesPaginatedOutput listActivitiesPaginated(ListActivitiesPaginatedInput input) {
-    ListActivityExecutionsRequest.Builder req =
-        ListActivityExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
-    if (input.getQuery() != null) {
-      req.setQuery(input.getQuery());
-    }
-    if (input.getNextPageToken() != null) {
-      req.setNextPageToken(ByteString.copyFrom(input.getNextPageToken()));
-    }
-    ListActivityExecutionsResponse response = genericClient.listActivities(req.build());
-    List<ActivityExecutionMetadata> activities = new ArrayList<>();
-    for (io.temporal.api.activity.v1.ActivityExecutionListInfo info :
-        response.getExecutionsList()) {
-      activities.add(ActivityExecutionMetadata.fromListInfo(info));
-    }
-    byte[] nextToken =
-        response.getNextPageToken().isEmpty() ? null : response.getNextPageToken().toByteArray();
-    return new ListActivitiesPaginatedOutput(new ActivityListPage(activities, nextToken));
   }
 
   @Override
