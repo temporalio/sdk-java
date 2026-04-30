@@ -163,6 +163,8 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   private static WorkflowExecution toStandaloneExecution(Optional<String> activityRunId) {
+    // TODO: consider not using a WorkflowExecution here, but instead passing
+    // workflow/activity and run IDs to the factory separately.
     return WorkflowExecution.newBuilder()
         .setWorkflowId("") // empty workflowId = standalone activity
         .setRunId(activityRunId.orElse(""))
