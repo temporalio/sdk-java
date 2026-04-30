@@ -57,10 +57,6 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     return s == null || s.isEmpty() ? null : s;
   }
 
-  private ActivityExecutionInfo info() {
-    return info;
-  }
-
   /** The raw protobuf info returned by the server for this activity execution. */
   @Nonnull
   public ActivityExecutionInfo getRawInfo() {
@@ -69,7 +65,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
 
   /** Current attempt number (starts at 1). */
   public int getAttempt() {
-    return info().getAttempt();
+    return info.getAttempt();
   }
 
   /**
@@ -78,87 +74,83 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public String getCanceledReason() {
-    String r = info().getCanceledReason();
+    String r = info.getCanceledReason();
     return r.isEmpty() ? null : r;
   }
 
   /** Current or next retry interval. {@code null} if no retries are configured or allowed. */
   @Nullable
   public Duration getCurrentRetryInterval() {
-    return info().hasCurrentRetryInterval()
-        ? ProtobufTimeUtils.toJavaDuration(info().getCurrentRetryInterval())
+    return info.hasCurrentRetryInterval()
+        ? ProtobufTimeUtils.toJavaDuration(info.getCurrentRetryInterval())
         : null;
   }
 
   /** When the activity will time out (scheduled time + scheduleToCloseTimeout). */
   @Nullable
   public Instant getExpirationTime() {
-    return info().hasExpirationTime()
-        ? ProtobufTimeUtils.toJavaInstant(info().getExpirationTime())
+    return info.hasExpirationTime()
+        ? ProtobufTimeUtils.toJavaInstant(info.getExpirationTime())
         : null;
   }
 
   /** Maximum allowed time between heartbeats. */
   @Nullable
   public Duration getHeartbeatTimeout() {
-    return info().hasHeartbeatTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info().getHeartbeatTimeout())
+    return info.hasHeartbeatTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(info.getHeartbeatTimeout())
         : null;
   }
 
   /** Time the last attempt completed (succeeded or failed). */
   @Nullable
   public Instant getLastAttemptCompleteTime() {
-    return info().hasLastAttemptCompleteTime()
-        ? ProtobufTimeUtils.toJavaInstant(info().getLastAttemptCompleteTime())
+    return info.hasLastAttemptCompleteTime()
+        ? ProtobufTimeUtils.toJavaInstant(info.getLastAttemptCompleteTime())
         : null;
   }
 
   /** Time the last heartbeat was recorded. */
   @Nullable
   public Instant getLastHeartbeatTime() {
-    return info().hasLastHeartbeatTime()
-        ? ProtobufTimeUtils.toJavaInstant(info().getLastHeartbeatTime())
+    return info.hasLastHeartbeatTime()
+        ? ProtobufTimeUtils.toJavaInstant(info.getLastHeartbeatTime())
         : null;
   }
 
   /** Time the last attempt was started. */
   @Nullable
   public Instant getLastStartedTime() {
-    return info().hasLastStartedTime()
-        ? ProtobufTimeUtils.toJavaInstant(info().getLastStartedTime())
+    return info.hasLastStartedTime()
+        ? ProtobufTimeUtils.toJavaInstant(info.getLastStartedTime())
         : null;
   }
 
   /** Failure details from the last failed attempt. {@code null} if no failure has occurred. */
   @Nullable
   public Exception getLastFailure() {
-    return info().hasLastFailure()
-        ? dataConverter.failureToException(info().getLastFailure())
-        : null;
+    return info.hasLastFailure() ? dataConverter.failureToException(info.getLastFailure()) : null;
   }
 
   /** Identity of the worker that last processed this activity. */
   @Nullable
   public String getLastWorkerIdentity() {
-    String w = info().getLastWorkerIdentity();
+    String w = info.getLastWorkerIdentity();
     return w.isEmpty() ? null : w;
   }
 
   /** Time when the next retry attempt will be scheduled. */
   @Nullable
   public Instant getNextAttemptScheduleTime() {
-    return info().hasNextAttemptScheduleTime()
-        ? ProtobufTimeUtils.toJavaInstant(info().getNextAttemptScheduleTime())
+    return info.hasNextAttemptScheduleTime()
+        ? ProtobufTimeUtils.toJavaInstant(info.getNextAttemptScheduleTime())
         : null;
   }
 
   /** Retry policy for this activity. */
   @Nullable
   public RetryOptions getRetryOptions() {
-    return info().hasRetryPolicy()
-        ? RetryOptionsUtils.toRetryOptions(info().getRetryPolicy())
-        : null;
+    return info.hasRetryPolicy() ? RetryOptionsUtils.toRetryOptions(info.getRetryPolicy()) : null;
   }
 
   /**
@@ -167,36 +159,36 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nonnull
   public PendingActivityState getRunState() {
-    return info().getRunState();
+    return info.getRunState();
   }
 
   /** Total time the caller is willing to wait for the activity to complete, including retries. */
   @Nullable
   public Duration getScheduleToCloseTimeout() {
-    return info().hasScheduleToCloseTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info().getScheduleToCloseTimeout())
+    return info.hasScheduleToCloseTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(info.getScheduleToCloseTimeout())
         : null;
   }
 
   /** Maximum time the task may wait in the task queue. */
   @Nullable
   public Duration getScheduleToStartTimeout() {
-    return info().hasScheduleToStartTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info().getScheduleToStartTimeout())
+    return info.hasScheduleToStartTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(info.getScheduleToStartTimeout())
         : null;
   }
 
   /** Maximum time for a single attempt. */
   @Nullable
   public Duration getStartToCloseTimeout() {
-    return info().hasStartToCloseTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info().getStartToCloseTimeout())
+    return info.hasStartToCloseTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(info.getStartToCloseTimeout())
         : null;
   }
 
   /** Whether heartbeat details were recorded for the last attempt. */
   public boolean hasHeartbeatDetails() {
-    return info().hasHeartbeatDetails();
+    return info.hasHeartbeatDetails();
   }
 
   /**
@@ -217,12 +209,12 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * @param genericType the generic type for deserialization; may equal {@code valueType}
    */
   public <V> Optional<V> getHeartbeatDetails(Class<V> valueType, Type genericType) {
-    if (!info().hasHeartbeatDetails()) {
+    if (!info.hasHeartbeatDetails()) {
       return Optional.empty();
     }
     return Optional.ofNullable(
         dataConverter.fromPayloads(
-            0, Optional.of(info().getHeartbeatDetails()), valueType, genericType));
+            0, Optional.of(info.getHeartbeatDetails()), valueType, genericType));
   }
 
   /**
@@ -231,20 +223,20 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public WorkerDeploymentVersion getWorkerDeploymentVersion() {
-    if (!info().hasLastDeploymentVersion()) {
+    if (!info.hasLastDeploymentVersion()) {
       return null;
     }
-    io.temporal.api.deployment.v1.WorkerDeploymentVersion proto = info().getLastDeploymentVersion();
+    io.temporal.api.deployment.v1.WorkerDeploymentVersion proto = info.getLastDeploymentVersion();
     return new WorkerDeploymentVersion(proto.getDeploymentName(), proto.getBuildId());
   }
 
   /** Priority hint for this activity. {@code null} if not set. */
   @Nullable
   public Priority getPriority() {
-    if (!info().hasPriority()) {
+    if (!info.hasPriority()) {
       return null;
     }
-    return ProtoConverters.fromProto(info().getPriority());
+    return ProtoConverters.fromProto(info.getPriority());
   }
 
   /**
@@ -253,14 +245,14 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public String getStaticSummary() {
-    if (!info().hasUserMetadata() || !info().getUserMetadata().hasSummary()) {
+    if (!info.hasUserMetadata() || !info.getUserMetadata().hasSummary()) {
       return null;
     }
     return dataConverter
         .withContext(
             new ActivitySerializationContext(
                 namespace, null, null, getActivityType(), getTaskQueue(), false))
-        .fromPayload(info().getUserMetadata().getSummary(), String.class, String.class);
+        .fromPayload(info.getUserMetadata().getSummary(), String.class, String.class);
   }
 
   /**
@@ -269,13 +261,13 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public String getStaticDetails() {
-    if (!info().hasUserMetadata() || !info().getUserMetadata().hasDetails()) {
+    if (!info.hasUserMetadata() || !info.getUserMetadata().hasDetails()) {
       return null;
     }
     return dataConverter
         .withContext(
             new ActivitySerializationContext(
                 namespace, null, null, getActivityType(), getTaskQueue(), false))
-        .fromPayload(info().getUserMetadata().getDetails(), String.class, String.class);
+        .fromPayload(info.getUserMetadata().getDetails(), String.class, String.class);
   }
 }
