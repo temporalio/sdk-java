@@ -115,8 +115,7 @@ public interface ActivityInfo {
    * same namespace, hence no need for different {@code getWorkflowNamespace()} and {@link
    * #getActivityNamespace()} methods.
    *
-   * @return the Namespace of Workflow Execution that scheduled the Activity, or the activity
-   *     namespace for standalone activities.
+   * @return the Namespace of Workflow Execution that scheduled the Activity, or null for standalone activities.
    * @deprecated use {@link #getNamespace()}
    */
   @Deprecated
