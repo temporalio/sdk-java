@@ -1,6 +1,5 @@
 package io.temporal.internal.statemachines;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import io.temporal.workflow.Functions;
@@ -8,6 +7,7 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +66,7 @@ public class CommandsGeneratePlantUMLStateDiagramsTest {
     String diagramFile =
         (projectPath + "/" + fullRelativePath).replace("/", File.separator) + ".puml";
     File file = new File(diagramFile);
-    CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
+    CharSink sink = Files.asCharSink(file, StandardCharsets.UTF_8);
     StringBuilder content = new StringBuilder();
     try {
       content.append("` PlantUML <plantuml.com> State Diagram.\n");
