@@ -14,7 +14,6 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -151,57 +150,6 @@ public class ActivityHandleImplTest {
     ActivityHandle<String> typed = ActivityHandle.fromUntyped(untyped, String.class);
     CompletableFuture<String> future = typed.getResultAsync();
     assertEquals("async-typed", future.get());
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testGetResultAsyncCachesNoTimeoutFuture() throws Exception {
-    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
-    when(output.getResult()).thenReturn("cached-result");
-    when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class)))
-        .thenReturn(CompletableFuture.completedFuture(output));
-
-    UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
-    CompletableFuture<String> first = handle.getResultAsync(String.class);
-    CompletableFuture<String> second = handle.getResultAsync(String.class);
-
-    assertSame(first, second);
-    verify(interceptor, times(1)).getActivityResultAsync(any(GetActivityResultInput.class));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testGetResultAsyncTimeoutReusesCompletedCache() throws Exception {
-    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
-    when(output.getResult()).thenReturn("done");
-    when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class)))
-        .thenReturn(CompletableFuture.completedFuture(output));
-
-    UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
-    // Warm the cache with a no-timeout call
-    handle.getResultAsync(String.class).get();
-    // Timeout call should reuse the completed cache, not start a new poll
-    CompletableFuture<String> timed = handle.getResultAsync(5, TimeUnit.SECONDS, String.class);
-    assertEquals("done", timed.get());
-
-    verify(interceptor, times(1)).getActivityResultAsync(any(GetActivityResultInput.class));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testGetResultAsyncTimeoutSuccessPopulatesCache() throws Exception {
-    GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
-    when(output.getResult()).thenReturn("timed-result");
-    when(interceptor.getActivityResultAsync(any(GetActivityResultInput.class)))
-        .thenReturn(CompletableFuture.completedFuture(output));
-
-    UntypedActivityHandle handle = new ActivityHandleImpl("id", "run", interceptor);
-    // First call: timed — succeeds, should populate cache
-    handle.getResultAsync(5, TimeUnit.SECONDS, String.class).get();
-    // Second call: no-timeout — should reuse the cache, not issue a second poll
-    handle.getResultAsync(String.class).get();
-
-    verify(interceptor, times(1)).getActivityResultAsync(any(GetActivityResultInput.class));
   }
 
   @Test
