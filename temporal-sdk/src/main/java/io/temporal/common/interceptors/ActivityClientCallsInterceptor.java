@@ -113,17 +113,8 @@ public interface ActivityClientCallsInterceptor {
    * @param <R> the expected result type
    * @return a future that completes with output wrapping the deserialized activity result
    */
-  default <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
-      GetActivityResultInput<R> input) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          try {
-            return getActivityResult(input);
-          } catch (ActivityFailedException | TimeoutException e) {
-            throw new java.util.concurrent.CompletionException(e);
-          }
-        });
-  }
+  <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
+      GetActivityResultInput<R> input);
 
   @Experimental
   final class StartActivityInput {
