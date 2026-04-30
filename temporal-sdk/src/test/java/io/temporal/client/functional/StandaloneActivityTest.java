@@ -939,6 +939,34 @@ public class StandaloneActivityTest {
     assertEquals("test-type", appFailure.getType());
   }
 
+  @Test
+  public void testOnlyScheduleToCloseTimeoutIsValid() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(1))
+            .build();
+    assertEquals(
+        "echo:x",
+        newActivityClient().execute(SimpleActivity.class, SimpleActivity::execute, opts, "x"));
+  }
+
+  @Test
+  public void testOnlyStartToCloseTimeoutIsValid() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setStartToCloseTimeout(Duration.ofMinutes(1))
+            .build();
+    assertEquals(
+        "echo:x",
+        newActivityClient().execute(SimpleActivity.class, SimpleActivity::execute, opts, "x"));
+  }
+
   // ---------------------------------------------------------------------------
   // Interceptor helpers
   // ---------------------------------------------------------------------------
