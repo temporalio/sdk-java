@@ -34,6 +34,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<NexusSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
@@ -49,6 +50,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
             .setNamespace(namespace)
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+    pollRequest.setWorkerInstanceKey(workerInstanceKey);
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequest.setDeploymentOptions(

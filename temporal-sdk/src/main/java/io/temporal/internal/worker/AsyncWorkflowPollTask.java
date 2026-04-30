@@ -52,6 +52,7 @@ public class AsyncWorkflowPollTask
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
@@ -66,6 +67,8 @@ public class AsyncWorkflowPollTask
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(Objects.requireNonNull(namespace))
             .setIdentity(Objects.requireNonNull(identity));
+
+    pollRequestBuilder.setWorkerInstanceKey(workerInstanceKey);
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequestBuilder.setDeploymentOptions(

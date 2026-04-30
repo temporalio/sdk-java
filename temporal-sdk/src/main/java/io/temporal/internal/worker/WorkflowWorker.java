@@ -13,11 +13,8 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
-import io.temporal.api.enums.v1.TaskQueueType;
-import io.temporal.api.enums.v1.WorkerStatus;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
@@ -33,7 +30,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -41,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 final class WorkflowWorker implements SuspendableWorker {
-  private static final String GRACEFUL_SHUTDOWN_MESSAGE = "graceful shutdown";
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private final WorkflowRunLockManager runLocks;
@@ -58,9 +53,6 @@ final class WorkflowWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
-  private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
-  private final String workerInstanceKey;
-  private final Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier;
 
   private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker = new PollerTracker();
@@ -79,8 +71,6 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
-      @Nonnull String workerInstanceKey,
-      @Nonnull Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier,
       @Nullable String stickyTaskQueueName,
       @Nonnull SingleWorkerOptions options,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -92,8 +82,6 @@ final class WorkflowWorker implements SuspendableWorker {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
-    this.workerInstanceKey = Objects.requireNonNull(workerInstanceKey);
-    this.activeTaskQueueTypesSupplier = Objects.requireNonNull(activeTaskQueueTypesSupplier);
     this.options = Objects.requireNonNull(options);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
@@ -133,6 +121,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   taskQueue,
                   null,
                   options.getIdentity(),
+                  options.getWorkerInstanceKey(),
                   options.getWorkerVersioningOptions(),
                   slotSupplier,
                   workerMetricsScope,
@@ -146,6 +135,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       taskQueue,
                       stickyTaskQueueName,
                       options.getIdentity(),
+                      options.getWorkerInstanceKey(),
                       options.getWorkerVersioningOptions(),
                       slotSupplier,
                       workerMetricsScope,
@@ -162,6 +152,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       taskQueue,
                       null,
                       options.getIdentity(),
+                      options.getWorkerInstanceKey(),
                       options.getWorkerVersioningOptions(),
                       slotSupplier,
                       workerMetricsScope,
@@ -175,7 +166,7 @@ final class WorkflowWorker implements SuspendableWorker {
                 pollers,
                 this.pollTaskExecutor,
                 pollerOptions,
-                namespaceCapabilities.isPollerAutoscaling(),
+                namespaceCapabilities,
                 workerMetricsScope);
       } else {
         PollerBehaviorSimpleMaximum pollerBehavior =
@@ -193,6 +184,7 @@ final class WorkflowWorker implements SuspendableWorker {
                     taskQueue,
                     stickyTaskQueueName,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     slotSupplier,
                     stickyQueueBalancer,
@@ -202,7 +194,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     stickyPollerTracker),
                 pollTaskExecutor,
                 pollerOptions,
-                workerMetricsScope);
+                workerMetricsScope,
+                namespaceCapabilities);
       }
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
@@ -232,46 +225,23 @@ final class WorkflowWorker implements SuspendableWorker {
                             stickyQueueBalancer, options.getDrainStickyTaskQueueTimeout())
                         : CompletableFuture.completedFuture(null))
             .thenCompose(ignore -> poller.shutdown(shutdownManager, interruptTasks));
-    return CompletableFuture.allOf(
-        pollerShutdown.thenCompose(
-            ignore -> {
-              ShutdownWorkerRequest.Builder shutdownReq =
-                  ShutdownWorkerRequest.newBuilder()
-                      .setIdentity(options.getIdentity())
-                      .setNamespace(namespace)
-                      .setTaskQueue(taskQueue)
-                      .setWorkerInstanceKey(workerInstanceKey)
-                      .setReason(GRACEFUL_SHUTDOWN_MESSAGE)
-                      .addAllTaskQueueTypes(activeTaskQueueTypesSupplier.get());
-              if (stickyTaskQueueName != null) {
-                shutdownReq.setStickyTaskQueue(stickyTaskQueueName);
-              }
-              if (heartbeatSupplier != null) {
-                shutdownReq.setWorkerHeartbeat(
-                    heartbeatSupplier.get().toBuilder()
-                        .setStatus(WorkerStatus.WORKER_STATUS_SHUTTING_DOWN)
-                        .build());
-              }
-              return shutdownManager.waitOnWorkerShutdownRequest(
-                  service.futureStub().shutdownWorker(shutdownReq.build()));
-            }),
-        pollerShutdown
-            .thenCompose(
-                ignore ->
-                    !interruptTasks
-                        ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
-                            slotSupplier, supplierName)
-                        : CompletableFuture.completedFuture(null))
-            .thenCompose(
-                ignore ->
-                    pollTaskExecutor != null
-                        ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
-                        : CompletableFuture.completedFuture(null))
-            .exceptionally(
-                e -> {
-                  log.error("Unexpected exception during shutdown", e);
-                  return null;
-                }));
+    return pollerShutdown
+        .thenCompose(
+            ignore ->
+                !interruptTasks
+                    ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
+                        slotSupplier, supplierName)
+                    : CompletableFuture.completedFuture(null))
+        .thenCompose(
+            ignore ->
+                pollTaskExecutor != null
+                    ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
+                    : CompletableFuture.completedFuture(null))
+        .exceptionally(
+            e -> {
+              log.error("Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override
@@ -361,10 +331,6 @@ final class WorkflowWorker implements SuspendableWorker {
                     slotPermit,
                     options.getDeploymentOptions()))
         .orElse(null);
-  }
-
-  public void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
-    this.heartbeatSupplier = supplier;
   }
 
   public TrackingSlotSupplier<WorkflowSlotInfo> getSlotSupplier() {

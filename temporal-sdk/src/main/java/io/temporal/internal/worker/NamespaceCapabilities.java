@@ -1,5 +1,6 @@
 package io.temporal.internal.worker;
 
+import io.temporal.api.namespace.v1.NamespaceInfo.Capabilities;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -9,14 +10,28 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class NamespaceCapabilities {
   private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
+  private final AtomicBoolean gracefulPollShutdown = new AtomicBoolean(false);
   private final AtomicBoolean workerHeartbeats = new AtomicBoolean(false);
+
+  public void setFromCapabilities(Capabilities capabilities) {
+    if (capabilities.getPollerAutoscaling()) {
+      pollerAutoscaling.set(true);
+    }
+    if (capabilities.getWorkerPollCompleteOnShutdown()) {
+      gracefulPollShutdown.set(true);
+    }
+  }
 
   public boolean isPollerAutoscaling() {
     return pollerAutoscaling.get();
   }
 
-  public void setPollerAutoscaling(boolean value) {
-    pollerAutoscaling.set(value);
+  public boolean isGracefulPollShutdown() {
+    return gracefulPollShutdown.get();
+  }
+
+  public void setGracefulPollShutdown(boolean value) {
+    gracefulPollShutdown.set(value);
   }
 
   public boolean isWorkerHeartbeats() {
