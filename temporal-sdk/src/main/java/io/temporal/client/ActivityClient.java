@@ -1453,7 +1453,10 @@ public interface ActivityClient {
    * @param args activity arguments
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
-  void execute(String activityType, StartActivityOptions options, @Nullable Object... args);
+  default void execute(
+      String activityType, StartActivityOptions options, @Nullable Object... args) {
+    start(activityType, options, args).getResult(Void.class);
+  }
 
   /**
    * Starts a standalone activity and blocks until it completes, returning the typed result.
@@ -1504,8 +1507,10 @@ public interface ActivityClient {
    * @param args activity arguments
    * @return a future that completes when the activity completes
    */
-  CompletableFuture<Void> executeAsync(
-      String activityType, StartActivityOptions options, @Nullable Object... args);
+  default CompletableFuture<Void> executeAsync(
+      String activityType, StartActivityOptions options, @Nullable Object... args) {
+    return start(activityType, options, args).getResultAsync(Void.class);
+  }
 
   /**
    * Starts a standalone activity and returns a future that completes with the typed result.

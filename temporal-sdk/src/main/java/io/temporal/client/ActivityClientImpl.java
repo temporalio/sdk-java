@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -316,60 +315,6 @@ class ActivityClientImpl implements ActivityClient {
       @Nullable Object... args) {
     UntypedActivityHandle untyped = start(activityType, options, args);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
-  }
-
-  // ---- String-based execute ----
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public void execute(String activityType, StartActivityOptions options, @Nullable Object... args) {
-    start(activityType, options, args).getResult(Void.class);
-  }
-
-  @Override
-  public <R> R execute(
-      String activityType,
-      Class<R> resultClass,
-      StartActivityOptions options,
-      @Nullable Object... args) {
-    return start(activityType, resultClass, options, args).getResult();
-  }
-
-  @Override
-  public <R> R execute(
-      String activityType,
-      Class<R> resultClass,
-      Type resultType,
-      StartActivityOptions options,
-      @Nullable Object... args) {
-    return start(activityType, resultClass, resultType, options, args).getResult();
-  }
-
-  // ---- String-based executeAsync ----
-
-  @Override
-  public CompletableFuture<Void> executeAsync(
-      String activityType, StartActivityOptions options, @Nullable Object... args) {
-    return start(activityType, options, args).getResultAsync(Void.class);
-  }
-
-  @Override
-  public <R> CompletableFuture<R> executeAsync(
-      String activityType,
-      Class<R> resultClass,
-      StartActivityOptions options,
-      @Nullable Object... args) {
-    return start(activityType, resultClass, options, args).getResultAsync();
-  }
-
-  @Override
-  public <R> CompletableFuture<R> executeAsync(
-      String activityType,
-      Class<R> resultClass,
-      Type resultType,
-      StartActivityOptions options,
-      @Nullable Object... args) {
-    return start(activityType, resultClass, resultType, options, args).getResultAsync();
   }
 
   // ---- Handle lookup ----
