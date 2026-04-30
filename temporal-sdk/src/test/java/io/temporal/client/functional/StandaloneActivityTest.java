@@ -103,7 +103,7 @@ public class StandaloneActivityTest {
     public String namespace;
     public String taskQueue;
     public boolean isLocal;
-    public boolean isWorkflowActivity;
+    public boolean isInWorkflow;
     public String workflowId;
     public String workflowRunId;
     public String workflowType;
@@ -170,7 +170,7 @@ public class StandaloneActivityTest {
       snapshot.namespace = info.getNamespace();
       snapshot.taskQueue = info.getActivityTaskQueue();
       snapshot.isLocal = info.isLocal();
-      snapshot.isWorkflowActivity = info.isWorkflowActivity();
+      snapshot.isInWorkflow = info.isInWorkflow();
       snapshot.workflowId = info.getWorkflowId();
       snapshot.workflowRunId = info.getWorkflowRunId();
       snapshot.workflowType = info.getWorkflowType();
@@ -553,7 +553,7 @@ public class StandaloneActivityTest {
     assertEquals(SDKTestWorkflowRule.NAMESPACE, info.namespace);
     assertEquals(testWorkflowRule.getTaskQueue(), info.taskQueue);
     assertFalse(info.isLocal);
-    assertFalse(info.isWorkflowActivity);
+    assertFalse(info.isInWorkflow);
     assertNull(info.workflowId);
     assertNull(info.workflowRunId);
     assertNull(info.workflowType);
@@ -633,7 +633,7 @@ public class StandaloneActivityTest {
                 InspectInfoActivity::inspectInfo,
                 simpleOpts(activityId));
     assertEquals(activityId, info.activityId);
-    assertFalse(info.isWorkflowActivity);
+    assertFalse(info.isInWorkflow);
   }
 
   @Test
@@ -687,7 +687,7 @@ public class StandaloneActivityTest {
                 simpleOpts(activityId));
     ActivityInfoSnapshot info = handle.getResult();
     assertEquals(activityId, info.activityId);
-    assertFalse(info.isWorkflowActivity);
+    assertFalse(info.isInWorkflow);
   }
 
   @Test

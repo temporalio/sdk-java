@@ -144,7 +144,7 @@ public interface ActivityInfo {
    * @return {@code true} if this activity was scheduled by a workflow execution; {@code false} for
    *     standalone activities.
    */
-  default boolean isWorkflowActivity() {
+  default boolean isInWorkflow() {
     return getWorkflowId() != null;
   }
 
