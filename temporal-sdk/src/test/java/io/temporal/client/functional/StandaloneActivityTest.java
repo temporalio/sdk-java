@@ -6,6 +6,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
+import com.google.common.base.Stopwatch;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ActivityInterface;
@@ -891,6 +892,7 @@ public class StandaloneActivityTest {
 
       assertTrue("Activity did not start within 30s", cancelLatch.await(30, TimeUnit.SECONDS));
 
+      Stopwatch sw = Stopwatch.createStarted();
       CompletableFuture<Void> future = handle.getResultAsync(2, TimeUnit.SECONDS);
 
       java.util.concurrent.ExecutionException ex =
@@ -898,6 +900,10 @@ public class StandaloneActivityTest {
               java.util.concurrent.ExecutionException.class,
               () -> future.get(30, TimeUnit.SECONDS));
       assertThat(ex.getCause(), instanceOf(java.util.concurrent.TimeoutException.class));
+      long elapsedSeconds = sw.elapsed(TimeUnit.SECONDS);
+      assertTrue(
+          "Expected timeout around 2s, got " + elapsedSeconds + "s",
+          elapsedSeconds >= 1 && elapsedSeconds <= 10);
     } finally {
       cancelLatch = null;
     }
@@ -952,7 +958,7 @@ public class StandaloneActivityTest {
 
         @Override
         public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
-            throws ActivityFailedException {
+            throws java.util.concurrent.TimeoutException {
           events.add("getActivityResult");
           return super.getActivityResult(input);
         }

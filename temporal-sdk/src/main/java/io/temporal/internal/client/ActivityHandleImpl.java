@@ -6,6 +6,7 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
@@ -46,10 +47,32 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public <R> R getResult(Class<R> resultClass, @Nullable Type resultType) {
+    try {
+      return clientCallsInterceptor
+          .getActivityResult(
+              new ActivityClientCallsInterceptor.GetActivityResultInput<>(
+                  activityId, activityRunId, resultClass, resultType))
+          .getResult();
+    } catch (TimeoutException e) {
+      // unreachable: no-timeout input uses Long.MAX_VALUE deadline
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass)
+      throws TimeoutException {
+    return getResult(timeout, unit, resultClass, null);
+  }
+
+  @Override
+  public <R> R getResult(
+      long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType)
+      throws TimeoutException {
     return clientCallsInterceptor
         .getActivityResult(
             new ActivityClientCallsInterceptor.GetActivityResultInput<>(
-                activityId, activityRunId, resultClass, resultType))
+                activityId, activityRunId, resultClass, resultType, timeout, unit))
         .getResult();
   }
 

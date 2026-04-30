@@ -1,6 +1,7 @@
 package io.temporal.common.interceptors;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 /** Convenience base class for {@link ActivityClientCallsInterceptor} implementations. */
 public class ActivityClientCallsInterceptorBase implements ActivityClientCallsInterceptor {
@@ -17,7 +18,8 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   }
 
   @Override
-  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input) {
+  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
+      throws TimeoutException {
     return next.getActivityResult(input);
   }
 

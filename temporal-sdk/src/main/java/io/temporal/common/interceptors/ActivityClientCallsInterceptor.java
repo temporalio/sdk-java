@@ -11,6 +11,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -47,7 +48,8 @@ public interface ActivityClientCallsInterceptor {
    * @return output wrapping the deserialized activity result
    * @throws ActivityFailedException if the activity failed or was cancelled
    */
-  <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input);
+  <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
+      throws TimeoutException;
 
   /**
    * Returns the current execution description for a standalone activity. If a long-poll token from
@@ -117,7 +119,7 @@ public interface ActivityClientCallsInterceptor {
         () -> {
           try {
             return getActivityResult(input);
-          } catch (ActivityFailedException e) {
+          } catch (ActivityFailedException | TimeoutException e) {
             throw new java.util.concurrent.CompletionException(e);
           }
         });

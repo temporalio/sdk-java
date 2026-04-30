@@ -29,7 +29,7 @@ public class ActivityHandleImplTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testGetResultTyped() throws ActivityFailedException {
+  public void testGetResultTyped() throws Exception {
     GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
     when(output.getResult()).thenReturn("hello");
     when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
@@ -111,7 +111,7 @@ public class ActivityHandleImplTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testFromUntypedWrapsHandle() throws ActivityFailedException {
+  public void testFromUntypedWrapsHandle() throws Exception {
     GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
     when(output.getResult()).thenReturn("typed-result");
     when(interceptor.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
@@ -123,8 +123,7 @@ public class ActivityHandleImplTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testFromUntypedWithExplicitTypePassesTypeToInterceptor()
-      throws ActivityFailedException {
+  public void testFromUntypedWithExplicitTypePassesTypeToInterceptor() throws Exception {
     // explicitType is a parameterized List<String> — distinct from List.class — so the verify
     // below can only pass if the implementation forwards the Type arg, not the Class arg.
     Type explicitType = new TypeToken<List<String>>() {}.getType();

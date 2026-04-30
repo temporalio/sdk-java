@@ -4,6 +4,7 @@ import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
@@ -26,6 +27,18 @@ public interface ActivityHandle<R> extends UntypedActivityHandle {
    * @throws ActivityFailedException if the activity failed, timed out, or was cancelled
    */
   R getResult();
+
+  /**
+   * Blocks until the standalone activity completes and returns the typed result, or throws if the
+   * client-side timeout expires first.
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of {@code timeout}
+   * @throws ActivityFailedException if the activity failed, timed out on the server, or was
+   *     cancelled
+   * @throws TimeoutException if {@code timeout} expires before the activity completes
+   */
+  R getResult(long timeout, TimeUnit unit) throws TimeoutException;
 
   /**
    * Returns a future that completes when the activity completes and resolves to the typed result.

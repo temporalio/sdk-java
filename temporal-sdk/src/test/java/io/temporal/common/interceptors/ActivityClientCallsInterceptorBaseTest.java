@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
-import io.temporal.client.ActivityFailedException;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import java.time.Duration;
@@ -57,7 +56,7 @@ public class ActivityClientCallsInterceptorBaseTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testGetActivityResultDelegatesToNext() throws ActivityFailedException {
+  public void testGetActivityResultDelegatesToNext() throws Exception {
     GetActivityResultOutput<String> output = mock(GetActivityResultOutput.class);
     when(next.getActivityResult(any(GetActivityResultInput.class))).thenReturn(output);
 

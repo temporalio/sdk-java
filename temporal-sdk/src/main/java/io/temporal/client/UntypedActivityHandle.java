@@ -52,6 +52,36 @@ public interface UntypedActivityHandle {
   <R> R getResult(Class<R> resultClass, @Nullable Type resultType);
 
   /**
+   * Blocks until the standalone activity completes and returns the typed result, or throws if the
+   * timeout expires before the activity completes.
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of {@code timeout}
+   * @param resultClass the class to deserialize the result into
+   * @throws ActivityFailedException if the activity failed, timed out on the server, or was
+   *     cancelled
+   * @throws TimeoutException if the client-side {@code timeout} expires before the activity
+   *     completes
+   */
+  <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass) throws TimeoutException;
+
+  /**
+   * Blocks until the standalone activity completes and returns the typed result, or throws if the
+   * timeout expires. Use this overload for generic return types (e.g. {@code List<String>}).
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of {@code timeout}
+   * @param resultClass the class to deserialize the result into
+   * @param resultType the generic type to use for deserialization; may be {@code null}
+   * @throws ActivityFailedException if the activity failed, timed out on the server, or was
+   *     cancelled
+   * @throws TimeoutException if the client-side {@code timeout} expires before the activity
+   *     completes
+   */
+  <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType)
+      throws TimeoutException;
+
+  /**
    * Returns a future that completes when the activity completes and resolves to the typed result.
    *
    * @param resultClass the class to deserialize the result into

@@ -122,9 +122,11 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   @Override
-  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input) {
+  public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
+      throws TimeoutException {
     String namespace = clientOptions.getNamespace();
     DataConverter dc = clientOptions.getDataConverter();
+    Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
       PollActivityExecutionRequest.Builder pollRequest =
@@ -135,7 +137,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         pollRequest.setRunId(input.getRunId());
       }
 
-      PollActivityExecutionResponse pollResponse = genericClient.pollActivity(pollRequest.build());
+      PollActivityExecutionResponse pollResponse;
+      try {
+        pollResponse = genericClient.pollActivity(pollRequest.build(), deadline);
+      } catch (StatusRuntimeException e) {
+        if (deadline.isExpired() && Status.Code.DEADLINE_EXCEEDED.equals(e.getStatus().getCode())) {
+          throw new TimeoutException(
+              "Activity did not complete within timeout: activityId='"
+                  + input.getActivityId()
+                  + "'");
+        }
+        throw e;
+      }
 
       if (!pollResponse.hasOutcome()) {
         if (Thread.currentThread().isInterrupted()) {

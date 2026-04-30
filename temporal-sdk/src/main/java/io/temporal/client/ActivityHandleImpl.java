@@ -3,6 +3,7 @@ package io.temporal.client;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
@@ -27,6 +28,22 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   @Override
   public R getResult() {
     return delegate.getResult(resultClass, resultType);
+  }
+
+  @Override
+  public R getResult(long timeout, TimeUnit unit) throws TimeoutException {
+    return delegate.getResult(timeout, unit, resultClass, resultType);
+  }
+
+  @Override
+  public <T> T getResult(long timeout, TimeUnit unit, Class<T> clazz) throws TimeoutException {
+    return delegate.getResult(timeout, unit, clazz, null);
+  }
+
+  @Override
+  public <T> T getResult(long timeout, TimeUnit unit, Class<T> clazz, @Nullable Type type)
+      throws TimeoutException {
+    return delegate.getResult(timeout, unit, clazz, type);
   }
 
   @Override

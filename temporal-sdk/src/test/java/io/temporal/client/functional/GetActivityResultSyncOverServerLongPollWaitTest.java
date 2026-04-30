@@ -67,6 +67,6 @@ public class GetActivityResultSyncOverServerLongPollWaitTest {
   @Test(timeout = 2 * ACTIVITY_LONG_POLL_TIMEOUT_SECONDS * 1000)
   public void testGetResult() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    newActivityClient().execute(SlowActivity.class, SlowActivity::run, slowOpts());
+    newActivityClient().start(SlowActivity.class, SlowActivity::run, slowOpts()).getResult();
   }
 }
