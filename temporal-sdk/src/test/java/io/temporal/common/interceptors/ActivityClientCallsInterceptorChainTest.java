@@ -1,172 +1,95 @@
 package io.temporal.common.interceptors;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assume.assumeTrue;
 
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
+import org.junit.Rule;
 import org.junit.Test;
 
-/** Tests for the {@link ActivityClientInterceptor} factory pattern and chain-building behavior. */
+/**
+ * Tests for interceptor chain ordering using a real Temporal server. Each test creates an {@link
+ * ActivityClient} with two interceptors and verifies the call order through a client method.
+ */
 public class ActivityClientCallsInterceptorChainTest {
 
-  private static StartActivityInput minimalInput() {
-    return new StartActivityInput(
-        "MyActivity",
-        Collections.emptyList(),
-        StartActivityOptions.newBuilder()
-            .setId("act-id")
-            .setTaskQueue("tq")
-            .setStartToCloseTimeout(Duration.ofSeconds(10))
-            .build(),
-        Header.empty());
+  @ActivityInterface
+  public interface EchoActivity {
+    @ActivityMethod(name = "ChainTestEcho")
+    String echo(String input);
   }
 
-  /**
-   * Builds a chain from a list of interceptors and a root, replicating ActivityClientImpl logic.
-   */
-  private static ActivityClientCallsInterceptor buildChain(
-      List<ActivityClientInterceptor> interceptors, ActivityClientCallsInterceptor root) {
-    ActivityClientCallsInterceptor invoker = root;
-    for (ActivityClientInterceptor interceptor : interceptors) {
-      invoker = interceptor.activityClientCallsInterceptor(invoker);
+  static class EchoActivityImpl implements EchoActivity {
+    @Override
+    public String echo(String input) {
+      return input;
     }
-    return invoker;
   }
 
-  // ---- Chain ordering ----
+  @Rule
+  public SDKTestWorkflowRule testRule =
+      SDKTestWorkflowRule.newBuilder().setActivityImplementations(new EchoActivityImpl()).build();
 
   @Test
-  public void testSingleInterceptorExecutesBeforeRoot() {
+  public void testTwoInterceptorsCalledInOrderOnStart() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
     List<String> events = new ArrayList<>();
-    ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
-    when(root.startActivity(any()))
-        .thenAnswer(
-            inv -> {
-              events.add("root");
-              return new StartActivityOutput("id", null);
-            });
 
-    ActivityClientInterceptor interceptor =
-        new ActivityClientInterceptorBase() {
-          @Override
-          public ActivityClientCallsInterceptor activityClientCallsInterceptor(
-              ActivityClientCallsInterceptor next) {
-            return new ActivityClientCallsInterceptorBase(next) {
-              @Override
-              public StartActivityOutput startActivity(StartActivityInput input) {
-                events.add("A");
-                return super.startActivity(input);
-              }
-            };
-          }
-        };
+    ActivityClient client = newClient(startInterceptor("A", events), startInterceptor("B", events));
+    String result = client.execute(EchoActivity.class, EchoActivity::echo, opts(uniqueId()), "hi");
 
-    ActivityClientCallsInterceptor chain = buildChain(Collections.singletonList(interceptor), root);
-    chain.startActivity(minimalInput());
-
-    assertEquals(Arrays.asList("A", "root"), events);
+    assertEquals("hi", result);
+    // B is last in the list → B wraps A → B is outermost → B called first
+    assertEquals(Arrays.asList("B", "A"), events);
   }
 
   @Test
-  public void testTwoInterceptorsLastIsOutermost() {
+  public void testInterceptorListOrderDeterminesCallOrder() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
     List<String> events = new ArrayList<>();
-    ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
-    when(root.startActivity(any()))
-        .thenAnswer(
-            inv -> {
-              events.add("root");
-              return new StartActivityOutput("id", null);
-            });
 
-    ActivityClientInterceptor first = factoryInterceptor("A", events);
-    ActivityClientInterceptor second = factoryInterceptor("B", events);
+    // reversed list order: A is last → A wraps B → A is outermost → A called first
+    ActivityClient client = newClient(startInterceptor("B", events), startInterceptor("A", events));
+    client.execute(EchoActivity.class, EchoActivity::echo, opts(uniqueId()), "hi");
 
-    ActivityClientCallsInterceptor chain = buildChain(Arrays.asList(first, second), root);
-    chain.startActivity(minimalInput());
-
-    assertEquals(Arrays.asList("B", "A", "root"), events);
+    assertEquals(Arrays.asList("A", "B"), events);
   }
 
-  @Test
-  public void testThreeInterceptorsLastIsOutermost() {
-    List<String> events = new ArrayList<>();
-    ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
-    when(root.startActivity(any()))
-        .thenAnswer(
-            inv -> {
-              events.add("root");
-              return new StartActivityOutput("id", null);
-            });
+  // ---- Helpers ----
 
-    ActivityClientCallsInterceptor chain =
-        buildChain(
-            Arrays.asList(
-                factoryInterceptor("A", events),
-                factoryInterceptor("B", events),
-                factoryInterceptor("C", events)),
-            root);
-    chain.startActivity(minimalInput());
-
-    assertEquals(Arrays.asList("C", "B", "A", "root"), events);
+  private ActivityClient newClient(ActivityClientInterceptor... interceptors) {
+    return ActivityClient.newInstance(
+        testRule.getWorkflowServiceStubs(),
+        ActivityClientOptions.newBuilder()
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+            .setInterceptors(Arrays.asList(interceptors))
+            .build());
   }
 
-  // ---- ActivityClientInterceptorBase defaults ----
-
-  @Test
-  public void testActivityClientInterceptorBaseDefaultPassesThrough() {
-    // ActivityClientInterceptorBase.activityClientCallsInterceptor returns next unchanged.
-    ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
-    when(root.startActivity(any())).thenReturn(new StartActivityOutput("id", null));
-
-    ActivityClientInterceptor passthrough = new ActivityClientInterceptorBase() {};
-
-    ActivityClientCallsInterceptor chain = buildChain(Collections.singletonList(passthrough), root);
-    StartActivityOutput output = chain.startActivity(minimalInput());
-
-    assertNotNull(output);
-    verify(root).startActivity(any());
+  private String uniqueId() {
+    return "act-" + UUID.randomUUID();
   }
 
-  @Test
-  public void testInterceptorBaseCanWrapAndInterceptCalls() {
-    List<String> events = new ArrayList<>();
-    ActivityClientCallsInterceptor root = mock(ActivityClientCallsInterceptor.class);
-    when(root.startActivity(any()))
-        .thenAnswer(
-            inv -> {
-              events.add("root");
-              return new StartActivityOutput("id", null);
-            });
-
-    ActivityClientInterceptor factory =
-        new ActivityClientInterceptorBase() {
-          @Override
-          public ActivityClientCallsInterceptor activityClientCallsInterceptor(
-              ActivityClientCallsInterceptor next) {
-            return new ActivityClientCallsInterceptorBase(next) {
-              @Override
-              public StartActivityOutput startActivity(StartActivityInput input) {
-                events.add("intercepted");
-                return super.startActivity(input);
-              }
-            };
-          }
-        };
-
-    buildChain(Collections.singletonList(factory), root).startActivity(minimalInput());
-
-    assertEquals(Arrays.asList("intercepted", "root"), events);
+  private StartActivityOptions opts(String id) {
+    return StartActivityOptions.newBuilder()
+        .setId(id)
+        .setTaskQueue(testRule.getTaskQueue())
+        .setScheduleToCloseTimeout(Duration.ofMinutes(1))
+        .build();
   }
 
-  // ---- Helper ----
-
-  private static ActivityClientInterceptor factoryInterceptor(String name, List<String> events) {
+  private static ActivityClientInterceptor startInterceptor(String name, List<String> events) {
     return new ActivityClientInterceptorBase() {
       @Override
       public ActivityClientCallsInterceptor activityClientCallsInterceptor(
