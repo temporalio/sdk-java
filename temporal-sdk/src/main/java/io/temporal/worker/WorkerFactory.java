@@ -312,7 +312,7 @@ public final class WorkerFactory {
         Supplier<WorkerHeartbeat> heartbeatSupplier =
             worker.buildHeartbeatCallback(workerGroupingKey);
         hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
-        worker.workflowWorker.setHeartbeatSupplier(heartbeatSupplier);
+        worker.setHeartbeatSupplier(heartbeatSupplier);
       }
     }
 

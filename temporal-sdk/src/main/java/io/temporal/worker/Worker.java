@@ -27,8 +27,8 @@ import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.TaskCounter;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.Version;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -67,17 +67,16 @@ public final class Worker {
   private final String namespace;
   private final String identity;
   private final String stickyTaskQueueName;
-  private final NamespaceCapabilities namespaceCapabilities;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
   private final AtomicBoolean started = new AtomicBoolean();
   private volatile boolean shuttingDown = false;
-  private final String workerInstanceKey = UUID.randomUUID().toString();
   private volatile Instant startTime;
   private final WorkflowClientOptions clientOptions;
   private final @Nonnull WorkflowExecutorCache cache;
   private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
+  private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
 
   private static final class TaskSnapshot {
     final int processed;
@@ -114,8 +113,7 @@ public final class Worker {
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
 
     Objects.requireNonNull(client, "client should not be null");
-    this.namespaceCapabilities =
-        Objects.requireNonNull(namespaceCapabilities, "namespaceCapabilities should not be null");
+    Objects.requireNonNull(namespaceCapabilities, "namespaceCapabilities should not be null");
     this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
@@ -220,8 +218,6 @@ public final class Worker {
             client,
             namespace,
             taskQueue,
-            workerInstanceKey,
-            this::getActiveTaskQueueTypes,
             singleWorkerOptions,
             localActivityOptions,
             runLocks,
@@ -493,13 +489,15 @@ public final class Worker {
             .setWorkerInstanceKey(workerInstanceKey)
             .setTaskQueue(taskQueue)
             .setReason("graceful shutdown")
-            .addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW)
-            .addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_NEXUS);
-    if (activityWorker != null) {
-      requestBuilder.addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY);
-    }
+            .addAllTaskQueueTypes(getActiveTaskQueueTypes());
     if (stickyTaskQueueName != null) {
       requestBuilder.setStickyTaskQueue(stickyTaskQueueName);
+    }
+    if (heartbeatSupplier != null) {
+      requestBuilder.setWorkerHeartbeat(
+          heartbeatSupplier.get().toBuilder()
+              .setStatus(WorkerStatus.WORKER_STATUS_SHUTTING_DOWN)
+              .build());
     }
     CompletableFuture<Void> shutdownWorkerRpc =
         shutdownManager.waitOnWorkerShutdownRequest(
@@ -548,6 +546,10 @@ public final class Worker {
 
   String getWorkerInstanceKey() {
     return workerInstanceKey;
+  }
+
+  void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
+    this.heartbeatSupplier = supplier;
   }
 
   List<TaskQueueType> getActiveTaskQueueTypes() {

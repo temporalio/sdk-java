@@ -9,7 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import javax.annotation.Nonnull;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -32,14 +32,14 @@ public class GracefulPollShutdownTest {
   public void inflightPollSurvivesShutdownOnlyWhenGraceful() throws Exception {
     NamespaceCapabilities capabilities = new NamespaceCapabilities();
     capabilities.setFromCapabilities(
-        Capabilities.newBuilder().setWorkerPollCompleteOnShutdown(true).build());
+        Capabilities.newBuilder().setWorkerPollCompleteOnShutdown(graceful).build());
 
     AtomicReference<String> processedTask = new AtomicReference<>();
     CountDownLatch taskProcessedLatch = new CountDownLatch(1);
     ShutdownableTaskExecutor<String> taskExecutor =
         new ShutdownableTaskExecutor<String>() {
           @Override
-          public void process(@NonNull String task) {
+          public void process(@Nonnull String task) {
             processedTask.set(task);
             taskProcessedLatch.countDown();
           }

@@ -13,7 +13,6 @@ public final class NamespaceCapabilities {
   private final AtomicBoolean gracefulPollShutdown = new AtomicBoolean(false);
   private final AtomicBoolean workerHeartbeats = new AtomicBoolean(false);
 
-
   public void setFromCapabilities(Capabilities capabilities) {
     if (capabilities.getPollerAutoscaling()) {
       pollerAutoscaling.set(true);
@@ -34,7 +33,7 @@ public final class NamespaceCapabilities {
   public void setGracefulPollShutdown(boolean value) {
     gracefulPollShutdown.set(value);
   }
-  
+
   public boolean isWorkerHeartbeats() {
     return workerHeartbeats.get();
   }
