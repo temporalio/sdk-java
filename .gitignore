@@ -6,7 +6,7 @@ target
 .idea
 .gradle
 /build
-/*/build
+**/build
 **/out
 /lib
 dummy
@@ -17,7 +17,7 @@ src/main/idls/*
 .project
 .settings
 .vscode/
-*/bin
+**/bin
 /.claude
 mise.local.toml
 **/.factorypath

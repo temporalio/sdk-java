@@ -646,13 +646,17 @@ public final class WorkerOptions {
           workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
+              ? (workflowTaskPollersBehavior != null
+                  ? 0
+                  : DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS)
               : maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              ? (activityTaskPollersBehavior != null
+                  ? 0
+                  : DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS)
               : maxConcurrentActivityTaskPollers,
           maxConcurrentNexusTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS
+              ? (nexusTaskPollersBehavior != null ? 0 : DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS)
               : maxConcurrentNexusTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout == 0

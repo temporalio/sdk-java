@@ -14,47 +14,47 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
-      - name: Run unit tests
+      - name: Run unit tests (Java 23)
         env:
           USER: unittest
           USE_DOCKER_SERVICE: false
-        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -PtestJavaVersion=23
 
       - name: Run independent resource tuner test
         env:
           USER: unittest
           USE_DOCKER_SERVICE: false
-        run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest
+        run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -PtestJavaVersion=23
 
       - name: Run Spring Boot 3 compatibility tests
         env:
           USER: unittest
           USE_DOCKER_SERVICE: false
-        run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -P springBoot3Test
+        run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -P springBoot3Test -PtestJavaVersion=23
 
       - name: Run Spring Boot 4 compatibility tests
         env:
           USER: unittest
           USE_DOCKER_SERVICE: false
-        run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -P springBoot4Test
+        run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -P springBoot4Test -PtestJavaVersion=23
 
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
         if: success() || failure() # always run even if the previous step fails
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
@@ -65,22 +65,22 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: |
-            23
             11
+            23
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Start containerized server and dependencies
         env:
@@ -110,31 +110,39 @@ jobs:
               --dynamic-config-value history.enableRequestIdRefLinks=true \
               --dynamic-config-value frontend.WorkerHeartbeatsEnabled=true \
               --dynamic-config-value frontend.ListWorkersEnabled=true \
-              --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' &
+              --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
+              --dynamic-config-value frontend.activityAPIsEnabled=true \
+              --dynamic-config-value activity.enableStandalone=true \
+              --dynamic-config-value history.enableChasm=true \
+              --dynamic-config-value history.enableTransitionHistory=true &
           sleep 10s
 
-      - name: Run unit tests
+      # Can't actually run tests against Java 8 because Mockito 5 requires Java 11+.
+      # We therefore have to rely on the fact that the code has been compiled with
+      # `-release 8` which guarantees that the code is technically (bytecode + API
+      # usage) compatible with Java 8.
+      - name: Run unit tests (Java 11)
         env:
           USER: unittest
           TEMPORAL_SERVICE_ADDRESS: localhost:7233
           USE_DOCKER_SERVICE: true
-        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava
+        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=11
 
-      - name: Run Jackson 3 converter tests
+      - name: Run Jackson 3 converter tests (Java 17)
         env:
           USER: unittest
           USE_DOCKER_SERVICE: false
-        run: ./gradlew --no-daemon :temporal-sdk:jackson3Tests -x spotlessCheck -x spotlessApply -x spotlessJava
+        run: ./gradlew --no-daemon :temporal-sdk:jackson3Tests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=17
 
-      - name: Run virtual thread tests
+      - name: Run virtual thread tests (Java 21)
         env:
           USER: unittest
           TEMPORAL_SERVICE_ADDRESS: localhost:7233
           USE_DOCKER_SERVICE: true
-        run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava
+        run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21
 
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
         if: success() || failure() # always run even if the previous step fails
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
@@ -145,20 +153,20 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
-          java-version: "11"
+          java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Run cloud test
         # Only supported in non-fork runs, since secrets are not available in forks. We intentionally
@@ -173,7 +181,7 @@ jobs:
         run: ./gradlew --no-daemon :temporal-sdk:test --tests '*CloudOperationsClientTest'
 
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
         if: success() || failure() # always run even if the previous step fails
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
@@ -184,20 +192,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Run copyright and code format checks
         run: ./gradlew --no-daemon spotlessCheck
@@ -208,20 +216,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Run javadoc
         run: ./gradlew --no-daemon javadoc

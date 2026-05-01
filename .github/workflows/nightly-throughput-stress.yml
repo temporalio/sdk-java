@@ -68,38 +68,38 @@ jobs:
           echo "=========================================="
 
       - name: Checkout SDK
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Checkout OMES
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           repository: ${{ env.OMES_REPO }}
           ref: ${{ env.OMES_REF }}
           path: omes
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version-file: omes/go.mod
           cache-dependency-path: omes/go.sum
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
-          java-version: "11"
+          java-version: "23"
           distribution: "temurin"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Build SDK
-        run: ./gradlew build -x test -x virtualThreadTests
+        run: ./gradlew build -x test -x virtualThreadTests -PtestJavaVersion=23
 
       - name: Install Temporal CLI
-        uses: temporalio/setup-temporal@v0
+        uses: temporalio/setup-temporal@1059a504f87e7fa2f385e3fa40d1aa7e62f1c6ca # v0
 
       - name: Install Prometheus
         run: |
@@ -154,7 +154,7 @@ jobs:
 
       - name: Configure AWS credentials
         if: always()
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@51635dbf418c2cdd8b3e1497529334d8db7e4063 # v6
         with:
           role-to-assume: ${{ env.AWS_S3_METRICS_UPLOAD_ROLE_ARN }}
           aws-region: us-west-2
@@ -174,7 +174,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure() || cancelled()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: throughput-stress-logs
           path: ${{ env.WORKER_LOG_DIR }}
@@ -182,7 +182,7 @@ jobs:
 
       - name: Notify Slack on failure
         if: failure() || cancelled()
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3
         with:
           webhook-type: incoming-webhook
           payload: |
