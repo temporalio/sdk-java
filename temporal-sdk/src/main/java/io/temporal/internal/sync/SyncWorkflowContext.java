@@ -1422,6 +1422,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 io.temporal.api.enums.v1.ContinueAsNewVersioningBehavior
                     .CONTINUE_AS_NEW_VERSIONING_BEHAVIOR_AUTO_UPGRADE);
             break;
+          case USE_RAMPING_VERSION:
+            attributes.setInitialVersioningBehavior(
+                io.temporal.api.enums.v1.ContinueAsNewVersioningBehavior
+                    .CONTINUE_AS_NEW_VERSIONING_BEHAVIOR_USE_RAMPING_VERSION);
+            break;
         }
       }
     }
