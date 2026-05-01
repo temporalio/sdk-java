@@ -525,6 +525,96 @@ public class WorkerVersioningTest {
     }
   }
 
+  @WorkflowInterface
+  public interface ContinueAsNewWithRampingVersionWorkflow {
+    @WorkflowMethod
+    String execute(int attempt);
+
+    @SignalMethod
+    void continueAsNew();
+  }
+
+  public static class TestWorkerVersioningCanUseRampingVersionV1
+      implements ContinueAsNewWithRampingVersionWorkflow {
+    private boolean continueAsNew;
+
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      if (attempt > 0) {
+        return "v1.0";
+      }
+      Workflow.await(() -> continueAsNew);
+      ContinueAsNewOptions options =
+          ContinueAsNewOptions.newBuilder()
+              .setInitialVersioningBehavior(InitialVersioningBehavior.USE_RAMPING_VERSION)
+              .build();
+      ContinueAsNewWithRampingVersionWorkflow next =
+          Workflow.newContinueAsNewStub(ContinueAsNewWithRampingVersionWorkflow.class, options);
+      next.execute(attempt + 1);
+      throw new RuntimeException("unreachable");
+    }
+
+    @Override
+    public void continueAsNew() {
+      continueAsNew = true;
+    }
+  }
+
+  public static class TestWorkerVersioningCanUseRampingVersionV2
+      implements ContinueAsNewWithRampingVersionWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      return "v2.0";
+    }
+
+    @Override
+    public void continueAsNew() {}
+  }
+
+  @Test
+  public void testContinueAsNewWithRampingVersion() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    WorkerDeploymentVersion v2 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningCanUseRampingVersionV1.class);
+    w1.start();
+
+    Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
+    w2.registerWorkflowImplementationTypes(TestWorkerVersioningCanUseRampingVersionV2.class);
+    w2.start();
+
+    waitUntilWorkerDeploymentVisible(v1);
+    DescribeWorkerDeploymentResponse d1 = waitUntilWorkerDeploymentVisible(v2);
+    SetWorkerDeploymentCurrentVersionResponse currentResp =
+        setCurrentVersion(v1, d1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
+
+    ContinueAsNewWithRampingVersionWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            ContinueAsNewWithRampingVersionWorkflow.class, "can-use-ramping-version");
+    WorkflowExecution we = WorkflowClient.start(wf::execute, 0);
+    waitForWorkflowRunningOnVersion(we.getWorkflowId(), "1.0");
+
+    setRampingVersion(v2, 0, currentResp.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
+
+    wf.continueAsNew();
+
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(we.getWorkflowId())
+            .getResult(String.class);
+    Assert.assertEquals("v2.0", result);
+  }
+
   @Test
   public void testContinueAsNewWithVersionUpgrade() {
     assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
@@ -641,6 +731,12 @@ public class WorkerVersioningTest {
 
   @SuppressWarnings("deprecation")
   private void waitForRoutingConfigPropagation(WorkerDeploymentVersion v) {
+    waitForRoutingConfigPropagation(v, null);
+  }
+
+  @SuppressWarnings("deprecation")
+  private void waitForRoutingConfigPropagation(
+      WorkerDeploymentVersion currentVersion, WorkerDeploymentVersion rampingVersion) {
     Eventually.assertEventually(
         Duration.ofSeconds(15),
         () -> {
@@ -652,14 +748,22 @@ public class WorkerVersioningTest {
                   .describeWorkerDeployment(
                       DescribeWorkerDeploymentRequest.newBuilder()
                           .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                          .setDeploymentName(v.getDeploymentName())
+                          .setDeploymentName(currentVersion.getDeploymentName())
                           .build());
           Assert.assertEquals(
-              v.getBuildId(),
+              currentVersion.getBuildId(),
               resp.getWorkerDeploymentInfo()
                   .getRoutingConfig()
                   .getCurrentDeploymentVersion()
                   .getBuildId());
+          if (rampingVersion != null) {
+            Assert.assertEquals(
+                rampingVersion.getBuildId(),
+                resp.getWorkerDeploymentInfo()
+                    .getRoutingConfig()
+                    .getRampingDeploymentVersion()
+                    .getBuildId());
+          }
           // Check routing config update is not in progress
           int state = resp.getWorkerDeploymentInfo().getRoutingConfigUpdateStateValue();
           Assert.assertNotEquals(
