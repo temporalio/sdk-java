@@ -17,6 +17,8 @@ New to Temporal? → https://docs.temporal.io/develop
 
 ## Install
 
+> **Build under JDK ≤ 21** for the unmerged-branch build. JDK 25's stricter compiler checks cause spurious failures even though the module targets `--release 11`. Example: `JAVA_HOME=$JDK21 ./gradlew :temporal-tool-registry:publishToMavenLocal`.
+
 Add to your `build.gradle`:
 
 ```groovy
