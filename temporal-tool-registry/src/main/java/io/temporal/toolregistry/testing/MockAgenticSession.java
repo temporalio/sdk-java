@@ -13,27 +13,27 @@ import java.util.Map;
  * don't want to run an actual tool loop.
  *
  * <p>Instead of calling an LLM, {@link #runToolLoop} records the prompt and optionally returns
- * pre-canned issues.
+ * pre-canned results.
  *
  * <p>Example:
  *
  * <pre>{@code
  * MockAgenticSession mock = new MockAgenticSession();
- * mock.getIssues().add(Map.of("description", "pre-seeded issue"));
+ * mock.getResults().add(Map.of("description", "pre-seeded result"));
  * }</pre>
  */
 public class MockAgenticSession extends AgenticSession {
 
   private String capturedPrompt;
-  private final List<Map<String, Object>> mutableIssues = new ArrayList<>();
+  private final List<Map<String, Object>> mutableResults = new ArrayList<>();
 
   /**
    * Records the prompt and returns immediately without calling an LLM.
    *
-   * <p>Issues can be pre-seeded via {@link #getMutableIssues()}.
+   * <p>Results can be pre-seeded via {@link #getMutableResults()}.
    */
   @Override
-  public void runToolLoop(Provider provider, ToolRegistry registry, String system, String prompt) {
+  public void runToolLoop(Provider provider, ToolRegistry registry, String prompt) {
     this.capturedPrompt = prompt;
   }
 
@@ -43,22 +43,22 @@ public class MockAgenticSession extends AgenticSession {
   }
 
   /**
-   * Returns the mutable issues list. Add entries here before running the session to simulate
-   * pre-existing issues.
+   * Returns the mutable results list. Add entries here before running the session to simulate
+   * pre-existing results.
    */
-  public List<Map<String, Object>> getMutableIssues() {
-    return mutableIssues;
+  public List<Map<String, Object>> getMutableResults() {
+    return mutableResults;
   }
 
   /**
-   * Returns the issues list (mutable issues + any added via {@link AgenticSession#addIssue}).
+   * Returns the results list (mutable results + any added via {@link AgenticSession#addResult}).
    *
    * <p>Note: the returned list is a merged snapshot.
    */
   @Override
-  public List<Map<String, Object>> getIssues() {
-    List<Map<String, Object>> merged = new ArrayList<>(mutableIssues);
-    merged.addAll(super.getIssues());
+  public List<Map<String, Object>> getResults() {
+    List<Map<String, Object>> merged = new ArrayList<>(mutableResults);
+    merged.addAll(super.getResults());
     return Collections.unmodifiableList(merged);
   }
 }
