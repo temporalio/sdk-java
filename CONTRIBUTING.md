@@ -8,8 +8,14 @@ before we can merge in any of your changes
 
 ## Development Environment
 
-- Java 23+
-- Docker to run Temporal Server
+- **Java 23+** is required to run Gradle and to compile the project.
+- Some tests assume you also have **Java 17 and 21** installed.
+- Some optional tests also require the [Temporal CLI](https://docs.temporal.io/cli#installation).
+
+You can install the Java dependencies all in one go with [mise](https://mise.jdx.dev/), which reads from [mise.toml](./mise.toml). If you're using mise and Gradle isn't automatically picking up the older JDKs as toolchains, try [this workaround](https://mise.jdx.dev/lang/java.html#gradle-toolchains-detection).
+
+If you're using Apple Silicon, see the [note on Rosetta](#note-on-rosetta).
+
 
 ## Build
 
@@ -41,26 +47,24 @@ fatal: No names found, cannot describe anything.
 This can be done resolved by running `git fetch --tags` on your branch. Note, make sure your fork has tags copied from
 the main repo.
 
-## Test and Build
+## Testing
 
-Run a local temporal server with the [temporal CLI](https://docs.temporal.io/cli#installation):
-
-```bash
-temporal server start-dev
-```
-
-(If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.)
-
-Then run all the tests with:
+Some tests assume you have the temporal server running, and others don't. By default, Gradle only runs the tests that don't require a server:
 
 ```bash
 ./gradlew test
 ```
 
-Build with:
+You can run a local temporal server with the [temporal CLI](https://docs.temporal.io/cli#installation):
 
 ```bash
-./gradlew build
+temporal server start-dev
+```
+
+Run the tests that require a temporal server:
+
+```bash
+USE_DOCKER_SERVICE=true ./gradlew test
 ```
 
 ## Note on Rosetta
