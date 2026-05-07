@@ -21,13 +21,13 @@ import org.junit.Test;
 
 public class WorkerFactoryTests {
 
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @BeforeClass
   public static void beforeClass() {
-    Assume.assumeTrue(useDockerService);
+    Assume.assumeTrue(useExternalService);
   }
 
   private WorkflowServiceStubs service;

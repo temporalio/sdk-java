@@ -13,12 +13,12 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 /** Waits for local service to become available and registers UnitTest namespace. */
 public class RegisterTestNamespace {
   public static final String NAMESPACE = "UnitTest";
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   public static void main(String[] args) throws InterruptedException {
-    if (!useDockerService) {
+    if (!useExternalService) {
       return;
     }
 

@@ -71,7 +71,7 @@ temporal server start-dev
 Run the tests that require an external server:
 
 ```bash
-USE_DOCKER_SERVICE=true ./gradlew test
+USE_EXTERNAL_SERVICE=true ./gradlew test
 ```
 
 ## Note on Rosetta
