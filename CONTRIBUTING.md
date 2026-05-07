@@ -49,19 +49,26 @@ the main repo.
 
 ## Testing
 
-Some tests assume you have the temporal server running, and others don't. By default, Gradle only runs the tests that don't require a server:
+Run tests:
 
 ```bash
 ./gradlew test
 ```
 
-You can run a local temporal server with the [temporal CLI](https://docs.temporal.io/cli#installation):
+Run a single test or group of tests:
+
+```bash
+./gradlew :temporal-sdk:test --offline --tests "io.temporal.activity.ActivityPauseTest"
+./gradlew :temporal-sdk:test --offline --tests "io.temporal.workflow.*"
+```
+
+By default, tests run against an built-in test server that starts automatically. But some tests require a real temporal server and will be skipped. You can run an external server locally with the [temporal CLI](https://docs.temporal.io/cli#installation):
 
 ```bash
 temporal server start-dev
 ```
 
-Run the tests that require a temporal server:
+Run the tests that require an external server:
 
 ```bash
 USE_DOCKER_SERVICE=true ./gradlew test
