@@ -62,14 +62,15 @@ Run a single test or group of tests:
 ./gradlew :temporal-sdk:test --offline --tests "io.temporal.workflow.*"
 ```
 
-By default, tests run against an built-in test server that starts automatically. But some tests require a real temporal server and will be skipped. You can run an external server locally with the [temporal CLI](https://docs.temporal.io/cli#installation):
+By default, integration tests run against the built-in time-skipping test server. Some tests require features that the built-in server doesn't support; those tests will be skipped. To run the skipped tests:
 
+1. Install the [temporal CLI](https://docs.temporal.io/cli#installation), which comes with a built-in dev server.
+2. Find the flags that the dev server will need to run the tests by grepping for `temporal server` in [./github/workflows/ci.yml](./github/workflows/ci.yml).
+3. Start the server: 
 ```bash
-temporal server start-dev
+temporal server start-dev --YOUR-FLAGS-HERE
 ```
-
-Run the tests that require an external server:
-
+4. Set the `USE_EXTERNAL_SERVICE` environment variable and run the tests: 
 ```bash
 USE_EXTERNAL_SERVICE=true ./gradlew test
 ```
