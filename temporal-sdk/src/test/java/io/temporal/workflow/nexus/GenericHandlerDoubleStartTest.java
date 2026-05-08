@@ -13,7 +13,6 @@ import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
-import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -24,8 +23,7 @@ public class GenericHandlerDoubleStartTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              TestNexus.class, TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl.class)
+          .setWorkflowTypes(TestNexus.class, BlockingWorkflowImpl.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
 
@@ -68,7 +66,23 @@ public class GenericHandlerDoubleStartTest {
 
       TestNexusServiceDoubleStart serviceStub =
           Workflow.newNexusServiceStub(TestNexusServiceDoubleStart.class, serviceOptions);
-      return serviceStub.operation("input");
+      return serviceStub.operation(input);
+    }
+  }
+
+  @WorkflowInterface
+  public interface BlockingWorkflow {
+    @WorkflowMethod
+    String execute(String input);
+  }
+
+  public static class BlockingWorkflowImpl implements BlockingWorkflow {
+    @Override
+    public String execute(String input) {
+      // Block forever so the nexus operation doesn't complete via callback
+      // before the handler error propagates
+      Workflow.await(() -> false);
+      return input;
     }
   }
 
@@ -84,18 +98,18 @@ public class GenericHandlerDoubleStartTest {
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
           (context, client, input) -> {
-            // First start should succeed
+            // First start should succeed but the workflow blocks indefinitely
             client.startWorkflow(
-                TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class,
-                TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc::func1,
+                BlockingWorkflow.class,
+                BlockingWorkflow::execute,
                 input,
                 WorkflowOptions.newBuilder()
                     .setWorkflowId("double-start-first-" + context.getService())
                     .build());
             // Second start should throw
             return client.startWorkflow(
-                TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class,
-                TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc::func1,
+                BlockingWorkflow.class,
+                BlockingWorkflow::execute,
                 input,
                 WorkflowOptions.newBuilder()
                     .setWorkflowId("double-start-second-" + context.getService())
