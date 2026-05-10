@@ -86,8 +86,7 @@ public final class InternalUtils {
     } catch (JsonProcessingException e) {
       // Not expected as the link is constructed by the SDK.
       throw new HandlerException(
-          HandlerException.ErrorType.BAD_REQUEST,
-          new IllegalArgumentException("failed to generate workflow operation token", e));
+          HandlerException.ErrorType.BAD_REQUEST, "failed to generate workflow operation token", e);
     }
     List<Link> links =
         request.getLinks() == null

@@ -25,6 +25,7 @@ public final class WorkflowTaskResult {
     private String writeSdkName;
     private String writeSdkVersion;
     private VersioningBehavior versioningBehavior;
+    private Runnable applyPostCompletionMetrics;
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
@@ -76,6 +77,11 @@ public final class WorkflowTaskResult {
       return this;
     }
 
+    public Builder setApplyPostCompletionMetrics(Runnable applyPostCompletionMetrics) {
+      this.applyPostCompletionMetrics = applyPostCompletionMetrics;
+      return this;
+    }
+
     public WorkflowTaskResult build() {
       return new WorkflowTaskResult(
           commands == null ? Collections.emptyList() : commands,
@@ -87,7 +93,8 @@ public final class WorkflowTaskResult {
           sdkFlags == null ? Collections.emptyList() : sdkFlags,
           writeSdkName,
           writeSdkVersion,
-          versioningBehavior == null ? VersioningBehavior.UNSPECIFIED : versioningBehavior);
+          versioningBehavior == null ? VersioningBehavior.UNSPECIFIED : versioningBehavior,
+          applyPostCompletionMetrics);
     }
   }
 
@@ -101,6 +108,7 @@ public final class WorkflowTaskResult {
   private final String writeSdkName;
   private final String writeSdkVersion;
   private final VersioningBehavior versioningBehavior;
+  private final Runnable applyPostCompletionMetrics;
 
   private WorkflowTaskResult(
       List<Command> commands,
@@ -112,7 +120,8 @@ public final class WorkflowTaskResult {
       List<Integer> sdkFlags,
       String writeSdkName,
       String writeSdkVersion,
-      VersioningBehavior versioningBehavior) {
+      VersioningBehavior versioningBehavior,
+      Runnable applyPostCompletionMetrics) {
     this.commands = commands;
     this.messages = messages;
     this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
@@ -126,6 +135,7 @@ public final class WorkflowTaskResult {
     this.writeSdkName = writeSdkName;
     this.writeSdkVersion = writeSdkVersion;
     this.versioningBehavior = versioningBehavior;
+    this.applyPostCompletionMetrics = applyPostCompletionMetrics;
   }
 
   public List<Command> getCommands() {
@@ -167,5 +177,9 @@ public final class WorkflowTaskResult {
 
   public VersioningBehavior getVersioningBehavior() {
     return versioningBehavior;
+  }
+
+  public Runnable getApplyPostCompletionMetrics() {
+    return applyPostCompletionMetrics;
   }
 }

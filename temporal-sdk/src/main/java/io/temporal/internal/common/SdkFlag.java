@@ -12,12 +12,19 @@ public enum SdkFlag {
   SKIP_YIELD_ON_DEFAULT_VERSION(1),
   /*
    * Changes behavior of GetVersion to never yield.
+   *
+   * Enabled: 1.34.0
    */
   SKIP_YIELD_ON_VERSION(2),
   /*
    * Changes behavior of CancellationScope to cancel children in a deterministic order.
    */
   DETERMINISTIC_CANCELLATION_SCOPE_ORDER(3),
+  /*
+   * Changes behavior of Workflow.await(duration, condition) to cancel the timer if the
+   * condition is resolved before the timeout.
+   */
+  CANCEL_AWAIT_TIMER_ON_CONDITION(4),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;

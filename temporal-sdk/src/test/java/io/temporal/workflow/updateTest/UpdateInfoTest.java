@@ -40,11 +40,11 @@ public class UpdateInfoTest {
             .setUpdateName("update")
             .setWaitForStage(WorkflowUpdateStage.COMPLETED);
 
-    WorkflowUpdateHandle handle1 =
+    WorkflowUpdateHandle<String> handle1 =
         stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 1").build(), 0, "");
     assertEquals("update:update id 1", handle1.getResultAsync().get());
 
-    WorkflowUpdateHandle handle2 =
+    WorkflowUpdateHandle<String> handle2 =
         stub.startUpdate(updateOptionsBuilder.setUpdateId("update id 2").build(), 0, "");
     assertEquals("update:update id 2", handle2.getResultAsync().get());
 
@@ -57,7 +57,8 @@ public class UpdateInfoTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals(" update id 1 update id 2", result);
   }

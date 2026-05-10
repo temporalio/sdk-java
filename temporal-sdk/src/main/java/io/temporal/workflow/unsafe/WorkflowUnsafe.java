@@ -75,8 +75,8 @@ public final class WorkflowUnsafe {
    *
    * <p><b>Warning!</b> <br>
    * Never make workflow code depend on this flag. Workflow code that runs into deadlock detector is
-   * implemented incorrectly (see {@link }). The intended use of this execution mode is blocking
-   * calls and IO in {@link io.temporal.payload.codec.PayloadCodec}, {@link
+   * implemented incorrectly. The intended use of this execution mode is blocking calls and IO in
+   * {@link io.temporal.payload.codec.PayloadCodec}, {@link
    * io.temporal.common.converter.PayloadConverter} or {@link
    * io.temporal.common.interceptors.WorkerInterceptor} implementations.
    *

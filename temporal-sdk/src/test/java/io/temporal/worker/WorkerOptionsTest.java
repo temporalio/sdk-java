@@ -145,6 +145,35 @@ public class WorkerOptionsTest {
   }
 
   @Test
+  public void validateAndBuildWithDefaultsDoesNotSetPollerDefaultsWhenBehaviorIsSet() {
+    WorkerOptions options =
+        WorkerOptions.newBuilder()
+            .setWorkflowTaskPollersBehavior(new PollerBehaviorAutoscaling())
+            .setActivityTaskPollersBehavior(new PollerBehaviorAutoscaling())
+            .setNexusTaskPollersBehavior(new PollerBehaviorAutoscaling())
+            .validateAndBuildWithDefaults();
+
+    assertEquals(0, options.getMaxConcurrentWorkflowTaskPollers());
+    assertEquals(0, options.getMaxConcurrentActivityTaskPollers());
+    assertEquals(0, options.getMaxConcurrentNexusTaskPollers());
+    assertNotNull(options.getWorkflowTaskPollersBehavior());
+    assertNotNull(options.getActivityTaskPollersBehavior());
+    assertNotNull(options.getNexusTaskPollersBehavior());
+  }
+
+  @Test
+  public void validateAndBuildWithDefaultsIsIdempotentWithPollerBehavior() {
+    WorkerOptions first =
+        WorkerOptions.newBuilder()
+            .setWorkflowTaskPollersBehavior(new PollerBehaviorAutoscaling())
+            .validateAndBuildWithDefaults();
+    WorkerOptions second = WorkerOptions.newBuilder(first).validateAndBuildWithDefaults();
+
+    assertEquals(0, second.getMaxConcurrentWorkflowTaskPollers());
+    assertNotNull(second.getWorkflowTaskPollersBehavior());
+  }
+
+  @Test
   public void verifyMaxTaskQueuePerSecondsDisablesEagerExecution() {
     // Verify that by default eager execution is enabled
     WorkerOptions w1 = WorkerOptions.newBuilder().build();

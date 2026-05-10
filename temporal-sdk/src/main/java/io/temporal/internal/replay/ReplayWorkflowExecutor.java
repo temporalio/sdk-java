@@ -3,7 +3,6 @@ package io.temporal.internal.replay;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Timestamps;
-import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -14,14 +13,12 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.update.v1.Input;
 import io.temporal.api.update.v1.Request;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.sync.SignalHandlerInfo;
 import io.temporal.internal.sync.UpdateHandlerInfo;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.HandlerUnfinishedPolicy;
 import java.util.List;
@@ -63,8 +60,6 @@ final class ReplayWorkflowExecutor {
 
   private final ReplayWorkflowContextImpl context;
 
-  private final Scope metricsScope;
-
   public ReplayWorkflowExecutor(
       ReplayWorkflow workflow,
       WorkflowStateMachines workflowStateMachines,
@@ -72,7 +67,6 @@ final class ReplayWorkflowExecutor {
     this.workflow = workflow;
     this.workflowStateMachines = workflowStateMachines;
     this.context = context;
-    this.metricsScope = context.getMetricsScope();
   }
 
   public void eventLoop() {
@@ -131,12 +125,8 @@ final class ReplayWorkflowExecutor {
 
     if (context.isCancelRequested()) {
       workflowStateMachines.cancelWorkflow();
-      metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
-      if (!FailureUtils.isBenignApplicationFailure(failure.getFailure())) {
-        metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
-      }
     } else {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();
@@ -152,15 +142,9 @@ final class ReplayWorkflowExecutor {
         //  This way attributes will need to be carried over in the mutable state and the flow
         //  generally will be aligned with the flow of other commands.
         workflowStateMachines.continueAsNewWorkflow(attributes);
-
-        // TODO Issue #1590
-        metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
         workflowStateMachines.completeWorkflow(workflowOutput);
-
-        // TODO Issue #1590
-        metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
       }
     }
 
@@ -168,7 +152,7 @@ final class ReplayWorkflowExecutor {
         ProtobufTimeUtils.toM3Duration(
             Timestamps.fromMillis(System.currentTimeMillis()),
             Timestamps.fromMillis(context.getRunStartedTimestampMillis()));
-    metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
+    workflowStateMachines.setPostCompletionEndToEndLatency(d);
   }
 
   public void handleWorkflowExecutionCancelRequested(HistoryEvent event) {

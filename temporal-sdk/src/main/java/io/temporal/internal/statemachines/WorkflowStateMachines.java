@@ -10,6 +10,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Any;
+import com.uber.m3.util.Duration;
 import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.EventType;
@@ -19,6 +20,7 @@ import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.*;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
@@ -26,6 +28,7 @@ import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.serviceclient.Version;
+import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
@@ -50,7 +53,7 @@ public final class WorkflowStateMachines {
   /** Initial set of SDK flags that will be set on all new workflow executions. */
   @VisibleForTesting
   public static List<SdkFlag> initialFlags =
-      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+      Collections.singletonList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION);
 
   /**
    * Keep track of the change versions that have been seen by the SDK. This is used to generate the
@@ -85,6 +88,10 @@ public final class WorkflowStateMachines {
   private long historySize;
 
   private boolean isContinueAsNewSuggested;
+
+  private List<SuggestContinueAsNewReason> suggestContinueAsNewReasons = Collections.emptyList();
+
+  private boolean isTargetWorkerDeploymentVersionChanged;
 
   /**
    * EventId of the last event seen by these state machines. Events earlier than this one will be
@@ -187,6 +194,9 @@ public final class WorkflowStateMachines {
    */
   private boolean shouldSkipUpsertVersionSA = false;
 
+  private String postCompletionMetricCounter;
+  private com.uber.m3.util.Duration postCompletionEndToEndLatency;
+
   public WorkflowStateMachines(
       StatesMachinesCallback callbacks,
       GetSystemInfoResponse.Capabilities capabilities,
@@ -269,6 +279,14 @@ public final class WorkflowStateMachines {
 
   public boolean isContinueAsNewSuggested() {
     return isContinueAsNewSuggested;
+  }
+
+  public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+    return suggestContinueAsNewReasons;
+  }
+
+  public boolean isTargetWorkerDeploymentVersionChanged() {
+    return isTargetWorkerDeploymentVersionChanged;
   }
 
   public void setReplaying(boolean replaying) {
@@ -873,6 +891,18 @@ public final class WorkflowStateMachines {
     return lastWFTStartedEventId;
   }
 
+  public String getPostCompletionMetricCounter() {
+    return postCompletionMetricCounter;
+  }
+
+  public Duration getPostCompletionEndToEndLatency() {
+    return postCompletionEndToEndLatency;
+  }
+
+  public void setPostCompletionEndToEndLatency(Duration postCompletionEndToEndLatency) {
+    this.postCompletionEndToEndLatency = postCompletionEndToEndLatency;
+  }
+
   /**
    * @param attributes attributes used to schedule an activity
    * @param callback completion callback
@@ -941,6 +971,7 @@ public final class WorkflowStateMachines {
    * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
    */
+  @SuppressWarnings("deprecation")
   public Functions.Proc startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
@@ -1112,11 +1143,15 @@ public final class WorkflowStateMachines {
   public void completeWorkflow(Optional<Payloads> workflowOutput) {
     checkEventLoopExecuting();
     CompleteWorkflowStateMachine.newInstance(workflowOutput, commandSink, stateMachineSink);
+    postCompletionMetricCounter = MetricsType.WORKFLOW_COMPLETED_COUNTER;
   }
 
   public void failWorkflow(Failure failure) {
     checkEventLoopExecuting();
     FailWorkflowStateMachine.newInstance(failure, commandSink, stateMachineSink);
+    if (!FailureUtils.isBenignApplicationFailure(failure)) {
+      postCompletionMetricCounter = MetricsType.WORKFLOW_FAILED_COUNTER;
+    }
   }
 
   public void cancelWorkflow() {
@@ -1125,11 +1160,13 @@ public final class WorkflowStateMachines {
         CancelWorkflowExecutionCommandAttributes.getDefaultInstance(),
         commandSink,
         stateMachineSink);
+    postCompletionMetricCounter = MetricsType.WORKFLOW_CANCELED_COUNTER;
   }
 
   public void continueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     checkEventLoopExecuting();
     ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    postCompletionMetricCounter = MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER;
   }
 
   public boolean isReplaying() {
@@ -1157,9 +1194,12 @@ public final class WorkflowStateMachines {
   }
 
   public void sideEffect(
-      Functions.Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
+      Functions.Func<Optional<Payloads>> func,
+      UserMetadata userMetadata,
+      Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
     SideEffectStateMachine.newInstance(
+        userMetadata,
         this::isReplaying,
         func,
         (payloads) -> {
@@ -1179,6 +1219,7 @@ public final class WorkflowStateMachines {
    */
   public void mutableSideEffect(
       String id,
+      UserMetadata userMetadata,
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
@@ -1187,7 +1228,7 @@ public final class WorkflowStateMachines {
             id,
             (idKey) ->
                 MutableSideEffectStateMachine.newInstance(
-                    idKey, this::isReplaying, commandSink, stateMachineSink));
+                    idKey, userMetadata, this::isReplaying, commandSink, stateMachineSink));
     stateMachine.mutableSideEffect(
         func,
         (r) -> {
@@ -1466,7 +1507,9 @@ public final class WorkflowStateMachines {
         long currentTimeMillis,
         boolean nonProcessedWorkflowTask,
         long historySize,
-        boolean isContinueAsNewSuggested) {
+        boolean isContinueAsNewSuggested,
+        List<SuggestContinueAsNewReason> suggestContinueAsNewReasons,
+        boolean isTargetWorkerDeploymentVersionChanged) {
       setCurrentTimeMillis(currentTimeMillis);
       for (CancellableCommand cancellableCommand : commands) {
         cancellableCommand.handleWorkflowTaskStarted();
@@ -1482,6 +1525,9 @@ public final class WorkflowStateMachines {
       WorkflowStateMachines.this.lastWFTStartedEventId = startedEventId;
       WorkflowStateMachines.this.historySize = historySize;
       WorkflowStateMachines.this.isContinueAsNewSuggested = isContinueAsNewSuggested;
+      WorkflowStateMachines.this.suggestContinueAsNewReasons = suggestContinueAsNewReasons;
+      WorkflowStateMachines.this.isTargetWorkerDeploymentVersionChanged =
+          isTargetWorkerDeploymentVersionChanged;
 
       eventLoop();
     }

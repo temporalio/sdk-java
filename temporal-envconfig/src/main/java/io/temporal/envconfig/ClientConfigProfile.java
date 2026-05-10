@@ -5,7 +5,6 @@ import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -16,7 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 
 /** ClientConfigProfile is profile-level configuration for a client. */
-@Experimental
 public class ClientConfigProfile {
   /** Creates a new builder to build a {@link ClientConfigProfile}. */
   public static Builder newBuilder() {

@@ -55,8 +55,6 @@ group = 'io.temporal'
 version = getVersionName()
 
 subprojects {
-    apply plugin: "com.palantir.git-version"
-
     group = 'io.temporal'
     version = getVersionName()
 }

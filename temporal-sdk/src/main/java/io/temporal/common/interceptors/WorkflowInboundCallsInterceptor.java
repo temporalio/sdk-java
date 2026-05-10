@@ -21,8 +21,8 @@ import javax.annotation.Nullable;
  * <p>The implementation must forward all the calls to {@code next}, but it may change the input
  * parameters.
  *
- * @see WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor) for a definition of
- *     "next" {@link WorkflowInboundCallsInterceptor}
+ * <p>See {@link WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor)} for a
+ * definition of "next" {@link WorkflowInboundCallsInterceptor}.
  */
 @Experimental
 public interface WorkflowInboundCallsInterceptor {
@@ -166,10 +166,11 @@ public interface WorkflowInboundCallsInterceptor {
    *
    * <p>The instance should be passed into the {next.init(newWorkflowOutboundCallsInterceptor)}.
    *
+   * <p>See {@link WorkerInterceptor#interceptWorkflow} for the definition of "next" {@link
+   * WorkflowInboundCallsInterceptor}.
+   *
    * @param outboundCalls an existing interceptor instance to be proxied by the interceptor created
    *     inside this method
-   * @see WorkerInterceptor#interceptWorkflow for the definition of "next" {@link
-   *     WorkflowInboundCallsInterceptor}
    */
   void init(WorkflowOutboundCallsInterceptor outboundCalls);
 

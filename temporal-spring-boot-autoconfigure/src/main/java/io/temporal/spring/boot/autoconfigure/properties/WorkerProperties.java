@@ -270,10 +270,10 @@ public class WorkerProperties {
     private final @Nullable Double maxTaskQueueActivitiesPerSecond;
 
     /**
+     * @param maxWorkerActivitiesPerSecond defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxWorkerActivitiesPerSecond(double)}
      * @param maxTaskQueueActivitiesPerSecond defines {@link
      *     io.temporal.worker.WorkerOptions.Builder#setMaxTaskQueueActivitiesPerSecond(double)}}
-     * @param maxWorkerActivitiesPerSecond defines {@link
-     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityExecutionSize(int)}
      */
     @ConstructorBinding
     public RateLimitsConfigurationProperties(

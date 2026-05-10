@@ -3,14 +3,23 @@ package io.temporal.envconfig;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.toml.TomlMapper;
-import io.temporal.common.Experimental;
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** ClientConfig represents a client config file. */
-@Experimental
+/**
+ * ClientConfig represents a client config file.
+ *
+ * <p>The default config file path is OS-specific:
+ *
+ * <ul>
+ *   <li>macOS: $HOME/Library/Application Support/temporalio/temporal.toml
+ *   <li>Windows: %APPDATA%\temporalio\temporal.toml
+ *   <li>Linux/other: $HOME/.config/temporalio/temporal.toml
+ * </ul>
+ */
 public class ClientConfig {
   /** Creates a new builder to build a {@link ClientConfig}. */
   public static Builder newBuilder() {
@@ -32,13 +41,34 @@ public class ClientConfig {
     return new ClientConfig.Builder().build();
   }
 
-  /** Get the default config file path: $HOME/.config/temporal/temporal.toml */
   private static String getDefaultConfigFilePath() {
     String userDir = System.getProperty("user.home");
     if (userDir == null || userDir.isEmpty()) {
-      throw new RuntimeException("failed getting user home directory");
+      return null;
     }
-    return userDir + "/.config/temporal/temporal.toml";
+    return getDefaultConfigFilePath(userDir, System.getProperty("os.name"), System.getenv());
+  }
+
+  static String getDefaultConfigFilePath(
+      String userDir, String osName, Map<String, String> environment) {
+    if (userDir == null || userDir.isEmpty()) {
+      return null;
+    }
+    if (osName != null) {
+      String osNameLower = osName.toLowerCase();
+      if (osNameLower.contains("mac")) {
+        return Paths.get(userDir, "Library", "Application Support", "temporalio", "temporal.toml")
+            .toString();
+      }
+      if (osNameLower.contains("win")) {
+        String appData = environment != null ? environment.get("APPDATA") : null;
+        if (appData == null || appData.isEmpty()) {
+          return null;
+        }
+        return Paths.get(appData, "temporalio", "temporal.toml").toString();
+      }
+    }
+    return Paths.get(userDir, ".config", "temporalio", "temporal.toml").toString();
   }
 
   /**
@@ -95,8 +125,17 @@ public class ClientConfig {
       if (file == null || file.isEmpty()) {
         file = getDefaultConfigFilePath();
       }
-      ClientConfigToml.TomlClientConfig result = reader.readValue(new File(file));
-      return new ClientConfig(ClientConfigToml.getClientProfiles(result));
+      // No config dir available — return default empty config
+      if (file == null) {
+        return getDefaultInstance();
+      }
+      try {
+        ClientConfigToml.TomlClientConfig result = reader.readValue(new File(file));
+        return new ClientConfig(ClientConfigToml.getClientProfiles(result));
+      } catch (FileNotFoundException e) {
+        // File not found is ok - return default empty config
+        return getDefaultInstance();
+      }
     }
   }
 
@@ -140,7 +179,7 @@ public class ClientConfig {
    *
    * @param config the client config to convert
    * @return the TOML data as bytes
-   * @apiNote The output will not be identical to the input if the config was loaded from a file
+   *     <p>Note: The output will not be identical to the input if the config was loaded from a file
    *     because comments and formatting are not preserved.
    */
   public static byte[] toTomlAsBytes(ClientConfig config) throws IOException {

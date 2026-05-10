@@ -48,6 +48,9 @@ final class ActivityWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<ActivitySlotInfo> slotSupplier;
+  private final TaskCounter taskCounter = new TaskCounter();
+  private final PollerTracker pollerTracker;
+  private final NamespaceCapabilities namespaceCapabilities;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -56,7 +59,8 @@ final class ActivityWorker implements SuspendableWorker {
       double taskQueueActivitiesPerSecond,
       @Nonnull SingleWorkerOptions options,
       @Nonnull ActivityTaskHandler handler,
-      @Nonnull SlotSupplier<ActivitySlotInfo> slotSupplier) {
+      @Nonnull SlotSupplier<ActivitySlotInfo> slotSupplier,
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -72,6 +76,8 @@ final class ActivityWorker implements SuspendableWorker {
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
+    this.pollerTracker = new PollerTracker();
+    this.namespaceCapabilities = namespaceCapabilities;
   }
 
   @Override
@@ -103,9 +109,11 @@ final class ActivityWorker implements SuspendableWorker {
                     taskQueueActivitiesPerSecond,
                     this.slotSupplier,
                     workerMetricsScope,
-                    service.getServerCapabilities()),
+                    service.getServerCapabilities(),
+                    pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
+                namespaceCapabilities.isPollerAutoscaling(),
                 workerMetricsScope);
 
       } else {
@@ -121,7 +129,8 @@ final class ActivityWorker implements SuspendableWorker {
                     taskQueueActivitiesPerSecond,
                     this.slotSupplier,
                     workerMetricsScope,
-                    service.getServerCapabilities()),
+                    service.getServerCapabilities(),
+                    pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope);
@@ -211,6 +220,22 @@ final class ActivityWorker implements SuspendableWorker {
     return pollerOptions;
   }
 
+  public TrackingSlotSupplier<ActivitySlotInfo> getSlotSupplier() {
+    return slotSupplier;
+  }
+
+  public TaskCounter getTaskCounter() {
+    return taskCounter;
+  }
+
+  public PollerOptions getPollerOptions() {
+    return pollerOptions;
+  }
+
+  public PollerTracker getPollerTracker() {
+    return pollerTracker;
+  }
+
   @Override
   public String toString() {
     return String.format(
@@ -254,9 +279,22 @@ final class ActivityWorker implements SuspendableWorker {
       MDC.put(LoggerTag.ATTEMPT, Integer.toString(pollResponse.getAttempt()));
 
       ActivityTaskHandler.Result result = null;
+      boolean taskFailed = false;
       try {
         result = handleActivity(task, metricsScope);
+        if (result.getTaskFailed() != null
+            && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
+                result.getTaskFailed().getFailure())) {
+          taskFailed = true;
+        }
+      } catch (Exception e) {
+        taskFailed = true;
+        throw e;
       } finally {
+        taskCounter.recordProcessed();
+        if (taskFailed) {
+          taskCounter.recordFailed();
+        }
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);

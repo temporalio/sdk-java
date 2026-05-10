@@ -4,7 +4,9 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SuggestContinueAsNewReason;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -120,15 +122,15 @@ public interface WorkflowInfo {
 
   /**
    * @return Workflow ID of the root Workflow
-   * @apiNote On server versions prior to v1.27.0, this method will be empty. Otherwise, it will be
-   *     empty if the workflow is its own root.
+   *     <p>Note: On server versions prior to v1.27.0, this method will be empty. Otherwise, it will
+   *     be empty if the workflow is its own root.
    */
   Optional<String> getRootWorkflowId();
 
   /**
    * @return Run ID of the root Workflow
-   * @apiNote On server versions prior to v1.27.0, this method will be empty. Otherwise, it will be
-   *     empty if the workflow is its own root.
+   *     <p>Note: On server versions prior to v1.27.0, this method will be empty. Otherwise, it will
+   *     be empty if the workflow is its own root.
    */
   Optional<String> getRootRunId();
 
@@ -162,6 +164,22 @@ public interface WorkflowInfo {
   boolean isContinueAsNewSuggested();
 
   /**
+   * @return the reasons why continue-as-new is suggested, or an empty list if not suggested. This
+   *     value changes during the lifetime of a Workflow Execution.
+   */
+  @Experimental
+  List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons();
+
+  /**
+   * @return true if the target worker deployment version has changed for this workflow since the
+   *     last workflow task. This is only relevant for workflows using the PINNED versioning
+   *     behavior. When true, the workflow may want to continue-as-new with {@link
+   *     ContinueAsNewOptions.Builder#setInitialVersioningBehavior} set to AUTO_UPGRADE.
+   */
+  @Experimental
+  boolean isTargetWorkerDeploymentVersionChanged();
+
+  /**
    * @return The Build ID of the worker which executed the current Workflow Task. May be empty the
    *     task was completed by a worker without a Build ID. If this worker is the one executing this
    *     task for the first time and has a Build ID set, then its ID will be used. This value may
@@ -173,8 +191,8 @@ public interface WorkflowInfo {
   /**
    * Return the priority of the workflow task.
    *
-   * @apiNote If unset or on an older server version, this method will return {@link
-   *     Priority#getDefaultInstance()}.
+   * <p>Note: If unset or on an older server version, this method will return {@link
+   * Priority#getDefaultInstance()}.
    */
   @Experimental
   @Nonnull

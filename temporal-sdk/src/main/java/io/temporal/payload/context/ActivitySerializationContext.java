@@ -4,26 +4,37 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @Experimental
 public class ActivitySerializationContext implements HasWorkflowSerializationContext {
   private final @Nonnull String namespace;
-  private final @Nonnull String workflowId;
-  private final @Nonnull String workflowType;
+  private final @Nullable String workflowId;
+  private final @Nullable String workflowType;
   private final @Nonnull String activityType;
   private final @Nonnull String activityTaskQueue;
   private final boolean local;
 
+  /**
+   * @param namespace the activity's namespace; must not be {@code null}
+   * @param workflowId the workflow ID that scheduled the activity, or {@code null} for standalone
+   *     activities (stored as an empty string)
+   * @param workflowType the workflow type that scheduled the activity, or {@code null} for
+   *     standalone activities (stored as an empty string)
+   * @param activityType the activity type name; must not be {@code null}
+   * @param activityTaskQueue the task queue for this activity; must not be {@code null}
+   * @param local {@code true} if this is a local activity
+   */
   public ActivitySerializationContext(
       @Nonnull String namespace,
-      @Nonnull String workflowId,
-      @Nonnull String workflowType,
+      @Nullable String workflowId,
+      @Nullable String workflowType,
       @Nonnull String activityType,
       @Nonnull String activityTaskQueue,
       boolean local) {
     this.namespace = Objects.requireNonNull(namespace);
-    this.workflowId = Objects.requireNonNull(workflowId);
-    this.workflowType = Objects.requireNonNull(workflowType);
+    this.workflowId = workflowId;
+    this.workflowType = workflowType;
     this.activityType = Objects.requireNonNull(activityType);
     this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
     this.local = local;
@@ -46,12 +57,12 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
   }
 
   @Override
-  @Nonnull
+  @Nullable
   public String getWorkflowId() {
     return workflowId;
   }
 
-  @Nonnull
+  @Nullable
   public String getWorkflowType() {
     return workflowType;
   }

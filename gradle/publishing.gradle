@@ -27,27 +27,24 @@ subprojects {
                 }
             }
         }
-        // to test local publishing use ./gradlew publish and comment nexusPublishing
-//        repositories {
-//            maven {
-//                def releasesRepoUrl = "$System.env.HOME/repos/releases"
-//                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
-//                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-//            }
-//        }
+
+        // To test local publishing use ./gradlew publish and comment nexusPublishing
+        //
+        // repositories {
+        //     maven {
+        //         def releasesRepoUrl = "$System.env.HOME/repos/releases"
+        //         def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
+        //         url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+        //     }
+        // }
     }
 
-    if (project.hasProperty('signing.keyId')) {
-        signing {
-            sign publishing.publications.mavenJava
-        }
-    }
-
-    //customize the pom in afterEvaluate to allow subproject build.gradle files to
-    //contribute the description field
+    // Customize the pom for all publications and sign all, in afterEvaluate so
+    // subproject build.gradle files can contribute (e.g. description) and custom
+    // publications (e.g. shadow) exist.
     afterEvaluate { subproject ->
-        subproject.publishing.publications.mavenJava {
-            pom {
+        subproject.publishing.publications.withType(MavenPublication).each { publication ->
+            publication.pom {
                 name = subproject.description
                 description = subproject.description
                 url = 'https://github.com/temporalio/sdk-java'
@@ -76,6 +73,13 @@ subprojects {
                         name = 'Samar Abbas'
                         email = 'samar@temporal.io'
                     }
+                }
+            }
+        }
+        if (subproject.hasProperty('signing.keyId')) {
+            subproject.signing {
+                subproject.publishing.publications.withType(MavenPublication).each { publication ->
+                    sign publication
                 }
             }
         }

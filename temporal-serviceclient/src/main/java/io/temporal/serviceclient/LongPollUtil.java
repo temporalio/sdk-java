@@ -13,7 +13,8 @@ class LongPollUtil {
         || method == WorkflowServiceGrpc.getPollNexusTaskQueueMethod()
         || method == WorkflowServiceGrpc.getUpdateWorkflowExecutionMethod()
         || method == WorkflowServiceGrpc.getExecuteMultiOperationMethod()
-        || method == WorkflowServiceGrpc.getPollWorkflowExecutionUpdateMethod()) {
+        || method == WorkflowServiceGrpc.getPollWorkflowExecutionUpdateMethod()
+        || method == WorkflowServiceGrpc.getPollActivityExecutionMethod()) {
       return true;
     }
     if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {

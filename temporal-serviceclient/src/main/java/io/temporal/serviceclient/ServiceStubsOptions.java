@@ -39,8 +39,14 @@ public class ServiceStubsOptions {
 
   protected final @Nullable Consumer<ManagedChannelBuilder<?>> channelInitializer;
 
-  /** Indicates whether basic HTTPS/SSL/TLS should be enabled * */
-  protected final boolean enableHttps;
+  /**
+   * Indicates whether basic HTTPS/SSL/TLS should be enabled. Null means not explicitly set by the
+   * user, allowing runtime derivation of the effective value.
+   */
+  protected final Boolean enableHttps;
+
+  /** Indicates whether an API key was provided, used for automatic TLS enablement */
+  protected final boolean apiKeyProvided;
 
   /** The user provided context for SSL/TLS over gRPC * */
   protected final SslContext sslContext;
@@ -113,6 +119,7 @@ public class ServiceStubsOptions {
     this.target = that.target;
     this.channelInitializer = that.channelInitializer;
     this.enableHttps = that.enableHttps;
+    this.apiKeyProvided = that.apiKeyProvided;
     this.sslContext = that.sslContext;
     this.healthCheckAttemptTimeout = that.healthCheckAttemptTimeout;
     this.systemInfoTimeout = that.systemInfoTimeout;
@@ -134,7 +141,8 @@ public class ServiceStubsOptions {
       ManagedChannel channel,
       String target,
       @Nullable Consumer<ManagedChannelBuilder<?>> channelInitializer,
-      boolean enableHttps,
+      Boolean enableHttps,
+      boolean apiKeyProvided,
       SslContext sslContext,
       Duration healthCheckAttemptTimeout,
       Duration healthCheckTimeout,
@@ -154,6 +162,7 @@ public class ServiceStubsOptions {
     this.target = target;
     this.channelInitializer = channelInitializer;
     this.enableHttps = enableHttps;
+    this.apiKeyProvided = apiKeyProvided;
     this.sslContext = sslContext;
     this.healthCheckAttemptTimeout = healthCheckAttemptTimeout;
     this.healthCheckTimeout = healthCheckTimeout;
@@ -202,11 +211,24 @@ public class ServiceStubsOptions {
   }
 
   /**
-   * @return if gRPC should use SSL/TLS; Ignored and assumed {@code true} if {@link
-   *     #getSslContext()} is set
+   * Returns whether gRPC should use SSL/TLS. This method computes the effective value based on:
+   *
+   * <ul>
+   *   <li>If explicitly set via {@link Builder#setEnableHttps(boolean)}, returns that value
+   *   <li>If an API key was provided and no custom SSL context or channel is set, returns {@code
+   *       true} (auto-enabled)
+   *   <li>Otherwise returns {@code false}
+   * </ul>
+   *
+   * <p>Note: When {@link #getSslContext()} is set, TLS is handled by the SSL context regardless of
+   * this value.
+   *
+   * @return if gRPC should use SSL/TLS
    */
   public boolean getEnableHttps() {
-    return enableHttps;
+    return (enableHttps != null)
+        ? enableHttps
+        : (apiKeyProvided && sslContext == null && channel == null);
   }
 
   /**
@@ -325,12 +347,13 @@ public class ServiceStubsOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ServiceStubsOptions that = (ServiceStubsOptions) o;
-    return enableHttps == that.enableHttps
+    return apiKeyProvided == that.apiKeyProvided
         && enableKeepAlive == that.enableKeepAlive
         && keepAlivePermitWithoutStream == that.keepAlivePermitWithoutStream
         && Objects.equals(channel, that.channel)
         && Objects.equals(target, that.target)
         && Objects.equals(channelInitializer, that.channelInitializer)
+        && Objects.equals(enableHttps, that.enableHttps)
         && Objects.equals(sslContext, that.sslContext)
         && Objects.equals(healthCheckAttemptTimeout, that.healthCheckAttemptTimeout)
         && Objects.equals(healthCheckTimeout, that.healthCheckTimeout)
@@ -353,6 +376,7 @@ public class ServiceStubsOptions {
         target,
         channelInitializer,
         enableHttps,
+        apiKeyProvided,
         sslContext,
         healthCheckAttemptTimeout,
         healthCheckTimeout,
@@ -418,7 +442,7 @@ public class ServiceStubsOptions {
   public static class Builder<T extends Builder<T>> {
     private ManagedChannel channel;
     private SslContext sslContext;
-    private boolean enableHttps;
+    private Boolean enableHttps;
     private String target;
     private Consumer<ManagedChannelBuilder<?>> channelInitializer;
     private Duration healthCheckAttemptTimeout;
@@ -435,6 +459,7 @@ public class ServiceStubsOptions {
     private Collection<GrpcMetadataProvider> grpcMetadataProviders;
     private Collection<ClientInterceptor> grpcClientInterceptors;
     private Scope metricsScope;
+    private boolean apiKeyProvided;
 
     protected Builder() {}
 
@@ -443,6 +468,7 @@ public class ServiceStubsOptions {
       this.target = options.target;
       this.channelInitializer = options.channelInitializer;
       this.enableHttps = options.enableHttps;
+      this.apiKeyProvided = options.apiKeyProvided;
       this.sslContext = options.sslContext;
       this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
@@ -455,8 +481,15 @@ public class ServiceStubsOptions {
       this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
       this.grpcReconnectFrequency = options.grpcReconnectFrequency;
       this.headers = options.headers;
-      this.grpcMetadataProviders = options.grpcMetadataProviders;
-      this.grpcClientInterceptors = options.grpcClientInterceptors;
+      // Make mutable copies of collections to allow adding more items
+      this.grpcMetadataProviders =
+          options.grpcMetadataProviders != null && !options.grpcMetadataProviders.isEmpty()
+              ? new ArrayList<>(options.grpcMetadataProviders)
+              : null;
+      this.grpcClientInterceptors =
+          options.grpcClientInterceptors != null && !options.grpcClientInterceptors.isEmpty()
+              ? new ArrayList<>(options.grpcClientInterceptors)
+              : null;
       this.metricsScope = options.metricsScope;
     }
 
@@ -613,6 +646,7 @@ public class ServiceStubsOptions {
      * @return {@code this}
      */
     public T addApiKey(AuthorizationTokenSupplier apiKey) {
+      this.apiKeyProvided = true;
       addGrpcMetadataProvider(
           new AuthorizationGrpcMetadataProvider(() -> "Bearer " + apiKey.supply()));
       return self();
@@ -804,6 +838,7 @@ public class ServiceStubsOptions {
           this.target,
           this.channelInitializer,
           this.enableHttps,
+          this.apiKeyProvided,
           this.sslContext,
           this.healthCheckAttemptTimeout,
           this.healthCheckTimeout,
@@ -837,7 +872,7 @@ public class ServiceStubsOptions {
             "Only one of the 'sslContext' or 'channel' options can be set at a time");
       }
 
-      if (this.enableHttps && this.channel != null) {
+      if (Boolean.TRUE.equals(this.enableHttps) && this.channel != null) {
         throw new IllegalStateException(
             "Only one of the 'enableHttps' or 'channel' options can be set at a time");
       }
@@ -866,6 +901,7 @@ public class ServiceStubsOptions {
           target,
           this.channelInitializer,
           this.enableHttps,
+          this.apiKeyProvided,
           this.sslContext,
           healthCheckAttemptTimeout,
           healthCheckTimeout,

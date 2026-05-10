@@ -33,8 +33,8 @@ import javax.annotation.Nullable;
  * implementation must forward all the calls to the outbound interceptor passed as a {@code
  * outboundCalls} parameter to the {@code init} call.
  *
- * @see WorkerInterceptor#interceptWorkflow for the definition of "next" {@link
- *     WorkflowInboundCallsInterceptor}.
+ * @see WorkerInterceptor#interceptWorkflow for the definition of "next"
+ *     WorkflowInboundCallsInterceptor.
  */
 @Experimental
 public interface WorkflowOutboundCallsInterceptor {
@@ -748,8 +748,18 @@ public interface WorkflowOutboundCallsInterceptor {
 
   <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func);
 
+  <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options);
+
   <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func);
+
+  <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options);
 
   int getVersion(String changeId, int minSupported, int maxSupported);
 

@@ -28,7 +28,7 @@ public class DefaultDataConverter extends PayloadAndFailureDataConverter {
    *
    * <p>This data converter is also always used (regardless of whether or not users have supplied
    * their own converter) to perform serialization of values essential for functionality of Temporal
-   * SDK, Server, tctl or WebUI:
+   * SDK, Server, Temporal CLI or WebUI:
    *
    * <ul>
    *   <li>Local Activity, Version, MutableSideEffect Markers metadata like id, time, name

@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,8 @@ public class SyncActivityWorker implements SuspendableWorker {
       String taskQueue,
       double taskQueueActivitiesPerSecond,
       SingleWorkerOptions options,
-      SlotSupplier<ActivitySlotInfo> slotSupplier) {
+      SlotSupplier<ActivitySlotInfo> slotSupplier,
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.identity = options.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -72,7 +74,8 @@ public class SyncActivityWorker implements SuspendableWorker {
             taskQueueActivitiesPerSecond,
             options,
             taskHandler,
-            slotSupplier);
+            slotSupplier,
+            namespaceCapabilities);
   }
 
   public void registerActivityImplementations(Object... activitiesImplementation) {
@@ -145,6 +148,26 @@ public class SyncActivityWorker implements SuspendableWorker {
 
   public EagerActivityDispatcher getEagerActivityDispatcher() {
     return this.worker.getEagerActivityDispatcher();
+  }
+
+  public boolean isAnyTypeSupported() {
+    return taskHandler.isAnyTypeSupported();
+  }
+
+  public TrackingSlotSupplier<ActivitySlotInfo> getSlotSupplier() {
+    return worker.getSlotSupplier();
+  }
+
+  public TaskCounter getTaskCounter() {
+    return worker.getTaskCounter();
+  }
+
+  public PollerOptions getPollerOptions() {
+    return worker.getPollerOptions();
+  }
+
+  public PollerTracker getPollerTracker() {
+    return worker.getPollerTracker();
   }
 
   @Override

@@ -39,6 +39,6 @@ public abstract class WorkflowException extends TemporalException {
         + execution.getWorkflowId()
         + "', runId='"
         + execution.getRunId()
-        + (workflowType == null ? "" : "', workflowType='" + workflowType + '\'');
+        + (workflowType == null ? "'" : "', workflowType='" + workflowType + '\'');
   }
 }

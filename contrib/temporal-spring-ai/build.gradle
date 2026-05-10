@@ -1,0 +1,68 @@
+description = '''Temporal Java SDK Spring AI Plugin'''
+
+ext {
+    springAiVersion = '1.1.0'
+    // Spring AI requires Spring Boot 3.x / Java 17+
+    springBootVersionForSpringAi = "$springBoot3Version"
+}
+
+// Spring AI requires Java 17+, override the default Java 8 target from java.gradle.
+// When edgeDepsTest is set, use 21 to match other modules.
+ext {
+    springAiReleaseInt = project.hasProperty("edgeDepsTest") ? 21 : 17
+}
+
+compileJava {
+    options.compilerArgs.removeAll(['--release', '8'])
+    options.release = springAiReleaseInt
+}
+
+compileTestJava {
+    options.compilerArgs.removeAll(['--release', '8'])
+    options.release = springAiReleaseInt
+}
+
+dependencies {
+    api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersionForSpringAi"))
+    api(platform("org.springframework.ai:spring-ai-bom:$springAiVersion"))
+
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-sdk')
+    compileOnly project(':temporal-spring-boot-autoconfigure')
+
+    api 'org.springframework.boot:spring-boot-autoconfigure'
+    api 'org.springframework.ai:spring-ai-client-chat'
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+
+    // Optional: Vector store support
+    compileOnly 'org.springframework.ai:spring-ai-rag'
+
+    // Optional: MCP (Model Context Protocol) support
+    compileOnly 'org.springframework.ai:spring-ai-mcp'
+
+    testImplementation project(':temporal-sdk')
+    testImplementation project(':temporal-testing')
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.ai:spring-ai-rag'
+    // Needed only so McpPluginTest can mock/reference McpSyncClient directly.
+    testImplementation 'org.springframework.ai:spring-ai-mcp'
+    // Needed only so tests can reference Spring AI's NonTransientAiException to
+    // verify the plugin's default retry classification.
+    testImplementation 'org.springframework.ai:spring-ai-retry'
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.test {
+    useJUnitPlatform()
+    // This module's bytecode targets Java 17+, so it can't run on older JVMs.
+    // The unit_test_jdk8 CI job sets -PtestJavaVersion=11 to verify Java 8 bytecode
+    // works on JDK 11 — skip our tests there since the classes won't even load.
+    if (project.hasProperty("testJavaVersion")
+            && (project.property("testJavaVersion") as int) < springAiReleaseInt) {
+        enabled = false
+    }
+}

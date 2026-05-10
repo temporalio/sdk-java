@@ -3,8 +3,8 @@ package io.temporal.serviceclient;
 import java.lang.reflect.InvocationTargetException;
 
 /**
- * Do not reference directly by the application level code. Use {@link
- * io.temporal.workflow.Workflow#wrap(Exception)} inside a workflow code and {@link
+ * Do not reference directly by the application level code. Use {@code
+ * io.temporal.workflow.Workflow#wrap(Exception)} inside a workflow code and {@code
  * io.temporal.activity.Activity#wrap(Throwable)} inside an activity code instead.
  */
 public final class CheckedExceptionWrapper extends RuntimeException {

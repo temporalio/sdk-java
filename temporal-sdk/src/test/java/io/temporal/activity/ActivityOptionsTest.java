@@ -2,13 +2,17 @@ package io.temporal.activity;
 
 import static org.junit.Assert.*;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.junit.*;
 import org.junit.rules.Timeout;
@@ -60,6 +64,69 @@ public class ActivityOptionsTest {
     // Assert options were overridden with method options
     merged = ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
     Assert.assertEquals(methodOps1, merged);
+  }
+
+  @Test
+  public void testActivityOptionsMergeWithImmutableContextPropagators() {
+    // Local class to avoid code duplication
+    class TestContextPropagator implements ContextPropagator {
+      private final String name;
+
+      TestContextPropagator(String name) {
+        this.name = name;
+      }
+
+      @Override
+      public String getName() {
+        return name;
+      }
+
+      @Override
+      public Map<String, Payload> serializeContext(Object context) {
+        return Collections.emptyMap();
+      }
+
+      @Override
+      public Object deserializeContext(Map<String, Payload> context) {
+        return null;
+      }
+
+      @Override
+      public Object getCurrentContext() {
+        return null;
+      }
+
+      @Override
+      public void setCurrentContext(Object context) {}
+    }
+
+    ContextPropagator propagator1 = new TestContextPropagator("propagator1");
+    ContextPropagator propagator2 = new TestContextPropagator("propagator2");
+
+    // Create options with immutable singleton lists
+    // This tests the fix for https://github.com/temporalio/sdk-java/issues/2482
+    ActivityOptions options1 =
+        ActivityOptions.newBuilder()
+            .setStartToCloseTimeout(Duration.ofSeconds(1))
+            .setContextPropagators(Collections.singletonList(propagator1))
+            .build();
+
+    ActivityOptions options2 =
+        ActivityOptions.newBuilder()
+            .setStartToCloseTimeout(Duration.ofSeconds(2))
+            .setContextPropagators(Collections.singletonList(propagator2))
+            .build();
+
+    // Merging should not throw UnsupportedOperationException
+    ActivityOptions merged =
+        ActivityOptions.newBuilder(options1).mergeActivityOptions(options2).build();
+
+    // Verify both context propagators are present in the merged result
+    List<ContextPropagator> mergedPropagators = merged.getContextPropagators();
+    assertNotNull(mergedPropagators);
+    assertEquals(2, mergedPropagators.size());
+    assertEquals("propagator1", mergedPropagators.get(0).getName());
+    assertEquals("propagator2", mergedPropagators.get(1).getName());
   }
 
   @Test

@@ -11,6 +11,7 @@ import javax.annotation.Nonnull;
  * <p>See each public static method to learn about and construct the available operations.
  */
 @Experimental
+@Deprecated
 public abstract class BuildIdOperation {
   private BuildIdOperation() {}
 

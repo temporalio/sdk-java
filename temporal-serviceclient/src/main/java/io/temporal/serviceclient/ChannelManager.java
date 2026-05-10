@@ -145,7 +145,11 @@ final class ChannelManager {
   private Channel applyHeadStandardInterceptors(Channel channel) {
     Metadata headers = new Metadata();
     headers.merge(options.getHeaders());
-    headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
+    // Don't set the client header if it wasn't parsed properly when building. The server will
+    // fail RPCs if it's not semver.
+    if (Version.LIBRARY_VERSION.contains(".")) {
+      headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
+    }
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
     headers.put(CLIENT_NAME_HEADER_KEY, Version.SDK_NAME);
     if (options instanceof CloudServiceStubsOptions) {

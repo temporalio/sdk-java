@@ -5,6 +5,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.deployment.v1.WorkerDeploymentVersion;
+import io.temporal.api.enums.v1.TaskQueueType;
+import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.PluginInfo;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
+import io.temporal.api.worker.v1.WorkerHostInfo;
+import io.temporal.api.worker.v1.WorkerPollerInfo;
+import io.temporal.api.worker.v1.WorkerSlotsInfo;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
@@ -16,19 +24,28 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
+import io.temporal.internal.worker.TaskCounter;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.serviceclient.Version;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
+import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -42,10 +59,27 @@ public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
+  private final List<WorkerPlugin> plugins;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
   private final AtomicBoolean started = new AtomicBoolean();
+  private volatile boolean shuttingDown = false;
+  private final String workerInstanceKey = UUID.randomUUID().toString();
+  private volatile Instant startTime;
+  private final WorkflowClientOptions clientOptions;
+  private final @Nonnull WorkflowExecutorCache cache;
+  private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
+
+  private static final class TaskSnapshot {
+    final int processed;
+    final int failed;
+
+    TaskSnapshot(int processed, int failed) {
+      this.processed = processed;
+      this.failed = failed;
+    }
+  }
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -67,13 +101,18 @@ public final class Worker {
       @Nonnull WorkflowExecutorCache cache,
       boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      @Nonnull List<WorkerPlugin> plugins,
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
 
     Objects.requireNonNull(client, "client should not be null");
+    this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
+    this.clientOptions = client.getOptions();
+    this.cache = cache;
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
@@ -99,7 +138,8 @@ public final class Worker {
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
               activityOptions,
-              activitySlotSupplier);
+              activitySlotSupplier,
+              namespaceCapabilities);
     }
 
     EagerActivityDispatcher eagerActivityDispatcher =
@@ -117,7 +157,8 @@ public final class Worker {
     attachMetricsToResourceController(taggedScope, nexusSlotSupplier);
 
     nexusWorker =
-        new SyncNexusWorker(client, namespace, taskQueue, nexusOptions, nexusSlotSupplier);
+        new SyncNexusWorker(
+            client, namespace, taskQueue, nexusOptions, nexusSlotSupplier, namespaceCapabilities);
 
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
@@ -147,6 +188,8 @@ public final class Worker {
             client,
             namespace,
             taskQueue,
+            workerInstanceKey,
+            this::getActiveTaskQueueTypes,
             singleWorkerOptions,
             localActivityOptions,
             runLocks,
@@ -155,7 +198,8 @@ public final class Worker {
             workflowThreadExecutor,
             eagerActivityDispatcher,
             workflowSlotSupplier,
-            localActivitySlotSupplier);
+            localActivitySlotSupplier,
+            namespaceCapabilities);
   }
 
   /**
@@ -242,8 +286,6 @@ public final class Worker {
    * <p>This method is misaligned with other workflow implementation registration methods in this
    * aspect.
    *
-   * <p></font>
-   *
    * @deprecated Use {@link #registerWorkflowImplementationFactory(Class, Func,
    *     WorkflowImplementationOptions)} with {@code
    *     WorkflowImplementationOptions.newBuilder().setFailWorkflowExceptionTypes(Throwable.class).build()}
@@ -291,8 +333,6 @@ public final class Worker {
    * Activity that returns configuration to the workflow. Dependency Injection into Activity
    * instances is allowed. This way, the configuration is persisted into the history and maintained
    * same during replay.
-   *
-   * <p></font>
    *
    * @param workflowInterface Workflow interface that this factory implements
    * @param factory should create a new instance of the workflow implementation object every time
@@ -405,6 +445,7 @@ public final class Worker {
     if (!started.compareAndSet(false, true)) {
       return;
     }
+    startTime = Instant.now();
     workflowWorker.start();
     nexusWorker.start();
     if (activityWorker != null) {
@@ -413,6 +454,7 @@ public final class Worker {
   }
 
   CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptUserTasks) {
+    shuttingDown = true;
     CompletableFuture<Void> workflowWorkerShutdownFuture =
         workflowWorker.shutdown(shutdownManager, interruptUserTasks);
     CompletableFuture<Void> nexusWorkerShutdownFuture =
@@ -445,6 +487,200 @@ public final class Worker {
     ShutdownManager.awaitTermination(workflowWorker, timeoutMillis);
   }
 
+  String getWorkerInstanceKey() {
+    return workerInstanceKey;
+  }
+
+  List<TaskQueueType> getActiveTaskQueueTypes() {
+    List<TaskQueueType> types = new ArrayList<>();
+    if (workflowWorker.isAnyTypeSupported()) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW);
+    }
+    if (activityWorker != null && activityWorker.isAnyTypeSupported()) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY);
+    }
+    if (nexusWorker.isAnyTypeSupported()) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_NEXUS);
+    }
+    return types;
+  }
+
+  Supplier<WorkerHeartbeat> buildHeartbeatCallback(String workerGroupingKey) {
+    // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
+    final Object callbackLock = new Object();
+    final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
+    return () -> {
+      synchronized (callbackLock) {
+        Instant now = Instant.now();
+        WorkerHeartbeat.Builder hb =
+            WorkerHeartbeat.newBuilder()
+                .setWorkerInstanceKey(workerInstanceKey)
+                .setWorkerIdentity(
+                    options.getIdentity() != null
+                        ? options.getIdentity()
+                        : clientOptions.getIdentity())
+                .setTaskQueue(taskQueue)
+                .setSdkName(Version.SDK_NAME)
+                .setSdkVersion(Version.LIBRARY_VERSION)
+                .setStatus(
+                    shuttingDown
+                        ? WorkerStatus.WORKER_STATUS_SHUTTING_DOWN
+                        : WorkerStatus.WORKER_STATUS_RUNNING)
+                .setStartTime(toProtoTimestamp(startTime))
+                .setHeartbeatTime(toProtoTimestamp(now));
+
+        Instant previousHeartbeat = lastHeartbeatTime.get();
+        if (previousHeartbeat != null) {
+          Duration elapsed = Duration.between(previousHeartbeat, now);
+          hb.setElapsedSinceLastHeartbeat(
+              com.google.protobuf.Duration.newBuilder()
+                  .setSeconds(elapsed.getSeconds())
+                  .setNanos(elapsed.getNano())
+                  .build());
+        }
+        lastHeartbeatTime.set(now);
+
+        // Deployment version
+        if (options.getDeploymentOptions() != null
+            && options.getDeploymentOptions().getVersion() != null) {
+          hb.setDeploymentVersion(
+              WorkerDeploymentVersion.newBuilder()
+                  .setDeploymentName(
+                      options.getDeploymentOptions().getVersion().getDeploymentName())
+                  .setBuildId(options.getDeploymentOptions().getVersion().getBuildId())
+                  .build());
+        }
+
+        hb.setHostInfo(buildHostInfo(workerGroupingKey));
+
+        // Slot info with task counters
+        hb.setWorkflowTaskSlotsInfo(
+            buildSlotsInfo(
+                "workflow",
+                workflowWorker.getWorkflowSlotSupplier(),
+                workflowWorker.getWorkflowTaskCounter()));
+
+        if (activityWorker != null) {
+          hb.setActivityTaskSlotsInfo(
+              buildSlotsInfo(
+                  "activity", activityWorker.getSlotSupplier(), activityWorker.getTaskCounter()));
+        }
+
+        hb.setLocalActivitySlotsInfo(
+            buildSlotsInfo(
+                "local-activity",
+                workflowWorker.getLocalActivitySlotSupplier(),
+                workflowWorker.getLocalActivityTaskCounter()));
+
+        hb.setNexusTaskSlotsInfo(
+            buildSlotsInfo("nexus", nexusWorker.getSlotSupplier(), nexusWorker.getTaskCounter()));
+
+        // Poller info
+        hb.setWorkflowPollerInfo(
+            buildPollerInfo(
+                workflowWorker.getWorkflowPollerOptions(),
+                workflowWorker.getWorkflowPollerTracker()));
+        if (workflowWorker.getStickyTaskQueueName() != null) {
+          hb.setWorkflowStickyPollerInfo(
+              buildPollerInfo(
+                  workflowWorker.getWorkflowPollerOptions(),
+                  workflowWorker.getStickyPollerTracker()));
+        }
+        if (activityWorker != null) {
+          hb.setActivityPollerInfo(
+              buildPollerInfo(
+                  activityWorker.getPollerOptions(), activityWorker.getPollerTracker()));
+        }
+        hb.setNexusPollerInfo(
+            buildPollerInfo(nexusWorker.getPollerOptions(), nexusWorker.getPollerTracker()));
+
+        // Sticky cache stats
+        hb.setTotalStickyCacheHit(cache.getCacheHits());
+        hb.setTotalStickyCacheMiss(cache.getCacheMisses());
+        hb.setCurrentStickyCacheSize(cache.getCurrentCacheSize());
+
+        // Plugins
+        for (WorkerPlugin plugin : plugins) {
+          hb.addPlugins(PluginInfo.newBuilder().setName(plugin.getName()).build());
+        }
+
+        return hb.build();
+      }
+    };
+  }
+
+  private WorkerSlotsInfo buildSlotsInfo(
+      String key, TrackingSlotSupplier<?> tracker, TaskCounter taskCounter) {
+    int maxSlots = tracker.maximumSlots().orElse(-1);
+    int usedSlots = tracker.getUsedSlotCount();
+    int currentProcessed = taskCounter.getTotalProcessed();
+    int currentFailed = taskCounter.getTotalFailed();
+    TaskSnapshot previous =
+        previousHeartbeatSnapshots.put(key, new TaskSnapshot(currentProcessed, currentFailed));
+    int intervalProcessed = previous != null ? currentProcessed - previous.processed : 0;
+    int intervalFailed = previous != null ? currentFailed - previous.failed : 0;
+    return WorkerSlotsInfo.newBuilder()
+        .setCurrentAvailableSlots(maxSlots >= 0 ? Math.max(0, maxSlots - usedSlots) : -1)
+        .setCurrentUsedSlots(usedSlots)
+        .setSlotSupplierKind(tracker.getSupplierKind())
+        .setTotalProcessedTasks(currentProcessed)
+        .setTotalFailedTasks(currentFailed)
+        .setLastIntervalProcessedTasks(intervalProcessed)
+        .setLastIntervalFailureTasks(intervalFailed)
+        .build();
+  }
+
+  private static WorkerPollerInfo buildPollerInfo(
+      PollerOptions pollerOptions, PollerTracker tracker) {
+    WorkerPollerInfo.Builder builder = WorkerPollerInfo.newBuilder();
+    PollerBehavior behavior = pollerOptions.getPollerBehavior();
+    if (behavior instanceof PollerBehaviorAutoscaling) {
+      builder.setIsAutoscaling(true);
+    }
+    builder.setCurrentPollers(tracker.getInFlightPolls());
+    Instant lastPoll = tracker.getLastSuccessfulPollTime();
+    if (lastPoll != null) {
+      builder.setLastSuccessfulPollTime(toProtoTimestamp(lastPoll));
+    }
+    return builder.build();
+  }
+
+  private static final JVMSystemResourceInfo systemResourceInfo = new JVMSystemResourceInfo();
+
+  private static final String CACHED_HOSTNAME;
+  private static final String CACHED_PID;
+
+  static {
+    String h;
+    try {
+      h = InetAddress.getLocalHost().getHostName();
+    } catch (Exception e) {
+      h = "unknown";
+    }
+    CACHED_HOSTNAME = h;
+
+    String name = ManagementFactory.getRuntimeMXBean().getName();
+    int atIndex = name.indexOf('@');
+    CACHED_PID = atIndex > 0 ? name.substring(0, atIndex) : "unknown";
+  }
+
+  private static WorkerHostInfo buildHostInfo(String workerGroupingKey) {
+    return WorkerHostInfo.newBuilder()
+        .setHostName(CACHED_HOSTNAME)
+        .setWorkerGroupingKey(workerGroupingKey)
+        .setProcessId(CACHED_PID)
+        .setCurrentHostCpuUsage((float) systemResourceInfo.getCPUUsagePercent())
+        .setCurrentHostMemUsage((float) systemResourceInfo.getMemoryUsagePercent())
+        .build();
+  }
+
+  private static com.google.protobuf.Timestamp toProtoTimestamp(Instant instant) {
+    return com.google.protobuf.Timestamp.newBuilder()
+        .setSeconds(instant.getEpochSecond())
+        .setNanos(instant.getNano())
+        .build();
+  }
+
   @Override
   public String toString() {
     return "Worker{" + "options=" + options + '}';
@@ -469,12 +705,49 @@ public final class Worker {
   @SuppressWarnings("deprecation")
   public void replayWorkflowExecution(io.temporal.internal.common.WorkflowExecutionHistory history)
       throws Exception {
-    workflowWorker.queryWorkflowExecution(
-        history,
-        WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
-        String.class,
-        String.class,
-        new Object[] {});
+    // Convert to public history type and delegate
+    WorkflowExecutionHistory publicHistory =
+        new WorkflowExecutionHistory(
+            history.getHistory(), history.getWorkflowExecution().getWorkflowId());
+    replayWorkflowExecution(publicHistory);
+  }
+
+  /**
+   * This is a utility method to replay a workflow execution using this particular instance of a
+   * worker. This method is useful for troubleshooting workflows by running them in a debugger. The
+   * workflow implementation type must be already registered with this worker for this method to
+   * work.
+   *
+   * <p>There is no need to call {@link #start()} to be able to call this method <br>
+   * The worker doesn't have to be registered on the same task queue as the execution in the
+   * history. <br>
+   * This method shouldn't be a part of normal production usage. It's intended for testing and
+   * debugging only.
+   *
+   * @param history workflow execution history to replay
+   * @throws Exception if replay failed for any reason
+   */
+  public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
+    // Build plugin chain in reverse order (first plugin wraps all others)
+    // Note: public WorkflowExecutionHistory extends internal WorkflowExecutionHistory,
+    // so we can pass it directly to workflowWorker.queryWorkflowExecution
+    WorkerPlugin.ReplayCallback chain =
+        (w, h) -> {
+          workflowWorker.queryWorkflowExecution(
+              h,
+              WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+              String.class,
+              String.class,
+              new Object[] {});
+        };
+
+    for (int i = plugins.size() - 1; i >= 0; i--) {
+      WorkerPlugin plugin = plugins.get(i);
+      WorkerPlugin.ReplayCallback next = chain;
+      chain = (w, h) -> plugin.replayWorkflowExecution(w, h, next);
+    }
+
+    chain.replay(this, history);
   }
 
   /**

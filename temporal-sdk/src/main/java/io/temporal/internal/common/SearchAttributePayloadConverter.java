@@ -331,13 +331,19 @@ final class SearchAttributePayloadConverter {
 
   @Nullable
   private static IndexedValueType encodedValueToIndexValueType(String encodedValue) {
+    // The type metadata is usually in PascalCase (e.g. "KeywordList") but in rare cases may be in
+    // SCREAMING_SNAKE_CASE (e.g. "INDEXED_VALUE_TYPE_KEYWORD_LIST").
     try {
       return IndexedValueType.valueOf(
           ProtoEnumNameUtils.simplifiedToUniqueName(
               encodedValue, ProtoEnumNameUtils.INDEXED_VALUE_TYPE_PREFIX));
     } catch (IllegalArgumentException e) {
-      log.warn("[BUG] No IndexedValueType mapping for {} value exist", encodedValue);
-      return null;
+      try {
+        return IndexedValueType.valueOf(encodedValue);
+      } catch (IllegalArgumentException e2) {
+        log.warn("[BUG] No IndexedValueType mapping for {} value exist", encodedValue);
+        return null;
+      }
     }
   }
 

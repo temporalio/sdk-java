@@ -20,6 +20,7 @@ import io.temporal.workflow.*;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.*;
+import javax.annotation.Nullable;
 
 /**
  * Dynamic implementation of a strongly typed workflow interface that can be used to start, signal
@@ -107,11 +108,19 @@ class WorkflowInvocationHandler implements InvocationHandler {
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
       WorkflowClientCallsInterceptor workflowClientCallsInvoker,
-      WorkflowExecution execution) {
+      WorkflowExecution execution,
+      boolean legacyTargeting,
+      @Nullable String firstExecutionRunId) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface, false);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub =
-        new WorkflowStubImpl(clientOptions, workflowClientCallsInvoker, workflowType, execution);
+        new WorkflowStubImpl(
+            clientOptions,
+            workflowClientCallsInvoker,
+            workflowType,
+            execution,
+            legacyTargeting,
+            firstExecutionRunId);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }

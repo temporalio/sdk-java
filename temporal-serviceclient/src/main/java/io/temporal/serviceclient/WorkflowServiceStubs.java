@@ -6,6 +6,7 @@ import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import java.time.Duration;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /** Initializes and holds gRPC blocking and future stubs. */
@@ -32,6 +33,17 @@ public interface WorkflowServiceStubs
    * WorkflowServiceStubs#connect(Duration)} after creation or use {@link
    * #newConnectedServiceStubs(WorkflowServiceStubsOptions, Duration)} instead of this method.
    *
+   * <p>If the options contain plugins (via {@link
+   * WorkflowServiceStubsOptions.Builder#setPlugins(WorkflowServiceStubsPlugin...)}), this method
+   * applies them in two phases:
+   *
+   * <ol>
+   *   <li><b>Configuration phase:</b> Each plugin's {@code configureServiceStubs} method is called
+   *       in forward (registration) order to modify the options builder
+   *   <li><b>Connection phase:</b> Each plugin's {@code connectServiceClient} method is called in
+   *       reverse order to wrap the connection (first plugin wraps all others)
+   * </ol>
+   *
    * <p>Migration Note: This method doesn't respect {@link
    * WorkflowServiceStubsOptions.Builder#setDisableHealthCheck(boolean)}, {@link
    * WorkflowServiceStubsOptions.Builder#setHealthCheckAttemptTimeout(Duration)} (boolean)} and
@@ -43,8 +55,34 @@ public interface WorkflowServiceStubs
    */
   static WorkflowServiceStubs newServiceStubs(WorkflowServiceStubsOptions options) {
     enforceNonWorkflowThread();
-    return WorkflowThreadMarker.protectFromWorkflowThread(
-        new WorkflowServiceStubsImpl(null, options), WorkflowServiceStubs.class);
+
+    WorkflowServiceStubsPlugin[] plugins = options.getPlugins();
+    if (plugins == null || plugins.length == 0) {
+      // No plugins - create stubs directly
+      return WorkflowThreadMarker.protectFromWorkflowThread(
+          new WorkflowServiceStubsImpl(null, options), WorkflowServiceStubs.class);
+    }
+
+    // Apply plugin configuration phase (forward order)
+    WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder(options);
+    for (WorkflowServiceStubsPlugin plugin : plugins) {
+      plugin.configureServiceStubs(builder);
+    }
+    WorkflowServiceStubsOptions finalOptions = builder.validateAndBuildWithDefaults();
+
+    // Build connection chain (reverse order for proper nesting)
+    Supplier<WorkflowServiceStubs> connectionChain =
+        () ->
+            WorkflowThreadMarker.protectFromWorkflowThread(
+                new WorkflowServiceStubsImpl(null, finalOptions), WorkflowServiceStubs.class);
+
+    for (int i = plugins.length - 1; i >= 0; i--) {
+      final Supplier<WorkflowServiceStubs> next = connectionChain;
+      final WorkflowServiceStubsPlugin plugin = plugins[i];
+      connectionChain = () -> plugin.connectServiceClient(finalOptions, next);
+    }
+
+    return connectionChain.get();
   }
 
   /**

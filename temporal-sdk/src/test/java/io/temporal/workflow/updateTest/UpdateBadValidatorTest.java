@@ -13,7 +13,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,12 +57,7 @@ public class UpdateBadValidatorTest {
 
     workflow.complete();
 
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
-    assertEquals("", result);
+    assertEquals("", workflow.execute());
   }
 
   public static class TestUpdateWithBadValidatorWorkflowImpl

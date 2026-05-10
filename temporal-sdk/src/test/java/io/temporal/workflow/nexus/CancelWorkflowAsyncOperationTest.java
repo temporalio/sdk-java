@@ -135,6 +135,11 @@ public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
     // Cancel before command is sent
     runCancelBeforeSentTest(NexusOperationCancellationType.ABANDON);
 
+    // For ABANDON, the handler workflow may start even in the cancel-before-sent case,
+    // which can set opStarted and handlerFinished. Clear them before the after-start test.
+    opStarted.clearSignal();
+    handlerFinished.clearSignal();
+
     // Cancel after operation is started
     WorkflowStub stub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestNexusOperationCancellationType");

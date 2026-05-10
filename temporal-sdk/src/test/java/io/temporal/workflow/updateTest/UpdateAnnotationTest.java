@@ -5,13 +5,13 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -36,11 +36,7 @@ public class UpdateAnnotationTest {
         workflowClient.newWorkflowStub(UpdateWorkflowInterface.class, execution.getWorkflowId());
     updateOnlyWorkflow.update();
 
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
+    String result = WorkflowStub.fromTyped(updateOnlyWorkflow).getResult(String.class);
     assertEquals("success", result);
   }
 

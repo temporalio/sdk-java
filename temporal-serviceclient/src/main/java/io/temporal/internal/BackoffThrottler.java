@@ -12,8 +12,6 @@ import javax.annotation.concurrent.NotThreadSafe;
  *
  * <p>The formula used to calculate the next sleep interval is:
  *
- * <p>
- *
  * <pre>
  * jitter = random number in the range [-maxJitterCoefficient, +maxJitterCoefficient];
  * sleepTime = min(pow(backoffCoefficient, failureCount - 1) * initialSleep * (1 + jitter), maxSleep);

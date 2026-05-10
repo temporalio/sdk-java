@@ -1,9 +1,11 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.nexus.v1.HandlerError;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.nexus.v1.Response;
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface NexusTaskHandler {
@@ -20,15 +22,17 @@ public interface NexusTaskHandler {
 
   class Result {
     @Nullable private final Response response;
-    @Nullable private final HandlerError handlerError;
+    @Nullable private final HandlerException handlerException;
 
-    public Result(Response response) {
+    public Result(@Nonnull Response response) {
+      Objects.requireNonNull(response);
       this.response = response;
-      handlerError = null;
+      handlerException = null;
     }
 
-    public Result(HandlerError handlerError) {
-      this.handlerError = handlerError;
+    public Result(@Nonnull HandlerException handlerException) {
+      Objects.requireNonNull(handlerException);
+      this.handlerException = handlerException;
       response = null;
     }
 
@@ -38,8 +42,8 @@ public interface NexusTaskHandler {
     }
 
     @Nullable
-    public HandlerError getHandlerError() {
-      return handlerError;
+    public HandlerException getHandlerException() {
+      return handlerException;
     }
   }
 }

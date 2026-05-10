@@ -3,7 +3,6 @@ package io.temporal.nexus;
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
-import io.nexusrpc.OperationInfo;
 import io.nexusrpc.handler.*;
 import io.nexusrpc.handler.OperationHandler;
 import io.temporal.api.common.v1.Link;
@@ -69,24 +68,10 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
         ctx.addLinks(nexusProtoLinkToLink(nexusLink));
       } catch (URISyntaxException e) {
         // Not expected as the link is constructed by the SDK.
-        throw new HandlerException(
-            HandlerException.ErrorType.INTERNAL,
-            new IllegalArgumentException("failed to parse URI", e));
+        throw new HandlerException(HandlerException.ErrorType.INTERNAL, "failed to parse URI", e);
       }
     }
     return result.build();
-  }
-
-  @Override
-  public R fetchResult(
-      OperationContext operationContext, OperationFetchResultDetails operationFetchResultDetails) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public OperationInfo fetchInfo(
-      OperationContext operationContext, OperationFetchInfoDetails operationFetchInfoDetails) {
-    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
@@ -99,8 +84,7 @@ class WorkflowRunOperationImpl<T, R> implements OperationHandler<T, R> {
               operationCancelDetails.getOperationToken());
     } catch (IllegalArgumentException e) {
       throw new HandlerException(
-          HandlerException.ErrorType.BAD_REQUEST,
-          new IllegalArgumentException("failed to parse operation token", e));
+          HandlerException.ErrorType.BAD_REQUEST, "failed to parse operation token", e);
     }
 
     WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();

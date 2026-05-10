@@ -1,6 +1,7 @@
 package io.temporal.workflow.queryTests;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -72,6 +73,8 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
 
   @Test
   public void queriedWorkflowFailureDoesntProduceAdditionalLogsWhenWorkflowIsNotCompleted() {
+    assumeTrue("This test is flaky on the Test Server", SDKTestWorkflowRule.useExternalService);
+
     TestWorkflows.QueryableWorkflow workflow =
         testWorkflowRule.newWorkflowStub(TestWorkflows.QueryableWorkflow.class);
 

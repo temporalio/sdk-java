@@ -29,6 +29,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
   private final List<PollTaskAsync<T>> asyncTaskPollers;
   private final PollerOptions pollerOptions;
   private final PollerBehaviorAutoscaling pollerBehavior;
+  private final boolean serverSupportsAutoscaling;
   private final Scope workerMetricsScope;
   private Throttler pollRateThrottler;
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
@@ -42,6 +43,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
       PollTaskAsync<T> asyncTaskPoller,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
+      boolean serverSupportsAutoscaling,
       Scope workerMetricsScope) {
     this(
         slotSupplier,
@@ -49,6 +51,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
         Collections.singletonList(asyncTaskPoller),
         taskExecutor,
         pollerOptions,
+        serverSupportsAutoscaling,
         workerMetricsScope);
   }
 
@@ -58,6 +61,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
       List<PollTaskAsync<T>> asyncTaskPollers,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
+      boolean serverSupportsAutoscaling,
       Scope workerMetricsScope) {
     super(taskExecutor);
     Objects.requireNonNull(slotSupplier, "slotSupplier cannot be null");
@@ -78,6 +82,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
               + " is not supported for AsyncPoller. Only PollerBehaviorAutoscaling is supported.");
     }
     this.pollerBehavior = (PollerBehaviorAutoscaling) pollerOptions.getPollerBehavior();
+    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
     this.pollerOptions = pollerOptions;
     this.workerMetricsScope = workerMetricsScope;
   }
@@ -109,6 +114,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
               pollerBehavior.getMinConcurrentTaskPollers(),
               pollerBehavior.getMaxConcurrentTaskPollers(),
               pollerBehavior.getInitialConcurrentTaskPollers(),
+              serverSupportsAutoscaling,
               (newTarget) -> {
                 log.debug(
                     "Updating maximum number of pollers for {} to: {}",

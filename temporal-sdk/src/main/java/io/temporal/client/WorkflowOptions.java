@@ -162,7 +162,7 @@ public final class WorkflowOptions {
     /**
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
      * conditions Temporal allows two workflows with the same namespace and workflow id run
-     * simultaneously. See {@line setWorkflowIdConflictPolicy} for handling a workflow id
+     * simultaneously. See {@link #setWorkflowIdConflictPolicy} for handling a workflow id
      * duplication with a <b>Running</b> workflow.
      *
      * <p>Default value if not set: <b>AllowDuplicate</b>
@@ -477,7 +477,6 @@ public final class WorkflowOptions {
     }
 
     /** Sets the versioning override to use when starting this workflow. */
-    @Experimental
     public Builder setVersioningOverride(VersioningOverride versioningOverride) {
       this.versioningOverride = versioningOverride;
       return this;
@@ -737,7 +736,6 @@ public final class WorkflowOptions {
     return priority;
   }
 
-  @Experimental
   public VersioningOverride getVersioningOverride() {
     return versioningOverride;
   }

@@ -72,7 +72,7 @@ public class MutableSideEffectStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", (p) -> converter.toPayloads("result1"), c))
+                        "id1", null, (p) -> converter.toPayloads("result1"), c))
             .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
@@ -129,13 +129,13 @@ public class MutableSideEffectStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", (p) -> converter.toPayloads("result1"), c))
+                        "id1", null, (p) -> converter.toPayloads("result1"), c))
             .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
@@ -205,9 +205,9 @@ public class MutableSideEffectStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", (p) -> converter.toPayloads("result1"), c))
+                        "id1", null, (p) -> converter.toPayloads("result1"), c))
             .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
             .<HistoryEvent>add1(
                 (v, c) ->
                     stateMachines.newTimer(
@@ -225,11 +225,11 @@ public class MutableSideEffectStateMachineTest {
                         null,
                         c))
             .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", (p) -> converter.toPayloads("result2"), c))
+                        "id1", null, (p) -> converter.toPayloads("result2"), c))
             .add((r) -> stateMachines.completeWorkflow(r));
       }
     }

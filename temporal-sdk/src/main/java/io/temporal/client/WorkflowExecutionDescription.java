@@ -22,8 +22,8 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
   /**
    * Get the fixed summary for this workflow execution.
    *
-   * @apiNote Will be decoded on each invocation, so it is recommended to cache the result if it is
-   *     used multiple times.
+   * <p>Note: Will be decoded on each invocation, so it is recommended to cache the result if it is
+   * used multiple times.
    */
   @Experimental
   @Nullable
@@ -45,8 +45,8 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
   /**
    * Get the details summary for this workflow execution.
    *
-   * @apiNote Will be decoded on each invocation, so it is recommended to cache the result if it is
-   *     used multiple times.
+   * <p>Note: Will be decoded on each invocation, so it is recommended to cache the result if it is
+   * used multiple times.
    */
   @Experimental
   @Nullable

@@ -1,7 +1,0 @@
-{
-  "resources":{
-  "includes":[{
-      "pattern":"\\QMETA-INF/services/io.grpc.ServerProvider\\E"
-    }]},
-  "bundles":[]
-}

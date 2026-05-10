@@ -4,6 +4,10 @@ import com.google.protobuf.util.Timestamps;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
+import io.temporal.common.SuggestContinueAsNewReason;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 final class WorkflowTaskStateMachine
@@ -32,7 +36,9 @@ final class WorkflowTaskStateMachine
         long currentTimeMillis,
         boolean nonProcessedWorkflowTask,
         long historySize,
-        boolean isContinueAsNewSuggested);
+        boolean isContinueAsNewSuggested,
+        List<SuggestContinueAsNewReason> suggestContinueAsNewReasons,
+        boolean isTargetWorkerDeploymentVersionChanged);
 
     void updateRunId(String currentRunId);
   }
@@ -46,6 +52,8 @@ final class WorkflowTaskStateMachine
   private long startedEventId;
   private long historySize;
   private boolean isContinueAsNewSuggested;
+  private List<SuggestContinueAsNewReason> suggestContinueAsNewReasons = Collections.emptyList();
+  private boolean isTargetWorkerDeploymentVersionChanged;
 
   public static WorkflowTaskStateMachine newInstance(
       long workflowTaskStartedEventId, Listener listener) {
@@ -103,6 +111,15 @@ final class WorkflowTaskStateMachine
     historySize = currentEvent.getWorkflowTaskStartedEventAttributes().getHistorySizeBytes();
     isContinueAsNewSuggested =
         currentEvent.getWorkflowTaskStartedEventAttributes().getSuggestContinueAsNew();
+    suggestContinueAsNewReasons =
+        convertSuggestContinueAsNewReasons(
+            currentEvent
+                .getWorkflowTaskStartedEventAttributes()
+                .getSuggestContinueAsNewReasonsList());
+    isTargetWorkerDeploymentVersionChanged =
+        currentEvent
+            .getWorkflowTaskStartedEventAttributes()
+            .getTargetWorkerDeploymentVersionChanged();
 
     // The last started event in the history. So no completed is expected.
     if (currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent) {
@@ -121,7 +138,33 @@ final class WorkflowTaskStateMachine
         eventTimeOfTheLastWorkflowStartTask,
         lastTaskInHistory,
         historySize,
-        isContinueAsNewSuggested);
+        isContinueAsNewSuggested,
+        suggestContinueAsNewReasons,
+        isTargetWorkerDeploymentVersionChanged);
+  }
+
+  private static List<SuggestContinueAsNewReason> convertSuggestContinueAsNewReasons(
+      List<io.temporal.api.enums.v1.SuggestContinueAsNewReason> protoReasons) {
+    if (protoReasons.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<SuggestContinueAsNewReason> reasons = new ArrayList<>(protoReasons.size());
+    for (io.temporal.api.enums.v1.SuggestContinueAsNewReason proto : protoReasons) {
+      switch (proto) {
+        case SUGGEST_CONTINUE_AS_NEW_REASON_HISTORY_SIZE_TOO_LARGE:
+          reasons.add(SuggestContinueAsNewReason.HISTORY_SIZE_TOO_LARGE);
+          break;
+        case SUGGEST_CONTINUE_AS_NEW_REASON_TOO_MANY_HISTORY_EVENTS:
+          reasons.add(SuggestContinueAsNewReason.TOO_MANY_HISTORY_EVENTS);
+          break;
+        case SUGGEST_CONTINUE_AS_NEW_REASON_TOO_MANY_UPDATES:
+          reasons.add(SuggestContinueAsNewReason.TOO_MANY_UPDATES);
+          break;
+        default:
+          break;
+      }
+    }
+    return Collections.unmodifiableList(reasons);
   }
 
   private void handleFailed() {

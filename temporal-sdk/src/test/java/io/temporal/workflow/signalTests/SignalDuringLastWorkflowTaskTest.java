@@ -5,11 +5,11 @@ import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +56,8 @@ public class SignalDuringLastWorkflowTaskTest {
               "Signal Input",
               testWorkflowRule
                   .getWorkflowClient()
-                  .newUntypedWorkflowStub(execution, Optional.empty())
+                  .newUntypedWorkflowStub(
+                      WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
                   .getResult(String.class));
           assertCompleted.complete(true);
         });

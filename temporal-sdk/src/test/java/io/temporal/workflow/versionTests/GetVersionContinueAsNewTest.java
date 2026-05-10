@@ -8,6 +8,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -16,7 +17,6 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +45,7 @@ public class GetVersionContinueAsNewTest extends BaseVersionTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                run1.getWorkflowId(), Optional.of(run1.getRunId()), Optional.empty());
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(run1).build());
     WorkflowStub latestUntyped =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub(run1.getWorkflowId());
     WorkflowExecution run2 = latestUntyped.getExecution();

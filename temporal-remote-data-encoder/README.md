@@ -3,7 +3,7 @@
 ## What problems does Remote Data Encoder (RDE) solves?
 
 - Allows reuse of complicated encryption logic written once between different languages
-- Allows `tctl` to encode payloads for `tctl workflow start` and Temporal WebUI to decode encrypted payloads
+- Allows `Temporal CLI` to encode payloads for `temporal workflow start` and Temporal WebUI to decode encrypted payloads
 - Allows the creation of a service that has an access to encryption keys for performing the encryption/decryption instead of a developer workstation or service accessing the keys directly.
 
 ## How does RDE work?
@@ -21,7 +21,7 @@ This module provides two reference implementations useful for creation of RDE se
 ### RDE Codec
 
 Can be used as one of the codecs in `io.temporal.common.converter.CodecDataConverter` configured on `WorkflowClientOptions#dataConverter` to use Remote Data Encoder Server for payloads encoding.
-Please keep in mind that this is an optional component. If you use RDE Server to decode data for tctl or WebUI purposes, you don't have to use it for encoding/decoding payloads on Workflow Client or Workers side. They may perform the encoding locally.
+Please keep in mind that this is an optional component. If you use RDE Server to decode data for Temporal CLI or WebUI purposes, you don't have to use it for encoding/decoding payloads on Workflow Client or Workers side. They may perform the encoding locally.
 
 This module provides a reference implementation of RDE codec that should be used by users as a base for their own RDE codecs: `io.temporal.payload.codec.AbstractRemoteDataEncoderCodec` by implementing a POST method using the HTTP client of their choice.
 This module may supply some standard implementations for popular HTTP Clients, including `io.temporal.payload.codec.OkHttpRemoteDataEncoderCodec` for [OkHttpClient](https://square.github.io/okhttp/).

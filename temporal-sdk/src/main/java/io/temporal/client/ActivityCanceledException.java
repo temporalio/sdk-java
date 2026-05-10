@@ -22,6 +22,10 @@ public final class ActivityCanceledException extends ActivityCompletionException
     super(info);
   }
 
+  public ActivityCanceledException(ActivityInfo info, Throwable cause) {
+    super(info, cause);
+  }
+
   public ActivityCanceledException() {
     super();
   }

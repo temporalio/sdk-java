@@ -4,7 +4,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * Internal delegate for virtual thread handling on JDK 21. This is a dummy version for reachability
- * on JDK <21.
+ * on JDK &lt;21.
  */
 public final class VirtualThreadDelegate {
   public static ExecutorService newVirtualThreadExecutor(ThreadConfigurator configurator) {

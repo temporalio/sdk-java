@@ -799,6 +799,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     input.getHeaders().forEach((k, v) -> attributes.putNexusHeader(k.toLowerCase(), v));
     attributes.setScheduleToCloseTimeout(
         ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToCloseTimeout()));
+    attributes.setScheduleToStartTimeout(
+        ProtobufTimeUtils.toProtoDuration(input.getOptions().getScheduleToStartTimeout()));
+    attributes.setStartToCloseTimeout(
+        ProtobufTimeUtils.toProtoDuration(input.getOptions().getStartToCloseTimeout()));
 
     @Nullable
     UserMetadata userMetadata =
@@ -1027,6 +1031,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
+    return sideEffect(resultClass, resultType, func, SideEffectOptions.newBuilder().build());
+  }
+
+  @Override
+  public <R> R sideEffect(
+      Class<R> resultClass, Type resultType, Func<R> func, SideEffectOptions options) {
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
     try {
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
@@ -1039,6 +1052,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               readOnly = false;
             }
           },
+          userMetadata,
           (p) ->
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
@@ -1054,8 +1068,23 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    return mutableSideEffect(
+        id, resultClass, resultType, updated, func, MutableSideEffectOptions.newBuilder().build());
+  }
+
+  @Override
+  public <R> R mutableSideEffect(
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func,
+      MutableSideEffectOptions options) {
+    @Nullable
+    UserMetadata userMetadata =
+        makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
     try {
-      return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
+      return mutableSideEffectImpl(id, userMetadata, resultClass, resultType, updated, func);
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
       // behavior. So fail the workflow task by throwing an Error.
@@ -1064,11 +1093,17 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private <R> R mutableSideEffectImpl(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      String id,
+      UserMetadata metadata,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<R, R> updated,
+      Func<R> func) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     replayContext.mutableSideEffect(
         id,
+        metadata,
         (storedBinary) -> {
           Optional<R> stored =
               storedBinary.map(
@@ -1139,7 +1174,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
      * Previously the SDK would yield on the getVersion call to the scheduler. This is not ideal because it can lead to non-deterministic
      * scheduling if the getVersion call was removed.
      * */
-    if (replayContext.checkSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
+    if (replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
       // This can happen if we are replaying a workflow and encounter a getVersion call that did not
       // exist on the original execution and the range does not include the default version.
       if (versionToUse == null) {
@@ -1286,9 +1321,35 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
-    Promise<Void> timer = newTimer(timeout);
-    WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
-    return !timer.isCompleted();
+    // TODO: Change checkSdkFlag to tryUseSdkFlag in the next release to enable this flag by
+    // default.
+    boolean cancelTimerOnCondition =
+        replayContext.checkSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
+
+    if (cancelTimerOnCondition) {
+      // If condition is already satisfied, skip creating timer
+      if (unblockCondition.get()) {
+        return true;
+      }
+      // Create timer in a cancellation scope so we can cancel it when condition is satisfied
+      CompletablePromise<Void> timer = Workflow.newPromise();
+      CancellationScope timerScope =
+          Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout)));
+      timerScope.run();
+
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+
+      boolean conditionSatisfied = !timer.isCompleted();
+      if (conditionSatisfied) {
+        timerScope.cancel("await condition resolved");
+      }
+      return conditionSatisfied;
+    } else {
+      // Old behavior: timer is not cancelled when condition is satisfied
+      Promise<Void> timer = newTimer(timeout);
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      return !timer.isCompleted();
+    }
   }
 
   @Override
@@ -1334,6 +1395,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           && options.getTypedSearchAttributes().size() > 0) {
         attributes.setSearchAttributes(
             SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
+      } else if (options.getTypedSearchAttributes() == null && searchAttributes == null) {
+        // Carry over existing search attributes if none are specified.
+        SearchAttributes existing = replayContext.getSearchAttributes();
+        if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
+          attributes.setSearchAttributes(existing);
+        }
       }
       Map<String, Object> memo = options.getMemo();
       if (memo != null) {
@@ -1348,9 +1415,33 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 .determineUseCompatibleFlag(
                     replayContext.getTaskQueue().equals(options.getTaskQueue())));
       }
-    } else if (replayContext.getRetryOptions() != null) {
-      // Have to copy retry options as server doesn't copy them.
+      if (options.getInitialVersioningBehavior() != null) {
+        switch (options.getInitialVersioningBehavior()) {
+          case AUTO_UPGRADE:
+            attributes.setInitialVersioningBehavior(
+                io.temporal.api.enums.v1.ContinueAsNewVersioningBehavior
+                    .CONTINUE_AS_NEW_VERSIONING_BEHAVIOR_AUTO_UPGRADE);
+            break;
+          case USE_RAMPING_VERSION:
+            attributes.setInitialVersioningBehavior(
+                io.temporal.api.enums.v1.ContinueAsNewVersioningBehavior
+                    .CONTINUE_AS_NEW_VERSIONING_BEHAVIOR_USE_RAMPING_VERSION);
+            break;
+        }
+      }
+    }
+
+    if (options == null && replayContext.getRetryOptions() != null) {
+      // Have to copy certain options as server doesn't copy them.
       attributes.setRetryPolicy(toRetryPolicy(replayContext.getRetryOptions()));
+    }
+
+    if (options == null && replayContext.getSearchAttributes() != null) {
+      // Carry over existing search attributes if none are specified.
+      SearchAttributes existing = replayContext.getSearchAttributes();
+      if (existing != null && !existing.getIndexedFieldsMap().isEmpty()) {
+        attributes.setSearchAttributes(existing);
+      }
     }
 
     List<ContextPropagator> propagators =

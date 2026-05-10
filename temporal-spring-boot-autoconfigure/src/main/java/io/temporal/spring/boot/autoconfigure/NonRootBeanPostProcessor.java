@@ -5,11 +5,14 @@ import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
@@ -23,7 +26,9 @@ import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions.Builder;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkerPlugin;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,6 +55,10 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
   private @Nullable Tracer tracer;
   private @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
   private @Nullable Scope metricsScope;
+  private @Nullable List<WorkflowServiceStubsPlugin> serviceStubsPlugins;
+  private @Nullable List<WorkflowClientPlugin> workflowClientPlugins;
+  private @Nullable List<ScheduleClientPlugin> scheduleClientPlugins;
+  private @Nullable List<WorkerPlugin> workerPlugins;
 
   public NonRootBeanPostProcessor(@Nonnull TemporalProperties temporalProperties) {
     this.temporalProperties = temporalProperties;
@@ -71,8 +80,27 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         // optional dependencies.
         metricsScope = findBean("temporalMetricsScope", Scope.class);
         tracer = findBean(Tracer.class);
-        testWorkflowEnvironment =
-            findBean("temporalTestWorkflowEnvironment", TestWorkflowEnvironmentAdapter.class);
+        // Prefer resolving by type; fall back to the correctly named adapter bean
+        testWorkflowEnvironment = findBean(TestWorkflowEnvironmentAdapter.class);
+        if (testWorkflowEnvironment == null) {
+          testWorkflowEnvironment =
+              findBean(
+                  "temporalTestWorkflowEnvironmentAdapter", TestWorkflowEnvironmentAdapter.class);
+        }
+        // Collect all plugin types
+        serviceStubsPlugins = findAllBeans(WorkflowServiceStubsPlugin.class);
+        // Filter plugins so each is only registered at its highest applicable level
+        workflowClientPlugins =
+            AutoConfigurationUtils.filterPlugins(
+                findAllBeans(WorkflowClientPlugin.class), WorkflowServiceStubsPlugin.class);
+        scheduleClientPlugins =
+            AutoConfigurationUtils.filterPlugins(
+                findAllBeans(ScheduleClientPlugin.class), WorkflowServiceStubsPlugin.class);
+        workerPlugins =
+            AutoConfigurationUtils.filterPlugins(
+                findAllBeans(WorkerPlugin.class),
+                WorkflowServiceStubsPlugin.class,
+                WorkflowClientPlugin.class);
         namespaceProperties.forEach(this::injectBeanByNonRootNamespace);
       }
     }
@@ -119,7 +147,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             connectionProperties,
             metricsScope,
             testWorkflowEnvironment,
-            workflowServiceStubsCustomizers);
+            workflowServiceStubsCustomizers,
+            serviceStubsPlugins);
     WorkflowServiceStubs workflowServiceStubs = serviceStubsTemplate.getWorkflowServiceStubs();
 
     NonRootNamespaceTemplate namespaceTemplate =
@@ -137,7 +166,10 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             workerCustomizers,
             workflowClientCustomizers,
             scheduleClientCustomizers,
-            workflowImplementationCustomizers);
+            workflowImplementationCustomizers,
+            workflowClientPlugins,
+            scheduleClientPlugins,
+            workerPlugins);
 
     ClientTemplate clientTemplate = namespaceTemplate.getClientTemplate();
     WorkflowClient workflowClient = clientTemplate.getWorkflowClient();
@@ -191,6 +223,16 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
       return beanFactory.getBean(beanName, clazz);
     } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException ignore) {
       // Ignore if the bean is not found or not of the required type
+    }
+    return null;
+  }
+
+  private <T> @Nullable List<T> findAllBeans(Class<T> clazz) {
+    try {
+      List<T> beans = new ArrayList<>(beanFactory.getBeansOfType(clazz).values());
+      return AutoConfigurationUtils.sortPlugins(beans);
+    } catch (NoSuchBeanDefinitionException ignore) {
+      // No beans of this type defined - this is expected for optional plugins
     }
     return null;
   }

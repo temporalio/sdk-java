@@ -72,7 +72,9 @@ public class StickyQueueBacklogTest {
             slotSupplier,
             stickyQueueBalancer,
             metricsScope,
-            () -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+            () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
+            new PollerTracker(),
+            new PollerTracker());
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()

@@ -5,6 +5,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.internal.common.ShadingHelpers;
 import io.temporal.serviceclient.SimpleSslContextBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
 import java.io.ByteArrayInputStream;
@@ -24,16 +25,32 @@ public class ServiceStubOptionsTemplate {
   private final @Nullable Scope metricsScope;
   private final @Nullable List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
       workflowServiceStubsCustomizer;
+  private final @Nullable List<WorkflowServiceStubsPlugin> plugins;
 
   public ServiceStubOptionsTemplate(
       @Nonnull ConnectionProperties connectionProperties,
       @Nullable Scope metricsScope,
       @Nullable
           List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
-              workflowServiceStubsCustomizer) {
+              workflowServiceStubsCustomizer,
+      @Nullable List<WorkflowServiceStubsPlugin> plugins) {
     this.connectionProperties = connectionProperties;
     this.metricsScope = metricsScope;
     this.workflowServiceStubsCustomizer = workflowServiceStubsCustomizer;
+    this.plugins = plugins;
+  }
+
+  /**
+   * @deprecated Use constructor with plugins parameter
+   */
+  @Deprecated
+  public ServiceStubOptionsTemplate(
+      @Nonnull ConnectionProperties connectionProperties,
+      @Nullable Scope metricsScope,
+      @Nullable
+          List<TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>>
+              workflowServiceStubsCustomizer) {
+    this(connectionProperties, metricsScope, workflowServiceStubsCustomizer, null);
   }
 
   public WorkflowServiceStubsOptions createServiceStubOptions() {
@@ -57,6 +74,10 @@ public class ServiceStubOptionsTemplate {
 
     if (metricsScope != null) {
       stubsOptionsBuilder.setMetricsScope(metricsScope);
+    }
+
+    if (plugins != null && !plugins.isEmpty()) {
+      stubsOptionsBuilder.setPlugins(plugins.toArray(new WorkflowServiceStubsPlugin[0]));
     }
 
     if (workflowServiceStubsCustomizer != null) {

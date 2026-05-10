@@ -8,7 +8,8 @@
 - `temporal-shaded`: prepackaged version of the SDK with shaded dependencies.
 - `temporal-spring-boot-autoconfigure`: Spring Boot auto configuration.
 - `temporal-kotlin`: Kotlin DSL for the SDK.
-- `temporal-opentracing`: OpenTracing interceptor integration.
+- `contrib/temporal-opentracing`: OpenTracing interceptor integration.
+- `contrib/temporal-spring-ai`: Spring AI integration.
 
 ## General Guidance
 - Avoid changing public API signatures. Anything under an `internal` directory

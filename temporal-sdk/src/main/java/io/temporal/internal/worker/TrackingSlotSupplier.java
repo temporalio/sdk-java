@@ -24,11 +24,27 @@ public class TrackingSlotSupplier<SI extends SlotInfo> {
   private final AtomicInteger issuedSlots = new AtomicInteger();
   private final Map<SlotPermit, SI> usedSlots = new ConcurrentHashMap<>();
   private final Scope metricsScope;
+  private final String supplierKind;
 
   public TrackingSlotSupplier(SlotSupplier<SI> inner, Scope metricsScope) {
     this.inner = inner;
     this.metricsScope = metricsScope;
+    this.supplierKind = determineSupplierKind(inner);
     publishSlotsMetric();
+  }
+
+  private static String determineSupplierKind(SlotSupplier<?> supplier) {
+    if (supplier instanceof FixedSizeSlotSupplier) return "Fixed";
+    if (supplier instanceof ResourceBasedSlotSupplier) return "ResourceBased";
+    return supplier.getClass().getSimpleName();
+  }
+
+  public String getSupplierKind() {
+    return supplierKind;
+  }
+
+  public int getUsedSlotCount() {
+    return usedSlots.size();
   }
 
   public SlotSupplierFuture reserveSlot(SlotReservationData data) {

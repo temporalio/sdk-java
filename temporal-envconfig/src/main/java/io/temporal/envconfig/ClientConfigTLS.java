@@ -1,11 +1,9 @@
 package io.temporal.envconfig;
 
-import io.temporal.common.Experimental;
 import java.util.Arrays;
 import java.util.Objects;
 
 /** TLS configuration for a client. */
-@Experimental
 public class ClientConfigTLS {
   /** Create a builder for {@link ClientConfigTLS}. */
   public static Builder newBuilder() {

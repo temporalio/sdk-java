@@ -47,11 +47,15 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     } else if (useVirtualThreads) {
       // If virtual threads are enabled, we use a virtual thread executor.
       AtomicInteger threadIndex = new AtomicInteger();
+      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
       this.taskExecutor =
           VirtualThreadDelegate.newVirtualThreadExecutor(
               (t) -> {
                 t.setName(this.pollThreadNamePrefix + ": " + threadIndex.incrementAndGet());
                 t.setUncaughtExceptionHandler(pollerOptions.getUncaughtExceptionHandler());
+                if (contextClassLoader != null) {
+                  t.setContextClassLoader(contextClassLoader);
+                }
               });
     } else {
       ThreadPoolExecutor threadPoolTaskExecutor =

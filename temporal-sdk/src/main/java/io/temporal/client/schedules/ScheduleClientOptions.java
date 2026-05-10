@@ -1,10 +1,12 @@
 package io.temporal.client.schedules;
 
+import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import java.lang.management.ManagementFactory;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,12 +41,14 @@ public final class ScheduleClientOptions {
         Collections.emptyList();
     private static final List<ScheduleClientInterceptor> EMPTY_INTERCEPTORS =
         Collections.emptyList();
+    private static final ScheduleClientPlugin[] EMPTY_PLUGINS = new ScheduleClientPlugin[0];
 
     private String namespace;
     private DataConverter dataConverter;
     private String identity;
     private List<ContextPropagator> contextPropagators;
     private List<ScheduleClientInterceptor> interceptors;
+    private ScheduleClientPlugin[] plugins;
 
     private Builder() {}
 
@@ -57,6 +61,7 @@ public final class ScheduleClientOptions {
       identity = options.identity;
       contextPropagators = options.contextPropagators;
       interceptors = options.interceptors;
+      plugins = options.plugins;
     }
 
     /** Set the namespace this client will operate on. */
@@ -101,6 +106,17 @@ public final class ScheduleClientOptions {
       return this;
     }
 
+    /**
+     * Set the plugins for this client.
+     *
+     * @param plugins specifies the plugins to use with the client.
+     */
+    @Experimental
+    public Builder setPlugins(ScheduleClientPlugin... plugins) {
+      this.plugins = plugins;
+      return this;
+    }
+
     public ScheduleClientOptions build() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new ScheduleClientOptions(
@@ -108,7 +124,8 @@ public final class ScheduleClientOptions {
           dataConverter == null ? GlobalDataConverter.get() : dataConverter,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
-          interceptors == null ? EMPTY_INTERCEPTORS : interceptors);
+          interceptors == null ? EMPTY_INTERCEPTORS : interceptors,
+          plugins == null ? EMPTY_PLUGINS : plugins);
     }
   }
 
@@ -117,18 +134,21 @@ public final class ScheduleClientOptions {
   private final String identity;
   private final List<ContextPropagator> contextPropagators;
   private final List<ScheduleClientInterceptor> interceptors;
+  private final ScheduleClientPlugin[] plugins;
 
   private ScheduleClientOptions(
       String namespace,
       DataConverter dataConverter,
       String identity,
       List<ContextPropagator> contextPropagators,
-      List<ScheduleClientInterceptor> interceptors) {
+      List<ScheduleClientInterceptor> interceptors,
+      ScheduleClientPlugin[] plugins) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.interceptors = interceptors;
+    this.plugins = plugins;
   }
 
   /**
@@ -174,5 +194,15 @@ public final class ScheduleClientOptions {
    */
   public List<ScheduleClientInterceptor> getInterceptors() {
     return interceptors;
+  }
+
+  /**
+   * Get the plugins of this client
+   *
+   * @return The plugins to use with the client.
+   */
+  @Experimental
+  public ScheduleClientPlugin[] getPlugins() {
+    return plugins == null ? new ScheduleClientPlugin[0] : Arrays.copyOf(plugins, plugins.length);
   }
 }

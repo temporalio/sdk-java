@@ -1,0 +1,53 @@
+# **💥 BREAKING CHANGES**
+
+## Spring Boot
+
+### Customizers
+
+The Java SDK Spring Boot integration now allows multiple customizers for the main Namespace. Multi Namespace support coming as part of https://github.com/temporalio/sdk-java/issues/2656.
+
+# **Highlights**
+
+## Environment Configuration
+
+Added a new package `temporal-envconfig` to support Environment Configuration. Environment Configuration provides a way to configure clients using environment variables and TOML configuration files, rather than setting connection options programmatically in your code.
+
+For more please see our docs page [here](https://docs.temporal.io/develop/environment-configuration), Java SDK specific docs coming soon.
+
+# What's Changed
+
+2025-08-25 - 4ae92d31 - Ensure namespace exists on worker startup (#2609)
+2025-08-28 - 31d044cf - Make sure workflow_task_queue_poll_succeed is emitted (#2645)
+2025-09-02 - eaad70d1 - Update Spring Boot README.md to link to docs (#2646)
+2025-09-13 - bf0b196c - Allow multiple customizers in Springboot (#2649)
+2025-09-18 - c67ca608 - Add NexusInfo (#2658)
+2025-09-22 - 5629f0c1 - Don't set error status on otel spans for benign exceptions (#2663)
+2025-09-24 - 4631b16c - Add support for environment config (#2660)
+2025-09-25 - 785f5cd8 - Bump dependencies (#2668)
+2025-09-26 - a05c8558 - Fix UNKNOWN gRPC error on describe (#2672)
+2025-10-09 - 6239adbf - Use macOS 15 intel runner (#2678)
+2025-10-10 - 89c427eb - Fix gradle version determination breaking in some environments (#2682)
+2025-10-10 - f9a5d74d - fix: set type metadata on search attribute payloads in test server (#2677)
+2025-10-15 - 832785d8 - Add grpc-inprocess, grpc-util to shaded dependencies (#2686)
+2025-10-15 - c040f0da - Add separate deployment name and build id fields for spring (#2681)
+2025-10-17 - 69d2363b - Remove experimental status from worker tuners (#2683)
+2025-10-21 - c46eb46c - Bump gradle action to v5 (#2700)
+2025-10-21 - fd0351c5 - Add javadocs for in-workflow, workflow stubs (#2701)
+2025-10-22 - 1b298538 - finish wiring up cancel cause to Workflow cancellation. (#2695)
+2025-10-22 - 4e9cc06a - Set worker version on eager start requests (#2704)
+2025-10-22 - 850515bc - Align workflow_task_schedule_to_start_latency (#2669)
+2025-10-22 - 9c7a5d14 - Update Jackson to 2.15.4 (#2691)
+2025-10-22 - 9cd7ca8c - Clean up some test assertions and make sure naming is consistent. (#2690)
+2025-10-22 - b12ee45b - Add support for FirstExecutionRunId to cancel and terminate (#2692)
+2025-10-22 - b160fb06 - improve error messages in RpcRetryOptions (#2708)
+2025-10-22 - f864e8a0 - Correct Preconditions error message in WorkerFactory (#2693)
+2025-10-24 - 019ad701 - Replace tctl references with Temporal CLI (#2688)
+2025-10-24 - 1c9b0072 - Fix resource based tuner metrics missing temporal_ prefix (#2710)
+2025-10-27 - e7c0c2a2 - Fix envconf path (#2715)
+2025-10-29 - 9bc29c8f - Set explicit permissions for GitHub Actions workflows
+2025-10-29 - fdf9994d - Report cpu/mem metrics on 0-100 range to match core (#2719)
+2025-10-30 - a7e38ece - Add summary to side effect and mutable side effect (#2699)
+2025-11-06 - 3f41b69b - Remove experimental labels from poller behavior options (#2721)
+2025-11-06 - be353bca - add nightly throughput stress (#2717)
+2025-11-12 - 5394310f - Set default workflow task failure cause to unhandled failure (#2706)
+2025-11-13 - 75779111 - Add new constructor for WorkflowStub to target correct execution (#2709)

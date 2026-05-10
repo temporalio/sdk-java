@@ -376,6 +376,9 @@ public final class WorkerOptions {
      * will only receive tasks which it is compatible with.
      *
      * <p>Defaults to false
+     *
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
     @Experimental
     @Deprecated
@@ -389,6 +392,9 @@ public final class WorkerOptions {
      * code the worker uses for workflows, activities, and interceptors.
      *
      * <p>A Build Id must be set if {@link #setUseBuildIdForVersioning(boolean)} is set true.
+     *
+     * @deprecated Worker Versioning is now deprecated please migrate to the <a
+     *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
      */
     @Experimental
     @Deprecated
@@ -486,7 +492,6 @@ public final class WorkerOptions {
      * Set deployment options for the worker. Exclusive with {@link #setUseBuildIdForVersioning} and
      * {@link #setBuildId(String)}.
      */
-    @Experimental
     public Builder setDeploymentOptions(WorkerDeploymentOptions deploymentOptions) {
       this.deploymentOptions = deploymentOptions;
       return this;
@@ -502,21 +507,18 @@ public final class WorkerOptions {
      * <p>If the sticky queue is enabled, the poller behavior will be used for the sticky queue as
      * well.
      */
-    @Experimental
     public Builder setWorkflowTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.workflowTaskPollersBehavior = pollerBehavior;
       return this;
     }
 
     /** Set the poller behavior for activity task pollers. */
-    @Experimental
     public Builder setActivityTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.activityTaskPollersBehavior = pollerBehavior;
       return this;
     }
 
     /** Set the poller behavior for nexus task pollers. */
-    @Experimental
     public Builder setNexusTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.nexusTaskPollersBehavior = pollerBehavior;
       return this;
@@ -644,13 +646,17 @@ public final class WorkerOptions {
           workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
+              ? (workflowTaskPollersBehavior != null
+                  ? 0
+                  : DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS)
               : maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              ? (activityTaskPollersBehavior != null
+                  ? 0
+                  : DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS)
               : maxConcurrentActivityTaskPollers,
           maxConcurrentNexusTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS
+              ? (nexusTaskPollersBehavior != null ? 0 : DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS)
               : maxConcurrentNexusTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout == 0
@@ -894,17 +900,14 @@ public final class WorkerOptions {
     return deploymentOptions;
   }
 
-  @Experimental
   public PollerBehavior getWorkflowTaskPollersBehavior() {
     return workflowTaskPollersBehavior;
   }
 
-  @Experimental
   public PollerBehavior getActivityTaskPollersBehavior() {
     return activityTaskPollersBehavior;
   }
 
-  @Experimental
   public PollerBehavior getNexusTaskPollersBehavior() {
     return nexusTaskPollersBehavior;
   }

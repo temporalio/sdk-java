@@ -1,14 +1,61 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.api.common.v1.Payloads;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import org.junit.After;
 import org.junit.Test;
 
 public class JacksonJsonPayloadConverterTest {
+
+  @After
+  public void resetJackson3Delegate() {
+    JacksonJsonPayloadConverter.setDefaultAsJackson3(false, false);
+  }
+
+  @Test
+  public void testSetDefaultAsJackson3ThrowsWithoutJackson3() {
+    try {
+      JacksonJsonPayloadConverter.setDefaultAsJackson3(true, true);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      // On Java 8: Class.forName finds the stub, whose constructor throws
+      //   UnsupportedOperationException → wrapped in InvocationTargetException by reflection.
+      // On Java 17+: Class.forName finds the real impl (java17 classes are on the classpath)
+      //   but Jackson 3 types are absent, so class loading throws NoClassDefFoundError directly.
+      Throwable cause = e.getCause();
+      String specVersion = System.getProperty("java.specification.version");
+      int majorVersion =
+          specVersion.startsWith("1.")
+              ? Integer.parseInt(specVersion.substring(2))
+              : Integer.parseInt(specVersion);
+      if (majorVersion >= 17) {
+        assertTrue(
+            "Expected NoClassDefFoundError, got: " + cause, cause instanceof NoClassDefFoundError);
+      } else {
+        assertTrue(
+            "Expected InvocationTargetException, got: " + cause,
+            cause instanceof InvocationTargetException);
+        assertTrue(
+            "Expected UnsupportedOperationException, got: " + cause.getCause(),
+            cause.getCause() instanceof UnsupportedOperationException);
+      }
+    }
+  }
+
+  @Test
+  public void testSetDefaultAsJackson3FalseIsNoOp() {
+    // Should not throw even though Jackson 3 is absent
+    JacksonJsonPayloadConverter.setDefaultAsJackson3(false, false);
+    JacksonJsonPayloadConverter.setDefaultAsJackson3(false, true);
+  }
+
   @Test
   public void testJson() {
     DataConverter converter = DefaultDataConverter.newDefaultInstance();

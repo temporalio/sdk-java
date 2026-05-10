@@ -26,4 +26,8 @@ public class WorkerFactoryRegistry {
   public void deregister(WorkerFactory workerFactory) {
     workerFactories.remove(workerFactory);
   }
+
+  public boolean isEmpty() {
+    return workerFactories.isEmpty();
+  }
 }

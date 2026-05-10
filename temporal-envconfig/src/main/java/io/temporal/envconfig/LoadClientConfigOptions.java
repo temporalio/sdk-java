@@ -1,10 +1,8 @@
 package io.temporal.envconfig;
 
-import io.temporal.common.Experimental;
 import java.util.Map;
 
 /** Options for loading a client config via {@link ClientConfig#load(LoadClientConfigOptions)} */
-@Experimental
 public class LoadClientConfigOptions {
   /** Create a builder for {@link LoadClientConfigOptions}. */
   public static Builder newBuilder() {
@@ -95,7 +93,7 @@ public class LoadClientConfigOptions {
     /**
      * Override the file path to use to load the TOML file for config. Defaults to
      * TEMPORAL_CONFIG_FILE environment variable or if that is unset/empty, defaults to
-     * [os.UserConfigDir]/temporal/temporal.toml. If ConfigFileData is set, this cannot be set and
+     * [os.UserConfigDir]/temporalio/temporal.toml. If ConfigFileData is set, this cannot be set and
      * no file loading from disk occurs. Ignored if DisableFile is true.
      */
     public Builder setConfigFilePath(String configFilePath) {

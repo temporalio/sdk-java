@@ -1,7 +1,6 @@
 package io.temporal.internal.nexus;
 
 import io.nexusrpc.OperationException;
-import io.nexusrpc.OperationInfo;
 import io.nexusrpc.handler.*;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -30,7 +29,9 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
             temporalNexusContext.getMetricsScope(),
             temporalNexusContext.getWorkflowClient(),
             new NexusInfoImpl(
-                temporalNexusContext.getNamespace(), temporalNexusContext.getTaskQueue())));
+                temporalNexusContext.getNamespace(),
+                temporalNexusContext.getTaskQueue(),
+                temporalNexusContext.getEndpoint())));
     return new OperationInterceptorConverter(inboundCallsInterceptor);
   }
 
@@ -49,20 +50,6 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
               new NexusOperationInboundCallsInterceptor.StartOperationInput(
                   operationContext, operationStartDetails, o))
           .getResult();
-    }
-
-    @Override
-    public Object fetchResult(
-        OperationContext operationContext, OperationFetchResultDetails operationFetchResultDetails)
-        throws OperationException {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-
-    @Override
-    public OperationInfo fetchInfo(
-        OperationContext operationContext, OperationFetchInfoDetails operationFetchInfoDetails)
-        throws HandlerException {
-      throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override

@@ -84,7 +84,8 @@ public class UpdateTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
   }
@@ -133,7 +134,8 @@ public class UpdateTest {
     String result =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
+            .newUntypedWorkflowStub(
+                WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build())
             .getResult(String.class);
     assertEquals("Execute-Hello Update Execute-Hello Update 2", result);
   }
@@ -287,7 +289,11 @@ public class UpdateTest {
     // Create a new workflow stub with the new run ID
     workflow =
         workflowClient.newWorkflowStub(
-            WorkflowWithUpdate.class, workflowId, Optional.of(resetResponse.getRunId()));
+            WorkflowWithUpdate.class,
+            WorkflowTargetOptions.newBuilder()
+                .setWorkflowId(workflowId)
+                .setRunId(resetResponse.getRunId())
+                .build());
     assertEquals("Execute-Hello Update 2", workflow.update(0, "Hello Update 2"));
     // Complete would throw an exception if the update was not applied to the reset workflow.
     workflow.complete();

@@ -158,8 +158,21 @@ public interface WorkflowClient {
    * @param workflowId Workflow id.
    * @param runId Run id of the workflow execution.
    * @return Stub that implements workflowInterface and can be used to signal, update, or query it.
+   * @deprecated Use {@link #newWorkflowStub(Class, WorkflowTargetOptions)} instead. This method is
+   *     deprecated because the returned stub does not properly account for the runId.
    */
+  @Deprecated
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
+
+  /**
+   * Creates workflow client stub for a known execution. Use it to send signals or queries to a
+   * running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowInterface interface that given workflow implements.
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @return Stub that implements workflowInterface and can be used to signal or query it.
+   */
+  <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowTargetOptions workflowTargetOptions);
 
   /**
    * Creates workflow untyped client stub that can be used to start a single workflow execution. Use
@@ -191,7 +204,10 @@ public interface WorkflowClient {
    *     workflowId is assumed.
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead. This
+   *     method is deprecated because the returned stub does not properly account for the runId.
    */
+  @Deprecated
   WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType);
 
@@ -202,8 +218,30 @@ public interface WorkflowClient {
    * @param execution workflow id and optional run id for execution
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
+   * @deprecated Use {@link #newUntypedWorkflowStub(WorkflowTargetOptions, Optional)} instead. This
+   *     method is deprecated because the returned stub does not properly account for the runId.
    */
   WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  WorkflowStub newUntypedWorkflowStub(WorkflowTargetOptions workflowTargetOptions);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowTargetOptions options that specify target workflow execution.
+   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  WorkflowStub newUntypedWorkflowStub(
+      WorkflowTargetOptions workflowTargetOptions, Optional<String> workflowType);
 
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities
@@ -304,8 +342,11 @@ public interface WorkflowClient {
    * @param operation The operation to perform. See {@link BuildIdOperation} for more.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
   @Experimental
+  @Deprecated
   void updateWorkerBuildIdCompatability(
       @Nonnull String taskQueue, @Nonnull BuildIdOperation operation);
 
@@ -316,8 +357,11 @@ public interface WorkflowClient {
    * @return The version set(s) for the task queue.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
   @Experimental
+  @Deprecated
   WorkerBuildIdVersionSets getWorkerBuildIdCompatability(@Nonnull String taskQueue);
 
   /**
@@ -332,8 +376,11 @@ public interface WorkflowClient {
    * @return The reachability information.
    * @throws WorkflowServiceException for any failures including networking and service availability
    *     issues.
+   * @deprecated Worker Versioning is now deprecated please migrate to the <a
+   *     href="https://docs.temporal.io/worker-deployments">Worker Deployment API</a>.
    */
   @Experimental
+  @Deprecated
   WorkerTaskReachability getWorkerTaskReachability(
       @Nonnull Iterable<String> buildIds,
       @Nonnull Iterable<String> taskQueues,

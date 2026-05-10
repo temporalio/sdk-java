@@ -76,8 +76,6 @@ import java.lang.annotation.Target;
  * When <code>CImpl</code> instance is registered with the {@link io.temporal.worker.Worker} the
  * following is registered:
  *
- * <p>
- *
  * <ul>
  *   <li>a signal handler
  *   <li>b signal handler

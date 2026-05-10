@@ -1,13 +1,11 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
-import io.temporal.common.Experimental;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import java.util.Objects;
 
 /** Options for configuring the Worker Versioning feature. */
-@Experimental
 public class WorkerDeploymentOptions {
   public static Builder newBuilder() {
     return new Builder();
@@ -63,6 +61,9 @@ public class WorkerDeploymentOptions {
       Preconditions.checkState(
           !(useVersioning && version == null),
           "If useVersioning is set, setVersion must be called");
+      Preconditions.checkState(
+          useVersioning || defaultVersioningBehavior == VersioningBehavior.UNSPECIFIED,
+          "defaultVersioningBehavior must be UNSPECIFIED when useVersioning is false");
       return new WorkerDeploymentOptions(useVersioning, version, defaultVersioningBehavior);
     }
   }

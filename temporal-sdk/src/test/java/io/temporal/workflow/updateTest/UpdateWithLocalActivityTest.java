@@ -14,7 +14,6 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,11 +60,7 @@ public class UpdateWithLocalActivityTest {
 
     workflow.complete();
 
-    String result =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, Optional.empty())
-            .getResult(String.class);
+    String result = WorkflowStub.fromTyped(workflow).getResult(String.class);
     assertEquals(
         "Hello Update sleepActivity0 activity Hello Update 2 sleepActivity1 activity", result);
   }

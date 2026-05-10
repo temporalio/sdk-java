@@ -26,6 +26,7 @@ import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.NexusOperationScheduledEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.nexus.v1.*;
@@ -64,12 +65,12 @@ import org.slf4j.LoggerFactory;
 /**
  * In memory implementation of the Workflow Service. To be used for testing purposes only.
  *
- * <p>Do not use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
+ * <p>Do not use directly, instead use {@code io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
-  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser();
+  private static final JsonFormat.Parser JSON_PARSER = JsonFormat.parser().ignoringUnknownFields();
 
   private static final String FAILURE_TYPE_STRING = Failure.getDescriptor().getFullName();
 
@@ -285,6 +286,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return getMutableState(executionId, failNotExists);
   }
 
+  @SuppressWarnings(
+      "deprecation") // Backwards compatibility for WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
   @Override
   public void startWorkflowExecution(
       StartWorkflowExecutionRequest request,
@@ -310,6 +313,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation") // Handles deprecated TERMINATE_IF_RUNNING reuse policy
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
       Duration backoffStartInterval,
@@ -325,7 +329,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     validateWorkflowIdReusePolicy(reusePolicy, conflictPolicy);
     validateOnConflictOptions(startRequest);
 
-    // Backwards compatibility: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING is deprecated
+    // Backwards compatibility: WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING
+    // is deprecated
     if (reusePolicy == WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
       conflictPolicy = WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING;
       reusePolicy = WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE;
@@ -475,6 +480,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
+  @SuppressWarnings("deprecation") // Validates deprecated TERMINATE_IF_RUNNING reuse policy
   private void validateWorkflowIdReusePolicy(
       WorkflowIdReusePolicy reusePolicy, WorkflowIdConflictPolicy conflictPolicy) {
     if (conflictPolicy != WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_UNSPECIFIED
@@ -727,6 +733,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     responseObserver.onCompleted();
   }
 
+  @Override
+  public void shutdownWorker(
+      ShutdownWorkerRequest request, StreamObserver<ShutdownWorkerResponse> responseObserver) {
+    responseObserver.onNext(ShutdownWorkerResponse.getDefaultInstance());
+    responseObserver.onCompleted();
+  }
+
   private Context.CancellableContext deadlineCtx(Deadline deadline) {
     return Context.current().withDeadline(deadline, this.backgroundScheduler);
   }
@@ -955,6 +968,53 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           task.getTask()
               .getRequestBuilder()
               .putHeader(Header.REQUEST_TIMEOUT.toLowerCase(), taskTimeout + "s");
+
+      // Calculate and set OPERATION_TIMEOUT header if not already present and operation has
+      // timeouts
+      if (req.hasStartOperation()
+          && !req.getHeaderMap().containsKey(Header.OPERATION_TIMEOUT.toLowerCase())) {
+        NexusTaskToken token = NexusTaskToken.fromBytes(task.getTask().getTaskToken());
+        TestWorkflowMutableState mutableState =
+            getMutableState(token.getOperationRef().getExecutionId());
+        long scheduledEventId = token.getOperationRef().getScheduledEventId();
+        NexusOperationScheduledEventAttributes scheduledEvent =
+            mutableState.getNexusOperationScheduledEventAttributes(scheduledEventId);
+        boolean isStarted = mutableState.isNexusOperationStarted(scheduledEventId);
+
+        Timestamp scheduledTime = req.getScheduledTime();
+        Timestamp currentTime = store.currentTime();
+        long elapsedMillis =
+            com.google.protobuf.util.Durations.toMillis(
+                Timestamps.between(scheduledTime, currentTime));
+
+        // Calculate minimum of all applicable timeouts
+        Long remainingMillis = null;
+
+        if (scheduledEvent.hasStartToCloseTimeout()) {
+          long startToCloseMillis =
+              com.google.protobuf.util.Durations.toMillis(scheduledEvent.getStartToCloseTimeout());
+          if (startToCloseMillis > 0) {
+            remainingMillis = startToCloseMillis;
+          }
+        }
+        if (scheduledEvent.hasScheduleToCloseTimeout()) {
+          long scheduleToCloseMillis =
+              com.google.protobuf.util.Durations.toMillis(
+                  scheduledEvent.getScheduleToCloseTimeout());
+          if (scheduleToCloseMillis > 0) {
+            // Ensure the value is positive.
+            long remaining = Math.max(1, scheduleToCloseMillis - elapsedMillis);
+            remainingMillis =
+                (remainingMillis == null) ? remaining : Math.min(remainingMillis, remaining);
+          }
+        }
+
+        if (remainingMillis != null && remainingMillis > 0) {
+          req.putHeader(
+              Header.OPERATION_TIMEOUT.toLowerCase(), Long.toString(remainingMillis) + "ms");
+        }
+      }
+
       PollNexusTaskQueueResponse.Builder resp = task.getTask().setRequest(req);
 
       responseObserver.onNext(resp.build());
@@ -971,6 +1031,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
+  @SuppressWarnings("deprecation") // Uses deprecated operationError
   public void respondNexusTaskCompleted(
       RespondNexusTaskCompletedRequest request,
       StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {
@@ -988,7 +1049,17 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         mutableState.cancelNexusOperationRequestAcknowledge(tt.getOperationRef());
       } else if (request.getResponse().hasStartOperation()) {
         StartOperationResponse startResp = request.getResponse().getStartOperation();
-        if (startResp.hasOperationError()) {
+        if (startResp.hasFailure()) {
+          // New format: Failure directly contains ApplicationFailureInfo or CanceledFailureInfo
+          Failure failure = startResp.getFailure();
+          if (failure.hasCanceledFailureInfo()) {
+            mutableState.cancelNexusOperation(tt.getOperationRef(), failure);
+          } else {
+            mutableState.failNexusOperation(
+                tt.getOperationRef(), wrapNexusOperationFailure(failure));
+          }
+        } else if (startResp.hasOperationError()) {
+          // Old format: UnsuccessfulOperationError with Nexus Failure
           UnsuccessfulOperationError opError = startResp.getOperationError();
           Failure.Builder b = Failure.newBuilder().setMessage(opError.getFailure().getMessage());
 
@@ -1013,7 +1084,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               tt.getOperationRef(), startResp.getSyncSuccess().getPayload());
         } else {
           throw Status.INVALID_ARGUMENT
-              .withDescription("Expected success or OperationError to be set on request.")
+              .withDescription("Expected success, Failure, or OperationError to be set on request.")
               .asRuntimeException();
         }
       } else {
@@ -1028,21 +1099,39 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation") // to allow using Failure in the old and new formats
   @Override
   public void respondNexusTaskFailed(
       RespondNexusTaskFailedRequest request,
       StreamObserver<RespondNexusTaskFailedResponse> responseObserver) {
     try {
-      if (!request.hasError()) {
+      Failure failure;
+      if (request.hasFailure()) {
+        if (!request.getFailure().hasNexusHandlerFailureInfo()) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription(
+                  "request Failure must contain error or failure with NexusHandlerFailureInfo")
+              .asRuntimeException();
+        }
+        // New format: Failure directly contains the handler error with NexusHandlerFailureInfo
+        // Don't wrap with NexusOperationFailureInfo - the state machine will do that if needed
+        failure = request.getFailure();
+      } else if (request.hasError()) {
+        // Old format: HandlerError needs to be converted
+        failure = handlerErrorToFailure(request.getError());
+      } else {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Nexus handler error not set on RespondNexusTaskFailedRequest")
+            .withDescription("Neither Failure nor Error set on RespondNexusTaskFailedRequest")
             .asRuntimeException();
       }
       NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
       TestWorkflowMutableState mutableState =
           getMutableState(tt.getOperationRef().getExecutionId());
-      if (mutableState.validateOperationTaskToken(tt)) {
-        Failure failure = handlerErrorToFailure(request.getError());
+      if (tt.isCancel()) {
+        // For cancel failures, the operation may already be completed/removed,
+        // so skip token validation and record the event directly.
+        mutableState.failNexusOperationCancelRequest(tt.getOperationRef(), failure);
+      } else if (mutableState.validateOperationTaskToken(tt)) {
         mutableState.failNexusOperation(tt.getOperationRef(), failure);
       }
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
@@ -1127,7 +1216,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   /**
-   * nexusFailureToAPIFailure converts a Nexus Failure to an API proto Failure. If the failure
+   * nexusFailureToTemporalFailure converts a Nexus Failure to an API proto Failure. If the failure
    * metadata "type" field is set to the fullname of the temporal API Failure message, the failure
    * is reconstructed using protojson.Unmarshal on the failure details field.
    */
@@ -1149,7 +1238,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       applicationFailureInfo.setNonRetryable(!retryable);
       apiFailure.setApplicationFailureInfo(applicationFailureInfo.build());
     }
+    // Ensure these always get written
     apiFailure.setMessage(failure.getMessage());
+    if (!failure.getStackTrace().isEmpty()) {
+      apiFailure.setStackTrace(failure.getStackTrace());
+    }
     return apiFailure.build();
   }
 
@@ -1584,6 +1677,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation")
   public void signalExternalWorkflowExecution(
       String signalId,
       SignalExternalWorkflowExecutionCommandAttributes commandAttributes,
@@ -1659,6 +1753,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     if (ea.hasHeader()) {
       startRequestBuilder.setHeader(ea.getHeader());
+    }
+    if (ea.hasSearchAttributes()) {
+      startRequestBuilder.setSearchAttributes(ea.getSearchAttributes());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
@@ -1813,7 +1910,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                           NamespaceInfo.Capabilities.newBuilder()
                               .setEagerWorkflowStart(true)
                               .setAsyncUpdate(true)
-                              .setSyncUpdate(true))
+                              .setSyncUpdate(true)
+                              .setWorkerHeartbeats(true))
                       .build())
               .build();
       responseObserver.onNext(result);

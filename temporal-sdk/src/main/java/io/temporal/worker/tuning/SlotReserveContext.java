@@ -9,7 +9,7 @@ public interface SlotReserveContext<SI extends SlotInfo> {
   String getTaskQueue();
 
   /**
-   * @return A read-only & safe for concurrent access mapping of slot permits to the information
+   * @return A read-only &amp; safe for concurrent access mapping of slot permits to the information
    *     associated with the in-use slot. This map is changed internally any time new slots are
    *     used.
    */

@@ -1,12 +1,13 @@
 package io.temporal.envconfig;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.grpc.Metadata;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
@@ -115,7 +116,7 @@ public class ClientConfigProfileTest {
     // Put some data in temp file and set the env var to use that file
     File temp = File.createTempFile("envConfigTest", "");
     temp.deleteOnExit();
-    Files.asCharSink(temp, Charsets.UTF_8)
+    Files.asCharSink(temp, StandardCharsets.UTF_8)
         .write(
             "[profile.default]\n" + "address = \"my-address\"\n" + "namespace = \"my-namespace\"");
     // Explicitly set
@@ -272,6 +273,72 @@ public class ClientConfigProfileTest {
     Assert.assertNotNull(stubsOptions.getSslContext());
     SslContext context = stubsOptions.getSslContext();
     Assert.assertTrue(context.isClient());
+  }
+
+  @Test
+  public void loadClientConfigMissingFileReturnsDefault() throws IOException {
+    // When config file doesn't exist, should return default empty config (not throw)
+    ClientConfig config =
+        ClientConfig.load(
+            LoadClientConfigOptions.newBuilder()
+                .setConfigFilePath("/nonexistent/path/to/temporal.toml")
+                .build());
+    Assert.assertNotNull(config);
+    Assert.assertTrue(config.getProfiles().isEmpty());
+  }
+
+  @Test
+  public void loadClientConfigProfileMissingFileReturnsDefault() throws IOException {
+    // When config file doesn't exist, ClientConfigProfile.load() should also work
+    // and return a profile with default values (potentially overridden by env vars)
+    ClientConfigProfile profile =
+        ClientConfigProfile.load(
+            LoadClientConfigProfileOptions.newBuilder()
+                .setConfigFilePath("/nonexistent/path/to/temporal.toml")
+                .setEnvOverrides(Collections.emptyMap())
+                .build());
+    Assert.assertNotNull(profile);
+    // Default values should be null/empty since no file and no env vars
+    Assert.assertNull(profile.getAddress());
+    Assert.assertNull(profile.getNamespace());
+  }
+
+  @Test
+  public void defaultConfigFilePath() {
+    // macOS: ~/Library/Application Support
+    Assert.assertEquals(
+        Paths.get("/Users/test", "Library", "Application Support", "temporalio", "temporal.toml")
+            .toString(),
+        ClientConfig.getDefaultConfigFilePath("/Users/test", "Mac OS X", Collections.emptyMap()));
+
+    // Windows: %APPDATA%
+    Assert.assertEquals(
+        Paths.get("C:/Users/test/AppData/Roaming", "temporalio", "temporal.toml").toString(),
+        ClientConfig.getDefaultConfigFilePath(
+            "C:/Users/test",
+            "Windows 10",
+            Collections.singletonMap("APPDATA", "C:/Users/test/AppData/Roaming")));
+
+    // Linux: ~/.config
+    Assert.assertEquals(
+        Paths.get("/home/test", ".config", "temporalio", "temporal.toml").toString(),
+        ClientConfig.getDefaultConfigFilePath("/home/test", "Linux", Collections.emptyMap()));
+  }
+
+  @Test
+  public void loadDefaultConfigMissingHomeDir() throws IOException {
+    String original = System.getProperty("user.home");
+    try {
+      System.setProperty("user.home", "");
+      ClientConfig config =
+          ClientConfig.load(
+              LoadClientConfigOptions.newBuilder().setEnvOverrides(Collections.emptyMap()).build());
+      Assert.assertEquals(ClientConfig.getDefaultInstance(), config);
+    } finally {
+      if (original != null) {
+        System.setProperty("user.home", original);
+      }
+    }
   }
 
   @Test

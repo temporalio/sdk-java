@@ -645,6 +645,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     if (input.getReason() != null) {
       request.setReason(input.getReason());
     }
+    if (input.getFirstExecutionRunId() != null) {
+      request.setFirstExecutionRunId(input.getFirstExecutionRunId());
+    }
     genericClient.requestCancel(request.build());
     return new CancelOutput();
   }
@@ -658,6 +661,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setWorkflowExecution(input.getWorkflowExecution());
     if (input.getReason() != null) {
       request.setReason(input.getReason());
+    }
+    if (input.getFirstExecutionRunId() != null) {
+      request.setFirstExecutionRunId(input.getFirstExecutionRunId());
     }
     DataConverter dataConverterWithWorkflowContext =
         clientOptions

@@ -147,7 +147,7 @@ public class ActivityInfoTest {
       SerializedActivityInfo serialized = new SerializedActivityInfo();
       serialized.taskToken = info.getTaskToken();
       serialized.workflowId = info.getWorkflowId();
-      serialized.runId = info.getRunId();
+      serialized.runId = info.getWorkflowRunId();
       serialized.activityId = info.getActivityId();
       serialized.activityType = info.getActivityType();
       serialized.scheduleToCloseTimeout = info.getScheduleToCloseTimeout();

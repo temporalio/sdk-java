@@ -161,7 +161,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     boolean deterministicCancellationScopeOrder =
         workflowContext
             .getReplayContext()
-            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
+            .tryUseSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
     this.runnerCancellationScope =
         new CancellationScopeImpl(true, deterministicCancellationScopeOrder, null, null);
     this.rootRunnable = root;

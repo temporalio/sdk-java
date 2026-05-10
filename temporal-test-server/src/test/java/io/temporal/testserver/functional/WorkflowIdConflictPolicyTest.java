@@ -41,7 +41,7 @@ public class WorkflowIdConflictPolicyTest {
 
   @Test
   public void conflictPolicyUseExisting() {
-    String workflowId = "conflict-policy-use-existing";
+    String workflowId = "conflict-policy-use-existing-" + randomUUID();
     String requestId = randomUUID().toString();
 
     // Start workflow
@@ -232,7 +232,7 @@ public class WorkflowIdConflictPolicyTest {
 
   @Test
   public void conflictPolicyFail() {
-    String workflowId = "conflict-policy-fail";
+    String workflowId = "conflict-policy-fail-" + randomUUID();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowId(workflowId)

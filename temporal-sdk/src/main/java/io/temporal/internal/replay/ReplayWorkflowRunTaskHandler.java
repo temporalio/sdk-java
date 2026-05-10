@@ -185,6 +185,21 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       if (workflow.getWorkflowContext() != null) {
         result.setVersioningBehavior(workflow.getWorkflowContext().getVersioningBehavior());
       }
+      // Setup post-completion metrics to be applied after task response accepted
+      String postCompleteCounter = workflowStateMachines.getPostCompletionMetricCounter();
+      com.uber.m3.util.Duration postCompleteLatency =
+          workflowStateMachines.getPostCompletionEndToEndLatency();
+      if (postCompleteCounter != null || postCompleteLatency != null) {
+        result.setApplyPostCompletionMetrics(
+            () -> {
+              if (postCompleteCounter != null) {
+                metricsScope.counter(postCompleteCounter).inc(1);
+              }
+              if (postCompleteLatency != null) {
+                metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(postCompleteLatency);
+              }
+            });
+      }
       return result.build();
     } finally {
       lock.unlock();

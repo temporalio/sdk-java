@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
  * WorkflowStub is a client side stub to a single workflow instance. It can be used to start,
  * signal, query, update, wait for completion and cancel a workflow execution. Created through
  * {@link WorkflowClient#newUntypedWorkflowStub(String, WorkflowOptions)} or {@link
- * WorkflowClient#newUntypedWorkflowStub(WorkflowExecution, Optional)}.
+ * WorkflowClient#newUntypedWorkflowStub(WorkflowTargetOptions, Optional)}.
  */
 public interface WorkflowStub {
 
@@ -160,10 +160,25 @@ public interface WorkflowStub {
   <R> R executeUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
 
+  /**
+   * Sends a signal to a workflow, starting the workflow if it is not already running.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param signalArgs signal method arguments
+   * @param startArgs workflow start arguments
+   * @return workflow execution
+   */
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
+  /**
+   * @return workflow type name if it was provided when the stub was created.
+   */
   Optional<String> getWorkflowType();
 
+  /**
+   * @return current workflow execution. Returns null if the workflow has not been started yet.
+   */
+  @Nullable
   WorkflowExecution getExecution();
 
   /**
@@ -254,12 +269,13 @@ public interface WorkflowStub {
    * to complete. Behind the scenes this call performs long polls the Temporal Server waiting for
    * workflow completion.
    *
+   * <p>See {@link #getResult(Class)} as a sync version of this method for detailed information
+   * about exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by {@link
+   * ExecutionException}.
+   *
    * @param resultClass class of the workflow return value
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(Class) as a sync version of this method for detailed information about
-   *     exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by {@link
-   *     ExecutionException}
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass);
 
@@ -268,14 +284,15 @@ public interface WorkflowStub {
    * to complete. Behind the scene this call performs long poll on Temporal service waiting for
    * workflow completion notification.
    *
+   * <p>See {@link #getResult(Class, Type)} as a sync version of this method for detailed
+   * information about exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by
+   * {@link ExecutionException}.
+   *
    * @param resultClass class of the workflow return value
    * @param resultType type of the workflow return value. Differs from {@code resultClass} for
    *     generic types.
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(Class, Type) as a sync version of this method for detailed information about
-   *     exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by {@link
-   *     ExecutionException}
    */
   <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, Type resultType);
 
@@ -284,14 +301,15 @@ public interface WorkflowStub {
    * to complete. Behind the scene this call performs long poll on Temporal service waiting for
    * workflow completion notification.
    *
+   * <p>See {@link #getResult(long, TimeUnit, Class)} as a sync version of this method for detailed
+   * information about exceptions that may be thrown from {@link CompletableFuture#get()} wrapped by
+   * {@link ExecutionException}.
+   *
    * @param timeout maximum time to wait and perform a background long poll
    * @param unit unit of timeout
    * @param resultClass class of the workflow return value
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(long, TimeUnit, Class) as a sync version of this method for detailed
-   *     information about exceptions that may be thrown from {@link CompletableFuture#get()}
-   *     wrapped by {@link ExecutionException}
    */
   <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> resultClass);
 
@@ -300,6 +318,10 @@ public interface WorkflowStub {
    * to complete. Behind the scene this call performs long poll on Temporal service waiting for
    * workflow completion notification.
    *
+   * <p>See {@link #getResult(long, TimeUnit, Class, Type)} as a sync version of this method for
+   * detailed information about exceptions that may be thrown from {@link CompletableFuture#get()}
+   * wrapped by {@link ExecutionException}.
+   *
    * @param timeout maximum time to wait and perform a background long poll
    * @param unit unit of timeout
    * @param resultClass class of the workflow return value
@@ -307,9 +329,6 @@ public interface WorkflowStub {
    *     generic types.
    * @param <R> type of the workflow return value
    * @return future completed with workflow return value or an exception
-   * @see #getResult(long, TimeUnit, Class, Type) as a sync version of this method for detailed
-   *     information about exceptions that may be thrown from {@link CompletableFuture#get()}
-   *     wrapped by {@link ExecutionException}
    */
   <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, Type resultType);
@@ -406,6 +425,9 @@ public interface WorkflowStub {
    */
   WorkflowExecutionDescription describe();
 
+  /**
+   * @return workflow options if they were provided when the stub was created.
+   */
   Optional<WorkflowOptions> getOptions();
 
   /**
