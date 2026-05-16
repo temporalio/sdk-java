@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum OperationTokenType {
   UNKNOWN(0),
   WORKFLOW_RUN(1),
-  WORKFLOW_UPDATE(3); // 2 is reserved for Activities
+  ACTIVITY_EXECUTION(2),
+  WORKFLOW_UPDATE(3);
 
   private final int value;
 

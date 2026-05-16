@@ -3,12 +3,15 @@ package io.temporal.internal.client;
 import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Callback;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.errordetails.v1.ActivityExecutionAlreadyStartedFailure;
 import io.temporal.api.sdk.v1.UserMetadata;
@@ -19,9 +22,13 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -49,12 +56,19 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public StartActivityOutput startActivity(StartActivityInput input) {
     StartActivityOptions options = input.getOptions();
     DataConverter dc = clientOptions.getDataConverter();
+    InternalNexusOperationContext nexusContext =
+        CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
+    NexusOperationMetadata nexusOperationMetadata =
+        nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity())
-            .setRequestId(UUID.randomUUID().toString())
+            .setRequestId(
+                nexusOperationMetadata == null
+                    ? UUID.randomUUID().toString()
+                    : nexusOperationMetadata.requestId)
             .setActivityId(options.getId())
             .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
             .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
@@ -104,6 +118,32 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
     request.setHeader(grpcHeader);
 
+    if (nexusOperationMetadata != null) {
+      List<Link> protoLinks = nexusContext.getRequestLinks();
+      request.addAllLinks(protoLinks);
+      // Generate the operation token from the user-supplied activity ID and namespace so the
+      // dual OPERATION_ID + OPERATION_TOKEN headers can be injected before the start RPC fires.
+      try {
+        nexusOperationMetadata.operationToken =
+            io.temporal.internal.nexus.OperationTokenUtil.generateActivityExecutionOperationToken(
+                options.getId(), clientOptions.getNamespace());
+      } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        throw new io.nexusrpc.handler.HandlerException(
+            io.nexusrpc.handler.HandlerException.ErrorType.BAD_REQUEST,
+            "failed to generate activity operation token",
+            e);
+      }
+      if (!Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl)) {
+        Callback cb =
+            InternalUtils.buildNexusCallback(
+                nexusOperationMetadata.callbackUrl,
+                nexusOperationMetadata.callbackHeaders,
+                nexusOperationMetadata.operationToken,
+                protoLinks);
+        request.addCompletionCallbacks(cb);
+      }
+    }
+
     StartActivityExecutionResponse response;
     try {
       response = genericClient.startActivity(request.build());
@@ -118,6 +158,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         }
       }
       throw e;
+    }
+
+    if (nexusOperationMetadata != null && response.hasLink()) {
+      nexusContext.addResponseLink(response.getLink());
     }
 
     String runId = response.getRunId().isEmpty() ? null : response.getRunId();
