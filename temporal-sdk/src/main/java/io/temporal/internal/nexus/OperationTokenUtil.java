@@ -31,8 +31,20 @@ public class OperationTokenUtil {
     if (token.getVersion() != null && token.getVersion() != 0) {
       throw new IllegalArgumentException("Invalid operation token: unexpected version field");
     }
-    if (Strings.isNullOrEmpty(token.getWorkflowId())) {
-      throw new IllegalArgumentException("Invalid operation token: missing workflow ID (wid)");
+    switch (token.getType()) {
+      case WORKFLOW_RUN:
+        if (Strings.isNullOrEmpty(token.getWorkflowId())) {
+          throw new IllegalArgumentException("Invalid operation token: missing workflow ID (wid)");
+        }
+        break;
+      case ACTIVITY_EXECUTION:
+        if (Strings.isNullOrEmpty(token.getActivityId())) {
+          throw new IllegalArgumentException("Invalid operation token: missing activity ID (aid)");
+        }
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Invalid operation token: unknown operation token type: " + token.getType());
     }
     return token;
   }
@@ -61,12 +73,67 @@ public class OperationTokenUtil {
     return loadWorkflowRunOperationToken(operationToken).getWorkflowId();
   }
 
+  /**
+   * Load an activity execution operation token, asserting that the token type is {@link
+   * OperationTokenType#ACTIVITY_EXECUTION}.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid or not an activity execution
+   *     token
+   */
+  public static OperationToken loadActivityExecutionOperationToken(String operationToken) {
+    OperationToken token = loadOperationToken(operationToken);
+    if (!token.getType().equals(OperationTokenType.ACTIVITY_EXECUTION)) {
+      throw new IllegalArgumentException(
+          "Invalid activity execution token: incorrect operation token type: " + token.getType());
+    }
+    return token;
+  }
+
+  /**
+   * Extract the activity ID from an activity execution operation token.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid
+   */
+  public static String loadActivityIdFromOperationToken(String operationToken) {
+    return loadActivityExecutionOperationToken(operationToken).getActivityId();
+  }
+
   /** Generate a workflow run operation token from a workflow ID and namespace. */
   public static String generateWorkflowRunOperationToken(String workflowId, String namespace)
       throws JsonProcessingException {
     String json =
         ow.writeValueAsString(
             new OperationToken(OperationTokenType.WORKFLOW_RUN, namespace, workflowId));
+    return encoder.encodeToString(json.getBytes());
+  }
+
+  /**
+   * Generate an activity execution operation token from an activity ID and namespace.
+   *
+   * <p>This overload omits the run ID. Use it when writing the token into the Nexus operation-token
+   * callback header — that token is generated before the start RPC completes, so the run ID is not
+   * yet known.
+   */
+  public static String generateActivityExecutionOperationToken(String activityId, String namespace)
+      throws JsonProcessingException {
+    return generateActivityExecutionOperationToken(activityId, null, namespace);
+  }
+
+  /**
+   * Generate an activity execution operation token from an activity ID, run ID, and namespace. The
+   * {@code runId} is included only when non-null.
+   *
+   * <p>This overload is used for the operation token returned to the Nexus caller from a start
+   * operation — at that point the start RPC has completed and the run ID is known. The header token
+   * written into the activity completion callback must NOT carry a run ID; use {@link
+   * #generateActivityExecutionOperationToken(String, String)} for that path.
+   */
+  public static String generateActivityExecutionOperationToken(
+      String activityId, String runId, String namespace) throws JsonProcessingException {
+    String json =
+        ow.writeValueAsString(
+            new OperationToken(
+                OperationTokenType.ACTIVITY_EXECUTION, namespace, null, activityId, runId));
     return encoder.encodeToString(json.getBytes());
   }
 
