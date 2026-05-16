@@ -1,5 +1,6 @@
 package io.temporal.internal.nexus;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -16,16 +17,24 @@ public class OperationToken {
   private final String namespace;
 
   @JsonProperty("wid")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private final String workflowId;
 
+  @JsonProperty("aid")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private final String activityId;
+
+  @JsonCreator
   public OperationToken(
       @JsonProperty("t") Integer type,
       @JsonProperty("ns") String namespace,
       @JsonProperty("wid") String workflowId,
+      @JsonProperty("aid") String activityId,
       @JsonProperty("v") Integer version) {
     this.type = OperationTokenType.fromValue(type);
     this.namespace = namespace;
     this.workflowId = workflowId;
+    this.activityId = activityId;
     this.version = version;
   }
 
@@ -33,6 +42,16 @@ public class OperationToken {
     this.type = type;
     this.namespace = namespace;
     this.workflowId = workflowId;
+    this.activityId = null;
+    this.version = null;
+  }
+
+  public OperationToken(
+      OperationTokenType type, String namespace, String workflowId, String activityId) {
+    this.type = type;
+    this.namespace = namespace;
+    this.workflowId = workflowId;
+    this.activityId = activityId;
     this.version = null;
   }
 
@@ -50,5 +69,9 @@ public class OperationToken {
 
   public String getWorkflowId() {
     return workflowId;
+  }
+
+  public String getActivityId() {
+    return activityId;
   }
 }

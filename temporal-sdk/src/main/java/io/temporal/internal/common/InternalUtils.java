@@ -115,35 +115,10 @@ public final class InternalUtils {
 
     // If a callback URL is provided, pass it as a completion callback.
     if (!Strings.isNullOrEmpty(request.getCallbackUrl())) {
-      // Add the Nexus operation ID to the headers if it is not already present to support
-      // fabricating
-      // a NexusOperationStarted event if the completion is received before the response to a
-      // StartOperation request.
-      Map<String, String> headers =
-          request.getCallbackHeaders().entrySet().stream()
-              .collect(
-                  Collectors.toMap(
-                      (k) -> k.getKey().toLowerCase(),
-                      Map.Entry::getValue,
-                      (a, b) -> a,
-                      () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
-      if (!headers.containsKey(Header.OPERATION_ID)) {
-        headers.put(Header.OPERATION_ID.toLowerCase(), operationToken);
-      }
-      if (!headers.containsKey(Header.OPERATION_TOKEN)) {
-        headers.put(Header.OPERATION_TOKEN.toLowerCase(), operationToken);
-      }
-      Callback.Builder cbBuilder =
-          Callback.newBuilder()
-              .setNexus(
-                  Callback.Nexus.newBuilder()
-                      .setUrl(request.getCallbackUrl())
-                      .putAllHeader(headers)
-                      .build());
-      if (links != null) {
-        cbBuilder.addAllLinks(links);
-      }
-      nexusWorkflowOptions.setCompletionCallbacks(Collections.singletonList(cbBuilder.build()));
+      Callback cb =
+          buildNexusCallback(
+              request.getCallbackUrl(), request.getCallbackHeaders(), operationToken, links);
+      nexusWorkflowOptions.setCompletionCallbacks(Collections.singletonList(cb));
     }
 
     if (options.getTaskQueue() == null) {
@@ -157,6 +132,47 @@ public final class InternalUtils {
             .build());
 
     return new NexusWorkflowStarter(stub.newInstance(nexusWorkflowOptions.build()), operationToken);
+  }
+
+  /**
+   * Builds a {@link Callback} for use as a Nexus completion callback. Injects both the legacy
+   * {@code Nexus-Operation-Id} and the newer {@code Nexus-Operation-Token} headers
+   * (case-insensitive lookup) when not already present so the server can fabricate
+   * operation-started events if the completion is received before the response to a StartOperation
+   * request.
+   *
+   * <p>Shared by the workflow start path ({@link #createNexusBoundStub}) and the activity start
+   * path ({@code RootActivityClientInvoker.startActivity}). The dual {@code OPERATION_ID} + {@code
+   * OPERATION_TOKEN} headers must be injected before the start RPC is issued.
+   */
+  @SuppressWarnings("deprecation") // Check the OPERATION_ID header for backwards compatibility
+  public static Callback buildNexusCallback(
+      String callbackUrl,
+      Map<String, String> callbackHeaders,
+      String operationToken,
+      List<Link> protoLinks) {
+    Map<String, String> headers =
+        callbackHeaders.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    (k) -> k.getKey().toLowerCase(),
+                    Map.Entry::getValue,
+                    (a, b) -> a,
+                    () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
+    if (!headers.containsKey(Header.OPERATION_ID)) {
+      headers.put(Header.OPERATION_ID.toLowerCase(), operationToken);
+    }
+    if (!headers.containsKey(Header.OPERATION_TOKEN)) {
+      headers.put(Header.OPERATION_TOKEN.toLowerCase(), operationToken);
+    }
+    Callback.Builder cbBuilder =
+        Callback.newBuilder()
+            .setNexus(
+                Callback.Nexus.newBuilder().setUrl(callbackUrl).putAllHeader(headers).build());
+    if (protoLinks != null) {
+      cbBuilder.addAllLinks(protoLinks);
+    }
+    return cbBuilder.build();
   }
 
   /** Check the method name for reserved prefixes or names. */

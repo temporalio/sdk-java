@@ -1,5 +1,6 @@
 package io.temporal.nexus;
 
+import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
@@ -507,4 +508,293 @@ public interface TemporalNexusClient {
       Type resultType,
       WorkflowOptions options,
       Object... args);
+
+  // ---------- Activity overloads ----------
+
+  /**
+   * Starts a zero-argument activity that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startActivity(MyActivity.class, MyActivity::run, options)
+   * }</pre>
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func1<I, R> activityMethod,
+      StartActivityOptions options);
+
+  /**
+   * Starts a one-argument activity that returns a value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func2<I, A1, R> activityMethod,
+      A1 arg1,
+      StartActivityOptions options);
+
+  /**
+   * Starts a two-argument activity that returns a value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func3<I, A1, A2, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      StartActivityOptions options);
+
+  /**
+   * Starts a three-argument activity that returns a value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param arg3 third activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <A3> the type of the third activity argument
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, A3, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func4<I, A1, A2, A3, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      StartActivityOptions options);
+
+  /**
+   * Starts a four-argument activity that returns a value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param arg3 third activity argument
+   * @param arg4 fourth activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <A3> the type of the third activity argument
+   * @param <A4> the type of the fourth activity argument
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, A3, A4, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func5<I, A1, A2, A3, A4, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      StartActivityOptions options);
+
+  /**
+   * Starts a five-argument activity that returns a value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param arg3 third activity argument
+   * @param arg4 fourth activity argument
+   * @param arg5 fifth activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <A3> the type of the third activity argument
+   * @param <A4> the type of the fourth activity argument
+   * @param <A5> the type of the fifth activity argument
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, A3, A4, A5, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func6<I, A1, A2, A3, A4, A5, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      StartActivityOptions options);
+
+  /**
+   * Starts a zero-argument activity with no return value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface, Functions.Proc1<I> activityMethod, StartActivityOptions options);
+
+  /**
+   * Starts a one-argument activity with no return value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc2<I, A1> activityMethod,
+      A1 arg1,
+      StartActivityOptions options);
+
+  /**
+   * Starts a two-argument activity with no return value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc3<I, A1, A2> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      StartActivityOptions options);
+
+  /**
+   * Starts a three-argument activity with no return value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param arg3 third activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <A3> the type of the third activity argument
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, A3> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc4<I, A1, A2, A3> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      StartActivityOptions options);
+
+  /**
+   * Starts a four-argument activity with no return value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param arg3 third activity argument
+   * @param arg4 fourth activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <A3> the type of the third activity argument
+   * @param <A4> the type of the fourth activity argument
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, A3, A4> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc5<I, A1, A2, A3, A4> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      StartActivityOptions options);
+
+  /**
+   * Starts a five-argument activity with no return value.
+   *
+   * @param activityInterface the activity interface class
+   * @param activityMethod unbound method reference to the activity method
+   * @param arg1 first activity argument
+   * @param arg2 second activity argument
+   * @param arg3 third activity argument
+   * @param arg4 fourth activity argument
+   * @param arg5 fifth activity argument
+   * @param options activity start options (must include taskQueue)
+   * @param <I> the activity interface type
+   * @param <A1> the type of the first activity argument
+   * @param <A2> the type of the second activity argument
+   * @param <A3> the type of the third activity argument
+   * @param <A4> the type of the fourth activity argument
+   * @param <A5> the type of the fifth activity argument
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <I, A1, A2, A3, A4, A5> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc6<I, A1, A2, A3, A4, A5> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      StartActivityOptions options);
+
+  /**
+   * Starts an activity using an untyped activity type name.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startActivity("MyActivity", String.class, options, input)
+   * }</pre>
+   *
+   * @param activityType the activity type name string
+   * @param resultClass the expected result class
+   * @param options activity start options (must include taskQueue)
+   * @param args activity arguments
+   * @param <R> the activity return type
+   * @return an async {@link TemporalOperationResult} with the activity-execution operation token
+   */
+  <R> TemporalOperationResult<R> startActivity(
+      String activityType, Class<R> resultClass, StartActivityOptions options, Object... args);
 }
