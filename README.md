@@ -1,3 +1,5 @@
+![Temporal Java SDK](https://raw.githubusercontent.com/temporalio/assets/main/files/w/java.png)
+
 # Temporal Java SDK  [![Build status](https://github.com/temporalio/sdk-java/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/temporalio/sdk-java/actions/workflows/ci.yml) [![Coverage Status](https://coveralls.io/repos/github/temporalio/sdk-java/badge.svg?branch=master)](https://coveralls.io/github/temporalio/sdk-java?branch=master)
 
 [Temporal](https://github.com/temporalio/temporal) is a Workflow-as-Code platform for building and operating
