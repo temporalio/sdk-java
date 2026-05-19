@@ -622,7 +622,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
     update(
         ctx -> {
-          OnConflictOptions options = request.getOnConflictOptions();
+          io.temporal.api.workflow.v1.OnConflictOptions options = request.getOnConflictOptions();
           String requestId = null;
           List<Callback> completionCallbacks = null;
           List<Link> links = null;
