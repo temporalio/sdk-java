@@ -1,16 +1,9 @@
 package io.temporal.client.nexus;
 
-import com.google.protobuf.ByteString;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Endpoint;
-import io.temporal.api.nexus.v1.EndpointSpec;
-import io.temporal.api.nexus.v1.EndpointTarget;
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointResponse;
-import io.temporal.api.operatorservice.v1.DeleteNexusEndpointRequest;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientImpl;
 import io.temporal.client.NexusClientOptions;
@@ -79,57 +72,50 @@ public class NexusClientTest {
     TestNexusServiceImpl.received = new java.util.concurrent.CompletableFuture<>();
     TestNexusServiceImpl.invocationCount.set(0);
 
-    Endpoint endpoint = createEndpoint("test-endpoint-" + testWorkflowRule.getTaskQueue());
+    Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     String inputValue = "ping-" + UUID.randomUUID();
     NexusClient client = createNexusClient();
 
+    UntypedNexusServiceClient svcClient =
+        client.newUntypedNexusServiceClient(
+            endpoint.getSpec().getName(),
+            TestNexusServices.TestNexusService1.class.getSimpleName());
+    StartNexusOperationOptions opts =
+        StartNexusOperationOptions.newBuilder()
+            .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+            .build();
+    UntypedNexusOperationHandle handle = svcClient.start("operation", opts, inputValue);
+    String operationId = handle.getNexusOperationId();
+
+    // Sync handler: wait for the input to land in the test side-channel; that's how we
+    // know the operation actually completed on the worker.
+    String observed;
     try {
-      UntypedNexusServiceClient svcClient =
-          client.newUntypedNexusServiceClient(
-              endpoint.getSpec().getName(),
-              TestNexusServices.TestNexusService1.class.getSimpleName());
-      StartNexusOperationOptions opts =
-          StartNexusOperationOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(30))
-              .build();
-      UntypedNexusOperationHandle handle = svcClient.start("operation", opts, inputValue);
-      String operationId = handle.getNexusOperationId();
-
-      // Sync handler: wait for the input to land in the test side-channel; that's how we
-      // know the operation actually completed on the worker.
-      String observed;
-      try {
-        observed = TestNexusServiceImpl.received.get(60, TimeUnit.SECONDS);
-      } catch (java.util.concurrent.TimeoutException e) {
-        Assert.fail(
-            "Nexus handler was never invoked within 60s. invocationCount="
-                + TestNexusServiceImpl.invocationCount.get());
-        throw new AssertionError("unreachable");
-      }
-      Assert.assertEquals(
-          "expected the Nexus handler to receive the same input we sent", inputValue, observed);
-
-      // Poll the list until our operationId appears. This also tests that the list operation
-      // works correctly.
-      NexusOperationExecutionMetadata listed =
-          waitForListedOperation(client, operationId, Duration.ofSeconds(15));
-      Assert.assertNotNull(
-          "expected operationId " + operationId + " to appear in listNexusOperationExecutions",
-          listed);
-      Assert.assertEquals(operationId, listed.getOperationId());
-      Assert.assertEquals(endpoint.getSpec().getName(), listed.getEndpoint());
-      Assert.assertEquals(
-          TestNexusServices.TestNexusService1.class.getSimpleName(), listed.getService());
-      Assert.assertEquals("operation", listed.getOperation());
-
-      // We know count should be at least 1 until we clean up
-      // Due to race conditions with other tests running, we don't know what it actually should be
-      // though -
-      // but this is a chance to assert that it at least returns a non-zero value when appropriate
-      Assert.assertTrue(countNexusOperations() >= 1);
-    } finally {
-      deleteEndpoint(endpoint);
+      observed = TestNexusServiceImpl.received.get(60, TimeUnit.SECONDS);
+    } catch (java.util.concurrent.TimeoutException e) {
+      Assert.fail(
+          "Nexus handler was never invoked within 60s. invocationCount="
+              + TestNexusServiceImpl.invocationCount.get());
+      throw new AssertionError("unreachable");
     }
+    Assert.assertEquals(
+        "expected the Nexus handler to receive the same input we sent", inputValue, observed);
+
+    // Poll the list until our operationId appears. This also tests that the list operation
+    // works correctly.
+    NexusOperationExecutionMetadata listed =
+        waitForListedOperation(client, operationId, Duration.ofSeconds(15));
+    Assert.assertNotNull(
+        "expected operationId " + operationId + " to appear in listNexusOperationExecutions",
+        listed);
+    Assert.assertEquals(operationId, listed.getOperationId());
+    Assert.assertEquals(endpoint.getSpec().getName(), listed.getEndpoint());
+    Assert.assertEquals(
+        TestNexusServices.TestNexusService1.class.getSimpleName(), listed.getService());
+    Assert.assertEquals("operation", listed.getOperation());
+
+    // We know count should be at least 1.
+    Assert.assertTrue(countNexusOperations() >= 1);
   }
 
   private NexusOperationExecutionMetadata waitForListedOperation(
@@ -148,40 +134,6 @@ public class NexusClientTest {
       Thread.sleep(500);
     }
     return null;
-  }
-
-  private Endpoint createEndpoint(String name) {
-    EndpointSpec spec =
-        EndpointSpec.newBuilder()
-            .setName(name)
-            .setDescription(
-                Payload.newBuilder().setData(ByteString.copyFromUtf8("test endpoint")).build())
-            .setTarget(
-                EndpointTarget.newBuilder()
-                    .setWorker(
-                        EndpointTarget.Worker.newBuilder()
-                            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                            .setTaskQueue(testWorkflowRule.getTaskQueue())))
-            .build();
-    CreateNexusEndpointResponse resp =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getOperatorServiceStubs()
-            .blockingStub()
-            .createNexusEndpoint(CreateNexusEndpointRequest.newBuilder().setSpec(spec).build());
-    return resp.getEndpoint();
-  }
-
-  private void deleteEndpoint(Endpoint endpoint) {
-    testWorkflowRule
-        .getTestEnvironment()
-        .getOperatorServiceStubs()
-        .blockingStub()
-        .deleteNexusEndpoint(
-            DeleteNexusEndpointRequest.newBuilder()
-                .setId(endpoint.getId())
-                .setVersion(endpoint.getVersion())
-                .build());
   }
 
   public static class PlaceholderWorkflowImpl implements TestWorkflows.TestWorkflow1 {

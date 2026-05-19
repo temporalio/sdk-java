@@ -1,16 +1,9 @@
 package io.temporal.client.nexus;
 
-import com.google.protobuf.ByteString;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Endpoint;
-import io.temporal.api.nexus.v1.EndpointSpec;
-import io.temporal.api.nexus.v1.EndpointTarget;
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointResponse;
-import io.temporal.api.operatorservice.v1.DeleteNexusEndpointRequest;
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.NexusServiceClient;
@@ -45,32 +38,24 @@ public class NexusServiceClientTest {
 
   @Test
   public void executeReturnsTypedResult() {
-    Endpoint endpoint = createEndpoint("svc-execute-" + testWorkflowRule.getTaskQueue());
-    try {
-      NexusServiceClient<TestNexusServices.TestNexusService1> client = buildServiceClient(endpoint);
+    NexusServiceClient<TestNexusServices.TestNexusService1> client =
+        buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
-      String result = client.execute(TestNexusServices.TestNexusService1::operation, "hello");
+    String result = client.execute(TestNexusServices.TestNexusService1::operation, "hello");
 
-      Assert.assertEquals("echo:hello", result);
-    } finally {
-      deleteEndpoint(endpoint);
-    }
+    Assert.assertEquals("echo:hello", result);
   }
 
   @Test
   public void startReturnsTypedHandleAndPollsResult() {
-    Endpoint endpoint = createEndpoint("svc-start-" + testWorkflowRule.getTaskQueue());
-    try {
-      NexusServiceClient<TestNexusServices.TestNexusService1> client = buildServiceClient(endpoint);
+    NexusServiceClient<TestNexusServices.TestNexusService1> client =
+        buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
-      NexusOperationHandle<String> handle =
-          client.start(TestNexusServices.TestNexusService1::operation, "world");
+    NexusOperationHandle<String> handle =
+        client.start(TestNexusServices.TestNexusService1::operation, "world");
 
-      Assert.assertNotNull(handle.getNexusOperationId());
-      Assert.assertEquals("echo:world", handle.getResult());
-    } finally {
-      deleteEndpoint(endpoint);
-    }
+    Assert.assertNotNull(handle.getNexusOperationId());
+    Assert.assertEquals("echo:world", handle.getResult());
   }
 
   @Test
@@ -172,40 +157,6 @@ public class NexusServiceClientTest {
         NexusClientOptions.newBuilder()
             .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
             .build());
-  }
-
-  private Endpoint createEndpoint(String name) {
-    EndpointSpec spec =
-        EndpointSpec.newBuilder()
-            .setName(name)
-            .setDescription(
-                Payload.newBuilder().setData(ByteString.copyFromUtf8("test endpoint")).build())
-            .setTarget(
-                EndpointTarget.newBuilder()
-                    .setWorker(
-                        EndpointTarget.Worker.newBuilder()
-                            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                            .setTaskQueue(testWorkflowRule.getTaskQueue())))
-            .build();
-    CreateNexusEndpointResponse resp =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getOperatorServiceStubs()
-            .blockingStub()
-            .createNexusEndpoint(CreateNexusEndpointRequest.newBuilder().setSpec(spec).build());
-    return resp.getEndpoint();
-  }
-
-  private void deleteEndpoint(Endpoint endpoint) {
-    testWorkflowRule
-        .getTestEnvironment()
-        .getOperatorServiceStubs()
-        .blockingStub()
-        .deleteNexusEndpoint(
-            DeleteNexusEndpointRequest.newBuilder()
-                .setId(endpoint.getId())
-                .setVersion(endpoint.getVersion())
-                .build());
   }
 
   public static class PlaceholderWorkflowImpl implements TestWorkflows.TestWorkflow1 {

@@ -1,17 +1,10 @@
 package io.temporal.client.nexus;
 
-import com.google.protobuf.ByteString;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Endpoint;
-import io.temporal.api.nexus.v1.EndpointSpec;
-import io.temporal.api.nexus.v1.EndpointTarget;
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
-import io.temporal.api.operatorservice.v1.CreateNexusEndpointResponse;
-import io.temporal.api.operatorservice.v1.DeleteNexusEndpointRequest;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientImpl;
 import io.temporal.client.NexusClientOperationExecutionDescription;
@@ -56,177 +49,131 @@ public class NexusOperationHandleTest {
   @Test
   public void describeReturnsDescriptionForStartedOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      NexusClientOperationExecutionDescription description = handle.describe();
+    NexusClientOperationExecutionDescription description = handle.describe();
 
-      Assert.assertNotNull(description);
-      Assert.assertNotNull(description.getRunId());
-      Assert.assertEquals(started.runId, description.getRunId());
-      Assert.assertNotNull(description.getRawResponse());
-    } finally {
-      cleanup(started);
-    }
+    Assert.assertNotNull(description);
+    Assert.assertNotNull(description.getRunId());
+    Assert.assertEquals(started.runId, description.getRunId());
+    Assert.assertNotNull(description.getRawResponse());
   }
 
   @Test
   public void describeWithoutRunIdTargetsLatest() {
     StartedOperation started = startOperation();
-    try {
-      // Handle with no pinned run ID — server should resolve to the latest run.
-      UntypedNexusOperationHandle handle = started.client.getHandle(started.operationId);
+    // Handle with no pinned run ID — server should resolve to the latest run.
+    UntypedNexusOperationHandle handle = started.client.getHandle(started.operationId);
 
-      NexusClientOperationExecutionDescription description = handle.describe();
+    NexusClientOperationExecutionDescription description = handle.describe();
 
-      Assert.assertNotNull(description);
-      Assert.assertEquals(started.runId, description.getRunId());
-    } finally {
-      cleanup(started);
-    }
+    Assert.assertNotNull(description);
+    Assert.assertEquals(started.runId, description.getRunId());
   }
 
   @Test
   public void cancelSucceedsForStartedOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      handle.cancel();
-      // No exception — server accepted the cancel request.
-    } finally {
-      cleanup(started);
-    }
+    handle.cancel();
+    // No exception — server accepted the cancel request.
   }
 
   @Test
   public void cancelWithReasonSucceedsForStartedOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      handle.cancel("test-cancel-reason");
-    } finally {
-      cleanup(started);
-    }
+    handle.cancel("test-cancel-reason");
   }
 
   @Test
   public void cancelWithNullReasonSucceeds() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      handle.cancel(null);
-    } finally {
-      cleanup(started);
-    }
+    handle.cancel(null);
   }
 
   @Test
   public void terminateSucceedsForStartedOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      handle.terminate();
-    } finally {
-      cleanup(started);
-    }
+    handle.terminate();
   }
 
   @Test
   public void terminateWithReasonSucceedsForStartedOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      handle.terminate("test-terminate-reason");
-    } finally {
-      cleanup(started);
-    }
+    handle.terminate("test-terminate-reason");
   }
 
   @Test
   public void terminateWithNullReasonSucceeds() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      handle.terminate(null);
-    } finally {
-      cleanup(started);
-    }
+    handle.terminate(null);
   }
 
   @Test
   public void getResultReturnsTypedResultForSyncOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle untyped =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle untyped =
+        started.client.getHandle(started.operationId, started.runId);
 
-      String result = NexusOperationHandle.fromUntyped(untyped, String.class).getResult();
+    String result = NexusOperationHandle.fromUntyped(untyped, String.class).getResult();
 
-      Assert.assertNotNull(result);
-      Assert.assertTrue("expected echo: prefix, got: " + result, result.startsWith("echo:ping-"));
-    } finally {
-      cleanup(started);
-    }
+    Assert.assertNotNull(result);
+    Assert.assertTrue("expected echo: prefix, got: " + result, result.startsWith("echo:ping-"));
   }
 
   @Test
   public void getResultUntypedReturnsResultForSyncOperation() {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      String result = handle.getResult(String.class);
+    String result = handle.getResult(String.class);
 
-      Assert.assertNotNull(result);
-      Assert.assertTrue(result.startsWith("echo:ping-"));
-    } finally {
-      cleanup(started);
-    }
+    Assert.assertNotNull(result);
+    Assert.assertTrue(result.startsWith("echo:ping-"));
   }
 
   @Test
   public void getResultAsyncReturnsTypedResultForSyncOperation() throws Exception {
     StartedOperation started = startOperation();
-    try {
-      UntypedNexusOperationHandle untyped =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle untyped =
+        started.client.getHandle(started.operationId, started.runId);
 
-      String result =
-          NexusOperationHandle.fromUntyped(untyped, String.class)
-              .getResultAsync()
-              .get(60, java.util.concurrent.TimeUnit.SECONDS);
+    String result =
+        NexusOperationHandle.fromUntyped(untyped, String.class)
+            .getResultAsync()
+            .get(60, java.util.concurrent.TimeUnit.SECONDS);
 
-      Assert.assertNotNull(result);
-      Assert.assertTrue(result.startsWith("echo:ping-"));
-    } finally {
-      cleanup(started);
-    }
+    Assert.assertNotNull(result);
+    Assert.assertTrue(result.startsWith("echo:ping-"));
   }
 
   /** Holder for state used to drive a single test against one started operation. */
   private static final class StartedOperation {
     final NexusClient client;
-    final Endpoint endpoint;
     final String operationId;
     final String runId;
 
-    StartedOperation(NexusClient client, Endpoint endpoint, String operationId, String runId) {
+    StartedOperation(NexusClient client, String operationId, String runId) {
       this.client = client;
-      this.endpoint = endpoint;
       this.operationId = operationId;
       this.runId = runId;
     }
@@ -238,7 +185,7 @@ public class NexusOperationHandleTest {
 
   private StartedOperation startOperation(@javax.annotation.Nullable String inputOverride) {
     NexusClient client = createNexusClient();
-    Endpoint endpoint = createEndpoint("test-endpoint-" + testWorkflowRule.getTaskQueue());
+    Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     String inputValue =
         inputOverride != null ? inputOverride : "ping-handle-test-" + UUID.randomUUID();
 
@@ -254,45 +201,7 @@ public class NexusOperationHandleTest {
 
     Assert.assertNotNull("expected start to return a run ID", handle.getNexusOperationRunId());
     return new StartedOperation(
-        client, endpoint, handle.getNexusOperationId(), handle.getNexusOperationRunId());
-  }
-
-  private void cleanup(StartedOperation started) {
-    deleteEndpoint(started.endpoint);
-  }
-
-  private Endpoint createEndpoint(String name) {
-    EndpointSpec spec =
-        EndpointSpec.newBuilder()
-            .setName(name)
-            .setDescription(
-                Payload.newBuilder().setData(ByteString.copyFromUtf8("test endpoint")).build())
-            .setTarget(
-                EndpointTarget.newBuilder()
-                    .setWorker(
-                        EndpointTarget.Worker.newBuilder()
-                            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-                            .setTaskQueue(testWorkflowRule.getTaskQueue())))
-            .build();
-    CreateNexusEndpointResponse resp =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getOperatorServiceStubs()
-            .blockingStub()
-            .createNexusEndpoint(CreateNexusEndpointRequest.newBuilder().setSpec(spec).build());
-    return resp.getEndpoint();
-  }
-
-  private void deleteEndpoint(Endpoint endpoint) {
-    testWorkflowRule
-        .getTestEnvironment()
-        .getOperatorServiceStubs()
-        .blockingStub()
-        .deleteNexusEndpoint(
-            DeleteNexusEndpointRequest.newBuilder()
-                .setId(endpoint.getId())
-                .setVersion(endpoint.getVersion())
-                .build());
+        client, handle.getNexusOperationId(), handle.getNexusOperationRunId());
   }
 
   public static class PlaceholderWorkflowImpl implements TestWorkflows.TestWorkflow1 {
@@ -324,23 +233,19 @@ public class NexusOperationHandleTest {
   @Test
   public void getResultPropagatesOperationFailure() {
     StartedOperation started = startOperation(TestNexusServiceImpl.FAIL_PREFIX + "boom");
-    try {
-      UntypedNexusOperationHandle handle =
-          started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle =
+        started.client.getHandle(started.operationId, started.runId);
 
-      try {
-        handle.getResult(String.class);
-        Assert.fail("expected getResult to throw because the operation handler failed");
-      } catch (RuntimeException e) {
-        // The DataConverter wraps the proto Failure into a Java exception. Either the message
-        // carries the handler's reason, or one of the cause links does.
-        String combined = collectMessages(e);
-        Assert.assertTrue(
-            "expected exception chain to mention the handler failure, got: " + combined,
-            combined.contains("intentional failure"));
-      }
-    } finally {
-      cleanup(started);
+    try {
+      handle.getResult(String.class);
+      Assert.fail("expected getResult to throw because the operation handler failed");
+    } catch (RuntimeException e) {
+      // The DataConverter wraps the proto Failure into a Java exception. Either the message
+      // carries the handler's reason, or one of the cause links does.
+      String combined = collectMessages(e);
+      Assert.assertTrue(
+          "expected exception chain to mention the handler failure, got: " + combined,
+          combined.contains("intentional failure"));
     }
   }
 
