@@ -6,9 +6,7 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
-import io.temporal.client.NexusClientImpl;
 import io.temporal.client.NexusClientOperationExecutionDescription;
-import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
@@ -37,14 +35,6 @@ public class NexusOperationHandleTest {
           // Default is 10s; standalone Nexus dispatch + worker poll can take longer.
           .setTestTimeoutSeconds(120)
           .build();
-
-  private NexusClient createNexusClient() {
-    return NexusClientImpl.newInstance(
-        testWorkflowRule.getWorkflowServiceStubs(),
-        NexusClientOptions.newBuilder()
-            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-            .build());
-  }
 
   @Test
   public void describeReturnsDescriptionForStartedOperation() {
@@ -184,7 +174,7 @@ public class NexusOperationHandleTest {
   }
 
   private StartedOperation startOperation(@javax.annotation.Nullable String inputOverride) {
-    NexusClient client = createNexusClient();
+    NexusClient client = testWorkflowRule.getNexusClient();
     Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     String inputValue =
         inputOverride != null ? inputOverride : "ping-handle-test-" + UUID.randomUUID();

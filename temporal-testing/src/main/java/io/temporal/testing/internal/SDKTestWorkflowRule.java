@@ -13,6 +13,8 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.NexusClient;
+import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -258,6 +260,18 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public Endpoint getNexusEndpoint() {
     return testWorkflowRule.getNexusEndpoint();
+  }
+
+  /**
+   * Returns a {@link NexusClient} bound to this rule's namespace and service stubs. Use for tests
+   * that exercise the standalone Nexus client surface.
+   */
+  public NexusClient getNexusClient() {
+    return NexusClient.newInstance(
+        getWorkflowServiceStubs(),
+        NexusClientOptions.newBuilder()
+            .setNamespace(getWorkflowClient().getOptions().getNamespace())
+            .build());
   }
 
   public Worker getWorker() {

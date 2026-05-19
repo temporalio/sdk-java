@@ -5,8 +5,6 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
-import io.temporal.client.NexusClientImpl;
-import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationExecutionCount;
 import io.temporal.client.NexusOperationExecutionMetadata;
 import io.temporal.client.StartNexusOperationOptions;
@@ -31,17 +29,9 @@ public class NexusClientTest {
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
 
-  private NexusClient createNexusClient() {
-    return NexusClientImpl.newInstance(
-        testWorkflowRule.getWorkflowServiceStubs(),
-        NexusClientOptions.newBuilder()
-            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-            .build());
-  }
-
   @Test
   public void listNexusOperationExecutions() {
-    NexusClient client = createNexusClient();
+    NexusClient client = testWorkflowRule.getNexusClient();
 
     // Materialize the lazy stream to force at least one page fetch and ensure no exceptions.
     long visited = client.listNexusOperationExecutions(null).count();
@@ -56,7 +46,7 @@ public class NexusClientTest {
   }
 
   public long countNexusOperations() {
-    NexusClient client = createNexusClient();
+    NexusClient client = testWorkflowRule.getNexusClient();
 
     NexusOperationExecutionCount output = client.countNexusOperationExecutions(null);
 
@@ -74,7 +64,7 @@ public class NexusClientTest {
 
     Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     String inputValue = "ping-" + UUID.randomUUID();
-    NexusClient client = createNexusClient();
+    NexusClient client = testWorkflowRule.getNexusClient();
 
     UntypedNexusServiceClient svcClient =
         client.newUntypedNexusServiceClient(
