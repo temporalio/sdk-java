@@ -7,8 +7,8 @@ import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
 import io.temporal.client.NexusClient;
-import io.temporal.client.NexusClientHandle;
 import io.temporal.client.NexusClientOperationExecutionDescription;
+import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
 import java.util.Collections;
@@ -19,7 +19,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Per-call interceptor for {@link NexusClient} and {@link NexusClientHandle} operations on
+ * Per-call interceptor for {@link NexusClient} and {@link NexusOperationHandle} operations on
  * standalone Nexus operation executions.
  *
  * <p>Implementations are produced by {@link

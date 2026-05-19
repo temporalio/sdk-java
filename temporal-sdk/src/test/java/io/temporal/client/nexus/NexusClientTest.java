@@ -17,7 +17,7 @@ import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationExecutionCount;
 import io.temporal.client.NexusOperationExecutionMetadata;
 import io.temporal.client.StartNexusOperationOptions;
-import io.temporal.client.UntypedNexusClientHandle;
+import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -92,7 +92,7 @@ public class NexusClientTest {
           StartNexusOperationOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(30))
               .build();
-      UntypedNexusClientHandle handle = svcClient.start("operation", opts, inputValue);
+      UntypedNexusOperationHandle handle = svcClient.start("operation", opts, inputValue);
       String operationId = handle.getNexusOperationId();
 
       // Sync handler: wait for the input to land in the test side-channel; that's how we

@@ -46,14 +46,14 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
   }
 
   @Override
-  public <U, R> NexusClientHandle<R> start(
+  public <U, R> NexusOperationHandle<R> start(
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
     Method method =
         MethodExtractor.extract(serviceInterface, (Functions.Func2<T, U, R>) operation::apply);
     String operationName = MethodExtractor.nexusOperationName(method);
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
-    UntypedNexusClientHandle untyped = start(operationName, options, input);
-    return NexusClientHandle.fromUntyped(untyped, resultClass, method.getGenericReturnType());
+    UntypedNexusOperationHandle untyped = start(operationName, options, input);
+    return NexusOperationHandle.fromUntyped(untyped, resultClass, method.getGenericReturnType());
   }
 }

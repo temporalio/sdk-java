@@ -9,7 +9,7 @@ import javax.annotation.Nullable;
 public interface UntypedNexusServiceClient {
 
   /** Start an operation by name, returning an untyped handle. */
-  UntypedNexusClientHandle start(
+  UntypedNexusOperationHandle start(
       String operation, StartNexusOperationOptions options, @Nullable Object arg);
 
   /** Execute an operation synchronously by name. */

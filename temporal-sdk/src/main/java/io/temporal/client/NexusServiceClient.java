@@ -28,7 +28,7 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
 
   /**
    * Execute an operation synchronously. Equivalent to {@link #start(BiFunction, Object)} followed
-   * by {@link NexusClientHandle#getResult()}.
+   * by {@link NexusOperationHandle#getResult()}.
    */
   default <U, R> R execute(BiFunction<T, U, R> operation, U input) {
     return start(operation, input).getResult();
@@ -41,12 +41,12 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
   }
 
   /** Start an operation and return a typed handle to track its execution. */
-  default <U, R> NexusClientHandle<R> start(BiFunction<T, U, R> operation, U input) {
+  default <U, R> NexusOperationHandle<R> start(BiFunction<T, U, R> operation, U input) {
     return start(operation, input, StartNexusOperationOptions.getDefaultInstance());
   }
 
   /** Start an operation with per-call options and return a typed handle. */
-  <U, R> NexusClientHandle<R> start(
+  <U, R> NexusOperationHandle<R> start(
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options);
 
   /**

@@ -91,29 +91,29 @@ public class NexusClientImpl implements NexusClient {
   }
 
   @Override
-  public UntypedNexusClientHandle getHandle(String operationId) {
+  public UntypedNexusOperationHandle getHandle(String operationId) {
     return getHandle(operationId, null);
   }
 
   @Override
-  public UntypedNexusClientHandle getHandle(String operationId, @Nullable String runId) {
-    return new NexusClientHandleImpl<>(
+  public UntypedNexusOperationHandle getHandle(String operationId, @Nullable String runId) {
+    return new NexusOperationHandleImpl<>(
         nexusClientCallsInvoker, operationId, runId, options.getDataConverter());
   }
 
   @Override
-  public <R> NexusClientHandle<R> getHandle(
+  public <R> NexusOperationHandle<R> getHandle(
       String operationId, @Nullable String runId, Class<R> resultClass) {
     return getHandle(operationId, runId, resultClass, null);
   }
 
   @Override
-  public <R> NexusClientHandle<R> getHandle(
+  public <R> NexusOperationHandle<R> getHandle(
       String operationId,
       @Nullable String runId,
       Class<R> resultClass,
       @Nullable java.lang.reflect.Type resultType) {
-    return new NexusClientHandleImpl<>(
+    return new NexusOperationHandleImpl<>(
         nexusClientCallsInvoker,
         operationId,
         runId,

@@ -29,14 +29,14 @@ import javax.annotation.Nullable;
  * // Untyped: dispatch by operation name string.
  * UntypedNexusServiceClient untyped =
  *     client.newUntypedNexusServiceClient("my-endpoint", "MyService");
- * UntypedNexusClientHandle handle = untyped.start("greet", null, "world");
+ * UntypedNexusOperationHandle handle = untyped.start("greet", null, "world");
  * }</pre>
  *
  * <p>To act on an existing operation (describe, cancel, terminate, get result), obtain a handle via
  * {@link #getHandle}:
  *
  * <pre>{@code
- * NexusClientHandle<String> handle = client.getHandle(operationId, runId, String.class);
+ * NexusOperationHandle<String> handle = client.getHandle(operationId, runId, String.class);
  * String result = handle.getResult();
  * handle.cancel("user requested");
  * }</pre>
@@ -46,7 +46,7 @@ import javax.annotation.Nullable;
  *
  * @see NexusServiceClient
  * @see UntypedNexusServiceClient
- * @see NexusClientHandle
+ * @see NexusOperationHandle
  */
 @Experimental
 public interface NexusClient {
@@ -76,12 +76,12 @@ public interface NexusClient {
 
   /**
    * Returns an untyped handle to an existing operation execution, targeting the latest run. To bind
-   * a result type, wrap the handle with {@link NexusClientHandle#fromUntyped}.
+   * a result type, wrap the handle with {@link NexusOperationHandle#fromUntyped}.
    *
    * @param operationId the user-assigned operation ID
    * @return an untyped handle
    */
-  UntypedNexusClientHandle getHandle(String operationId);
+  UntypedNexusOperationHandle getHandle(String operationId);
 
   /**
    * Returns an untyped handle to an existing operation execution, optionally pinned to a specific
@@ -91,7 +91,7 @@ public interface NexusClient {
    * @param runId the server-assigned run ID, or {@code null} to target the latest run
    * @return an untyped handle
    */
-  UntypedNexusClientHandle getHandle(String operationId, @Nullable String runId);
+  UntypedNexusOperationHandle getHandle(String operationId, @Nullable String runId);
 
   /**
    * Returns a typed handle to an existing operation execution, bound to {@code resultClass}.
@@ -101,7 +101,7 @@ public interface NexusClient {
    * @param resultClass expected result type
    * @param <R> result type
    */
-  <R> NexusClientHandle<R> getHandle(
+  <R> NexusOperationHandle<R> getHandle(
       String operationId, @Nullable String runId, Class<R> resultClass);
 
   /**
@@ -115,7 +115,7 @@ public interface NexusClient {
    * @param resultType generic type for deserialization; may be {@code null}
    * @param <R> result type
    */
-  <R> NexusClientHandle<R> getHandle(
+  <R> NexusOperationHandle<R> getHandle(
       String operationId, @Nullable String runId, Class<R> resultClass, @Nullable Type resultType);
 
   /**

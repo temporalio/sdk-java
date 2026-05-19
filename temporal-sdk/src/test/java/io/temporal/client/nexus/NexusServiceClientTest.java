@@ -11,8 +11,8 @@ import io.temporal.api.nexus.v1.EndpointTarget;
 import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
 import io.temporal.api.operatorservice.v1.CreateNexusEndpointResponse;
 import io.temporal.api.operatorservice.v1.DeleteNexusEndpointRequest;
-import io.temporal.client.NexusClientHandle;
 import io.temporal.client.NexusClientOptions;
+import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.NexusServiceClient;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.SearchAttributeKey;
@@ -63,7 +63,7 @@ public class NexusServiceClientTest {
     try {
       NexusServiceClient<TestNexusServices.TestNexusService1> client = buildServiceClient(endpoint);
 
-      NexusClientHandle<String> handle =
+      NexusOperationHandle<String> handle =
           client.start(TestNexusServices.TestNexusService1::operation, "world");
 
       Assert.assertNotNull(handle.getNexusOperationId());

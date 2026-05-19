@@ -38,7 +38,7 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
   }
 
   @Override
-  public UntypedNexusClientHandle start(
+  public UntypedNexusOperationHandle start(
       String operation, StartNexusOperationOptions options, @Nullable Object arg) {
     Payload payload = serializeInput(arg);
     StartNexusOperationExecutionInput input =
@@ -49,7 +49,7 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
             payload,
             options != null ? options : StartNexusOperationOptions.getDefaultInstance());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
-    return new NexusClientHandleImpl<>(
+    return new NexusOperationHandleImpl<>(
         invoker, output.getOperationId(), output.getRunId(), dataConverter);
   }
 
@@ -69,8 +69,8 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
       @Nullable Type resultType,
       StartNexusOperationOptions options,
       @Nullable Object arg) {
-    UntypedNexusClientHandle handle = start(operation, options, arg);
-    return NexusClientHandle.fromUntyped(handle, resultClass, resultType).getResult();
+    UntypedNexusOperationHandle handle = start(operation, options, arg);
+    return NexusOperationHandle.fromUntyped(handle, resultClass, resultType).getResult();
   }
 
   private @Nullable Payload serializeInput(@Nullable Object arg) {
