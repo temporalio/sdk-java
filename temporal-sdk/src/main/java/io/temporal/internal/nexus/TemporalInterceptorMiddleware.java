@@ -29,7 +29,9 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
             temporalNexusContext.getMetricsScope(),
             temporalNexusContext.getWorkflowClient(),
             new NexusInfoImpl(
-                temporalNexusContext.getNamespace(), temporalNexusContext.getTaskQueue())));
+                temporalNexusContext.getNamespace(),
+                temporalNexusContext.getTaskQueue(),
+                temporalNexusContext.getEndpoint())));
     return new OperationInterceptorConverter(inboundCallsInterceptor);
   }
 

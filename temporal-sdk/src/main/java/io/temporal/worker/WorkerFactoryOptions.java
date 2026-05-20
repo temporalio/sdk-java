@@ -24,6 +24,7 @@ public class WorkerFactoryOptions {
 
   private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 600;
   private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 600;
+  private static final Duration DEFAULT_SHUTDOWN_CHECK_INTERVAL = Duration.ofMillis(250);
 
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
@@ -41,6 +42,7 @@ public class WorkerFactoryOptions {
     private boolean enableLoggingInReplay;
     private boolean usingVirtualWorkflowThreads;
     private ExecutorService overrideLocalActivityTaskExecutor;
+    private Duration shutdownCheckInterval;
 
     private Builder() {}
 
@@ -57,6 +59,7 @@ public class WorkerFactoryOptions {
       this.enableLoggingInReplay = options.enableLoggingInReplay;
       this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
       this.overrideLocalActivityTaskExecutor = options.overrideLocalActivityTaskExecutor;
+      this.shutdownCheckInterval = options.shutdownCheckInterval;
     }
 
     /**
@@ -155,6 +158,22 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    /**
+     * Sets the interval between polls when checking for executor termination during shutdown. Lower
+     * values speed up shutdown at the cost of more frequent polling.
+     *
+     * <p>Default is 250ms, which is suitable for production. For test environments, consider
+     * setting a much lower value (e.g., 1ms) to minimize teardown overhead.
+     *
+     * @param shutdownCheckInterval the interval between shutdown polls. Must be positive.
+     * @return this builder for chaining
+     */
+    @Experimental
+    public Builder setShutdownCheckInterval(Duration shutdownCheckInterval) {
+      this.shutdownCheckInterval = shutdownCheckInterval;
+      return this;
+    }
+
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
           workflowCacheSize,
@@ -165,6 +184,7 @@ public class WorkerFactoryOptions {
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
+          shutdownCheckInterval,
           false);
     }
 
@@ -189,6 +209,7 @@ public class WorkerFactoryOptions {
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
+          shutdownCheckInterval,
           true);
     }
   }
@@ -201,6 +222,7 @@ public class WorkerFactoryOptions {
   private final boolean enableLoggingInReplay;
   private final boolean usingVirtualWorkflowThreads;
   private final ExecutorService overrideLocalActivityTaskExecutor;
+  private final Duration shutdownCheckInterval;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
@@ -211,6 +233,7 @@ public class WorkerFactoryOptions {
       boolean enableLoggingInReplay,
       boolean usingVirtualWorkflowThreads,
       ExecutorService overrideLocalActivityTaskExecutor,
+      Duration shutdownCheckInterval,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
@@ -233,6 +256,13 @@ public class WorkerFactoryOptions {
       if (plugins == null) {
         plugins = new WorkerPlugin[0];
       }
+      if (shutdownCheckInterval != null) {
+        Preconditions.checkState(
+            !shutdownCheckInterval.isNegative() && !shutdownCheckInterval.isZero(),
+            "shutdownCheckInterval must be positive");
+      } else {
+        shutdownCheckInterval = DEFAULT_SHUTDOWN_CHECK_INTERVAL;
+      }
     }
     this.workflowCacheSize = workflowCacheSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
@@ -243,6 +273,7 @@ public class WorkerFactoryOptions {
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
     this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
+    this.shutdownCheckInterval = shutdownCheckInterval;
   }
 
   public int getWorkflowCacheSize() {
@@ -289,6 +320,16 @@ public class WorkerFactoryOptions {
    */
   ExecutorService getOverrideLocalActivityTaskExecutor() {
     return overrideLocalActivityTaskExecutor;
+  }
+
+  /**
+   * Returns the interval between polls when checking for executor termination during shutdown.
+   *
+   * @return the configured shutdown check interval
+   */
+  @Experimental
+  public Duration getShutdownCheckInterval() {
+    return shutdownCheckInterval;
   }
 
   /**

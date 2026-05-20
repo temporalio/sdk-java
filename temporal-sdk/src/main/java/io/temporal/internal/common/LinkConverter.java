@@ -32,11 +32,19 @@ public class LinkConverter {
 
   public static io.temporal.api.nexus.v1.Link workflowEventToNexusLink(Link.WorkflowEvent we) {
     try {
+
       String url =
           String.format(
               linkPathFormat,
               URLEncoder.encode(we.getNamespace(), StandardCharsets.UTF_8.toString()),
-              URLEncoder.encode(we.getWorkflowId(), StandardCharsets.UTF_8.toString()),
+              // The 'replace' below handles spaces - the encoder will convert them to a plus,
+              // which the UI then handles as a plus, thus breaking the link as the
+              // space is lost.
+              // It's a known quirk with the URLEncoder as it encodes for forms, not general URIs.
+              // Only done for the WorkflowId as the other two are values we control,
+              // and will never have spaces.
+              URLEncoder.encode(we.getWorkflowId(), StandardCharsets.UTF_8.toString())
+                  .replace("+", "%20"),
               URLEncoder.encode(we.getRunId(), StandardCharsets.UTF_8.toString()));
 
       List<Map.Entry<String, String>> queryParams = new ArrayList<>();

@@ -21,7 +21,23 @@ public class ShutdownManager implements Closeable {
           new ExecutorThreadFactory(
               WorkerThreadsNameHelper.SHUTDOWN_MANAGER_THREAD_NAME_PREFIX, null));
 
-  private static final int CHECK_PERIOD_MS = 250;
+  private static final int DEFAULT_CHECK_PERIOD_MS = 250;
+  private final int checkPeriodMs;
+
+  public ShutdownManager() {
+    this(DEFAULT_CHECK_PERIOD_MS);
+  }
+
+  /**
+   * @param checkPeriodMs interval in milliseconds between shutdown-completion polls. Lower values
+   *     speed up teardown at the cost of more frequent polling. Must be positive.
+   */
+  public ShutdownManager(int checkPeriodMs) {
+    if (checkPeriodMs <= 0) {
+      throw new IllegalArgumentException("checkPeriodMs must be positive, was: " + checkPeriodMs);
+    }
+    this.checkPeriodMs = checkPeriodMs;
+  }
 
   /** executorToShutdown.shutdownNow() -&gt; timed wait for a graceful termination */
   public CompletableFuture<Void> shutdownExecutorNow(
@@ -97,7 +113,7 @@ public class ShutdownManager implements Closeable {
    */
   private CompletableFuture<Void> limitedWait(
       ExecutorService executorToShutdown, String executorName, Duration timeout) {
-    int attempts = (int) Math.ceil((double) timeout.toMillis() / CHECK_PERIOD_MS);
+    int attempts = (int) Math.ceil((double) timeout.toMillis() / checkPeriodMs);
 
     CompletableFuture<Void> future = new CompletableFuture<>();
     scheduledExecutorService.submit(
@@ -167,7 +183,7 @@ public class ShutdownManager implements Closeable {
         promise.complete(null);
         return;
       }
-      scheduledExecutorService.schedule(this, CHECK_PERIOD_MS, TimeUnit.MILLISECONDS);
+      scheduledExecutorService.schedule(this, checkPeriodMs, TimeUnit.MILLISECONDS);
     }
 
     abstract boolean isTerminated();
@@ -238,7 +254,7 @@ public class ShutdownManager implements Closeable {
           onSlowTermination();
         }
       }
-      scheduledExecutorService.schedule(this, CHECK_PERIOD_MS, TimeUnit.MILLISECONDS);
+      scheduledExecutorService.schedule(this, checkPeriodMs, TimeUnit.MILLISECONDS);
     }
 
     abstract boolean isTerminated();
