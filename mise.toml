@@ -1,2 +1,2 @@
 [tools]
-java = ["temurin-23", "temurin-21", "temurin-17"]
+java = "temurin-21"

@@ -62,7 +62,6 @@ public class ActivityPauseTest {
   }
 
   public static class HeartBeatingActivityImpl implements TestActivities.TestActivity1 {
-
     @Override
     public String execute(String arg) {
       ActivityInfo info = Activity.getExecutionContext().getInfo();

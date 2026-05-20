@@ -519,6 +519,7 @@ public class StickyWorkerTest {
               .setMetricsScope(metricsScope)
               .setWorkflowClientOptions(clientOptions)
               .setWorkerFactoryOptions(options)
+              .setUseExternalService(useExternalService)
               .setTarget(serviceAddress)
               .build();
       testEnv = TestWorkflowEnvironment.newInstance(testOptions);

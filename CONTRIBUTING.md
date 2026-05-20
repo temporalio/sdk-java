@@ -8,11 +8,8 @@ before we can merge in any of your changes
 
 ## Development Environment
 
-- **Java 23+** is required to run Gradle and to compile the project.
-- Some tests assume you also have **Java 17 and 21** installed.
+- **Java 21+** is required to run Gradle, compile the project, and run all tests locally.
 - Some optional tests also require the [Temporal CLI](https://docs.temporal.io/cli#installation).
-
-You can install the Java dependencies all in one go with [mise](https://mise.jdx.dev/), which reads from [mise.toml](./mise.toml). If you're using mise and Gradle isn't automatically picking up the older JDKs as toolchains, try [this workaround](https://mise.jdx.dev/lang/java.html#gradle-toolchains-detection).
 
 If you're using Apple Silicon, see the [note on Rosetta](#note-on-rosetta).
 
