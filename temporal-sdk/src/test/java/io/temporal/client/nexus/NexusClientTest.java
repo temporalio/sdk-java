@@ -1,5 +1,7 @@
 package io.temporal.client.nexus;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -17,6 +19,7 @@ import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -28,6 +31,14 @@ public class NexusClientTest {
           .setWorkflowTypes(NexusClientTest.PlaceholderWorkflowImpl.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .build();
+
+  @BeforeClass
+  public static void requireExternalService() {
+    // The time-skipping test server does not implement standalone Nexus operation RPCs.
+    assumeTrue(
+        "standalone Nexus operations require a real server",
+        SDKTestWorkflowRule.useExternalService);
+  }
 
   @Test
   public void listNexusOperationExecutions() {
