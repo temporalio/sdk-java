@@ -482,6 +482,7 @@ public final class Worker {
   }
 
   CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptUserTasks) {
+    shuttingDown = true;
     ShutdownWorkerRequest.Builder requestBuilder =
         ShutdownWorkerRequest.newBuilder()
             .setNamespace(namespace)

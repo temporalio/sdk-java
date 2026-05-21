@@ -13,6 +13,8 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.api.enums.v1.TaskQueueType;
+import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.ShutdownWorkerRequest;
 import io.temporal.api.workflowservice.v1.ShutdownWorkerResponse;
@@ -31,6 +33,7 @@ import io.temporal.workflow.shared.TestNexusServices;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -121,6 +124,9 @@ public class WorkerShutdownTest {
     worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
     worker.registerActivitiesImplementations(new TestActivityImpl());
     worker.registerNexusServiceImplementation(new TestNexusServiceImpl());
+    Supplier<WorkerHeartbeat> heartbeatSupplier =
+        () -> WorkerHeartbeat.newBuilder().setStatus(WorkerStatus.WORKER_STATUS_RUNNING).build();
+    worker.setHeartbeatSupplier(heartbeatSupplier);
 
     worker.shutdown(new ShutdownManager(), true).get(5, TimeUnit.SECONDS);
 
@@ -137,5 +143,9 @@ public class WorkerShutdownTest {
     assertTrue(
         "ShutdownWorkerRequest should include NEXUS type registered after construction",
         shutdownTypes.contains(TaskQueueType.TASK_QUEUE_TYPE_NEXUS));
+    assertEquals(
+        "ShutdownWorkerRequest heartbeat should report SHUTTING_DOWN",
+        WorkerStatus.WORKER_STATUS_SHUTTING_DOWN,
+        captor.getValue().getWorkerHeartbeat().getStatus());
   }
 }
