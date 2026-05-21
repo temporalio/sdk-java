@@ -31,7 +31,7 @@ tasks.register('workflowcheck', JavaExec) {
     classpath = configurations.workflowcheckDependency
     // Java 17+ is required for workflowcheck
     javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
     // The argument to workflowcheck is the classpath
     mainClass = 'io.temporal.workflowcheck.Main'

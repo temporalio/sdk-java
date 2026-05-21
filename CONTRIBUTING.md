@@ -8,8 +8,11 @@ before we can merge in any of your changes
 
 ## Development Environment
 
-- Java 23+
-- Docker to run Temporal Server
+- **Java 21+** is required to run Gradle, compile the project, and run all tests locally.
+- Some optional tests also require the [Temporal CLI](https://docs.temporal.io/cli#installation).
+
+If you're using Apple Silicon, see the [note on Rosetta](#note-on-rosetta).
+
 
 ## Build
 
@@ -41,26 +44,32 @@ fatal: No names found, cannot describe anything.
 This can be done resolved by running `git fetch --tags` on your branch. Note, make sure your fork has tags copied from
 the main repo.
 
-## Test and Build
+## Testing
 
-Run a local temporal server with the [temporal CLI](https://docs.temporal.io/cli#installation):
-
-```bash
-temporal server start-dev
-```
-
-(If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.)
-
-Then run all the tests with:
+Run tests:
 
 ```bash
 ./gradlew test
 ```
 
-Build with:
+Run a single test or group of tests:
 
 ```bash
-./gradlew build
+./gradlew :temporal-sdk:test --offline --tests "io.temporal.activity.ActivityPauseTest"
+./gradlew :temporal-sdk:test --offline --tests "io.temporal.workflow.*"
+```
+
+By default, integration tests run against the built-in time-skipping test server. Some tests require features that the built-in server doesn't support; those tests will be skipped. To run the skipped tests:
+
+1. Install the [temporal CLI](https://docs.temporal.io/cli#installation), which comes with a built-in dev server.
+2. Find the flags that the dev server will need to run the tests by grepping for `temporal server` in [./github/workflows/ci.yml](./github/workflows/ci.yml).
+3. Start the server: 
+```bash
+temporal server start-dev --YOUR-FLAGS-HERE
+```
+4. Set the `USE_EXTERNAL_SERVICE` environment variable and run the tests: 
+```bash
+USE_EXTERNAL_SERVICE=true ./gradlew test
 ```
 
 ## Note on Rosetta

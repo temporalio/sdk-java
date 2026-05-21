@@ -46,31 +46,14 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(Parameterized.class)
 public class StickyWorkerTest {
 
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-
-  @Parameterized.Parameter public boolean useExternalService;
-
-  @Parameterized.Parameters(name = "{1}")
-  public static Object[] data() {
-    if (!useDockerService) {
-      return new Object[][] {{false, "TestService"}};
-    } else {
-      return new Object[][] {{true, "Docker"}};
-    }
-  }
-
-  @Parameterized.Parameter(1)
-  public String testType;
 
   @Rule public TestName testName = new TestName();
 
