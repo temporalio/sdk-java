@@ -20,6 +20,9 @@ public final class NamespaceCapabilities {
     if (capabilities.getWorkerPollCompleteOnShutdown()) {
       gracefulPollShutdown.set(true);
     }
+    if (capabilities.getWorkerHeartbeats()) {
+      workerHeartbeats.set(true);
+    }
   }
 
   public boolean isPollerAutoscaling() {
