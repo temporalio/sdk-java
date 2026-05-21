@@ -97,6 +97,7 @@ public class WorkerShutdownTest {
         .thenReturn(
             WorkflowClientOptions.newBuilder()
                 .setNamespace("test-ns")
+                .setIdentity("test-worker")
                 .validateAndBuildWithDefaults());
 
     Scope metricsScope = new NoopScope();
@@ -113,7 +114,7 @@ public class WorkerShutdownTest {
             metricsScope,
             runLocks,
             cache,
-            false,
+            true,
             wfThreadExecutor,
             Collections.emptyList(),
             Collections.emptyList(),
@@ -147,5 +148,8 @@ public class WorkerShutdownTest {
         "ShutdownWorkerRequest heartbeat should report SHUTTING_DOWN",
         WorkerStatus.WORKER_STATUS_SHUTTING_DOWN,
         captor.getValue().getWorkerHeartbeat().getStatus());
+    assertTrue(
+        "ShutdownWorkerRequest sticky task queue should be derived from worker identity",
+        captor.getValue().getStickyTaskQueue().startsWith("test-worker:"));
   }
 }

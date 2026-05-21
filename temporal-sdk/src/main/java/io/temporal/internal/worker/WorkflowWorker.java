@@ -214,7 +214,8 @@ final class WorkflowWorker implements SuspendableWorker {
         !interruptTasks
             && !options.getDrainStickyTaskQueueTimeout().isZero()
             && stickyTaskQueueName != null
-            && stickyQueueBalancer != null;
+            && stickyQueueBalancer != null
+            && !namespaceCapabilities.isGracefulPollShutdown();
 
     CompletableFuture<Void> pollerShutdown =
         CompletableFuture.completedFuture(null)

@@ -147,4 +147,100 @@ public class GracefulPollShutdownTest {
 
     shutdownManager.close();
   }
+
+  @Test(timeout = 10_000)
+  public void shutdownNowInterruptsInflightPollWhenGraceful() throws Exception {
+    NamespaceCapabilities capabilities = new NamespaceCapabilities();
+    capabilities.setFromCapabilities(
+        Capabilities.newBuilder().setWorkerPollCompleteOnShutdown(true).build());
+
+    AtomicReference<String> processedTask = new AtomicReference<>();
+    CountDownLatch taskProcessedLatch = new CountDownLatch(1);
+    ShutdownableTaskExecutor<String> taskExecutor =
+        new ShutdownableTaskExecutor<String>() {
+          @Override
+          public void process(@Nonnull String task) {
+            processedTask.set(task);
+            taskProcessedLatch.countDown();
+          }
+
+          @Override
+          public boolean isShutdown() {
+            return false;
+          }
+
+          @Override
+          public boolean isTerminated() {
+            return false;
+          }
+
+          @Override
+          public CompletableFuture<Void> shutdown(
+              ShutdownManager shutdownManager, boolean interruptTasks) {
+            return CompletableFuture.completedFuture(null);
+          }
+
+          @Override
+          public void awaitTermination(long timeout, TimeUnit unit) {}
+        };
+
+    CountDownLatch secondPollStarted = new CountDownLatch(1);
+    CountDownLatch releasePoll = new CountDownLatch(1);
+
+    MultiThreadedPoller.PollTask<String> pollTask =
+        new MultiThreadedPoller.PollTask<String>() {
+          private int callCount = 0;
+
+          @Override
+          public synchronized String poll() {
+            callCount++;
+            if (callCount == 1) {
+              return "task-1";
+            } else if (callCount == 2) {
+              secondPollStarted.countDown();
+              try {
+                releasePoll.await();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+              }
+              return "task-2";
+            }
+            try {
+              Thread.sleep(Long.MAX_VALUE);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return null;
+          }
+        };
+
+    MultiThreadedPoller<String> poller =
+        new MultiThreadedPoller<>(
+            "test-identity",
+            pollTask,
+            taskExecutor,
+            PollerOptions.newBuilder()
+                .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                .setPollThreadNamePrefix("test-poller")
+                .build(),
+            new NoopScope(),
+            capabilities);
+
+    poller.start();
+
+    assertTrue("first task should be processed", taskProcessedLatch.await(5, TimeUnit.SECONDS));
+    assertEquals("task-1", processedTask.get());
+    assertTrue("second poll should start", secondPollStarted.await(5, TimeUnit.SECONDS));
+
+    ShutdownManager shutdownManager = new ShutdownManager();
+    try {
+      poller.shutdown(shutdownManager, true).get(5, TimeUnit.SECONDS);
+      assertNotEquals(
+          "task-2 should not be processed by shutdownNow", "task-2", processedTask.get());
+    } finally {
+      releasePoll.countDown();
+      shutdownManager.close();
+    }
+  }
 }

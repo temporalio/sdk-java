@@ -134,7 +134,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
     return super.shutdown(shutdownManager, interruptTasks)
         .thenApply(
             (f) -> {
-              if (!namespaceCapabilities.isGracefulPollShutdown()) {
+              if (interruptTasks || !namespaceCapabilities.isGracefulPollShutdown()) {
                 for (PollTaskAsync<T> asyncTaskPoller : asyncTaskPollers) {
                   try {
                     log.debug("Shutting down async poller: {}", asyncTaskPoller.getLabel());

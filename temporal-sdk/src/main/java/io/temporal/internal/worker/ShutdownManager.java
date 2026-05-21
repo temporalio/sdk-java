@@ -149,8 +149,16 @@ public class ShutdownManager implements Closeable {
             future.complete(null);
           }
         },
-        scheduledExecutorService);
+        this::executeOrRunDirect);
     return future;
+  }
+
+  private void executeOrRunDirect(Runnable command) {
+    try {
+      scheduledExecutorService.execute(command);
+    } catch (RejectedExecutionException e) {
+      command.run();
+    }
   }
 
   @Override
