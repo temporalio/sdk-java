@@ -11,6 +11,7 @@ import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Package-private implementation of {@link TemporalNexusClient}. */
 @Experimental
@@ -19,7 +20,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   private final WorkflowClient client;
   private final OperationContext operationContext;
   private final OperationStartDetails operationStartDetails;
-  private boolean asyncOperationStarted;
+  private final AtomicBoolean asyncOperationStarted = new AtomicBoolean(false);
 
   TemporalNexusClientImpl(
       WorkflowClient client,
@@ -198,21 +199,25 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   }
 
   private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<R> handle) {
-    if (asyncOperationStarted) {
+    if (!asyncOperationStarted.compareAndSet(false, true)) {
       throw new HandlerException(
           HandlerException.ErrorType.BAD_REQUEST,
           new IllegalStateException(
               "Only one async operation can be started per operation handler invocation. "
                   + "Use getWorkflowClient() for additional workflow interactions."));
     }
-    NexusStartWorkflowResponse response =
-        NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
-            operationContext,
-            operationStartDetails,
-            request -> handle.getInvoker().invoke(request));
-    // Set after successful start so that if startWorkflowAndAttachLinks throws,
-    // the handler can retry without being blocked by the guard.
-    asyncOperationStarted = true;
-    return TemporalOperationResult.async(response.getOperationToken());
+    try {
+      NexusStartWorkflowResponse response =
+          NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
+              operationContext,
+              operationStartDetails,
+              request -> handle.getInvoker().invoke(request));
+      return TemporalOperationResult.async(response.getOperationToken());
+    } catch (Throwable t) {
+      // Reset on failure so that if startWorkflowAndAttachLinks throws,
+      // the handler can retry without being blocked by the guard.
+      asyncOperationStarted.set(false);
+      throw t;
+    }
   }
 }
