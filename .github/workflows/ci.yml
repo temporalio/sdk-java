@@ -32,25 +32,25 @@ jobs:
       - name: Run unit tests (Java 23)
         env:
           USER: unittest
-          USE_DOCKER_SERVICE: false
+          USE_EXTERNAL_SERVICE: false
         run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -PtestJavaVersion=23
 
       - name: Run independent resource tuner test
         env:
           USER: unittest
-          USE_DOCKER_SERVICE: false
+          USE_EXTERNAL_SERVICE: false
         run: ./gradlew --no-daemon temporal-sdk:testResourceIndependent -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -PtestJavaVersion=23
 
       - name: Run Spring Boot 3 compatibility tests
         env:
           USER: unittest
-          USE_DOCKER_SERVICE: false
+          USE_EXTERNAL_SERVICE: false
         run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -P springBoot3Test -PtestJavaVersion=23
 
       - name: Run Spring Boot 4 compatibility tests
         env:
           USER: unittest
-          USE_DOCKER_SERVICE: false
+          USE_EXTERNAL_SERVICE: false
         run: ./gradlew --no-daemon :temporal-spring-boot-autoconfigure:test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -P springBoot4Test -PtestJavaVersion=23
 
       - name: Publish Test Report
@@ -125,20 +125,20 @@ jobs:
         env:
           USER: unittest
           TEMPORAL_SERVICE_ADDRESS: localhost:7233
-          USE_DOCKER_SERVICE: true
+          USE_EXTERNAL_SERVICE: true
         run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=11
 
       - name: Run Jackson 3 converter tests (Java 17)
         env:
           USER: unittest
-          USE_DOCKER_SERVICE: false
+          USE_EXTERNAL_SERVICE: false
         run: ./gradlew --no-daemon :temporal-sdk:jackson3Tests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=17
 
       - name: Run virtual thread tests (Java 21)
         env:
           USER: unittest
           TEMPORAL_SERVICE_ADDRESS: localhost:7233
-          USE_DOCKER_SERVICE: true
+          USE_EXTERNAL_SERVICE: true
         run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21
 
       - name: Publish Test Report

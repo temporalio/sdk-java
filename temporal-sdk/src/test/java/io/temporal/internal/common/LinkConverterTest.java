@@ -6,6 +6,9 @@ import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 
 public class LinkConverterTest {
@@ -96,6 +99,35 @@ public class LinkConverterTest {
 
     io.temporal.api.nexus.v1.Link actual = workflowEventToNexusLink(input);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testConvertWorkflowEventToNexus_ValidSpace() throws UnsupportedEncodingException {
+    Link.WorkflowEvent input =
+        Link.WorkflowEvent.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf space+plus")
+            .setRunId("run-id")
+            .setEventRef(
+                Link.WorkflowEvent.EventReference.newBuilder()
+                    .setEventId(1)
+                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
+            .build();
+
+    io.temporal.api.nexus.v1.Link expected =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl(
+                "temporal:///namespaces/ns/workflows/wf%20space%2Bplus/run-id/history?referenceType=EventReference&eventID=1&eventType=WorkflowExecutionStarted")
+            .setType("temporal.api.common.v1.Link.WorkflowEvent")
+            .build();
+
+    io.temporal.api.nexus.v1.Link actual = workflowEventToNexusLink(input);
+    assertEquals(expected, actual);
+
+    String decoded = URLDecoder.decode(actual.getUrl(), StandardCharsets.UTF_8.toString());
+    assertEquals(
+        "temporal:///namespaces/ns/workflows/wf space+plus/run-id/history?referenceType=EventReference&eventID=1&eventType=WorkflowExecutionStarted",
+        decoded);
   }
 
   @Test

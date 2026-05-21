@@ -402,7 +402,8 @@ public final class WorkerFactory {
 
   /** Internal method that actually shuts down workers. Called from the plugin chain. */
   private void doShutdown(boolean interruptUserTasks) {
-    ShutdownManager shutdownManager = new ShutdownManager();
+    ShutdownManager shutdownManager =
+        new ShutdownManager((int) factoryOptions.getShutdownCheckInterval().toMillis());
 
     // Shutdown each worker with plugin hooks
     List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();

@@ -36,11 +36,11 @@ public class WorkerVersioningTest {
   @Autowired WorkflowClient workflowClient;
 
   @BeforeAll
-  static void checkDockerService() {
-    String useDocker = System.getenv("USE_DOCKER_SERVICE");
+  static void checkExternalService() {
+    String useExternal = System.getenv("USE_EXTERNAL_SERVICE");
     Assumptions.assumeTrue(
-        useDocker != null && useDocker.equalsIgnoreCase("true"),
-        "Skipping tests because USE_DOCKER_SERVICE is not set");
+        useExternal != null && useExternal.equalsIgnoreCase("true"),
+        "Skipping tests because USE_EXTERNAL_SERVICE is not set");
   }
 
   @BeforeEach

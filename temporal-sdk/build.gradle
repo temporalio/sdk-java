@@ -184,8 +184,10 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        javaLauncher = javaToolchains.launcherFor {
-                            languageVersion = JavaLanguageVersion.of(17)
+                        if (project.hasProperty("testJavaVersion")) {
+                            javaLauncher = javaToolchains.launcherFor {
+                                languageVersion = JavaLanguageVersion.of(project.property("testJavaVersion") as int)
+                            }
                         }
                         shouldRunAfter(test)
                     }
@@ -194,11 +196,13 @@ testing {
         }
 
         // Unlike virtualThreadTests, jackson3Tests source directly imports Jackson 3 types
-        // and java17 classes, so the compile task also needs a Java 17 compiler (not just
+        // and java17 classes, so the compile task also needs a Java 17+ compiler (not just
         // the test launcher).
         tasks.named('compileJackson3TestsJava') {
-            javaCompiler = javaToolchains.compilerFor {
-                languageVersion = JavaLanguageVersion.of(17)
+            if (project.hasProperty("testJavaVersion")) {
+                javaCompiler = javaToolchains.compilerFor {
+                    languageVersion = JavaLanguageVersion.of(project.property("testJavaVersion") as int)
+                }
             }
         }
 
@@ -206,8 +210,10 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        javaLauncher = javaToolchains.launcherFor {
-                            languageVersion = JavaLanguageVersion.of(21)
+                        if (project.hasProperty("testJavaVersion")) {
+                            javaLauncher = javaToolchains.launcherFor {
+                                languageVersion = JavaLanguageVersion.of(project.property("testJavaVersion") as int)
+                            }
                         }
                         shouldRunAfter(test)
                     }
@@ -230,8 +236,10 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        javaLauncher = javaToolchains.launcherFor {
-                            languageVersion = JavaLanguageVersion.of(21)
+                        if (project.hasProperty("testJavaVersion")) {
+                            javaLauncher = javaToolchains.launcherFor {
+                                languageVersion = JavaLanguageVersion.of(project.property("testJavaVersion") as int)
+                            }
                         }
                         environment("USE_VIRTUAL_THREADS", "false")
                     }

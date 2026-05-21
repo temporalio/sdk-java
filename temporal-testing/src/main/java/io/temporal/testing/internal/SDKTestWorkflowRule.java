@@ -64,7 +64,7 @@ public class SDKTestWorkflowRule implements TestRule {
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   // Enable to regenerate JsonFiles used for replay testing.
   public static final boolean REGENERATE_JSON_FILES = false;
-  // Only enable when USE_DOCKER_SERVICE is true
+  // Only enable when USE_EXTERNAL_SERVICE is true
   public static final boolean useExternalService =
       ExternalServiceTestConfigurator.isUseExternalService();
   public static final boolean USE_VIRTUAL_THREADS =
