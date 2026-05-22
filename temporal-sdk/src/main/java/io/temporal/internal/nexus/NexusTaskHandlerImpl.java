@@ -20,6 +20,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
@@ -284,6 +285,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             .setCallbackUrl(task.getCallback())
             .setRequestId(task.getRequestId());
     task.getCallbackHeaderMap().forEach(operationStartDetails::putCallbackHeader);
+    // Stash the inbound links in common.v1.Link form on the operation context so that signal
+    // RPCs issued by the handler (e.g. SignalWithStartWorkflow on the callee) can attach them
+    // to SignalWorkflowExecutionRequest.links.
+    List<io.temporal.api.common.v1.Link> inboundCommonLinks = new ArrayList<>();
     task.getLinksList()
         .forEach(
             link -> {
@@ -296,7 +301,13 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
+              io.temporal.api.common.v1.Link commonLink =
+                  LinkConverter.nexusLinkToWorkflowEvent(link);
+              if (commonLink != null) {
+                inboundCommonLinks.add(commonLink);
+              }
             });
+    CurrentNexusOperationContext.get().setNexusOperationLinks(inboundCommonLinks);
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
@@ -307,13 +318,27 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       try {
         OperationStartResult<HandlerResultContent> result =
             startOperation(context, operationStartDetails.build(), input.build());
+        // If a signal RPC issued by the handler returned a backlink, propagate it to the caller
+        // so the caller workflow's history event links to the signal event on the callee. Same
+        // backlink applies to both sync and async response variants.
+        io.temporal.api.nexus.v1.Link signalBacklink = null;
+        io.temporal.api.common.v1.Link signalResponseLink =
+            CurrentNexusOperationContext.get().getSignalWorkflowResponseLink();
+        if (signalResponseLink != null && signalResponseLink.hasWorkflowEvent()) {
+          signalBacklink =
+              LinkConverter.workflowEventToNexusLink(signalResponseLink.getWorkflowEvent());
+        }
+
         if (result.isSync()) {
-          startResponseBuilder.setSyncSuccess(
+          StartOperationResponse.Sync.Builder syncBuilder =
               StartOperationResponse.Sync.newBuilder()
-                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
-                  .build());
+                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()));
+          if (signalBacklink != null) {
+            syncBuilder.addLinks(signalBacklink);
+          }
+          startResponseBuilder.setSyncSuccess(syncBuilder.build());
         } else {
-          startResponseBuilder.setAsyncSuccess(
+          StartOperationResponse.Async.Builder asyncBuilder =
               StartOperationResponse.Async.newBuilder()
                   .setOperationId(result.getAsyncOperationToken())
                   .setOperationToken(result.getAsyncOperationToken())
@@ -325,8 +350,11 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                                       .setType(link.getType())
                                       .setUrl(link.getUri().toString())
                                       .build())
-                          .collect(Collectors.toList()))
-                  .build());
+                          .collect(Collectors.toList()));
+          if (signalBacklink != null) {
+            asyncBuilder.addLinks(signalBacklink);
+          }
+          startResponseBuilder.setAsyncSuccess(asyncBuilder.build());
         }
       } catch (OperationException e) {
         throw e;
