@@ -6,6 +6,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 import io.temporal.nexus.NexusOperationContext;
 import io.temporal.nexus.NexusOperationInfo;
+import java.util.Collections;
+import java.util.List;
 
 public class InternalNexusOperationContext {
   private final String namespace;
@@ -15,6 +17,16 @@ public class InternalNexusOperationContext {
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
   Link startWorkflowResponseLink;
+  // Links extracted from the inbound Nexus task. Stored once at the task-handler boundary so the
+  // workflow client (signal, signalWithStart) can attach them to outgoing requests via
+  // SignalWorkflowExecutionRequest.links, matching the Go SDK's NexusOperationLinksKey ctx value.
+  private List<Link> nexusOperationLinks = Collections.emptyList();
+  // Backlink returned by SignalWorkflowExecutionResponse.link /
+  // SignalWithStartWorkflowExecutionResponse.signal_link.
+  // Populated by the workflow client and consumed by the task handler when building
+  // StartOperationResponse, so the caller workflow gets a link pointing at the signal event on
+  // the callee.
+  private Link signalWorkflowResponseLink;
 
   public InternalNexusOperationContext(
       String namespace,
@@ -66,6 +78,27 @@ public class InternalNexusOperationContext {
 
   public Link getStartWorkflowResponseLink() {
     return startWorkflowResponseLink;
+  }
+
+  /**
+   * Set the {@code common.v1.Link}s extracted from the inbound Nexus task so they can be attached
+   * to any signal RPCs issued by the operation handler.
+   */
+  public void setNexusOperationLinks(List<Link> links) {
+    this.nexusOperationLinks = links == null ? Collections.emptyList() : links;
+  }
+
+  /** Links from the inbound Nexus task; empty if none. Never null. */
+  public List<Link> getNexusOperationLinks() {
+    return nexusOperationLinks;
+  }
+
+  public void setSignalWorkflowResponseLink(Link link) {
+    this.signalWorkflowResponseLink = link;
+  }
+
+  public Link getSignalWorkflowResponseLink() {
+    return signalWorkflowResponseLink;
   }
 
   private class NexusOperationContextImpl implements NexusOperationContext {
