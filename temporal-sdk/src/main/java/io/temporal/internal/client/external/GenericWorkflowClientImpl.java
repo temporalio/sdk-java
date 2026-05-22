@@ -61,13 +61,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public void signal(SignalWorkflowExecutionRequest request) {
+  public SignalWorkflowExecutionResponse signal(SignalWorkflowExecutionRequest request) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1)
             .put(MetricsTag.SIGNAL_NAME, request.getSignalName())
             .build();
     Scope scope = metricsScope.tagged(tags);
-    grpcRetryer.retry(
+    return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()
