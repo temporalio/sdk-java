@@ -105,6 +105,7 @@ final class ActivityWorker implements SuspendableWorker {
                     namespace,
                     taskQueue,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     taskQueueActivitiesPerSecond,
                     this.slotSupplier,
@@ -113,7 +114,7 @@ final class ActivityWorker implements SuspendableWorker {
                     pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
-                namespaceCapabilities.isPollerAutoscaling(),
+                namespaceCapabilities,
                 workerMetricsScope);
 
       } else {
@@ -125,6 +126,7 @@ final class ActivityWorker implements SuspendableWorker {
                     namespace,
                     taskQueue,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     taskQueueActivitiesPerSecond,
                     this.slotSupplier,
@@ -133,7 +135,8 @@ final class ActivityWorker implements SuspendableWorker {
                     pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
-                workerMetricsScope);
+                workerMetricsScope,
+                namespaceCapabilities);
       }
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);

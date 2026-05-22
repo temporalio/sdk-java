@@ -111,6 +111,7 @@ final class NexusWorker implements SuspendableWorker {
                     namespace,
                     taskQueue,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     workerMetricsScope,
                     service.getServerCapabilities(),
@@ -118,7 +119,7 @@ final class NexusWorker implements SuspendableWorker {
                     pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
-                namespaceCapabilities.isPollerAutoscaling(),
+                namespaceCapabilities,
                 workerMetricsScope);
       } else {
         poller =
@@ -129,6 +130,7 @@ final class NexusWorker implements SuspendableWorker {
                     namespace,
                     taskQueue,
                     options.getIdentity(),
+                    options.getWorkerInstanceKey(),
                     options.getWorkerVersioningOptions(),
                     this.slotSupplier,
                     workerMetricsScope,
@@ -136,7 +138,8 @@ final class NexusWorker implements SuspendableWorker {
                     pollerTracker),
                 this.pollTaskExecutor,
                 pollerOptions,
-                workerMetricsScope);
+                workerMetricsScope,
+                namespaceCapabilities);
       }
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);

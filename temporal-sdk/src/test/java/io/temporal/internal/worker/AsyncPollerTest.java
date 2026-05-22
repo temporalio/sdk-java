@@ -133,7 +133,7 @@ public class AsyncPollerTest {
         pollTask,
         taskExecutor,
         options,
-        false,
+        new NamespaceCapabilities(),
         new NoopScope());
   }
 
