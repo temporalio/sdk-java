@@ -301,10 +301,20 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
+              // LinkConverter only returns a WorkflowEvent-shaped common.v1.Link; nexus links of
+              // other shapes (e.g. non-temporal URLs) come back null and are intentionally not
+              // forwarded onto SignalWorkflowExecutionRequest.links, which requires the
+              // WorkflowEvent variant. Log so a debugging session can see what was dropped.
               io.temporal.api.common.v1.Link commonLink =
                   LinkConverter.nexusLinkToWorkflowEvent(link);
               if (commonLink != null) {
                 inboundCommonLinks.add(commonLink);
+              } else {
+                log.warn(
+                    "Dropping inbound Nexus link from outbound signal propagation: type='{}',"
+                        + " url='{}' (not a parseable temporal WorkflowEvent link)",
+                    link.getType(),
+                    link.getUrl());
               }
             });
     CurrentNexusOperationContext.get().setNexusOperationLinks(inboundCommonLinks);
@@ -318,27 +328,30 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       try {
         OperationStartResult<HandlerResultContent> result =
             startOperation(context, operationStartDetails.build(), input.build());
-        // If a signal RPC issued by the handler returned a backlink, propagate it to the caller
-        // so the caller workflow's history event links to the signal event on the callee. Same
-        // backlink applies to both sync and async response variants.
-        io.temporal.api.nexus.v1.Link signalBacklink = null;
-        io.temporal.api.common.v1.Link signalResponseLink =
-            CurrentNexusOperationContext.get().getSignalWorkflowResponseLink();
-        if (signalResponseLink != null && signalResponseLink.hasWorkflowEvent()) {
-          signalBacklink =
+        // If signal/signalWithStart RPCs issued by the handler returned backlinks, propagate
+        // them to the caller so the caller workflow's history event links to each signal event
+        // on the callee. Same set of backlinks applies to both sync and async response variants.
+        List<io.temporal.api.nexus.v1.Link> signalBacklinks = new ArrayList<>();
+        for (io.temporal.api.common.v1.Link signalResponseLink :
+            CurrentNexusOperationContext.get().getSignalWorkflowResponseLinks()) {
+          if (!signalResponseLink.hasWorkflowEvent()) {
+            continue;
+          }
+          io.temporal.api.nexus.v1.Link converted =
               LinkConverter.workflowEventToNexusLink(signalResponseLink.getWorkflowEvent());
+          if (converted != null) {
+            signalBacklinks.add(converted);
+          }
         }
 
         if (result.isSync()) {
-          StartOperationResponse.Sync.Builder syncBuilder =
+          startResponseBuilder.setSyncSuccess(
               StartOperationResponse.Sync.newBuilder()
-                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()));
-          if (signalBacklink != null) {
-            syncBuilder.addLinks(signalBacklink);
-          }
-          startResponseBuilder.setSyncSuccess(syncBuilder.build());
+                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                  .addAllLinks(signalBacklinks)
+                  .build());
         } else {
-          StartOperationResponse.Async.Builder asyncBuilder =
+          startResponseBuilder.setAsyncSuccess(
               StartOperationResponse.Async.newBuilder()
                   .setOperationId(result.getAsyncOperationToken())
                   .setOperationToken(result.getAsyncOperationToken())
@@ -350,11 +363,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                                       .setType(link.getType())
                                       .setUrl(link.getUri().toString())
                                       .build())
-                          .collect(Collectors.toList()));
-          if (signalBacklink != null) {
-            asyncBuilder.addLinks(signalBacklink);
-          }
-          startResponseBuilder.setAsyncSuccess(asyncBuilder.build());
+                          .collect(Collectors.toList()))
+                  .addAllLinks(signalBacklinks)
+                  .build());
         }
       } catch (OperationException e) {
         throw e;
