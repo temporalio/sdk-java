@@ -100,6 +100,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
   private NexusServiceOptions defaultNexusServiceOptions = null;
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
+  private ChildWorkflowOptions defaultChildWorkflowOptions = null;
+  private Map<String, ChildWorkflowOptions> childWorkflowOptionsMap;
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
@@ -136,6 +138,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           workflowImplementationOptions.getDefaultNexusServiceOptions();
       this.nexusServiceOptionsMap =
           new HashMap<>(workflowImplementationOptions.getNexusServiceOptions());
+      this.defaultChildWorkflowOptions =
+          workflowImplementationOptions.getDefaultChildWorkflowOptions();
+      this.childWorkflowOptionsMap =
+          new HashMap<>(workflowImplementationOptions.getChildWorkflowOptions());
     }
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
@@ -212,6 +218,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public @Nonnull Map<String, NexusServiceOptions> getNexusServiceOptions() {
     return nexusServiceOptionsMap != null
         ? Collections.unmodifiableMap(nexusServiceOptionsMap)
+        : Collections.emptyMap();
+  }
+
+  public ChildWorkflowOptions getDefaultChildWorkflowOptions() {
+    return defaultChildWorkflowOptions;
+  }
+
+  public @Nonnull Map<String, ChildWorkflowOptions> getChildWorkflowOptions() {
+    return childWorkflowOptionsMap != null
+        ? Collections.unmodifiableMap(childWorkflowOptionsMap)
         : Collections.emptyMap();
   }
 

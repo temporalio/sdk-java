@@ -391,6 +391,31 @@ public final class WorkflowInternal {
   @SuppressWarnings("unchecked")
   public static <T> T newChildWorkflowStub(
       Class<T> workflowInterface, ChildWorkflowOptions options) {
+    SyncWorkflowContext context = getRootWorkflowContext();
+
+    // Look up the per-type options predefined for this workflow type through
+    // WorkflowImplementationOptions.setChildWorkflowOptions(Map).
+    ChildWorkflowOptions perTypeOptions = null;
+    POJOWorkflowInterfaceMetadata workflowMetadata =
+        POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
+        workflowMetadata.getWorkflowMethod();
+    if (workflowMethodMetadata.isPresent()) {
+      String workflowType = workflowMethodMetadata.get().getName();
+      perTypeOptions = context.getChildWorkflowOptions().get(workflowType);
+    }
+
+    ChildWorkflowOptions defaultOptions = context.getDefaultChildWorkflowOptions();
+    if (defaultOptions != null || perTypeOptions != null) {
+      // Precedence from lowest to highest: default options < per-type options < the options passed
+      // to this method. Each layer overrides only the non-null fields of the layers below it.
+      options =
+          ChildWorkflowOptions.newBuilder(defaultOptions)
+              .mergeChildWorkflowOptions(perTypeOptions)
+              .mergeChildWorkflowOptions(options)
+              .build();
+    }
+
     return (T)
         Proxy.newProxyInstance(
             workflowInterface.getClassLoader(),

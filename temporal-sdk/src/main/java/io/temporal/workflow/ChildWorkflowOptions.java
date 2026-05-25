@@ -338,6 +338,75 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    /**
+     * Merges the provided override options into this builder. Any non-null fields in the override
+     * will take precedence over the fields in this builder.
+     *
+     * @param override ChildWorkflowOptions that overrides the current builder values.
+     * @return this builder.
+     */
+    @SuppressWarnings("deprecation")
+    public Builder mergeChildWorkflowOptions(ChildWorkflowOptions override) {
+      if (override == null) {
+        return this;
+      }
+      this.namespace = (override.getNamespace() == null) ? this.namespace : override.getNamespace();
+      this.workflowId =
+          (override.getWorkflowId() == null) ? this.workflowId : override.getWorkflowId();
+      this.workflowIdReusePolicy =
+          (override.getWorkflowIdReusePolicy() == null)
+              ? this.workflowIdReusePolicy
+              : override.getWorkflowIdReusePolicy();
+      this.workflowRunTimeout =
+          (override.getWorkflowRunTimeout() == null)
+              ? this.workflowRunTimeout
+              : override.getWorkflowRunTimeout();
+      this.workflowExecutionTimeout =
+          (override.getWorkflowExecutionTimeout() == null)
+              ? this.workflowExecutionTimeout
+              : override.getWorkflowExecutionTimeout();
+      this.workflowTaskTimeout =
+          (override.getWorkflowTaskTimeout() == null)
+              ? this.workflowTaskTimeout
+              : override.getWorkflowTaskTimeout();
+      this.taskQueue = (override.getTaskQueue() == null) ? this.taskQueue : override.getTaskQueue();
+      this.retryOptions =
+          (override.getRetryOptions() == null) ? this.retryOptions : override.getRetryOptions();
+      this.cronSchedule =
+          (override.getCronSchedule() == null) ? this.cronSchedule : override.getCronSchedule();
+      this.parentClosePolicy =
+          (override.getParentClosePolicy() == null)
+              ? this.parentClosePolicy
+              : override.getParentClosePolicy();
+      this.memo = (override.getMemo() == null) ? this.memo : override.getMemo();
+      this.searchAttributes =
+          (override.getSearchAttributes() == null)
+              ? this.searchAttributes
+              : override.getSearchAttributes();
+      this.typedSearchAttributes =
+          (override.getTypedSearchAttributes() == null)
+              ? this.typedSearchAttributes
+              : override.getTypedSearchAttributes();
+      this.contextPropagators =
+          (override.getContextPropagators() == null)
+              ? this.contextPropagators
+              : override.getContextPropagators();
+      this.cancellationType =
+          (override.getCancellationType() == null)
+              ? this.cancellationType
+              : override.getCancellationType();
+      this.versioningIntent =
+          (override.getVersioningIntent() == null)
+              ? this.versioningIntent
+              : override.getVersioningIntent();
+      this.staticSummary =
+          (override.getStaticSummary() == null) ? this.staticSummary : override.getStaticSummary();
+      this.staticDetails =
+          (override.getStaticDetails() == null) ? this.staticDetails : override.getStaticDetails();
+      this.priority = (override.getPriority() == null) ? this.priority : override.getPriority();
+      return this;
+    }
+
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
           namespace,
