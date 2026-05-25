@@ -3,6 +3,7 @@ package io.temporal.worker;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.Experimental;
+import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.NexusServiceOptions;
 import io.temporal.workflow.Workflow;
 import java.util.*;
@@ -42,6 +43,8 @@ public final class WorkflowImplementationOptions {
     private LocalActivityOptions defaultLocalActivityOptions;
     private Map<String, NexusServiceOptions> nexusServiceOptions;
     private NexusServiceOptions defaultNexusServiceOptions;
+    private Map<String, ChildWorkflowOptions> childWorkflowOptions;
+    private ChildWorkflowOptions defaultChildWorkflowOptions;
     private boolean enableUpsertVersionSearchAttributes;
 
     private Builder() {}
@@ -57,6 +60,8 @@ public final class WorkflowImplementationOptions {
       this.defaultLocalActivityOptions = options.getDefaultLocalActivityOptions();
       this.nexusServiceOptions = options.getNexusServiceOptions();
       this.defaultNexusServiceOptions = options.getDefaultNexusServiceOptions();
+      this.childWorkflowOptions = options.getChildWorkflowOptions();
+      this.defaultChildWorkflowOptions = options.getDefaultChildWorkflowOptions();
       this.enableUpsertVersionSearchAttributes = options.isEnableUpsertVersionSearchAttributes();
     }
 
@@ -159,6 +164,34 @@ public final class WorkflowImplementationOptions {
     }
 
     /**
+     * Set individual child workflow options per workflow type. Will be merged with the options from
+     * {@link io.temporal.workflow.Workflow#newChildWorkflowStub(Class, ChildWorkflowOptions)} which
+     * has the highest precedence.
+     *
+     * @param childWorkflowOptions map from workflow type to ChildWorkflowOptions
+     */
+    public Builder setChildWorkflowOptions(Map<String, ChildWorkflowOptions> childWorkflowOptions) {
+      this.childWorkflowOptions = new HashMap<>(Objects.requireNonNull(childWorkflowOptions));
+      return this;
+    }
+
+    /**
+     * These child workflow options have the lowest precedence across all child workflow options.
+     * Will be overwritten entirely by {@link
+     * io.temporal.workflow.Workflow#newChildWorkflowStub(Class, ChildWorkflowOptions)} and then by
+     * the individual child workflow options if any are set through {@link
+     * #setChildWorkflowOptions(Map)}
+     *
+     * @param defaultChildWorkflowOptions ChildWorkflowOptions for all child workflows in the
+     *     workflow.
+     */
+    public Builder setDefaultChildWorkflowOptions(
+        ChildWorkflowOptions defaultChildWorkflowOptions) {
+      this.defaultChildWorkflowOptions = Objects.requireNonNull(defaultChildWorkflowOptions);
+      return this;
+    }
+
+    /**
      * Enable upserting version search attributes on {@link Workflow#getVersion}. This will cause
      * the SDK to automatically add the <b>TemporalChangeVersion</b> search attributes to the
      * workflow when getVersion is called. This search attribute is a keyword list of all the
@@ -187,6 +220,8 @@ public final class WorkflowImplementationOptions {
           defaultLocalActivityOptions,
           nexusServiceOptions == null ? null : nexusServiceOptions,
           defaultNexusServiceOptions,
+          childWorkflowOptions == null ? null : childWorkflowOptions,
+          defaultChildWorkflowOptions,
           enableUpsertVersionSearchAttributes);
     }
   }
@@ -198,6 +233,8 @@ public final class WorkflowImplementationOptions {
   private final LocalActivityOptions defaultLocalActivityOptions;
   private final @Nullable Map<String, NexusServiceOptions> nexusServiceOptions;
   private final NexusServiceOptions defaultNexusServiceOptions;
+  private final @Nullable Map<String, ChildWorkflowOptions> childWorkflowOptions;
+  private final ChildWorkflowOptions defaultChildWorkflowOptions;
   private final boolean enableUpsertVersionSearchAttributes;
 
   public WorkflowImplementationOptions(
@@ -208,6 +245,8 @@ public final class WorkflowImplementationOptions {
       LocalActivityOptions defaultLocalActivityOptions,
       @Nullable Map<String, NexusServiceOptions> nexusServiceOptions,
       NexusServiceOptions defaultNexusServiceOptions,
+      @Nullable Map<String, ChildWorkflowOptions> childWorkflowOptions,
+      ChildWorkflowOptions defaultChildWorkflowOptions,
       boolean enableUpsertVersionSearchAttributes) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
@@ -216,6 +255,8 @@ public final class WorkflowImplementationOptions {
     this.defaultLocalActivityOptions = defaultLocalActivityOptions;
     this.nexusServiceOptions = nexusServiceOptions;
     this.defaultNexusServiceOptions = defaultNexusServiceOptions;
+    this.childWorkflowOptions = childWorkflowOptions;
+    this.defaultChildWorkflowOptions = defaultChildWorkflowOptions;
     this.enableUpsertVersionSearchAttributes = enableUpsertVersionSearchAttributes;
   }
 
@@ -253,6 +294,16 @@ public final class WorkflowImplementationOptions {
     return defaultNexusServiceOptions;
   }
 
+  public @Nonnull Map<String, ChildWorkflowOptions> getChildWorkflowOptions() {
+    return childWorkflowOptions != null
+        ? Collections.unmodifiableMap(childWorkflowOptions)
+        : Collections.emptyMap();
+  }
+
+  public ChildWorkflowOptions getDefaultChildWorkflowOptions() {
+    return defaultChildWorkflowOptions;
+  }
+
   @Experimental
   public boolean isEnableUpsertVersionSearchAttributes() {
     return enableUpsertVersionSearchAttributes;
@@ -275,6 +326,10 @@ public final class WorkflowImplementationOptions {
         + nexusServiceOptions
         + ", defaultNexusServiceOptions="
         + defaultNexusServiceOptions
+        + ", childWorkflowOptions="
+        + childWorkflowOptions
+        + ", defaultChildWorkflowOptions="
+        + defaultChildWorkflowOptions
         + ", enableUpsertVersionSearchAttributes="
         + enableUpsertVersionSearchAttributes
         + '}';
@@ -292,6 +347,8 @@ public final class WorkflowImplementationOptions {
         && Objects.equals(defaultLocalActivityOptions, that.defaultLocalActivityOptions)
         && Objects.equals(nexusServiceOptions, that.nexusServiceOptions)
         && Objects.equals(defaultNexusServiceOptions, that.defaultNexusServiceOptions)
+        && Objects.equals(childWorkflowOptions, that.childWorkflowOptions)
+        && Objects.equals(defaultChildWorkflowOptions, that.defaultChildWorkflowOptions)
         && Objects.equals(
             enableUpsertVersionSearchAttributes, that.enableUpsertVersionSearchAttributes);
   }
@@ -306,6 +363,8 @@ public final class WorkflowImplementationOptions {
             defaultLocalActivityOptions,
             nexusServiceOptions,
             defaultNexusServiceOptions,
+            childWorkflowOptions,
+            defaultChildWorkflowOptions,
             enableUpsertVersionSearchAttributes);
     result = 31 * result + Arrays.hashCode(failWorkflowExceptionTypes);
     return result;
