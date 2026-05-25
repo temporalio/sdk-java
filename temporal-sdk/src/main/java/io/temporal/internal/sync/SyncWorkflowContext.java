@@ -215,6 +215,18 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         : Collections.emptyMap();
   }
 
+  /**
+   * Unlike the activity options above, the child workflow options have no runtime mutators, so they
+   * are served directly from the immutable {@link WorkflowImplementationOptions}.
+   */
+  public ChildWorkflowOptions getDefaultChildWorkflowOptions() {
+    return workflowImplementationOptions.getDefaultChildWorkflowOptions();
+  }
+
+  public @Nonnull Map<String, ChildWorkflowOptions> getChildWorkflowOptions() {
+    return workflowImplementationOptions.getChildWorkflowOptions();
+  }
+
   public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
     this.defaultActivityOptions =
         (this.defaultActivityOptions == null)

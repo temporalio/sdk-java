@@ -12,6 +12,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -335,6 +336,89 @@ public final class ChildWorkflowOptions {
     @Experimental
     public Builder setPriority(Priority priority) {
       this.priority = priority;
+      return this;
+    }
+
+    /**
+     * Merges the provided override options into this builder. Any non-null fields in the override
+     * will take precedence over the fields in this builder, with the following exceptions:
+     *
+     * <ul>
+     *   <li>{@code contextPropagators} lists are concatenated instead of replaced, matching {@link
+     *       io.temporal.activity.ActivityOptions.Builder#mergeActivityOptions(
+     *       io.temporal.activity.ActivityOptions)}.
+     *   <li>The mutually exclusive {@code searchAttributes} and {@code typedSearchAttributes} are
+     *       merged as a single logical field: an override that specifies either flavor replaces
+     *       both, so the merged options never carry both flavors at once.
+     *   <li>A {@code versioningIntent} of {@link VersioningIntent#VERSIONING_INTENT_UNSPECIFIED} is
+     *       treated as unset.
+     * </ul>
+     *
+     * @param override ChildWorkflowOptions that overrides the current builder values.
+     * @return this builder.
+     */
+    @SuppressWarnings("deprecation")
+    public Builder mergeChildWorkflowOptions(ChildWorkflowOptions override) {
+      if (override == null) {
+        return this;
+      }
+      this.namespace = (override.getNamespace() == null) ? this.namespace : override.getNamespace();
+      this.workflowId =
+          (override.getWorkflowId() == null) ? this.workflowId : override.getWorkflowId();
+      this.workflowIdReusePolicy =
+          (override.getWorkflowIdReusePolicy() == null)
+              ? this.workflowIdReusePolicy
+              : override.getWorkflowIdReusePolicy();
+      this.workflowRunTimeout =
+          (override.getWorkflowRunTimeout() == null)
+              ? this.workflowRunTimeout
+              : override.getWorkflowRunTimeout();
+      this.workflowExecutionTimeout =
+          (override.getWorkflowExecutionTimeout() == null)
+              ? this.workflowExecutionTimeout
+              : override.getWorkflowExecutionTimeout();
+      this.workflowTaskTimeout =
+          (override.getWorkflowTaskTimeout() == null)
+              ? this.workflowTaskTimeout
+              : override.getWorkflowTaskTimeout();
+      this.taskQueue = (override.getTaskQueue() == null) ? this.taskQueue : override.getTaskQueue();
+      this.retryOptions =
+          (override.getRetryOptions() == null) ? this.retryOptions : override.getRetryOptions();
+      this.cronSchedule =
+          (override.getCronSchedule() == null) ? this.cronSchedule : override.getCronSchedule();
+      this.parentClosePolicy =
+          (override.getParentClosePolicy() == null)
+              ? this.parentClosePolicy
+              : override.getParentClosePolicy();
+      this.memo = (override.getMemo() == null) ? this.memo : override.getMemo();
+      // searchAttributes and typedSearchAttributes are mutually exclusive (the setters reject
+      // mixing them), so they are merged as one logical field: an override specifying either
+      // flavor replaces both, otherwise the merged options could carry both flavors and fail at
+      // child-scheduling time.
+      if (override.getSearchAttributes() != null || override.getTypedSearchAttributes() != null) {
+        this.searchAttributes = override.getSearchAttributes();
+        this.typedSearchAttributes = override.getTypedSearchAttributes();
+      }
+      if (this.contextPropagators == null) {
+        this.contextPropagators = override.getContextPropagators();
+      } else if (override.getContextPropagators() != null) {
+        List<ContextPropagator> mergedPropagators = new ArrayList<>(this.contextPropagators);
+        mergedPropagators.addAll(override.getContextPropagators());
+        this.contextPropagators = mergedPropagators;
+      }
+      this.cancellationType =
+          (override.getCancellationType() == null)
+              ? this.cancellationType
+              : override.getCancellationType();
+      if (override.getVersioningIntent() != null
+          && override.getVersioningIntent() != VersioningIntent.VERSIONING_INTENT_UNSPECIFIED) {
+        this.versioningIntent = override.getVersioningIntent();
+      }
+      this.staticSummary =
+          (override.getStaticSummary() == null) ? this.staticSummary : override.getStaticSummary();
+      this.staticDetails =
+          (override.getStaticDetails() == null) ? this.staticDetails : override.getStaticDetails();
+      this.priority = (override.getPriority() == null) ? this.priority : override.getPriority();
       return this;
     }
 
