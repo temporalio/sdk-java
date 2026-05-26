@@ -8,9 +8,12 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.Duration;
 import io.nexusrpc.Header;
 import io.nexusrpc.handler.*;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.nexus.v1.Request;
 import io.temporal.api.nexus.v1.StartOperationRequest;
+import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
@@ -155,6 +158,83 @@ public class NexusTaskHandlerImplTest {
     Assert.assertNotNull(result.getResponse());
     Assert.assertEquals(
         "test id", result.getResponse().getStartOperation().getAsyncSuccess().getOperationToken());
+  }
+
+  /**
+   * Verify that signal-response backlinks stashed on the {@link InternalNexusOperationContext}
+   * during a handler invocation are merged into the resulting {@code StartOperationResponse.Async}
+   * via {@link io.temporal.internal.common.LinkConverter}. No server required.
+   */
+  @Test
+  public void asyncResponseIncludesSignalBacklinks() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(
+        new Object[] {new BacklinkStashingAsyncServiceImpl()});
+    nexusTaskHandlerImpl.start();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService1")
+                            .setPayload(dataConverter.toPayload("op-token").get())
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+
+    Assert.assertNull(result.getHandlerException());
+    StartOperationResponse.Async async = result.getResponse().getStartOperation().getAsyncSuccess();
+    Assert.assertEquals("op-token", async.getOperationToken());
+    Assert.assertEquals(
+        "expected one signal backlink on the async response", 1, async.getLinksCount());
+    // The backlink was stashed as a WorkflowEvent for callee workflowId "callee-wf"; the response
+    // should contain a temporal:// URL referencing that workflow.
+    Assert.assertTrue(
+        "expected backlink URL to reference the callee workflow, got: "
+            + async.getLinks(0).getUrl(),
+        async.getLinks(0).getUrl().contains("callee-wf"));
+  }
+
+  /**
+   * Handler that simulates what a real Nexus operation would do after issuing a signal: stash a
+   * backlink on the operation context, then return an async result. Lets us exercise the
+   * async-response link merge in {@link NexusTaskHandlerImpl} without standing up a real signal
+   * RPC.
+   */
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public class BacklinkStashingAsyncServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return new OperationHandler<String, String>() {
+        @Override
+        public OperationStartResult<String> start(
+            OperationContext ctx, OperationStartDetails details, @Nullable String token) {
+          Link backlink =
+              Link.newBuilder()
+                  .setWorkflowEvent(
+                      Link.WorkflowEvent.newBuilder()
+                          .setNamespace(NAMESPACE)
+                          .setWorkflowId("callee-wf")
+                          .setRunId("callee-run-id")
+                          .setEventRef(
+                              Link.WorkflowEvent.EventReference.newBuilder()
+                                  .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
+                  .build();
+          CurrentNexusOperationContext.get().addSignalWorkflowResponseLink(backlink);
+          return OperationStartResult.async(token);
+        }
+
+        @Override
+        public void cancel(OperationContext ctx, OperationCancelDetails details) {}
+      };
+    }
   }
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
