@@ -124,7 +124,7 @@ public interface UntypedNexusOperationHandle {
    *
    * @return detailed information about the operation
    */
-  NexusClientOperationExecutionDescription describe();
+  NexusOperationExecutionDescription describe();
 
   /** Requests cancellation of the Nexus operation. */
   void cancel();

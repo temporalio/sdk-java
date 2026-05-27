@@ -7,7 +7,7 @@ import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
 import io.temporal.client.NexusClient;
-import io.temporal.client.NexusClientOperationExecutionDescription;
+import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
@@ -47,7 +47,7 @@ public interface NexusClientCallsInterceptor {
    *
    * @param input operation ID, optional run ID, and flags controlling whether to include input and
    *     outcome payloads
-   * @return output wrapping the {@link io.temporal.client.NexusClientOperationExecutionDescription}
+   * @return output wrapping the {@link NexusOperationExecutionDescription}
    */
   DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
       DescribeNexusOperationExecutionInput input);
@@ -228,14 +228,14 @@ public interface NexusClientCallsInterceptor {
   }
 
   final class DescribeNexusOperationExecutionOutput {
-    private final NexusClientOperationExecutionDescription description;
+    private final NexusOperationExecutionDescription description;
 
     public DescribeNexusOperationExecutionOutput(
-        NexusClientOperationExecutionDescription description) {
+        NexusOperationExecutionDescription description) {
       this.description = description;
     }
 
-    public NexusClientOperationExecutionDescription getDescription() {
+    public NexusOperationExecutionDescription getDescription() {
       return description;
     }
   }

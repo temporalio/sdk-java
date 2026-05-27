@@ -8,7 +8,7 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
-import io.temporal.client.NexusClientOperationExecutionDescription;
+import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
@@ -53,7 +53,7 @@ public class NexusOperationHandleTest {
     UntypedNexusOperationHandle handle =
         started.client.getHandle(started.operationId, started.runId);
 
-    NexusClientOperationExecutionDescription description = handle.describe();
+    NexusOperationExecutionDescription description = handle.describe();
 
     Assert.assertNotNull(description);
     Assert.assertNotNull(description.getRunId());
@@ -67,7 +67,7 @@ public class NexusOperationHandleTest {
     // Handle with no pinned run ID — server should resolve to the latest run.
     UntypedNexusOperationHandle handle = started.client.getHandle(started.operationId);
 
-    NexusClientOperationExecutionDescription description = handle.describe();
+    NexusOperationExecutionDescription description = handle.describe();
 
     Assert.assertNotNull(description);
     Assert.assertEquals(started.runId, description.getRunId());

@@ -98,7 +98,7 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
   }
 
   @Override
-  public NexusClientOperationExecutionDescription describe() {
+  public NexusOperationExecutionDescription describe() {
     DescribeNexusOperationExecutionInput input =
         new DescribeNexusOperationExecutionInput(
             operationId, runId, /* includeInput= */ false, /* includeOutcome= */ true);

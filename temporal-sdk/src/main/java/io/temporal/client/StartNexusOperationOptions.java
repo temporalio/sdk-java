@@ -57,7 +57,7 @@ public final class StartNexusOperationOptions {
     }
 
     /**
-     * Optional. Unique identifier for this operation within its namespace. If unset, the SDK
+     * Required. Unique identifier for this operation within its namespace. If left null, the SDK
      * generates a random UUID.
      */
     public Builder setId(@Nullable String id) {

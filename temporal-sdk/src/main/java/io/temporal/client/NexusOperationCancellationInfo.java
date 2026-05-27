@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 
 /**
  * Information about a cancellation request issued against a standalone Nexus operation execution.
- * Returned by {@link NexusClientOperationExecutionDescription#getCancellationInfo()}.
+ * Returned by {@link NexusOperationExecutionDescription#getCancellationInfo()}.
  */
 @Experimental
 public final class NexusOperationCancellationInfo {
