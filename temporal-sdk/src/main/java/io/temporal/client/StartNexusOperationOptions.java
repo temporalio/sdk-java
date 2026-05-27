@@ -5,8 +5,6 @@ import io.temporal.api.enums.v1.NexusOperationIdReusePolicy;
 import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributes;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -38,7 +36,6 @@ public final class StartNexusOperationOptions {
     private @Nullable Duration scheduleToStartTimeout;
     private @Nullable Duration startToCloseTimeout;
     private @Nullable SearchAttributes typedSearchAttributes;
-    private Map<String, String> nexusHeader = Collections.emptyMap();
     private @Nullable String summary;
     private @Nullable NexusOperationIdReusePolicy idReusePolicy;
     private @Nullable NexusOperationIdConflictPolicy idConflictPolicy;
@@ -54,7 +51,6 @@ public final class StartNexusOperationOptions {
       this.scheduleToStartTimeout = options.scheduleToStartTimeout;
       this.startToCloseTimeout = options.startToCloseTimeout;
       this.typedSearchAttributes = options.typedSearchAttributes;
-      this.nexusHeader = options.nexusHeader;
       this.summary = options.summary;
       this.idReusePolicy = options.idReusePolicy;
       this.idConflictPolicy = options.idConflictPolicy;
@@ -93,12 +89,6 @@ public final class StartNexusOperationOptions {
       return this;
     }
 
-    /** Nexus protocol headers forwarded to the handler. */
-    public Builder setNexusHeader(@Nullable Map<String, String> nexusHeader) {
-      this.nexusHeader = nexusHeader == null ? Collections.emptyMap() : nexusHeader;
-      return this;
-    }
-
     /** Short summary for UI display. */
     public Builder setSummary(@Nullable String summary) {
       this.summary = summary;
@@ -127,7 +117,6 @@ public final class StartNexusOperationOptions {
   private final @Nullable Duration scheduleToStartTimeout;
   private final @Nullable Duration startToCloseTimeout;
   private final @Nullable SearchAttributes typedSearchAttributes;
-  private final Map<String, String> nexusHeader;
   private final @Nullable String summary;
   private final @Nullable NexusOperationIdReusePolicy idReusePolicy;
   private final @Nullable NexusOperationIdConflictPolicy idConflictPolicy;
@@ -138,7 +127,6 @@ public final class StartNexusOperationOptions {
     this.scheduleToStartTimeout = builder.scheduleToStartTimeout;
     this.startToCloseTimeout = builder.startToCloseTimeout;
     this.typedSearchAttributes = builder.typedSearchAttributes;
-    this.nexusHeader = Collections.unmodifiableMap(builder.nexusHeader);
     this.summary = builder.summary;
     this.idReusePolicy = builder.idReusePolicy;
     this.idConflictPolicy = builder.idConflictPolicy;
@@ -173,10 +161,6 @@ public final class StartNexusOperationOptions {
     return typedSearchAttributes;
   }
 
-  public Map<String, String> getNexusHeader() {
-    return nexusHeader;
-  }
-
   @Nullable
   public String getSummary() {
     return summary;
@@ -202,7 +186,6 @@ public final class StartNexusOperationOptions {
         && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equals(typedSearchAttributes, that.typedSearchAttributes)
-        && Objects.equals(nexusHeader, that.nexusHeader)
         && Objects.equals(summary, that.summary)
         && idReusePolicy == that.idReusePolicy
         && idConflictPolicy == that.idConflictPolicy;
@@ -216,7 +199,6 @@ public final class StartNexusOperationOptions {
         scheduleToStartTimeout,
         startToCloseTimeout,
         typedSearchAttributes,
-        nexusHeader,
         summary,
         idReusePolicy,
         idConflictPolicy);
@@ -235,8 +217,6 @@ public final class StartNexusOperationOptions {
         + startToCloseTimeout
         + ", typedSearchAttributes="
         + typedSearchAttributes
-        + ", nexusHeader="
-        + nexusHeader
         + ", summary='"
         + summary
         + "', idReusePolicy="

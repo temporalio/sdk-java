@@ -13,6 +13,7 @@ import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -30,28 +31,93 @@ import javax.annotation.Nullable;
 @Experimental
 public interface NexusClientCallsInterceptor {
 
+  /**
+   * Starts a standalone Nexus operation. The endpoint, service, operation name, input, and
+   * scheduling options are carried in {@code input}.
+   *
+   * @param input endpoint, service name, operation name, encoded input, and start options
+   * @return output containing the operation ID, server-assigned run ID, and whether the operation
+   *     was started by this call (vs. de-duplicated to an existing one)
+   */
   StartNexusOperationExecutionOutput startNexusOperationExecution(
       StartNexusOperationExecutionInput input);
 
+  /**
+   * Returns a point-in-time snapshot of a standalone Nexus operation execution.
+   *
+   * @param input operation ID, optional run ID, and flags controlling whether to include input and
+   *     outcome payloads
+   * @return output wrapping the {@link io.temporal.client.NexusClientOperationExecutionDescription}
+   */
   DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
       DescribeNexusOperationExecutionInput input);
 
+  /**
+   * Synchronously long-polls the server until the Nexus operation reaches the wait stage requested
+   * in {@code input}, then returns the outcome. Blocks the calling thread for the duration.
+   *
+   * @param input operation ID, optional run ID, target wait stage, and the deadline bounding the
+   *     poll
+   * @return output containing the run ID, wait stage reached, operation token, and either the
+   *     result payload or failure (when the operation has reached a terminal stage)
+   */
   PollNexusOperationExecutionOutput pollNexusOperationExecution(
       PollNexusOperationExecutionInput input);
 
+  /**
+   * Asynchronous variant of {@link #pollNexusOperationExecution} that returns a future without
+   * blocking the calling thread.
+   *
+   * @param input operation ID, optional run ID, target wait stage, and the deadline bounding the
+   *     poll
+   * @return a future that completes with the poll output, or completes exceptionally if the poll
+   *     fails or the deadline expires
+   */
   CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
       PollNexusOperationExecutionInput input);
 
+  /**
+   * Lists standalone Nexus operation executions matching a Visibility query, with paging support.
+   *
+   * @param input Visibility query string, page size, and optional next-page token from a prior call
+   * @return output wrapping the matching operations and the next-page token (empty when the result
+   *     set is exhausted)
+   */
   ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input);
 
+  /**
+   * Returns the count of standalone Nexus operation executions matching a Visibility query,
+   * optionally grouped by attribute.
+   *
+   * @param input Visibility query string
+   * @return output wrapping the total count and any aggregation groups
+   */
   CountNexusOperationExecutionsOutput countNexusOperationExecutions(
       CountNexusOperationExecutionsInput input);
 
+  /**
+   * Requests cancellation of a running standalone Nexus operation. The server forwards the cancel
+   * request to the operation handler, which may honour or ignore it.
+   *
+   * @param input operation ID, optional run ID, and optional human-readable cancellation reason
+   */
   void requestCancelNexusOperationExecution(RequestCancelNexusOperationExecutionInput input);
 
+  /**
+   * Forcefully terminates a standalone Nexus operation. Unlike cancellation, termination is
+   * immediate and cannot be intercepted by the operation handler.
+   *
+   * @param input operation ID, optional run ID, and optional human-readable termination reason
+   */
   void terminateNexusOperationExecution(TerminateNexusOperationExecutionInput input);
 
+  /**
+   * Deletes a closed standalone Nexus operation execution from the server's visibility store. The
+   * operation must already be in a terminal state.
+   *
+   * @param input operation ID and optional run ID
+   */
   void deleteNexusOperationExecution(DeleteNexusOperationExecutionInput input);
 
   final class StartNexusOperationExecutionInput {
@@ -60,18 +126,21 @@ public interface NexusClientCallsInterceptor {
     private final String operation;
     private final @Nullable Payload input;
     private final StartNexusOperationOptions options;
+    private final Map<String, String> headers;
 
     public StartNexusOperationExecutionInput(
         String endpoint,
         String service,
         String operation,
         @Nullable Payload input,
-        StartNexusOperationOptions options) {
+        StartNexusOperationOptions options,
+        Map<String, String> headers) {
       this.endpoint = endpoint;
       this.service = service;
       this.operation = operation;
       this.input = input;
       this.options = options;
+      this.headers = headers == null ? Collections.emptyMap() : headers;
     }
 
     public String getEndpoint() {
@@ -92,6 +161,14 @@ public interface NexusClientCallsInterceptor {
 
     public StartNexusOperationOptions getOptions() {
       return options;
+    }
+
+    /**
+     * Nexus protocol headers to forward to the handler. Interceptors implementing context
+     * propagation (tracing, baggage, etc.) populate this map by wrapping the call chain.
+     */
+    public Map<String, String> getHeaders() {
+      return headers;
     }
   }
 

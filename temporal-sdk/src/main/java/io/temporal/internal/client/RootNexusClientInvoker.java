@@ -54,8 +54,9 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
             .setOperationId(operationId)
             .setEndpoint(input.getEndpoint())
             .setService(input.getService())
-            .setOperation(input.getOperation())
-            .putAllNexusHeader(options.getNexusHeader());
+            .setOperation(input.getOperation());
+    // Ensure that the headers are lowercase.
+    input.getHeaders().forEach((k, v) -> request.putNexusHeader(k.toLowerCase(), v));
 
     if (options.getScheduleToCloseTimeout() != null) {
       request.setScheduleToCloseTimeout(
@@ -103,7 +104,8 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     DescribeNexusOperationExecutionResponse response =
         genericClient.describeNexusOperationExecution(request);
     return new DescribeNexusOperationExecutionOutput(
-        new NexusClientOperationExecutionDescription(response));
+        new NexusClientOperationExecutionDescription(
+            response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(

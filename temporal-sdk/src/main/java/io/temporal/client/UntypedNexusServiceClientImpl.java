@@ -7,6 +7,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionOutput;
 import java.lang.reflect.Type;
+import java.util.Collections;
 import javax.annotation.Nullable;
 
 /**
@@ -47,7 +48,8 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
             serviceName,
             operation,
             payload,
-            options != null ? options : StartNexusOperationOptions.getDefaultInstance());
+            options != null ? options : StartNexusOperationOptions.getDefaultInstance(),
+            Collections.emptyMap());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
     return new NexusOperationHandleImpl<>(
         invoker, output.getOperationId(), output.getRunId(), dataConverter);
