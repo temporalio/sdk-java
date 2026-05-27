@@ -26,12 +26,6 @@ import javax.annotation.Nullable;
  */
 public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
 
-  /**
-   * Per-poll deadline used by {@link #getResult} and {@link #getResultAsync}. The server holds the
-   * request up to this long waiting for completion; if the operation hasn't finished, we re-poll.
-   */
-  private static final long POLL_DEADLINE_SECONDS = 60;
-
   final NexusClientCallsInterceptor interceptor;
   final String operationId;
   final @Nullable String runId;
@@ -142,8 +136,11 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
 
   @Override
   public <X> X getResult(Class<X> resultClass, @Nullable Type resultType) {
-    PollNexusOperationExecutionOutput out = pollUntilCompleted();
-    return extractResult(out, resultClass, resultType);
+    try {
+      return getResult(Integer.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
+    } catch (TimeoutException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -153,7 +150,7 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
 
   @Override
   public <X> CompletableFuture<X> getResultAsync(Class<X> resultClass, @Nullable Type resultType) {
-    return pollAsyncUntilCompleted().thenApply(out -> extractResult(out, resultClass, resultType));
+    return getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
   }
 
   @Override
@@ -166,8 +163,8 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
   public <X> X getResult(
       long timeout, TimeUnit unit, Class<X> resultClass, @Nullable Type resultType)
       throws TimeoutException {
-    long deadlineNanos = System.nanoTime() + unit.toNanos(timeout);
-    PollNexusOperationExecutionOutput out = pollSyncUntilCompletedOrDeadline(deadlineNanos);
+    PollNexusOperationExecutionOutput out =
+        pollSyncUntilCompletedOrDeadline(Deadline.after(timeout, unit));
     return extractResult(out, resultClass, resultType);
   }
 
@@ -180,8 +177,7 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
   @Override
   public <X> CompletableFuture<X> getResultAsync(
       long timeout, TimeUnit unit, Class<X> resultClass, @Nullable Type resultType) {
-    long deadlineNanos = System.nanoTime() + unit.toNanos(timeout);
-    return pollAsyncUntilCompletedOrDeadline(deadlineNanos)
+    return pollAsyncUntilCompletedOrDeadline(Deadline.after(timeout, unit))
         .thenApply(out -> extractResult(out, resultClass, resultType));
   }
 
@@ -221,51 +217,21 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
     return getResultAsync(timeout, unit, resultClass, resultType);
   }
 
-  /** Long-poll loop: re-poll if the server returns before the operation completes. */
-  private PollNexusOperationExecutionOutput pollUntilCompleted() {
-    while (true) {
-      PollNexusOperationExecutionOutput out =
-          interceptor.pollNexusOperationExecution(buildPollInput());
-      if (out.getWaitStage() == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
-        return out;
-      }
-    }
-  }
-
-  /** Async long-poll loop using {@code thenCompose} to recurse without blocking a thread. */
-  private CompletableFuture<PollNexusOperationExecutionOutput> pollAsyncUntilCompleted() {
-    return interceptor
-        .pollNexusOperationExecutionAsync(buildPollInput())
-        .thenCompose(
-            out -> {
-              if (out.getWaitStage() == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
-                return CompletableFuture.completedFuture(out);
-              }
-              return pollAsyncUntilCompleted();
-            });
-  }
-
-  /** Sync poll loop bounded by an absolute nanos deadline. */
-  private PollNexusOperationExecutionOutput pollSyncUntilCompletedOrDeadline(long deadlineNanos)
+  /** Sync long-poll loop bounded by {@code deadline}. */
+  private PollNexusOperationExecutionOutput pollSyncUntilCompletedOrDeadline(Deadline deadline)
       throws TimeoutException {
     while (true) {
-      long remainingNanos = deadlineNanos - System.nanoTime();
-      if (remainingNanos <= 0) {
-        throw new TimeoutException("getResult timed out before the operation completed");
-      }
-      long pollDeadlineNanos =
-          Math.min(remainingNanos, TimeUnit.SECONDS.toNanos(POLL_DEADLINE_SECONDS));
       PollNexusOperationExecutionInput pollInput =
           new PollNexusOperationExecutionInput(
               operationId,
               runId,
               NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED,
-              Deadline.after(pollDeadlineNanos, TimeUnit.NANOSECONDS));
+              deadline);
       PollNexusOperationExecutionOutput out;
       try {
         out = interceptor.pollNexusOperationExecution(pollInput);
       } catch (RuntimeException e) {
-        if (System.nanoTime() >= deadlineNanos) {
+        if (deadline.isExpired()) {
           TimeoutException timeout =
               new TimeoutException("getResult timed out before the operation completed");
           timeout.initCause(e);
@@ -279,24 +245,21 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
     }
   }
 
-  /** Async poll loop bounded by an absolute nanos deadline. */
+  /** Async long-poll loop bounded by {@code deadline}, recursing via {@code thenCompose}. */
   private CompletableFuture<PollNexusOperationExecutionOutput> pollAsyncUntilCompletedOrDeadline(
-      long deadlineNanos) {
-    long remainingNanos = deadlineNanos - System.nanoTime();
-    if (remainingNanos <= 0) {
+      Deadline deadline) {
+    if (deadline.isExpired()) {
       CompletableFuture<PollNexusOperationExecutionOutput> failed = new CompletableFuture<>();
       failed.completeExceptionally(
           new TimeoutException("getResultAsync timed out before the operation completed"));
       return failed;
     }
-    long pollDeadlineNanos =
-        Math.min(remainingNanos, TimeUnit.SECONDS.toNanos(POLL_DEADLINE_SECONDS));
     PollNexusOperationExecutionInput pollInput =
         new PollNexusOperationExecutionInput(
             operationId,
             runId,
             NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED,
-            Deadline.after(pollDeadlineNanos, TimeUnit.NANOSECONDS));
+            deadline);
     return interceptor
         .pollNexusOperationExecutionAsync(pollInput)
         .thenCompose(
@@ -304,16 +267,8 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
               if (out.getWaitStage() == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
                 return CompletableFuture.completedFuture(out);
               }
-              return pollAsyncUntilCompletedOrDeadline(deadlineNanos);
+              return pollAsyncUntilCompletedOrDeadline(deadline);
             });
-  }
-
-  private PollNexusOperationExecutionInput buildPollInput() {
-    return new PollNexusOperationExecutionInput(
-        operationId,
-        runId,
-        NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED,
-        Deadline.after(POLL_DEADLINE_SECONDS, TimeUnit.SECONDS));
   }
 
   /**

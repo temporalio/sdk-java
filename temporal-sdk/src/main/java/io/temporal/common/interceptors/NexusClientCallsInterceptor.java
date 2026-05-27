@@ -126,10 +126,7 @@ public interface NexusClientCallsInterceptor {
     private final boolean includeOutcome;
 
     public DescribeNexusOperationExecutionInput(
-        String operationId,
-        @Nullable String runId,
-        boolean includeInput,
-        boolean includeOutcome) {
+        String operationId, @Nullable String runId, boolean includeInput, boolean includeOutcome) {
       this.operationId = operationId;
       this.runId = runId;
       this.includeInput = includeInput;
