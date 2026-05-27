@@ -36,9 +36,6 @@ public interface NexusClientCallsInterceptor {
   DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
       DescribeNexusOperationExecutionInput input);
 
-  CompletableFuture<DescribeNexusOperationExecutionOutput> describeNexusOperationExecutionAsync(
-      DescribeNexusOperationExecutionInput input);
-
   PollNexusOperationExecutionOutput pollNexusOperationExecution(
       PollNexusOperationExecutionInput input);
 
@@ -127,19 +124,16 @@ public interface NexusClientCallsInterceptor {
     private final @Nullable String runId;
     private final boolean includeInput;
     private final boolean includeOutcome;
-    private final @Nonnull Deadline deadline;
 
     public DescribeNexusOperationExecutionInput(
         String operationId,
         @Nullable String runId,
         boolean includeInput,
-        boolean includeOutcome,
-        @Nonnull Deadline deadline) {
+        boolean includeOutcome) {
       this.operationId = operationId;
       this.runId = runId;
       this.includeInput = includeInput;
       this.includeOutcome = includeOutcome;
-      this.deadline = deadline;
     }
 
     public String getOperationId() {
@@ -156,10 +150,6 @@ public interface NexusClientCallsInterceptor {
 
     public boolean isIncludeOutcome() {
       return includeOutcome;
-    }
-
-    public Deadline getDeadline() {
-      return deadline;
     }
   }
 

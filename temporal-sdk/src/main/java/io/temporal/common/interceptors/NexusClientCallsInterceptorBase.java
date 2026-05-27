@@ -29,12 +29,6 @@ public class NexusClientCallsInterceptorBase implements NexusClientCallsIntercep
   }
 
   @Override
-  public CompletableFuture<DescribeNexusOperationExecutionOutput>
-      describeNexusOperationExecutionAsync(DescribeNexusOperationExecutionInput input) {
-    return next.describeNexusOperationExecutionAsync(input);
-  }
-
-  @Override
   public PollNexusOperationExecutionOutput pollNexusOperationExecution(
       PollNexusOperationExecutionInput input) {
     return next.pollNexusOperationExecution(input);

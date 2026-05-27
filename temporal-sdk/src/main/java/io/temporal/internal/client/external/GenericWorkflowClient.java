@@ -65,10 +65,7 @@ public interface GenericWorkflowClient {
       @Nonnull StartNexusOperationExecutionRequest request);
 
   DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
-      @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
-
-  CompletableFuture<DescribeNexusOperationExecutionResponse> describeNexusOperationExecutionAsync(
-      @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+      @Nonnull DescribeNexusOperationExecutionRequest request);
 
   PollNexusOperationExecutionResponse pollNexusOperationExecution(
       @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
@@ -106,9 +103,6 @@ public interface GenericWorkflowClient {
   StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request);
 
   @Experimental
-  PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request);
-
-  @Experimental
   PollActivityExecutionResponse pollActivity(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline);
 
@@ -124,9 +118,6 @@ public interface GenericWorkflowClient {
 
   @Experimental
   void terminateActivity(TerminateActivityExecutionRequest request);
-
-  @Experimental
-  ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request);
 
   @Experimental
   CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(

@@ -324,33 +324,14 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
-      @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
+      @Nonnull DescribeNexusOperationExecutionRequest request) {
     return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
-                .withDeadline(deadline)
                 .describeNexusOperationExecution(request),
-        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
-  }
-
-  @Override
-  public CompletableFuture<DescribeNexusOperationExecutionResponse>
-      describeNexusOperationExecutionAsync(
-          @Nonnull DescribeNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
-    return grpcRetryer.retryWithResultAsync(
-        asyncThrottlerExecutor,
-        () ->
-            toCompletableFuture(
-                service
-                    .futureStub()
-                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
-                    .withDeadline(deadline)
-                    .describeNexusOperationExecution(request)),
-        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
+        grpcRetryerOptions);
   }
 
   @Override
@@ -576,18 +557,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request) {
-    return grpcRetryer.retryWithResult(
-        () ->
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
-                .pollActivityExecution(request),
-        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, null));
-  }
-
-  @Override
   public PollActivityExecutionResponse pollActivity(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline) {
     return grpcRetryer.retryWithResult(
@@ -648,17 +617,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                 .terminateActivityExecution(request),
-        grpcRetryerOptions);
-  }
-
-  @Override
-  public ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request) {
-    return grpcRetryer.retryWithResult(
-        () ->
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .listActivityExecutions(request),
         grpcRetryerOptions);
   }
 

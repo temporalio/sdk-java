@@ -101,21 +101,9 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       DescribeNexusOperationExecutionInput input) {
     DescribeNexusOperationExecutionRequest request = buildDescribeRequest(input);
     DescribeNexusOperationExecutionResponse response =
-        genericClient.describeNexusOperationExecution(request, input.getDeadline());
+        genericClient.describeNexusOperationExecution(request);
     return new DescribeNexusOperationExecutionOutput(
         new NexusClientOperationExecutionDescription(response));
-  }
-
-  @Override
-  public CompletableFuture<DescribeNexusOperationExecutionOutput>
-      describeNexusOperationExecutionAsync(DescribeNexusOperationExecutionInput input) {
-    DescribeNexusOperationExecutionRequest request = buildDescribeRequest(input);
-    return genericClient
-        .describeNexusOperationExecutionAsync(request, input.getDeadline())
-        .thenApply(
-            response ->
-                new DescribeNexusOperationExecutionOutput(
-                    new NexusClientOperationExecutionDescription(response)));
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(

@@ -26,9 +26,6 @@ import javax.annotation.Nullable;
  */
 public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
 
-  /** Default deadline applied to per-handle non-poll RPCs (e.g. {@code describe}). */
-  private static final long DEFAULT_DEADLINE_SECONDS = 30;
-
   /**
    * Per-poll deadline used by {@link #getResult} and {@link #getResultAsync}. The server holds the
    * request up to this long waiting for completion; if the operation hasn't finished, we re-poll.
@@ -110,11 +107,7 @@ public class NexusOperationHandleImpl<R> implements NexusOperationHandle<R> {
   public NexusClientOperationExecutionDescription describe() {
     DescribeNexusOperationExecutionInput input =
         new DescribeNexusOperationExecutionInput(
-            operationId,
-            runId,
-            /* includeInput= */ false,
-            /* includeOutcome= */ true,
-            Deadline.after(DEFAULT_DEADLINE_SECONDS, TimeUnit.SECONDS));
+            operationId, runId, /* includeInput= */ false, /* includeOutcome= */ true);
     DescribeNexusOperationExecutionOutput output =
         interceptor.describeNexusOperationExecution(input);
     return output.getDescription();
