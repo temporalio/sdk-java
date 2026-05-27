@@ -61,9 +61,7 @@ public final class NexusOperationCancellationInfo {
         : null;
   }
 
-  /**
-   * Failure from the last cancel-delivery attempt. {@code null} if no failure has occurred yet.
-   */
+  /** Failure from the last cancel-delivery attempt. {@code null} if no failure has occurred yet. */
   @Nullable
   public Exception getLastAttemptFailure() {
     return info.hasLastAttemptFailure()

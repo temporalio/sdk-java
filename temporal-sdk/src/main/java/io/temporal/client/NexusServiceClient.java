@@ -9,8 +9,8 @@ import java.util.function.BiFunction;
  * Typed client for invoking standalone Nexus operations on a specific service interface {@code T}.
  *
  * <p>Operations are dispatched via method references (or {@link BiFunction} lambdas) that target
- * methods on {@code T}; the client extracts the operation name from the invocation and delegates
- * to {@link NexusClient}. For visibility queries (list/count) across operations, use {@link
+ * methods on {@code T}; the client extracts the operation name from the invocation and delegates to
+ * {@link NexusClient}. For visibility queries (list/count) across operations, use {@link
  * NexusClient} directly.
  *
  * @param <T> the Nexus service interface this client is bound to

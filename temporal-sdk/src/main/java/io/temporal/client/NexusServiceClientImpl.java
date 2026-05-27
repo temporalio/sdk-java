@@ -2,6 +2,7 @@ package io.temporal.client;
 
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
+import io.nexusrpc.OperationDefinition;
 import io.nexusrpc.ServiceDefinition;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
@@ -22,6 +23,7 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
     implements NexusServiceClient<T> {
 
   private final Class<T> serviceInterface;
+  private final ServiceDefinition serviceDef;
 
   static <T> NexusServiceClient<T> newInstance(
       Class<T> service, String endpoint, WorkflowServiceStubs stubs, NexusClientOptions options) {
@@ -41,8 +43,18 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       Class<T> serviceInterface,
       String endpoint,
       NexusClientOptions options) {
-    super(invoker, endpoint, ServiceDefinition.fromClass(serviceInterface).getName(), options);
+    this(invoker, serviceInterface, ServiceDefinition.fromClass(serviceInterface), endpoint, options);
+  }
+
+  private NexusServiceClientImpl(
+      NexusClientCallsInterceptor invoker,
+      Class<T> serviceInterface,
+      ServiceDefinition serviceDef,
+      String endpoint,
+      NexusClientOptions options) {
+    super(invoker, endpoint, serviceDef.getName(), options);
     this.serviceInterface = serviceInterface;
+    this.serviceDef = serviceDef;
   }
 
   @Override
@@ -50,10 +62,20 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
     Method method =
         MethodExtractor.extract(serviceInterface, (Functions.Func2<T, U, R>) operation::apply);
-    String operationName = MethodExtractor.nexusOperationName(method);
+    OperationDefinition opDef =
+        serviceDef.getOperations().values().stream()
+            .filter(o -> method.getName().equals(o.getMethodName()))
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "Method "
+                            + method.getName()
+                            + " is not a Nexus operation on "
+                            + serviceInterface.getName()));
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
-    UntypedNexusOperationHandle untyped = start(operationName, options, input);
+    UntypedNexusOperationHandle untyped = start(opDef.getName(), options, input);
     return NexusOperationHandle.fromUntyped(untyped, resultClass, method.getGenericReturnType());
   }
 }

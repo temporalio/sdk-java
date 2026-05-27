@@ -230,8 +230,7 @@ public interface NexusClientCallsInterceptor {
   final class DescribeNexusOperationExecutionOutput {
     private final NexusOperationExecutionDescription description;
 
-    public DescribeNexusOperationExecutionOutput(
-        NexusOperationExecutionDescription description) {
+    public DescribeNexusOperationExecutionOutput(NexusOperationExecutionDescription description) {
       this.description = description;
     }
 

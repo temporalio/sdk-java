@@ -1,7 +1,6 @@
 package io.temporal.internal.util;
 
 import com.google.common.base.Defaults;
-import io.nexusrpc.Operation;
 import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
@@ -36,15 +35,6 @@ public class MethodExtractor {
     return POJOActivityInterfaceMetadata.newInstance(interfac)
         .getMethodMetadata(method)
         .getActivityTypeName();
-  }
-
-  /**
-   * Resolves the Nexus operation name for {@code method}: returns the explicit name from the {@link
-   * Operation} annotation when set, otherwise the Java method name.
-   */
-  public static String nexusOperationName(Method method) {
-    Operation op = method.getAnnotation(Operation.class);
-    return op != null && !op.name().isEmpty() ? op.name() : method.getName();
   }
 
   // --- Proc overloads ---

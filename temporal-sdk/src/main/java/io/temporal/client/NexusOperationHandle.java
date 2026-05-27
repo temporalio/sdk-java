@@ -47,7 +47,7 @@ public interface NexusOperationHandle<R> extends UntypedNexusOperationHandle {
    */
   static <R> NexusOperationHandle<R> fromUntyped(
       UntypedNexusOperationHandle handle, Class<R> resultClass, @Nullable Type resultType) {
-    return NexusOperationHandleImpl.fromUntyped(handle, resultClass, resultType);
+    return new NexusOperationHandleImpl<>(handle, resultClass, resultType);
   }
 
   /**

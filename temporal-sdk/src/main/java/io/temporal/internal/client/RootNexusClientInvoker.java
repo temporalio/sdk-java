@@ -14,8 +14,8 @@ import io.temporal.api.workflowservice.v1.RequestCancelNexusOperationExecutionRe
 import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateNexusOperationExecutionRequest;
-import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusClientOptions;
+import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;

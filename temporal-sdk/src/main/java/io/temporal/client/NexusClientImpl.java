@@ -13,6 +13,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.ListNexusOper
 import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
+import io.temporal.internal.client.NexusOperationHandleImpl;
 import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
@@ -97,8 +98,8 @@ public class NexusClientImpl implements NexusClient {
 
   @Override
   public UntypedNexusOperationHandle getHandle(String operationId, @Nullable String runId) {
-    return new NexusOperationHandleImpl<>(
-        nexusClientCallsInvoker, operationId, runId, options.getDataConverter());
+    return new NexusOperationHandleImpl(
+        operationId, runId, nexusClientCallsInvoker, options.getDataConverter());
   }
 
   @Override
@@ -113,13 +114,7 @@ public class NexusClientImpl implements NexusClient {
       @Nullable String runId,
       Class<R> resultClass,
       @Nullable java.lang.reflect.Type resultType) {
-    return new NexusOperationHandleImpl<>(
-        nexusClientCallsInvoker,
-        operationId,
-        runId,
-        options.getDataConverter(),
-        resultClass,
-        resultType);
+    return NexusOperationHandle.fromUntyped(getHandle(operationId, runId), resultClass, resultType);
   }
 
   @Override

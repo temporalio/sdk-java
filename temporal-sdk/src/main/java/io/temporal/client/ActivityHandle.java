@@ -31,7 +31,7 @@ public interface ActivityHandle<R> extends UntypedActivityHandle {
   /**
    * Blocks until the standalone activity completes and returns the typed result, or throws if the
    *
-   * client-side timeout expires first.
+   * <p>client-side timeout expires first.
    *
    * @param timeout maximum time to wait
    * @param unit unit of {@code timeout}

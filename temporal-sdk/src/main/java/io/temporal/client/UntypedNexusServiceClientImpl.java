@@ -6,6 +6,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionOutput;
+import io.temporal.internal.client.NexusOperationHandleImpl;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import javax.annotation.Nullable;
@@ -51,8 +52,8 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
             options != null ? options : StartNexusOperationOptions.getDefaultInstance(),
             Collections.emptyMap());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
-    return new NexusOperationHandleImpl<>(
-        invoker, output.getOperationId(), output.getRunId(), dataConverter);
+    return new NexusOperationHandleImpl(
+        output.getOperationId(), output.getRunId(), invoker, dataConverter);
   }
 
   @Override
