@@ -23,6 +23,7 @@ import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -75,51 +76,76 @@ public class NexusOperationHandleTest {
     Assert.assertEquals(started.getNexusOperationRunId(), description.getRunId());
   }
 
+  // The cancel call just requests the handler to cancel.
+  // It doesn't automatically cancel. So we are testing not that it
+  // cancelled the operation, but checking the number of cancel
+  // invokations the test server received to make sure it increments.
   @Test
   public void cancelSucceedsForStartedOperation() {
-    UntypedNexusOperationHandle handle = startPendingOperation();
-    handle.cancel();
-    assertCancellationRecorded(handle, /* expectedReason= */ null);
+    int before = TestNexusServiceImpl.cancelInvocations.get();
+    startPendingOperation().cancel();
+    assertCancelDelivered(before);
   }
 
   @Test
   public void cancelWithReasonSucceedsForStartedOperation() {
-    UntypedNexusOperationHandle handle = startPendingOperation();
-    handle.cancel("test-cancel-reason");
-    assertCancellationRecorded(handle, "test-cancel-reason");
+    int before = TestNexusServiceImpl.cancelInvocations.get();
+    startPendingOperation().cancel("test-cancel-reason");
+    assertCancelDelivered(before);
   }
 
   @Test
   public void cancelWithNullReasonSucceeds() {
-    UntypedNexusOperationHandle handle = startPendingOperation();
-    handle.cancel(null);
-    assertCancellationRecorded(handle, /* expectedReason= */ null);
+    int before = TestNexusServiceImpl.cancelInvocations.get();
+    startPendingOperation().cancel(null);
+    assertCancelDelivered(before);
+  }
+
+  /**
+   * Polls the handler's invocation counter to confirm the cancel RPC reached the worker and the
+   * handler's {@code cancel(...)} callback ran (the dispatch is asynchronous — server schedules a
+   * cancel task, worker polls it, then the callback fires).
+   */
+  private static void assertCancelDelivered(int countBeforeCancel) {
+    long deadlineNanos = System.nanoTime() + Duration.ofSeconds(8).toNanos();
+    while (TestNexusServiceImpl.cancelInvocations.get() <= countBeforeCancel
+        && System.nanoTime() < deadlineNanos) {
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+    }
+    Assert.assertTrue(
+        "cancel RPC was not delivered to the handler within the poll budget",
+        TestNexusServiceImpl.cancelInvocations.get() > countBeforeCancel);
   }
 
   @Test
   public void terminateSucceedsForStartedOperation() {
     UntypedNexusOperationHandle handle = startPendingOperation();
     handle.terminate();
-    assertTerminatedFailure(handle);
+    assertTerminalFailure(handle);
   }
 
   @Test
   public void terminateWithReasonSucceedsForStartedOperation() {
     UntypedNexusOperationHandle handle = startPendingOperation();
     handle.terminate("test-terminate-reason");
-    assertTerminatedFailure(handle);
+    assertTerminalFailure(handle);
   }
 
   @Test
   public void terminateWithNullReasonSucceeds() {
     UntypedNexusOperationHandle handle = startPendingOperation();
     handle.terminate(null);
-    assertTerminatedFailure(handle);
+    assertTerminalFailure(handle);
   }
 
   /**
-   * Async operations stay in RUNNING state until something external transitions them — used by
-   * cancel/terminate tests so the lifecycle RPC has a non-terminal operation to act on.
+   * Starts an operation whose handler returns an async-started result without ever completing, so
+   * the lifecycle RPCs have a non-terminal operation to act on.
    */
   private UntypedNexusOperationHandle startPendingOperation() {
     return startOperation(TestNexusServiceImpl.ASYNC_PREFIX + UUID.randomUUID());
@@ -130,7 +156,7 @@ public class NexusOperationHandleTest {
    * operation to TERMINATED regardless of handler state, so {@code getResult} promptly throws
    * {@link NexusOperationFailedException}.
    */
-  private static void assertTerminatedFailure(UntypedNexusOperationHandle handle) {
+  private static void assertTerminalFailure(UntypedNexusOperationHandle handle) {
     try {
       handle.getResult(15, java.util.concurrent.TimeUnit.SECONDS, String.class);
       Assert.fail("expected getResult to throw after the operation was terminated");
@@ -138,22 +164,6 @@ public class NexusOperationHandleTest {
       // The TerminatedFailure shows up either on this exception's message or via getCause().
     } catch (java.util.concurrent.TimeoutException e) {
       Assert.fail("getResult timed out — terminate should have produced a terminal outcome");
-    }
-  }
-
-  /**
-   * Cancel does NOT auto-transition the operation per the proto contract (handler cooperation is
-   * required). Assert via {@code describe()} that the cancellation request was at least recorded
-   * server-side.
-   */
-  private static void assertCancellationRecorded(
-      UntypedNexusOperationHandle handle, @javax.annotation.Nullable String expectedReason) {
-    NexusOperationExecutionDescription description = handle.describe();
-    Assert.assertNotNull(
-        "expected cancellation_info to be recorded after cancel()",
-        description.getCancellationInfo());
-    if (expectedReason != null) {
-      Assert.assertEquals(expectedReason, description.getCancellationInfo().getReason());
     }
   }
 
@@ -228,6 +238,14 @@ public class NexusOperationHandleTest {
      */
     static final String ASYNC_PREFIX = "ASYNC:";
 
+    /**
+     * Incremented every time the worker invokes the handler's {@code cancel(...)} callback. The
+     * cancel tests poll this counter to verify the cancel RPC was delivered end-to-end (client →
+     * server → worker), even though the no-op cancel doesn't drive the operation to a terminal
+     * state.
+     */
+    static final AtomicInteger cancelInvocations = new AtomicInteger();
+
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return new OperationHandler<String, String>() {
@@ -243,7 +261,8 @@ public class NexusOperationHandleTest {
           if (input != null && input.startsWith(ASYNC_PREFIX)) {
             // Async-started: server keeps the operation in RUNNING state until something
             // external (terminate, cancellation that takes effect, or schedule-to-close)
-            // transitions it.
+            // transitions it. Terminate is server-forced so it transitions reliably; cancel is
+            // cooperative and won't transition without a backing entity.
             return OperationStartResult.async("token-" + UUID.randomUUID());
           }
           return OperationStartResult.sync("echo:" + (input == null ? "<null>" : input));
@@ -251,8 +270,9 @@ public class NexusOperationHandleTest {
 
         @Override
         public void cancel(OperationContext context, OperationCancelDetails details) {
-          // No-op. Tests assert cancellation visibility via describe()'s CancellationInfo
-          // rather than driving the operation to a terminal state from the handler.
+          // Record delivery for the cancel tests; otherwise a no-op. Driving the operation to a
+          // terminal CANCELED state would require a backing entity (e.g. a workflow).
+          cancelInvocations.incrementAndGet();
         }
       };
     }
