@@ -1,6 +1,8 @@
 package io.temporal.internal.client;
 
 import io.grpc.Deadline;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.failure.v1.Failure;
@@ -17,6 +19,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.TerminateNexu
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
@@ -142,8 +145,15 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
   @Override
   public <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType) {
-    return pollAsyncUntilCompletedOrDeadline(Deadline.after(timeout, unit))
-        .thenApply(out -> extractResult(out, resultClass, resultType));
+    Deadline deadline = Deadline.after(timeout, unit);
+    return pollAsyncUntilCompletedOrDeadline(deadline)
+        .handle(
+            (out, e) -> {
+              if (e == null) {
+                return extractResult(out, resultClass, resultType);
+              }
+              throw mapAsyncException(e, deadline);
+            });
   }
 
   private PollNexusOperationExecutionOutput pollSyncUntilCompletedOrDeadline(Deadline deadline)
@@ -158,12 +168,9 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
       PollNexusOperationExecutionOutput out;
       try {
         out = interceptor.pollNexusOperationExecution(pollInput);
-      } catch (RuntimeException e) {
-        if (deadline.isExpired()) {
-          TimeoutException timeout =
-              new TimeoutException("getResult timed out before the operation completed");
-          timeout.initCause(e);
-          throw timeout;
+      } catch (StatusRuntimeException e) {
+        if (deadline.isExpired() && Status.Code.DEADLINE_EXCEEDED.equals(e.getStatus().getCode())) {
+          throw new TimeoutException("getResult timed out before the operation completed");
         }
         throw e;
       }
@@ -175,27 +182,38 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
 
   private CompletableFuture<PollNexusOperationExecutionOutput> pollAsyncUntilCompletedOrDeadline(
       Deadline deadline) {
-    if (deadline.isExpired()) {
-      CompletableFuture<PollNexusOperationExecutionOutput> failed = new CompletableFuture<>();
-      failed.completeExceptionally(
-          new TimeoutException("getResultAsync timed out before the operation completed"));
-      return failed;
-    }
     PollNexusOperationExecutionInput pollInput =
         new PollNexusOperationExecutionInput(
             operationId,
             runId,
             NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED,
             deadline);
-    return interceptor
-        .pollNexusOperationExecutionAsync(pollInput)
-        .thenCompose(
-            out -> {
-              if (out.getWaitStage() == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
-                return CompletableFuture.completedFuture(out);
-              }
-              return pollAsyncUntilCompletedOrDeadline(deadline);
-            });
+    CompletableFuture<PollNexusOperationExecutionOutput> pollFuture;
+    try {
+      pollFuture = interceptor.pollNexusOperationExecutionAsync(pollInput);
+    } catch (Throwable t) {
+      pollFuture = new CompletableFuture<>();
+      pollFuture.completeExceptionally(t);
+    }
+    return pollFuture.thenCompose(
+        out -> {
+          if (out.getWaitStage() == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
+            return CompletableFuture.completedFuture(out);
+          }
+          return pollAsyncUntilCompletedOrDeadline(deadline);
+        });
+  }
+
+  private static CompletionException mapAsyncException(Throwable e, Deadline deadline) {
+    Throwable cause = e instanceof CompletionException ? e.getCause() : e;
+    if (deadline.isExpired()
+        && cause instanceof StatusRuntimeException
+        && Status.Code.DEADLINE_EXCEEDED.equals(
+            ((StatusRuntimeException) cause).getStatus().getCode())) {
+      return new CompletionException(
+          new TimeoutException("getResultAsync timed out before the operation completed"));
+    }
+    return e instanceof CompletionException ? (CompletionException) e : new CompletionException(e);
   }
 
   private <R> R extractResult(
