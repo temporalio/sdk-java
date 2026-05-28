@@ -35,8 +35,6 @@ public class NexusOperationHandleTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          // Default is 10s; standalone Nexus dispatch + worker poll can take longer.
-          .setTestTimeoutSeconds(120)
           .build();
 
   @BeforeClass

@@ -36,7 +36,6 @@ public class NexusServiceClientTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
-          .setTestTimeoutSeconds(120)
           .build();
 
   @BeforeClass

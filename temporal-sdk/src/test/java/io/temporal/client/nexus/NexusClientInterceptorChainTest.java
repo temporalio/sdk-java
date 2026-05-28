@@ -31,7 +31,6 @@ public class NexusClientInterceptorChainTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
-          .setTestTimeoutSeconds(60)
           .build();
 
   @BeforeClass
