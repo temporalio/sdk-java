@@ -1,5 +1,8 @@
 package io.temporal.internal.client;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.temporal.api.errordetails.v1.NexusOperationExecutionAlreadyStartedFailure;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsRequest;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsResponse;
@@ -15,15 +18,20 @@ import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateNexusOperationExecutionRequest;
 import io.temporal.client.NexusClientOptions;
+import io.temporal.client.NexusOperationAlreadyStartedException;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.serviceclient.StatusUtils;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import javax.annotation.Nullable;
 
 /**
  * Root implementation of {@link NexusClientCallsInterceptor} that converts the SDK's Java DTOs into
@@ -91,8 +99,21 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       }
     }
 
-    StartNexusOperationExecutionResponse response =
-        genericClient.startNexusOperationExecution(request.build());
+    StartNexusOperationExecutionResponse response;
+    try {
+      response = genericClient.startNexusOperationExecution(request.build());
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
+        NexusOperationExecutionAlreadyStartedFailure detail =
+            StatusUtils.getFailure(e, NexusOperationExecutionAlreadyStartedFailure.class);
+        if (detail != null) {
+          String runId = detail.getRunId().isEmpty() ? null : detail.getRunId();
+          throw new NexusOperationAlreadyStartedException(
+              operationId, input.getOperation(), runId, e);
+        }
+      }
+      throw e;
+    }
     return new StartNexusOperationExecutionOutput(
         operationId, response.getRunId(), response.getStarted());
   }
@@ -101,8 +122,12 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   public DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
       DescribeNexusOperationExecutionInput input) {
     DescribeNexusOperationExecutionRequest request = buildDescribeRequest(input);
-    DescribeNexusOperationExecutionResponse response =
-        genericClient.describeNexusOperationExecution(request);
+    DescribeNexusOperationExecutionResponse response;
+    try {
+      response = genericClient.describeNexusOperationExecution(request);
+    } catch (StatusRuntimeException e) {
+      throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
+    }
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
             response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
@@ -123,17 +148,39 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   @Override
   public PollNexusOperationExecutionOutput pollNexusOperationExecution(
       PollNexusOperationExecutionInput input) {
-    PollNexusOperationExecutionResponse response =
-        genericClient.pollNexusOperationExecution(buildPollRequest(input), input.getDeadline());
+    PollNexusOperationExecutionResponse response;
+    try {
+      response =
+          genericClient.pollNexusOperationExecution(buildPollRequest(input), input.getDeadline());
+    } catch (StatusRuntimeException e) {
+      throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
+    }
     return toPollOutput(response);
   }
 
   @Override
   public CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
       PollNexusOperationExecutionInput input) {
+    String operationId = input.getOperationId();
+    String runId = input.getRunId().orElse(null);
     return genericClient
         .pollNexusOperationExecutionAsync(buildPollRequest(input), input.getDeadline())
-        .thenApply(this::toPollOutput);
+        .handle(
+            (response, err) -> {
+              if (err == null) {
+                return CompletableFuture.completedFuture(toPollOutput(response));
+              }
+              Throwable cause = err instanceof CompletionException ? err.getCause() : err;
+              CompletableFuture<PollNexusOperationExecutionOutput> failed = new CompletableFuture<>();
+              if (cause instanceof StatusRuntimeException) {
+                failed.completeExceptionally(
+                    mapNotFound(operationId, runId, (StatusRuntimeException) cause));
+              } else {
+                failed.completeExceptionally(err);
+              }
+              return failed;
+            })
+        .thenCompose(f -> f);
   }
 
   private PollNexusOperationExecutionRequest buildPollRequest(
@@ -205,7 +252,11 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
             .setOperationId(input.getOperationId());
     input.getRunId().ifPresent(request::setRunId);
     input.getReason().ifPresent(request::setReason);
-    genericClient.requestCancelNexusOperationExecution(request.build());
+    try {
+      genericClient.requestCancelNexusOperationExecution(request.build());
+    } catch (StatusRuntimeException e) {
+      throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
+    }
   }
 
   @Override
@@ -218,7 +269,11 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
             .setOperationId(input.getOperationId());
     input.getRunId().ifPresent(request::setRunId);
     input.getReason().ifPresent(request::setReason);
-    genericClient.terminateNexusOperationExecution(request.build());
+    try {
+      genericClient.terminateNexusOperationExecution(request.build());
+    } catch (StatusRuntimeException e) {
+      throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
+    }
   }
 
   @Override
@@ -228,6 +283,23 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
             .setNamespace(clientOptions.getNamespace())
             .setOperationId(input.getOperationId());
     input.getRunId().ifPresent(request::setRunId);
-    genericClient.deleteNexusOperationExecution(request.build());
+    try {
+      genericClient.deleteNexusOperationExecution(request.build());
+    } catch (StatusRuntimeException e) {
+      throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
+    }
+  }
+
+  /**
+   * Maps a {@link StatusRuntimeException} with {@code NOT_FOUND} status to a typed {@link
+   * NexusOperationNotFoundException}; otherwise returns the original exception unchanged so the
+   * caller can rethrow.
+   */
+  private static RuntimeException mapNotFound(
+      String operationId, @Nullable String runId, StatusRuntimeException e) {
+    if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+      return new NexusOperationNotFoundException(operationId, runId, e);
+    }
+    return e;
   }
 }

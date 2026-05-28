@@ -7,6 +7,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
@@ -220,7 +221,11 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
       PollNexusOperationExecutionOutput out, Class<R> resultClass, @Nullable Type resultType) {
     Optional<Failure> failure = out.getFailure();
     if (failure.isPresent()) {
-      throw dataConverter.failureToException(failure.get());
+      throw new NexusOperationFailedException(
+          "Nexus operation failed: operationId='" + operationId + "'",
+          operationId,
+          runId,
+          dataConverter.failureToException(failure.get()));
     }
     Optional<Payload> payload = out.getResult();
     if (!payload.isPresent()) {
