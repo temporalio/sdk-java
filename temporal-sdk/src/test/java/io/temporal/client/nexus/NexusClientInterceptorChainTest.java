@@ -29,9 +29,7 @@ public class NexusClientInterceptorChainTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(PlaceholderWorkflowImpl.class)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(PlaceholderWorkflowImpl.class).build();
 
   @BeforeClass
   public static void requireExternalService() {

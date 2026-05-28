@@ -47,92 +47,63 @@ public class NexusOperationHandleTest {
 
   @Test
   public void describeReturnsDescriptionForStartedOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle = startOperation();
 
     NexusOperationExecutionDescription description = handle.describe();
 
     Assert.assertNotNull(description);
     Assert.assertNotNull(description.getRunId());
-    Assert.assertEquals(started.runId, description.getRunId());
+    Assert.assertEquals(handle.getNexusOperationRunId(), description.getRunId());
     Assert.assertNotNull(description.getRawResponse());
   }
 
   @Test
   public void describeWithoutRunIdTargetsLatest() {
-    StartedOperation started = startOperation();
-    // Handle with no pinned run ID — server should resolve to the latest run.
-    UntypedNexusOperationHandle handle = started.client.getHandle(started.operationId);
+    UntypedNexusOperationHandle started = startOperation();
+    // Re-bind a handle with no pinned run ID — server should resolve to the latest run.
+    UntypedNexusOperationHandle handle =
+        testWorkflowRule.getNexusClient().getHandle(started.getNexusOperationId());
 
     NexusOperationExecutionDescription description = handle.describe();
 
     Assert.assertNotNull(description);
-    Assert.assertEquals(started.runId, description.getRunId());
+    Assert.assertEquals(started.getNexusOperationRunId(), description.getRunId());
   }
 
   @Test
   public void cancelSucceedsForStartedOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    handle.cancel();
+    startOperation().cancel();
     // No exception — server accepted the cancel request.
   }
 
   @Test
   public void cancelWithReasonSucceedsForStartedOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    handle.cancel("test-cancel-reason");
+    startOperation().cancel("test-cancel-reason");
   }
 
   @Test
   public void cancelWithNullReasonSucceeds() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    handle.cancel(null);
+    startOperation().cancel(null);
   }
 
   @Test
   public void terminateSucceedsForStartedOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    handle.terminate();
+    startOperation().terminate();
   }
 
   @Test
   public void terminateWithReasonSucceedsForStartedOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    handle.terminate("test-terminate-reason");
+    startOperation().terminate("test-terminate-reason");
   }
 
   @Test
   public void terminateWithNullReasonSucceeds() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    handle.terminate(null);
+    startOperation().terminate(null);
   }
 
   @Test
   public void getResultReturnsTypedResultForSyncOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle untyped =
-        started.client.getHandle(started.operationId, started.runId);
-
-    String result = NexusOperationHandle.fromUntyped(untyped, String.class).getResult();
+    String result = NexusOperationHandle.fromUntyped(startOperation(), String.class).getResult();
 
     Assert.assertNotNull(result);
     Assert.assertTrue("expected echo: prefix, got: " + result, result.startsWith("echo:ping-"));
@@ -140,11 +111,7 @@ public class NexusOperationHandleTest {
 
   @Test
   public void getResultUntypedReturnsResultForSyncOperation() {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
-
-    String result = handle.getResult(String.class);
+    String result = startOperation().getResult(String.class);
 
     Assert.assertNotNull(result);
     Assert.assertTrue(result.startsWith("echo:ping-"));
@@ -152,12 +119,8 @@ public class NexusOperationHandleTest {
 
   @Test
   public void getResultAsyncReturnsTypedResultForSyncOperation() throws Exception {
-    StartedOperation started = startOperation();
-    UntypedNexusOperationHandle untyped =
-        started.client.getHandle(started.operationId, started.runId);
-
     String result =
-        NexusOperationHandle.fromUntyped(untyped, String.class)
+        NexusOperationHandle.fromUntyped(startOperation(), String.class)
             .getResultAsync()
             .get(60, java.util.concurrent.TimeUnit.SECONDS);
 
@@ -165,24 +128,12 @@ public class NexusOperationHandleTest {
     Assert.assertTrue(result.startsWith("echo:ping-"));
   }
 
-  /** Holder for state used to drive a single test against one started operation. */
-  private static final class StartedOperation {
-    final NexusClient client;
-    final String operationId;
-    final String runId;
-
-    StartedOperation(NexusClient client, String operationId, String runId) {
-      this.client = client;
-      this.operationId = operationId;
-      this.runId = runId;
-    }
-  }
-
-  private StartedOperation startOperation() {
+  private UntypedNexusOperationHandle startOperation() {
     return startOperation(null);
   }
 
-  private StartedOperation startOperation(@javax.annotation.Nullable String inputOverride) {
+  private UntypedNexusOperationHandle startOperation(
+      @javax.annotation.Nullable String inputOverride) {
     NexusClient client = testWorkflowRule.getNexusClient();
     Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     String inputValue =
@@ -199,8 +150,7 @@ public class NexusOperationHandleTest {
     UntypedNexusOperationHandle handle = svcClient.start("operation", opts, inputValue);
 
     Assert.assertNotNull("expected start to return a run ID", handle.getNexusOperationRunId());
-    return new StartedOperation(
-        client, handle.getNexusOperationId(), handle.getNexusOperationRunId());
+    return handle;
   }
 
   public static class PlaceholderWorkflowImpl implements TestWorkflows.TestWorkflow1 {
@@ -231,9 +181,7 @@ public class NexusOperationHandleTest {
 
   @Test
   public void getResultPropagatesOperationFailure() {
-    StartedOperation started = startOperation(TestNexusServiceImpl.FAIL_PREFIX + "boom");
-    UntypedNexusOperationHandle handle =
-        started.client.getHandle(started.operationId, started.runId);
+    UntypedNexusOperationHandle handle = startOperation(TestNexusServiceImpl.FAIL_PREFIX + "boom");
 
     try {
       handle.getResult(String.class);
