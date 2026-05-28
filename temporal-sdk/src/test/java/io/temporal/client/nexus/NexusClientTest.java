@@ -42,6 +42,8 @@ public class NexusClientTest {
 
   @Test
   public void listNexusOperationExecutions() {
+    // Just run a basic test to see if it works
+    // runStandaloneNexusOperation tests this more thoroughly
     NexusClient client = testWorkflowRule.getNexusClient();
 
     // Materialize the lazy stream to force at least one page fetch and ensure no exceptions.
@@ -53,9 +55,11 @@ public class NexusClientTest {
   @Test
   public void countNexusOperationExecutions() {
     // Just run a basic test to see if it works
+    // runStandaloneNexusOperation tests this more thoroughly
     countNexusOperations();
   }
 
+  // A helper function to get the count and do a few validation tests around it
   public long countNexusOperations() {
     NexusClient client = testWorkflowRule.getNexusClient();
 
@@ -70,8 +74,7 @@ public class NexusClientTest {
 
   @Test
   public void runStandaloneNexusOperation() throws Exception {
-    TestNexusServiceImpl.received = new java.util.concurrent.CompletableFuture<>();
-    TestNexusServiceImpl.invocationCount.set(0);
+    long initialCount = countNexusOperations();
 
     Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     String inputValue = "ping-" + UUID.randomUUID();
@@ -88,19 +91,10 @@ public class NexusClientTest {
     UntypedNexusOperationHandle handle = svcClient.start("operation", opts, inputValue);
     String operationId = handle.getNexusOperationId();
 
-    // Sync handler: wait for the input to land in the test side-channel; that's how we
-    // know the operation actually completed on the worker.
-    String observed;
-    try {
-      observed = TestNexusServiceImpl.received.get(60, TimeUnit.SECONDS);
-    } catch (java.util.concurrent.TimeoutException e) {
-      Assert.fail(
-          "Nexus handler was never invoked within 60s. invocationCount="
-              + TestNexusServiceImpl.invocationCount.get());
-      throw new AssertionError("unreachable");
-    }
-    Assert.assertEquals(
-        "expected the Nexus handler to receive the same input we sent", inputValue, observed);
+    // Block on the handle until the operation completes; the echoed result implies the
+    // handler received our input.
+    String result = handle.getResult(60, TimeUnit.SECONDS, String.class);
+    Assert.assertEquals("echo:" + inputValue, result);
 
     // Poll the list until our operationId appears. This also tests that the list operation
     // works correctly.
@@ -114,9 +108,8 @@ public class NexusClientTest {
     Assert.assertEquals(
         TestNexusServices.TestNexusService1.class.getSimpleName(), listed.getService());
     Assert.assertEquals("operation", listed.getOperation());
-
-    // We know count should be at least 1.
-    Assert.assertTrue(countNexusOperations() >= 1);
+    // Make sure the count went up.
+    Assert.assertTrue(countNexusOperations() > initialCount);
   }
 
   private NexusOperationExecutionMetadata waitForListedOperation(
@@ -146,23 +139,10 @@ public class NexusClientTest {
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public static class TestNexusServiceImpl {
-    // CompletableFuture (not BlockingQueue) so we can record a null input — the worker may
-    // legitimately deliver a null payload, and we want a clean assertion failure instead of a
-    // NullPointerException-driven retry storm. Reassigned per test in a @Before-style reset.
-    static volatile java.util.concurrent.CompletableFuture<String> received =
-        new java.util.concurrent.CompletableFuture<>();
-    static final java.util.concurrent.atomic.AtomicInteger invocationCount =
-        new java.util.concurrent.atomic.AtomicInteger();
-
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
-          (context, details, input) -> {
-            invocationCount.incrementAndGet();
-            // complete() ignores subsequent calls, so the first delivered input wins.
-            received.complete(input);
-            return "echo:" + (input == null ? "<null>" : input);
-          });
+          (context, details, input) -> "echo:" + (input == null ? "<null>" : input));
     }
   }
 }

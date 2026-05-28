@@ -43,7 +43,12 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       Class<T> serviceInterface,
       String endpoint,
       NexusClientOptions options) {
-    this(invoker, serviceInterface, ServiceDefinition.fromClass(serviceInterface), endpoint, options);
+    this(
+        invoker,
+        serviceInterface,
+        ServiceDefinition.fromClass(serviceInterface),
+        endpoint,
+        options);
   }
 
   private NexusServiceClientImpl(

@@ -171,7 +171,8 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
                 return CompletableFuture.completedFuture(toPollOutput(response));
               }
               Throwable cause = err instanceof CompletionException ? err.getCause() : err;
-              CompletableFuture<PollNexusOperationExecutionOutput> failed = new CompletableFuture<>();
+              CompletableFuture<PollNexusOperationExecutionOutput> failed =
+                  new CompletableFuture<>();
               if (cause instanceof StatusRuntimeException) {
                 failed.completeExceptionally(
                     mapNotFound(operationId, runId, (StatusRuntimeException) cause));
