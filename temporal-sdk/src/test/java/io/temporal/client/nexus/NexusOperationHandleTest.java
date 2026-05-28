@@ -3,12 +3,17 @@ package io.temporal.client.nexus;
 import static org.junit.Assume.assumeTrue;
 
 import io.nexusrpc.OperationException;
+import io.nexusrpc.handler.OperationCancelDetails;
+import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
+import io.nexusrpc.handler.OperationStartDetails;
+import io.nexusrpc.handler.OperationStartResult;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
@@ -72,33 +77,84 @@ public class NexusOperationHandleTest {
 
   @Test
   public void cancelSucceedsForStartedOperation() {
-    startOperation().cancel();
-    // No exception — server accepted the cancel request.
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.cancel();
+    assertCancellationRecorded(handle, /* expectedReason= */ null);
   }
 
   @Test
   public void cancelWithReasonSucceedsForStartedOperation() {
-    startOperation().cancel("test-cancel-reason");
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.cancel("test-cancel-reason");
+    assertCancellationRecorded(handle, "test-cancel-reason");
   }
 
   @Test
   public void cancelWithNullReasonSucceeds() {
-    startOperation().cancel(null);
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.cancel(null);
+    assertCancellationRecorded(handle, /* expectedReason= */ null);
   }
 
   @Test
   public void terminateSucceedsForStartedOperation() {
-    startOperation().terminate();
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.terminate();
+    assertTerminatedFailure(handle);
   }
 
   @Test
   public void terminateWithReasonSucceedsForStartedOperation() {
-    startOperation().terminate("test-terminate-reason");
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.terminate("test-terminate-reason");
+    assertTerminatedFailure(handle);
   }
 
   @Test
   public void terminateWithNullReasonSucceeds() {
-    startOperation().terminate(null);
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.terminate(null);
+    assertTerminatedFailure(handle);
+  }
+
+  /**
+   * Async operations stay in RUNNING state until something external transitions them — used by
+   * cancel/terminate tests so the lifecycle RPC has a non-terminal operation to act on.
+   */
+  private UntypedNexusOperationHandle startPendingOperation() {
+    return startOperation(TestNexusServiceImpl.ASYNC_PREFIX + UUID.randomUUID());
+  }
+
+  /**
+   * Terminate is forceful and immediate per the proto contract; the server transitions the
+   * operation to TERMINATED regardless of handler state, so {@code getResult} promptly throws
+   * {@link NexusOperationFailedException}.
+   */
+  private static void assertTerminatedFailure(UntypedNexusOperationHandle handle) {
+    try {
+      handle.getResult(15, java.util.concurrent.TimeUnit.SECONDS, String.class);
+      Assert.fail("expected getResult to throw after the operation was terminated");
+    } catch (NexusOperationFailedException expected) {
+      // The TerminatedFailure shows up either on this exception's message or via getCause().
+    } catch (java.util.concurrent.TimeoutException e) {
+      Assert.fail("getResult timed out — terminate should have produced a terminal outcome");
+    }
+  }
+
+  /**
+   * Cancel does NOT auto-transition the operation per the proto contract (handler cooperation is
+   * required). Assert via {@code describe()} that the cancellation request was at least recorded
+   * server-side.
+   */
+  private static void assertCancellationRecorded(
+      UntypedNexusOperationHandle handle, @javax.annotation.Nullable String expectedReason) {
+    NexusOperationExecutionDescription description = handle.describe();
+    Assert.assertNotNull(
+        "expected cancellation_info to be recorded after cancel()",
+        description.getCancellationInfo());
+    if (expectedReason != null) {
+      Assert.assertEquals(expectedReason, description.getCancellationInfo().getReason());
+    }
   }
 
   @Test
@@ -165,17 +221,40 @@ public class NexusOperationHandleTest {
     /** Inputs starting with this prefix make the handler throw, exercising the failure path. */
     static final String FAIL_PREFIX = "FAIL:";
 
+    /**
+     * Inputs starting with this prefix make the handler return an async-started result without ever
+     * completing the operation. Used by cancel/terminate tests so the operation stays in RUNNING
+     * state long enough for the lifecycle RPC to be observed.
+     */
+    static final String ASYNC_PREFIX = "ASYNC:";
+
     @OperationImpl
     public OperationHandler<String, String> operation() {
-      return OperationHandler.sync(
-          (context, details, input) -> {
-            if (input != null && input.startsWith(FAIL_PREFIX)) {
-              // OperationException.failed = definitive failure (no retries) so the caller's
-              // getResult surfaces the failure instead of timing out.
-              throw OperationException.failed("intentional failure: " + input);
-            }
-            return "echo:" + (input == null ? "<null>" : input);
-          });
+      return new OperationHandler<String, String>() {
+        @Override
+        public OperationStartResult<String> start(
+            OperationContext context, OperationStartDetails details, String input)
+            throws OperationException {
+          if (input != null && input.startsWith(FAIL_PREFIX)) {
+            // OperationException.failed = definitive failure (no retries) so the caller's
+            // getResult surfaces the failure instead of timing out.
+            throw OperationException.failed("intentional failure: " + input);
+          }
+          if (input != null && input.startsWith(ASYNC_PREFIX)) {
+            // Async-started: server keeps the operation in RUNNING state until something
+            // external (terminate, cancellation that takes effect, or schedule-to-close)
+            // transitions it.
+            return OperationStartResult.async("token-" + UUID.randomUUID());
+          }
+          return OperationStartResult.sync("echo:" + (input == null ? "<null>" : input));
+        }
+
+        @Override
+        public void cancel(OperationContext context, OperationCancelDetails details) {
+          // No-op. Tests assert cancellation visibility via describe()'s CancellationInfo
+          // rather than driving the operation to a terminal state from the handler.
+        }
+      };
     }
   }
 
