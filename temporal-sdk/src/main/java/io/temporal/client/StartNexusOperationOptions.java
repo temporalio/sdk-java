@@ -51,11 +51,14 @@ public final class StartNexusOperationOptions {
     }
 
     /**
-     * Required. Unique identifier for this operation within its namespace. Callers must supply this
-     * explicitly; the SDK does not invent one on the caller's behalf.
+     * Required. Unique identifier for this operation within its namespace.
      */
     public Builder setId(@Nonnull String id) {
-      this.id = Objects.requireNonNull(id, "id");
+      Objects.requireNonNull(id, "id");
+      if (id.isEmpty()) {
+        throw new IllegalArgumentException("id must not be empty");
+      }
+      this.id = id;
       return this;
     }
 
@@ -102,9 +105,9 @@ public final class StartNexusOperationOptions {
     }
 
     public StartNexusOperationOptions build() {
-      if (id == null) {
+      if (id == null || id.isEmpty()) {
         throw new IllegalStateException(
-            "StartNexusOperationOptions.Builder.setId(...) must be called with a non-null id "
+            "StartNexusOperationOptions.Builder.setId(...) must be called with a non-empty id "
                 + "before build(); the SDK does not generate operation IDs.");
       }
       return new StartNexusOperationOptions(this);
