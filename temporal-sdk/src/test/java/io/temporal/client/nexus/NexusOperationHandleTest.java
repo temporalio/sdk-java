@@ -2,14 +2,6 @@ package io.temporal.client.nexus;
 
 import static org.junit.Assume.assumeTrue;
 
-import io.nexusrpc.OperationException;
-import io.nexusrpc.handler.OperationCancelDetails;
-import io.nexusrpc.handler.OperationContext;
-import io.nexusrpc.handler.OperationHandler;
-import io.nexusrpc.handler.OperationImpl;
-import io.nexusrpc.handler.OperationStartDetails;
-import io.nexusrpc.handler.OperationStartResult;
-import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusOperationException;
@@ -20,11 +12,11 @@ import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -41,7 +33,7 @@ public class NexusOperationHandleTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
-          .setNexusServiceImplementation(new TestNexusServiceImpl())
+          .setNexusServiceImplementation(new EchoNexusServiceImpl())
           .build();
 
   @BeforeClass
@@ -83,21 +75,21 @@ public class NexusOperationHandleTest {
   // invokations the test server received to make sure it increments.
   @Test
   public void cancelSucceedsForStartedOperation() {
-    int before = TestNexusServiceImpl.cancelInvocations.get();
+    int before = EchoNexusServiceImpl.cancelInvocations.get();
     startPendingOperation().cancel();
     assertCancelDelivered(before);
   }
 
   @Test
   public void cancelWithReasonSucceedsForStartedOperation() {
-    int before = TestNexusServiceImpl.cancelInvocations.get();
+    int before = EchoNexusServiceImpl.cancelInvocations.get();
     startPendingOperation().cancel("test-cancel-reason");
     assertCancelDelivered(before);
   }
 
   @Test
   public void cancelWithNullReasonSucceeds() {
-    int before = TestNexusServiceImpl.cancelInvocations.get();
+    int before = EchoNexusServiceImpl.cancelInvocations.get();
     startPendingOperation().cancel(null);
     assertCancelDelivered(before);
   }
@@ -109,7 +101,7 @@ public class NexusOperationHandleTest {
    */
   private static void assertCancelDelivered(int countBeforeCancel) {
     long deadlineNanos = System.nanoTime() + Duration.ofSeconds(8).toNanos();
-    while (TestNexusServiceImpl.cancelInvocations.get() <= countBeforeCancel
+    while (EchoNexusServiceImpl.cancelInvocations.get() <= countBeforeCancel
         && System.nanoTime() < deadlineNanos) {
       try {
         Thread.sleep(100);
@@ -120,7 +112,7 @@ public class NexusOperationHandleTest {
     }
     Assert.assertTrue(
         "cancel RPC was not delivered to the handler within the poll budget",
-        TestNexusServiceImpl.cancelInvocations.get() > countBeforeCancel);
+        EchoNexusServiceImpl.cancelInvocations.get() > countBeforeCancel);
   }
 
   @Test
@@ -149,7 +141,7 @@ public class NexusOperationHandleTest {
    * the lifecycle RPCs have a non-terminal operation to act on.
    */
   private UntypedNexusOperationHandle startPendingOperation() {
-    return startOperation(TestNexusServiceImpl.ASYNC_PREFIX + UUID.randomUUID());
+    return startOperation(EchoNexusServiceImpl.ASYNC_PREFIX + UUID.randomUUID());
   }
 
   /**
@@ -227,61 +219,9 @@ public class NexusOperationHandleTest {
     }
   }
 
-  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public static class TestNexusServiceImpl {
-    /** Inputs starting with this prefix make the handler throw, exercising the failure path. */
-    static final String FAIL_PREFIX = "FAIL:";
-
-    /**
-     * Inputs starting with this prefix make the handler return an async-started result without ever
-     * completing the operation. Used by cancel/terminate tests so the operation stays in RUNNING
-     * state long enough for the lifecycle RPC to be observed.
-     */
-    static final String ASYNC_PREFIX = "ASYNC:";
-
-    /**
-     * Incremented every time the worker invokes the handler's {@code cancel(...)} callback. The
-     * cancel tests poll this counter to verify the cancel RPC was delivered end-to-end (client →
-     * server → worker), even though the no-op cancel doesn't drive the operation to a terminal
-     * state.
-     */
-    static final AtomicInteger cancelInvocations = new AtomicInteger();
-
-    @OperationImpl
-    public OperationHandler<String, String> operation() {
-      return new OperationHandler<String, String>() {
-        @Override
-        public OperationStartResult<String> start(
-            OperationContext context, OperationStartDetails details, String input)
-            throws OperationException {
-          if (input != null && input.startsWith(FAIL_PREFIX)) {
-            // OperationException.failed = definitive failure (no retries) so the caller's
-            // getResult surfaces the failure instead of timing out.
-            throw OperationException.failed("intentional failure: " + input);
-          }
-          if (input != null && input.startsWith(ASYNC_PREFIX)) {
-            // Async-started: server keeps the operation in RUNNING state until something
-            // external (terminate, cancellation that takes effect, or schedule-to-close)
-            // transitions it. Terminate is server-forced so it transitions reliably; cancel is
-            // cooperative and won't transition without a backing entity.
-            return OperationStartResult.async("token-" + UUID.randomUUID());
-          }
-          return OperationStartResult.sync("echo:" + (input == null ? "<null>" : input));
-        }
-
-        @Override
-        public void cancel(OperationContext context, OperationCancelDetails details) {
-          // Record delivery for the cancel tests; otherwise a no-op. Driving the operation to a
-          // terminal CANCELED state would require a backing entity (e.g. a workflow).
-          cancelInvocations.incrementAndGet();
-        }
-      };
-    }
-  }
-
   @Test
   public void getResultPropagatesOperationFailure() {
-    UntypedNexusOperationHandle handle = startOperation(TestNexusServiceImpl.FAIL_PREFIX + "boom");
+    UntypedNexusOperationHandle handle = startOperation(EchoNexusServiceImpl.FAIL_PREFIX + "boom");
     String operationId = handle.getNexusOperationId();
 
     try {

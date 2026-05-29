@@ -2,14 +2,6 @@ package io.temporal.client.nexus;
 
 import static org.junit.Assume.assumeTrue;
 
-import io.nexusrpc.OperationException;
-import io.nexusrpc.handler.OperationCancelDetails;
-import io.nexusrpc.handler.OperationContext;
-import io.nexusrpc.handler.OperationHandler;
-import io.nexusrpc.handler.OperationImpl;
-import io.nexusrpc.handler.OperationStartDetails;
-import io.nexusrpc.handler.OperationStartResult;
-import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
@@ -21,6 +13,7 @@ import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -42,13 +35,12 @@ import org.junit.Test;
 public class NexusAsyncApiTest {
 
   private static final Duration FUTURE_GET_TIMEOUT = Duration.ofSeconds(30);
-  private static final String FAIL_PREFIX = "FAIL:";
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
-          .setNexusServiceImplementation(new TestNexusServiceImpl())
+          .setNexusServiceImplementation(new EchoNexusServiceImpl())
           .build();
 
   @BeforeClass
@@ -166,7 +158,9 @@ public class NexusAsyncApiTest {
   public void executeAsyncPropagatesOperationFailure() throws Exception {
     CompletableFuture<String> future =
         buildServiceClient()
-            .executeAsync(TestNexusServices.TestNexusService1::operation, FAIL_PREFIX + "boom");
+            .executeAsync(
+                TestNexusServices.TestNexusService1::operation,
+                EchoNexusServiceImpl.FAIL_PREFIX + "boom");
 
     try {
       future.get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
@@ -180,6 +174,20 @@ public class NexusAsyncApiTest {
       Assert.assertTrue(
           "expected NexusOperationFailedException, got " + cause.getClass().getSimpleName(),
           cause instanceof NexusOperationFailedException);
+
+      // Walk the cause chain and verify the handler's failure message surfaces somewhere.
+      boolean foundHandlerFailure = false;
+      for (Throwable c = cause.getCause(); c != null; c = c.getCause()) {
+        if (c.getMessage() != null && c.getMessage().contains("intentional failure")) {
+          foundHandlerFailure = true;
+          break;
+        }
+        if (c.getCause() == c) {
+          break;
+        }
+      }
+      Assert.assertTrue(
+          "expected cause chain to include the handler's failure message", foundHandlerFailure);
     }
   }
 
@@ -210,29 +218,6 @@ public class NexusAsyncApiTest {
     @Override
     public String execute(String input) {
       return input;
-    }
-  }
-
-  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public static class TestNexusServiceImpl {
-    @OperationImpl
-    public OperationHandler<String, String> operation() {
-      return new OperationHandler<String, String>() {
-        @Override
-        public OperationStartResult<String> start(
-            OperationContext context, OperationStartDetails details, String input)
-            throws OperationException {
-          if (input != null && input.startsWith(FAIL_PREFIX)) {
-            throw OperationException.failed("intentional failure: " + input);
-          }
-          return OperationStartResult.sync("echo:" + (input == null ? "<null>" : input));
-        }
-
-        @Override
-        public void cancel(OperationContext context, OperationCancelDetails details) {
-          // Unused in these tests.
-        }
-      };
     }
   }
 }

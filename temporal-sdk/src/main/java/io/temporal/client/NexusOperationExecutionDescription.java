@@ -33,12 +33,12 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
         /* rawListInfo= */ null,
         response.getInfo().getOperationId(),
         nullIfEmpty(response.getInfo().getRunId()),
-        response.getInfo().getEndpoint(),
-        response.getInfo().getService(),
-        response.getInfo().getOperation(),
+        nullIfEmpty(response.getInfo().getEndpoint()),
+        nullIfEmpty(response.getInfo().getService()),
+        nullIfEmpty(response.getInfo().getOperation()),
         response.getInfo().hasScheduleTime()
             ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getScheduleTime())
-            : Instant.EPOCH,
+            : null,
         response.getInfo().hasCloseTime()
             ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getCloseTime())
             : null,
@@ -51,10 +51,6 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     this.response = response;
     this.info = response.getInfo();
     this.dataConverter = dataConverter;
-  }
-
-  private static @Nullable String nullIfEmpty(String s) {
-    return s == null || s.isEmpty() ? null : s;
   }
 
   /** Underlying proto response. Exposed while the Nexus SDK surface is still experimental. */

@@ -22,10 +22,10 @@ public class NexusOperationExecutionMetadata {
   private final @Nullable NexusOperationExecutionListInfo rawListInfo;
   private final String operationId;
   private final @Nullable String runId;
-  private final String endpoint;
-  private final String service;
-  private final String operation;
-  private final Instant scheduledTime;
+  private final @Nullable String endpoint;
+  private final @Nullable String service;
+  private final @Nullable String operation;
+  private final @Nullable Instant scheduledTime;
   private final @Nullable Instant closeTime;
   private final NexusOperationExecutionStatus status;
   private final SearchAttributes searchAttributes;
@@ -36,10 +36,10 @@ public class NexusOperationExecutionMetadata {
       @Nullable NexusOperationExecutionListInfo rawListInfo,
       String operationId,
       @Nullable String runId,
-      String endpoint,
-      String service,
-      String operation,
-      Instant scheduledTime,
+      @Nullable String endpoint,
+      @Nullable String service,
+      @Nullable String operation,
+      @Nullable Instant scheduledTime,
       @Nullable Instant closeTime,
       NexusOperationExecutionStatus status,
       SearchAttributes searchAttributes,
@@ -59,16 +59,19 @@ public class NexusOperationExecutionMetadata {
     this.executionDuration = executionDuration;
   }
 
+  static @Nullable String nullIfEmpty(String s) {
+    return s == null || s.isEmpty() ? null : s;
+  }
+
   public static NexusOperationExecutionMetadata fromListInfo(NexusOperationExecutionListInfo info) {
-    String runId = info.getRunId();
     return new NexusOperationExecutionMetadata(
         info,
         info.getOperationId(),
-        runId.isEmpty() ? null : runId,
-        info.getEndpoint(),
-        info.getService(),
-        info.getOperation(),
-        ProtobufTimeUtils.toJavaInstant(info.getScheduleTime()),
+        nullIfEmpty(info.getRunId()),
+        nullIfEmpty(info.getEndpoint()),
+        nullIfEmpty(info.getService()),
+        nullIfEmpty(info.getOperation()),
+        info.hasScheduleTime() ? ProtobufTimeUtils.toJavaInstant(info.getScheduleTime()) : null,
         info.hasCloseTime() ? ProtobufTimeUtils.toJavaInstant(info.getCloseTime()) : null,
         info.getStatus(),
         SearchAttributesUtil.decodeTyped(info.getSearchAttributes()),
@@ -99,26 +102,29 @@ public class NexusOperationExecutionMetadata {
     return runId;
   }
 
-  /** The Nexus endpoint name this operation targets. */
-  @Nonnull
+  /** The Nexus endpoint name this operation targets. {@code null} if the server omitted it. */
+  @Nullable
   public String getEndpoint() {
     return endpoint;
   }
 
-  /** The Nexus service name on the endpoint. */
-  @Nonnull
+  /** The Nexus service name on the endpoint. {@code null} if the server omitted it. */
+  @Nullable
   public String getService() {
     return service;
   }
 
-  /** The Nexus operation name within the service. */
-  @Nonnull
+  /** The Nexus operation name within the service. {@code null} if the server omitted it. */
+  @Nullable
   public String getOperation() {
     return operation;
   }
 
-  /** Time when the operation was originally scheduled via a {@code StartNexusOperation} request. */
-  @Nonnull
+  /**
+   * Time when the operation was originally scheduled via a {@code StartNexusOperation} request.
+   * {@code null} if the server omitted it.
+   */
+  @Nullable
   public Instant getScheduledTime() {
     return scheduledTime;
   }
