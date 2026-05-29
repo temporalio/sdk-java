@@ -102,7 +102,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
     TemporalOperationCancelContext cancelContext = new TemporalOperationCancelContext(ctx, details);
     if (token.getType() == OperationTokenType.WORKFLOW_RUN) {
-      cancelWorkflowRun(cancelContext, token.getWorkflowId());
+      cancelWorkflowRun(cancelContext, new CancelWorkflowRunInput(token.getWorkflowId()));
     } else {
       throw new HandlerException(
           HandlerException.ErrorType.BAD_REQUEST,
@@ -117,10 +117,11 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
    * <p>Default behavior: cancels the underlying workflow.
    *
    * @param context the cancel context
-   * @param workflowId the workflow ID extracted from the operation token
+   * @param input describes the workflow run to cancel
    */
-  protected void cancelWorkflowRun(TemporalOperationCancelContext context, String workflowId) {
+  protected void cancelWorkflowRun(
+      TemporalOperationCancelContext context, CancelWorkflowRunInput input) {
     WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();
-    client.newUntypedWorkflowStub(workflowId).cancel();
+    client.newUntypedWorkflowStub(input.getWorkflowId()).cancel();
   }
 }
