@@ -2,12 +2,14 @@ package io.temporal.client.nexus;
 
 import static org.junit.Assume.assumeTrue;
 
+import io.temporal.api.enums.v1.NexusOperationExecutionStatus;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusOperationException;
 import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
+import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
@@ -54,6 +56,44 @@ public class NexusOperationHandleTest {
     Assert.assertNotNull(description.getRunId());
     Assert.assertEquals(handle.getNexusOperationRunId(), description.getRunId());
     Assert.assertNotNull(description.getRawResponse());
+  }
+
+  @Test
+  public void describeReturnsTerminalStateAfterSyncOperationCompletes() {
+    // Drive a sync echo through to completion, then assert describe surfaces the terminal state.
+    UntypedNexusOperationHandle handle = startOperation();
+    String expected = handle.getResult(String.class);
+
+    NexusOperationExecutionDescription description = handle.describe();
+
+    Assert.assertEquals(
+        NexusOperationExecutionStatus.NEXUS_OPERATION_EXECUTION_STATUS_COMPLETED,
+        description.getStatus());
+    Assert.assertNotNull("expected closeTime once terminal", description.getCloseTime());
+    Assert.assertNotNull(
+        "expected executionDuration once terminal", description.getExecutionDuration());
+    // describe() defaults to includeOutcome=true, so the success payload should be present.
+    Assert.assertTrue(
+        "expected description.hasResult() after a successful sync operation",
+        description.hasResult());
+    Assert.assertEquals(expected, description.getResult(String.class).orElse(null));
+    Assert.assertNull("expected no failure on a successful operation", description.getFailure());
+  }
+
+  @Test
+  public void describeThrowsForUnknownOperationId() {
+    // Mint an operation ID that the server has never seen; describe must surface the typed
+    // NOT_FOUND-mapped exception rather than a raw gRPC status.
+    String bogusOperationId = "does-not-exist-" + UUID.randomUUID();
+    UntypedNexusOperationHandle handle =
+        testWorkflowRule.getNexusClient().getHandle(bogusOperationId);
+
+    try {
+      handle.describe();
+      Assert.fail("expected NexusOperationNotFoundException for an unknown operation ID");
+    } catch (NexusOperationNotFoundException expected) {
+      Assert.assertEquals(bogusOperationId, expected.getOperationId());
+    }
   }
 
   @Test
@@ -120,6 +160,20 @@ public class NexusOperationHandleTest {
     UntypedNexusOperationHandle handle = startPendingOperation();
     handle.terminate();
     assertTerminalFailure(handle);
+  }
+
+  @Test
+  public void terminateTransitionsOperationToTerminatedStatus() {
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    handle.terminate("status-assertion");
+    // assertTerminalFailure proves getResult observed terminality; describe must agree that the
+    // server-side status was specifically TERMINATED (not CANCELED/FAILED/TIMED_OUT).
+    assertTerminalFailure(handle);
+    NexusOperationExecutionDescription description = handle.describe();
+    Assert.assertEquals(
+        NexusOperationExecutionStatus.NEXUS_OPERATION_EXECUTION_STATUS_TERMINATED,
+        description.getStatus());
+    Assert.assertNotNull(description.getCloseTime());
   }
 
   @Test

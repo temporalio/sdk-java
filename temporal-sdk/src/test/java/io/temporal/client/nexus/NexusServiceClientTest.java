@@ -13,6 +13,8 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
+import java.util.UUID;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -59,6 +61,43 @@ public class NexusServiceClientTest {
 
     Assert.assertNotNull(handle.getNexusOperationId());
     Assert.assertEquals("echo:world", handle.getResult());
+  }
+
+  @Test
+  public void executeWithOptionsReturnsResult() {
+    // Covers the 3-arg execute(op, input, options) overload — the no-options variant is already
+    // covered by executeReturnsTypedResult.
+    StartNexusOperationOptions options =
+        StartNexusOperationOptions.newBuilder()
+            .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+            .build();
+
+    String result =
+        buildServiceClient(testWorkflowRule.getNexusEndpoint())
+            .execute(TestNexusServices.TestNexusService1::operation, "with-opts", options);
+
+    Assert.assertEquals("echo:with-opts", result);
+  }
+
+  @Test
+  public void startWithExplicitIdHonoursId() {
+    String explicitId = "explicit-id-" + UUID.randomUUID();
+    StartNexusOperationOptions options =
+        StartNexusOperationOptions.newBuilder()
+            .setId(explicitId)
+            .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+            .build();
+
+    NexusOperationHandle<String> handle =
+        buildServiceClient(testWorkflowRule.getNexusEndpoint())
+            .start(TestNexusServices.TestNexusService1::operation, "id-test", options);
+
+    Assert.assertEquals(
+        "explicit ID supplied via StartNexusOperationOptions.setId must round-trip on the handle",
+        explicitId,
+        handle.getNexusOperationId());
+    // Sanity-check: the operation still completes normally with the explicit ID.
+    Assert.assertEquals("echo:id-test", handle.getResult());
   }
 
   @Test
