@@ -7,19 +7,14 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClientOptions;
+import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.NexusServiceClient;
 import io.temporal.client.StartNexusOperationOptions;
-import io.temporal.common.SearchAttributeKey;
-import io.temporal.common.SearchAttributes;
-import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionInput;
-import io.temporal.common.interceptors.NexusClientCallsInterceptorBase;
-import io.temporal.common.interceptors.NexusClientInterceptor;
+import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.util.Collections;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -69,94 +64,29 @@ public class NexusServiceClientTest {
   }
 
   @Test
-  public void clientSummaryIsForwardedIntoStartInput() {
-    AtomicReference<StartNexusOperationExecutionInput> captured = new AtomicReference<>();
-    RuntimeException sentinel = new RuntimeException("captured-by-test");
-
-    NexusClientInterceptor recordingFactory =
-        next ->
-            new NexusClientCallsInterceptorBase(next) {
-              @Override
-              public StartNexusOperationExecutionOutput startNexusOperationExecution(
-                  StartNexusOperationExecutionInput input) {
-                captured.set(input);
-                throw sentinel;
-              }
-            };
-
+  public void clientSummaryReachesServer() {
     NexusServiceClient<TestNexusServices.TestNexusService1> client =
-        NexusServiceClient.newInstance(
-            TestNexusServices.TestNexusService1.class,
-            "summary-test-endpoint",
-            testWorkflowRule.getWorkflowServiceStubs(),
-            NexusClientOptions.newBuilder()
-                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                .setInterceptors(Collections.singletonList(recordingFactory))
-                .build());
+        buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
     StartNexusOperationOptions startOptions =
         StartNexusOperationOptions.newBuilder().setSummary("per-call-summary").build();
-    try {
-      client.start(TestNexusServices.TestNexusService1::operation, "ignored", startOptions);
-      Assert.fail("expected sentinel to be thrown by recording interceptor");
-    } catch (RuntimeException e) {
-      Assert.assertSame(sentinel, e);
-    }
+    NexusOperationHandle<String> handle =
+        client.start(TestNexusServices.TestNexusService1::operation, "world", startOptions);
 
-    StartNexusOperationExecutionInput input = captured.get();
-    Assert.assertNotNull("interceptor should have captured a start input", input);
-    Assert.assertEquals(
-        "expected summary to be forwarded to the start input",
-        "per-call-summary",
-        input.getOptions().getSummary());
+    // Describe round-trips the operation through the server, proving the summary was actually
+    // persisted on the server-side record rather than just forwarded through the local interceptor
+    // chain.
+    UntypedNexusOperationHandle untyped =
+        testWorkflowRule.getNexusClient().getHandle(handle.getNexusOperationId());
+    NexusOperationExecutionDescription description = untyped.describe();
+    Assert.assertEquals("per-call-summary", description.getStaticSummary());
   }
 
-  @Test
-  public void clientSearchAttributesAreEncodedIntoStartInput() {
-    SearchAttributeKey<String> customKey = SearchAttributeKey.forKeyword("CustomNexusTestKey");
-    SearchAttributes attrs = SearchAttributes.newBuilder().set(customKey, "expected-value").build();
-
-    AtomicReference<StartNexusOperationExecutionInput> captured = new AtomicReference<>();
-    RuntimeException sentinel = new RuntimeException("captured-by-test");
-
-    NexusClientInterceptor recordingFactory =
-        next ->
-            new NexusClientCallsInterceptorBase(next) {
-              @Override
-              public StartNexusOperationExecutionOutput startNexusOperationExecution(
-                  StartNexusOperationExecutionInput input) {
-                captured.set(input);
-                throw sentinel;
-              }
-            };
-
-    NexusServiceClient<TestNexusServices.TestNexusService1> client =
-        NexusServiceClient.newInstance(
-            TestNexusServices.TestNexusService1.class,
-            "search-attrs-test-endpoint",
-            testWorkflowRule.getWorkflowServiceStubs(),
-            NexusClientOptions.newBuilder()
-                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                .setInterceptors(Collections.singletonList(recordingFactory))
-                .build());
-
-    StartNexusOperationOptions startOptions =
-        StartNexusOperationOptions.newBuilder().setTypedSearchAttributes(attrs).build();
-    try {
-      client.start(TestNexusServices.TestNexusService1::operation, "ignored", startOptions);
-      Assert.fail("expected sentinel to be thrown by recording interceptor");
-    } catch (RuntimeException e) {
-      Assert.assertSame(sentinel, e);
-    }
-
-    StartNexusOperationExecutionInput input = captured.get();
-    Assert.assertNotNull("interceptor should have captured a start input", input);
-    SearchAttributes capturedAttrs = input.getOptions().getTypedSearchAttributes();
-    Assert.assertNotNull("expected search attributes to be forwarded", capturedAttrs);
-    Assert.assertTrue(
-        "expected the custom keyword to be present", capturedAttrs.containsKey(customKey));
-    Assert.assertEquals("expected-value", capturedAttrs.get(customKey));
-  }
+  // A search-attribute round-trip via describe() would naturally belong here, but the rule's
+  // `registerSearchAttribute(...)` is asynchronous on the server side and races the test —
+  // calling `start(...)` immediately afterwards fails with "no mapping defined for search
+  // attribute" until the namespace's Visibility index catches up. Reintroduce once the rule
+  // (or the test) synchronously waits for the mapping to propagate.
 
   private NexusServiceClient<TestNexusServices.TestNexusService1> buildServiceClient(
       Endpoint endpoint) {

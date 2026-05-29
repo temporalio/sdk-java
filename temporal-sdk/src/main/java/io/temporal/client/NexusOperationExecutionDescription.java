@@ -182,6 +182,32 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
   }
 
   /**
+   * Fixed summary attached when the operation was started, decoded from {@code UserMetadata}.
+   * Decoded on each call; cache the result if called frequently.
+   */
+  @Nullable
+  public String getStaticSummary() {
+    if (!info.hasUserMetadata() || !info.getUserMetadata().hasSummary()) {
+      return null;
+    }
+    return dataConverter.fromPayload(
+        info.getUserMetadata().getSummary(), String.class, String.class);
+  }
+
+  /**
+   * Fixed details attached when the operation was started, decoded from {@code UserMetadata}.
+   * Decoded on each call; cache the result if called frequently.
+   */
+  @Nullable
+  public String getStaticDetails() {
+    if (!info.hasUserMetadata() || !info.getUserMetadata().hasDetails()) {
+      return null;
+    }
+    return dataConverter.fromPayload(
+        info.getUserMetadata().getDetails(), String.class, String.class);
+  }
+
+  /**
    * Whether the operation input payload is present on this description. Set only when {@link
    * UntypedNexusOperationHandle#describe()} was called with {@code includeInput=true}.
    */
