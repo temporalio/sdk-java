@@ -12,6 +12,7 @@ import io.nexusrpc.handler.OperationStartResult;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
+import io.temporal.client.NexusOperationException;
 import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
@@ -281,17 +282,37 @@ public class NexusOperationHandleTest {
   @Test
   public void getResultPropagatesOperationFailure() {
     UntypedNexusOperationHandle handle = startOperation(TestNexusServiceImpl.FAIL_PREFIX + "boom");
+    String operationId = handle.getNexusOperationId();
 
     try {
       handle.getResult(String.class);
       Assert.fail("expected getResult to throw because the operation handler failed");
-    } catch (RuntimeException e) {
-      // The DataConverter wraps the proto Failure into a Java exception. Either the message
-      // carries the handler's reason, or one of the cause links does.
-      String combined = collectMessages(e);
+    } catch (NexusOperationException e) {
+      // Outer: NexusOperationFailedException carrying the failed operation's ID.
       Assert.assertTrue(
-          "expected exception chain to mention the handler failure, got: " + combined,
-          combined.contains("intentional failure"));
+          "expected NexusOperationFailedException, got " + e.getClass().getSimpleName(),
+          e instanceof NexusOperationFailedException);
+      Assert.assertEquals(operationId, e.getOperationId());
+      Assert.assertTrue(
+          "expected outer message to reference the operation ID, got: " + e.getMessage(),
+          e.getMessage() != null && e.getMessage().contains(operationId));
+
+      // The full cause chain: dataConverter.failureToException(...) translates the proto Failure
+      // into a Java exception. Walk every link and verify the handler's reason surfaces somewhere.
+      boolean foundHandlerFailure = false;
+      for (Throwable c = e.getCause(); c != null; c = c.getCause()) {
+        if (c.getMessage() != null && c.getMessage().contains("intentional failure")) {
+          foundHandlerFailure = true;
+          break;
+        }
+        if (c.getCause() == c) {
+          break;
+        }
+      }
+      Assert.assertTrue(
+          "expected cause chain to include the handler's failure message, got: "
+              + collectMessages(e),
+          foundHandlerFailure);
     }
   }
 
