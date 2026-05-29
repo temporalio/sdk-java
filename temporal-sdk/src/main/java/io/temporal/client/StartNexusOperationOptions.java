@@ -6,6 +6,7 @@ import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributes;
 import java.time.Duration;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -21,13 +22,6 @@ public final class StartNexusOperationOptions {
 
   public static Builder newBuilder(StartNexusOperationOptions options) {
     return new Builder(options);
-  }
-
-  private static final StartNexusOperationOptions DEFAULT_INSTANCE = newBuilder().build();
-
-  /** Returns an options instance with no per-call fields set. */
-  public static StartNexusOperationOptions getDefaultInstance() {
-    return DEFAULT_INSTANCE;
   }
 
   public static final class Builder {
@@ -57,11 +51,11 @@ public final class StartNexusOperationOptions {
     }
 
     /**
-     * Required. Unique identifier for this operation within its namespace. If left null, the SDK
-     * generates a random UUID.
+     * Required. Unique identifier for this operation within its namespace. Callers must supply this
+     * explicitly; the SDK does not invent one on the caller's behalf.
      */
-    public Builder setId(@Nullable String id) {
-      this.id = id;
+    public Builder setId(@Nonnull String id) {
+      this.id = Objects.requireNonNull(id, "id");
       return this;
     }
 
@@ -108,11 +102,16 @@ public final class StartNexusOperationOptions {
     }
 
     public StartNexusOperationOptions build() {
+      if (id == null) {
+        throw new IllegalStateException(
+            "StartNexusOperationOptions.Builder.setId(...) must be called with a non-null id "
+                + "before build(); the SDK does not generate operation IDs.");
+      }
       return new StartNexusOperationOptions(this);
     }
   }
 
-  private final @Nullable String id;
+  private final @Nonnull String id;
   private final @Nullable Duration scheduleToCloseTimeout;
   private final @Nullable Duration scheduleToStartTimeout;
   private final @Nullable Duration startToCloseTimeout;
@@ -136,7 +135,7 @@ public final class StartNexusOperationOptions {
     return new Builder(this);
   }
 
-  @Nullable
+  @Nonnull
   public String getId() {
     return id;
   }

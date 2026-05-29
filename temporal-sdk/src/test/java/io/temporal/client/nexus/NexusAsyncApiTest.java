@@ -16,6 +16,7 @@ import io.temporal.workflow.shared.StandaloneNexusTestPrerequisites;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +54,8 @@ public class NexusAsyncApiTest {
   public void serviceClientExecuteAsyncReturnsResult() throws Exception {
     String result =
         buildServiceClient()
-            .executeAsync(TestNexusServices.TestNexusService1::operation, "hello")
+            .executeAsync(
+                TestNexusServices.TestNexusService1::operation, "hello", newOptionsWithId())
             .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
 
     Assert.assertEquals("echo:hello", result);
@@ -63,6 +65,7 @@ public class NexusAsyncApiTest {
   public void serviceClientExecuteAsyncWithOptionsReturnsResult() throws Exception {
     StartNexusOperationOptions options =
         StartNexusOperationOptions.newBuilder()
+            .setId(UUID.randomUUID().toString())
             .setScheduleToCloseTimeout(Duration.ofSeconds(30))
             .build();
 
@@ -79,7 +82,8 @@ public class NexusAsyncApiTest {
   @Test
   public void typedHandleGetResultAsyncReturnsResult() throws Exception {
     NexusOperationHandle<String> handle =
-        buildServiceClient().start(TestNexusServices.TestNexusService1::operation, "typed");
+        buildServiceClient()
+            .start(TestNexusServices.TestNexusService1::operation, "typed", newOptionsWithId());
 
     String result = handle.getResultAsync().get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
 
@@ -89,7 +93,8 @@ public class NexusAsyncApiTest {
   @Test
   public void typedHandleGetResultAsyncWithTimeoutReturnsResult() throws Exception {
     NexusOperationHandle<String> handle =
-        buildServiceClient().start(TestNexusServices.TestNexusService1::operation, "typed-tm");
+        buildServiceClient()
+            .start(TestNexusServices.TestNexusService1::operation, "typed-tm", newOptionsWithId());
 
     String result =
         handle
@@ -156,7 +161,8 @@ public class NexusAsyncApiTest {
         buildServiceClient()
             .executeAsync(
                 TestNexusServices.TestNexusService1::operation,
-                EchoNexusServiceImpl.FAIL_PREFIX + "boom");
+                EchoNexusServiceImpl.FAIL_PREFIX + "boom",
+                newOptionsWithId());
 
     try {
       future.get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
@@ -207,7 +213,12 @@ public class NexusAsyncApiTest {
         client.newUntypedNexusServiceClient(
             endpoint.getSpec().getName(),
             TestNexusServices.TestNexusService1.class.getSimpleName());
-    return svcClient.start("operation", StartNexusOperationOptions.newBuilder().build(), input);
+    return svcClient.start("operation", newOptionsWithId(), input);
+  }
+
+  /** Builds a minimal {@link StartNexusOperationOptions} with a unique id. */
+  private static StartNexusOperationOptions newOptionsWithId() {
+    return StartNexusOperationOptions.newBuilder().setId(UUID.randomUUID().toString()).build();
   }
 
   public static class PlaceholderWorkflowImpl implements TestWorkflows.TestWorkflow1 {

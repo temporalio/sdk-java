@@ -28,6 +28,7 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.serviceclient.StatusUtils;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -53,7 +54,8 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   public StartNexusOperationExecutionOutput startNexusOperationExecution(
       StartNexusOperationExecutionInput input) {
     StartNexusOperationOptions options = input.getOptions();
-    String operationId = options.getId() != null ? options.getId() : UUID.randomUUID().toString();
+    // The builder validates that id is non-null; this is a defense-in-depth assertion.
+    String operationId = Objects.requireNonNull(options.getId(), "StartNexusOperationOptions.id");
     StartNexusOperationExecutionRequest.Builder request =
         StartNexusOperationExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())

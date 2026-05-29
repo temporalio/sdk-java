@@ -82,6 +82,7 @@ public class NexusClientTest {
             TestNexusServices.TestNexusService1.class.getSimpleName());
     StartNexusOperationOptions opts =
         StartNexusOperationOptions.newBuilder()
+            .setId(UUID.randomUUID().toString())
             .setScheduleToCloseTimeout(Duration.ofSeconds(30))
             .build();
     UntypedNexusOperationHandle handle = svcClient.start("operation", opts, inputValue);
@@ -161,6 +162,7 @@ public class NexusClientTest {
                 TestNexusServices.TestNexusService1.class.getSimpleName());
     StartNexusOperationOptions opts =
         StartNexusOperationOptions.newBuilder()
+            .setId(UUID.randomUUID().toString())
             .setScheduleToCloseTimeout(Duration.ofSeconds(30))
             .build();
     UntypedNexusOperationHandle handle =
@@ -184,6 +186,7 @@ public class NexusClientTest {
             "operation",
             String.class,
             StartNexusOperationOptions.newBuilder()
+                .setId(UUID.randomUUID().toString())
                 .setScheduleToCloseTimeout(Duration.ofSeconds(30))
                 .build(),
             "untyped-exec");
@@ -209,6 +212,7 @@ public class NexusClientTest {
             String.class,
             String.class,
             StartNexusOperationOptions.newBuilder()
+                .setId(UUID.randomUUID().toString())
                 .setScheduleToCloseTimeout(Duration.ofSeconds(30))
                 .build(),
             "untyped-exec-typed");

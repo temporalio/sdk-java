@@ -42,7 +42,8 @@ public class NexusServiceClientTest {
     NexusServiceClient<TestNexusServices.TestNexusService1> client =
         buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
-    String result = client.execute(TestNexusServices.TestNexusService1::operation, "hello");
+    String result =
+        client.execute(TestNexusServices.TestNexusService1::operation, "hello", newOptionsWithId());
 
     Assert.assertEquals("echo:hello", result);
   }
@@ -53,7 +54,7 @@ public class NexusServiceClientTest {
         buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
     NexusOperationHandle<String> handle =
-        client.start(TestNexusServices.TestNexusService1::operation, "world");
+        client.start(TestNexusServices.TestNexusService1::operation, "world", newOptionsWithId());
 
     Assert.assertNotNull(handle.getNexusOperationId());
     Assert.assertEquals("echo:world", handle.getResult());
@@ -61,10 +62,11 @@ public class NexusServiceClientTest {
 
   @Test
   public void executeWithOptionsReturnsResult() {
-    // Covers the 3-arg execute(op, input, options) overload — the no-options variant is already
-    // covered by executeReturnsTypedResult.
+    // Covers the 3-arg execute(op, input, options) overload — exercises a non-default
+    // scheduleToCloseTimeout in addition to the required id.
     StartNexusOperationOptions options =
         StartNexusOperationOptions.newBuilder()
+            .setId(UUID.randomUUID().toString())
             .setScheduleToCloseTimeout(Duration.ofSeconds(30))
             .build();
 
@@ -102,7 +104,10 @@ public class NexusServiceClientTest {
         buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
     StartNexusOperationOptions startOptions =
-        StartNexusOperationOptions.newBuilder().setSummary("per-call-summary").build();
+        StartNexusOperationOptions.newBuilder()
+            .setId(UUID.randomUUID().toString())
+            .setSummary("per-call-summary")
+            .build();
     NexusOperationHandle<String> handle =
         client.start(TestNexusServices.TestNexusService1::operation, "world", startOptions);
 
@@ -120,6 +125,11 @@ public class NexusServiceClientTest {
   // calling `start(...)` immediately afterwards fails with "no mapping defined for search
   // attribute" until the namespace's Visibility index catches up. Reintroduce once the rule
   // (or the test) synchronously waits for the mapping to propagate.
+
+  /** Builds a minimal {@link StartNexusOperationOptions} with a unique id. */
+  private static StartNexusOperationOptions newOptionsWithId() {
+    return StartNexusOperationOptions.newBuilder().setId(UUID.randomUUID().toString()).build();
+  }
 
   private NexusServiceClient<TestNexusServices.TestNexusService1> buildServiceClient(
       Endpoint endpoint) {

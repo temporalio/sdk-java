@@ -45,12 +45,7 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
     Payload payload = serializeInput(arg);
     StartNexusOperationExecutionInput input =
         new StartNexusOperationExecutionInput(
-            endpoint,
-            serviceName,
-            operation,
-            payload,
-            options != null ? options : StartNexusOperationOptions.getDefaultInstance(),
-            Collections.emptyMap());
+            endpoint, serviceName, operation, payload, options, Collections.emptyMap());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
     return new NexusOperationHandleImpl(
         output.getOperationId(), output.getRunId(), invoker, dataConverter);
