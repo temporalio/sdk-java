@@ -1,7 +1,5 @@
 package io.temporal.client.nexus;
 
-import static org.junit.Assume.assumeTrue;
-
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientImpl;
 import io.temporal.client.NexusClientOptions;
@@ -10,6 +8,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.common.interceptors.NexusClientCallsInterceptorBase;
 import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.StandaloneNexusTestPrerequisites;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,11 +31,8 @@ public class NexusClientInterceptorChainTest {
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(PlaceholderWorkflowImpl.class).build();
 
   @BeforeClass
-  public static void requireExternalService() {
-    // The time-skipping test server does not implement standalone Nexus operation RPCs.
-    assumeTrue(
-        "standalone Nexus operations require a real server",
-        SDKTestWorkflowRule.useExternalService);
+  public static void requireServerWithStandaloneNexusSupport() {
+    StandaloneNexusTestPrerequisites.requireServerSupport();
   }
 
   @Test
