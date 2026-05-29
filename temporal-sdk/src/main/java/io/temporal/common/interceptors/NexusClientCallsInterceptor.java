@@ -1,6 +1,5 @@
 package io.temporal.common.interceptors;
 
-import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
@@ -45,19 +44,17 @@ public interface NexusClientCallsInterceptor {
   /**
    * Returns a point-in-time snapshot of a standalone Nexus operation execution.
    *
-   * @param input operation ID, optional run ID, and flags controlling whether to include input and
-   *     outcome payloads
+   * @param input operation ID and optional run ID
    * @return output wrapping the {@link NexusOperationExecutionDescription}
    */
   DescribeNexusOperationExecutionOutput describeNexusOperationExecution(
       DescribeNexusOperationExecutionInput input);
 
   /**
-   * Synchronously long-polls the server until the Nexus operation reaches the wait stage requested
-   * in {@code input}, then returns the outcome. Blocks the calling thread for the duration.
+   * Synchronously long-polls the server until the Nexus operation reaches a terminal stage, then
+   * returns the outcome. Blocks the calling thread for the duration.
    *
-   * @param input operation ID, optional run ID, target wait stage, and the deadline bounding the
-   *     poll
+   * @param input operation ID, optional run ID, and the deadline bounding the poll
    * @return output containing the run ID, wait stage reached, operation token, and either the
    *     result payload or failure (when the operation has reached a terminal stage)
    */
@@ -68,8 +65,7 @@ public interface NexusClientCallsInterceptor {
    * Asynchronous variant of {@link #pollNexusOperationExecution} that returns a future without
    * blocking the calling thread.
    *
-   * @param input operation ID, optional run ID, target wait stage, and the deadline bounding the
-   *     poll
+   * @param input operation ID, optional run ID, and the deadline bounding the poll
    * @return a future that completes with the poll output, or completes exceptionally if the poll
    *     fails or the deadline expires
    */
@@ -77,11 +73,11 @@ public interface NexusClientCallsInterceptor {
       PollNexusOperationExecutionInput input);
 
   /**
-   * Lists standalone Nexus operation executions matching a Visibility query, with paging support.
+   * Lists standalone Nexus operation executions matching a Visibility query. Pagination is handled
+   * internally by the SDK; the returned output contains the full materialized result set.
    *
-   * @param input Visibility query string, page size, and optional next-page token from a prior call
-   * @return output wrapping the matching operations and the next-page token (empty when the result
-   *     set is exhausted)
+   * @param input Visibility query string
+   * @return output wrapping the matching operations
    */
   ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input);
@@ -199,15 +195,10 @@ public interface NexusClientCallsInterceptor {
   final class DescribeNexusOperationExecutionInput {
     private final String operationId;
     private final @Nullable String runId;
-    private final boolean includeInput;
-    private final boolean includeOutcome;
 
-    public DescribeNexusOperationExecutionInput(
-        String operationId, @Nullable String runId, boolean includeInput, boolean includeOutcome) {
+    public DescribeNexusOperationExecutionInput(String operationId, @Nullable String runId) {
       this.operationId = operationId;
       this.runId = runId;
-      this.includeInput = includeInput;
-      this.includeOutcome = includeOutcome;
     }
 
     public String getOperationId() {
@@ -216,14 +207,6 @@ public interface NexusClientCallsInterceptor {
 
     public Optional<String> getRunId() {
       return Optional.ofNullable(runId);
-    }
-
-    public boolean isIncludeInput() {
-      return includeInput;
-    }
-
-    public boolean isIncludeOutcome() {
-      return includeOutcome;
     }
   }
 
@@ -242,17 +225,12 @@ public interface NexusClientCallsInterceptor {
   final class PollNexusOperationExecutionInput {
     private final String operationId;
     private final @Nullable String runId;
-    private final NexusOperationWaitStage waitStage;
     private final @Nonnull Deadline deadline;
 
     public PollNexusOperationExecutionInput(
-        String operationId,
-        @Nullable String runId,
-        NexusOperationWaitStage waitStage,
-        @Nonnull Deadline deadline) {
+        String operationId, @Nullable String runId, @Nonnull Deadline deadline) {
       this.operationId = operationId;
       this.runId = runId;
-      this.waitStage = waitStage;
       this.deadline = deadline;
     }
 
@@ -262,10 +240,6 @@ public interface NexusClientCallsInterceptor {
 
     public Optional<String> getRunId() {
       return Optional.ofNullable(runId);
-    }
-
-    public NexusOperationWaitStage getWaitStage() {
-      return waitStage;
     }
 
     public Deadline getDeadline() {
@@ -316,45 +290,29 @@ public interface NexusClientCallsInterceptor {
 
   final class ListNexusOperationExecutionsInput {
     private final @Nullable String query;
-    private final int pageSize;
-    private final @Nullable ByteString nextPageToken;
 
-    public ListNexusOperationExecutionsInput(
-        @Nullable String query, int pageSize, @Nullable ByteString nextPageToken) {
+    public ListNexusOperationExecutionsInput(@Nullable String query) {
       this.query = query;
-      this.pageSize = pageSize;
-      this.nextPageToken = nextPageToken;
     }
 
     public Optional<String> getQuery() {
       return Optional.ofNullable(query);
     }
-
-    public int getPageSize() {
-      return pageSize;
-    }
-
-    public Optional<ByteString> getNextPageToken() {
-      return Optional.ofNullable(nextPageToken);
-    }
   }
 
+  /**
+   * Result of a list call. Holds the full materialized result set; pagination is handled inside the
+   * SDK and not exposed through the interceptor surface.
+   */
   final class ListNexusOperationExecutionsOutput {
     private final List<NexusOperationExecutionListInfo> operations;
-    private final ByteString nextPageToken;
 
-    public ListNexusOperationExecutionsOutput(
-        List<NexusOperationExecutionListInfo> operations, ByteString nextPageToken) {
+    public ListNexusOperationExecutionsOutput(List<NexusOperationExecutionListInfo> operations) {
       this.operations = Collections.unmodifiableList(operations);
-      this.nextPageToken = nextPageToken;
     }
 
     public List<NexusOperationExecutionListInfo> getOperations() {
       return operations;
-    }
-
-    public ByteString getNextPageToken() {
-      return nextPageToken;
     }
   }
 

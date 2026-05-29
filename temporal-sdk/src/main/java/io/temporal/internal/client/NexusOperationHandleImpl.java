@@ -69,8 +69,7 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
   @Override
   public NexusOperationExecutionDescription describe() {
     DescribeNexusOperationExecutionInput input =
-        new DescribeNexusOperationExecutionInput(
-            operationId, runId, /* includeInput= */ false, /* includeOutcome= */ true);
+        new DescribeNexusOperationExecutionInput(operationId, runId);
     DescribeNexusOperationExecutionOutput output =
         interceptor.describeNexusOperationExecution(input);
     return output.getDescription();
@@ -161,11 +160,7 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
       throws TimeoutException {
     while (true) {
       PollNexusOperationExecutionInput pollInput =
-          new PollNexusOperationExecutionInput(
-              operationId,
-              runId,
-              NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED,
-              deadline);
+          new PollNexusOperationExecutionInput(operationId, runId, deadline);
       PollNexusOperationExecutionOutput out;
       try {
         out = interceptor.pollNexusOperationExecution(pollInput);
@@ -184,11 +179,7 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
   private CompletableFuture<PollNexusOperationExecutionOutput> pollAsyncUntilCompletedOrDeadline(
       Deadline deadline) {
     PollNexusOperationExecutionInput pollInput =
-        new PollNexusOperationExecutionInput(
-            operationId,
-            runId,
-            NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED,
-            deadline);
+        new PollNexusOperationExecutionInput(operationId, runId, deadline);
     CompletableFuture<PollNexusOperationExecutionOutput> pollFuture;
     try {
       pollFuture = interceptor.pollNexusOperationExecutionAsync(pollInput);

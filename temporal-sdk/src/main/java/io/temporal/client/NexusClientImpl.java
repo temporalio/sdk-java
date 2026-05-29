@@ -2,7 +2,6 @@ package io.temporal.client;
 
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
-import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
@@ -19,14 +18,9 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,16 +126,15 @@ public class NexusClientImpl implements NexusClient {
     return nexusClientCallsInvoker;
   }
 
-  private static final int DEFAULT_LIST_PAGE_SIZE = 1000;
-
   @Override
   public Stream<NexusOperationExecutionMetadata> listNexusOperationExecutions(
       @Nullable String query) {
-    Iterator<NexusOperationExecutionMetadata> iter =
-        new ListPageIterator(nexusClientCallsInvoker, query, DEFAULT_LIST_PAGE_SIZE);
-    return StreamSupport.stream(
-        Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED | Spliterator.NONNULL),
-        false);
+    // Pagination is handled inside the interceptor invoker; we receive a fully materialized list
+    // and expose a Stream view of it to honour the public API contract.
+    ListNexusOperationExecutionsOutput out =
+        nexusClientCallsInvoker.listNexusOperationExecutions(
+            new ListNexusOperationExecutionsInput(query));
+    return out.getOperations().stream().map(NexusOperationExecutionMetadata::fromListInfo);
   }
 
   @Override
@@ -157,55 +150,5 @@ public class NexusClientImpl implements NexusClient {
                         g.getCount(), g.getGroupValues()))
             .collect(Collectors.toList());
     return new NexusOperationExecutionCount(out.getCount(), publicGroups);
-  }
-
-  /** Lazily fetches pages from the interceptor and flattens them into a single iteration. */
-  private static final class ListPageIterator implements Iterator<NexusOperationExecutionMetadata> {
-    private final NexusClientCallsInterceptor invoker;
-    private final @Nullable String query;
-    private final int pageSize;
-    private Iterator<NexusOperationExecutionMetadata> current =
-        java.util.Collections.emptyIterator();
-    private @Nullable ByteString nextPageToken = null;
-    private boolean exhausted = false;
-
-    ListPageIterator(NexusClientCallsInterceptor invoker, @Nullable String query, int pageSize) {
-      this.invoker = invoker;
-      this.query = query;
-      this.pageSize = pageSize;
-    }
-
-    @Override
-    public boolean hasNext() {
-      while (!current.hasNext() && !exhausted) {
-        fetchNextPage();
-      }
-      return current.hasNext();
-    }
-
-    @Override
-    public NexusOperationExecutionMetadata next() {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      return current.next();
-    }
-
-    private void fetchNextPage() {
-      ListNexusOperationExecutionsOutput page =
-          invoker.listNexusOperationExecutions(
-              new ListNexusOperationExecutionsInput(query, pageSize, nextPageToken));
-      current =
-          page.getOperations().stream()
-              .map(NexusOperationExecutionMetadata::fromListInfo)
-              .iterator();
-      ByteString token = page.getNextPageToken();
-      if (token == null || token.isEmpty()) {
-        exhausted = true;
-        nextPageToken = null;
-      } else {
-        nextPageToken = token;
-      }
-    }
   }
 }

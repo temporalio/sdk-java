@@ -2,6 +2,7 @@ package io.temporal.internal.client;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.errordetails.v1.NexusOperationExecutionAlreadyStartedFailure;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsRequest;
@@ -137,12 +138,15 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(
       DescribeNexusOperationExecutionInput input) {
+    // Describe defaults: outcome is included so callers can read the success/failure of completed
+    // operations; input is omitted to keep responses small. These are SDK-internal decisions and
+    // not exposed through the interceptor surface.
     DescribeNexusOperationExecutionRequest.Builder request =
         DescribeNexusOperationExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setOperationId(input.getOperationId())
-            .setIncludeInput(input.isIncludeInput())
-            .setIncludeOutcome(input.isIncludeOutcome());
+            .setIncludeInput(false)
+            .setIncludeOutcome(true);
     input.getRunId().ifPresent(request::setRunId);
     return request.build();
   }
@@ -192,7 +196,9 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
         PollNexusOperationExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setOperationId(input.getOperationId())
-            .setWaitStage(input.getWaitStage());
+            // Poll always waits for the operation to reach a terminal state; intermediate stages
+            // are not exposed through the interceptor surface.
+            .setWaitStage(NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED);
     input.getRunId().ifPresent(request::setRunId);
     return request.build();
   }
@@ -207,20 +213,35 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
         response.hasFailure() ? response.getFailure() : null);
   }
 
+  /** Page size used when looping over list pages internally. */
+  private static final int LIST_PAGE_SIZE = 1000;
+
   @Override
   public ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input) {
-    ListNexusOperationExecutionsRequest.Builder request =
-        ListNexusOperationExecutionsRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setPageSize(input.getPageSize());
-    input.getQuery().ifPresent(request::setQuery);
-    input.getNextPageToken().ifPresent(request::setNextPageToken);
-
-    ListNexusOperationExecutionsResponse response =
-        genericClient.listNexusOperationExecutions(request.build());
-    return new ListNexusOperationExecutionsOutput(
-        response.getOperationsList(), response.getNextPageToken());
+    // Pagination is an internal concern; the interceptor surface sees a single query in and a
+    // materialized list out. The loop bounds itself by the server-supplied next_page_token.
+    java.util.List<io.temporal.api.nexus.v1.NexusOperationExecutionListInfo> all =
+        new java.util.ArrayList<>();
+    com.google.protobuf.ByteString token = com.google.protobuf.ByteString.EMPTY;
+    while (true) {
+      ListNexusOperationExecutionsRequest.Builder request =
+          ListNexusOperationExecutionsRequest.newBuilder()
+              .setNamespace(clientOptions.getNamespace())
+              .setPageSize(LIST_PAGE_SIZE);
+      input.getQuery().ifPresent(request::setQuery);
+      if (!token.isEmpty()) {
+        request.setNextPageToken(token);
+      }
+      ListNexusOperationExecutionsResponse response =
+          genericClient.listNexusOperationExecutions(request.build());
+      all.addAll(response.getOperationsList());
+      token = response.getNextPageToken();
+      if (token.isEmpty()) {
+        break;
+      }
+    }
+    return new ListNexusOperationExecutionsOutput(all);
   }
 
   @Override

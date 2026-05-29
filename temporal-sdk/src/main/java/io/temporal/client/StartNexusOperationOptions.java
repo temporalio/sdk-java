@@ -50,9 +50,7 @@ public final class StartNexusOperationOptions {
       this.idConflictPolicy = options.idConflictPolicy;
     }
 
-    /**
-     * Required. Unique identifier for this operation within its namespace.
-     */
+    /** Required. Unique identifier for this operation within its namespace. */
     public Builder setId(@Nonnull String id) {
       Objects.requireNonNull(id, "id");
       if (id.isEmpty()) {
