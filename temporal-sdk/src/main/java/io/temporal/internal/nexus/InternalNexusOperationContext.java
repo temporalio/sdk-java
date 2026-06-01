@@ -22,17 +22,16 @@ public class InternalNexusOperationContext {
   // workflow client (signal, signalWithStart) can attach them to outgoing requests via
   // SignalWorkflowExecutionRequest.links.
   private List<Link> nexusOperationLinks = Collections.emptyList();
-  // Backlinks returned by SignalWorkflowExecutionResponse.link /
-  // SignalWithStartWorkflowExecutionResponse.signal_link. One entry per signal RPC issued from
-  // within the Nexus operation handler. Drained by the task handler when building
-  // StartOperationResponse so every signal the handler issues gets a corresponding link on the
-  // caller workflow's history event.
+  // Backlinks returned by outbound RPCs the operation handler issues (currently
+  // SignalWorkflowExecutionResponse.link and SignalWithStartWorkflowExecutionResponse.signal_link;
+  // future update/start variants attach the same way). One entry per outbound RPC that returned
+  // a link. Drained by the task handler when building StartOperationResponse so each RPC the
+  // handler issued gets a corresponding link on the caller workflow's history event.
   //
   // NOTE: this context is only safe for use from the single thread that runs the operation
   // handler (the Nexus task executor's thread). Handlers that spawn their own threads to issue
-  // signals will not see the thread-local context, so the links from those signals will not
-  // propagate.
-  private final List<Link> signalWorkflowResponseLinks = new ArrayList<>();
+  // RPCs will not see the thread-local context, so the links from those RPCs will not propagate.
+  private final List<Link> responseBacklinks = new ArrayList<>();
 
   public InternalNexusOperationContext(
       String namespace,
@@ -88,7 +87,7 @@ public class InternalNexusOperationContext {
 
   /**
    * Set the {@code common.v1.Link}s extracted from the inbound Nexus task so they can be attached
-   * to any signal RPCs issued by the operation handler.
+   * to RPCs issued by the operation handler.
    */
   public void setNexusOperationLinks(List<Link> links) {
     this.nexusOperationLinks = links == null ? Collections.emptyList() : links;
@@ -100,19 +99,19 @@ public class InternalNexusOperationContext {
   }
 
   /**
-   * Append a backlink returned by a signal-class RPC (signal or signalWithStart). Each signal the
-   * operation handler issues should add one entry; the task handler drains the list when building
-   * the operation's StartOperationResponse.
+   * Append a backlink returned by an outbound RPC the operation handler issued (e.g. signal,
+   * signalWithStart, and future update/start variants). The task handler drains the list when
+   * building the operation's StartOperationResponse.
    */
-  public void addSignalWorkflowResponseLink(Link link) {
+  public void addBacklink(Link link) {
     if (link != null) {
-      this.signalWorkflowResponseLinks.add(link);
+      this.responseBacklinks.add(link);
     }
   }
 
-  /** Backlinks from every signal RPC issued by the handler. Never null; may be empty. */
-  public List<Link> getSignalWorkflowResponseLinks() {
-    return signalWorkflowResponseLinks;
+  /** Backlinks from every outbound RPC the handler issued. Never null; may be empty. */
+  public List<Link> getBacklinks() {
+    return responseBacklinks;
   }
 
   private class NexusOperationContextImpl implements NexusOperationContext {

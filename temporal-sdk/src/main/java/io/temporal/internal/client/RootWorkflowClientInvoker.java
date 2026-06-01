@@ -139,7 +139,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a backlink pointing at the signal
     // event; older servers leave it unset. Propagate when present.
     if (CurrentNexusOperationContext.isNexusContext() && response.hasLink()) {
-      CurrentNexusOperationContext.get().addSignalWorkflowResponseLink(response.getLink());
+      CurrentNexusOperationContext.get().addBacklink(response.getLink());
     }
     return new WorkflowSignalOutput();
   }
@@ -178,7 +178,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a backlink pointing at the signal
     // event; older servers leave it unset. Propagate when present.
     if (CurrentNexusOperationContext.isNexusContext() && response.hasSignalLink()) {
-      CurrentNexusOperationContext.get().addSignalWorkflowResponseLink(response.getSignalLink());
+      CurrentNexusOperationContext.get().addBacklink(response.getSignalLink());
     }
     // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
     //  We should wire it when it's implemented server-side.
