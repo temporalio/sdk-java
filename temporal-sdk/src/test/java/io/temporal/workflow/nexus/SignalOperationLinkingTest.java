@@ -191,8 +191,7 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
 
   /**
    * Async response path: handler signals the callee then returns an async result. Verifies that the
-   * backlink lands on {@code NexusOperationStarted} (the async branch in NexusTaskHandlerImpl)
-   * rather than on {@code NexusOperationCompleted}.
+   * backlink lands on {@code NexusOperationStarted} (the async branch in NexusTaskHandlerImpl).
    */
   @Test
   public void testAsyncSignalOperationLinks() {

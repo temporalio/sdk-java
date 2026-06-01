@@ -23,15 +23,18 @@ public class InternalNexusOperationContext {
   // SignalWorkflowExecutionRequest.links.
   private List<Link> nexusOperationLinks = Collections.emptyList();
   // Backlinks returned by outbound RPCs the operation handler issues (currently
-  // SignalWorkflowExecutionResponse.link and SignalWithStartWorkflowExecutionResponse.signal_link;
-  // future update/start variants attach the same way). One entry per outbound RPC that returned
-  // a link. Drained by the task handler when building StartOperationResponse so each RPC the
-  // handler issued gets a corresponding link on the caller workflow's history event.
+  // SignalWorkflowExecutionResponse.link and SignalWithStartWorkflowExecutionResponse.signal_link).
+  // One entry per outbound RPC that returned a link. Drained by the task handler when building
+  // StartOperationResponse so each RPC the handler issued gets a corresponding link on the caller
+  // workflow's history event.
   //
-  // NOTE: this context is only safe for use from the single thread that runs the operation
-  // handler (the Nexus task executor's thread). Handlers that spawn their own threads to issue
-  // RPCs will not see the thread-local context, so the links from those RPCs will not propagate.
+  // This context is only safe for use from the single thread that runs the operation handler (the
+  // Nexus task executor's thread). The mutators below assert this contract; a stray cross-thread
+  // call fails fast rather than silently corrupting the ArrayList.
   private final List<Link> responseBacklinks = new ArrayList<>();
+  // Captured at construction (on the Nexus task executor's thread) and used to fail fast on any
+  // cross-thread mutation. See note on responseBacklinks.
+  private final Thread ownerThread;
 
   public InternalNexusOperationContext(
       String namespace,
@@ -44,6 +47,18 @@ public class InternalNexusOperationContext {
     this.endpoint = endpoint;
     this.metricScope = metricScope;
     this.client = client;
+    this.ownerThread = Thread.currentThread();
+  }
+
+  private void assertOwnerThread() {
+    if (Thread.currentThread() != ownerThread) {
+      throw new IllegalStateException(
+          "InternalNexusOperationContext mutated from thread '"
+              + Thread.currentThread().getName()
+              + "' but is owned by '"
+              + ownerThread.getName()
+              + "'. Operation handlers must not spawn threads to issue link-propagating RPCs.");
+    }
   }
 
   public Scope getMetricsScope() {
@@ -90,6 +105,7 @@ public class InternalNexusOperationContext {
    * to RPCs issued by the operation handler.
    */
   public void setNexusOperationLinks(List<Link> links) {
+    assertOwnerThread();
     this.nexusOperationLinks = links == null ? Collections.emptyList() : links;
   }
 
@@ -99,19 +115,23 @@ public class InternalNexusOperationContext {
   }
 
   /**
-   * Append a backlink returned by an outbound RPC the operation handler issued (e.g. signal,
-   * signalWithStart, and future update/start variants). The task handler drains the list when
-   * building the operation's StartOperationResponse.
+   * Append a backlink returned by an outbound RPC the operation handler issued (signal or
+   * signalWithStart). The task handler drains the list when building the operation's
+   * StartOperationResponse.
    */
   public void addBacklink(Link link) {
+    assertOwnerThread();
     if (link != null) {
       this.responseBacklinks.add(link);
     }
   }
 
-  /** Backlinks from every outbound RPC the handler issued. Never null; may be empty. */
+  /**
+   * Backlinks from every outbound RPC the handler issued. Never null; may be empty. Returned as an
+   * unmodifiable view; callers must not attempt to mutate.
+   */
   public List<Link> getBacklinks() {
-    return responseBacklinks;
+    return Collections.unmodifiableList(responseBacklinks);
   }
 
   private class NexusOperationContextImpl implements NexusOperationContext {

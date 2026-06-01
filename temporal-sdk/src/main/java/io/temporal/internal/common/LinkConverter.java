@@ -6,6 +6,7 @@ import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -33,8 +34,7 @@ public class LinkConverter {
       Link.WorkflowEvent.RequestIdReference.getDescriptor().getName();
 
   // Fully-qualified proto descriptor names used as the `type` field on nexus.v1.Link. Match the
-  // canonical server implementation at temporalio/temporal/common/nexus/link_converter.go so links
-  // round-trip cleanly across SDKs.
+  // server's Nexus link converter so links round-trip cleanly across SDKs.
   private static final String workflowEventType = Link.WorkflowEvent.getDescriptor().getFullName();
   private static final String nexusOperationType =
       Link.NexusOperation.getDescriptor().getFullName();
@@ -187,7 +187,7 @@ public class LinkConverter {
           .setUrl(url)
           .setType(nexusOperationType)
           .build();
-    } catch (Exception e) {
+    } catch (UnsupportedEncodingException e) {
       log.error("Failed to encode NexusOperation Nexus link URL", e);
     }
     return null;
@@ -200,6 +200,9 @@ public class LinkConverter {
    */
   public static Link nexusLinkToNexusOperation(io.temporal.api.nexus.v1.Link nexusLink) {
     try {
+
+      //Lots of if statements, but this way we double-check the validity of the link
+      //passed in.
       URI uri = new URI(nexusLink.getUrl());
       if (!"temporal".equals(uri.getScheme())) {
         log.error(
@@ -213,17 +216,38 @@ public class LinkConverter {
             "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
+      if (!st.hasMoreTokens()) {
+        log.error(
+            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
       String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
       if (!st.hasMoreTokens() || !"nexus-operations".equals(st.nextToken())) {
         log.error(
             "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
+      if (!st.hasMoreTokens()) {
+        log.error(
+            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
       String operationId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      if (!st.hasMoreTokens()) {
+        log.error(
+            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
       String runId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
       if (!st.hasMoreTokens() || !"details".equals(st.nextToken())) {
         log.error(
             "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      if (st.hasMoreTokens()) {
+        log.error(
+            "Failed to parse NexusOperation Nexus link URL: extra tokens after 'details': {}",
+            uri.getRawPath());
         return null;
       }
 
@@ -234,7 +258,7 @@ public class LinkConverter {
                   .setOperationId(operationId)
                   .setRunId(runId))
           .build();
-    } catch (Exception e) {
+    } catch (URISyntaxException | UnsupportedEncodingException e) {
       log.error("Failed to parse NexusOperation Nexus link URL", e);
       return null;
     }

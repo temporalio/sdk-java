@@ -122,8 +122,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     // If this signal is being issued from inside a Nexus operation handler, forward the inbound
     // Nexus task links so the SignalWorkflowExecution history event links back to the caller.
-    if (CurrentNexusOperationContext.isNexusContext()) {
+    boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
+    if (inNexusContext) {
       request.addAllLinks(CurrentNexusOperationContext.get().getNexusOperationLinks());
+    } else {
+      // Most signal calls (from a regular client or workflow) won't be in a Nexus context — this
+      // is normal. The log helps a debugger when a Nexus operation handler "mysteriously" lacks
+      // link propagation because it spawned a thread to issue the signal (the thread-local
+      // CurrentNexusOperationContext is invisible from that thread).
+      log.debug("signal RPC issued outside a Nexus operation context; no link propagation");
     }
 
     DataConverter dataConverterWitSignalContext =
@@ -138,7 +145,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     SignalWorkflowExecutionResponse response = genericClient.signal(request.build());
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a backlink pointing at the signal
     // event; older servers leave it unset. Propagate when present.
-    if (CurrentNexusOperationContext.isNexusContext() && response.hasLink()) {
+    if (inNexusContext && response.hasLink()) {
       CurrentNexusOperationContext.get().addBacklink(response.getLink());
     }
     return new WorkflowSignalOutput();
@@ -165,8 +172,12 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // If this signalWithStart is being issued from inside a Nexus operation handler, forward
     // the inbound Nexus task links so both the WorkflowExecutionStarted and
     // WorkflowExecutionSignaled events on the callee link back to the caller.
-    if (CurrentNexusOperationContext.isNexusContext()) {
+    boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
+    if (inNexusContext) {
       requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getNexusOperationLinks());
+    } else {
+      log.debug(
+          "signalWithStart RPC issued outside a Nexus operation context; no link propagation");
     }
     SignalWithStartWorkflowExecutionRequest request = requestBuilder.build();
     SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
@@ -177,7 +188,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .build();
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a backlink pointing at the signal
     // event; older servers leave it unset. Propagate when present.
-    if (CurrentNexusOperationContext.isNexusContext() && response.hasSignalLink()) {
+    if (inNexusContext && response.hasSignalLink()) {
       CurrentNexusOperationContext.get().addBacklink(response.getSignalLink());
     }
     // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.

@@ -203,6 +203,101 @@ public class NexusTaskHandlerImplTest {
   }
 
   /**
+   * Same as {@link #asyncResponseIncludesSignalBacklinks} but the handler returns sync. Guards
+   * against the sync and async builders drifting (both must call {@code addAllLinks(backlinks)}).
+   */
+  @Test
+  public void syncResponseIncludesSignalBacklinks() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(
+        new Object[] {new BacklinkStashingSyncServiceImpl()});
+    nexusTaskHandlerImpl.start();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService1")
+                            .setPayload(dataConverter.toPayload("input").get())
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+
+    Assert.assertNull(result.getHandlerException());
+    StartOperationResponse.Sync sync = result.getResponse().getStartOperation().getSyncSuccess();
+    Assert.assertEquals(
+        "expected one signal backlink on the sync response", 1, sync.getLinksCount());
+    Assert.assertTrue(
+        "expected backlink URL to reference the callee workflow, got: " + sync.getLinks(0).getUrl(),
+        sync.getLinks(0).getUrl().contains("callee-wf"));
+  }
+
+  /**
+   * Mixed inbound link list: one valid {@code WorkflowEvent}-typed link plus one unknown-type link.
+   * The handler must observe only the valid one on {@code getNexusOperationLinks()} — unknown types
+   * are logged + dropped by {@link io.temporal.internal.common.LinkConverter}.
+   */
+  @Test
+  public void inboundLinkListFiltersUnknownTypes() throws TimeoutException {
+    InboundLinkCapturingServiceImpl.capturedInboundLinks = null;
+    WorkflowClient client = mock(WorkflowClient.class);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(
+        new Object[] {new InboundLinkCapturingServiceImpl()});
+    nexusTaskHandlerImpl.start();
+
+    io.temporal.api.nexus.v1.Link validLink =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl(
+                "temporal:///namespaces/ns/workflows/caller-wf/caller-run/history?eventID=1&eventType=NexusOperationScheduled&referenceType=EventReference")
+            .setType("temporal.api.common.v1.Link.WorkflowEvent")
+            .build();
+    io.temporal.api.nexus.v1.Link unknownLink =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///some/unknown/path")
+            .setType("not.a.real.Type")
+            .build();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService1")
+                            .setPayload(dataConverter.toPayload("input").get())
+                            .addLinks(validLink)
+                            .addLinks(unknownLink)
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+
+    Assert.assertNull(result.getHandlerException());
+    Assert.assertNotNull(
+        "handler should have captured the inbound links",
+        InboundLinkCapturingServiceImpl.capturedInboundLinks);
+    Assert.assertEquals(
+        "expected only the valid WorkflowEvent link to be forwarded; the unknown-type link must"
+            + " be dropped by LinkConverter",
+        1,
+        InboundLinkCapturingServiceImpl.capturedInboundLinks.size());
+    Assert.assertTrue(
+        "expected the surviving link to be the WorkflowEvent variant",
+        InboundLinkCapturingServiceImpl.capturedInboundLinks.get(0).hasWorkflowEvent());
+  }
+
+  /**
    * Handler that simulates what a real Nexus operation would do after issuing a signal: stash a
    * backlink on the operation context, then return an async result. Lets us exercise the
    * async-response link merge in {@link NexusTaskHandlerImpl} without standing up a real signal
@@ -234,6 +329,51 @@ public class NexusTaskHandlerImplTest {
         @Override
         public void cancel(OperationContext ctx, OperationCancelDetails details) {}
       };
+    }
+  }
+
+  /** Sync mirror of {@link BacklinkStashingAsyncServiceImpl}. */
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public class BacklinkStashingSyncServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return OperationHandler.sync(
+          (ctx, details, input) -> {
+            Link backlink =
+                Link.newBuilder()
+                    .setWorkflowEvent(
+                        Link.WorkflowEvent.newBuilder()
+                            .setNamespace(NAMESPACE)
+                            .setWorkflowId("callee-wf")
+                            .setRunId("callee-run-id")
+                            .setEventRef(
+                                Link.WorkflowEvent.EventReference.newBuilder()
+                                    .setEventType(
+                                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
+                    .build();
+            CurrentNexusOperationContext.get().addBacklink(backlink);
+            return "result";
+          });
+    }
+  }
+
+  /**
+   * Records the inbound common.v1.Link list the handler observes on its operation context, so a
+   * test can assert that LinkConverter filtered out unknown-type links before stashing.
+   */
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public static class InboundLinkCapturingServiceImpl {
+    static volatile java.util.List<Link> capturedInboundLinks;
+
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return OperationHandler.sync(
+          (ctx, details, input) -> {
+            capturedInboundLinks =
+                new java.util.ArrayList<>(
+                    CurrentNexusOperationContext.get().getNexusOperationLinks());
+            return "ok";
+          });
     }
   }
 

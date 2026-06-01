@@ -317,49 +317,51 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
     OperationContext context = ctx.build();
     try {
-      try {
-        OperationStartResult<HandlerResultContent> result =
-            startOperation(context, operationStartDetails.build(), input.build());
-        // If outbound RPCs the handler issued (signal, signalWithStart, future update/start
-        // variants) returned backlinks, propagate them to the caller so the caller workflow's
-        // history event links to each event on the callee. Same set of backlinks applies to both
-        // sync and async response variants.
-        List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
-        for (io.temporal.api.common.v1.Link backlink :
-            CurrentNexusOperationContext.get().getBacklinks()) {
-          io.temporal.api.nexus.v1.Link converted = LinkConverter.commonLinkToNexusLink(backlink);
-          if (converted != null) {
-            backlinks.add(converted);
-          }
-        }
-
-        if (result.isSync()) {
-          startResponseBuilder.setSyncSuccess(
-              StartOperationResponse.Sync.newBuilder()
-                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
-                  .addAllLinks(backlinks)
-                  .build());
+      OperationStartResult<HandlerResultContent> result =
+          startOperation(context, operationStartDetails.build(), input.build());
+      // If signal or signalWithStart RPCs the handler issued returned backlinks, propagate them
+      // to the caller so the caller workflow's history event links to each event on the callee.
+      // Same set of backlinks applies to both sync and async response variants.
+      List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
+      for (io.temporal.api.common.v1.Link backlink :
+          CurrentNexusOperationContext.get().getBacklinks()) {
+        io.temporal.api.nexus.v1.Link converted = LinkConverter.commonLinkToNexusLink(backlink);
+        if (converted != null) {
+          backlinks.add(converted);
         } else {
-          startResponseBuilder.setAsyncSuccess(
-              StartOperationResponse.Async.newBuilder()
-                  .setOperationId(result.getAsyncOperationToken())
-                  .setOperationToken(result.getAsyncOperationToken())
-                  .addAllLinks(
-                      context.getLinks().stream()
-                          .map(
-                              link ->
-                                  io.temporal.api.nexus.v1.Link.newBuilder()
-                                      .setType(link.getType())
-                                      .setUrl(link.getUri().toString())
-                                      .build())
-                          .collect(Collectors.toList()))
-                  .addAllLinks(backlinks)
-                  .build());
+          // The SDK stashed this backlink itself in RootWorkflowClientInvoker; failing to re-encode
+          // it now means a LinkConverter regression or a malformed link from the server. Either is
+          // an SDK invariant violation worth shouting about (warn is too quiet — the caller's
+          // history event will be missing a link with no other diagnostic).
+          log.error(
+              "SDK-stashed backlink failed to re-encode as nexus.v1.Link; caller history will be"
+                  + " missing a link. backlink={}",
+              backlink);
         }
-      } catch (OperationException e) {
-        throw e;
-      } catch (Throwable failure) {
-        convertKnownFailures(failure);
+      }
+
+      if (result.isSync()) {
+        startResponseBuilder.setSyncSuccess(
+            StartOperationResponse.Sync.newBuilder()
+                .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                .addAllLinks(backlinks)
+                .build());
+      } else {
+        startResponseBuilder.setAsyncSuccess(
+            StartOperationResponse.Async.newBuilder()
+                .setOperationId(result.getAsyncOperationToken())
+                .setOperationToken(result.getAsyncOperationToken())
+                .addAllLinks(
+                    context.getLinks().stream()
+                        .map(
+                            link ->
+                                io.temporal.api.nexus.v1.Link.newBuilder()
+                                    .setType(link.getType())
+                                    .setUrl(link.getUri().toString())
+                                    .build())
+                        .collect(Collectors.toList()))
+                .addAllLinks(backlinks)
+                .build());
       }
     } catch (OperationException e) {
       TemporalFailure temporalFailure;
@@ -377,6 +379,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             new RuntimeException("Unknown operation state: " + e.getState()));
       }
       startResponseBuilder.setFailure(dataConverter.exceptionToFailure(temporalFailure));
+    } catch (Throwable failure) {
+      convertKnownFailures(failure);
     }
     return startResponseBuilder.build();
   }
