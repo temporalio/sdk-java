@@ -227,7 +227,7 @@ public class NexusTaskHandlerImplTest {
                               Link.WorkflowEvent.EventReference.newBuilder()
                                   .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
                   .build();
-          CurrentNexusOperationContext.get().addSignalWorkflowResponseLink(backlink);
+          CurrentNexusOperationContext.get().addBacklink(backlink);
           return OperationStartResult.async(token);
         }
 

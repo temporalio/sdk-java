@@ -94,7 +94,7 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     Assert.assertEquals(inboundLink, sent.getLinks(0));
 
     // Backward direction: the response's link is now on the context for the task handler to read.
-    List<Link> captured = nexusCtx.getSignalWorkflowResponseLinks();
+    List<Link> captured = nexusCtx.getBacklinks();
     Assert.assertEquals("expected one captured backlink", 1, captured.size());
     Assert.assertEquals(responseLink, captured.get(0));
   }
@@ -125,7 +125,7 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     // Backward direction: no backlink captured because the server didn't send one.
     Assert.assertTrue(
         "expected no captured backlink when server returned no link",
-        nexusCtx.getSignalWorkflowResponseLinks().isEmpty());
+        nexusCtx.getBacklinks().isEmpty());
   }
 
   /**
@@ -146,7 +146,7 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     invoker.signal(newSignalInput());
     invoker.signal(newSignalInput());
 
-    List<Link> captured = nexusCtx.getSignalWorkflowResponseLinks();
+    List<Link> captured = nexusCtx.getBacklinks();
     Assert.assertEquals(
         "expected one backlink per signal call",
         Arrays.asList(firstResponseLink, secondResponseLink),
