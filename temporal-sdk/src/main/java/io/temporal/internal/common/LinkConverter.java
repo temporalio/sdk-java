@@ -201,8 +201,8 @@ public class LinkConverter {
   public static Link nexusLinkToNexusOperation(io.temporal.api.nexus.v1.Link nexusLink) {
     try {
 
-      //Lots of if statements, but this way we double-check the validity of the link
-      //passed in.
+      // Lots of if statements, but this way we double-check the validity of the link
+      // passed in.
       URI uri = new URI(nexusLink.getUrl());
       if (!"temporal".equals(uri.getScheme())) {
         log.error(
