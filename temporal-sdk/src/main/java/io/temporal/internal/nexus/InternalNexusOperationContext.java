@@ -20,7 +20,7 @@ public class InternalNexusOperationContext {
   Link startWorkflowResponseLink;
   // Links extracted from the inbound Nexus task. Stored once at the task-handler boundary so the
   // workflow client (signal, signalWithStart) can attach them to outgoing requests via
-  // SignalWorkflowExecutionRequest.links, matching the Go SDK's NexusOperationLinksKey ctx value.
+  // SignalWorkflowExecutionRequest.links.
   private List<Link> nexusOperationLinks = Collections.emptyList();
   // Backlinks returned by SignalWorkflowExecutionResponse.link /
   // SignalWithStartWorkflowExecutionResponse.signal_link. One entry per signal RPC issued from
