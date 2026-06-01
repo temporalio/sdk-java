@@ -301,20 +301,12 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
-              // LinkConverter only returns a WorkflowEvent-shaped common.v1.Link; nexus links of
-              // other shapes (e.g. non-temporal URLs) come back null and are intentionally not
-              // forwarded onto SignalWorkflowExecutionRequest.links, which requires the
-              // WorkflowEvent variant. Log so a debugging session can see what was dropped.
-              io.temporal.api.common.v1.Link commonLink =
-                  LinkConverter.nexusLinkToWorkflowEvent(link);
+              // Convert each inbound nexus.v1.Link to common.v1.Link, dispatching on the link's
+              // type field (WorkflowEvent, NexusOperation, etc.). LinkConverter logs the warn for
+              // any unknown type and returns null.
+              io.temporal.api.common.v1.Link commonLink = LinkConverter.nexusLinkToCommonLink(link);
               if (commonLink != null) {
                 inboundCommonLinks.add(commonLink);
-              } else {
-                log.warn(
-                    "Dropping inbound Nexus link from outbound signal propagation: type='{}',"
-                        + " url='{}' (not a parseable temporal WorkflowEvent link)",
-                    link.getType(),
-                    link.getUrl());
               }
             });
     CurrentNexusOperationContext.get().setNexusOperationLinks(inboundCommonLinks);
@@ -335,11 +327,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
         for (io.temporal.api.common.v1.Link backlink :
             CurrentNexusOperationContext.get().getBacklinks()) {
-          if (!backlink.hasWorkflowEvent()) {
-            continue;
-          }
-          io.temporal.api.nexus.v1.Link converted =
-              LinkConverter.workflowEventToNexusLink(backlink.getWorkflowEvent());
+          io.temporal.api.nexus.v1.Link converted = LinkConverter.commonLinkToNexusLink(backlink);
           if (converted != null) {
             backlinks.add(converted);
           }
