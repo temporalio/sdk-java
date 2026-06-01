@@ -414,6 +414,37 @@ public class LinkConverterTest {
   }
 
   @Test
+  public void testNexusOperationRoundTrip_OperationIdWithSpecialChars() {
+    // operationId is the field the encoder applies the `+ → %20` workaround to (matching the
+    // workflowId precedent in WorkflowEvent). Verify spaces, '+', and '/' round-trip cleanly.
+    Link original =
+        Link.newBuilder()
+            .setNexusOperation(
+                Link.NexusOperation.newBuilder()
+                    .setNamespace("ns")
+                    .setOperationId("op with+special/chars")
+                    .setRunId("run-id"))
+            .build();
+
+    io.temporal.api.nexus.v1.Link encoded = commonLinkToNexusLink(original);
+    Link decoded = nexusLinkToCommonLink(encoded);
+    assertEquals(original, decoded);
+  }
+
+  @Test
+  public void testConvertNexusToNexusOperation_ExtraTokensAfterDetails() {
+    // Defends against silently lossy parsing if the server later extends the path beyond
+    // /details/... (e.g. /details/{event_id}). Older SDKs should reject rather than drop tokens.
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/nexus-operations/op-id/run-id/details/extra/junk")
+            .setType("temporal.api.common.v1.Link.NexusOperation")
+            .build();
+
+    assertNull(nexusLinkToNexusOperation(input));
+  }
+
+  @Test
   public void testConvertNexusToNexusOperation_InvalidScheme() {
     io.temporal.api.nexus.v1.Link input =
         io.temporal.api.nexus.v1.Link.newBuilder()

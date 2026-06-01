@@ -9,12 +9,17 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalInput;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalWithStartInput;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowStartInput;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
@@ -153,6 +158,80 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
         captured);
   }
 
+  /**
+   * Happy-path mirror of {@link #signalForwardsInboundLinksAndCapturesResponseBacklink} but for
+   * {@code signalWithStart}. The forward direction must attach inbound links to {@link
+   * SignalWithStartWorkflowExecutionRequest#getLinksList}, and the backward direction must capture
+   * {@code response.signal_link} via the same backlink path. Different proto field name ({@code
+   * signal_link} vs {@code link}) and different code path inside {@link
+   * io.temporal.internal.client.RootWorkflowClientInvoker#signalWithStart} — a regression in only
+   * one branch would otherwise pass the plain-signal tests.
+   */
+  @Test
+  public void signalWithStartForwardsInboundLinksAndCapturesResponseBacklink() {
+    Link inboundLink =
+        workflowEventLink(
+            "caller-wf", "caller-run", EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
+    nexusCtx.setNexusOperationLinks(Collections.singletonList(inboundLink));
+
+    Link responseLink =
+        workflowEventLink(
+            WORKFLOW_ID, "target-run", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
+    SignalWithStartWorkflowExecutionResponse response =
+        SignalWithStartWorkflowExecutionResponse.newBuilder()
+            .setRunId("target-run")
+            .setSignalLink(responseLink)
+            .build();
+    when(genericClient.signalWithStart(any(SignalWithStartWorkflowExecutionRequest.class)))
+        .thenReturn(response);
+
+    invoker.signalWithStart(newSignalWithStartInput());
+
+    // Forward direction: the SignalWithStartWorkflowExecutionRequest carries the inbound link.
+    ArgumentCaptor<SignalWithStartWorkflowExecutionRequest> captor =
+        ArgumentCaptor.forClass(SignalWithStartWorkflowExecutionRequest.class);
+    org.mockito.Mockito.verify(genericClient).signalWithStart(captor.capture());
+    SignalWithStartWorkflowExecutionRequest sent = captor.getValue();
+    Assert.assertEquals("request should carry the single inbound link", 1, sent.getLinksCount());
+    Assert.assertEquals(inboundLink, sent.getLinks(0));
+
+    // Backward direction: response.signal_link is on the context for the task handler to read.
+    List<Link> captured = nexusCtx.getBacklinks();
+    Assert.assertEquals("expected one captured backlink", 1, captured.size());
+    Assert.assertEquals(responseLink, captured.get(0));
+  }
+
+  /**
+   * Mixed-RPC accumulation: a handler that issues one signal and one signalWithStart against the
+   * same context must end up with both backlinks captured, in call order. Guards against
+   * regressions where one of the two code paths stops appending to the same list.
+   */
+  @Test
+  public void mixedSignalAndSignalWithStartAccumulateAllBacklinks() {
+    Link signalResponseLink =
+        workflowEventLink("callee-s", "run-s", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
+    Link signalWithStartResponseLink =
+        workflowEventLink(
+            "callee-sws", "run-sws", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
+    when(genericClient.signal(any(SignalWorkflowExecutionRequest.class)))
+        .thenReturn(
+            SignalWorkflowExecutionResponse.newBuilder().setLink(signalResponseLink).build());
+    when(genericClient.signalWithStart(any(SignalWithStartWorkflowExecutionRequest.class)))
+        .thenReturn(
+            SignalWithStartWorkflowExecutionResponse.newBuilder()
+                .setRunId("run-sws")
+                .setSignalLink(signalWithStartResponseLink)
+                .build());
+
+    invoker.signal(newSignalInput());
+    invoker.signalWithStart(newSignalWithStartInput());
+
+    Assert.assertEquals(
+        "expected one backlink each from signal and signalWithStart, in call order",
+        Arrays.asList(signalResponseLink, signalWithStartResponseLink),
+        nexusCtx.getBacklinks());
+  }
+
   // ── helpers ──────────────────────────────────────────────────────────────────────────────
 
   private static WorkflowSignalInput newSignalInput() {
@@ -161,6 +240,15 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
         "test-signal",
         Header.empty(),
         new Object[] {"payload"});
+  }
+
+  private static WorkflowSignalWithStartInput newSignalWithStartInput() {
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue("tq").build();
+    WorkflowStartInput startInput =
+        new WorkflowStartInput(
+            WORKFLOW_ID, "TestWorkflow", Header.empty(), new Object[] {}, options);
+    return new WorkflowSignalWithStartInput(
+        startInput, "test-signal", new Object[] {"signal-payload"});
   }
 
   private static Link workflowEventLink(String workflowId, String runId, EventType eventType) {
