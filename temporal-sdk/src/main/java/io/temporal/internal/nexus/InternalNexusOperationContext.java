@@ -17,7 +17,6 @@ public class InternalNexusOperationContext {
   private final Scope metricScope;
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
-  Link startWorkflowResponseLink;
   // Links extracted from the inbound Nexus task. Stored once at the task-handler boundary so the
   // workflow client (signal, signalWithStart) can attach them to outgoing requests via
   // SignalWorkflowExecutionRequest.links.
@@ -48,17 +47,6 @@ public class InternalNexusOperationContext {
     this.metricScope = metricScope;
     this.client = client;
     this.ownerThread = Thread.currentThread();
-  }
-
-  private void assertOwnerThread() {
-    if (Thread.currentThread() != ownerThread) {
-      throw new IllegalStateException(
-          "InternalNexusOperationContext mutated from thread '"
-              + Thread.currentThread().getName()
-              + "' but is owned by '"
-              + ownerThread.getName()
-              + "'. Operation handlers must not spawn threads to issue link-propagating RPCs.");
-    }
   }
 
   public Scope getMetricsScope() {
@@ -92,20 +80,11 @@ public class InternalNexusOperationContext {
     return new NexusOperationContextImpl();
   }
 
-  public void setStartWorkflowResponseLink(Link link) {
-    this.startWorkflowResponseLink = link;
-  }
-
-  public Link getStartWorkflowResponseLink() {
-    return startWorkflowResponseLink;
-  }
-
   /**
    * Set the {@code common.v1.Link}s extracted from the inbound Nexus task so they can be attached
    * to RPCs issued by the operation handler.
    */
   public void setNexusOperationLinks(List<Link> links) {
-    assertOwnerThread();
     this.nexusOperationLinks = links == null ? Collections.emptyList() : links;
   }
 
@@ -120,7 +99,6 @@ public class InternalNexusOperationContext {
    * StartOperationResponse.
    */
   public void addBacklink(Link link) {
-    assertOwnerThread();
     if (link != null) {
       this.responseBacklinks.add(link);
     }
